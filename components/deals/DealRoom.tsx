@@ -579,6 +579,29 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
               value={iAmCreator ? deal.counterparty_item_text : deal.creator_item_text}
             />
           </div>
+
+          {/* The terms editor also lives as a small button on the Handover card,
+              but a joiner naturally looks for "what I bring" here — so surface a
+              clear entry point right beside their own side. */}
+          {canEditTerms ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed bg-muted/40 p-3">
+              <p className="text-sm text-muted-foreground">
+                {(iAmCreator ? deal.creator_item_text : deal.counterparty_item_text)
+                  ? 'Need to change what you\u2019re putting up, the cash, or the collateral?'
+                  : 'Add the items you\u2019re bringing to this deal, plus any cash or collateral.'}
+              </p>
+              <EditTermsDialog
+                deal={deal}
+                iAmCreator={iAmCreator}
+                someoneConfirmed={myConfirmed || theirConfirmed}
+                triggerLabel={
+                  (iAmCreator ? deal.creator_item_text : deal.counterparty_item_text)
+                    ? 'Edit your items'
+                    : 'Add your items'
+                }
+              />
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

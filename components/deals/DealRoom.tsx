@@ -569,38 +569,53 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
             </ul>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TermsField
-              label="You bring"
-              value={iAmCreator ? deal.creator_item_text : deal.counterparty_item_text}
-            />
-            <TermsField
-              label={them ? `${nameOf(them)} brings` : 'They bring'}
-              value={iAmCreator ? deal.counterparty_item_text : deal.creator_item_text}
-            />
-          </div>
+          {(() => {
+            const myItemText = iAmCreator
+              ? deal.creator_item_text
+              : deal.counterparty_item_text;
+            const theirItemText = iAmCreator
+              ? deal.counterparty_item_text
+              : deal.creator_item_text;
+            return (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Your own side carries the edit control inline: a joiner looks
+                    for "what I bring" right here, not in the Handover card. */}
+                <div className="rounded-md border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      You bring
+                    </p>
+                    {canEditTerms ? (
+                      <EditTermsDialog
+                        deal={deal}
+                        iAmCreator={iAmCreator}
+                        someoneConfirmed={myConfirmed || theirConfirmed}
+                        triggerLabel={myItemText?.trim() ? 'Edit' : 'Set'}
+                      />
+                    ) : null}
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap">
+                    {myItemText?.trim() ? (
+                      myItemText
+                    ) : (
+                      <span className="text-muted-foreground">Not set</span>
+                    )}
+                  </p>
+                </div>
+                <TermsField
+                  label={them ? `${nameOf(them)} brings` : 'They bring'}
+                  value={theirItemText}
+                />
+              </div>
+            );
+          })()}
 
-          {/* The terms editor also lives as a small button on the Handover card,
-              but a joiner naturally looks for "what I bring" here — so surface a
-              clear entry point right beside their own side. */}
           {canEditTerms ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed bg-muted/40 p-3">
-              <p className="text-sm text-muted-foreground">
-                {(iAmCreator ? deal.creator_item_text : deal.counterparty_item_text)
-                  ? 'Need to change what you\u2019re putting up, the cash, or the collateral?'
-                  : 'Add the items you\u2019re bringing to this deal, plus any cash or collateral.'}
-              </p>
-              <EditTermsDialog
-                deal={deal}
-                iAmCreator={iAmCreator}
-                someoneConfirmed={myConfirmed || theirConfirmed}
-                triggerLabel={
-                  (iAmCreator ? deal.creator_item_text : deal.counterparty_item_text)
-                    ? 'Edit your items'
-                    : 'Add your items'
-                }
-              />
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Use <strong>Set</strong> above to enter what you&apos;re bringing.
+              The same dialog also sets the cash and collateral. Editing terms
+              clears both confirmations.
+            </p>
           ) : null}
         </CardContent>
       </Card>

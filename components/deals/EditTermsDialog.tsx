@@ -5,7 +5,7 @@
 // Step 3 of the private deal flow: agree the handover. Either party may edit the
 // terms while the deal is in TERMS or CONFIRMATION.
 //
-// The dialog carries an explicit warning that editing CLEARS BOTH CONFIRMATIONS —
+// The dialog carries an explicit warning that editing CLEARS BOTH CONFIRMATIONS -
 // the database enforces this with a trigger, so the UI must never imply that a
 // tick survives a terms change.
 
@@ -77,7 +77,7 @@ function messageForError(result: Extract<UpdateTermsResult, { ok: false }>): str
 
 /**
  * Recover just the human-written shipping notes from `delivery_details`. The
- * server prepends a generated price line ("Delivered — $12.00 delivery…") to
+ * server prepends a generated price line ("Delivered - $12.00 delivery…") to
  * whatever the parties typed, so that line is dropped here rather than being fed
  * back in as notes and duplicated on every save.
  */
@@ -85,7 +85,7 @@ function deliveryNotesFrom(deal: DealRow): string {
   const stored = deal.delivery_details ?? '';
   if (deal.delivery_cost_cents == null) return stored;
   const [first, ...rest] = stored.split('\n');
-  return first.startsWith('Delivered —') ? rest.join('\n') : stored;
+  return first.startsWith('Delivered -') ? rest.join('\n') : stored;
 }
 
 /** Format integer AUD cents as a plain dollars string for a number input. */
@@ -143,7 +143,7 @@ export function EditTermsDialog({
   const [inlineError, setInlineError] = useState<string | null>(null);
 
   // `counterparty_id` is null until somebody joins via the share link, and terms
-  // are only editable after that — so the payer choice is hidden while it is.
+  // are only editable after that - so the payer choice is hidden while it is.
   const myPartyId = iAmCreator ? deal.creator_id : deal.counterparty_id;
   const theirPartyId = iAmCreator ? deal.counterparty_id : deal.creator_id;
 
@@ -306,7 +306,7 @@ export function EditTermsDialog({
       if (result.ok) {
         toast.success(
           result.confirmationsCleared
-            ? 'Terms saved — both parties must confirm again.'
+            ? 'Terms saved - both parties must confirm again.'
             : 'Terms saved.',
         );
         setOpen(false);
@@ -345,7 +345,7 @@ export function EditTermsDialog({
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
             <p>
               {someoneConfirmed
-                ? 'Changing any term clears both confirmations — you will both need to confirm again.'
+                ? 'Changing any term clears both confirmations - you will both need to confirm again.'
                 : 'Any change to the terms clears both confirmations, so you both re-confirm before the deal becomes binding.'}
             </p>
           </div>
@@ -373,7 +373,7 @@ export function EditTermsDialog({
                   id="terms-my-item"
                   value={myItemText}
                   onChange={(event) => setMyItemText(event.target.value)}
-                  placeholder="e.g. 1999 Base Set Charizard, PSA 10 — certification number, condition notes and anything included"
+                  placeholder="e.g. 1999 Base Set Charizard, PSA 10 - certification number, condition notes and anything included"
                   maxLength={DEAL_TEXT_MAX}
                   rows={4}
                   required={goodsRequired}
@@ -632,7 +632,7 @@ export function EditTermsDialog({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    The total worth of the exchange — cards plus any cash. When collateral is required, each person&apos;s hold is 100% of this amount. If left blank it falls back to the cash value only, which understates a trade that also includes cards.
+                    The total worth of the exchange - cards plus any cash. When collateral is required, each person&apos;s hold is 100% of this amount. If left blank it falls back to the cash value only, which understates a trade that also includes cards.
                   </p>
                 </div>
               </div>

@@ -3,7 +3,7 @@
 // TEST-MODE ONLY simulation of a Pinch Managed Merchant compliance decision.
 //
 // WHY THIS EXISTS. Pinch's test environment can simulate almost everything a
-// merchant does — `Time-Travel` for direct-debit processing/settlement, test
+// merchant does - `Time-Travel` for direct-debit processing/settlement, test
 // cards and bank accounts, and dishonour-code triggers. What it does NOT expose
 // is an endpoint to advance a compliance review: approval is a human step at
 // Pinch, and the decision reaches us as a `compliance-updated` webhook. In test

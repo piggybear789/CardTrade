@@ -7,7 +7,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Poke-xchange — Protected Trades for Serious Collectors',
+    name: 'Poke-xchange - Protected Trades for Serious Collectors',
     short_name: 'Poke-xchange',
     description:
       'Buy, sell, and swap high-value collectibles with collateral-backed escrow.',

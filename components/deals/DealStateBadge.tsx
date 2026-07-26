@@ -21,7 +21,7 @@ const STATE_BADGE: Record<
   TERMS: { label: 'Agreeing terms', variant: 'secondary' },
   CONFIRMATION: { label: 'Awaiting confirmation', variant: 'outline' },
   ESCROW_PENDING: { label: 'Placing collateral', variant: 'outline' },
-  ESCROW_LOCKED: { label: 'Binding — collateral locked', variant: 'default' },
+  ESCROW_LOCKED: { label: 'Binding - collateral locked', variant: 'default' },
   COMPLETED: { label: 'Completed', variant: 'default' },
   CANCELLED: { label: 'Cancelled', variant: 'secondary' },
   DISPUTED: { label: 'Disputed', variant: 'destructive' },

@@ -25,10 +25,10 @@ export type NotificationRow = Tables<'notifications'>;
  * Connection state of the underlying Realtime channel, surfaced so the bell UI
  * can render a live / reconnecting indicator.
  *
- * - `connecting`    — initial subscription in progress, no live link yet.
- * - `live`          — channel subscribed; new notifications arrive in real time.
- * - `reconnecting`  — the channel dropped and a resubscribe is being attempted.
- * - `error`         — reconnection attempts have been exhausted.
+ * - `connecting`    - initial subscription in progress, no live link yet.
+ * - `live`          - channel subscribed; new notifications arrive in real time.
+ * - `reconnecting`  - the channel dropped and a resubscribe is being attempted.
+ * - `error`         - reconnection attempts have been exhausted.
  */
 export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'error';
 

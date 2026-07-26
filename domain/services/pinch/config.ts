@@ -21,7 +21,7 @@ export type PinchEnvironment = 'test' | 'live';
  * `placeHold` charges the collateral, `voidHold` refunds it in full,
  * `partialCapture` refunds the remainder (keeping the Friction_Tax), and
  * `fullCapture` simply keeps the charge. This is a real movement of funds, not a
- * true authorization hold — see the steering note in
+ * true authorization hold - see the steering note in
  * `.kiro/steering/pinch-payments.md`.
  */
 export type PinchHoldStrategy = 'charge-and-refund';

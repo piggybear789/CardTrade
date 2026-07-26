@@ -2,8 +2,8 @@
 //
 // The pure, injectable core of the item-update orchestration (Req 3.4, 3.5,
 // 3.6). It combines the existing item validation schema with a data-access seam
-// (`ItemRepository`) and depends only on interfaces — never on
-// `server-only`/Supabase — so it stays exhaustively testable against a fake
+// (`ItemRepository`) and depends only on interfaces - never on
+// `server-only`/Supabase - so it stays exhaustively testable against a fake
 // (task 7.17, Property 14). The concrete Supabase binding lives in
 // `supabaseItemRepository.ts`.
 //
@@ -52,14 +52,14 @@ export interface ItemRepository {
 
 /**
  * Typed failure codes for an item update.
- * - `ITEM_NOT_FOUND`     — no Item exists for the id.
- * - `NOT_ITEM_OWNER`     — the actor does not own the Item (Req 3.7 defense in
+ * - `ITEM_NOT_FOUND`     - no Item exists for the id.
+ * - `NOT_ITEM_OWNER`     - the actor does not own the Item (Req 3.7 defense in
  *                          depth; primary enforcement is RLS/server action).
- * - `FMV_IMMUTABLE`      — the Item is RESERVED and the update changes
+ * - `FMV_IMMUTABLE`      - the Item is RESERVED and the update changes
  *                          `fmvCents`, which is immutable while reserved (Req 3.6).
- * - `ITEM_NOT_AVAILABLE` — the Item's status is not AVAILABLE, so it cannot be
+ * - `ITEM_NOT_AVAILABLE` - the Item's status is not AVAILABLE, so it cannot be
  *                          modified; existing fields are preserved (Req 3.5).
- * - `VALIDATION_ERROR`   — the update payload failed schema validation (Req 3.2,
+ * - `VALIDATION_ERROR`   - the update payload failed schema validation (Req 3.2,
  *                          3.3); `field`/`detail` identify the invalid field.
  */
 export type ItemUpdateError =

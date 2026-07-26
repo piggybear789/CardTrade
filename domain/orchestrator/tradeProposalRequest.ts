@@ -2,7 +2,7 @@
 //
 // Trade_Proposal negotiation: the step that now precedes Requirement 5.1.
 //
-// A Trader offers one of their own Items — publicly listed or privately held —
+// A Trader offers one of their own Items - publicly listed or privately held -
 // against a Counterpart's listed Item. While the proposal is PENDING nothing is
 // reserved and no Pre_Auth_Hold is requested. Only when the Counterpart accepts
 // does the Trade get created, at which point Req 5.1 (reserve both Items) and
@@ -110,12 +110,12 @@ export interface TradeProposalRequestRepository {
 /**
  * Typed failures for {@link requestTradeProposal}. Every guard runs before any
  * write, so a rejected request leaves both Items untouched.
- * - `item-not-found`    — either Item does not exist.
- * - `not-owner`         — the proposer does not own the Item they offered.
- * - `self-trade`        — both Items belong to the same Trader.
- * - `item-unavailable`  — either Item's status is not AVAILABLE.
- * - `counterpart-item-private` — the requested Item is not publicly listed.
- * - `duplicate-pending` — this proposer already has a live offer on that Item.
+ * - `item-not-found`    - either Item does not exist.
+ * - `not-owner`         - the proposer does not own the Item they offered.
+ * - `self-trade`        - both Items belong to the same Trader.
+ * - `item-unavailable`  - either Item's status is not AVAILABLE.
+ * - `counterpart-item-private` - the requested Item is not publicly listed.
+ * - `duplicate-pending` - this proposer already has a live offer on that Item.
  */
 export type RequestTradeProposalError =
   | 'item-not-found'
@@ -144,10 +144,10 @@ export type RequestTradeProposalResult =
  * be compared to a listing price by the system, and the goods may be unlisted and
  * unpriced. The Counterpart's acceptance is what agrees the valuation (Req 5.2);
  * CardTrade does not appraise goods. The declared value is recorded for them to
- * judge, and deliberately does not size either Bond — that is sized on what each
+ * judge, and deliberately does not size either Bond - that is sized on what each
  * Trader receives, so understating a bundle cannot reduce the proposer's exposure.
  *
- * Offered Items MAY be hidden — that is the privately offered case. The requested
+ * Offered Items MAY be hidden - that is the privately offered case. The requested
  * Item may not be, since a proposal can only target a public listing.
  */
 export async function requestTradeProposal(
@@ -222,8 +222,8 @@ export async function requestTradeProposal(
  * Revise your own PENDING offer.
  *
  * Only the proposer may edit, and only while the offer is still open. The primary
- * Item is fixed — changing what you are fundamentally offering is a new offer, not
- * an edit — but the rest of the bundle, the cash, the stated value and the note can
+ * Item is fixed - changing what you are fundamentally offering is a new offer, not
+ * an edit - but the rest of the bundle, the cash, the stated value and the note can
  * all change. Any acceptance the Counterpart had not yet given is unaffected,
  * because acceptance is a single act on the current terms.
  */
@@ -284,10 +284,10 @@ export async function amendTradeProposal(
 
 /**
  * Typed failures for responding to a proposal.
- * - `proposal-not-found` — no such proposal.
- * - `not-permitted`      — the caller is not the Trader entitled to this action.
- * - `not-pending`        — the proposal was already decided.
- * - `item-unavailable`   — an Item left AVAILABLE, so the offer has lapsed.
+ * - `proposal-not-found` - no such proposal.
+ * - `not-permitted`      - the caller is not the Trader entitled to this action.
+ * - `not-pending`        - the proposal was already decided.
+ * - `item-unavailable`   - an Item left AVAILABLE, so the offer has lapsed.
  */
 export type RespondTradeProposalError =
   | 'proposal-not-found'

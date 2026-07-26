@@ -6,7 +6,7 @@
 // email), wired to the `updateProfile` Server Action. It surfaces field-level
 // validation errors inline against the offending input (Req 1.5) and confirms a
 // successful save with a sonner toast (Req 1.4). Only the owner ever reaches
-// this form — the page reads the caller's own row and RLS confines the write to
+// this form - the page reads the caller's own row and RLS confines the write to
 // `auth.uid() = id` (Req 1.6).
 
 import * as React from "react";

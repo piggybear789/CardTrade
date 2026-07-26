@@ -8,7 +8,7 @@
 // and scopes reads to the reporter (admins additionally see all rows).
 //
 // These are best-effort: a report never emits a notification and never mutates
-// the target — triage happens later in the admin console. Every export is an
+// the target - triage happens later in the admin console. Every export is an
 // async Server Action; shared shapes are `export type` only.
 
 import { createClient } from '@/lib/supabase/server';
@@ -25,11 +25,11 @@ export type ReportTargetType = 'item' | 'user';
 
 /**
  * Report action error codes.
- * - `not-authenticated` — no signed-in user.
- * - `validation-error`  — reason/details failed validation.
- * - `self-report`       — the caller tried to report their own listing/self.
- * - `not-found`         — the target item does not exist.
- * - `persistence-error` — the database insert failed.
+ * - `not-authenticated` - no signed-in user.
+ * - `validation-error`  - reason/details failed validation.
+ * - `self-report`       - the caller tried to report their own listing/self.
+ * - `not-found`         - the target item does not exist.
+ * - `persistence-error` - the database insert failed.
  */
 export type ReportActionError =
   | 'not-authenticated'

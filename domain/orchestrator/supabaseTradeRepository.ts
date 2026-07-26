@@ -2,7 +2,7 @@
 //
 // The concrete, production wiring of the Trade Orchestrator's data-access seam.
 // It backs the `TradeRepository` interface with the service-role Supabase admin
-// client (which bypasses RLS — Trade writes must pass state-machine validation,
+// client (which bypasses RLS - Trade writes must pass state-machine validation,
 // trigger side effects, and write the audit row via this trusted path).
 //
 // This binding is kept OUT of `tradeOrchestrator.ts` on purpose: that core must
@@ -79,7 +79,7 @@ export function createSupabaseTradeRepository(
  * Default production orchestrator wiring: a Supabase-backed repository plus the
  * injectable seams for payments and side effects (left to tasks 7.4/7.8).
  *
- * Callers may override any dependency — e.g. supply a real `payments` service
+ * Callers may override any dependency - e.g. supply a real `payments` service
  * and `runSideEffects` once the full side effects are implemented, or inject a
  * fake repository in an integration test.
  */

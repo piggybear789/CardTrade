@@ -6,7 +6,7 @@
 // deliberately THIN wrappers: each one authenticates the caller, verifies (where
 // relevant) that they participate in the Trade, then delegates to a domain
 // orchestrator. All transition rules, payment side effects, hold sizing, and
-// audit writes live in the orchestrators — never here.
+// audit writes live in the orchestrators - never here.
 //
 // Authorization model:
 //   * The cookie-bound server client (`createClient`) loads the Trade under RLS,
@@ -100,7 +100,7 @@ async function requireParticipant(
 }
 
 // ---------------------------------------------------------------------------
-// ensureTradeConversation — open the trade's chat thread on demand
+// ensureTradeConversation - open the trade's chat thread on demand
 // (demo-contract-ux Req 1, 2: an accepted Trade is a contract room just like a
 // Cash_Sale or Deal, so it gets the same participant-only chat.)
 // ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@ export type EnsureTradeConversationResult =
  * Resolve the trade's chat thread, creating and linking it if needed.
  *
  * Trades accepted before this thread existed (or an interrupted first view)
- * have no linked conversation, so `TradeContract` calls this on first view —
+ * have no linked conversation, so `TradeContract` calls this on first view -
  * the same self-healing path the cash sale and deal contract rooms use.
  * Authorization is enforced twice: the participant guard here, and again
  * inside the `ensure_trade_conversation` RPC.
@@ -174,7 +174,7 @@ export type ProposeTradeActionResult =
  * Item's FMV).
  *
  * When BOTH Traders are verified no bond is placed, so no provider webhook will
- * arrive to confirm collateral — this action dispatches HOLDS_CONFIRMED itself so
+ * arrive to confirm collateral - this action dispatches HOLDS_CONFIRMED itself so
  * the Trade moves straight to COLLATERAL_LOCKED.
  */
 export async function proposeTrade(
@@ -216,7 +216,7 @@ export async function proposeTrade(
 
   if (result.bondsRequired === 0) {
     // No collateral to wait on: lock the trade now. A rejected transition is not
-    // fatal — the Trade still exists in COLLATERAL_PENDING and can be retried.
+    // fatal - the Trade still exists in COLLATERAL_PENDING and can be retried.
     const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
     await orchestrator.applyEvent({
       tradeId: result.trade.id,
@@ -284,7 +284,7 @@ async function recordLifecycle(
   }
 
   // Derive the aggregate event from the freshly updated row. When only one side
-  // has acted, there is no transition yet — the recording itself is the result.
+  // has acted, there is no transition yet - the recording itself is the result.
   const event = deriveEvent(write.trade.state, factsFromTrade(write.trade));
   if (!event) {
     return { ok: true, state: write.trade.state, transitioned: false };
@@ -298,7 +298,7 @@ async function recordLifecycle(
 
   // Req 6.7: on BOTH_ACCEPTED -> COMPLETED, release every Pre_Auth_Hold on this
   // Trade at $0 cost. This mirrors the dispute/fraud paths' hold-void step,
-  // which was already implemented — the plain successful-completion path was
+  // which was already implemented - the plain successful-completion path was
   // the one place Req 6.7 had never been wired up. With real collateral now a
   // genuine charge (see PinchService), skipping this would leave completed
   // trades' collateral charged and never refunded.
@@ -318,7 +318,7 @@ async function recordLifecycle(
  * Void every ACTIVE Pre_Auth_Hold on a completed Trade (Req 6.7). Best-effort:
  * a void failure here does not roll back COMPLETED (the goods have already
  * changed hands per both Traders' own acceptance) but is logged so it can be
- * investigated — the same tolerance the dispute/fraud paths already apply to
+ * investigated - the same tolerance the dispute/fraud paths already apply to
  * their own void calls.
  */
 async function voidTradeHolds(tradeId: string): Promise<void> {
@@ -349,7 +349,7 @@ async function voidTradeHolds(tradeId: string): Promise<void> {
  * `requestTransfer` through the injected `PaymentService` so a cash-inclusive
  * trade is never presented as complete without the money having actually moved.
  *
- * Failure is recorded but does not block completion — the goods have already
+ * Failure is recorded but does not block completion - the goods have already
  * changed hands on both Traders' own acceptance, and reverting COMPLETED would
  * contradict that. Instead the Trade is flagged for manual reconciliation, the
  * same escape hatch the fraud full-capture retry path already uses, so a failed

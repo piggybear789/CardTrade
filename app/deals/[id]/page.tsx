@@ -2,7 +2,7 @@
 //
 // The deal room route. A Server Component that requires authentication, loads the
 // deal through `getDeal` (which enforces the two-party participant guard under
-// RLS — a non-participant sees no row and gets a 404), and renders the live
+// RLS - a non-participant sees no row and gets a 404), and renders the live
 // client <DealRoom/>.
 
 import { notFound, redirect } from 'next/navigation';

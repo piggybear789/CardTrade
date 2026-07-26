@@ -251,7 +251,7 @@ type CreatedDeal = { dealId: string; shareToken: string; title: string };
 export interface NewDealFormProps {
   /**
    * True when the creator is not identity verified, so collateral will be held
-   * on BOTH sides once the deal is confirmed. Presentation only — the amount is
+   * on BOTH sides once the deal is confirmed. Presentation only - the amount is
    * resolved server-side by `confirmDeal`.
    */
   collateralRequired?: boolean;
@@ -290,7 +290,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
 
   // What each side is held for while the creator stays unverified: the deal's own
   // cash value, or the flat default for a pure swap. The server resolves the real
-  // figure at confirmation time — this is the live estimate as the form is filled.
+  // figure at confirmation time - this is the live estimate as the form is filled.
   const enteredCash = cashRequired ? dollarsToCents(cash) : null;
   const collateralStakeCents =
     enteredCash && enteredCash > 0 ? enteredCash : DEAL_DEFAULT_COLLATERAL_CENTS;
@@ -431,7 +431,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
         });
 
         if (result.ok) {
-          toast.success('Deal created — share the link.');
+          toast.success('Deal created - share the link.');
           setCreated({
             dealId: result.dealId,
             shareToken: result.shareToken,
@@ -530,7 +530,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
               </p>
               <p className="mt-1">
                 You&apos;re unverified, so both sides will be held for about{' '}
-                {formatAud(collateralStakeCents)} once you both confirm — released
+                {formatAud(collateralStakeCents)} once you both confirm - released
                 when you both mark the deal complete.{' '}
                 <Link
                   href="/profile#payouts"

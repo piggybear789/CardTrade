@@ -1,6 +1,6 @@
 // domain/deal/dealCollateral.ts
 //
-// COLLATERAL POLICY FOR PRIVATE DEALS — the deal-room application of the Bond
+// COLLATERAL POLICY FOR PRIVATE DEALS - the deal-room application of the Bond
 // Policy (`domain/bond/bondPolicy.ts`). Same rule as a 2-way trade escrow:
 //
 //   Trust is either identity or money.
@@ -32,9 +32,9 @@ import { requiredBondCents, type BondPolicy } from '../bond/bondPolicy';
  * (a cash deal is naturally sized by its own value), else the flat default.
  */
 export interface DealCollateralBasis {
-  /** `deals.collateral_cents` — the amount the parties agreed explicitly. */
+  /** `deals.collateral_cents` - the amount the parties agreed explicitly. */
   collateralCents?: number | null;
-  /** `deals.cash_amount_cents` — the deal's cash component, if any. */
+  /** `deals.cash_amount_cents` - the deal's cash component, if any. */
   cashAmountCents?: number | null;
 }
 
@@ -42,7 +42,7 @@ export interface DealCollateralBasis {
 export interface DealCollateralPolicy {
   /** Stake used when the deal states neither collateral nor a cash amount. */
   defaultCents: number;
-  /** Smallest meaningful stake — a $0 hold is not a commitment. */
+  /** Smallest meaningful stake - a $0 hold is not a commitment. */
   minCents: number;
   /** Largest stake a deal may size collateral from. */
   maxCents: number;
@@ -61,7 +61,7 @@ export const DEFAULT_DEAL_COLLATERAL_POLICY: DealCollateralPolicy = {
   maxCents: 99_999_999_999,
 };
 
-/** Why the resolved amount is what it is — drives the room's explanation. */
+/** Why the resolved amount is what it is - drives the room's explanation. */
 export type DealCollateralReason =
   /** Both parties are verified, so nothing is held. */
   | 'BOTH_VERIFIED'

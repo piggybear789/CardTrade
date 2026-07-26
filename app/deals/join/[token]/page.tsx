@@ -3,7 +3,7 @@
 // The share-link landing page. A private deal is created SOLO; this is where the
 // OTHER party arrives, sees a minimal preview, and joins as the counterparty.
 //
-// The token in the URL is the capability — there is no token-based RLS policy, so
+// The token in the URL is the capability - there is no token-based RLS policy, so
 // `getDealByToken` validates it with the service-role client and returns only a
 // preview (never the full deal row). Four shapes:
 //   * invalid / closed link  → a friendly "not available" page (404 for unknown)
@@ -110,7 +110,7 @@ export default async function JoinDealPage({
 
   const { preview } = result;
 
-  // I already took this seat — the room is where I belong.
+  // I already took this seat - the room is where I belong.
   if (preview.joinedByMe) {
     redirect(`/deals/${preview.dealId}`);
   }
@@ -202,7 +202,7 @@ export default async function JoinDealPage({
                   </p>
                   {preview.deliveryCostCents ? (
                     <p className="mt-1 text-muted-foreground">
-                      Plus {formatAud(preview.deliveryCostCents)} delivery —{' '}
+                      Plus {formatAud(preview.deliveryCostCents)} delivery -{' '}
                       {formatAud(
                         preview.cashAmountCents + preview.deliveryCostCents,
                       )}{' '}
@@ -219,7 +219,7 @@ export default async function JoinDealPage({
               </p>
               {preview.handoverMethod === 'IN_PERSON' ? (
                 <>
-                  <p className="mt-1">Face to face — {preview.meetingLocation}</p>
+                  <p className="mt-1">Face to face - {preview.meetingLocation}</p>
                   <p className="mt-1 text-muted-foreground">
                     {preview.meetingAt
                       ? new Date(preview.meetingAt).toLocaleString('en-AU', {
@@ -234,7 +234,7 @@ export default async function JoinDealPage({
                 </>
               ) : preview.handoverMethod === 'DELIVERY' ? (
                 <p className="mt-1">
-                  Delivery —{' '}
+                  Delivery -{' '}
                   {preview.deliveryCostCents
                     ? `${formatAud(preview.deliveryCostCents)} postage`
                     : 'free delivery'}
@@ -251,7 +251,7 @@ export default async function JoinDealPage({
               Joining doesn&apos;t commit you. You agree the handover together
               first, and the deal only becomes binding once you both confirm. If
               either of you isn&apos;t identity verified by then, both sides are
-              held for the deal&apos;s value until you both mark it complete —
+              held for the deal&apos;s value until you both mark it complete -
               verified members post nothing.
             </span>
           </p>
@@ -261,7 +261,7 @@ export default async function JoinDealPage({
           {preview.iAmCreator ? (
             <>
               <p className="text-sm text-muted-foreground sm:mr-auto">
-                This is your own deal link — send it to the other party.
+                This is your own deal link - send it to the other party.
               </p>
               <Button asChild>
                 <Link href={`/deals/${preview.dealId}`}>Open deal room</Link>
@@ -291,7 +291,7 @@ function JoinPrompt({ token, signedIn }: { token: string; signedIn: boolean }) {
     return (
       <>
         <p className="text-sm text-muted-foreground sm:mr-auto">
-          Sign in to join this deal — we&apos;ll bring you straight back.
+          Sign in to join this deal - we&apos;ll bring you straight back.
         </p>
         <Button asChild>
           {/*

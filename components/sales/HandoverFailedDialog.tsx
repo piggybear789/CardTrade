@@ -89,7 +89,7 @@ export function HandoverFailedDialog({
     startTransition(async () => {
       const result = await disputeCashSale(cashSaleId, trimmed + proofNote);
       if (result.ok) {
-        toast.success('Dispute raised — the contract is now under review.');
+        toast.success('Dispute raised - the contract is now under review.');
         setOpen(false);
         setReason('');
         setProofFiles([]);
@@ -115,7 +115,7 @@ export function HandoverFailedDialog({
           <DialogHeader>
             <DialogTitle>Report handover failed</DialogTitle>
             <DialogDescription>
-              Describe what went wrong. This will raise a dispute — for a cash
+              Describe what went wrong. This will raise a dispute - for a cash
               sale the buyer is refunded; for a trade, collateral resolution
               begins.
             </DialogDescription>
@@ -156,7 +156,7 @@ export function HandoverFailedDialog({
             <div className="space-y-2">
               <Label>Evidence (optional)</Label>
               <p className="text-xs text-muted-foreground">
-                Attach up to 5 photos as proof — damaged packaging, screenshots,
+                Attach up to 5 photos as proof - damaged packaging, screenshots,
                 etc.
               </p>
 

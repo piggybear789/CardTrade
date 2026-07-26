@@ -4,10 +4,10 @@
 // link graph from source and asserts two properties that keep the product free
 // of dead ends and 404s:
 //
-//   1. Link resolution — every internal navigation target (Link href, redirect,
+//   1. Link resolution - every internal navigation target (Link href, redirect,
 //      router.push/replace) resolves to a real App Router route. Catches typos
 //      and links to routes that were renamed or removed.
-//   2. Reachability — every navigable route is linked from somewhere, so no page
+//   2. Reachability - every navigable route is linked from somewhere, so no page
 //      becomes an orphan reachable only by typing the URL. A small allowlist
 //      covers legitimate entry points (home, auth, share-link, OAuth, webhook).
 //
@@ -75,7 +75,7 @@ function routeToRegex(route: string): RegExp {
   return new RegExp(`^/${body}$`);
 }
 
-/** Number of static (non-dynamic) segments — used to pick the most specific route. */
+/** Number of static (non-dynamic) segments - used to pick the most specific route. */
 function specificity(route: string): number {
   return route
     .split('/')

@@ -4,7 +4,7 @@
 //
 // The card entry form itself, without any Dialog wrapper. Reusable inline:
 // embedded inside BuyButton's dialog (step 1) and inside AddPaymentMethodDialog.
-// Card details never leave the browser as plaintext — only the CaptureJS token
+// Card details never leave the browser as plaintext - only the CaptureJS token
 // reaches the server.
 
 import { useEffect, useState, useTransition } from 'react';

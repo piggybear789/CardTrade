@@ -5,7 +5,7 @@
 // inline error against the reported `field` (Req 1.3, 1.5) or a general message.
 //
 // This module is intentionally free of `'use server'` and any Supabase/React
-// imports — it is pure types imported by both the action modules and the
+// imports - it is pure types imported by both the action modules and the
 // components that consume their results.
 
 /** Successful action outcome carrying the produced value. */

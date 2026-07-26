@@ -9,8 +9,8 @@
 // surfaced with a sonner toast.
 //
 // Two visual variants:
-//   * `icon`    — a compact heart-only overlay button (for catalog cards).
-//   * `labeled` — a full "Save" / "Saved" button (for the item detail page).
+//   * `icon`    - a compact heart-only overlay button (for catalog cards).
+//   * `labeled` - a full "Save" / "Saved" button (for the item detail page).
 //
 // Visibility (authenticated, non-owner) is decided by the caller; the action
 // re-enforces authentication, so this component only drives the interaction.

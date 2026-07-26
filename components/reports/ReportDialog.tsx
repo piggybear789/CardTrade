@@ -106,7 +106,7 @@ export function ReportDialog({ targetType, targetId, triggerLabel }: ReportDialo
           : await reportUser(targetId, reason, details || undefined);
 
       if (result.ok) {
-        toast.success('Thanks — your report has been submitted for review.');
+        toast.success('Thanks - your report has been submitted for review.');
         setOpen(false);
         setReason('');
         setDetails('');

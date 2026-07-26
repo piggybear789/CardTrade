@@ -36,9 +36,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cardtrade.app';
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   // Pages self-brand their titles as "<Section> · Poke-xchange", so this is only
-  // the fallback for routes that don't set one — no title template, to avoid
+  // the fallback for routes that don't set one - no title template, to avoid
   // double-suffixing those existing titles.
-  title: 'Poke-xchange — Protected Trades for Serious Collectors',
+  title: 'Poke-xchange - Protected Trades for Serious Collectors',
   description:
     'Buy, sell, and swap high-value collectibles with identity verification, live trade contracts, and collateral-backed escrow.',
   applicationName: 'Poke-xchange',
@@ -52,14 +52,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'Poke-xchange',
-    title: 'Poke-xchange — Protected Trades for Serious Collectors',
+    title: 'Poke-xchange - Protected Trades for Serious Collectors',
     description:
       'Collateral-backed escrow and live trade contracts for high-value collectibles.',
     url: siteUrl,
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Poke-xchange — Protected Trades for Serious Collectors',
+    title: 'Poke-xchange - Protected Trades for Serious Collectors',
     description:
       'Collateral-backed escrow and live trade contracts for high-value collectibles.',
   },

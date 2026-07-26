@@ -84,7 +84,7 @@ export default async function ItemDetailPage({
   const { id } = await params;
 
   const result = await getItem(id);
-  // Not found, not visible under RLS, or a read failure — render the 404 state.
+  // Not found, not visible under RLS, or a read failure - render the 404 state.
   if (!result.ok) {
     notFound();
   }
@@ -148,7 +148,7 @@ export default async function ItemDetailPage({
   const images: GalleryImage[] = (item.image_paths ?? [])
     .map((path) => itemImageUrl(path))
     .filter((src): src is string => Boolean(src))
-    .map((src, index) => ({ src, alt: `${item.title} — image ${index + 1}` }));
+    .map((src, index) => ({ src, alt: `${item.title} - image ${index + 1}` }));
 
   return (
     <MarketplaceShell title="Listing" contentWidth="detail">
@@ -166,7 +166,7 @@ export default async function ItemDetailPage({
           slice at `lg`, so a `md:grid-cols-2` would flip to two columns at a
           width the content area never actually receives, leaving both columns
           cramped. Each column asks for ~22rem and the row wraps to a single
-          column whenever the real content box can't fit both — consistent at
+          column whenever the real content box can't fit both - consistent at
           every screen size, rail or no rail. */}
       <div className="flex flex-wrap items-stretch gap-8">
         {/* Gallery */}
@@ -174,7 +174,7 @@ export default async function ItemDetailPage({
           <ImageGallery images={images} title={item.title} />
         </div>
 
-        {/* Details — flex column that stretches to match the gallery so
+        {/* Details - flex column that stretches to match the gallery so
             secondary actions (save/report) stick to the bottom. */}
         <div className="flex min-w-0 flex-1 basis-[min(100%,22rem)] flex-col">
           <div className="space-y-6">
@@ -223,7 +223,7 @@ export default async function ItemDetailPage({
                 />
               </div>
 
-              {/* Inline identity disclosure — visible to buyers so they know
+              {/* Inline identity disclosure - visible to buyers so they know
                   who they're transacting with (Req 4.8). */}
               {sellerIdentity && !isOwner && (
                 <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t pt-3 text-xs">
@@ -278,10 +278,10 @@ export default async function ItemDetailPage({
           />
           </div>
 
-          {/* Message seller — pushed to bottom of details rail, just above
+          {/* Message seller - pushed to bottom of details rail, just above
               the save/report divider. */}
           {/* `mt-auto` pushes this down when the column has slack, but collapses
-              to zero once the content fills it — `pt-6` guarantees breathing
+              to zero once the content fills it - `pt-6` guarantees breathing
               room above regardless of how tight the column gets. */}
           {user && !isOwner && isAvailable && (
             <div className="mt-auto pt-6">
@@ -293,7 +293,7 @@ export default async function ItemDetailPage({
             </div>
           )}
 
-          {/* Secondary, lower-emphasis actions — save + report. */}
+          {/* Secondary, lower-emphasis actions - save + report. */}
           {user && !isOwner && (
             <div className="flex items-center justify-between gap-3 pt-4">
               <WatchButton
@@ -431,7 +431,7 @@ function ItemActions({
   // Cash buyers need a payment method, not merchant/KYC onboarding. Buying for
   // cash needs the seller to have somewhere to be paid into and an identity the
   // buyer can inspect first (Req 4.8). Trading needs neither, because no cash
-  // moves — so a seller without a payout account is trade-only, not unavailable.
+  // moves - so a seller without a payout account is trade-only, not unavailable.
   //
   // Visual hierarchy: Buy / Trade / Offer sit in one inline row as the
   // transactional actions. "Message seller" lives below as a separate section
@@ -450,7 +450,7 @@ function ItemActions({
         </Card>
       ) : null}
 
-      {/* Primary transaction row — Buy / Trade / Offer inline. Each action
+      {/* Primary transaction row - Buy / Trade / Offer inline. Each action
           grows from a shared basis so they wrap in balanced rows instead of
           leaving one button stranded on a line of its own. */}
       <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 [&>*]:basis-[9.5rem]">

@@ -27,8 +27,8 @@ const ERROR_MESSAGES: Record<FireCashSaleWebhookError, string> = {
 };
 
 const SUCCESS_MESSAGES: Record<DemoCashSaleWebhookKind, string> = {
-  'settle-payment': 'Payment settled — funds are now held in escrow.',
-  'fail-payment': 'Payment failure delivered — the sale has been cancelled.',
+  'settle-payment': 'Payment settled - funds are now held in escrow.',
+  'fail-payment': 'Payment failure delivered - the sale has been cancelled.',
 };
 
 export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {

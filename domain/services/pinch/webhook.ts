@@ -10,7 +10,7 @@
 //      computed over `{t}.{rawBody}` with the `whsec_...` webhook secret, and
 //      stale timestamps are rejected (5 minute window) to block replays.
 //   2. Envelope: `{ Id, Type, EventDate, Metadata, Data }`, PascalCase by
-//      default but configurable to camelCase — so key lookups are case-tolerant.
+//      default but configurable to camelCase - so key lookups are case-tolerant.
 //   3. Fan-out: one `bank-results` delivery reports many payments, so a single
 //      request can translate into several internal events.
 //
@@ -200,8 +200,8 @@ function translatePayment(
  * `WebhookEvent`s.
  *
  * Handled event types:
- *   * `realtime-payment`, `payment-created` — a single `Data.Payment`.
- *   * `bank-results`, `scheduled-process`   — a `Data.Payments` list.
+ *   * `realtime-payment`, `payment-created` - a single `Data.Payment`.
+ *   * `bank-results`, `scheduled-process`   - a `Data.Payments` list.
  *
  * Everything else (transfers, refunds, payers, subscriptions, disputes) returns
  * an empty list: our void/capture paths act on the synchronous refund response,
@@ -248,7 +248,7 @@ export function translatePinchEvent(body: unknown): WebhookEvent[] {
  *
  * The provider reports the decision across the top-level `Metadata` (status and
  * merchant status) and the `ComplianceSubmission` object, and the merchant id may
- * arrive on either. Returns `null` when no merchant reference can be resolved —
+ * arrive on either. Returns `null` when no merchant reference can be resolved -
  * the delivery is then a logged NO_OP rather than a guess.
  */
 function translateCompliance(

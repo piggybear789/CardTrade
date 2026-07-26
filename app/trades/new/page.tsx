@@ -100,7 +100,7 @@ export default async function NewTradePage({
   // Req 2.4: only verified users may initiate a Trade from this page.
   // "Verified" is provider-approved Managed Merchant onboarding
   // (`merchant_status = APPROVED` with settlements enabled), not a standalone
-  // check — see `domain/bond/bondPolicy.ts`.
+  // check - see `domain/bond/bondPolicy.ts`.
   if (!profile || !profile.is_verified) {
     return (
       <Shell center>
@@ -112,7 +112,7 @@ export default async function NewTradePage({
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Verifying lets us size the collateral that keeps both traders safe —
+            Verifying lets us size the collateral that keeps both traders safe -
             and a verified trader posts none at all.
           </CardContent>
           <CardFooter>

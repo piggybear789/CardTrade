@@ -7,7 +7,7 @@
 // to `Pinch.Capture(...).createToken(...)` IN THE BROWSER; only the resulting
 // short-lived token ever reaches our server
 // (`lib/actions/payments.ts::attachPaymentSource`). Keep the `integrity` +
-// `crossorigin` attributes on the script tag — see
+// `crossorigin` attributes on the script tag - see
 // `.kiro/steering/pinch-payments.md`.
 
 import { useEffect, useRef, useState } from 'react';

@@ -21,10 +21,10 @@ import type { Enums } from '@/lib/supabase/database.types';
 
 /**
  * Admin action error codes.
- * - `not-authenticated` — no signed-in user.
- * - `not-authorized`    — the caller is not an admin.
- * - `not-found`         — the target row does not exist.
- * - `persistence-error` — the database write failed.
+ * - `not-authenticated` - no signed-in user.
+ * - `not-authorized`    - the caller is not an admin.
+ * - `not-found`         - the target row does not exist.
+ * - `persistence-error` - the database write failed.
  */
 export type AdminActionError =
   | 'not-authenticated'

@@ -4,7 +4,7 @@
 //
 // An accessible image gallery for the item detail page: a single large image
 // with a compact "1/N < >" arrow navigation control in the top-right corner.
-// No thumbnail rail — keeps the layout clean and lets the image fill the space.
+// No thumbnail rail - keeps the layout clean and lets the image fill the space.
 //
 // Hovering a mouse magnifies the image around the cursor (the familiar
 // marketplace "hover to zoom"), so a buyer can inspect grading, centring, and
@@ -104,7 +104,7 @@ export function ImageGallery({
         <img
           src={active.src}
           alt={active.alt}
-          // `contain`, not `cover`: a graded collectible must never be cropped —
+          // `contain`, not `cover`: a graded collectible must never be cropped -
           // the slab label and edges are part of what the buyer is inspecting.
           // The zoom scales around the cursor via transform-origin; `transform`
           // keeps it on the compositor, so panning stays smooth.

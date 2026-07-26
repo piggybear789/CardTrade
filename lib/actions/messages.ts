@@ -93,7 +93,7 @@ export async function getOrCreateConversation(
   // Look for an existing conversation for this exact (item_id, a, b) triple.
   // `item_id` is nullable, so match it with `.is(null)` when unscoped.
   // A deal's thread is scoped by `deal_id` and is never a general DM, so it is
-  // excluded here — otherwise an unscoped lookup between two members who also
+  // excluded here - otherwise an unscoped lookup between two members who also
   // have a deal together would match two rows.
   let existingQuery = supabase
     .from('conversations')

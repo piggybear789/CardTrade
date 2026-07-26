@@ -3,15 +3,15 @@
 // The Managed Merchant (sub-merchant) onboarding core.
 //
 // WHY IT EXISTS. Pinch settles funds only into a merchant's own bank account, so
-// a User who RECEIVES money — a Cash_Sale seller (Req 4.2) or a fraud victim
-// being paid captured collateral (Req 8.3) — must exist as a sub-merchant under
+// a User who RECEIVES money - a Cash_Sale seller (Req 4.2) or a fraud victim
+// being paid captured collateral (Req 8.3) - must exist as a sub-merchant under
 // the platform's parent merchant. Provider identity verification happens as part
 // of that onboarding.
 //
 // `merchant_status` is now the sole verification signal in the app
 // (`domain/bond/bondPolicy.ts` reads it via `public_profiles.is_verified` to
 // decide Bond exemption). The standalone KYC payer check that used to gate
-// paying/listing/trading separately has been retired — it never ran a real
+// paying/listing/trading separately has been retired - it never ran a real
 // provider compliance decision, whereas this onboarding flow does.
 // A trade-only User never needs the second one.
 //
@@ -122,11 +122,11 @@ export interface MerchantRepository {
 
 /**
  * Typed failure codes for onboarding.
- * - `PROFILE_NOT_FOUND`   — no Profile for the id.
- * - `ALREADY_ONBOARDED`   — a sub-merchant already exists (PENDING or APPROVED),
+ * - `PROFILE_NOT_FOUND`   - no Profile for the id.
+ * - `ALREADY_ONBOARDED`   - a sub-merchant already exists (PENDING or APPROVED),
  *                           so a second submission is rejected.
- * - `NOT_SUPPORTED`       — the active provider has no sub-merchant capability.
- * - `SUBMISSION_FAILED`   — the provider rejected the submission; state unchanged.
+ * - `NOT_SUPPORTED`       - the active provider has no sub-merchant capability.
+ * - `SUBMISSION_FAILED`   - the provider rejected the submission; state unchanged.
  */
 export type MerchantOnboardingError =
   | 'PROFILE_NOT_FOUND'
@@ -155,7 +155,7 @@ const SUBMITTABLE: ReadonlySet<MerchantStatus> = new Set<MerchantStatus>(['NONE'
 /**
  * Derive the application-facing status from the provider's compliance state.
  *
- * APPROVED requires settlements to be enabled — that is the only flag that means
+ * APPROVED requires settlements to be enabled - that is the only flag that means
  * money can actually reach the User. A declined/rejected provider status is
  * REJECTED; anything else is still PENDING.
  */
@@ -284,7 +284,7 @@ export async function submitMerchantOnboarding(
 }
 
 /**
- * Apply a provider compliance decision to the owning Profile — the webhook path.
+ * Apply a provider compliance decision to the owning Profile - the webhook path.
  *
  * The Profile is identified by `merchantRef`. An unknown reference yields
  * `PROFILE_NOT_FOUND`, which the handler records as a failure rather than
@@ -316,7 +316,7 @@ export async function applyComplianceUpdate(
     return { ok: false, error: 'PROFILE_NOT_FOUND' };
   }
 
-  // Absent flags mean "unchanged", not "false" — a compliance event may report
+  // Absent flags mean "unchanged", not "false" - a compliance event may report
   // only the fields that moved.
   const liveEnabled = params.liveEnabled ?? existing.liveEnabled;
   const transactionsEnabled = params.transactionsEnabled ?? existing.transactionsEnabled;

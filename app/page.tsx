@@ -18,7 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Poke-xchange — Protected Trades for Serious Collectors',
+  title: 'Poke-xchange - Protected Trades for Serious Collectors',
   description:
     'Buy, sell, and swap high-value collectibles with identity verification, live trade contracts, and collateral-backed escrow.',
 };
@@ -55,9 +55,9 @@ export default async function HomePage() {
                 The Deal Is Done When Both Collectors Agree.
               </h1>
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
-                Poke-xchange locks each trader&apos;s verified identity and 100% of
-                the collectible&apos;s fair market value before either package
-                leaves the door.
+                Poke-exchange requires all buyers to personally identify
+                themselves and put up 100% of the cards&apos; value before either
+                package leaves the door.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
@@ -124,7 +124,7 @@ export default async function HomePage() {
                 Nothing Moves Until Everyone Agrees.
               </h2>
               <p className="mt-5 text-pretty leading-7 text-parchment/60">
-                Cash sale, swap, or private deal—the protection adapts to the transaction.
+                Cash sale, swap, or private deal: the protection adapts to the transaction.
               </p>
             </header>
 
@@ -224,7 +224,7 @@ function ProtectedTradePreview() {
         <div className="ledger-strip absolute inset-x-0 bottom-0 z-20 border-t border-gold/30 px-5 py-4 sm:px-6">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="market-label text-obsidian/55">Protected Trade Value</p>
+              <p className="market-label text-obsidian/55">Protected Card Value</p>
               <p className="display-value mt-1 text-3xl">$380</p>
             </div>
             <div className="text-right">

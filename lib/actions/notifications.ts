@@ -6,7 +6,7 @@
 // are THIN wrappers that authenticate the caller and operate through the
 // cookie-bound Supabase client so RLS enforces the recipient-only access rules
 // on the `notifications` table end-to-end (a user may only select / update /
-// delete their own notifications; there is NO end-user insert policy — inserts
+// delete their own notifications; there is NO end-user insert policy - inserts
 // happen server-side via the admin helper `createNotification`).
 //
 // Every export is an async Server Action; shared shapes are `export type` only

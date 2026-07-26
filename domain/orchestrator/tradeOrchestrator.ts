@@ -12,8 +12,8 @@
 //
 // Extension seams (intentionally left for later tasks):
 // - `runSideEffects` is a pluggable hook. The default is a no-op; the full
-//   payment side effects — hold placement/sizing (task 7.4) and dispute/fraud
-//   captures/voids (task 7.8) — slot in by injecting a real `RunSideEffects`
+//   payment side effects - hold placement/sizing (task 7.4) and dispute/fraud
+//   captures/voids (task 7.8) - slot in by injecting a real `RunSideEffects`
 //   implementation, with the injected `PaymentService` available on the context.
 //
 // All monetary amounts elsewhere in the system are integer AUD cents; this core
@@ -39,12 +39,12 @@ export interface TradeRecord {
 
 /**
  * Typed failure codes returned by `applyEvent`.
- * - `TRADE_NOT_FOUND`         — no Trade exists for the given id.
- * - `INVALID_TRANSITION`      — the event is not valid from the current state;
+ * - `TRADE_NOT_FOUND`         - no Trade exists for the given id.
+ * - `INVALID_TRANSITION`      - the event is not valid from the current state;
  *                               the Trade is left unchanged (Req 9.2).
- * - `CONCURRENT_MODIFICATION` — another writer committed first; this attempt
+ * - `CONCURRENT_MODIFICATION` - another writer committed first; this attempt
  *                               lost the optimistic-lock race (Req 9.3, 9.4).
- * - `SIDE_EFFECT_FAILED`      — a payment side effect failed before commit; the
+ * - `SIDE_EFFECT_FAILED`      - a payment side effect failed before commit; the
  *                               Trade is left unchanged.
  */
 export type OrchestratorError =
@@ -96,7 +96,7 @@ export interface TradeRepository {
    * Commit the transition under an optimistic version lock: set
    * `state = nextState, version = expectedVersion + 1` only WHERE the row still
    * has `version = expectedVersion`. Returns the updated row on success, or
-   * `null` when no row matched (a lost race — Req 9.3, 9.4).
+   * `null` when no row matched (a lost race - Req 9.3, 9.4).
    */
   commitTransition(params: CommitTransitionParams): Promise<TradeRecord | null>;
   /** Append an audit row for a committed transition (Req 9.5). */

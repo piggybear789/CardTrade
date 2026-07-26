@@ -336,14 +336,14 @@ export type RespondToOfferResult =
 /**
  * Respond to a PENDING offer.
  *
- *   * `accept`   — only the party who did NOT make the offer may accept. This
+ *   * `accept`   - only the party who did NOT make the offer may accept. This
  *                  OPENS A CASH_SALE ESCROW at the agreed price (reserving the
  *                  item and requesting the buyer's transfer via the payment
  *                  service) and then marks the offer ACCEPTED. If the escrow
  *                  cannot be opened (e.g. the item is no longer AVAILABLE), the
  *                  offer is left PENDING and `sale-failed` is returned.
- *   * `decline`  — only the non-offering party may decline; sets DECLINED.
- *   * `withdraw` — only the offering party may withdraw; sets WITHDRAWN.
+ *   * `decline`  - only the non-offering party may decline; sets DECLINED.
+ *   * `withdraw` - only the offering party may withdraw; sets WITHDRAWN.
  *
  * Only PENDING offers can transition; any other status yields `invalid-status`.
  */
@@ -563,7 +563,7 @@ export interface MyOfferEntry {
   /** True when the caller made the latest offer. */
   offeredByMe: boolean;
   /**
-   * True when the latest offer is PENDING and was made by the counterparty —
+   * True when the latest offer is PENDING and was made by the counterparty -
    * i.e. it is the caller's turn to accept / decline / counter.
    */
   isMyTurn: boolean;

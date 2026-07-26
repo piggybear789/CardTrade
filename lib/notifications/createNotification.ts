@@ -4,7 +4,7 @@ import 'server-only';
 //
 // Server-only helper for EMITTING in-app notifications (Phase 4). Notifications
 // are inserted with the SERVICE-ROLE admin client because the `notifications`
-// table has NO insert policy for end users — only the recipient may select /
+// table has NO insert policy for end users - only the recipient may select /
 // update / delete their rows (RLS). Emitting therefore happens on the trusted
 // server via the admin client, which bypasses RLS.
 //

@@ -367,7 +367,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* NONE: nothing submitted yet — the strongest call to action, since
+        {/* NONE: nothing submitted yet - the strongest call to action, since
             this is the one thing that fully blocks listing. */}
         {state.merchantStatus === 'NONE' ? (
           <div className="flex items-start gap-3 rounded-lg border border-gold/50 bg-gold/10 p-4">
@@ -465,7 +465,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
             </DialogTrigger>
             {/* Wider than the default so the field pairs sit side by side and the
                 dialog reads as a landscape panel rather than a tall column. Also
-                overrides the base component's 30rem height cap — at this width the
+                overrides the base component's 30rem height cap - at this width the
                 two-column step content comfortably fits without scrolling on
                 typical viewports. */}
             <DialogContent className="max-w-2xl max-h-[calc(100dvh-3rem)] gap-3">
@@ -484,7 +484,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
                   disabled={isPending}
                 >
                   {/* The step footer already names this step, so the legend is
-                      visually redundant — kept for screen readers only. */}
+                      visually redundant - kept for screen readers only. */}
                   <legend className="sr-only">Legal seller identity</legend>
                   <Field
                     id="legalEntityName"
@@ -574,7 +574,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
                   />
 
                   {/* Contact, DOB and address are optional on the provider's create
-                      call and prove nothing on their own — the provider verifies a
+                      call and prove nothing on their own - the provider verifies a
                       seller from documents, not typed details. They are collected at
                       document-upload time instead of padding this form. */}
 

@@ -1,6 +1,6 @@
 // domain/services/types.ts
 //
-// The Payment/KYC Service contract — the single seam that lets the real Pinch
+// The Payment/KYC Service contract - the single seam that lets the real Pinch
 // integration replace the MockService later. Both `MockService` (this phase)
 // and a future `PinchService` implement these interfaces, so the rest of the
 // system depends only on the interface, never on a concrete implementation.
@@ -46,7 +46,7 @@ export interface PayerCreateOptions {
 export interface PayerDetails {
   /** The Profile's display name; split into first/last for the provider. */
   displayName?: string;
-  /** The Profile's contact email — required by Pinch. */
+  /** The Profile's contact email - required by Pinch. */
   email?: string;
   /** Optional Australian mobile number (10 digits, no country code). */
   mobile?: string;
@@ -65,7 +65,7 @@ export interface PreAuthHold {
 }
 
 /**
- * The result of capturing funds from a hold — a Friction_Tax partial capture
+ * The result of capturing funds from a hold - a Friction_Tax partial capture
  * (Req 7.2) or a fraud full capture (Req 8.2). `SETTLED` means the funds have
  * cleared; `FAILED` triggers compensating logic in the orchestrator.
  */
@@ -77,7 +77,7 @@ export interface CaptureResult {
 }
 
 /**
- * The result of a bank-to-bank transfer — a Cash_Sale settlement (Req 4.2) or
+ * The result of a bank-to-bank transfer - a Cash_Sale settlement (Req 4.2) or
  * the payout of captured fraud collateral to the victim (Req 8.3).
  */
 export interface TransferResult {
@@ -260,7 +260,7 @@ export interface SignedWebhookEnvelope {
 }
 
 /**
- * Payment provider contract — implemented by MockService now, PinchService
+ * Payment provider contract - implemented by MockService now, PinchService
  * later. Methods resolve with explicit `status`-bearing results rather than
  * throwing, so the orchestrator can branch on failures and run compensating
  * actions (void holds, restore item availability) per Req 4.4, 5.6, 7.6, 8.6.
@@ -282,8 +282,8 @@ export interface PaymentService {
    * `merchantRef` routes the collection into a sub-merchant so funds settle
    * directly to the recipient; omit it to collect into the platform merchant
    * (the correct choice for collateral, which the platform holds).
-   * `applicationFee` is the platform's cut of a sub-merchant collection — the
-   * flat Platform_Fee (Req 4.7) — and is retained by the parent merchant.
+   * `applicationFee` is the platform's cut of a sub-merchant collection - the
+   * flat Platform_Fee (Req 4.7) - and is retained by the parent merchant.
    */
   requestTransfer(params: {
     payerId: string;
@@ -300,12 +300,12 @@ export interface PaymentService {
    * Implementations may reserve the funds (a true pre-authorisation) or record a
    * standing authorisation to charge the payer later. Either way an ACTIVE hold
    * means "we may take up to this much from this payer", NOT "this money has
-   * been taken" — so a capture can still fail on insufficient funds.
+   * been taken" - so a capture can still fail on insufficient funds.
    */
   placeHold(params: { payerId: string; amount: Cents; ref: string }): Promise<PreAuthHold>;
   /** Release a hold at $0 cost (Req 6.7, 7.5, 8.5). */
   voidHold(holdId: string): Promise<PreAuthHold>;
-  /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */
+  /** Capture a fixed portion of a hold - the Friction_Tax (Req 7.2). */
   partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult>;
   /** Capture the entire hold amount on Objective_Fraud (Req 8.2). */
   fullCapture(holdId: string): Promise<CaptureResult>;
@@ -313,7 +313,7 @@ export interface PaymentService {
    * Vault a tokenised payment instrument against a payer so later charges
    * (collateral holds, cash-sale transfers) have a source to draw on.
    *
-   * `token` comes from client-side tokenisation (Pinch CaptureJS) — raw card or
+   * `token` comes from client-side tokenisation (Pinch CaptureJS) - raw card or
    * bank details must never reach the server. Optional on the contract because
    * the Mock has no instruments to store.
    */
@@ -334,7 +334,7 @@ export interface PaymentService {
 }
 
 /**
- * KYC contract — implemented by MockService now, Pinch Glassbox later.
+ * KYC contract - implemented by MockService now, Pinch Glassbox later.
  */
 export interface KycService {
   /** KYC begins with payer creation (Req 2.1). See {@link PayerDetails}. */
@@ -353,7 +353,7 @@ export interface KycService {
  * Optional capability the MockService exposes for demo control: emit a
  * Webhook_Event into the Webhook_Handler, exercising the exact code path a real
  * Pinch webhook would (Req 10). NOT part of the production PaymentService/
- * KycService contract — the real Pinch integration receives webhooks rather
+ * KycService contract - the real Pinch integration receives webhooks rather
  * than emitting them.
  */
 export interface WebhookEmitter {

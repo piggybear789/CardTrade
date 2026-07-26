@@ -4,7 +4,7 @@
 // 2-Way Trade escrow.
 //
 // Like the other orchestration modules, this is a pure/injectable coordination
-// layer: it depends only on *interfaces* — a bound `TradeOrchestrator` (for the
+// layer: it depends only on *interfaces* - a bound `TradeOrchestrator` (for the
 // guarded state-machine transition), a `DisputeResolutionRepository` (for the
 // dispute/fraud-specific reads/writes), the `PaymentService` (captures/voids/
 // transfers), the `KycService` (verified identity for the evidence pack), and an
@@ -14,7 +14,7 @@
 //
 // Why a coordinator (functions) rather than a pre-commit `RunSideEffects` hook:
 // neither a Condition_Dispute nor an Objective_Fraud is *gated* by its payment
-// outcome — the Trade transitions to DISPUTED / FRAUD_RESOLVED regardless (Req
+// outcome - the Trade transitions to DISPUTED / FRAUD_RESOLVED regardless (Req
 // 7.1, 8.1), and a Friction_Tax or Full_Capture failure is recorded as an
 // *indication* without rolling the state back (Req 7.6, 8.6). So the transition
 // is committed first via `TradeOrchestrator.applyEvent`, then the post-transition
@@ -95,7 +95,7 @@ export interface DisputeResolutionRepository {
 
   /**
    * Req 7.2/7.3: record a settled Friction_Tax against the disputed-against
-   * hold — increment its captured amount, mark it PARTIALLY_CAPTURED, and store
+   * hold - increment its captured amount, mark it PARTIALLY_CAPTURED, and store
    * the $10/$10 allocation on the Trade.
    */
   recordFrictionTaxCapture(params: {
@@ -125,7 +125,7 @@ export interface DisputeResolutionRepository {
   recordFullCapture(params: { holdRef: string; capturedCents: Cents }): Promise<void>;
 
   /**
-   * Req 8.6: the Full_Capture failed after exhausting all retries — preserve the
+   * Req 8.6: the Full_Capture failed after exhausting all retries - preserve the
    * offending hold and flag the Trade for manual reconciliation.
    */
   flagManualReconciliation(params: { tradeId: string }): Promise<void>;
@@ -208,14 +208,14 @@ export type RaiseConditionDisputeResult =
  *
  * 1. Guard the actor is a participant, then commit INSPECTION -> DISPUTED via
  *    the guarded transition core.
- * 2. Record the raising Trader and the disputed-against Trader — the Counterpart
+ * 2. Record the raising Trader and the disputed-against Trader - the Counterpart
  *    of the raiser (Req 7.1).
  * 3. Request a $20.00 Friction_Tax Partial_Capture from the disputed-against
  *    Trader's hold (Req 7.2).
  * 4. If it settles, allocate $10.00 to the Counterpart and $10.00 to the
  *    Platform_Fee (Req 7.3). If it fails to settle, keep the Trade DISPUTED with
  *    all holds locked and record a Partial_Capture failure indication (Req 7.6)
- *    — this is NOT a transition failure, so the result is still `ok: true`.
+ *    - this is NOT a transition failure, so the result is still `ok: true`.
  */
 export async function raiseConditionDispute(
   deps: DisputeResolutionDeps,
@@ -395,7 +395,7 @@ export type ReportFraudResult =
  *
  * The reporter (`actorId`) is the victim; the offending Trader is the
  * Counterpart. The Trade transitions to FRAUD_RESOLVED first (Req 8.1); the
- * post-transition side effects then run and NEVER roll the state back — failures
+ * post-transition side effects then run and NEVER roll the state back - failures
  * are recorded as indications:
  *
  * - Full_Capture of 100% of the offending hold, retried up to the bounded limit

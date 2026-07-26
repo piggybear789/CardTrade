@@ -209,7 +209,7 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
     expect(repo.holds).toHaveLength(0);
   });
 
-  it('allows unequal-value pairings — acceptance, not appraisal, agrees the exchange (Req 5.2, revised)', async () => {
+  it('allows unequal-value pairings - acceptance, not appraisal, agrees the exchange (Req 5.2, revised)', async () => {
     seedTwoTraders(repo, 5000);
     repo.items.set('item_b', { id: 'item_b', ownerId: 'bob', fmvCents: 9999, status: 'AVAILABLE' });
     const payments = makePayments();
@@ -221,7 +221,7 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Both items reserved even though their FMVs differ — the bundle/declared
+    // Both items reserved even though their FMVs differ - the bundle/declared
     // value model replaced strict equal-value pairing.
     expect(repo.items.get('item_a')?.status).toBe('RESERVED');
     expect(repo.items.get('item_b')?.status).toBe('RESERVED');
@@ -258,7 +258,7 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
   });
 });
 
-describe('createCollateralSideEffects — HOLDS_FAILED cancellation (Req 5.6)', () => {
+describe('createCollateralSideEffects - HOLDS_FAILED cancellation (Req 5.6)', () => {
   let repo: FakeTradeProposalRepository;
 
   beforeEach(() => {

@@ -10,7 +10,7 @@
 // PCI SCOPE. Card details are tokenised in the browser by Pinch CaptureJS; only
 // the resulting short-lived token reaches this module. No card number, CVC,
 // expiry, BSB or account number is ever accepted, validated, logged, or stored
-// here — see `.kiro/steering/pinch-payments.md`.
+// here - see `.kiro/steering/pinch-payments.md`.
 //
 // The publishable key is the only Pinch value that may reach the client. It is
 // returned by an action rather than inlined as a `NEXT_PUBLIC_` env var so the
@@ -69,7 +69,7 @@ export async function getTokenisationConfig(): Promise<
  * touched. The returned source id is provider-side and carries no card data.
  *
  * `cardLast4` and `cardBrand` are display metadata derived by the caller from
- * the card entry UI — the server never sees the full card number. They are
+ * the card entry UI - the server never sees the full card number. They are
  * persisted as a label so the buyer can identify their saved method later.
  */
 export async function attachPaymentSource(

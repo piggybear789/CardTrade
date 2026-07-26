@@ -214,7 +214,7 @@ export function ItemCard({ item, variant = 'default' }: ItemCardProps) {
       </div>
 
       <div className="ledger-strip pointer-events-none relative border-t border-gold/25 px-4 py-3">
-        <p className="market-label mb-1 text-obsidian/55">Fair market value</p>
+        <p className="market-label mb-1 text-obsidian/55">Price</p>
         <p className="display-value text-[1.45rem] leading-none">
           {formatAud(item.fmv_cents)}
         </p>

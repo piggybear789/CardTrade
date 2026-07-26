@@ -154,7 +154,7 @@ export function BuyButton({
             <DialogHeader>
               <DialogTitle>Add a payment method</DialogTitle>
               <DialogDescription>
-                A card is required to buy. It goes straight to Pinch — we never
+                A card is required to buy. It goes straight to Pinch - we never
                 see it.
               </DialogDescription>
             </DialogHeader>
@@ -215,7 +215,7 @@ export function BuyButton({
                 </dl>
               </div>
 
-              {/* Saved payment method widget — just above the confirmation */}
+              {/* Saved payment method widget - just above the confirmation */}
               <div className="flex items-center gap-3 rounded-lg border p-3">
                 <CreditCard className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">

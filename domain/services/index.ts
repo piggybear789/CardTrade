@@ -1,6 +1,6 @@
 // domain/services/index.ts
 //
-// The single service factory — the seam that lets the real Pinch integration
+// The single service factory - the seam that lets the real Pinch integration
 // slot in later without any caller referencing a concrete implementation. The
 // rest of the system depends only on `PaymentService & KycService`; only this
 // module decides which concrete binding is used.
@@ -8,7 +8,7 @@
 // This phase always returns the deterministic MockService. A future phase adds
 // a `PinchService` (talking to the real Pinch Payments REST API + Pinch Glassbox
 // KYC) and binds it here when `PAYMENTS_PROVIDER === 'pinch'`. Swapping the
-// provider therefore touches only this file — never the orchestrators, the
+// provider therefore touches only this file - never the orchestrators, the
 // state machine, the server actions, or the UI.
 
 import { MockService } from './mock/MockService';

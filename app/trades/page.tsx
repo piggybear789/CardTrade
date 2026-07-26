@@ -114,7 +114,7 @@ export default async function TradesPage({
       {/* One timeline, two stages. An offer and a trade are the same thing before
           and after agreement, so the page shows agreed swaps under their own
           heading and only falls back to an empty state when there is nothing at
-          all — never alongside a live offer. */}
+          all - never alongside a live offer. */}
       {!result.ok ? (
         <SectionLoadError label="trades" />
       ) : visibleTrades.length > 0 ? (

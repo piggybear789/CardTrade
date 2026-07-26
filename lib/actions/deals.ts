@@ -6,7 +6,7 @@
 // public listing: one member creates it SOLO (details only), shares a private
 // LINK, and whoever opens that link JOINS as the counterparty. The two of them
 // then agree a handover, BOTH tick "I'm happy with the deal", and only then does
-// the binding contract engage — collateral escrow holds on both parties.
+// the binding contract engage - collateral escrow holds on both parties.
 //
 // State machine (cardtrade.deal_state):
 //
@@ -30,7 +30,7 @@
 //     events). A non-participant sees no row, surfaced as `not-participant`.
 //   * The SERVICE-ROLE admin client is used ONLY where RLS makes the write/read
 //     impossible for an end user: (a) looking up a deal by its `share_token`
-//     (there is deliberately no token-based RLS policy — the token IS the
+//     (there is deliberately no token-based RLS policy - the token IS the
 //     capability, validated here, and only a MINIMAL PREVIEW is returned),
 //     (b) the guarded join write that sets `counterparty_id` (the joiner is not
 //     yet a participant, so RLS would hide the row), (c) reading/creating the
@@ -38,15 +38,15 @@
 //     `deal_holds`, which has no end-user insert policy.
 //
 // IDENTITY OR MONEY: a deal does NOT require KYC. Verification is offered on the
-// way in (see `app/deals/new/page.tsx`) and may be skipped — an unverified party
+// way in (see `app/deals/new/page.tsx`) and may be skipped - an unverified party
 // backs the deal with collateral instead. `domain/deal/dealCollateral.ts` owns
 // that rule; when both parties are verified no collateral is held at all.
 //
 // CRITICAL RULE mirrored from the database: a BEFORE UPDATE trigger on `deals`
 // NULLS both `*_confirmed_at` columns and bumps `terms_updated_at` whenever a
 // substantive term changes. These actions never try to preserve confirmations
-// across a terms edit — the DB owns that, and the UI surfaces it as
-// "Terms changed — both parties must confirm again".
+// across a terms edit - the DB owns that, and the UI surfaces it as
+// "Terms changed - both parties must confirm again".
 //
 // Money is integer AUD cents end-to-end; the UI formats via `formatAud`.
 // Every export is an async Server Action or an erased `export type`.
@@ -124,14 +124,14 @@ export interface DealParty {
    * mirror for the counterparty (a BUYER's counterparty is the SELLER).
    */
   role: DealRole | null;
-  /** Completed cash sales — the same reputation figure the sale contract shows. */
+  /** Completed cash sales - the same reputation figure the sale contract shows. */
   completedSales: number;
   /** Completed cash purchases. */
   completedPurchases: number;
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers (not exported — a 'use server' module may only export
+// Internal helpers (not exported - a 'use server' module may only export
 // async functions, and these are deliberately server-internal anyway)
 // ---------------------------------------------------------------------------
 
@@ -148,7 +148,7 @@ async function getUserId(client: CookieClient): Promise<string | null> {
 /**
  * Read each party's verification flag. Reads the `public_profiles` view, which
  * exposes only `is_verified` (never the underlying KYC detail) and is readable
- * by any authenticated member. Verification is no longer a gate — it decides how
+ * by any authenticated member. Verification is no longer a gate - it decides how
  * much collateral the deal holds (see {@link collateralForDeal}).
  */
 async function readVerification(
@@ -184,8 +184,8 @@ function normalizeText(
 function describeDelivery(costCents: number, notes: string | null): string {
   const priceLine =
     costCents === 0
-      ? 'Delivered — free delivery.'
-      : `Delivered — ${formatAud(costCents)} delivery on top of the cash amount.`;
+      ? 'Delivered - free delivery.'
+      : `Delivered - ${formatAud(costCents)} delivery on top of the cash amount.`;
   return notes ? `${priceLine}\n${notes}` : priceLine;
 }
 
@@ -213,7 +213,7 @@ const DEAL_COLLATERAL_POLICY = {
  * verified, otherwise BOTH post the deal's stake (its agreed
  * `collateral_cents`, else its cash component, else the flat default).
  *
- * Pass `counterparty: null` for an unjoined deal — the outcome then describes
+ * Pass `counterparty: null` for an unjoined deal - the outcome then describes
  * only the creator, and `stakeCents` is what both sides would post if an
  * unverified member takes the share link.
  */
@@ -233,7 +233,7 @@ function collateralForDeal(
 }
 
 /**
- * The other party's user id, given the caller — or `null` when the deal has not
+ * The other party's user id, given the caller - or `null` when the deal has not
  * been joined yet (a link-created deal starts with no counterparty).
  */
 function otherPartyOf(deal: DealRow, me: string): string | null {
@@ -348,7 +348,7 @@ async function requireParticipant(
 }
 
 // ---------------------------------------------------------------------------
-// createDeal — create a private deal SOLO; a share link brings the other party
+// createDeal - create a private deal SOLO; a share link brings the other party
 // ---------------------------------------------------------------------------
 
 /** Which side the creator is on. Decides the meaning of the cash component. */
@@ -365,9 +365,9 @@ export interface CreateDealInput {
   title: string;
   /**
    * The side the caller is on:
-   * - `BUYER`  — the caller pays `cashAmountCents`.
-   * - `SELLER` — the caller receives `cashAmountCents`, and must attach photos.
-   * - `TRADER` — the caller puts up `offerKinds`; `ITEMS` requires photos.
+   * - `BUYER`  - the caller pays `cashAmountCents`.
+   * - `SELLER` - the caller receives `cashAmountCents`, and must attach photos.
+   * - `TRADER` - the caller puts up `offerKinds`; `ITEMS` requires photos.
    */
   role: DealRole;
   /** Everything the parties should know: condition, grading, terms, extras. */
@@ -418,7 +418,7 @@ export type CreateDealResult =
   | ActionFailure<CreateDealError>;
 
 /**
- * Create a private 1:1 deal SOLO (step 1 of the flow) — details only, no
+ * Create a private 1:1 deal SOLO (step 1 of the flow) - details only, no
  * counterparty.
  *
  * The caller must be authenticated and must declare which SIDE they are on.
@@ -429,7 +429,7 @@ export type CreateDealResult =
  * | role   | cash component            | photos                        |
  * |--------|---------------------------|-------------------------------|
  * | BUYER  | what the caller PAYS      | not needed (they bring cash)  |
- * | SELLER | what the caller RECEIVES  | REQUIRED — they bring goods   |
+ * | SELLER | what the caller RECEIVES  | REQUIRED - they bring goods   |
  * | TRADER | only when `CASH` is offered| REQUIRED when `ITEMS` offered |
  *
  * `cash_payer_id` is set to the caller when they are the one paying (BUYER, or a
@@ -443,7 +443,7 @@ export type CreateDealResult =
  * The deal is inserted in `INVITED` ("created, awaiting someone to join via the
  * link") with the caller as `creator_id` and `counterparty_id` NULL. The
  * returned `shareToken` is the capability the creator shares; whoever opens the
- * link joins via {@link joinDealByToken}. Nobody is notified yet — there is
+ * link joins via {@link joinDealByToken}. Nobody is notified yet - there is
  * nobody to notify.
  */
 export async function createDeal(
@@ -531,7 +531,7 @@ export async function createDeal(
     );
   }
 
-  // Photos of the goods the creator brings — the arbitration evidence base.
+  // Photos of the goods the creator brings - the arbitration evidence base.
   const photos = input.photos ?? [];
   const photosRequired = role === 'SELLER' || offerKinds.includes('ITEMS');
   if (photosRequired && photos.length < DEAL_PHOTOS_MIN) {
@@ -605,7 +605,7 @@ export async function createDeal(
 }
 
 // ---------------------------------------------------------------------------
-// getDealByToken / joinDealByToken — the share-link join
+// getDealByToken / joinDealByToken - the share-link join
 // ---------------------------------------------------------------------------
 
 /** States a share link can no longer be joined from (or previewed usefully). */
@@ -618,7 +618,7 @@ export interface DealPreview {
   description: string | null;
   creatorName: string | null;
   creatorVerified: boolean;
-  /** Which side the creator is on — decides how the cash reads to the joiner. */
+  /** Which side the creator is on - decides how the cash reads to the joiner. */
   creatorRole: DealRole | null;
   /** For a TRADER creator: what they put up (`CARDS` / `CASH` / `ITEMS`). */
   creatorOfferKinds: DealOfferKind[];
@@ -678,7 +678,7 @@ async function findDealByToken(token: string): Promise<DealRow | null> {
  *
  * The token IS the capability: there is deliberately no token-based RLS policy,
  * so the lookup runs through the SERVICE-ROLE client and this action returns
- * ONLY a minimal preview — never the full row, never anything about the joiner.
+ * ONLY a minimal preview - never the full row, never anything about the joiner.
  * The viewer may be unauthenticated (the join page shows "sign in to join"), in
  * which case the viewer-relative flags are all false.
  */
@@ -753,10 +753,10 @@ export type JoinDealResult =
  * The write runs through the SERVICE-ROLE client because the joiner is not yet a
  * participant, so RLS would hide the row from them. It is guarded with
  * `.is('counterparty_id', null).eq('state','INVITED')` so two people opening the
- * same link concurrently cannot both join — the loser gets `already-joined`.
+ * same link concurrently cannot both join - the loser gets `already-joined`.
  *
  * The joiner is NOT required to be KYC VERIFIED. If either party is unverified
- * the deal still becomes binding — `confirmDeal` re-reads both parties'
+ * the deal still becomes binding - `confirmDeal` re-reads both parties'
  * verification and holds collateral on BOTH sides instead.
  */
 export async function joinDealByToken(token: string): Promise<JoinDealResult> {
@@ -778,7 +778,7 @@ export async function joinDealByToken(token: string): Promise<JoinDealResult> {
 
   const admin = createAdminClient();
   // A SELLER-created deal records "how much I receive", so the joiner is the
-  // payer. That could not be recorded at creation time — nobody had joined yet.
+  // payer. That could not be recorded at creation time - nobody had joined yet.
   const joinerPaysCash =
     deal.creator_role === 'SELLER' && deal.cash_amount_cents !== null;
 
@@ -832,7 +832,7 @@ export async function joinDealByToken(token: string): Promise<JoinDealResult> {
 }
 
 // ---------------------------------------------------------------------------
-// updateTerms — agree the handover (step 3); clears both confirmations
+// updateTerms - agree the handover (step 3); clears both confirmations
 // ---------------------------------------------------------------------------
 
 /** Input for {@link updateTerms}. */
@@ -893,7 +893,7 @@ export type UpdateTermsResult =
   | ActionFailure<UpdateTermsError>;
 
 /**
- * Update the deal's substantive terms — including the agreed handover (an
+ * Update the deal's substantive terms - including the agreed handover (an
  * IN_PERSON meeting with a location and optional time, or a DELIVERY with its
  * own postage cost).
  *
@@ -902,7 +902,7 @@ export type UpdateTermsResult =
  * deal back for re-confirmation just like changing the cash amount does.
  *
  * Allowed from TERMS **and** CONFIRMATION: editing from CONFIRMATION is the
- * point of the critical rule — the database trigger clears BOTH confirmations
+ * point of the critical rule - the database trigger clears BOTH confirmations
  * and bumps `terms_updated_at`, so the parties must re-tick "I'm happy with the
  * deal". This action never attempts to preserve confirmations.
  *
@@ -917,7 +917,7 @@ export async function updateTerms(
   if (!guard.ok) return guard;
   const { supabase, userId, deal, iAmCreator } = guard.ctx;
 
-  // Terms are agreed BETWEEN two parties — nobody has joined the link yet.
+  // Terms are agreed BETWEEN two parties - nobody has joined the link yet.
   if (deal.counterparty_id === null) {
     return { ok: false, error: 'not-joined' };
   }
@@ -925,7 +925,7 @@ export async function updateTerms(
     return { ok: false, error: 'invalid-state' };
   }
 
-  // Handover validation — the method decides which detail is mandatory. For a
+  // Handover validation - the method decides which detail is mandatory. For a
   // delivery that is the POSTAGE COST (priced separately from the goods); an
   // omitted cost falls back to whatever the deal already agreed.
   const meetingLocation = normalizeText(input.meetingLocation);
@@ -1144,7 +1144,7 @@ export async function updateTerms(
     toState: next.state,
     detail:
       input.handoverMethod === 'IN_PERSON'
-        ? `In person — ${meetingLocation}`
+        ? `In person - ${meetingLocation}`
         : (deliveryDetails ?? 'Delivery'),
   });
 
@@ -1155,7 +1155,7 @@ export async function updateTerms(
       event: 'CONFIRMATIONS_CLEARED',
       fromState: next.state,
       toState: next.state,
-      detail: 'Terms changed — both parties must confirm again.',
+      detail: 'Terms changed - both parties must confirm again.',
     });
   }
 
@@ -1165,7 +1165,7 @@ export async function updateTerms(
       otherParty,
       'Deal terms changed',
       confirmationsCleared
-        ? `Terms changed on "${next.title}" — both parties must confirm again.`
+        ? `Terms changed on "${next.title}" - both parties must confirm again.`
         : `The terms of "${next.title}" were updated.`,
       dealId,
     );
@@ -1175,7 +1175,7 @@ export async function updateTerms(
 }
 
 // ---------------------------------------------------------------------------
-// confirmDeal / unconfirmDeal — dual confirmation, then the binding contract
+// confirmDeal / unconfirmDeal - dual confirmation, then the binding contract
 // ---------------------------------------------------------------------------
 
 /** Errors surfaced by {@link confirmDeal}. */
@@ -1205,7 +1205,7 @@ export type ConfirmDealResult =
  *
  * Uses the SERVICE-ROLE client because `profiles` RLS is owner-only and the
  * escrow step must place a hold on BOTH parties. Only the payer ref is read or
- * written — no other profile data is touched or returned to the caller.
+ * written - no other profile data is touched or returned to the caller.
  */
 async function resolvePayerId(profileId: string): Promise<string | null> {
   const admin = createAdminClient();
@@ -1251,11 +1251,11 @@ async function revertToConfirmation(
 }
 
 /**
- * Tick "I'm happy with the deal" for the caller (step 4), and — when BOTH
- * parties have now confirmed — engage the binding contract (step 5).
+ * Tick "I'm happy with the deal" for the caller (step 4), and - when BOTH
+ * parties have now confirmed - engage the binding contract (step 5).
  *
  * Guards: CONFIRMATION only, and the handover terms must be complete. Identity
- * verification is NOT a gate — both parties' verification is re-read here (never
+ * verification is NOT a gate - both parties' verification is re-read here (never
  * trusted from the client) only to size the collateral: verified-to-verified
  * engages with no holds at all, otherwise BOTH parties post the deal's stake.
  *
@@ -1385,7 +1385,7 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
     toState: 'ESCROW_PENDING',
     detail: collateral.required
       ? `Placing ${formatAud(collateralCents)} collateral on each party.`
-      : 'Both parties are identity verified — no collateral required.',
+      : 'Both parties are identity verified - no collateral required.',
   });
 
   const payments = getPaymentService();
@@ -1498,7 +1498,7 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
     toState: finalState,
     detail: collateral.required
       ? `${formatAud(collateralCents)} collateral held per party.`
-      : 'Backed by both parties’ verified identity — no collateral held.',
+      : 'Backed by both parties’ verified identity - no collateral held.',
   });
 
   for (const partyId of parties) {
@@ -1599,13 +1599,13 @@ export type CancelDealResult =
   | { ok: true; state: DealState }
   | ActionFailure<CancelDealError>;
 
-/** States a deal may still be cancelled from — never once it is binding. */
+/** States a deal may still be cancelled from - never once it is binding. */
 const CANCELLABLE_STATES: DealState[] = ['INVITED', 'TERMS', 'CONFIRMATION'];
 
 /**
  * Cancel the deal before it becomes binding. Either party may cancel from
  * INVITED / TERMS / CONFIRMATION. Once collateral is locked the deal is binding,
- * so `not-permitted` is returned — the parties must complete or dispute.
+ * so `not-permitted` is returned - the parties must complete or dispute.
  *
  * This deliberately still works on an UNJOINED deal: it is how a creator kills a
  * share link nobody has taken up. There is simply nobody to notify.
@@ -1624,7 +1624,7 @@ export async function cancelDeal(
       error: 'not-permitted',
       detail:
         deal.state === 'ESCROW_LOCKED'
-          ? 'This deal is binding — mark it complete or raise a dispute.'
+          ? 'This deal is binding - mark it complete or raise a dispute.'
           : `A ${deal.state.toLowerCase()} deal cannot be cancelled.`,
     };
   }
@@ -1655,7 +1655,7 @@ export async function cancelDeal(
     detail: cancelReason,
   });
 
-  // An unjoined deal has nobody to tell — the creator is scrapping their link.
+  // An unjoined deal has nobody to tell - the creator is scrapping their link.
   const otherParty = otherPartyOf(deal, userId);
   if (otherParty) {
     await notifyDeal(
@@ -1695,7 +1695,7 @@ export type CompleteDealResult =
  * Mark the handover complete from ESCROW_LOCKED. BOTH parties must mark before
  * the deal finishes.
  *
- * The confirmation columns are NOT reused here — they carry "happy with the
+ * The confirmation columns are NOT reused here - they carry "happy with the
  * terms" and are cleared by the terms trigger. Instead each party's mark is a
  * `deal_events` row with event `COMPLETE_MARKED`; once both parties have one,
  * both collateral holds are voided and the deal moves to COMPLETED.
@@ -1890,7 +1890,7 @@ export async function raiseDealDispute(
 }
 
 // ---------------------------------------------------------------------------
-// getDeal — the deal room's server-rendered snapshot
+// getDeal - the deal room's server-rendered snapshot
 // ---------------------------------------------------------------------------
 
 /** Everything the deal room needs for its first paint. */
@@ -1912,7 +1912,7 @@ export interface DealView {
   myConfirmed: boolean;
   /** The other party's confirmation state. */
   theirConfirmed: boolean;
-  /** True when BOTH parties are KYC VERIFIED — they post no collateral. */
+  /** True when BOTH parties are KYC VERIFIED - they post no collateral. */
   bothVerified: boolean;
   /** True when the handover terms are fully specified (step 2). */
   termsComplete: boolean;
@@ -1924,7 +1924,7 @@ export interface DealView {
    */
   collateralCents: number;
   /**
-   * What a hold would be worth if collateral were required — the figure to quote
+   * What a hold would be worth if collateral were required - the figure to quote
    * while a party is still unverified, or before anybody has joined.
    */
   collateralStakeCents: number;
@@ -1933,7 +1933,7 @@ export interface DealView {
   /**
    * The deal's participant-only chat thread, or `null` while the deal is
    * unjoined (a thread needs two participants) or the link has not been opened
-   * yet — the room heals that case with {@link ensureDealConversation}.
+   * yet - the room heals that case with {@link ensureDealConversation}.
    */
   conversationId: string | null;
 }
@@ -1981,7 +1981,7 @@ function mirrorRole(role: DealRole | null): DealRole | null {
 
 /**
  * Load a deal for one of its two parties, together with both parties' PUBLIC
- * profile info (display name, rating, verified flag — via `public_profiles`),
+ * profile info (display name, rating, verified flag - via `public_profiles`),
  * the collateral holds, the chronological timeline, and the derived booleans the
  * deal room renders from.
  */
@@ -1990,7 +1990,7 @@ export async function getDeal(dealId: string): Promise<GetDealResult> {
   if (!guard.ok) return guard;
   const { supabase, userId, deal, iAmCreator } = guard.ctx;
 
-  // Only query for the ids that actually exist — an unjoined deal has one party.
+  // Only query for the ids that actually exist - an unjoined deal has one party.
   const partyIds = [deal.creator_id, ...(deal.counterparty_id ? [deal.counterparty_id] : [])];
 
   const [profilesRes, holdsRes, eventsRes, statsResults] = await Promise.all([
@@ -2101,7 +2101,7 @@ export async function getDeal(dealId: string): Promise<GetDealResult> {
 }
 
 // ---------------------------------------------------------------------------
-// ensureDealConversation — open the deal's chat thread on demand
+// ensureDealConversation - open the deal's chat thread on demand
 // ---------------------------------------------------------------------------
 
 /** Errors surfaced by {@link ensureDealConversation}. */
@@ -2119,7 +2119,7 @@ export type EnsureDealConversationResult =
  * Resolve the deal's chat thread, creating and linking it if needed.
  *
  * Deals joined before chat existed (or an interrupted join) have no thread, so
- * the deal room calls this on first view — the same self-healing path the cash
+ * the deal room calls this on first view - the same self-healing path the cash
  * sale contract room uses. Authorization is enforced twice: the participant
  * guard here, and again inside the RPC.
  */

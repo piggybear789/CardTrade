@@ -34,14 +34,14 @@ export type CashSaleStatus =
 /**
  * Platform fee rate in basis points (1 bp = 0.01%), so 500 bp = 5% of the
  * agreed item price. Held in basis points rather than a float percentage so the
- * fee stays exact integer arithmetic end-to-end — no floating-point money.
+ * fee stays exact integer arithmetic end-to-end - no floating-point money.
  */
 export const PLATFORM_FEE_BPS = 500;
 
 /**
  * The Platform_Fee for a given agreed item price, in integer AUD cents (Req 4.7).
  *
- * The fee is charged on the item price only — shipping is a pass-through cost to
+ * The fee is charged on the item price only - shipping is a pass-through cost to
  * the carrier, not platform revenue, so it is excluded from the base. Rounded to
  * the nearest cent; a price of 0 yields a fee of 0.
  */
@@ -761,8 +761,8 @@ export async function recordCashSaleReceipt(
 /**
  * Refresh a shipment from the carrier (Req 4.13, 4.14a).
  *
- * A carrier-confirmed DELIVERED state is what starts the inspection clock — the
- * seller's own word never does — after which the contract auto-completes unless
+ * A carrier-confirmed DELIVERED state is what starts the inspection clock - the
+ * seller's own word never does - after which the contract auto-completes unless
  * the buyer accepts or disputes first.
  */
 export async function syncCashSaleTracking(

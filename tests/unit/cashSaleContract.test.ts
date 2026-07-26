@@ -88,7 +88,7 @@ async function agreeAndPay(
   return { saleId, version, second };
 }
 
-describe('cash sale — agreement stage', () => {
+describe('cash sale - agreement stage', () => {
   it('reserves the item and collects no money on Buy', async () => {
     const { deps, state, calls } = makeDeps();
 
@@ -185,7 +185,7 @@ describe('cash sale — agreement stage', () => {
   });
 });
 
-describe('cash sale — terms and dual acceptance', () => {
+describe('cash sale - terms and dual acceptance', () => {
   it('requires complete terms for the chosen fulfillment method', async () => {
     const { deps } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
@@ -341,7 +341,7 @@ describe('cash sale — terms and dual acceptance', () => {
   });
 });
 
-describe('cash sale — fulfillment', () => {
+describe('cash sale - fulfillment', () => {
   it('blocks shipment until the payment clears, then requires tracking', async () => {
     const { deps, state } = makeDeps();
     const { saleId } = await agreeAndPay(deps);
@@ -466,7 +466,7 @@ describe('cash sale — fulfillment', () => {
   });
 });
 
-describe('cash sale — contract chat', () => {
+describe('cash sale - contract chat', () => {
   it('opens one participant thread and reuses it', async () => {
     const { deps } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
@@ -501,7 +501,7 @@ describe('cash sale — contract chat', () => {
   });
 });
 
-describe('cash sale — price renegotiation', () => {
+describe('cash sale - price renegotiation', () => {
   it('reprices the contract and clears both acceptances', async () => {
     const { deps, calls } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);

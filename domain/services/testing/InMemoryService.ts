@@ -17,7 +17,7 @@
 //     amount+status, captures, transfers, verified identities) is tracked in a
 //     plain Map/array a test can read to assert side effects.
 //   * Explicit, deterministic failure forcing keyed by operation `ref`/`holdId`,
-//     plus a KYC outcome switch — no randomness, ever.
+//     plus a KYC outcome switch - no randomness, ever.
 
 import type {
   CaptureResult,
@@ -192,7 +192,7 @@ export class InMemoryService implements PaymentService, KycService, WebhookEmitt
     return hold;
   }
 
-  /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */
+  /** Capture a fixed portion of a hold - the Friction_Tax (Req 7.2). */
   async partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult> {
     const ok = this.resolveOutcome(params.holdId) === 'SUCCESS';
     const result: CaptureResult = {
@@ -225,7 +225,7 @@ export class InMemoryService implements PaymentService, KycService, WebhookEmitt
   // WebhookEmitter
   // -------------------------------------------------------------------------
 
-  /** Record an emitted event in memory — no signing, no HTTP. */
+  /** Record an emitted event in memory - no signing, no HTTP. */
   async emit(event: WebhookEvent): Promise<void> {
     this.emittedEvents.push(event);
   }

@@ -1,7 +1,7 @@
 // tests/component/addPaymentMethodDialog.test.tsx
 //
 // The "Add payment method" widget (Req 2.1, 5.4). The critical guarantee is
-// that a card token — never the raw card number/CVC/expiry — is what reaches
+// that a card token - never the raw card number/CVC/expiry - is what reaches
 // the server action.
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -68,7 +68,7 @@ describe('AddPaymentMethodDialog', () => {
     });
 
     // createToken (the browser-side CaptureJS call) legitimately receives the
-    // raw card number — that's what tokenisation means. The invariant we care
+    // raw card number - that's what tokenisation means. The invariant we care
     // about is that the SERVER action never sees it, only the resulting token.
     expect(JSON.stringify(attachPaymentSource.mock.calls)).not.toContain('4242424242424242');
     expect(attachPaymentSource.mock.calls[0]).toEqual(['tok_abc123', 'credit-card', {

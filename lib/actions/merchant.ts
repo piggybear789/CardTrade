@@ -7,7 +7,7 @@
 // WHY: the provider settles funds only into a merchant's own bank account, so a
 // User who wants to SELL for cash must exist as a sub-merchant under the
 // platform's parent merchant. This is separate from Req 2 KYC, which gates
-// paying/listing/trading — a trade-only User never comes here.
+// paying/listing/trading - a trade-only User never comes here.
 //
 // The action layer exists (rather than a pure domain call) because the provider
 // requires the real `ipAddress` and `userAgent` of the person completing
@@ -15,7 +15,7 @@
 // and never accepted from the client payload.
 //
 // Provider-controlled columns (`merchant_*`) are written only by the service-role
-// repository — 0005_merchant_onboarding.sql revokes column UPDATE on them from
+// repository - 0005_merchant_onboarding.sql revokes column UPDATE on them from
 // `authenticated`, so a User cannot mark themselves settlement-enabled.
 
 import { headers } from 'next/headers';
@@ -46,7 +46,7 @@ export type MerchantOnboardingActionError =
 
 /**
  * The onboarding snapshot surfaced to the UI. Deliberately excludes bank
- * details, contact details and compliance notes — only the seller's own
+ * details, contact details and compliance notes - only the seller's own
  * buyer-visible identity plus provider status is returned.
  */
 export interface MerchantStateData {

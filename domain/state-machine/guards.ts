@@ -22,7 +22,7 @@ function roleKey(role: TradeViewerRole): 'initiator' | 'counterpart' {
 }
 
 // ---------------------------------------------------------------------------
-// Aggregate predicates (both traders) — pure reads of the facts snapshot.
+// Aggregate predicates (both traders) - pure reads of the facts snapshot.
 // ---------------------------------------------------------------------------
 
 /** True iff both traders have recorded shipment of their own Item (Req 6.2). */
@@ -46,7 +46,7 @@ export function bothHoldsActive(facts: TradeFacts): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Per-trader once-only predicates — used to suppress already-performed actions
+// Per-trader once-only predicates - used to suppress already-performed actions
 // (Req 6.1, 6.3, 6.5, 6.8). Each is a pure read of the facts snapshot.
 // ---------------------------------------------------------------------------
 
@@ -71,7 +71,7 @@ export function holdActive(facts: TradeFacts, role: TradeViewerRole): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// deriveEvent — the single place that turns aggregate facts into the event the
+// deriveEvent - the single place that turns aggregate facts into the event the
 // current state implies. Kept strictly aligned with the TRANSITIONS table in
 // machine.ts: it only ever returns an event that is table-defined from `state`.
 // ---------------------------------------------------------------------------
@@ -88,8 +88,8 @@ export function holdActive(facts: TradeFacts, role: TradeViewerRole): boolean {
  * - INSPECTION         + both accepted      -> BOTH_ACCEPTED  (Req 6.6)
  *
  * Events that are the result of an explicit human decision rather than an
- * aggregate fact — CONDITION_DISPUTE, DISPUTE_RESOLVED, FRAUD_CONFIRMED,
- * HOLDS_FAILED — are intentionally NOT derived from the facts snapshot and are
+ * aggregate fact - CONDITION_DISPUTE, DISPUTE_RESOLVED, FRAUD_CONFIRMED,
+ * HOLDS_FAILED - are intentionally NOT derived from the facts snapshot and are
  * dispatched by the orchestrator/webhook layer instead. Terminal states derive
  * nothing.
  *

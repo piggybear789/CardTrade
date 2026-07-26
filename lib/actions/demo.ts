@@ -5,7 +5,7 @@
 // Demo-only Server Actions that fire SIMULATED Pinch Webhook_Events into the
 // real Webhook_Handler (`app/api/webhooks/pinch/route.ts`). These back the
 // Trade Contract "Demo" panel (task 15.3), letting a demo operator drive the
-// payment/collateral webhooks that would otherwise arrive from Pinch — chiefly
+// payment/collateral webhooks that would otherwise arrive from Pinch - chiefly
 // the pre-auth hold confirmation that advances a Trade
 // COLLATERAL_PENDING -> COLLATERAL_LOCKED (Req 5.5), plus a hold-failure control
 // (Req 5.6).
@@ -13,7 +13,7 @@
 // Why a server action (not a browser fetch): the webhook body must be SIGNED
 // with the server-side shared secret (HMAC-SHA256), and the secret must never
 // reach the browser (Req 10.1). So the browser calls this action, and the
-// action signs + POSTs on the server — exercising the exact same authenticated
+// action signs + POSTs on the server - exercising the exact same authenticated
 // code path a real Pinch webhook would (Req 10.1). We reuse the MockService's
 // `buildEnvelope` to produce the signed body + header contract, then POST it
 // ourselves so we can read the handler's outcome and return a typed result.
@@ -21,7 +21,7 @@
 // The action never mutates the Trade directly: it only delivers the webhook.
 // The resulting Trade_State transition is committed by the Webhook_Handler via
 // the orchestrator, and the live view updates over the existing realtime
-// subscription — so the panel does not need to refetch.
+// subscription - so the panel does not need to refetch.
 
 import { createClient } from '@/lib/supabase/server';
 import { MockService } from '@/domain/services/mock/MockService';
@@ -179,7 +179,7 @@ export async function fireTradeWebhook(
   }
 
   // A non-2xx here means the signed delivery itself was rejected (e.g. 401 on a
-  // signature mismatch, 400 on a malformed body) — a wiring problem, not a
+  // signature mismatch, 400 on a malformed body) - a wiring problem, not a
   // business rejection.
   if (!response.ok) {
     return { ok: false, error: 'delivery-failed', detail: `Webhook responded ${response.status}.` };
@@ -205,7 +205,7 @@ export async function fireTradeWebhook(
 }
 
 // ---------------------------------------------------------------------------
-// Cash Sale — simulated payment settlement / failure
+// Cash Sale - simulated payment settlement / failure
 // ---------------------------------------------------------------------------
 
 /**

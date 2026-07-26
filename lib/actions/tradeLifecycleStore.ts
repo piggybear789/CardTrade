@@ -5,7 +5,7 @@
 // `recordAcceptance` server actions in `trades.ts`.
 //
 // Why this lives outside the orchestrator cores: end-user Trade writes are not
-// granted by RLS (see the design note — participants get READ only), so the
+// granted by RLS (see the design note - participants get READ only), so the
 // per-trader shipment/receipt/acceptance timestamp must be persisted through the
 // trusted service-role admin client. Rather than editing the orchestrator cores
 // that other parallel tasks depend on, this module adds a focused, guarded write
@@ -13,8 +13,8 @@
 // dependency so it can never be pulled into client code.
 //
 // The write is guarded two ways for once-only + state safety (Req 6.8):
-//   * `.is(<column>, null)`   — only stamps a trader's own leg if not already set
-//   * `.eq('state', <state>)` — only stamps while the Trade is in the permitting
+//   * `.is(<column>, null)`   - only stamps a trader's own leg if not already set
+//   * `.eq('state', <state>)` - only stamps while the Trade is in the permitting
 //                               state, so a concurrent transition cannot slip a
 //                               late timestamp into the wrong state
 // A write that matches no row (already recorded, or state moved on) returns
@@ -45,7 +45,7 @@ interface LifecycleSpec {
   columns: Record<TradeViewerRole, keyof TradeRow>;
 }
 
-/** The lifecycle action table — the single source of truth for column mapping. */
+/** The lifecycle action table - the single source of truth for column mapping. */
 export const LIFECYCLE_SPECS: Record<LifecycleAction, LifecycleSpec> = {
   shipment: {
     requiredState: 'COLLATERAL_LOCKED',

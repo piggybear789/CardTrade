@@ -2,7 +2,7 @@
 
 // lib/actions/auth.ts
 //
-// Authentication Server Actions — thin wrappers over Supabase Auth plus the
+// Authentication Server Actions - thin wrappers over Supabase Auth plus the
 // pure credential validator (Req 1.1–1.3). Sign-up also provisions the 1:1
 // `profiles` row with KYC_Status UNVERIFIED (Req 1.1). Google OAuth follows the
 // same contract: `signInWithGoogle` starts the PKCE flow and
@@ -63,7 +63,7 @@ function defaultDisplayName(email: string): string {
  * 1. Validate credentials with the pure validator; on failure return the
  *    offending field (Req 1.3).
  * 2. Create the Supabase Auth user. A duplicate email is mapped to
- *    `DUPLICATE_ACCOUNT` (Req 1.2) — detected both from the provider error and
+ *    `DUPLICATE_ACCOUNT` (Req 1.2) - detected both from the provider error and
  *    from Supabase's enumeration-safe "empty identities" signal.
  * 3. Insert the associated `profiles` row with KYC_Status UNVERIFIED (Req 1.1)
  *    via the admin client.
@@ -135,7 +135,7 @@ export async function signUp(
 }
 
 /**
- * Authenticate an existing User (Req 1.7 — establishes the session used by
+ * Authenticate an existing User (Req 1.7 - establishes the session used by
  * protected resources). Credentials are validated for shape first so an empty
  * or malformed submission returns a field-level error rather than a generic
  * auth failure.

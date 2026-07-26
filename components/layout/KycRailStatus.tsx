@@ -3,7 +3,7 @@
 // Persistent identity-verification state for the workspace rail (Req 1.4, 2.x).
 // Verification is provider-approved Managed Merchant onboarding
 // (`merchant_status = APPROVED` with settlements enabled), not the standalone
-// KYC payer check — it gates Bond relief on trades and private deals, so the
+// KYC payer check - it gates Bond relief on trades and private deals, so the
 // rail carries it on every signed-in surface with a route into payout setup
 // (`/profile#payouts`). Renders nothing for signed-out visitors, who have no
 // status to report.

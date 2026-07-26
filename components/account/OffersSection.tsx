@@ -108,7 +108,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
       const result = await respondToOffer(offer.offerId, action);
       if (result.ok) {
         if (action === 'accept') {
-          toast.success('Offer accepted — opening the sale…');
+          toast.success('Offer accepted - opening the sale…');
           // The escrow sale has been opened at the agreed price; take the user
           // straight to it.
           if (result.saleId) {
@@ -123,7 +123,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
       }
       const message =
         result.error === 'sale-failed'
-          ? 'Could not open the sale — the item may no longer be available.'
+          ? 'Could not open the sale - the item may no longer be available.'
           : (result.detail ?? 'Could not update the offer. Please try again.');
       toast.error(message);
     });

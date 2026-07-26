@@ -2,7 +2,7 @@
 
 // components/messages/ContractChat.tsx
 //
-// The compact live participant chat embedded in a contract room — the cash sale
+// The compact live participant chat embedded in a contract room - the cash sale
 // room (Req 4.2) and the private deal room both render it in their middle
 // column, so the two flows behave and read identically.
 //
@@ -42,7 +42,7 @@ export interface ContractChatProps {
 /**
  * Chat panel embedded in a contract room (demo-contract-ux Req 1). It is
  * always given a real bounded height by the parent `ContractWorkspace`, so
- * only the message log scrolls — the header and composer stay pinned, and
+ * only the message log scrolls - the header and composer stay pinned, and
  * the contract page itself never grows with the conversation.
  */
 export function ContractChat({

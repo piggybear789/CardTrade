@@ -38,7 +38,7 @@ function reportError(result: Extract<AdminActionResult, { ok: false }>): string 
 export interface ReportActionsProps {
   reportId: string;
   targetType: ReportTargetType;
-  /** The reported item's id — required to hide item listings. */
+  /** The reported item's id - required to hide item listings. */
   targetId: string;
 }
 

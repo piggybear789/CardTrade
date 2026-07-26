@@ -4,7 +4,7 @@
 //
 // Cash sales, private deals, and (once wired) trades all put participant
 // context beside a live conversation. Stacking them as equal-width flex
-// siblings — the previous approach — left the conversation panel with no
+// siblings - the previous approach - left the conversation panel with no
 // definite height, so `ContractChat`'s `h-full` could never resolve and the
 // message list grew with the page instead of scrolling in place.
 //

@@ -8,7 +8,7 @@ import type { Database } from '@/lib/supabase/database.types';
  *
  * It reads/writes the auth session from Next.js cookies so RLS is enforced
  * against the current user. Cookie writes are wrapped in try/catch because
- * Server Components cannot mutate cookies — in that context the middleware /
+ * Server Components cannot mutate cookies - in that context the middleware /
  * Server Action is responsible for session refresh.
  */
 export async function createClient() {

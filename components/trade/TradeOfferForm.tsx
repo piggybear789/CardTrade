@@ -9,7 +9,7 @@
 // Two ways to answer that:
 //   * an Item you already have listed, filtered to those that match the
 //     requested Fair_Market_Value to the cent (Req 5.2), or
-//   * an Item described here and now, created privately — owned and valued, but
+//   * an Item described here and now, created privately - owned and valued, but
 //     never published to the catalog.
 //
 // The Fair_Market_Value of a private Item is fixed to the requested Item's value
@@ -264,7 +264,7 @@ export function TradeOfferForm({
         <CardDescription>
           {counterOfProposalId
             ? `Answer with your own terms. This replaces their offer, and ${requested.ownerName} then decides.`
-            : `Put up whatever you think is fair — items, cash, or both. ${requested.ownerName} decides whether to accept, and until then nothing is reserved and no card is on the line.`}
+            : `Put up whatever you think is fair - items, cash, or both. ${requested.ownerName} decides whether to accept, and until then nothing is reserved and no card is on the line.`}
         </CardDescription>
       </CardHeader>
 
@@ -466,7 +466,7 @@ export function TradeOfferForm({
           </div>
         )}
 
-        {/* Throw in more goods. Nothing here has to match the listing price —
+        {/* Throw in more goods. Nothing here has to match the listing price -
             the other trader decides whether the whole bundle is fair. */}
         {addableItems.length > 0 ? (
           <fieldset className="space-y-2">
@@ -548,7 +548,7 @@ export function TradeOfferForm({
           />
         </div>
 
-        {/* Running total. Sides do not have to match — this just shows where the
+        {/* Running total. Sides do not have to match - this just shows where the
             offer stands so nobody has to do the arithmetic themselves. */}
         <div className="rounded-lg border p-3 text-sm" role="status" aria-live="polite">
           <dl className="space-y-1.5">

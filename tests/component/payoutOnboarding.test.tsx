@@ -53,7 +53,7 @@ async function openForm(user: ReturnType<typeof userEvent.setup>) {
 
 /**
  * Fill the required fields across the two steps, ending on the last one where
- * consent and submit live. Values from earlier steps must survive the walk —
+ * consent and submit live. Values from earlier steps must survive the walk -
  * that is the behaviour worth pinning, not the step chrome itself.
  */
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {

@@ -72,7 +72,7 @@ function escapePdfText(value: string): string {
  * the actual serialized object byte positions so the document is structurally
  * valid, not just a `%PDF` sentinel.
  *
- * This is intentionally dependency-free — no heavy PDF library — which is
+ * This is intentionally dependency-free - no heavy PDF library - which is
  * sufficient for the MVP's Police_Evidence_Pack (Req 8.4). The real integration
  * can swap in a richer generator behind the same {@link EvidencePackGenerator}
  * interface without touching the orchestrator.

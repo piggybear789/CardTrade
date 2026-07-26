@@ -3,7 +3,7 @@
 // The real-time Trade Contract view route (Req 11, plus the 6/7/8 actions it
 // surfaces). This Server Component:
 //   1. Requires an authenticated user (unauthenticated -> sign-in, Req 1.7).
-//   2. Loads the Trade under RLS — the participant-read policy grants the row
+//   2. Loads the Trade under RLS - the participant-read policy grants the row
 //      only to the two participating Traders, so a non-participant simply sees
 //      no row and is sent to a 404 (Req 9.6, 9.7).
 //   3. Derives the caller's role (INITIATOR / COUNTERPART) from the trade row.

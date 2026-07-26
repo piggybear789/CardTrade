@@ -7,7 +7,7 @@ import 'server-only';
 // photos (evidence for arbitration) share one upload path, one bucket, and one
 // decode/cleanup implementation.
 //
-// Uploads run through the SERVICE-ROLE admin client — the bucket is created on
+// Uploads run through the SERVICE-ROLE admin client - the bucket is created on
 // demand with PUBLIC read so the UI can render images by public URL, while
 // writes stay server-side only. Object paths (never URLs) are what callers
 // persist; `itemImageUrl()` in `lib/format.ts` resolves them for display.

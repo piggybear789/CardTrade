@@ -2,7 +2,7 @@
 
 // lib/actions/profile.ts
 //
-// Profile Server Action — a thin wrapper over the pure profile validator plus a
+// Profile Server Action - a thin wrapper over the pure profile validator plus a
 // user-scoped persist (Req 1.4, 1.5). It runs against the cookie-bound server
 // client so the write is authorized by RLS: the `profiles_owner_update` policy
 // (`auth.uid() = id`) guarantees a User can only update their own Profile, and
@@ -61,7 +61,7 @@ export async function updateProfile(
   }
   const { displayName, contactEmail } = validation.value;
 
-  // 3. Persist to the caller's own Profile — RLS enforces ownership (Req 1.6).
+  // 3. Persist to the caller's own Profile - RLS enforces ownership (Req 1.6).
   const { data, error } = await supabase
     .from('profiles')
     .update({ display_name: displayName, contact_email: contactEmail })

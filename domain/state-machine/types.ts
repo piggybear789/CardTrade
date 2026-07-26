@@ -1,7 +1,7 @@
 // domain/state-machine/types.ts
 //
 // Pure, dependency-free type definitions for the Trade State Machine.
-// This module MUST NOT import Supabase, React, or the service layer — it is the
+// This module MUST NOT import Supabase, React, or the service layer - it is the
 // framework-free domain core so it can be exhaustively unit + property tested.
 
 /**

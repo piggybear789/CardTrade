@@ -1,7 +1,7 @@
 // domain/orchestrator/supabaseDisputeResolutionRepository.ts
 //
 // The concrete, production wiring of the dispute/fraud resolution seams, backed
-// by the service-role Supabase admin client (which bypasses RLS — resolution
+// by the service-role Supabase admin client (which bypasses RLS - resolution
 // must mutate the Trade and its holds via this trusted path). Mirrors
 // `supabaseTradeRepository.ts` / `supabaseTradeProposalRepository.ts`.
 //

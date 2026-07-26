@@ -282,7 +282,7 @@ export function TradeContract({
     return { role: viewerRole, facts: deriveFacts(trade, holds) };
   }, [trade, holds, viewerRole]);
 
-  // How many actions the state machine permits the viewer right now — drives the
+  // How many actions the state machine permits the viewer right now - drives the
   // "no actions available" helper text (Req 11.4).
   const permittedActionCount =
     trade && viewer ? availableActions(trade.state, viewer).length : 0;

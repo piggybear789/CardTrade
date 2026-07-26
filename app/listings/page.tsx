@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 
-// Always render fresh — the catalog reflects live availability + URL filters
+// Always render fresh - the catalog reflects live availability + URL filters
 // (Req 3.8, Phase 7). Search/filter/sort/pagination are driven by search params.
 export const dynamic = 'force-dynamic';
 

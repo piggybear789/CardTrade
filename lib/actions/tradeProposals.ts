@@ -4,8 +4,8 @@
 //
 // Server Actions for the Trade_Proposal step that now precedes Requirement 5.1.
 //
-// A Trader offers an Item — an existing listing of theirs, or one created
-// privately for this offer — against a Counterpart's public listing. Nothing is
+// A Trader offers an Item - an existing listing of theirs, or one created
+// privately for this offer - against a Counterpart's public listing. Nothing is
 // reserved and no Bond is requested while the proposal is PENDING. Acceptance is
 // the Counterpart's decision alone; only then is the Trade created and do Req
 // 5.1 (reserve both Items) and Req 5.4 (size and place each Bond) apply.
@@ -84,7 +84,7 @@ export type ProposalOffer =
  *
  * When `offer.kind` is `private` the Item is created first with `hidden = true`,
  * so it is owned and valued but never enters the catalog. If the proposal is
- * then rejected by a guard, the Item is left in place — it belongs to the
+ * then rejected by a guard, the Item is left in place - it belongs to the
  * proposer and stays private, which is the documented behaviour rather than a
  * leak.
  */
@@ -193,8 +193,8 @@ export async function createTradeProposal(input: {
  *
  * ATOMICITY (demo-contract-ux Task 1.3): `proposeTrade` itself is a real
  * payment-provider call and cannot be wrapped in a database transaction, but
- * everything after it — recording the full bundle in `trade_items`, the cash
- * amount, and flipping the proposal to ACCEPTED — is bookkeeping that used to
+ * everything after it - recording the full bundle in `trade_items`, the cash
+ * amount, and flipping the proposal to ACCEPTED - is bookkeeping that used to
  * run as three separate service-role calls. A failure between any of them left
  * a half-recorded Trade with a still-PENDING proposal. `finalize_trade_acceptance`
  * (0017_atomic_trade_acceptance.sql) now performs all three in one Postgres
@@ -388,8 +388,8 @@ export async function withdrawTradeProposal(
  *
  * This is what makes a many-for-many swap possible. A fresh offer can only put a
  * bundle against one listing, because that listing is the entry point. Countering
- * reverses the roles — the recipient becomes the proposer and can put their own
- * bundle and cash against the goods they were offered — so over one or two rounds
+ * reverses the roles - the recipient becomes the proposer and can put their own
+ * bundle and cash against the goods they were offered - so over one or two rounds
  * both sides end up describing exactly what they are giving.
  *
  * The original offer is closed SUPERSEDED rather than declined, so the history

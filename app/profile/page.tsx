@@ -1,7 +1,7 @@
 // app/profile/page.tsx
 //
 // Profile page (Req 1.4–1.6). A Server Component that loads the authenticated
-// caller's own Profile via the cookie-bound server client — RLS
+// caller's own Profile via the cookie-bound server client - RLS
 // (`profiles_owner_select`) guarantees a User can only read their own row, so
 // only the owner can view/edit (Req 1.6). It renders the editable ProfileForm
 // (client) and the payout/verification card (`PayoutOnboarding`), which is the

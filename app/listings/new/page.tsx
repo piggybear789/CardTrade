@@ -7,7 +7,7 @@
 // listing entirely (revised Req 3.1): an unverified user cannot reach the
 // listing form at all. This is stricter than buying and trading, which never
 // gate on verification (unverified traders bond collateral instead of being
-// blocked, per Req 5.4) — listing is the one path verification fully closes.
+// blocked, per Req 5.4) - listing is the one path verification fully closes.
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -67,7 +67,7 @@ export default async function NewListingPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-0 text-sm text-muted-foreground">
-            Verifying is provider-approved payout onboarding on your profile —
+            Verifying is provider-approved payout onboarding on your profile -
             once approved, come back here to list.
           </CardContent>
           <CardFooter className="pt-2">

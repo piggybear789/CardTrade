@@ -2,7 +2,7 @@
 //
 // The concrete, production wiring of the trade-proposal data-access seam
 // (`TradeProposalRepository`), backed by the service-role Supabase admin client
-// (which bypasses RLS — a valid proposal must create the Trade, reserve items,
+// (which bypasses RLS - a valid proposal must create the Trade, reserve items,
 // and record holds via this trusted path). Mirrors
 // `supabaseTradeRepository.ts`.
 //

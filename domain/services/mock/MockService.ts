@@ -5,19 +5,19 @@
 // `domain/services/types.ts`, simulating the Pinch Payments REST API and Pinch
 // Glassbox KYC without any real payment processing.
 //
-// Design goals (see design.md — "MockService (this phase)"):
-//   * DETERMINISTIC — given the same inputs it produces the same outputs.
+// Design goals (see design.md - "MockService (this phase)"):
+//   * DETERMINISTIC - given the same inputs it produces the same outputs.
 //     Success/failure outcomes are driven by an explicit `scenario` control (a
 //     default outcome plus per-ref/per-hold overrides), NEVER by randomness, so
 //     demos and tests are reproducible. All ids are derived from their inputs
 //     via a stable hash rather than random UUIDs, and all timestamps come from
 //     an injectable clock.
-//   * WEBHOOK-EMITTING — after a payment/KYC operation the Mock constructs the
+//   * WEBHOOK-EMITTING - after a payment/KYC operation the Mock constructs the
 //     corresponding WebhookEvent and either emits it immediately (auto mode) or
 //     enqueues it for the caller/UI to fire manually (the default). Emission
 //     POSTs a signed envelope to the configured `webhookUrl`, exercising the
 //     exact code path a real Pinch webhook would.
-//   * SIGNATURE-STUBBED — webhook payloads are signed with a shared secret using
+//   * SIGNATURE-STUBBED - webhook payloads are signed with a shared secret using
 //     HMAC-SHA256 over the raw body, producing the same header contract the real
 //     Pinch integration will verify (Req 10.1, 10.2).
 //
@@ -186,7 +186,7 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
     options?: PayerCreateOptions,
   ): Promise<Payer> {
     // A payer is scoped to the merchant it was created under, so the simulated id
-    // includes the sub-merchant when one is targeted — mirroring the real
+    // includes the sub-merchant when one is targeted - mirroring the real
     // provider, where the same Profile has a distinct payer per merchant.
     const key = options?.merchantRef ? `${profileId}@${options.merchantRef}` : profileId;
     const existing = this.payersByProfile.get(key);
@@ -199,7 +199,7 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
 
   /**
    * Simulate opening a sub-merchant. Deterministic id, and every enable flag
-   * false — matching the real provider, where approval arrives later via a
+   * false - matching the real provider, where approval arrives later via a
    * compliance webhook. The demo can drive that with a
    * `merchant.compliance.updated` event.
    */
@@ -327,7 +327,7 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
     return hold;
   }
 
-  /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */
+  /** Capture a fixed portion of a hold - the Friction_Tax (Req 7.2). */
   async partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult> {
     const ok = this.resolveOutcome(params.holdId) === 'SUCCESS';
     const result: CaptureResult = {

@@ -4,7 +4,7 @@
 //
 // A real, confirmed delete control for the owner's listing page. Previously the
 // "Delete listing" button silently routed to the edit page instead of calling
-// `deleteItem` (demo-contract-ux Task 7.1) — this replaces it with a genuine
+// `deleteItem` (demo-contract-ux Task 7.1) - this replaces it with a genuine
 // destructive confirmation dialog wired to the existing owner-gated server
 // action. RLS scopes the delete to the owner, and the `items` foreign keys are
 // `ON DELETE RESTRICT` for any active trade/sale/proposal, so deleting an item
@@ -32,7 +32,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-found': 'This listing no longer exists.',
   unauthorized: 'You can only delete your own listing.',
   'persistence-error':
-    'This listing could not be deleted — it may be part of an active trade or sale.',
+    'This listing could not be deleted - it may be part of an active trade or sale.',
 };
 
 export function DeleteListingDialog({

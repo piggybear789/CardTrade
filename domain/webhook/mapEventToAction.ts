@@ -2,7 +2,7 @@
 //
 // The pure event → action mapping for the Webhook_Handler (Req 10.4, 10.7).
 //
-// This module has NO I/O and NO Supabase/React/service dependencies — it is a
+// This module has NO I/O and NO Supabase/React/service dependencies - it is a
 // framework-free classifier so tasks 9.2/9.3/9.4 can exhaustively test the
 // mapping in isolation. Given a decoded `WebhookEvent`, it decides WHICH kind of
 // downstream action the handler should take (a Trade_State transition, a
@@ -15,12 +15,12 @@ import type { TradeEvent } from '../state-machine/types';
 
 /**
  * A classified webhook action. The handler switches on `kind`:
- * - `TRADE_EVENT`      — dispatch `tradeEvent` through the Trade State Machine
+ * - `TRADE_EVENT`      - dispatch `tradeEvent` through the Trade State Machine
  *                        via the orchestrator (Req 10.4).
- * - `CASH_SALE_SETTLE` — settle the referenced Cash_Sale (Req 4.3).
- * - `CASH_SALE_FAIL`   — fail the referenced Cash_Sale (Req 4.4).
- * - `MERCHANT_COMPLIANCE` — apply a provider compliance decision to a sub-merchant.
- * - `NO_OP`            — an authentic event that maps to no state change (Req 10.7).
+ * - `CASH_SALE_SETTLE` - settle the referenced Cash_Sale (Req 4.3).
+ * - `CASH_SALE_FAIL`   - fail the referenced Cash_Sale (Req 4.4).
+ * - `MERCHANT_COMPLIANCE` - apply a provider compliance decision to a sub-merchant.
+ * - `NO_OP`            - an authentic event that maps to no state change (Req 10.7).
  */
 export type WebhookAction =
   | { kind: 'TRADE_EVENT'; tradeEvent: TradeEvent }
@@ -46,7 +46,7 @@ export type WebhookAction =
  * - `hold.voided` and every `capture.*` event are dispute/fraud FOLLOW-UPS whose
  *   Trade_State transition (DISPUTED / FRAUD_RESOLVED / COMPLETED) is driven by
  *   the user-initiated orchestrator flow, not the webhook. They therefore map to
- *   `NO_OP` — recorded and acknowledged without a further transition (Req 10.7).
+ *   `NO_OP` - recorded and acknowledged without a further transition (Req 10.7).
  */
 export function mapEventToAction(event: WebhookEvent): WebhookAction {
   switch (event.type) {

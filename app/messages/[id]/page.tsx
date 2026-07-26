@@ -3,7 +3,7 @@
 // A single conversation thread (Phase 2). A Server Component that:
 //   1. Requires an authenticated user (unauthenticated -> sign-in).
 //   2. Loads the conversation via `getConversation`, which enforces the
-//      two-participant access rule under RLS — a non-participant (or missing
+//      two-participant access rule under RLS - a non-participant (or missing
 //      conversation) yields a 404.
 //   3. Renders the live client <ChatThread/>, which subscribes to realtime
 //      message changes, drives the composer, and marks the conversation read on

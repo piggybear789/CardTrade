@@ -172,7 +172,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     if (fmvCents === null) {
       setError({
         field: "fmvCents",
-        message: "Enter a fair market value in dollars (e.g. 123.45).",
+        message: "Enter a price in dollars (e.g. 123.45).",
       });
       return;
     }
@@ -292,8 +292,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           {mode === "create" ? "List an item" : "Edit listing"}
         </CardTitle>
         <CardDescription>
-          Describe your collectible and set its fair market value in Australian
-          dollars.
+          Describe your collectible and set its price in Australian dollars.
         </CardDescription>
       </CardHeader>
 
@@ -432,7 +431,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             ) : null}
           </div>
 
-          {/* Details form — a dedicated right-hand rail. */}
+          {/* Details form - a dedicated right-hand rail. */}
           <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:border-l lg:border-border/80 lg:px-7 lg:pb-7">
             {/* Title */}
             <div className="space-y-2">
@@ -554,9 +553,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               </div>
             </div>
 
-            {/* Fair Market Value (dollars) */}
+            {/* Price (dollars) */}
             <div className="space-y-2">
-              <Label htmlFor="fmv">Fair market value (AUD)</Label>
+              <Label htmlFor="fmv">Price (AUD)</Label>
               <div className="relative">
                 <span
                   aria-hidden

@@ -3,21 +3,21 @@
 // Trade proposal + collateral logic for the 2-Way Trade escrow (Req 5 + the
 // verified-merchant gate of Req 2.4). Like `tradeOrchestrator.ts`, this module
 // is the coordination layer that combines validation, persistence, and payment
-// side effects — but it depends only on *interfaces* (a
+// side effects - but it depends only on *interfaces* (a
 // `TradeProposalRepository` for data access and the `PaymentService` for
 // holds/voids) so it stays exhaustively testable against an in-memory fake. The
 // concrete Supabase admin binding lives in `supabaseTradeProposalRepository.ts`,
 // which is the only file that pulls in `server-only`.
 //
 // Responsibilities (task 7.4):
-//   * proposeTrade — guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
+//   * proposeTrade - guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
 //     on success create a Trade in COLLATERAL_PENDING, set both Items to
 //     RESERVED (Req 5.1), and place a bond for each Trader who requires one per
 //     the Bond Policy (`domain/bond/bondPolicy.ts`): Traders with a
 //     provider-approved Managed Merchant (`merchant_status = APPROVED` with
 //     settlements enabled) are exempt, everyone else bonds against their own
 //     paired Item's FMV (revised Req 2.4, 5.4).
-//   * createCollateralSideEffects — a `RunSideEffects` hook for the guarded
+//   * createCollateralSideEffects - a `RunSideEffects` hook for the guarded
 //     transition core: on HOLDS_FAILED it cancels the Trade by voiding any
 //     active holds and restoring both Items to AVAILABLE (Req 5.6). The
 //     HOLDS_CONFIRMED -> COLLATERAL_LOCKED transition itself is performed by the
@@ -114,14 +114,14 @@ export interface TradeProposalRepository {
 /**
  * Typed failure codes for {@link proposeTrade}. None of these leave the system
  * mutated: every guard runs before any Trade creation / item reservation.
- * - `profile-not-found`  — the proposing Trader has no Profile.
- * - `not-verified`       — reserved; a Trader may propose while unverified as
+ * - `profile-not-found`  - the proposing Trader has no Profile.
+ * - `not-verified`       - reserved; a Trader may propose while unverified as
  *   long as they can post a Bond (Req 2.4). Kept in the union for exhaustive
  *   error mapping at the action boundary.
- * - `item-not-found`     — one of the paired Items does not exist.
- * - `not-owner`          — the proposer does not own the Item they offered.
- * - `item-unavailable`   — a paired Item's status is not AVAILABLE (Req 5.3).
- * - `payer-not-found`    — a Trader has no payer reference to place a hold against.
+ * - `item-not-found`     - one of the paired Items does not exist.
+ * - `not-owner`          - the proposer does not own the Item they offered.
+ * - `item-unavailable`   - a paired Item's status is not AVAILABLE (Req 5.3).
+ * - `payer-not-found`    - a Trader has no payer reference to place a hold against.
  *
  * NOTE: there is deliberately no `unequal-value` guard here. Trades may be
  * bundles plus cash with a self-declared value; the Counterpart's acceptance is
@@ -255,7 +255,7 @@ export async function proposeTrade(
   // Each side is sized on the TOTAL VALUE that Trader RECEIVES, not what they
   // give. The deposit has to cover every item now in that Trader's hands, and a
   // Trader must never be able to shrink their own exposure by understating their
-  // own side — which matters now that a side can be a bundle with a self-declared
+  // own side - which matters now that a side can be a bundle with a self-declared
   // value.
   const extraItemIds = (params.initiatorExtraItemIds ?? []).filter(
     (id) => id && id !== params.initiatorItemId,
@@ -305,7 +305,7 @@ export async function proposeTrade(
   ]);
 
   // Place a bond for each Trader who requires one, sized from that Trader's OWN
-  // paired Item FMV. A verified Trader's bond is 0 and no hold is placed — their
+  // paired Item FMV. A verified Trader's bond is 0 and no hold is placed - their
   // verified identity is the guarantee instead.
   const holdPlacements = [
     {
@@ -344,7 +344,7 @@ export async function proposeTrade(
 }
 
 // ---------------------------------------------------------------------------
-// Collateral side effects — HOLDS_FAILED cancellation (Req 5.6)
+// Collateral side effects - HOLDS_FAILED cancellation (Req 5.6)
 // ---------------------------------------------------------------------------
 
 /** The repository subset the collateral cancellation hook needs. */
@@ -360,9 +360,9 @@ export type CollateralRepository = Pick<
  * On a HOLDS_FAILED event (a hold failed or the 300s confirmation window
  * elapsed) it cancels the Trade per Req 5.6: it requests a Hold_Void for every
  * still-active Pre_Auth_Hold on the Trade, marks those holds VOIDED, and
- * restores both paired Items' availability to AVAILABLE. All other events —
+ * restores both paired Items' availability to AVAILABLE. All other events -
  * notably HOLDS_CONFIRMED, whose only effect is the COLLATERAL_PENDING ->
- * COLLATERAL_LOCKED transition performed by the core — need no payment side
+ * COLLATERAL_LOCKED transition performed by the core - need no payment side
  * effect and succeed as a no-op.
  *
  * Void operations always succeed in the provider contract, so this hook returns

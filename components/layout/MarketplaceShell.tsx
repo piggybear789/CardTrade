@@ -5,7 +5,7 @@
 // and admin. The rail and content divide the available viewport proportionally
 // so wide screens remain useful without introducing fixed layout caps.
 //
-// The landing page and the public join-by-token invite deliberately opt out —
+// The landing page and the public join-by-token invite deliberately opt out -
 // they are entry points, not workspace sections.
 
 import type { ReactNode } from 'react';

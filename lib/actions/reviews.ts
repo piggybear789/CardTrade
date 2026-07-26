@@ -13,7 +13,7 @@
 // `reviewer_id = auth.uid()` on insert; the DB unique(reviewer_id, source_type,
 // source_id) constraint prevents duplicate reviews for the same transaction (we
 // map that to a typed `already-reviewed` error). A DB trigger owns
-// `profiles.rating` / `rating_count`, so we NEVER write those columns here —
+// `profiles.rating` / `rating_count`, so we NEVER write those columns here -
 // we only insert the review row.
 //
 // Ratings are integers 1..5; comments are optional and capped at 1000 chars.
@@ -52,13 +52,13 @@ export interface LeaveReviewInput {
 
 /**
  * Error codes surfaced by {@link leaveReview}.
- * - `not-authenticated` — no signed-in user.
- * - `validation-error`  — rating out of 1..5 or comment too long.
- * - `not-a-participant` — the caller was not a party to the transaction.
- * - `not-completed`     — the transaction is not COMPLETED yet.
- * - `invalid-reviewee`  — `revieweeId` is not the counterparty.
- * - `already-reviewed`  — the caller already reviewed this transaction.
- * - `persistence-error` — the insert failed.
+ * - `not-authenticated` - no signed-in user.
+ * - `validation-error`  - rating out of 1..5 or comment too long.
+ * - `not-a-participant` - the caller was not a party to the transaction.
+ * - `not-completed`     - the transaction is not COMPLETED yet.
+ * - `invalid-reviewee`  - `revieweeId` is not the counterparty.
+ * - `already-reviewed`  - the caller already reviewed this transaction.
+ * - `persistence-error` - the insert failed.
  */
 export type LeaveReviewError =
   | 'not-authenticated'

@@ -6,7 +6,7 @@
 // THE RULE (revises Req 2.4 + 5.4). Trust is either identity or money:
 //   * Verified   -> no bond. A Trader is "verified" when their provider-approved
 //     Managed Merchant onboarding (`merchant_status = APPROVED` with settlements
-//     enabled — see `domain/orchestrator/merchantOnboarding.ts`) went through a
+//     enabled - see `domain/orchestrator/merchantOnboarding.ts`) went through a
 //     real provider compliance decision, so they are identifiable, bannable and
 //     pursuable and trade with zero friction and zero cost.
 //   * Anything else -> a bond sized from the Item's Fair_Market_Value. An
@@ -14,7 +14,7 @@
 //     is money already in hand.
 //
 // Verification used to be a separate lightweight KYC payer check
-// (`kyc_status`), but that check never ran a real compliance decision — the
+// (`kyc_status`), but that check never ran a real compliance decision - the
 // result was always simulated. Merchant onboarding is the flow that actually
 // carries a real identity (legal entity, ABN/ACN) through a real provider
 // compliance decision, so it is now the sole verification signal Bond exemption
@@ -100,8 +100,8 @@ export interface BondParty {
  * SYMMETRY. A bond protects the COUNTERPARTY, so sizing it purely from a
  * Trader's own status leaves the honest unverified Trader exposed to a verified
  * one who defects. With `symmetric` (the default), a bond requirement on either
- * side applies to both: verified-to-verified trades stay frictionless — which
- * preserves the incentive to verify — while no trade ever has one side carrying
+ * side applies to both: verified-to-verified trades stay frictionless - which
+ * preserves the incentive to verify - while no trade ever has one side carrying
  * all the risk.
  *
  * Set `symmetric: false` for per-Trader bonds sized only by their own status.
@@ -142,7 +142,7 @@ export function resolveTradeBonds(params: {
  * Whether a Trader is able to enter a trade for an Item of `fmvCents`.
  *
  * A verified Trader always can. An unverified Trader can only if they have a
- * payment instrument to bond against — that instrument IS their guarantee, so
+ * payment instrument to bond against - that instrument IS their guarantee, so
  * without it there is neither identity nor money and the trade must be refused.
  */
 export function canPostRequiredBond(params: {

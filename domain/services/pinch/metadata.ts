@@ -9,7 +9,7 @@
 // approved payment means "collateral hold is active" or "cash sale settled",
 // and which row it belongs to. Without it, an inbound event is unroutable.
 //
-// Pure string/JSON handling — no I/O, safe to unit test directly.
+// Pure string/JSON handling - no I/O, safe to unit test directly.
 
 /** What a Pinch Payment represents in CardTrade terms. */
 export type PinchPaymentKind = 'HOLD' | 'TRANSFER';
@@ -59,7 +59,7 @@ export function encodeMetadata(data: CardTradeMetadata): string {
 
 /**
  * Recover the CardTrade context from a Pinch record's `metadata` value.
- * Returns `null` for absent, non-JSON, or foreign metadata — the caller then
+ * Returns `null` for absent, non-JSON, or foreign metadata - the caller then
  * treats the event as unroutable (a logged NO_OP) rather than failing.
  */
 export function decodeMetadata(metadata: unknown): CardTradeMetadata | null {

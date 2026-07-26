@@ -41,7 +41,7 @@ export const metadata = {
   title: 'Admin · Poke-xchange',
 };
 
-// Reads the caller's session + live moderation data — never prerender.
+// Reads the caller's session + live moderation data - never prerender.
 export const dynamic = 'force-dynamic';
 
 type ReportRow = Tables<'reports'>;

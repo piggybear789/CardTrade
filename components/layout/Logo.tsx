@@ -2,7 +2,7 @@
 //
 // Poke-xchange brand mark and wordmark.
 //
-// The mark shows two trading cards mid-swap — one tilting out, one tilting in —
+// The mark shows two trading cards mid-swap - one tilting out, one tilting in -
 // joined by a circular exchange arrow, with a collectible orb on each card. That
 // reads as "cards being traded", which is the product in one glyph.
 //

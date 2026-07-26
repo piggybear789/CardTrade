@@ -3,7 +3,7 @@
 // components/layout/MarketplaceNav.tsx
 //
 // Navigation for the shared marketplace workspace rail. Grouped so the sections
-// that hold live money — purchases, sales, trades, deals — sit together and are
+// that hold live money - purchases, sales, trades, deals - sit together and are
 // each one click from anywhere, rather than nested behind an account tab.
 
 import type { ReactNode } from 'react';
@@ -84,7 +84,7 @@ export function MarketplaceNav({
   primaryExtras,
 }: {
   /**
-   * Controls belonging to the Marketplace group — the catalog filters. Rendered
+   * Controls belonging to the Marketplace group - the catalog filters. Rendered
    * directly beneath it so the section and the thing that narrows it stay
    * together, instead of the filters sitting below every other section.
    */

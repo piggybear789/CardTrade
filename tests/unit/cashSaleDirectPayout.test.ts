@@ -82,7 +82,7 @@ async function runToPayment(options: {
   return { created, state, calls, result };
 }
 
-describe('cash sale — direct payout mode', () => {
+describe('cash sale - direct payout mode', () => {
   it('reuses the stored token to create a payer on the seller sub-merchant and passes the platform fee as the application fee', async () => {
     const { state, calls, result } = await runToPayment({});
 

@@ -2,7 +2,7 @@
 
 // components/deals/DealRoom.tsx
 //
-// THE DEAL ROOM — the live view of a private 1:1 binding deal, laid out as the
+// THE DEAL ROOM - the live view of a private 1:1 binding deal, laid out as the
 // same bilateral contract room as the cash sale (`components/sales/CashSaleView`)
 // so the two flows read identically:
 //
@@ -26,7 +26,7 @@
 // states which of the two is happening before anybody confirms.
 //
 // CRITICAL RULE surfaced here: if either party edits a substantive term, the
-// database clears BOTH confirmations. The room shows "Terms changed — both
+// database clears BOTH confirmations. The room shows "Terms changed - both
 // parties must confirm again" and the confirm control resets for both sides.
 
 import { type ReactNode, useEffect, useState, useTransition } from 'react';
@@ -114,11 +114,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   unauthenticated: 'Please sign in again.',
   'not-participant': 'You are not part of this deal.',
   'not-permitted': 'You cannot do that on this deal.',
-  'invalid-state': 'The deal has moved on — refreshing.',
-  'not-joined': 'Nobody has joined this deal yet — share the link first.',
+  'invalid-state': 'The deal has moved on - refreshing.',
+  'not-joined': 'Nobody has joined this deal yet - share the link first.',
   'terms-incomplete': 'Agree the handover before confirming.',
   'escrow-failed':
-    'The collateral hold could not be placed. Both confirmations were cleared — add a payment method, or verify your identity, and try again.',
+    'The collateral hold could not be placed. Both confirmations were cleared - add a payment method, or verify your identity, and try again.',
   'already-recorded': 'You have already marked this deal complete.',
   'invalid-reason': 'Add a short reason.',
   'persistence-error': 'Something went wrong. Please try again.',
@@ -337,7 +337,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {cashCents == null
-              ? 'No cash — goods only'
+              ? 'No cash - goods only'
               : `${formatAud(totalCents)} total · ${formatAud(cashCents)} cash`}
             {deliveryCents > 0 ? ` · ${formatAud(deliveryCents)} delivery` : ''}
             {' · '}
@@ -387,7 +387,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
         >
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
-            <strong>Terms changed</strong> — both parties must confirm again before
+            <strong>Terms changed</strong> - both parties must confirm again before
             the deal becomes binding.
           </p>
         </div>
@@ -404,13 +404,13 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
             <CardDescription>
               {collateralRequired
                 ? `When you both confirm, each side agrees we can charge their card ${formatAud(collateralStakeCents)} if they do not hold up their end. Nothing is charged otherwise.`
-                : 'When you both confirm, the deal becomes binding on your verified identities — no card is involved.'}
+                : 'When you both confirm, the deal becomes binding on your verified identities - no card is involved.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {awaitingJoin ? (
               <p className="text-sm text-muted-foreground">
-                Share the link first — a deal only binds between two parties.
+                Share the link first - a deal only binds between two parties.
               </p>
             ) : !contributionsComplete ? (
               <p className="text-sm text-amber-700 dark:text-amber-300">
@@ -445,7 +445,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                     <CircleDot className="size-3.5 shrink-0" aria-hidden />
                   )}
                   <span className="min-w-0 truncate text-xs font-medium">
-                    {entry.label} {entry.confirmed ? '✓' : '— pending'}
+                    {entry.label} {entry.confirmed ? '✓' : '- pending'}
                   </span>
                 </li>
               ))}
@@ -473,7 +473,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                   ) : (
                     <Check aria-hidden />
                   )}
-                  You confirmed — withdraw
+                  You confirmed - withdraw
                 </Button>
               ) : (
                 <Button
@@ -491,7 +491,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                     run(
                       'confirm',
                       () => confirmDeal(deal.id),
-                      "Confirmed — you're happy with the deal.",
+                      "Confirmed - you're happy with the deal.",
                     )
                   }
                 >
@@ -501,7 +501,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                     <Check aria-hidden />
                   )}
                   {theirConfirmed
-                    ? 'Confirm — this makes it binding'
+                    ? 'Confirm - this makes it binding'
                     : "I'm happy with the deal"}
                 </Button>
               )}
@@ -660,7 +660,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                   Share this link
                 </CardTitle>
                 <CardDescription>
-                  Whoever opens it and signs in joins as the other party — then
+                  Whoever opens it and signs in joins as the other party - then
                   chat opens here.
                 </CardDescription>
               </CardHeader>
@@ -796,7 +796,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
             </p>
           ) : (
             <p className="text-muted-foreground">
-              Not agreed yet — choose a face-to-face meeting or a delivery.
+              Not agreed yet - choose a face-to-face meeting or a delivery.
             </p>
           )}
           {canEditTerms ? (
@@ -816,7 +816,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
         <CardContent>
           {cashCents == null ? (
             <p className="text-sm text-muted-foreground">
-              No cash component — this deal is goods for goods.
+              No cash component - this deal is goods for goods.
             </p>
           ) : (
             <dl className="rounded-md border text-sm">
@@ -855,7 +855,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
         </CardContent>
       </Card>
 
-      {/* Collateral — identity or money */}
+      {/* Collateral - identity or money */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -884,9 +884,9 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                   <p className="font-medium">Agreed trade value</p>
                   <p className="text-xs text-muted-foreground">
                     {understated
-                      ? 'Sized from the cash only — cards add value that is not counted. Set an agreed value so collateral matches the real trade.'
+                      ? 'Sized from the cash only - cards add value that is not counted. Set an agreed value so collateral matches the real trade.'
                       : valueUnset
-                        ? 'Automatic — based on the cash value or the default stake.'
+                        ? 'Automatic - based on the cash value or the default stake.'
                         : 'Each collateral hold is 100% of this value when required.'}
                   </p>
                 </div>
@@ -969,9 +969,9 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                 : deal.state === 'DISPUTED'
                   ? 'Each side’s card stays on the line while the dispute is resolved.'
                   : deal.state === 'COMPLETED'
-                    ? 'Deal complete — nobody was charged.'
+                    ? 'Deal complete - nobody was charged.'
                     : holds.length === 0
-                      ? 'Binding on both parties’ verified identities — no card is involved.'
+                      ? 'Binding on both parties’ verified identities - no card is involved.'
                       : `Each side has agreed we can charge their card up to ${formatAud(view.collateralCents)}.`}
             </CardDescription>
           </CardHeader>
@@ -981,7 +981,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                 <li className="text-muted-foreground">
                   {deal.state === 'ESCROW_PENDING'
                     ? 'No holds recorded yet.'
-                    : 'No collateral held — both parties are identity verified.'}
+                    : 'No collateral held - both parties are identity verified.'}
                 </li>
               ) : (
                 holds.map((hold) => (
@@ -1380,7 +1380,7 @@ function DealContributionPanel({
           ) : null}
         </div>
         <p className={cn('whitespace-pre-wrap text-sm', !itemText?.trim() && 'text-muted-foreground')}>
-          {itemText?.trim() || (needsGoods ? 'Item details not added.' : 'Cash side — no item required.')}
+          {itemText?.trim() || (needsGoods ? 'Item details not added.' : 'Cash side - no item required.')}
         </p>
         {action ? <div className="mt-auto border-t pt-4">{action}</div> : null}
       </div>

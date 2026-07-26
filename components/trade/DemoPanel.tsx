@@ -8,8 +8,8 @@
 //
 // In this frontend-first MVP the payment provider is mocked, so the collateral
 // pre-auth confirmation that advances a Trade COLLATERAL_PENDING ->
-// COLLATERAL_LOCKED (Req 5.5) — and the failure that would cancel it (Req 5.6)
-// — never arrive from a real provider. This panel lets a demo operator deliver
+// COLLATERAL_LOCKED (Req 5.5) - and the failure that would cancel it (Req 5.6)
+// - never arrive from a real provider. This panel lets a demo operator deliver
 // them on demand. Shipping/receipt/acceptance/dispute/fraud (Req 6.2, 6.4, 6.6,
 // 7.1, 8.1) are real participant actions surfaced by the ActionBar, so the panel
 // deliberately covers only the PAYMENT/COLLATERAL webhooks.
@@ -42,7 +42,7 @@ const ERROR_MESSAGES: Record<FireTradeWebhookError, string> = {
 
 /** Success copy per control. */
 const SUCCESS_MESSAGES: Record<DemoWebhookKind, string> = {
-  'confirm-holds': 'Collateral holds confirmed — the trade advances to Collateral Locked.',
+  'confirm-holds': 'Collateral holds confirmed - the trade advances to Collateral Locked.',
   'fail-holds': 'Collateral hold failure delivered.',
 };
 

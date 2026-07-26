@@ -32,7 +32,7 @@ export interface JoinDealButtonProps {
   token: string;
 }
 
-/** "Join this deal" — claims the counterparty slot, then opens the deal room. */
+/** "Join this deal" - claims the counterparty slot, then opens the deal room. */
 export function JoinDealButton({ token }: JoinDealButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -41,7 +41,7 @@ export function JoinDealButton({ token }: JoinDealButtonProps) {
     startTransition(async () => {
       const result = await joinDealByToken(token);
       if (result.ok) {
-        toast.success("You're in — agree the handover next.");
+        toast.success("You're in - agree the handover next.");
         router.replace(`/deals/${result.dealId}`);
         return;
       }

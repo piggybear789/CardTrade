@@ -4,7 +4,7 @@
 //
 // The creator's half of the new private-deal flow: a deal is created SOLO, then
 // shared as a LINK. Whoever opens the link joins as the counterparty, so this is
-// the one thing the creator has to do next — keep it copyable and obvious.
+// the one thing the creator has to do next - keep it copyable and obvious.
 //
 // The absolute URL is built on the client from `window.location.origin` so the
 // same component produces a working link in dev and in production without any
@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export interface ShareDealLinkProps {
-  /** The deal's `share_token` — the capability behind the join link. */
+  /** The deal's `share_token` - the capability behind the join link. */
   shareToken: string;
   /** Optional deal title, used only to label the field for screen readers. */
   title?: string;
@@ -62,7 +62,7 @@ export function ShareDealLink({ shareToken, title, className }: ShareDealLinkPro
       input?.focus();
       input?.select();
       toast.error(
-        'Could not copy automatically — the link is selected. Use your copy shortcut.',
+        'Could not copy automatically - the link is selected. Use your copy shortcut.',
       );
     }
   }

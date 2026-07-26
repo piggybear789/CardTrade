@@ -82,7 +82,7 @@ export default async function SellerProfilePage({
     isVerified: Boolean(sellerRow.is_verified),
   };
 
-  // Narrow, buyer-safe merchant identity — only populated once provider
+  // Narrow, buyer-safe merchant identity - only populated once provider
   // compliance has approved this seller (Req 4.8-4.12). Never exposes contact,
   // bank, document, credential, or compliance-note fields.
   const sellerIdentity = await loadSellerIdentityDisclosure(id);

@@ -1,4 +1,4 @@
-// CardTrade — Supabase database types
+// CardTrade - Supabase database types
 //
 // HAND-AUTHORED to faithfully mirror the SQL migrations in
 // `supabase/migrations/` (0001_schema.sql, 0002_rls.sql, 0003_realtime.sql).
@@ -8,7 +8,7 @@
 // below intentionally matches the output that
 //   supabase gen types typescript --local > lib/supabase/database.types.ts
 // (or `--project-id <ref>`) produces, so it can be regenerated later to match
-// once a Supabase instance is linked — with no changes required at call sites.
+// once a Supabase instance is linked - with no changes required at call sites.
 //
 // Type mapping used (Postgres -> TypeScript):
 //   uuid          -> string

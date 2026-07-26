@@ -1,6 +1,6 @@
 // app/deals/page.tsx
 //
-// "Deals" — every private 1:1 deal the signed-in member is part of, newest
+// "Deals" - every private 1:1 deal the signed-in member is part of, newest
 // activity first. A Server Component: it requires auth, then reads the list via
 // the `listMyDeals` server action (RLS scopes it to the caller's own deals).
 //

@@ -18,10 +18,10 @@ export type HoldRow = Tables<'pre_auth_holds'>;
  * Connection state of the underlying Realtime channel, surfaced to the UI so a
  * live / non-live indicator can be rendered (Req 11.5).
  *
- * - `connecting`    — initial subscription in progress, no live link yet.
- * - `live`          — channel subscribed; row changes arrive in real time.
- * - `reconnecting`  — the channel dropped and a resubscribe is being attempted.
- * - `error`         — reconnection attempts have been exhausted.
+ * - `connecting`    - initial subscription in progress, no live link yet.
+ * - `live`          - channel subscribed; row changes arrive in real time.
+ * - `reconnecting`  - the channel dropped and a resubscribe is being attempted.
+ * - `error`         - reconnection attempts have been exhausted.
  */
 export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'error';
 

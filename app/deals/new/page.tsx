@@ -11,7 +11,7 @@
 //     standalone flow.
 //   - Verified members (or anyone who skipped) get the form itself.
 //
-// The gate is presentation only — `createDeal` requires no verification, and
+// The gate is presentation only - `createDeal` requires no verification, and
 // `confirmDeal` sizes the collateral from both parties' status server-side.
 
 import Link from 'next/link';
@@ -68,7 +68,7 @@ export default async function NewDealPage({
           </h2>
           <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
             A private deal is binding, so it has to be backed by something. Verify
-            once and neither of you puts up a cent — or skip, and each side is held
+            once and neither of you puts up a cent - or skip, and each side is held
             for the deal&apos;s value until the handover is done.
           </p>
         </header>
@@ -77,7 +77,7 @@ export default async function NewDealPage({
             <Link href="/profile#payouts">Verify my identity</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/deals/new?collateral=1">Skip — post collateral instead</Link>
+            <Link href="/deals/new?collateral=1">Skip - post collateral instead</Link>
           </Button>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">

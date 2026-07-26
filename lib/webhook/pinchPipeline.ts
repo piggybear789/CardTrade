@@ -159,7 +159,7 @@ async function dispatchEvent(
       // restores both paired Items to AVAILABLE. Every other event is a no-op
       // for this hook (see createCollateralSideEffects). Without wiring it in
       // here, a genuine provider decline left Items RESERVED forever with no
-      // compensation — this is the only place HOLDS_FAILED is ever dispatched.
+      // compensation - this is the only place HOLDS_FAILED is ever dispatched.
       const orchestrator = createDefaultTradeOrchestrator({
         payments: getPaymentService(),
         runSideEffects: createSupabaseCollateralSideEffects(client),
@@ -301,7 +301,7 @@ export async function handlePinchDelivery(
   rawBody: string,
   headers: Headers,
 ): Promise<Response> {
-  // 1. AUTHENTICITY — verified over the exact raw bytes, BEFORE any state change
+  // 1. AUTHENTICITY - verified over the exact raw bytes, BEFORE any state change
   //    or log write (Req 10.1). A mismatch or missing signature is rejected with
   //    401, applies no side effect, and writes no success log (Req 10.2).
   const authenticated = authenticate(rawBody, headers);
@@ -324,7 +324,7 @@ export async function handlePinchDelivery(
   let dedupedCount = 0;
 
   for (const event of events) {
-    // 2. IDEMPOTENCY — skip events already processed successfully (Req 10.5).
+    // 2. IDEMPOTENCY - skip events already processed successfully (Req 10.5).
     if (await alreadyProcessed(client, event.eventId)) {
       outcomes.push('SUCCESS');
       dedupedCount += 1;
@@ -357,7 +357,7 @@ export async function handlePinchDelivery(
       ok: aggregate !== 'FAILURE',
       outcome: aggregate,
       processed: outcomes.length,
-      // True only when every event in the delivery was already processed — the
+      // True only when every event in the delivery was already processed - the
       // demo UI surfaces this to show idempotent re-delivery (Req 10.5).
       deduped: dedupedCount === outcomes.length,
     },

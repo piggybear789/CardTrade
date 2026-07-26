@@ -4,7 +4,7 @@
 // transitions. No imports of Supabase, React, or the service layer.
 //
 // Guards, deriveEvent, and availableActions are intentionally NOT implemented
-// here — they live in guards.ts / actions.ts (task 3.5) and consume the
+// here - they live in guards.ts / actions.ts (task 3.5) and consume the
 // transition primitives exported below.
 
 import type { TradeEvent, TradeState } from './types';

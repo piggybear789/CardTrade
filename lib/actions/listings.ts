@@ -76,19 +76,19 @@ export type ListingActionResult<T> =
 
 /**
  * Listing action error codes.
- * - `not-authenticated` — no signed-in user.
- * - `not-verified`      — the caller is not VERIFIED (provider-approved Managed
+ * - `not-authenticated` - no signed-in user.
+ * - `not-verified`      - the caller is not VERIFIED (provider-approved Managed
  *   Merchant with settlements enabled). Blocks listing and trade-item creation
  *   entirely; never returned on the buy/trade paths.
- * - `seller-not-verified` — reserved; unused. Retained so existing error
+ * - `seller-not-verified` - reserved; unused. Retained so existing error
  *   mapping stays exhaustive.
- * - `validation-error`  — the submission failed schema validation (Req 3.2, 3.3).
- * - `upload-failed`     — an image failed to upload to Storage.
- * - `not-found`         — the target Item does not exist (or is not visible).
- * - `unauthorized`      — the caller does not own the target Item (Req 3.7).
- * - `item-not-available`— the Item is not AVAILABLE and cannot be modified (Req 3.5).
- * - `fmv-immutable`     — the Item is RESERVED; its FMV cannot change (Req 3.6).
- * - `persistence-error` — the database insert/delete failed.
+ * - `validation-error`  - the submission failed schema validation (Req 3.2, 3.3).
+ * - `upload-failed`     - an image failed to upload to Storage.
+ * - `not-found`         - the target Item does not exist (or is not visible).
+ * - `unauthorized`      - the caller does not own the target Item (Req 3.7).
+ * - `item-not-available` - the Item is not AVAILABLE and cannot be modified (Req 3.5).
+ * - `fmv-immutable`     - the Item is RESERVED; its FMV cannot change (Req 3.6).
+ * - `persistence-error` - the database insert/delete failed.
  */
 export type ListingActionError =
   | 'not-authenticated'
@@ -135,7 +135,7 @@ async function isVerified(
  *
  * Requires an authenticated, VERIFIED user. Verification is provider-approved
  * Managed Merchant onboarding (`merchant_status = APPROVED` with settlements
- * enabled) — listing is blocked entirely without it, unlike buying/trading,
+ * enabled) - listing is blocked entirely without it, unlike buying/trading,
  * which never gate on verification (unverified traders bond collateral
  * instead, per Req 5.4). Validates the submission (uploading images first,
  * then validating the resulting object paths), inserts the Item with
@@ -154,7 +154,7 @@ export async function createItem(
 
   // VERIFICATION GATE: listing requires an approved Managed Merchant, full
   // stop. This is stricter than the Trade/Cash_Sale paths, which never block on
-  // verification — only listing does.
+  // verification - only listing does.
   const verified = await isVerified(supabase, userId);
   if (!verified) {
     return {
@@ -850,7 +850,7 @@ export async function searchCatalog(
 
   // Sorting. `rating` orders by the denormalized `seller_rating` column (kept in
   // sync with each seller's profile rating by DB triggers), so the ordering is
-  // GLOBAL and paginates correctly — not just within a page.
+  // GLOBAL and paginates correctly - not just within a page.
   switch (sort) {
     case 'price-asc':
       query = query.order('fmv_cents', { ascending: true });
@@ -899,7 +899,7 @@ export interface CatalogFacets {
 
 /**
  * Fetch the distinct `category` and `condition` values among AVAILABLE,
- * non-hidden items to populate the filter rail. Dedupe happens in JS — simple
+ * non-hidden items to populate the filter rail. Dedupe happens in JS - simple
  * and sufficient for MVP scale (a dedicated aggregate/RPC can replace this if
  * the catalog grows large).
  */

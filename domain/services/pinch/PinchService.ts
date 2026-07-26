@@ -6,7 +6,7 @@
 // it, per the service-seam contract.
 //
 // ESCROW MAPPING (important). The public Pinch API exposes payments, refunds and
-// vaulted sources — there is no authorize/void/partial-capture primitive. The
+// vaulted sources - there is no authorize/void/partial-capture primitive. The
 // Pre_Auth_Hold contract is therefore realised as `charge-and-refund`:
 //
 //   placeHold(amount)              -> POST /payments/realtime for `amount`
@@ -147,7 +147,7 @@ export class PinchService implements PaymentService, KycService {
    * the payer's metadata so provider-side records can be traced back to us.
    *
    * @throws Error when `details.email` is absent (Pinch requires an email
-   * address) or when the provider rejects the request — Req 2.6 turns that into
+   * address) or when the provider rejects the request - Req 2.6 turns that into
    * "verification could not be started" with KYC_Status unchanged.
    */
   async createPayer(
@@ -172,7 +172,7 @@ export class PinchService implements PaymentService, KycService {
         emailAddress: email,
         ...(details?.mobile ? { mobileNumber: details.mobile } : {}),
         // Attaching the source inline creates the payer AND its instrument in one
-        // call — the documented way to reuse a token on a sub-merchant.
+        // call - the documented way to reuse a token on a sub-merchant.
         ...(options?.source
           ? {
               source: {
@@ -285,7 +285,7 @@ export class PinchService implements PaymentService, KycService {
    * `pmt_...` payment id, which every later void/capture call charges against.
    *
    * Returns `FAILED` (never throws) so the caller runs the existing
-   * HOLDS_FAILED compensating path (Req 5.6) — e.g. the payer has no usable
+   * HOLDS_FAILED compensating path (Req 5.6) - e.g. the payer has no usable
    * source, or the charge was dishonoured.
    */
   async placeHold(params: { payerId: string; amount: Cents; ref: string }): Promise<PreAuthHold> {
@@ -349,7 +349,7 @@ export class PinchService implements PaymentService, KycService {
       const refund = await this.refund(
         params.holdId,
         refundAmount,
-        'CardTrade dispute resolution — friction tax',
+        'CardTrade dispute resolution - friction tax',
       );
       return {
         captureId: params.holdId,
@@ -365,7 +365,7 @@ export class PinchService implements PaymentService, KycService {
 
   /**
    * Keep the entire collateral charge on Objective_Fraud (Req 8.2). The funds
-   * were already collected when the hold was placed, so this issues no refund —
+   * were already collected when the hold was placed, so this issues no refund -
    * it re-reads the payment to confirm the charge actually cleared before
    * reporting success.
    */
@@ -388,7 +388,7 @@ export class PinchService implements PaymentService, KycService {
    * Vault a tokenised card or bank account against a Payer so subsequent charges
    * (collateral holds, cash-sale transfers) have a source to draw on.
    *
-   * The token must come from CaptureJS — raw instrument details never reach our
+   * The token must come from CaptureJS - raw instrument details never reach our
    * server. CaptureJS tokens are single-use, so the returned `src_...` id is what
    * gets reused for later charges.
    *

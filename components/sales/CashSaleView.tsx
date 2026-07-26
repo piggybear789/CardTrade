@@ -490,7 +490,7 @@ export function CashSaleView({
                       <CircleDot className="size-3.5" aria-hidden />
                     )}
                     <span className="text-xs font-medium">
-                      {entry.label} {entry.accepted ? '✓' : '— pending'}
+                      {entry.label} {entry.accepted ? '✓' : '- pending'}
                     </span>
                   </li>
                 ))}
@@ -542,7 +542,7 @@ export function CashSaleView({
         </div>
       ) : null}
 
-      {/* Payment + fulfillment — pinned at top (right below the accept bar) so
+      {/* Payment + fulfillment - pinned at top (right below the accept bar) so
           the payment status is impossible to miss after mutual acceptance. */}
       {sale.status !== 'AGREEMENT' && sale.status !== 'CANCELLED' ? (
         <Card>
@@ -593,7 +593,7 @@ export function CashSaleView({
               >
                 <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
                 <div className="space-y-1">
-                  <p className="font-semibold">Dispute raised — contract under review</p>
+                  <p className="font-semibold">Dispute raised - contract under review</p>
                   <p className="text-muted-foreground">
                     {sale.disputed_by === myUserId
                       ? 'You raised a dispute. Funds remain in escrow while the case is reviewed. The other party has been notified.'
@@ -664,7 +664,7 @@ export function CashSaleView({
             {sale.status === 'ESCROW_HELD' && isDelivery ? (
               sale.seller_id === myUserId ? (
                 <div className="space-y-3 rounded-md border p-3">
-                  <p className="font-medium">Funds confirmed — ship the item</p>
+                  <p className="font-medium">Funds confirmed - ship the item</p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Input
                       value={carrier}
@@ -1162,7 +1162,7 @@ export function CashSaleView({
             <>
               <p>
                 The seller is not identity verified, so they post a bond for this
-                contract. The buyer posts none — their payment is collected up front.
+                contract. The buyer posts none - their payment is collected up front.
               </p>
               <dl className="rounded-md border">
                 <div className="flex items-center justify-between px-4 py-3">
@@ -1217,7 +1217,7 @@ export function CashSaleView({
                   <span>
                     {event.event.toLowerCase().replace(/_/g, ' ')}
                     {event.detail ? (
-                      <span className="text-muted-foreground"> — {event.detail}</span>
+                      <span className="text-muted-foreground"> - {event.detail}</span>
                     ) : null}
                   </span>
                   <span className="text-xs text-muted-foreground">

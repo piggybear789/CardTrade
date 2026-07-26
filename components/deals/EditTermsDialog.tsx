@@ -9,10 +9,10 @@
 // the database enforces this with a trigger, so the UI must never imply that a
 // tick survives a terms change.
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Loader2, Pencil } from 'lucide-react';
+import { AlertTriangle, ImagePlus, Loader2, Pencil, ShieldCheck, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -34,15 +34,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { itemImageUrl } from '@/lib/format';
 import {
   updateTerms,
+  type DealPhotoUpload,
   type DealRow,
   type HandoverMethod,
   type UpdateTermsResult,
 } from '@/lib/actions/deals';
 import {
   DEAL_CASH_MAX,
+  DEAL_COLLATERAL_MAX,
   DEAL_DELIVERY_COST_MAX,
+  DEAL_PHOTOS_MAX,
+  DEAL_PHOTOS_MIN,
   DEAL_TEXT_MAX,
   DEAL_TITLE_MAX,
 } from '@/lib/marketplace-constants';
@@ -53,6 +58,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-participant': 'You are not part of this deal.',
   'invalid-state': 'Terms can only be changed before the deal becomes binding.',
   'invalid-title': 'Give the deal a short title (3–120 characters).',
+  'item-details-required': 'Describe the item or items you are bringing.',
+  'photos-required': `Add at least ${DEAL_PHOTOS_MIN} photo of what you are bringing.`,
+  'too-many-photos': `You can add at most ${DEAL_PHOTOS_MAX} photos.`,
+  'invalid-photo': 'One of the retained photos does not belong to your side of this deal.',
+  'upload-failed': 'Your photos could not be uploaded. Try again.',
   'invalid-cash': 'Enter a valid cash amount, or leave it blank.',
   'invalid-collateral': 'Enter a valid collateral amount.',
   'invalid-payer': 'Choose who pays the cash component.',
@@ -94,6 +104,19 @@ function toLocalInputValue(iso: string | null): string {
   )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/** Preview a newly selected local file and release its object URL on cleanup. */
+function LocalPhotoPreview({ file }: { file: File }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+  if (!url) return <div className="h-full w-full animate-pulse bg-muted" />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt="New item evidence" className="h-full w-full object-cover" />;
+}
+
 export interface EditTermsDialogProps {
   deal: DealRow;
   /** True when the viewer is the deal's creator (maps "mine" vs "theirs"). */
@@ -102,6 +125,8 @@ export interface EditTermsDialogProps {
   someoneConfirmed: boolean;
   /** Rendered as the trigger; defaults to an outline "Edit terms" button. */
   triggerLabel?: string;
+  /** Optional layout classes supplied by the surface hosting the trigger. */
+  triggerClassName?: string;
 }
 
 /** Dialog for editing the deal's substantive terms, including the handover. */
@@ -110,6 +135,7 @@ export function EditTermsDialog({
   iAmCreator,
   someoneConfirmed,
   triggerLabel = 'Edit terms',
+  triggerClassName,
 }: EditTermsDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -123,8 +149,21 @@ export function EditTermsDialog({
 
   const myItemInitial =
     (iAmCreator ? deal.creator_item_text : deal.counterparty_item_text) ?? '';
-  const theirItemInitial =
-    (iAmCreator ? deal.counterparty_item_text : deal.creator_item_text) ?? '';
+  const myPhotosInitial = iAmCreator
+    ? deal.creator_photo_paths
+    : deal.counterparty_photo_paths;
+  const myRole = iAmCreator
+    ? deal.creator_role
+    : deal.creator_role === 'BUYER'
+      ? 'SELLER'
+      : deal.creator_role === 'SELLER'
+        ? 'BUYER'
+        : deal.creator_role;
+  const goodsRequired = iAmCreator
+    ? myRole === 'SELLER' ||
+      (myRole === 'TRADER' &&
+        deal.creator_offer_kinds.some((kind) => kind === 'CARDS' || kind === 'ITEMS'))
+    : myRole === 'SELLER' || myRole === 'TRADER';
 
   const [method, setMethod] = useState<HandoverMethod>(
     deal.handover_method ?? 'IN_PERSON',
@@ -132,7 +171,9 @@ export function EditTermsDialog({
   const [title, setTitle] = useState(deal.title);
   const [description, setDescription] = useState(deal.description ?? '');
   const [myItemText, setMyItemText] = useState(myItemInitial);
-  const [theirItemText, setTheirItemText] = useState(theirItemInitial);
+  const [keptPhotoPaths, setKeptPhotoPaths] = useState<string[]>(myPhotosInitial);
+  const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [meetingLocation, setMeetingLocation] = useState(deal.meeting_location ?? '');
   const [meetingAt, setMeetingAt] = useState(toLocalInputValue(deal.meeting_at));
   const [deliveryDetails, setDeliveryDetails] = useState(deliveryNotesFrom(deal));
@@ -140,6 +181,7 @@ export function EditTermsDialog({
     centsToDollars(deal.delivery_cost_cents),
   );
   const [cash, setCash] = useState(centsToDollars(deal.cash_amount_cents));
+  const [collateral, setCollateral] = useState(centsToDollars(deal.collateral_cents));
   const [cashPayerId, setCashPayerId] = useState<string>(
     deal.cash_payer_id ?? deal.creator_id,
   );
@@ -151,18 +193,44 @@ export function EditTermsDialog({
     setTitle(deal.title);
     setDescription(deal.description ?? '');
     setMyItemText(myItemInitial);
-    setTheirItemText(theirItemInitial);
+    setKeptPhotoPaths(myPhotosInitial);
+    setNewPhotoFiles([]);
     setMeetingLocation(deal.meeting_location ?? '');
     setMeetingAt(toLocalInputValue(deal.meeting_at));
     setDeliveryDetails(deliveryNotesFrom(deal));
     setDeliveryCost(centsToDollars(deal.delivery_cost_cents));
     setCash(centsToDollars(deal.cash_amount_cents));
+    setCollateral(centsToDollars(deal.collateral_cents));
     setCashPayerId(deal.cash_payer_id ?? deal.creator_id);
-  }, [open, deal, myItemInitial, theirItemInitial]);
+  }, [open, deal, myItemInitial, myPhotosInitial]);
+
+  const totalPhotos = keptPhotoPaths.length + newPhotoFiles.length;
+
+  function handlePhotosSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(event.target.files ?? []);
+    if (picked.length > 0) {
+      setNewPhotoFiles((current) => [...current, ...picked]);
+      setInlineError(null);
+    }
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setInlineError(null);
+
+    if (goodsRequired && !myItemText.trim()) {
+      setInlineError('Describe the item or items you are bringing.');
+      return;
+    }
+    if (goodsRequired && totalPhotos < DEAL_PHOTOS_MIN) {
+      setInlineError('Add at least one clear photo of what you are bringing.');
+      return;
+    }
+    if (totalPhotos > DEAL_PHOTOS_MAX) {
+      setInlineError(`You can add at most ${DEAL_PHOTOS_MAX} photos.`);
+      return;
+    }
 
     if (method === 'IN_PERSON' && !meetingLocation.trim()) {
       setInlineError('Add where you plan to meet.');
@@ -199,6 +267,20 @@ export function EditTermsDialog({
       }
     }
 
+    let collateralCents: number | null = null;
+    if (collateral.trim()) {
+      const dollars = Number.parseFloat(collateral);
+      if (!Number.isFinite(dollars) || dollars < 1) {
+        setInlineError('Enter collateral of at least $1, or leave it blank for automatic.');
+        return;
+      }
+      collateralCents = Math.round(dollars * 100);
+      if (collateralCents > DEAL_COLLATERAL_MAX) {
+        setInlineError('That collateral amount is too large.');
+        return;
+      }
+    }
+
     startTransition(async () => {
       const result = await updateTerms(deal.id, {
         handoverMethod: method,
@@ -212,9 +294,13 @@ export function EditTermsDialog({
         title,
         description,
         myItemText,
-        theirItemText,
+        myPhotos: [
+          ...keptPhotoPaths,
+          ...(newPhotoFiles as unknown as DealPhotoUpload[]),
+        ],
         cashAmountCents,
         cashPayerId: cashAmountCents === null ? null : cashPayerId,
+        collateralCents,
       });
 
       if (result.ok) {
@@ -236,24 +322,26 @@ export function EditTermsDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
+        <Button type="button" variant="outline" size="sm" className={triggerClassName}>
           <Pencil aria-hidden />
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Deal terms</DialogTitle>
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-hidden p-0">
+        <form onSubmit={handleSubmit} className="flex max-h-[92vh] flex-col">
+          <DialogHeader className="border-b px-6 py-5 text-left">
+            <DialogTitle>Build the deal</DialogTitle>
             <DialogDescription>
-              Agree what each side brings and how you&apos;ll hand over.
+              Add your side first, then review the shared handover and money terms.
+              Each person controls their own item evidence.
             </DialogDescription>
           </DialogHeader>
 
-          <div
-            className="mt-4 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
-            role="note"
-          >
+          <div className="overflow-y-auto px-6">
+            <div
+              className="mt-5 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
+              role="note"
+            >
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
             <p>
               {someoneConfirmed
@@ -262,54 +350,152 @@ export function EditTermsDialog({
             </p>
           </div>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="terms-title">Title</Label>
-              <Input
-                id="terms-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={DEAL_TITLE_MAX}
-                required
-              />
-            </div>
+          <div className="space-y-6 py-5">
+            <fieldset className="space-y-4 rounded-xl border-2 border-primary/20 bg-primary/[0.03] p-4 sm:p-5">
+              <legend className="px-2 text-sm font-semibold text-primary">Your side of the trade</legend>
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <ShieldCheck className="size-5" aria-hidden />
+                </div>
+                <div>
+                  <p className="font-medium">Describe and photograph what you bring</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    The other participant cannot edit this evidence. Photos become part of the binding record.
+                  </p>
+                </div>
+              </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="terms-my-item">What you bring</Label>
+                <Label htmlFor="terms-my-item">
+                  Item details {goodsRequired ? <span className="text-destructive">*</span> : null}
+                </Label>
                 <Textarea
                   id="terms-my-item"
                   value={myItemText}
-                  onChange={(e) => setMyItemText(e.target.value)}
+                  onChange={(event) => setMyItemText(event.target.value)}
+                  placeholder="e.g. 1999 Base Set Charizard, PSA 10 — certification number, condition notes and anything included"
                   maxLength={DEAL_TEXT_MAX}
-                  rows={3}
+                  rows={4}
+                  required={goodsRequired}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Be specific enough that both parties can identify the exact collectible.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <Label htmlFor="terms-photos">
+                      Evidence photos {goodsRequired ? <span className="text-destructive">*</span> : null}
+                    </Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {totalPhotos} of {DEAL_PHOTOS_MAX} photos · front, back and condition details
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={totalPhotos >= DEAL_PHOTOS_MAX}
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    <ImagePlus aria-hidden />
+                    Add photos
+                  </Button>
+                </div>
+                <Input
+                  ref={photoInputRef}
+                  id="terms-photos"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  className="sr-only"
+                  onChange={handlePhotosSelected}
+                />
+
+                {totalPhotos > 0 ? (
+                  <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Your deal photos">
+                    {keptPhotoPaths.map((path) => {
+                      const url = itemImageUrl(path);
+                      return (
+                        <li key={path} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                          {url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={url} alt="Existing item evidence" className="h-full w-full object-cover" />
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="absolute right-1 top-1 size-7 shadow-sm"
+                            aria-label="Remove photo"
+                            onClick={() => setKeptPhotoPaths((current) => current.filter((item) => item !== path))}
+                          >
+                            <X className="size-3.5" aria-hidden />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                    {newPhotoFiles.map((file, index) => (
+                      <li key={`${file.name}-${file.lastModified}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                        <LocalPhotoPreview file={file} />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          className="absolute right-1 top-1 size-7 shadow-sm"
+                          aria-label={`Remove ${file.name}`}
+                          onClick={() => setNewPhotoFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                        >
+                          <X className="size-3.5" aria-hidden />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex w-full flex-col items-center justify-center rounded-lg border border-dashed bg-background px-4 py-8 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    <ImagePlus className="mb-2 size-6 text-primary" aria-hidden />
+                    <span className="text-sm font-medium">Add clear photos of your item</span>
+                    <span className="mt-1 text-xs text-muted-foreground">JPEG, PNG, WebP or GIF</span>
+                  </button>
+                )}
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-4 rounded-xl border p-4 sm:p-5">
+              <legend className="px-2 text-sm font-semibold">Shared deal summary</legend>
+              <div className="space-y-2">
+                <Label htmlFor="terms-title">Deal title</Label>
+                <Input
+                  id="terms-title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  maxLength={DEAL_TITLE_MAX}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="terms-their-item">What they bring</Label>
+                <Label htmlFor="terms-description">Shared notes</Label>
                 <Textarea
-                  id="terms-their-item"
-                  value={theirItemText}
-                  onChange={(e) => setTheirItemText(e.target.value)}
+                  id="terms-description"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Condition expectations, grading details or anything else both parties agree to"
                   maxLength={DEAL_TEXT_MAX}
                   rows={3}
                 />
               </div>
-            </div>
+            </fieldset>
 
-            <div className="space-y-2">
-              <Label htmlFor="terms-description">Description</Label>
-              <Textarea
-                id="terms-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={DEAL_TEXT_MAX}
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="terms-method">Handover method</Label>
+            <fieldset className="space-y-4 rounded-xl border p-4 sm:p-5">
+              <legend className="px-2 text-sm font-semibold">Handover</legend>
+              <div className="space-y-2">
+                <Label htmlFor="terms-method">Method</Label>
               <Select
                 value={method}
                 onValueChange={(value) => setMethod(value as HandoverMethod)}
@@ -393,58 +579,80 @@ export function EditTermsDialog({
                 </div>
               </>
             )}
+            </fieldset>
 
-            <fieldset className="space-y-3 rounded-lg border p-4">
-              <legend className="px-1 text-sm font-medium">Cash component</legend>
-              <div className="space-y-2">
-                <Label htmlFor="terms-cash">Amount (AUD, blank for none)</Label>
-                <div className="relative">
-                  <span
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                    aria-hidden
-                  >
-                    $
-                  </span>
-                  <Input
-                    id="terms-cash"
-                    type="number"
-                    inputMode="decimal"
-                    min="0.01"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={cash}
-                    onChange={(e) => setCash(e.target.value)}
-                    className="pl-7"
-                  />
+            <fieldset className="space-y-4 rounded-xl border p-4 sm:p-5">
+              <legend className="px-2 text-sm font-semibold">Money &amp; protection</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="terms-cash">Cash component (AUD)</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden>$</span>
+                    <Input
+                      id="terms-cash"
+                      type="number"
+                      inputMode="decimal"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="No cash"
+                      value={cash}
+                      onChange={(event) => setCash(event.target.value)}
+                      className="pl-7"
+                    />
+                  </div>
+                  {cash.trim() && myPartyId && theirPartyId ? (
+                    <Select value={cashPayerId} onValueChange={setCashPayerId}>
+                      <SelectTrigger aria-label="Who pays the cash component">
+                        <SelectValue placeholder="Choose who pays" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={myPartyId}>I pay</SelectItem>
+                        <SelectItem value={theirPartyId}>They pay</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Leave blank for a goods-only trade.</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="terms-collateral">Collateral per person (AUD)</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden>$</span>
+                    <Input
+                      id="terms-collateral"
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.01"
+                      placeholder="Automatic"
+                      value={collateral}
+                      onChange={(event) => setCollateral(event.target.value)}
+                      className="pl-7"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to size protection automatically from the deal value.
+                  </p>
                 </div>
               </div>
-              {cash.trim() && myPartyId && theirPartyId ? (
-                <div className="space-y-2">
-                  <Label htmlFor="terms-payer">Who pays</Label>
-                  <Select value={cashPayerId} onValueChange={setCashPayerId}>
-                    <SelectTrigger id="terms-payer">
-                      <SelectValue placeholder="Choose who pays" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={myPartyId}>I pay</SelectItem>
-                      <SelectItem value={theirPartyId}>They pay</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
             </fieldset>
 
             {inlineError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                 {inlineError}
               </p>
             ) : null}
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t bg-background px-6 py-4">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isPending}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-              {isPending ? 'Saving…' : 'Save terms'}
+              {isPending ? 'Saving…' : 'Save deal changes'}
             </Button>
           </DialogFooter>
         </form>

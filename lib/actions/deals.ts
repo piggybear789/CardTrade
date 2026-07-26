@@ -566,6 +566,9 @@ export async function createDeal(
       creator_role: role,
       creator_offer_kinds: offerKinds,
       creator_photo_paths: photoPaths,
+      // Keep the creator's goods inside their owned contribution as well as the
+      // shared summary, so the bilateral room is complete immediately.
+      creator_item_text: photosRequired ? normalizeText(input.description) : null,
       handover_method: handoverMethod,
       meeting_location: handoverMethod === 'IN_PERSON' ? meetingLocation : null,
       meeting_at: handoverMethod === 'IN_PERSON' ? (input.meetingAt ?? null) : null,
@@ -848,10 +851,13 @@ export interface UpdateTermsInput {
   deliveryCostCents?: number | null;
   title?: string;
   description?: string;
-  /** What the caller brings. */
+  /** What the caller brings; participants cannot edit the other side. */
   myItemText?: string;
-  /** What the other party brings. */
-  theirItemText?: string;
+  /**
+   * The caller's retained Storage paths plus any newly selected image uploads.
+   * Retained paths must already belong to the caller's side of this deal.
+   */
+  myPhotos?: (string | DealPhotoUpload)[];
   /** Cash component in integer AUD cents, or null to remove it. */
   cashAmountCents?: number | null;
   /** Which party pays the cash component. */
@@ -866,6 +872,11 @@ export type UpdateTermsError =
   | 'not-joined'
   | 'invalid-state'
   | 'invalid-title'
+  | 'item-details-required'
+  | 'photos-required'
+  | 'too-many-photos'
+  | 'invalid-photo'
+  | 'upload-failed'
   | 'invalid-cash'
   | 'invalid-collateral'
   | 'invalid-payer'
@@ -958,14 +969,11 @@ export async function updateTerms(
   if (input.description !== undefined) {
     patch.description = normalizeText(input.description);
   }
-  // "mine" / "theirs" are relative to the caller; map onto the fixed columns.
+  // A participant owns only their side of the exchange. Shared terms remain
+  // editable by either party, but the other party's evidence is read-only.
   if (input.myItemText !== undefined) {
     patch[iAmCreator ? 'creator_item_text' : 'counterparty_item_text'] =
       normalizeText(input.myItemText);
-  }
-  if (input.theirItemText !== undefined) {
-    patch[iAmCreator ? 'counterparty_item_text' : 'creator_item_text'] =
-      normalizeText(input.theirItemText);
   }
 
   if (input.cashAmountCents !== undefined) {
@@ -1014,6 +1022,73 @@ export async function updateTerms(
     }
   }
 
+  const myRole = iAmCreator ? deal.creator_role : mirrorRole(deal.creator_role);
+  const myCurrentPhotos = iAmCreator
+    ? deal.creator_photo_paths
+    : deal.counterparty_photo_paths;
+  const resultingItemText =
+    input.myItemText === undefined
+      ? iAmCreator
+        ? deal.creator_item_text
+        : deal.counterparty_item_text
+      : normalizeText(input.myItemText);
+  const goodsRequired = iAmCreator
+    ? myRole === 'SELLER' ||
+      (myRole === 'TRADER' &&
+        deal.creator_offer_kinds.some((kind) => kind === 'CARDS' || kind === 'ITEMS'))
+    : myRole === 'SELLER' || myRole === 'TRADER';
+
+  let newlyUploadedPaths: string[] = [];
+  let droppedPhotoPaths: string[] = [];
+  if (input.myPhotos !== undefined) {
+    const retainedPaths = input.myPhotos.filter(
+      (photo): photo is string => typeof photo === 'string',
+    );
+    if (
+      new Set(retainedPaths).size !== retainedPaths.length ||
+      retainedPaths.some((path) => !myCurrentPhotos.includes(path))
+    ) {
+      return { ok: false, error: 'invalid-photo' };
+    }
+
+    const newPhotos = input.myPhotos.filter(
+      (photo): photo is DealPhotoUpload => typeof photo !== 'string',
+    );
+    const finalCount = retainedPaths.length + newPhotos.length;
+    if (goodsRequired && finalCount < DEAL_PHOTOS_MIN) {
+      return { ok: false, error: 'photos-required' };
+    }
+    if (finalCount > DEAL_PHOTOS_MAX) {
+      return { ok: false, error: 'too-many-photos' };
+    }
+    if (goodsRequired && !resultingItemText) {
+      return { ok: false, error: 'item-details-required' };
+    }
+
+    if (newPhotos.length > 0) {
+      try {
+        newlyUploadedPaths = await uploadImages(createAdminClient(), userId, newPhotos);
+      } catch (error) {
+        return {
+          ok: false,
+          error: 'upload-failed',
+          detail: error instanceof Error ? error.message : 'Photo upload failed.',
+        };
+      }
+    }
+
+    patch[iAmCreator ? 'creator_photo_paths' : 'counterparty_photo_paths'] = [
+      ...retainedPaths,
+      ...newlyUploadedPaths,
+    ];
+    droppedPhotoPaths = myCurrentPhotos.filter((path) => !retainedPaths.includes(path));
+  } else if (goodsRequired) {
+    if (!resultingItemText) return { ok: false, error: 'item-details-required' };
+    if (myCurrentPhotos.length < DEAL_PHOTOS_MIN) {
+      return { ok: false, error: 'photos-required' };
+    }
+  }
+
   const hadConfirmation =
     deal.creator_confirmed_at !== null || deal.counterparty_confirmed_at !== null;
 
@@ -1025,8 +1100,18 @@ export async function updateTerms(
     .select('*')
     .maybeSingle();
 
-  if (error) return { ok: false, error: 'persistence-error', detail: error.message };
-  if (!updated) return { ok: false, error: 'invalid-state' };
+  if (error) {
+    await removeImages(createAdminClient(), newlyUploadedPaths);
+    return { ok: false, error: 'persistence-error', detail: error.message };
+  }
+  if (!updated) {
+    await removeImages(createAdminClient(), newlyUploadedPaths);
+    return { ok: false, error: 'invalid-state' };
+  }
+
+  // The database now references the final set, so removed evidence objects can
+  // be cleaned up without risking a broken deal if the update failed.
+  await removeImages(createAdminClient(), droppedPhotoPaths);
 
   let next = updated as DealRow;
 
@@ -1096,6 +1181,7 @@ export type ConfirmDealError =
   | 'not-joined'
   | 'invalid-state'
   | 'terms-incomplete'
+  | 'contribution-incomplete'
   | 'escrow-failed'
   | 'persistence-error';
 
@@ -1193,6 +1279,26 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
 
   if (!areTermsComplete(deal)) {
     return { ok: false, error: 'terms-incomplete' };
+  }
+
+  // A binding trade needs an auditable description and photo evidence for every
+  // side that brings goods. A BUYER may legitimately bring cash only.
+  const creatorBringsGoods =
+    deal.creator_role === 'SELLER' ||
+    (deal.creator_role === 'TRADER' &&
+      deal.creator_offer_kinds.some((kind) => kind === 'CARDS' || kind === 'ITEMS'));
+  const counterpartyRole = mirrorRole(deal.creator_role);
+  const counterpartyBringsGoods =
+    counterpartyRole === 'SELLER' || counterpartyRole === 'TRADER';
+  const creatorContributionComplete =
+    !creatorBringsGoods ||
+    (Boolean(deal.creator_item_text?.trim()) && deal.creator_photo_paths.length > 0);
+  const counterpartyContributionComplete =
+    !counterpartyBringsGoods ||
+    (Boolean(deal.counterparty_item_text?.trim()) &&
+      deal.counterparty_photo_paths.length > 0);
+  if (!creatorContributionComplete || !counterpartyContributionComplete) {
+    return { ok: false, error: 'contribution-incomplete' };
   }
 
   const myColumn = iAmCreator ? 'creator_confirmed_at' : 'counterparty_confirmed_at';

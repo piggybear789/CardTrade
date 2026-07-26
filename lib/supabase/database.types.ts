@@ -1000,6 +1000,7 @@ export type Database = {
           creator_role: Database['cardtrade']['Enums']['deal_role'] | null;
           creator_offer_kinds: string[];
           creator_photo_paths: string[];
+          counterparty_photo_paths: string[];
           creator_item_id: string | null;
           counterparty_item_id: string | null;
           creator_item_text: string | null;
@@ -1035,6 +1036,7 @@ export type Database = {
           creator_role?: Database['cardtrade']['Enums']['deal_role'] | null;
           creator_offer_kinds?: string[];
           creator_photo_paths?: string[];
+          counterparty_photo_paths?: string[];
           creator_item_id?: string | null;
           counterparty_item_id?: string | null;
           creator_item_text?: string | null;
@@ -1069,6 +1071,7 @@ export type Database = {
           creator_role?: Database['cardtrade']['Enums']['deal_role'] | null;
           creator_offer_kinds?: string[];
           creator_photo_paths?: string[];
+          counterparty_photo_paths?: string[];
           creator_item_id?: string | null;
           counterparty_item_id?: string | null;
           creator_item_text?: string | null;

@@ -54,6 +54,11 @@ function extFor(contentType: string): string {
   }
 }
 
+/** Accepted evidence formats; client `accept` is advisory, server is authoritative. */
+const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']);
+/** Per-image upload cap to keep server actions and Storage usage bounded. */
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
 /** Decode a single {@link ImageUpload} to bytes + content type. */
 async function decodeImage(image: ImageUpload): Promise<DecodedImage> {
   if (image instanceof Blob) {
@@ -72,6 +77,16 @@ async function decodeImage(image: ImageUpload): Promise<DecodedImage> {
   }
   const bytes = Buffer.from(base64, 'base64');
   return { bytes, contentType, ext: extFor(contentType) };
+}
+
+/** Reject disguised/non-image or unreasonably large payloads on the server. */
+function assertValidImage(image: DecodedImage): void {
+  if (!ALLOWED_IMAGE_TYPES.has(image.contentType.toLowerCase())) {
+    throw new Error('Only JPEG, PNG, WebP, or GIF images are accepted.');
+  }
+  if (image.bytes.length === 0 || image.bytes.length > MAX_IMAGE_BYTES) {
+    throw new Error('Each image must be between 1 byte and 10 MB.');
+  }
 }
 
 /** Ensure the item-images bucket exists (idempotent, public read). */
@@ -97,19 +112,26 @@ export async function uploadImages(
   const folder = `${ownerId}/${randomUUID()}`;
   const paths: string[] = [];
 
-  for (let i = 0; i < images.length; i += 1) {
-    const decoded = await decodeImage(images[i]);
-    const path = `${folder}/${i}.${decoded.ext}`;
-    const { error } = await admin.storage
-      .from(ITEM_IMAGES_BUCKET)
-      .upload(path, decoded.bytes, {
-        contentType: decoded.contentType,
-        upsert: false,
-      });
-    if (error) {
-      throw new Error(`Image upload failed: ${error.message}`);
+  try {
+    for (let i = 0; i < images.length; i += 1) {
+      const decoded = await decodeImage(images[i]);
+      assertValidImage(decoded);
+      const path = `${folder}/${i}.${decoded.ext}`;
+      const { error } = await admin.storage
+        .from(ITEM_IMAGES_BUCKET)
+        .upload(path, decoded.bytes, {
+          contentType: decoded.contentType,
+          upsert: false,
+        });
+      if (error) {
+        throw new Error(`Image upload failed: ${error.message}`);
+      }
+      paths.push(path);
     }
-    paths.push(path);
+  } catch (error) {
+    // Avoid orphaning the files uploaded before a later file failed.
+    await removeImages(admin, paths);
+    throw error;
   }
 
   return paths;

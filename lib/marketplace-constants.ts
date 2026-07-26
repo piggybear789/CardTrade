@@ -53,9 +53,9 @@ export const DEAL_COLLATERAL_MAX = 99_999_999_999;
 export const DEAL_REASON_MAX = 500;
 
 /**
- * Photo bounds for the goods a deal creator puts up. At least one photo is
- * required whenever the creator brings goods (selling, or trading items) —
- * these photos are the evidence base if the deal is later arbitrated.
+ * Photo bounds for goods either deal participant puts up. At least one photo is
+ * required whenever a participant describes goods — these photos are the
+ * evidence base if the deal is later arbitrated.
  */
 export const DEAL_PHOTOS_MIN = 1;
 export const DEAL_PHOTOS_MAX = 10;

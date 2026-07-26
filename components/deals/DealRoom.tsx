@@ -29,17 +29,19 @@
 // database clears BOTH confirmations. The room shows "Terms changed — both
 // parties must confirm again" and the confirm control resets for both sides.
 
-import { useEffect, useState, useTransition } from 'react';
+import { type ReactNode, useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
+  ArrowLeftRight,
   Ban,
   Check,
   CircleDot,
   Clock,
   Handshake,
+  ImageIcon,
   Link2,
   Loader2,
   Lock,
@@ -94,7 +96,6 @@ import {
   ensureDealConversation,
   raiseDealDispute,
   unconfirmDeal,
-  type DealOfferKind,
   type DealParty,
   type DealRole,
   type DealRow,
@@ -107,25 +108,6 @@ const ROLE_BADGE: Record<DealRole, string> = {
   SELLER: 'Seller',
   TRADER: 'Trader',
 };
-
-/** How the creator's declared side reads in the terms. */
-const CREATOR_ROLE_LABELS: Record<DealRole, string> = {
-  BUYER: 'Buying (pays cash)',
-  SELLER: 'Selling (receives cash)',
-  TRADER: 'Trading',
-};
-
-/** How each tradable component the creator put up reads in the room. */
-const OFFER_LABELS: Record<DealOfferKind, string> = {
-  CARDS: 'cards',
-  CASH: 'cash',
-  ITEMS: 'other items',
-};
-
-/** Label a stored offer kind, falling back to the raw value for safety. */
-function offerLabel(kind: string): string {
-  return OFFER_LABELS[kind as DealOfferKind] ?? kind;
-}
 
 /** Friendly messages for the typed errors any deal action can return. */
 const ERROR_MESSAGES: Record<string, string> = {
@@ -235,6 +217,25 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
     },
   );
   const termsComplete = termsCompleteFor(deal);
+  const creatorBringsGoods =
+    deal.creator_role === 'SELLER' ||
+    (deal.creator_role === 'TRADER' &&
+      deal.creator_offer_kinds.some((kind) => kind === 'CARDS' || kind === 'ITEMS'));
+  const counterpartyRole =
+    deal.creator_role === 'BUYER'
+      ? 'SELLER'
+      : deal.creator_role === 'SELLER'
+        ? 'BUYER'
+        : deal.creator_role;
+  const counterpartyBringsGoods =
+    counterpartyRole === 'SELLER' || counterpartyRole === 'TRADER';
+  const contributionsComplete =
+    !awaitingJoin &&
+    (!creatorBringsGoods ||
+      (Boolean(deal.creator_item_text?.trim()) && deal.creator_photo_paths.length > 0)) &&
+    (!counterpartyBringsGoods ||
+      (Boolean(deal.counterparty_item_text?.trim()) &&
+        deal.counterparty_photo_paths.length > 0));
   const bothConfirmed = myConfirmed && theirConfirmed;
   const escrowEngaged =
     deal.state === 'ESCROW_PENDING' ||
@@ -310,6 +311,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
 
   const steps: { label: string; done: boolean }[] = [
     { label: 'Other party joined', done: them !== null },
+    { label: 'Both sides documented', done: contributionsComplete },
     { label: 'Handover agreed', done: termsComplete },
     { label: 'Both confirmed', done: bothConfirmed || escrowEngaged },
     {
@@ -410,6 +412,10 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
               <p className="text-sm text-muted-foreground">
                 Share the link first — a deal only binds between two parties.
               </p>
+            ) : !contributionsComplete ? (
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Both sides must add item details and evidence photos before either person can confirm.
+              </p>
             ) : !termsComplete ? (
               <p className="text-sm text-muted-foreground">
                 Agree the handover above, then you can both confirm.
@@ -475,7 +481,10 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                   size="lg"
                   className="sm:flex-1"
                   disabled={
-                    isPending || deal.state !== 'CONFIRMATION' || !termsComplete
+                    isPending ||
+                    deal.state !== 'CONFIRMATION' ||
+                    !termsComplete ||
+                    !contributionsComplete
                   }
                   aria-busy={busy('confirm')}
                   onClick={() =>
@@ -526,97 +535,83 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
       ) : null}
 
 
-      {/* What is being dealt — the deal's own description, goods and photos. */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">What&apos;s being dealt</CardTitle>
-          {deal.creator_role ? (
-            <CardDescription>
-              {iAmCreator ? 'You are' : `${nameOf(them)} is`}{' '}
-              {CREATOR_ROLE_LABELS[deal.creator_role].toLowerCase()}
-              {deal.creator_offer_kinds.length > 0
-                ? ` — putting up ${deal.creator_offer_kinds.map(offerLabel).join(', ')}`
-                : ''}
-            </CardDescription>
-          ) : null}
+      {/* Bilateral trade composition: evidence stays attached to the party who
+          owns it, rather than floating above two anonymous text boxes. */}
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b bg-muted/25 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Trade composition</CardTitle>
+              <CardDescription className="mt-1">
+                Each person controls their own item details and evidence photos.
+              </CardDescription>
+            </div>
+            {canEditTerms ? (
+              <Badge variant="outline" className="border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300">
+                Draft · both must confirm
+              </Badge>
+            ) : (
+              <Badge variant="secondary">Locked record</Badge>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm">
+        <CardContent className="space-y-5 p-4 sm:p-6">
           {deal.description ? (
-            <p className="whitespace-pre-wrap">{deal.description}</p>
-          ) : (
-            <p className="text-muted-foreground">No description was added.</p>
-          )}
-
-          {deal.creator_photo_paths.length > 0 ? (
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {deal.creator_photo_paths.map((path) => {
-                const url = itemImageUrl(path);
-                if (!url) return null;
-                return (
-                  <li
-                    key={path}
-                    className="aspect-square overflow-hidden rounded-md border bg-muted"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt="Photo attached to this deal"
-                      className="h-full w-full object-cover"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="rounded-lg border-l-4 border-l-primary bg-muted/35 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Shared notes</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm">{deal.description}</p>
+            </div>
           ) : null}
 
           {(() => {
-            const myItemText = iAmCreator
-              ? deal.creator_item_text
-              : deal.counterparty_item_text;
-            const theirItemText = iAmCreator
-              ? deal.counterparty_item_text
-              : deal.creator_item_text;
+            const myItemText = iAmCreator ? deal.creator_item_text : deal.counterparty_item_text;
+            const theirItemText = iAmCreator ? deal.counterparty_item_text : deal.creator_item_text;
+            const myPhotos = iAmCreator ? deal.creator_photo_paths : deal.counterparty_photo_paths;
+            const theirPhotos = iAmCreator ? deal.counterparty_photo_paths : deal.creator_photo_paths;
             return (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* Your own side carries the edit control inline: a joiner looks
-                    for "what I bring" right here, not in the Handover card. */}
-                <div className="rounded-md border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      You bring
-                    </p>
-                    {canEditTerms ? (
+              <div className="grid items-stretch gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                <DealContributionPanel
+                  label="Your side"
+                  partyName={nameOf(me)}
+                  role={me.role}
+                  itemText={myItemText}
+                  photoPaths={myPhotos}
+                  confirmed={myConfirmed}
+                  action={
+                    canEditTerms ? (
                       <EditTermsDialog
                         deal={deal}
                         iAmCreator={iAmCreator}
                         someoneConfirmed={myConfirmed || theirConfirmed}
-                        triggerLabel={myItemText?.trim() ? 'Edit' : 'Set'}
+                        triggerLabel={myItemText?.trim() || myPhotos.length > 0 ? 'Edit your side' : 'Add your side'}
+                        triggerClassName="w-full justify-center"
                       />
-                    ) : null}
+                    ) : null
+                  }
+                />
+
+                <div className="flex items-center justify-center" aria-hidden>
+                  <div className="flex size-9 items-center justify-center rounded-full border bg-background text-primary shadow-sm">
+                    <ArrowLeftRight className="size-4 rotate-90 md:rotate-0" />
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap">
-                    {myItemText?.trim() ? (
-                      myItemText
-                    ) : (
-                      <span className="text-muted-foreground">Not set</span>
-                    )}
-                  </p>
                 </div>
-                <TermsField
-                  label={them ? `${nameOf(them)} brings` : 'They bring'}
-                  value={theirItemText}
+
+                <DealContributionPanel
+                  label="Their side"
+                  partyName={nameOf(them)}
+                  role={them?.role ?? null}
+                  itemText={theirItemText}
+                  photoPaths={theirPhotos}
+                  confirmed={theirConfirmed}
                 />
               </div>
             );
           })()}
 
-          {canEditTerms ? (
-            <p className="text-xs text-muted-foreground">
-              Use <strong>Set</strong> above to enter what you&apos;re bringing.
-              The same dialog also sets the cash and collateral. Editing terms
-              clears both confirmations.
-            </p>
-          ) : null}
+          <div className="flex items-start gap-2 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            <p>Descriptions and photos become part of the deal record. Changing either side clears both confirmations.</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -733,7 +728,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Deal progress">
+          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5" aria-label="Deal progress">
             {steps.map((step, index) => (
               <li
                 key={step.label}
@@ -1240,16 +1235,113 @@ function ReasonDialog({
   );
 }
 
-/** A labelled read-only terms field with an empty fallback. */
-function TermsField({ label, value }: { label: string; value: string | null }) {
+/** One participant's owned contribution: item evidence, status and edit action. */
+function DealContributionPanel({
+  label,
+  partyName,
+  role,
+  itemText,
+  photoPaths,
+  confirmed,
+  action,
+}: {
+  label: string;
+  partyName: string;
+  role: DealRole | null;
+  itemText: string | null;
+  photoPaths: string[];
+  confirmed: boolean;
+  action?: ReactNode;
+}) {
+  const needsGoods = role === 'SELLER' || role === 'TRADER';
+  const contributionReady =
+    !needsGoods || (Boolean(itemText?.trim()) && photoPaths.length > 0);
+
   return (
-    <div className="rounded-md border p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 whitespace-pre-wrap">
-        {value?.trim() ? value : <span className="text-muted-foreground">Not set</span>}
-      </p>
-    </div>
+    <article
+      className={cn(
+        'flex min-w-0 flex-col overflow-hidden rounded-xl border bg-background',
+        label === 'Your side' && 'border-primary/35 shadow-sm',
+      )}
+    >
+      <header className="flex items-start justify-between gap-3 border-b bg-muted/25 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            {label}
+          </p>
+          <p className="truncate font-medium">{partyName}</p>
+        </div>
+        <Badge
+          variant={contributionReady ? 'secondary' : 'outline'}
+          className={cn(
+            'shrink-0',
+            !contributionReady && 'border-amber-500/40 text-amber-700 dark:text-amber-300',
+          )}
+        >
+          {confirmed ? 'Confirmed' : contributionReady ? 'Ready to confirm' : 'Needs evidence'}
+        </Badge>
+      </header>
+
+      {photoPaths.length > 0 ? (
+        <ul
+          className={cn(
+            'grid gap-px bg-border',
+            photoPaths.length === 1 ? 'grid-cols-1' : 'grid-cols-2',
+          )}
+          aria-label={`${partyName}'s evidence photos`}
+        >
+          {photoPaths.slice(0, 4).map((path, index) => {
+            const url = itemImageUrl(path);
+            if (!url) return null;
+            return (
+              <li
+                key={path}
+                className={cn(
+                  'relative overflow-hidden bg-muted',
+                  photoPaths.length === 1 ? 'aspect-[16/10]' : 'aspect-square',
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`${partyName} item evidence ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                {index === 3 && photoPaths.length > 4 ? (
+                  <span className="absolute inset-0 grid place-items-center bg-black/60 text-sm font-semibold text-white">
+                    +{photoPaths.length - 4} more
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="grid min-h-36 place-items-center border-b bg-muted/15 px-4 py-6 text-center">
+          <div>
+            <ImageIcon className="mx-auto size-7 text-muted-foreground/60" aria-hidden />
+            <p className="mt-2 text-sm font-medium">No evidence photos yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {label === 'Your side' ? 'Add front, back and condition details.' : 'Waiting for their item evidence.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex items-center gap-2">
+          {role ? <Badge variant="outline">{ROLE_BADGE[role]}</Badge> : null}
+          {photoPaths.length > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              {photoPaths.length} {photoPaths.length === 1 ? 'photo' : 'photos'}
+            </span>
+          ) : null}
+        </div>
+        <p className={cn('whitespace-pre-wrap text-sm', !itemText?.trim() && 'text-muted-foreground')}>
+          {itemText?.trim() || (needsGoods ? 'Item details not added.' : 'Cash side — no item required.')}
+        </p>
+        {action ? <div className="mt-auto border-t pt-4">{action}</div> : null}
+      </div>
+    </article>
   );
 }

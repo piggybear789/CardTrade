@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* CardTrade: warm ledger paper, auction-room ink, and antique brass. */
+    --background: 42 31% 96%;
+    --foreground: 30 10% 9%;
+    --card: 40 30% 99%;
+    --card-foreground: 30 10% 9%;
+    --popover: 40 30% 99%;
+    --popover-foreground: 30 10% 9%;
+    --primary: 30 9% 7%;
+    --primary-foreground: 42 33% 95%;
+    --secondary: 39 35% 90%;
+    --secondary-foreground: 30 10% 12%;
+    --muted: 40 22% 91%;
+    --muted-foreground: 32 8% 40%;
+    --accent: 41 41% 87%;
+    --accent-foreground: 30 11% 10%;
+    --destructive: 2 67% 45%;
+    --destructive-foreground: 42 33% 96%;
+    --border: 36 18% 78%;
+    --input: 36 18% 72%;
+    --ring: 41 52% 48%;
+    --trust: 173 80% 30%;
+    --gold: 41 52% 48%;
+    --obsidian: 30 9% 4%;
+    --charcoal: 30 8% 14%;
+    --parchment: 40 45% 90%;
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 30 9% 5%;
+    --foreground: 42 30% 93%;
+    --card: 30 8% 8%;
+    --card-foreground: 42 30% 93%;
+    --popover: 30 8% 9%;
+    --popover-foreground: 42 30% 93%;
+    --primary: 40 45% 90%;
+    --primary-foreground: 30 9% 7%;
+    --secondary: 30 8% 15%;
+    --secondary-foreground: 42 30% 93%;
+    --muted: 30 7% 14%;
+    --muted-foreground: 37 12% 65%;
+    --accent: 38 24% 19%;
+    --accent-foreground: 42 30% 94%;
+    --destructive: 2 59% 37%;
+    --destructive-foreground: 42 30% 94%;
+    --border: 35 12% 22%;
+    --input: 35 12% 26%;
+    --ring: 42 62% 58%;
+    --trust: 172 66% 48%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    @apply min-h-dvh overflow-x-clip bg-background font-sans text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at 8% 0%, hsl(var(--gold) / 0.055), transparent 24rem),
+      linear-gradient(hsl(var(--foreground) / 0.018) 1px, transparent 1px);
+    background-size: auto, 100% 4rem;
+    font-feature-settings: 'kern' 1, 'ss01' 1, 'cv11' 1;
+  }
+
+  ::selection {
+    color: hsl(var(--obsidian));
+    background: hsl(var(--gold) / 0.42);
+  }
+}
+
+@layer components {
+  /* Teal is reserved for verified identity and provenance, never decoration. */
+  .cardtrade-trust-mark {
+    color: hsl(var(--trust));
+    border-color: hsl(var(--trust) / 0.32);
+    background-color: hsl(var(--trust) / 0.1);
+  }
+
+  .cardtrade-eyebrow,
+  .market-label {
+    @apply font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.12em];
+  }
+
+  .cardtrade-eyebrow {
+    @apply inline-flex w-fit items-center rounded-sm border px-2 py-1;
+    color: hsl(var(--gold));
+    border-color: hsl(var(--gold) / 0.35);
+    background-color: hsl(var(--gold) / 0.08);
+  }
+
+  .market-header input {
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--primary-foreground) / 0.17);
+    background: hsl(var(--primary-foreground) / 0.07);
+  }
+
+  .market-header input::placeholder {
+    color: hsl(var(--primary-foreground) / 0.48);
+  }
+
+  .market-header [role='search'] > svg {
+    color: hsl(var(--primary-foreground) / 0.5);
+  }
+
+  .market-header input:focus-visible {
+    border-color: hsl(var(--gold) / 0.7);
+  }
+
+  .auction-stage {
+    background: radial-gradient(ellipse at 50% 28%, hsl(var(--charcoal)) 0%, hsl(var(--obsidian)) 88%);
+  }
+
+  .ledger-strip {
+    color: hsl(var(--obsidian));
+    background: hsl(var(--parchment));
+  }
+
+  .display-value {
+    @apply font-sans font-bold tabular-nums tracking-[-0.025em];
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  .text-trust {
+    color: hsl(var(--trust));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

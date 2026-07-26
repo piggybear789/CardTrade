@@ -616,7 +616,7 @@ export function EditTermsDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="terms-collateral">Collateral per person (AUD)</Label>
+                  <Label htmlFor="terms-collateral">Agreed trade value (AUD)</Label>
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden>$</span>
                     <Input
@@ -632,7 +632,7 @@ export function EditTermsDialog({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Leave blank to size protection automatically from the deal value.
+                    The total worth of the exchange — cards plus any cash. When collateral is required, each person&apos;s hold is 100% of this amount. If left blank it falls back to the cash value only, which understates a trade that also includes cards.
                   </p>
                 </div>
               </div>

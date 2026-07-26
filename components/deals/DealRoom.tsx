@@ -860,10 +860,52 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Wallet className="size-4 text-primary" aria-hidden />
-            Collateral
+            Trade value &amp; collateral
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
+          {(() => {
+            const goodsInvolved = creatorBringsGoods || counterpartyBringsGoods;
+            const valueUnset = deal.collateral_cents == null;
+            // Goods carry value the platform can't price (deal items are text +
+            // photos, no FMV), so a cash-only fallback understates a card-inclusive
+            // trade. Flag it and point at the agreed-value field.
+            const understated = valueUnset && goodsInvolved;
+            return (
+              <div
+                className={cn(
+                  'flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3',
+                  understated
+                    ? 'border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10'
+                    : 'bg-muted/25',
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="font-medium">Agreed trade value</p>
+                  <p className="text-xs text-muted-foreground">
+                    {understated
+                      ? 'Sized from the cash only — cards add value that is not counted. Set an agreed value so collateral matches the real trade.'
+                      : valueUnset
+                        ? 'Automatic — based on the cash value or the default stake.'
+                        : 'Each collateral hold is 100% of this value when required.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-lg font-semibold tabular-nums">
+                    {formatAud(collateralStakeCents)}
+                  </p>
+                  {understated && canEditTerms ? (
+                    <EditTermsDialog
+                      deal={deal}
+                      iAmCreator={iAmCreator}
+                      someoneConfirmed={myConfirmed || theirConfirmed}
+                      triggerLabel="Set value"
+                    />
+                  ) : null}
+                </div>
+              </div>
+            );
+          })()}
           {!collateralRequired ? (
             <p className="text-muted-foreground">
               No collateral required.{' '}

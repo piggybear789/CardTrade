@@ -862,7 +862,10 @@ export interface UpdateTermsInput {
   cashAmountCents?: number | null;
   /** Which party pays the cash component. */
   cashPayerId?: string | null;
-  /** Agreed per-party collateral for the escrow step, in integer AUD cents. */
+  /**
+   * Agreed Fair_Market_Value for the exchange in integer AUD cents. When
+   * collateral is required, each participant's hold is 100% of this value.
+   */
   collateralCents?: number | null;
 }
 

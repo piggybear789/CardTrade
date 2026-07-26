@@ -126,6 +126,29 @@ function clientIp(headerList: Headers): string {
 }
 
 /**
+ * Resolve the URL the simulated compliance webhook is POSTed to.
+ *
+ * Precedence: an explicit `WEBHOOK_URL` override, then the origin of the
+ * incoming request (so a deployed environment delivers to itself rather than
+ * `localhost`), then a local-dev fallback. This is why compliance simulation on
+ * prod failed with "fetch failed" when `WEBHOOK_URL` was unset — it defaulted to
+ * `http://localhost:3000`, which the serverless function cannot reach.
+ */
+async function resolveWebhookUrl(): Promise<string> {
+  const override = process.env.WEBHOOK_URL;
+  if (override) return override;
+
+  const headerList = await headers();
+  const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
+  if (host) {
+    const proto = headerList.get('x-forwarded-proto') ?? 'https';
+    return `${proto}://${host}/api/webhooks/pinch`;
+  }
+
+  return 'http://localhost:3000/api/webhooks/pinch';
+}
+
+/**
  * Read the caller's current sub-merchant state for the payout UI.
  */
 export async function getMerchantState(): Promise<
@@ -355,11 +378,14 @@ export async function simulateMerchantCompliance(
     return fail('not-onboarded', 'Submit payout onboarding before simulating a decision.');
   }
 
+  // Resolve where to POST the signed webhook. Prefer an explicit override, then
+  // derive the deployed origin from the incoming request headers (so prod hits
+  // itself rather than localhost), and only then fall back to local dev.
   const result = await simulateComplianceDecision({
     config,
     merchantRef,
     outcome,
-    webhookUrl: process.env.WEBHOOK_URL ?? 'http://localhost:3000/api/webhooks/pinch',
+    webhookUrl: await resolveWebhookUrl(),
     webhookSecret: config.webhookSecret,
   });
   if (!result.ok) {

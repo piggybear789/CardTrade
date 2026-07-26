@@ -28,7 +28,7 @@ import type { TradeViewerRole } from '@/domain/state-machine/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Trade contract · CardTrade',
+  title: 'Trade contract · Poke-xchange',
   description: 'Live escrow status and actions for a 2-way trade.',
 };
 
@@ -85,7 +85,7 @@ export default async function TradePage({
   const partyFor = (id: string) => {
     const row = partyById.get(id);
     return {
-      name: (row?.display_name as string | null)?.trim() || 'CardTrade member',
+      name: (row?.display_name as string | null)?.trim() || 'Poke-xchange member',
       verified: Boolean(row?.is_verified),
       rating: row?.rating == null ? null : Number(row.rating),
       ratingCount: (row?.rating_count as number | null) ?? 0,

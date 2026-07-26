@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth/AuthForm";
 
 export const metadata: Metadata = {
-  title: "Sign in · CardTrade",
+  title: "Sign in · Poke-xchange",
 };
 
 // Sign-in page (Req 1.1, 1.7). The form is a Client Component wrapped in a

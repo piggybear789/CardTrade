@@ -22,7 +22,7 @@ import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Messages · CardTrade',
+  title: 'Messages · Poke-xchange',
   description: 'Your buyer and seller conversations.',
 };
 
@@ -76,7 +76,7 @@ export default async function MessagesPage() {
           aria-label="Conversations"
         >
           {conversations.map((c) => {
-            const name = c.other.displayName?.trim() || 'CardTrade member';
+            const name = c.other.displayName?.trim() || 'Poke-xchange member';
             const thumb = c.item ? itemImageUrl(c.item.imagePath) : null;
             const preview = c.lastMessage?.body ?? 'No messages yet';
             const time = formatRelativeTime(

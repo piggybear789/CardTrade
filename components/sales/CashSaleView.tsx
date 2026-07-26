@@ -38,6 +38,7 @@ import { CashSaleTermsDialog } from './CashSaleTermsDialog';
 import { CashSaleDemoControls } from './CashSaleDemoControls';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
 import { requiredBondCents } from '@/domain/bond/bondPolicy';
+import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { formatAud } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { useCashSaleRealtime } from '@/lib/realtime/useCashSaleRealtime';
@@ -183,8 +184,10 @@ function PartyColumn({
         <p
           className={cn(
             'flex items-center gap-1.5 text-xs',
+            // Teal (trust) is the reserved token for verified identity/provenance;
+            // an unverified party is a caution, not an error, so amber.
             party.verified
-              ? 'text-emerald-700 dark:text-emerald-400'
+              ? 'text-trust'
               : 'text-amber-700 dark:text-amber-400',
           )}
         >
@@ -417,17 +420,32 @@ export function CashSaleView({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              className={
-                connectionStatus === 'live'
-                  ? 'size-2 rounded-full bg-emerald-500'
-                  : 'size-2 rounded-full bg-amber-500'
-              }
-              aria-hidden
-            />
-            {connectionStatus === 'live' ? 'Live' : 'Connecting'}
-          </span>
+          {(() => {
+            const live = connectionStatus === 'live';
+            const offline = connectionStatus === 'error';
+            const label = live ? 'Live' : offline ? 'Offline' : 'Connecting';
+            return (
+              <span
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                role="status"
+                aria-live="polite"
+                aria-label={`Connection status: ${label}`}
+              >
+                <span
+                  className={cn(
+                    'size-2 rounded-full',
+                    live
+                      ? 'bg-emerald-500'
+                      : offline
+                        ? 'bg-destructive'
+                        : 'bg-amber-500',
+                  )}
+                  aria-hidden
+                />
+                {label}
+              </span>
+            );
+          })()}
           <Badge variant={STATUS_TONE[sale.status]}>{statusLabel}</Badge>
         </div>
       </header>
@@ -631,7 +649,7 @@ export function CashSaleView({
                   </p>
                   <p className="text-muted-foreground">
                     {iAmBuyer
-                      ? 'Your payment is secured by CardTrade. Funds are released to the seller only after you confirm receipt.'
+                      ? 'Your payment is secured by Poke-xchange. Funds are released to the seller only after you confirm receipt.'
                       : "The buyer\u2019s payment is secured. Ship or hand over the item to proceed."}
                   </p>
                 </div>
@@ -986,24 +1004,32 @@ export function CashSaleView({
                     aria-checked={selected}
                     disabled={isPending}
                     onClick={() => chooseMethod(option.value)}
+                    // Reads as a raised, pressable surface using the same
+                    // vocabulary as the outline Button (card fill + shadow +
+                    // gold hover border) so it is obviously interactive. Gold
+                    // marks the chosen option, matching the brand accent used
+                    // for primary affordances elsewhere.
                     className={cn(
-                      'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-colors',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium',
+                      'transition-[color,background-color,border-color,box-shadow,transform] duration-200',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      'disabled:pointer-events-none disabled:opacity-45',
+                      'motion-safe:hover:-translate-y-px motion-reduce:transform-none',
                       selected
-                        ? 'border-primary bg-primary/5 font-medium'
-                        : 'hover:bg-muted/50',
+                        ? 'border-gold/60 bg-gold/12 shadow-market hover:border-gold/70 hover:bg-gold/20'
+                        : 'border-input bg-card/80 shadow-sm hover:border-gold/50 hover:bg-accent hover:text-accent-foreground',
                     )}
                   >
                     <Icon
                       className={cn(
                         'size-4 shrink-0',
-                        selected ? 'text-primary' : 'text-muted-foreground',
+                        selected ? 'text-gold' : 'text-muted-foreground',
                       )}
                       aria-hidden
                     />
                     {option.label}
                     {selected ? (
-                      <Check className="ml-auto size-4 text-primary" aria-hidden />
+                      <Check className="ml-auto size-4 text-gold" aria-hidden />
                     ) : null}
                   </button>
                 );
@@ -1095,7 +1121,9 @@ export function CashSaleView({
               </dd>
             </div>
             <div className="flex items-center justify-between border-t px-4 py-3">
-              <dt className="text-muted-foreground">Platform fee (flat)</dt>
+              <dt className="text-muted-foreground">
+                Platform fee ({PLATFORM_FEE_BPS / 100}%)
+              </dt>
               <dd className="font-medium tabular-nums">
                 {formatAud(sale.platform_fee_cents)}
               </dd>

@@ -114,7 +114,7 @@ export function NotificationBell({
             ? `Notifications, ${unreadCount} unread`
             : 'Notifications'
         }
-        className="relative inline-flex size-9 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
+        className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
       >
         <Bell className="size-5" aria-hidden />
         {unreadCount > 0 && (

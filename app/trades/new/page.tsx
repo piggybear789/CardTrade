@@ -29,7 +29,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { ItemRow } from '@/lib/actions/listings';
 
 export const metadata = {
-  title: 'Offer a trade · CardTrade',
+  title: 'Offer a trade · Poke-xchange',
   description: 'Offer goods, cash, or both in exchange for a listing.',
 };
 

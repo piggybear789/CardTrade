@@ -29,7 +29,7 @@ import { isDealPast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Deals · CardTrade',
+  title: 'Deals · Poke-xchange',
   description: 'Your private 1:1 binding deals.',
 };
 
@@ -127,7 +127,7 @@ export default async function DealsPage({
                   <p className="truncate text-sm text-muted-foreground">
                     {deal.otherPartyId === null
                       ? 'Awaiting counterparty'
-                      : `With ${deal.otherPartyName?.trim() || 'CardTrade member'}`}
+                      : `With ${deal.otherPartyName?.trim() || 'Poke-xchange member'}`}
                     {deal.myConfirmed && !deal.theirConfirmed
                       ? ' · you confirmed'
                       : !deal.myConfirmed && deal.theirConfirmed

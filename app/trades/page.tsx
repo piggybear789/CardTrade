@@ -27,7 +27,7 @@ import { isTradePast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Trades · CardTrade',
+  title: 'Trades · Poke-xchange',
   description: 'Your 2-way escrow trades.',
 };
 

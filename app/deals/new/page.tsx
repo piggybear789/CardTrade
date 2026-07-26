@@ -28,7 +28,7 @@ import { DEAL_DEFAULT_COLLATERAL_CENTS } from '@/lib/marketplace-constants';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Start a deal · CardTrade',
+  title: 'Start a deal · Poke-xchange',
   description: 'Start a private 1:1 binding deal with one other member.',
 };
 

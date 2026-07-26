@@ -64,7 +64,7 @@ function roleLabel(role: DealRole | null, creatorName: string): string {
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Join a deal · CardTrade',
+  title: 'Join a deal · Poke-xchange',
   description: 'Join a private 1:1 binding deal you were sent a link to.',
 };
 
@@ -115,7 +115,7 @@ export default async function JoinDealPage({
     redirect(`/deals/${preview.dealId}`);
   }
 
-  const creatorName = preview.creatorName?.trim() || 'A CardTrade member';
+  const creatorName = preview.creatorName?.trim() || 'A Poke-xchange member';
 
   return (
     <PageShell width="form" centered>

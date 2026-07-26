@@ -12,7 +12,7 @@
 //   APPROVED        -> the exact identity buyers see at checkout.
 //
 // Bank details are submitted straight through to the provider and never stored
-// by CardTrade, so they are write-only here: the form never renders back an
+// by Poke-xchange, so they are write-only here: the form never renders back an
 // account number, and nothing in `MerchantStateData` carries one.
 
 import { useState, useTransition } from 'react';
@@ -385,7 +385,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
         {/* APPROVED: show exactly what a buyer is shown at checkout. */}
         {state.merchantStatus === 'APPROVED' && state.legalEntityName ? (
           <div className="rounded-lg border bg-muted/30 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-trust">
               <BadgeCheck className="h-4 w-4" aria-hidden />
               What buyers see
             </div>

@@ -277,7 +277,7 @@ describe('onboarding is independent of payer KYC', () => {
       },
       { profileId: 'profile-1', details: DETAILS, buyerDisclosureConsent: true },
     );
-    const update = spy.mock.calls[0][0] as Record<string, unknown>;
+    const update = spy.mock.calls[0][0] as unknown as Record<string, unknown>;
     expect(Object.keys(update).some((key) => key.toLowerCase().includes('kyc'))).toBe(false);
   });
 });

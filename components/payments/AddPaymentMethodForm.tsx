@@ -13,6 +13,8 @@ import { Loader2 } from 'lucide-react';
 import { attachPaymentSource, getTokenisationConfig } from '@/lib/actions/payments';
 import { usePinchCapture } from './usePinchCapture';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 /** Detect card network from the leading digits. */
 function detectCardBrand(cardNumber: string): string {
@@ -21,8 +23,6 @@ function detectCardBrand(cardNumber: string): string {
   if (/^3[47]/.test(cardNumber)) return 'Amex';
   return 'Card';
 }
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 const CURRENT_YEAR = new Date().getFullYear();

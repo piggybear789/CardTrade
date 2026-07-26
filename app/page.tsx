@@ -1,11 +1,13 @@
 // app/page.tsx
 //
-// CardTrade landing page. Presents one concrete, collateral-backed trade so
+// Poke-xchange landing page. Presents one concrete, collateral-backed trade so
 // collectors can understand the clearinghouse before entering the marketplace.
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+
+import { LogoMark } from '@/components/layout/Logo';
 
 import { ListingCarousel } from '@/components/listings/ListingCarousel';
 import { Button } from '@/components/ui/button';
@@ -16,7 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'CardTrade — Protected Trades for Serious Collectors',
+  title: 'Poke-xchange — Protected Trades for Serious Collectors',
   description:
     'Buy, sell, and swap high-value collectibles with identity verification, live trade contracts, and collateral-backed escrow.',
 };
@@ -53,7 +55,7 @@ export default async function HomePage() {
                 The Deal Is Done When Both Collectors Agree.
               </h1>
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
-                CardTrade locks each trader&apos;s verified identity and 100% of
+                Poke-xchange locks each trader&apos;s verified identity and 100% of
                 the collectible&apos;s fair market value before either package
                 leaves the door.
               </p>
@@ -148,8 +150,8 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 text-sm sm:px-6 md:grid-cols-[1fr_auto] md:items-start lg:px-8">
           <div className="max-w-xl">
             <div className="flex items-center gap-2 font-display text-lg font-semibold">
-              <ShieldCheck className="size-5 text-trust" aria-hidden="true" />
-              <span translate="no">CardTrade</span>
+              <LogoMark className="size-6" />
+              <span translate="no">Poke-xchange</span>
             </div>
             <p className="mt-2 text-pretty leading-6 text-muted-foreground">
               Safety-first escrow for trading cards, coins, stamps, comics, and memorabilia.
@@ -176,7 +178,7 @@ export default async function HomePage() {
             >
               Pokémon TCG API
             </a>
-            . Pokémon names and artwork belong to their respective owners. CardTrade is not affiliated with or endorsed by The Pokémon Company.
+            . Pokémon names and artwork belong to their respective owners. Poke-xchange is not affiliated with or endorsed by The Pokémon Company.
           </p>
         </div>
       </footer>

@@ -28,7 +28,7 @@ import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Edit listing · CardTrade",
+  title: "Edit listing · Poke-xchange",
   description: "Update the details of your collectible listing.",
 };
 
@@ -46,12 +46,6 @@ export default async function EditListingPage({
   if (!user) {
     redirect(`/sign-in?redirectTo=/listings/${id}/edit`);
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("kyc_status")
-    .eq("id", user.id)
-    .maybeSingle();
 
   // No KYC gate here (revised Req 3.1): an unverified Seller may list, so they
   // must be able to correct what they listed. `updateItem` enforces owner-only

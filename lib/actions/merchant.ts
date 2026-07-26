@@ -142,9 +142,7 @@ export async function getMerchantState(): Promise<
   const { data } = await createAdminClient()
     .from('profiles')
     .select(
-      'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_compliance_status, ' +
-        'merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, ' +
-        'merchant_identity_verified_at',
+      'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_compliance_status, merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, merchant_identity_verified_at',
     )
     .eq('id', user.id)
     .maybeSingle();

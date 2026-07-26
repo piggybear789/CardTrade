@@ -45,7 +45,7 @@ export async function generateMetadata({
     .eq('id', id)
     .maybeSingle();
   const name = (data?.display_name as string | null) ?? 'Seller';
-  return { title: `${name} · CardTrade` };
+  return { title: `${name} · Poke-xchange` };
 }
 
 export default async function SellerProfilePage({
@@ -121,14 +121,14 @@ export default async function SellerProfilePage({
       {/* Header */}
       <header className="mb-8 space-y-2 border-b pb-6">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">{displayName}</h1>
+          <h2 className="text-3xl font-bold tracking-tight">{displayName}</h2>
           {seller.isVerified && <VerifiedBadge size={18} />}
         </div>
         <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
 
         {sellerIdentity ? (
           <div className="mt-3 rounded-lg border bg-muted/30 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
               <BadgeCheck className="h-4 w-4" aria-hidden />
               Pinch merchant verified
             </div>

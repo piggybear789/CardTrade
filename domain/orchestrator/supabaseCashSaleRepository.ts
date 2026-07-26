@@ -10,6 +10,7 @@ import type { Tables, TablesUpdate } from '@/lib/supabase/database.types';
 import { getTrackingService } from '@/domain/services/tracking';
 import {
   createCashSaleOrchestrator,
+  platformFeeCentsFor,
   type BuyerRecord,
   type CashSaleOrchestrator,
   type CashSaleOrchestratorDeps,
@@ -149,11 +150,7 @@ export function createSupabaseCashSaleRepository(
       const { data } = await client
         .from('profiles')
         .select(
-          'id, merchant_ref, merchant_status, merchant_compliance_status, merchant_live_enabled, ' +
-            'merchant_transactions_enabled, merchant_settlements_enabled, ' +
-            'merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, ' +
-            'merchant_organisation_type, merchant_identity_version, ' +
-            'merchant_identity_disclosure_consented_at, merchant_identity_verified_at',
+          'id, merchant_ref, merchant_status, merchant_compliance_status, merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled, merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, merchant_organisation_type, merchant_identity_version, merchant_identity_disclosure_consented_at, merchant_identity_verified_at',
         )
         .eq('id', sellerId)
         .maybeSingle();
@@ -269,12 +266,17 @@ export function createSupabaseCashSaleRepository(
     async updateAgreedPrice({ cashSaleId, expectedTermsVersion, agreedPriceCents }) {
       const current = await selectSale(client, cashSaleId);
       if (!current || current.status !== 'AGREEMENT') return null;
+      // The Platform_Fee is a percentage of the item price, so a renegotiated
+      // price must re-derive it. Carrying the old fee forward would bill the
+      // buyer a percentage of a price that no longer exists and would break the
+      // `amount = price + fee + shipping` constraint's intent.
+      const feeCents = platformFeeCentsFor(agreedPriceCents);
       const { data } = await client
         .from('cash_sales')
         .update({
           agreed_price_cents: agreedPriceCents,
-          amount_cents:
-            agreedPriceCents + current.platformFeeCents + current.shippingCostCents,
+          platform_fee_cents: feeCents,
+          amount_cents: agreedPriceCents + feeCents + current.shippingCostCents,
         })
         .eq('id', cashSaleId)
         .eq('status', 'AGREEMENT')
@@ -426,7 +428,7 @@ export function createSupabaseCashSaleRepository(
     async raiseDispute({ cashSaleId, actorId, reason, disputedAt }) {
       // Disputes are valid from multiple active fulfillment states, not just
       // INSPECTION, so we use `.in()` rather than the single-status guardedUpdate.
-      const DISPUTABLE = ['INSPECTION', 'IN_TRANSIT', 'HANDOVER', 'ESCROW_HELD'];
+      const DISPUTABLE = ['INSPECTION', 'IN_TRANSIT', 'HANDOVER', 'ESCROW_HELD'] as const;
       const { data } = await client
         .from('cash_sales')
         .update({

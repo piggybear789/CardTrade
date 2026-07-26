@@ -1391,6 +1391,13 @@ export type Database = {
         };
         Returns: string | null;
       };
+      attach_dispute_conversation: {
+        Args: {
+          p_cash_sale_id: string;
+          p_actor_id: string;
+        };
+        Returns: undefined;
+      };
       ensure_deal_conversation: {
         Args: {
           p_deal_id: string;

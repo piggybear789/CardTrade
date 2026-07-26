@@ -18,7 +18,7 @@ import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHead
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'My Listings · CardTrade',
+  title: 'My Listings · Poke-xchange',
   description: 'Items you have listed for sale or trade.',
 };
 

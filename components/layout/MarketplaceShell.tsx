@@ -44,7 +44,7 @@ function CreateListingAction() {
 
 export function MarketplaceShell({
   title,
-  eyebrow = 'CardTrade Exchange',
+  eyebrow = 'Poke-xchange Market',
   primaryAction,
   filters,
   contentWidth = 'full',
@@ -85,7 +85,11 @@ export function MarketplaceShell({
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch lg:flex-row">
-        <aside className="w-full min-w-0 px-4 sm:px-6 lg:w-[220px] lg:shrink-0 lg:self-stretch lg:border-r lg:border-border/80 lg:bg-card/90 lg:px-5 lg:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)] xl:w-[250px] 2xl:w-[270px]">
+        {/* Rail width is proportional (20% of the workspace) so it scales with
+            the viewport. The min/max keep it usable at the extremes: a floor so
+            the nav labels never crush on smaller laptops, and a cap so it does
+            not sprawl on ultrawide displays. */}
+        <aside className="w-full min-w-0 px-4 sm:px-6 lg:w-1/5 lg:min-w-[13.5rem] lg:max-w-[19rem] lg:shrink-0 lg:self-stretch lg:border-r lg:border-border/80 lg:bg-card/90 lg:px-5 lg:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)]">
           {/* The rail background stretches the full column; its contents stay in
               view, with identity status held at the bottom of the rail.
               The inset px-1/-mx-1 pair gives focus rings room to draw: setting

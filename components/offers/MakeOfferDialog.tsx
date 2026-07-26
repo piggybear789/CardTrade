@@ -30,7 +30,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { formatAud } from '@/lib/format';
+import { formatAud, formatRegistrationNumber } from '@/lib/format';
 import { makeOffer, type MakeOfferResult } from '@/lib/actions/offers';
 import { OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -157,7 +157,8 @@ export function MakeOfferDialog({
                 <p>{sellerIdentity.tradingName}</p>
               ) : null}
               <p className="text-muted-foreground">
-                {sellerIdentity.legalEntityName} · {sellerIdentity.registrationNumber}
+                {sellerIdentity.legalEntityName} ·{' '}
+                {formatRegistrationNumber(sellerIdentity.registrationNumber)}
               </p>
             </div>
 
@@ -167,6 +168,7 @@ export function MakeOfferDialog({
                 checked={confirmedSeller}
                 onChange={(event) => setConfirmedSeller(event.target.checked)}
                 className="mt-0.5 h-4 w-4"
+                disabled={isPending}
               />
               <span>
                 I confirm this is the seller I intend to pay if the offer is accepted.

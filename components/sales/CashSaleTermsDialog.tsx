@@ -134,9 +134,9 @@ export function CashSaleTermsDialog({
           </DialogHeader>
           <div className="space-y-4 py-5">
             <div className="space-y-2">
-              <Label>Fulfillment method</Label>
+              <Label htmlFor="sale-method">Fulfillment method</Label>
               <Select value={method} onValueChange={(value) => setMethod(value as typeof method)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="sale-method"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="DELIVERY">Ship the item</SelectItem>
                   <SelectItem value="IN_PERSON">Meet face to face</SelectItem>
@@ -206,7 +206,7 @@ export function CashSaleTermsDialog({
             {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending} aria-busy={pending}>
               {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
               Save as new version
             </Button>

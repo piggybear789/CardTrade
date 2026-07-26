@@ -97,10 +97,11 @@ function parseErrorBody(status: number, raw: string): { message: string; fields:
   // FluentValidation array: [{ propertyName, errorMessage }]
   if (Array.isArray(body)) {
     const fields = body
-      .map((entry) => {
+      .map((entry): PinchFieldError | null => {
         const e = entry as { propertyName?: string; errorMessage?: string; message?: string };
         const message = e.errorMessage ?? e.message;
-        return message ? { field: e.propertyName || undefined, message } : null;
+        if (!message) return null;
+        return e.propertyName ? { field: e.propertyName, message } : { message };
       })
       .filter((f): f is PinchFieldError => f !== null);
     return {
@@ -113,7 +114,13 @@ function parseErrorBody(status: number, raw: string): { message: string; fields:
   const obj = body as { errors?: Array<{ message?: string; field?: string }>; message?: string };
   if (Array.isArray(obj.errors)) {
     const fields = obj.errors
-      .map((e) => (e.message ? { field: e.field, message: e.message } : null))
+      .map((e): PinchFieldError | null =>
+        e.message
+          ? e.field !== undefined
+            ? { field: e.field, message: e.message }
+            : { message: e.message }
+          : null,
+      )
       .filter((f): f is PinchFieldError => f !== null);
     return {
       message: fields.map((f) => f.message).join('; ') || `Pinch request failed (${status})`,

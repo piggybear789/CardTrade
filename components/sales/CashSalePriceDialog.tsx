@@ -103,7 +103,7 @@ export function CashSalePriceDialog({
             ) : null}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending} aria-busy={pending}>
               {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
               Send request
             </Button>

@@ -22,7 +22,7 @@ import { isOfferPast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Offers · CardTrade',
+  title: 'Offers · Poke-xchange',
   description: 'Offers you have made on listings.',
 };
 

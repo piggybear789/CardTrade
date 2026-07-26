@@ -13,7 +13,7 @@ import {
   confirmCashSaleHandover,
   ensureCashSaleConversation,
   initiateCashSale,
-  PLATFORM_FEE_CENTS,
+  platformFeeCentsFor,
   proposeCashSalePrice,
   recordCashSaleReceipt,
   recordCashSaleShipment,
@@ -97,7 +97,9 @@ describe('cash sale — agreement stage', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.sale.status).toBe('AGREEMENT');
-    expect(result.sale.amountCents).toBe(ITEM.fmvCents + PLATFORM_FEE_CENTS);
+    expect(result.sale.amountCents).toBe(
+      ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents),
+    );
     expect(state.item.status).toBe('RESERVED');
     expect(calls.transfers).toHaveLength(0);
   });
@@ -221,7 +223,9 @@ describe('cash sale — terms and dual acceptance', () => {
     expect(updated.ok).toBe(true);
     if (!updated.ok) return;
     expect(updated.sale.amountCents).toBe(
-      ITEM.fmvCents + PLATFORM_FEE_CENTS + DELIVERY_TERMS.shippingCostCents,
+      ITEM.fmvCents +
+        platformFeeCentsFor(ITEM.fmvCents) +
+        DELIVERY_TERMS.shippingCostCents,
     );
   });
 
@@ -430,7 +434,7 @@ describe('cash sale — fulfillment', () => {
     const { saleId } = await agreeAndPay(deps, {
       fulfillmentMethod: 'IN_PERSON',
       meetingLocation: 'Melbourne Central, main concourse',
-    } as typeof DELIVERY_TERMS);
+    } as unknown as typeof DELIVERY_TERMS);
 
     const settled = await settleCashSale(deps, { cashSaleId: saleId });
     expect(settled.ok).toBe(true);
@@ -526,7 +530,8 @@ describe('cash sale — price renegotiation', () => {
     if (!repriced.ok) return;
     expect(repriced.sale.agreedPriceCents).toBe(8_000);
     expect(repriced.sale.amountCents).toBe(
-      8_000 + PLATFORM_FEE_CENTS + DELIVERY_TERMS.shippingCostCents,
+      // Repricing re-derives the percentage fee from the NEW price.
+      8_000 + platformFeeCentsFor(8_000) + DELIVERY_TERMS.shippingCostCents,
     );
     expect(repriced.sale.sellerTermsAcceptedVersion).toBeNull();
     expect(repriced.sale.termsVersion).toBe(withTerms.sale.termsVersion + 1);

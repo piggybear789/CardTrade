@@ -47,12 +47,12 @@ function context(overrides: Partial<PayoutSetupContext> = {}): PayoutSetupContex
  * exists in the document.
  */
 async function openForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /set up payouts|fix and resubmit/i }));
+  await user.click(screen.getByRole('button', { name: /verify my identity|fix and resubmit/i }));
   await screen.findByLabelText(/legal name or registered entity/i);
 }
 
 /**
- * Fill the required fields across the three steps, ending on the last one where
+ * Fill the required fields across the two steps, ending on the last one where
  * consent and submit live. Values from earlier steps must survive the walk —
  * that is the behaviour worth pinning, not the step chrome itself.
  */
@@ -65,7 +65,6 @@ async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/account name/i), 'Jane Collector');
   await user.type(screen.getByLabelText(/^bsb$/i), '012001');
   await user.type(screen.getByLabelText(/account number/i), '12345678');
-  await user.click(screen.getByRole('button', { name: /^next$/i }));
 
   await screen.findByRole('button', { name: /submit for verification/i });
 }
@@ -115,7 +114,7 @@ describe('PayoutOnboarding', () => {
       buyerDisclosureConsent: true,
     });
     // The card moves to the awaiting-review state.
-    expect(await screen.findByText(/verification in progress/i)).toBeInTheDocument();
+    expect(await screen.findByText(/checking your bank details/i)).toBeInTheDocument();
   });
 
   it('surfaces a field error returned by the server', async () => {

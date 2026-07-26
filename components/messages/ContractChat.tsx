@@ -146,6 +146,7 @@ export function ContractChat({
           onScroll={handleLogScroll}
           className="h-full space-y-3 overflow-y-auto bg-background p-4"
           role="log"
+          aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"
         >
           {messages.length === 0 ? (

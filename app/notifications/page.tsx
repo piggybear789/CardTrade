@@ -13,7 +13,7 @@ import { NotificationCenter } from '@/components/notifications/NotificationCente
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 
 export const metadata = {
-  title: 'Notifications · CardTrade',
+  title: 'Notifications · Poke-xchange',
 };
 
 // Reads the authenticated user's session and reflects live data, so it must

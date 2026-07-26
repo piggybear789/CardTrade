@@ -30,7 +30,7 @@ import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'List an item · CardTrade',
+  title: 'List an item · Poke-xchange',
   description: 'Create a new collectible listing for sale or trade.',
 };
 

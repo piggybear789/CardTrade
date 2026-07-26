@@ -29,7 +29,7 @@ import {
   type RequestTradeProposalError,
   type RespondTradeProposalError,
 } from '@/domain/orchestrator/tradeProposalRequest';
-import { createPrivateTradeItem } from '@/lib/actions/listings';
+import { createPrivateTradeItem, type ImageUpload } from '@/lib/actions/listings';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { proposeTrade } from '@/lib/actions/trades';
@@ -63,7 +63,7 @@ export type RespondTradeProposalResult =
     };
 
 /** An image supplied for a privately offered Item. */
-type ProposalImage = Blob | string;
+type ProposalImage = ImageUpload;
 
 /** What the proposer is putting up: an existing Item, or a new private one. */
 export type ProposalOffer =

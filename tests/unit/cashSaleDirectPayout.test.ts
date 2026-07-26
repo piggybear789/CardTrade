@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   acceptCashSaleTerms,
   initiateCashSale,
-  PLATFORM_FEE_CENTS,
+  platformFeeCentsFor,
   updateCashSaleTerms,
   type CashSaleOrchestratorDeps,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
@@ -96,8 +96,8 @@ describe('cash sale — direct payout mode', () => {
         payerId: 'payer_on_mch_seller',
         nonce: expect.any(String),
         merchantRef: 'mch_seller',
-        applicationFee: PLATFORM_FEE_CENTS,
-        amount: ITEM.fmvCents + PLATFORM_FEE_CENTS,
+        applicationFee: platformFeeCentsFor(ITEM.fmvCents),
+        amount: ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents),
       },
     ]);
   });

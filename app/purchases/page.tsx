@@ -22,7 +22,7 @@ import { isCashSalePast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Purchases · CardTrade',
+  title: 'Purchases · Poke-xchange',
   description: 'Contracts where you are the buyer.',
 };
 

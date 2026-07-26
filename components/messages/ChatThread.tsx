@@ -77,7 +77,7 @@ export function ChatThread({
   const [isSending, startSending] = useTransition();
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const displayName = otherName?.trim() || 'CardTrade member';
+  const displayName = otherName?.trim() || 'Poke-xchange member';
   const itemThumb = item ? itemImageUrl(item.imagePath) : null;
 
   // Auto-scroll to the newest message whenever the list grows/changes.

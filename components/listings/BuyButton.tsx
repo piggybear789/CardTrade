@@ -67,17 +67,26 @@ export function BuyButton({
     if (!open) return;
     let cancelled = false;
     setLoadingStatus(true);
-    getPaymentMethodStatus().then((result) => {
-      if (cancelled) return;
-      setLoadingStatus(false);
-      if (result.ok) {
-        setHasPaymentMethod(result.data.hasPaymentMethod);
-        setPaymentLabel(result.data.label);
-      } else {
+    getPaymentMethodStatus()
+      .then((result) => {
+        if (cancelled) return;
+        setLoadingStatus(false);
+        if (result.ok) {
+          setHasPaymentMethod(result.data.hasPaymentMethod);
+          setPaymentLabel(result.data.label);
+        } else {
+          setHasPaymentMethod(false);
+          setPaymentLabel(null);
+        }
+      })
+      .catch(() => {
+        // Never leave the dialog stuck on the spinner if the lookup rejects;
+        // fall back to the card-entry path.
+        if (cancelled) return;
+        setLoadingStatus(false);
         setHasPaymentMethod(false);
         setPaymentLabel(null);
-      }
-    });
+      });
     return () => { cancelled = true; };
   }, [open]);
 
@@ -153,13 +162,15 @@ export function BuyButton({
               onAttached={() => {
                 // Re-fetch to pick up the new label.
                 setLoadingStatus(true);
-                getPaymentMethodStatus().then((result) => {
-                  setLoadingStatus(false);
-                  if (result.ok) {
-                    setHasPaymentMethod(result.data.hasPaymentMethod);
-                    setPaymentLabel(result.data.label);
-                  }
-                });
+                getPaymentMethodStatus()
+                  .then((result) => {
+                    setLoadingStatus(false);
+                    if (result.ok) {
+                      setHasPaymentMethod(result.data.hasPaymentMethod);
+                      setPaymentLabel(result.data.label);
+                    }
+                  })
+                  .catch(() => setLoadingStatus(false));
               }}
             />
           </>
@@ -176,7 +187,7 @@ export function BuyButton({
             <div className="space-y-4">
               {/* Seller identity */}
               <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
                   <ShieldCheck className="h-4 w-4" aria-hidden />
                   Pinch merchant verified
                 </div>

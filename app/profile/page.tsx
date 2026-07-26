@@ -9,6 +9,7 @@
 // Merchant onboarding (`merchant_status = APPROVED` with settlements enabled),
 // not a separate KYC step.
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 
@@ -55,14 +56,21 @@ export default async function ProfilePage() {
       <MarketplaceShell title="Profile" contentWidth="form" center>
         <Card>
           <CardHeader>
-            <h1 className="text-xl font-semibold leading-none tracking-tight">
+            {/* MarketplaceShell already renders the page-level h1 ("Profile"),
+                so this error title is an h2 to keep the heading order valid. */}
+            <h2 className="text-xl font-semibold leading-none tracking-tight">
               Profile unavailable
-            </h1>
+            </h2>
             <CardDescription>
               We couldn&apos;t load your profile right now. Please try again
               shortly.
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/profile">Try again</Link>
+            </Button>
+          </CardContent>
         </Card>
       </MarketplaceShell>
     );

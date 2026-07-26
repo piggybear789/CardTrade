@@ -7,9 +7,12 @@
 // so the two flows read identically:
 //
 //   header (eyebrow + title + money summary + live status badge)
+//   agree-and-engage bar   <- pinned directly beneath the header, exactly like
+//                             the sale room's "agree and pay", so the one action
+//                             that moves the deal forward is never below the fold
 //   what's being dealt
-//   party column · progress · party column
-//   handover terms → money terms → collateral → agree → binding contract
+//   party column · chat · party column
+//   progress → handover terms → money terms → collateral → binding contract
 //   history
 //
 // A deal is created SOLO and shared as a LINK, so the room has two shapes:
@@ -173,7 +176,7 @@ function formatDateTime(iso: string | null): string | null {
  * unjoined deal has no counterparty yet.
  */
 function nameOf(party: DealParty | null): string {
-  return party?.displayName?.trim() || 'CardTrade member';
+  return party?.displayName?.trim() || 'Poke-xchange member';
 }
 
 export interface DealRoomProps {
@@ -325,9 +328,11 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Private deal
           </p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight">
+          {/* The page-level <h1> is the shell's "Deal Room"; the deal's own
+              title is the section heading beneath it. */}
+          <h2 className="truncate text-2xl font-semibold tracking-tight">
             {deal.title}
-          </h1>
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {cashCents == null
               ? 'No cash — goods only'
@@ -338,20 +343,188 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              className={
-                connectionStatus === 'live'
-                  ? 'size-2 rounded-full bg-emerald-500'
-                  : 'size-2 rounded-full bg-amber-500'
-              }
-              aria-hidden
-            />
-            {connectionStatus === 'live' ? 'Live' : 'Connecting'}
-          </span>
+          {/* Same connection treatment as the sale room: announced to screen
+              readers, and a distinct Offline state once reconnects are
+              exhausted rather than showing "Connecting" forever. */}
+          {(() => {
+            const live = connectionStatus === 'live';
+            const offline = connectionStatus === 'error';
+            const label = live ? 'Live' : offline ? 'Offline' : 'Connecting';
+            return (
+              <span
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                role="status"
+                aria-live="polite"
+                aria-label={`Connection status: ${label}`}
+              >
+                <span
+                  className={cn(
+                    'size-2 rounded-full',
+                    live
+                      ? 'bg-emerald-500'
+                      : offline
+                        ? 'bg-destructive'
+                        : 'bg-amber-500',
+                  )}
+                  aria-hidden
+                />
+                {label}
+              </span>
+            );
+          })()}
           <DealStateBadge state={deal.state} />
         </div>
       </header>
+
+      {/* Terms-changed notice (the critical rule) */}
+      {termsChangedNotice ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
+        >
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>
+            <strong>Terms changed</strong> — both parties must confirm again before
+            the deal becomes binding.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Both parties must confirm the same terms before the deal binds */}
+      {canConfirm ? (
+        <Card className="border-primary/40">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Handshake className="size-4 text-primary" aria-hidden />
+              Agree and engage
+            </CardTitle>
+            <CardDescription>
+              {collateralRequired
+                ? `When you both confirm, each side agrees we can charge their card ${formatAud(collateralStakeCents)} if they do not hold up their end. Nothing is charged otherwise.`
+                : 'When you both confirm, the deal becomes binding on your verified identities — no card is involved.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {awaitingJoin ? (
+              <p className="text-sm text-muted-foreground">
+                Share the link first — a deal only binds between two parties.
+              </p>
+            ) : !termsComplete ? (
+              <p className="text-sm text-muted-foreground">
+                Agree the handover above, then you can both confirm.
+              </p>
+            ) : null}
+
+            {/* Pill-style acceptance ticks, matching the sale room's bar. */}
+            <ul className="flex flex-wrap items-center gap-2" aria-live="polite">
+              {(
+                [
+                  { label: 'You', confirmed: myConfirmed },
+                  { label: nameOf(them), confirmed: theirConfirmed },
+                ] as const
+              ).map((entry) => (
+                <li
+                  key={entry.label}
+                  className={cn(
+                    'flex min-w-0 items-center gap-1.5 rounded-full border px-3 py-1',
+                    entry.confirmed
+                      ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-700'
+                      : 'border-border bg-muted/50 text-muted-foreground',
+                  )}
+                >
+                  {entry.confirmed ? (
+                    <Check className="size-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <CircleDot className="size-3.5 shrink-0" aria-hidden />
+                  )}
+                  <span className="min-w-0 truncate text-xs font-medium">
+                    {entry.label} {entry.confirmed ? '✓' : '— pending'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {myConfirmed ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="sm:flex-1"
+                  disabled={isPending || deal.state !== 'CONFIRMATION'}
+                  aria-busy={busy('unconfirm')}
+                  onClick={() =>
+                    run(
+                      'unconfirm',
+                      () => unconfirmDeal(deal.id),
+                      'Confirmation withdrawn.',
+                    )
+                  }
+                >
+                  {busy('unconfirm') ? (
+                    <Loader2 className="animate-spin" aria-hidden />
+                  ) : (
+                    <Check aria-hidden />
+                  )}
+                  You confirmed — withdraw
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="lg"
+                  className="sm:flex-1"
+                  disabled={
+                    isPending || deal.state !== 'CONFIRMATION' || !termsComplete
+                  }
+                  aria-busy={busy('confirm')}
+                  onClick={() =>
+                    run(
+                      'confirm',
+                      () => confirmDeal(deal.id),
+                      "Confirmed — you're happy with the deal.",
+                    )
+                  }
+                >
+                  {busy('confirm') ? (
+                    <Loader2 className="animate-spin" aria-hidden />
+                  ) : (
+                    <Check aria-hidden />
+                  )}
+                  {theirConfirmed
+                    ? 'Confirm — this makes it binding'
+                    : "I'm happy with the deal"}
+                </Button>
+              )}
+
+              {canCancel ? (
+                <ReasonDialog
+                  title="Cancel this deal?"
+                  description="You can cancel until the deal becomes binding. Once collateral is locked, you must complete or dispute it."
+                  confirmLabel="Cancel deal"
+                  triggerLabel="Cancel"
+                  triggerVariant="outline"
+                  triggerSize="lg"
+                  reasonRequired={false}
+                  onConfirm={(reason) =>
+                    run(
+                      'cancel',
+                      () => cancelDeal(deal.id, reason || undefined),
+                      'Deal cancelled.',
+                    )
+                  }
+                />
+              ) : null}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Cancelling before you both confirm is free. Either of you can still
+              edit the terms, which clears both confirmations.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
 
       {/* What is being dealt — the deal's own description, goods and photos. */}
       <Card>
@@ -528,11 +701,11 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
                 key={step.label}
                 className={cn(
                   'flex items-center gap-2 rounded-md border px-3 py-2 text-sm',
-                  step.done && 'border-primary/40 bg-primary/5 font-medium',
+                  step.done && 'border-gold/50 bg-gold/10 font-medium',
                 )}
               >
                 {step.done ? (
-                  <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                  <Check className="size-4 shrink-0 text-gold" aria-hidden />
                 ) : (
                   <span
                     className="grid size-4 shrink-0 place-items-center text-xs text-muted-foreground"
@@ -644,7 +817,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           )}
           <p className="mt-3 text-xs text-muted-foreground">
             Cash and goods change hands between the two of you at the handover.
-            CardTrade holds only the collateral below.
+            Poke-xchange holds only the collateral below.
           </p>
         </CardContent>
       </Card>
@@ -706,152 +879,6 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           )}
         </CardContent>
       </Card>
-
-      {/* Terms-changed notice (the critical rule) */}
-      {termsChangedNotice ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
-        >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p>
-            <strong>Terms changed</strong> — both parties must confirm again before
-            the deal becomes binding.
-          </p>
-        </div>
-      ) : null}
-
-      {/* Both parties must confirm the same terms before the deal binds */}
-      {canConfirm ? (
-        <Card className="border-primary/40">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Handshake className="size-4 text-primary" aria-hidden />
-              Agree and engage
-            </CardTitle>
-            <CardDescription>
-              {collateralRequired
-                ? `When you both confirm, each side agrees we can charge their card ${formatAud(collateralStakeCents)} if they do not hold up their end. Nothing is charged otherwise.`
-                : 'When you both confirm, the deal becomes binding on your verified identities — no card is involved.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {awaitingJoin ? (
-              <p className="text-sm text-muted-foreground">
-                Share the link first — a deal only binds between two parties.
-              </p>
-            ) : !termsComplete ? (
-              <p className="text-sm text-muted-foreground">
-                Agree the handover above, then you can both confirm.
-              </p>
-            ) : null}
-
-            <ul className="grid gap-2 text-sm sm:grid-cols-2" aria-live="polite">
-              {(
-                [
-                  { label: 'You', confirmed: myConfirmed },
-                  { label: nameOf(them), confirmed: theirConfirmed },
-                ] as const
-              ).map((entry) => (
-                <li
-                  key={entry.label}
-                  className="flex items-center gap-2 rounded-md border px-3 py-2"
-                >
-                  {entry.confirmed ? (
-                    <Check className="size-4 shrink-0 text-emerald-600" aria-hidden />
-                  ) : (
-                    <CircleDot
-                      className="size-4 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
-                  )}
-                  <span className="min-w-0 truncate">
-                    {entry.label} — {entry.confirmed ? 'confirmed' : 'not yet'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              {myConfirmed ? (
-                <Button
-                  type="button"
-                  size="lg"
-                  variant="outline"
-                  className="sm:flex-1"
-                  disabled={isPending || deal.state !== 'CONFIRMATION'}
-                  aria-busy={busy('unconfirm')}
-                  onClick={() =>
-                    run(
-                      'unconfirm',
-                      () => unconfirmDeal(deal.id),
-                      'Confirmation withdrawn.',
-                    )
-                  }
-                >
-                  {busy('unconfirm') ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : (
-                    <Check aria-hidden />
-                  )}
-                  You confirmed — withdraw
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="lg"
-                  className="sm:flex-1"
-                  disabled={
-                    isPending || deal.state !== 'CONFIRMATION' || !termsComplete
-                  }
-                  aria-busy={busy('confirm')}
-                  onClick={() =>
-                    run(
-                      'confirm',
-                      () => confirmDeal(deal.id),
-                      "Confirmed — you're happy with the deal.",
-                    )
-                  }
-                >
-                  {busy('confirm') ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : (
-                    <Check aria-hidden />
-                  )}
-                  {theirConfirmed
-                    ? 'Confirm — this makes it binding'
-                    : "I'm happy with the deal"}
-                </Button>
-              )}
-
-              {canCancel ? (
-                <ReasonDialog
-                  title="Cancel this deal?"
-                  description="You can cancel until the deal becomes binding. Once collateral is locked, you must complete or dispute it."
-                  confirmLabel="Cancel deal"
-                  triggerLabel="Cancel"
-                  triggerVariant="outline"
-                  triggerSize="lg"
-                  reasonRequired={false}
-                  onConfirm={(reason) =>
-                    run(
-                      'cancel',
-                      () => cancelDeal(deal.id, reason || undefined),
-                      'Deal cancelled.',
-                    )
-                  }
-                />
-              ) : null}
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Cancelling before you both confirm is free. Either of you can still
-              edit the terms, which clears both confirmations.
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
 
       {/* Binding contract + collateral holds */}
       {escrowEngaged ? (
@@ -1049,9 +1076,9 @@ function PartyColumn({
         <p
           className={cn(
             'flex items-center gap-1.5 text-xs',
-            party.isVerified
-              ? 'text-emerald-700 dark:text-emerald-400'
-              : 'text-amber-700 dark:text-amber-400',
+            // Teal (trust) is the reserved token for verified identity; an
+            // unverified party is a caution, not an error. Matches the sale room.
+            party.isVerified ? 'text-trust' : 'text-amber-700 dark:text-amber-400',
           )}
         >
           <ShieldCheck className="size-3.5 shrink-0" aria-hidden />

@@ -6,11 +6,12 @@
 // island is the sign-out control (see SignOutButton).
 
 import Link from 'next/link';
-import { Menu, ShieldCheck } from 'lucide-react';
+import { Menu, ShieldCheck, UserRound } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/layout/Logo';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -59,9 +60,15 @@ export async function SiteHeader() {
     <header className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent">
       <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="font-display text-xl font-semibold tracking-[-0.025em] text-parchment">
-              CardTrade
-            </span>
+          {/* The wordmark doubles as the route home, which is what users expect
+              of a site logo. */}
+          <Link
+            href="/"
+            aria-label="Poke-xchange home"
+            className="rounded-md text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          >
+            <Logo />
+          </Link>
           <nav aria-label="Primary" className="hidden items-center text-parchment lg:flex">
             <Button asChild variant="ghost" size="sm">
               <Link href="/listings">Marketplace</Link>
@@ -97,6 +104,14 @@ export async function SiteHeader() {
                   initialNotifications?.ok ? initialNotifications.notifications : []
                 }
               />
+              <div className="hidden lg:block">
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/profile">
+                    <UserRound aria-hidden />
+                    Profile
+                  </Link>
+                </Button>
+              </div>
               <div className="hidden lg:block">
                 <SignOutButton />
               </div>

@@ -21,7 +21,7 @@ import { isCashSalePast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Sales · CardTrade',
+  title: 'Sales · Poke-xchange',
   description: 'Contracts where you are the seller.',
 };
 

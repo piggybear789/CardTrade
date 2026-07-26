@@ -63,6 +63,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
+          "var(--font-sans)",
           "Inter",
           "Avenir Next",
           "Segoe UI",
@@ -71,6 +72,7 @@ const config: Config = {
           "sans-serif",
         ],
         display: [
+          "var(--font-display)",
           "Iowan Old Style",
           "Palatino Linotype",
           "Book Antiqua",
@@ -78,6 +80,7 @@ const config: Config = {
           "serif",
         ],
         mono: [
+          "var(--font-mono)",
           "IBM Plex Mono",
           "Roboto Mono",
           "SFMono-Regular",

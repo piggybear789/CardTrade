@@ -66,7 +66,7 @@ export function GoogleSignInButton({
         return;
       }
       // External origin: bypass the Next router.
-      window.location.assign(result.url);
+      window.location.assign(result.data.url);
     });
   }
 

@@ -27,7 +27,7 @@ import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Marketplace · CardTrade',
+  title: 'Marketplace · Poke-xchange',
   description: 'Browse available collectibles for sale or trade.',
 };
 
@@ -170,8 +170,7 @@ export default async function ListingsPage({
         >
           We couldn&apos;t load the marketplace right now. Try again shortly.
         </p>
-      ) : null}
-
+      ) : (
       <div aria-labelledby="catalog-heading" className="min-w-0">
           <header className="mb-4 border-b border-border/70 pb-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -196,7 +195,13 @@ export default async function ListingsPage({
             hasAnyFilter ? <NoMatches /> : <EmptyCatalog />
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              {/* Column count follows the available width, not the viewport.
+                  Fixed breakpoints fought the workspace rail: the grid stepped
+                  3 -> 4 columns at `lg`, the same point the rail claims its
+                  slice, so cards were squeezed hardest exactly there. auto-fill
+                  keeps tile size stable and lets the count fall out of the real
+                  content box at every size. */}
+              <div className="grid gap-x-4 gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))]">
                 {items.map((item) => (
                   <ItemCard key={item.id} item={item} variant="catalog" />
                 ))}
@@ -241,6 +246,7 @@ export default async function ListingsPage({
             </>
           )}
       </div>
+      )}
     </MarketplaceShell>
   );
 }

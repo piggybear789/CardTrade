@@ -38,7 +38,7 @@ import {
 import type { Tables } from '@/lib/supabase/database.types';
 
 export const metadata = {
-  title: 'Admin · CardTrade',
+  title: 'Admin · Poke-xchange',
 };
 
 // Reads the caller's session + live moderation data — never prerender.

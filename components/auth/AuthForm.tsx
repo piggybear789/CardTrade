@@ -30,7 +30,6 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 
 type Mode = "sign-in" | "sign-up";
@@ -58,7 +57,7 @@ const COPY: Record<
     description: "Welcome back. Enter your credentials to continue.",
     submitLabel: "Sign in",
     pendingLabel: "Signing in…",
-    switchPrompt: "New to CardTrade?",
+    switchPrompt: "New to Poke-xchange?",
     switchHref: "/sign-up",
     switchCta: "Create an account",
     autoComplete: "current-password",
@@ -171,7 +170,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>{copy.title}</CardTitle>
+        {/* The auth pages have no shell-provided heading, so the card title is
+            the page's single h1. CardTitle renders a div, so use a semantic
+            heading carrying the same styling. */}
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">
+          {copy.title}
+        </h1>
         <CardDescription>{copy.description}</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit} noValidate>

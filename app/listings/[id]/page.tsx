@@ -23,7 +23,7 @@ import { isWatching } from '@/lib/actions/watchlist';
 import { createClient } from '@/lib/supabase/server';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { formatAud, itemImageUrl } from '@/lib/format';
+import { formatAud, formatRegistrationNumber, itemImageUrl } from '@/lib/format';
 import { BuyButton } from '@/components/listings/BuyButton';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { MakeOfferDialog } from '@/components/offers/MakeOfferDialog';
@@ -68,10 +68,10 @@ export async function generateMetadata({
   const { id } = await params;
   const result = await getItem(id);
   if (!result.ok) {
-    return { title: 'Item not found · CardTrade' };
+    return { title: 'Item not found · Poke-xchange' };
   }
   return {
-    title: `${result.data.title} · CardTrade`,
+    title: `${result.data.title} · Poke-xchange`,
     description: result.data.description.slice(0, 160),
   };
 }
@@ -161,17 +161,26 @@ export default async function ItemDetailPage({
         </Link>
       </nav>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-start">
+      {/* Space-driven two-column layout. Flex wrapping on a shared basis rather
+          than viewport breakpoints: the workspace rail takes a proportional
+          slice at `lg`, so a `md:grid-cols-2` would flip to two columns at a
+          width the content area never actually receives, leaving both columns
+          cramped. Each column asks for ~22rem and the row wraps to a single
+          column whenever the real content box can't fit both — consistent at
+          every screen size, rail or no rail. */}
+      <div className="flex flex-wrap items-stretch gap-8">
         {/* Gallery */}
-        <ImageGallery images={images} title={item.title} />
+        <div className="min-w-0 flex-1 basis-[min(100%,22rem)]">
+          <ImageGallery images={images} title={item.title} />
+        </div>
 
         {/* Details — flex column that stretches to match the gallery so
             secondary actions (save/report) stick to the bottom. */}
-        <div className="flex min-h-full flex-col md:self-stretch">
+        <div className="flex min-w-0 flex-1 basis-[min(100%,22rem)] flex-col">
           <div className="space-y-6">
           <div className="space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <h1 className="text-3xl font-bold tracking-tight">{item.title}</h1>
+              <h2 className="text-3xl font-bold tracking-tight">{item.title}</h2>
               <Badge
                 variant={statusBadge.variant}
                 aria-label={`Availability: ${statusBadge.label}`}
@@ -230,7 +239,9 @@ export default async function ItemDetailPage({
                   )}
                   <div>
                     <dt className="text-muted-foreground">Registration</dt>
-                    <dd className="font-medium">{sellerIdentity.registrationNumber}</dd>
+                    <dd className="font-medium">
+                      {formatRegistrationNumber(sellerIdentity.registrationNumber)}
+                    </dd>
                   </div>
                   {sellerIdentity.organisationType && (
                     <div>
@@ -269,8 +280,11 @@ export default async function ItemDetailPage({
 
           {/* Message seller — pushed to bottom of details rail, just above
               the save/report divider. */}
+          {/* `mt-auto` pushes this down when the column has slack, but collapses
+              to zero once the content fills it — `pt-6` guarantees breathing
+              room above regardless of how tight the column gets. */}
           {user && !isOwner && isAvailable && (
-            <div className="mt-auto">
+            <div className="mt-auto pt-6">
               <MessageSellerButton
                 itemId={item.id}
                 sellerId={item.owner_id}
@@ -436,12 +450,14 @@ function ItemActions({
         </Card>
       ) : null}
 
-      {/* Primary transaction row — Buy / Trade / Offer inline. */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Primary transaction row — Buy / Trade / Offer inline. Each action
+          grows from a shared basis so they wrap in balanced rows instead of
+          leaving one button stranded on a line of its own. */}
+      <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 [&>*]:basis-[9.5rem]">
         {sellerIdentity ? (
           <BuyButton itemId={itemId} sellerIdentity={sellerIdentity} />
         ) : null}
-        <Button asChild variant="outline" size="lg" className="flex-1 sm:flex-none">
+        <Button asChild variant="outline" size="lg">
           <Link href={`/trades/new?counterpartItemId=${itemId}`}>
             <ArrowLeftRight aria-hidden />
             Propose trade

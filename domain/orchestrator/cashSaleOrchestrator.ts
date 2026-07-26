@@ -31,8 +31,23 @@ export type CashSaleStatus =
   | 'FAILED'
   | 'REFUNDED';
 
-/** Fixed flat platform fee in integer AUD cents. */
-export const PLATFORM_FEE_CENTS: Cents = 500;
+/**
+ * Platform fee rate in basis points (1 bp = 0.01%), so 500 bp = 5% of the
+ * agreed item price. Held in basis points rather than a float percentage so the
+ * fee stays exact integer arithmetic end-to-end — no floating-point money.
+ */
+export const PLATFORM_FEE_BPS = 500;
+
+/**
+ * The Platform_Fee for a given agreed item price, in integer AUD cents (Req 4.7).
+ *
+ * The fee is charged on the item price only — shipping is a pass-through cost to
+ * the carrier, not platform revenue, so it is excluded from the base. Rounded to
+ * the nearest cent; a price of 0 yields a fee of 0.
+ */
+export function platformFeeCentsFor(agreedPriceCents: Cents): Cents {
+  return Math.round((agreedPriceCents * PLATFORM_FEE_BPS) / 10_000);
+}
 
 export interface BuyerRecord {
   profileId: string;
@@ -359,7 +374,7 @@ export async function initiateCashSale(
     buyerId: params.buyerId,
     sellerId: item.ownerId,
     agreedPriceCents,
-    platformFeeCents: deps.platformFeeCents ?? PLATFORM_FEE_CENTS,
+    platformFeeCents: deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents),
     sellerIdentity,
     buyerSellerIdentityConfirmedAt: currentIso(deps),
   });

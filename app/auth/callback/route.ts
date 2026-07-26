@@ -16,25 +16,12 @@ import { ensureProfile } from '@/lib/auth/ensureProfile';
 /** Fallback destination for a User who already has a Profile. */
 const DEFAULT_DESTINATION = '/listings';
 
-/**
- * Where a brand-new OAuth User lands: the profile page, where payout /
- * verification onboarding (`PayoutOnboarding`, Req 2.1) lives.
- */
-const NEW_USER_DESTINATION = '/profile';
-
 /** Same-origin absolute paths only, so `next` cannot become an open redirect. */
 function safeNextPath(target: string | null): string | null {
   if (target && target.startsWith('/') && !target.startsWith('//')) {
     return target;
   }
   return null;
-}
-
-/** Append a destination to a path as the `redirectTo` param, when there is one. */
-function withRedirect(path: string, destination: string | null): string {
-  return destination
-    ? `${path}?redirectTo=${encodeURIComponent(destination)}`
-    : path;
 }
 
 /**

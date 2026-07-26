@@ -2,6 +2,7 @@
 // In-memory CashSaleRepository mirroring the SQL guards: expected-state updates,
 // database-owned terms versioning, and single-winner nonce claiming.
 
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import type {
   BuyerRecord,
   CashSaleRecord,
@@ -173,10 +174,14 @@ export function makeCashSaleRepository(options: {
       if (!sale || sale.status !== 'AGREEMENT') return null;
       if (sale.termsVersion !== expectedTermsVersion) return null;
       // Matches the trigger: a price change bumps the version and clears ticks.
+      // The percentage Platform_Fee is re-derived from the new price, mirroring
+      // the Supabase repository.
+      const feeCents = platformFeeCentsFor(agreedPriceCents);
       state.sale = {
         ...sale,
         agreedPriceCents,
-        amountCents: agreedPriceCents + sale.platformFeeCents + sale.shippingCostCents,
+        platformFeeCents: feeCents,
+        amountCents: agreedPriceCents + feeCents + sale.shippingCostCents,
         termsVersion: sale.termsVersion + 1,
         version: sale.version + 1,
         buyerTermsAcceptedVersion: null,

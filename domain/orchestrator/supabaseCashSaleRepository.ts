@@ -440,7 +440,19 @@ export function createSupabaseCashSaleRepository(
         .in('status', DISPUTABLE)
         .select('*')
         .maybeSingle();
-      return data ? toCashSale(data as CashSaleRow) : null;
+      if (!data) return null;
+      // Create the arbitration conversation for the dispute.
+      await client.rpc('attach_dispute_conversation', {
+        p_cash_sale_id: cashSaleId,
+        p_actor_id: actorId,
+      });
+      // Re-fetch to pick up the dispute_conversation_id.
+      const { data: refreshed } = await client
+        .from('cash_sales')
+        .select('*')
+        .eq('id', cashSaleId)
+        .maybeSingle();
+      return refreshed ? toCashSale(refreshed as CashSaleRow) : toCashSale(data as CashSaleRow);
     },
 
     async attachConversation({ cashSaleId, actorId }) {

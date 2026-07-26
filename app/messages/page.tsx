@@ -8,7 +8,7 @@
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Handshake, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Handshake, MessageSquare } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { listMyConversations } from '@/lib/actions/messages';
@@ -99,10 +99,12 @@ export default async function MessagesPage() {
                     />
                   ) : (
                     <span
-                      className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+                      className={`flex size-12 shrink-0 items-center justify-center rounded-md ${c.dispute ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}
                       aria-hidden="true"
                     >
-                      {c.deal || c.trade ? (
+                      {c.dispute ? (
+                        <AlertTriangle className="size-5" />
+                      ) : c.deal || c.trade ? (
                         <Handshake className="size-5" />
                       ) : (
                         <MessageSquare className="size-5" />
@@ -117,7 +119,11 @@ export default async function MessagesPage() {
                         {time}
                       </span>
                     </div>
-                    {c.deal ? (
+                    {c.dispute ? (
+                      <p className="truncate text-xs font-medium text-destructive">
+                        Dispute: {c.dispute.itemTitle}
+                      </p>
+                    ) : c.deal ? (
                       <p className="truncate text-xs text-muted-foreground">
                         Private deal: {c.deal.title}
                       </p>

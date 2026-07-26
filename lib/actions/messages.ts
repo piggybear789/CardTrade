@@ -159,6 +159,12 @@ export interface ConversationTradeSummary {
   id: string;
 }
 
+/** A compact summary of the dispute a conversation belongs to (if any). */
+export interface ConversationDisputeSummary {
+  id: string;
+  itemTitle: string;
+}
+
 /** A conversation enriched for the inbox list. */
 export interface ConversationListEntry {
   id: string;
@@ -170,6 +176,8 @@ export interface ConversationListEntry {
   deal: ConversationDealSummary | null;
   /** Set when this thread is a 2-way trade's chat. */
   trade: ConversationTradeSummary | null;
+  /** Set when this thread is a dispute arbitration chat. */
+  dispute: ConversationDisputeSummary | null;
   lastMessage: { body: string; createdAt: string } | null;
   unreadCount: number;
 }
@@ -234,10 +242,17 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
         .filter((id): id is string => Boolean(id)),
     ),
   );
+  const cashSaleIds = Array.from(
+    new Set(
+      conversations
+        .map((c) => (c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
   const conversationIds = conversations.map((c) => c.id);
 
   // Batch the enrichment lookups. Each tolerates missing rows (null).
-  const [profilesRes, itemsRes, dealsRes, messagesRes] = await Promise.all([
+  const [profilesRes, itemsRes, dealsRes, cashSalesRes, messagesRes] = await Promise.all([
     supabase
       .from('public_profiles')
       .select('id, display_name')
@@ -245,11 +260,12 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
     itemIds.length > 0
       ? supabase.from('items').select('id, title, image_paths').in('id', itemIds)
       : Promise.resolve({ data: [] as { id: string; title: string; image_paths: string[] }[] }),
-    // Deal RLS already scopes `deals` to its two parties, so this can only
-    // return deals the caller is part of.
     dealIds.length > 0
       ? supabase.from('deals').select('id, title').in('id', dealIds)
       : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    cashSaleIds.length > 0
+      ? supabase.from('cash_sales').select('id, item_title').in('id', cashSaleIds)
+      : Promise.resolve({ data: [] as { id: string; item_title: string }[] }),
     supabase
       .from('messages')
       .select('id, conversation_id, sender_id, body, read_at, created_at')
@@ -279,6 +295,13 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
     (dealsRes.data ?? []).map((d) => [
       d.id as string,
       { id: d.id as string, title: d.title as string },
+    ]),
+  );
+
+  const disputeById = new Map<string, ConversationDisputeSummary>(
+    (cashSalesRes.data ?? []).map((s) => [
+      s.id as string,
+      { id: s.id as string, itemTitle: (s as { item_title: string }).item_title },
     ]),
   );
 
@@ -312,6 +335,9 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       item: c.item_id ? (itemById.get(c.item_id) ?? null) : null,
       deal: c.deal_id ? (dealById.get(c.deal_id) ?? null) : null,
       trade: c.trade_id ? { id: c.trade_id } : null,
+      dispute: (c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id
+        ? (disputeById.get((c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id!) ?? null)
+        : null,
       lastMessage: latestByConversation.get(c.id) ?? null,
       unreadCount: unreadByConversation.get(c.id) ?? 0,
     };

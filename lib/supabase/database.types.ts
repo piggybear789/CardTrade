@@ -438,6 +438,7 @@ export type Database = {
           disputed_at: string | null;
           disputed_by: string | null;
           dispute_reason: string | null;
+          dispute_conversation_id: string | null;
           conversation_id: string | null;
           seller_identity_version: string | null;
           seller_legal_entity_name: string | null;
@@ -498,6 +499,7 @@ export type Database = {
           disputed_at?: string | null;
           disputed_by?: string | null;
           dispute_reason?: string | null;
+          dispute_conversation_id?: string | null;
           conversation_id?: string | null;
           seller_identity_version?: string | null;
           seller_legal_entity_name?: string | null;
@@ -558,6 +560,7 @@ export type Database = {
           disputed_at?: string | null;
           disputed_by?: string | null;
           dispute_reason?: string | null;
+          dispute_conversation_id?: string | null;
           conversation_id?: string | null;
           seller_identity_version?: string | null;
           seller_legal_entity_name?: string | null;

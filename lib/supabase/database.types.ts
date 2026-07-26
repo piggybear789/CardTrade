@@ -1286,6 +1286,8 @@ export type Database = {
           deal_id: string | null;
           /** Set when this thread belongs to a 2-way trade (0016). */
           trade_id: string | null;
+          /** Set when this thread is the arbitration chat for a dispute (0019). */
+          cash_sale_id: string | null;
           participant_a: string;
           participant_b: string;
           last_message_at: string;
@@ -1296,6 +1298,7 @@ export type Database = {
           item_id?: string | null;
           deal_id?: string | null;
           trade_id?: string | null;
+          cash_sale_id?: string | null;
           participant_a: string;
           participant_b: string;
           last_message_at?: string;
@@ -1306,6 +1309,7 @@ export type Database = {
           item_id?: string | null;
           deal_id?: string | null;
           trade_id?: string | null;
+          cash_sale_id?: string | null;
           participant_a?: string;
           participant_b?: string;
           last_message_at?: string;

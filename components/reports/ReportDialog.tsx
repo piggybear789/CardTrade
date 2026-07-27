@@ -17,7 +17,7 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Flag, Loader2 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -74,14 +74,21 @@ export interface ReportDialogProps {
   targetId: string;
   /** The trigger's label (e.g. "Report listing" / "Report user"). */
   triggerLabel: string;
+  /** Semantic style for the trigger; defaults to the low-key ghost treatment. */
+  triggerVariant?: ButtonProps['variant'];
 }
 
 /**
- * A subtle "Report" affordance that opens a dialog to flag {@link targetId} for
+ * A "Report" affordance that opens a dialog to flag {@link targetId} for
  * moderator review. Calls {@link reportItem} or {@link reportUser} based on
  * {@link targetType}.
  */
-export function ReportDialog({ targetType, targetId, triggerLabel }: ReportDialogProps) {
+export function ReportDialog({
+  targetType,
+  targetId,
+  triggerLabel,
+  triggerVariant = 'ghost',
+}: ReportDialogProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
@@ -124,9 +131,13 @@ export function ReportDialog({ targetType, targetId, triggerLabel }: ReportDialo
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
+          variant={triggerVariant}
           size="sm"
-          className="text-muted-foreground hover:text-foreground"
+          className={
+            triggerVariant === 'ghost'
+              ? 'text-muted-foreground hover:text-foreground'
+              : undefined
+          }
         >
           <Flag aria-hidden />
           {triggerLabel}

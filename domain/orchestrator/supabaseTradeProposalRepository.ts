@@ -39,7 +39,7 @@ type AdminClient = ReturnType<typeof createAdminClient>;
  *
  * Column mapping (see `supabase/migrations/0001_schema.sql`,
  * `0005_merchant_onboarding.sql`):
- * - profiles: `id`, `merchant_status`, `merchant_settlements_enabled`, `payer_id`
+ * - profiles: `id`, `kyc_status`, `payer_id`
  * - items:    `id`, `owner_id`, `fmv_cents`, `status`
  * - trades:   `initiator_id`, `counterpart_id`, `initiator_item_id`,
  *             `counterpart_item_id`, `state`, `version`
@@ -52,18 +52,20 @@ export function createSupabaseTradeProposalRepository(
     async getProfile(profileId: string): Promise<ProfileRecord | null> {
       const { data } = await client
         .from('profiles')
-        .select('id, merchant_status, merchant_settlements_enabled, payer_id')
+        .select('id, kyc_status, payer_id')
         .eq('id', profileId)
         .maybeSingle();
       if (!data) return null;
       const row = data as {
         id: string;
-        merchant_status: string;
-        merchant_settlements_enabled: boolean;
+        kyc_status: string;
         payer_id: string | null;
       };
-      const verified = row.merchant_status === 'APPROVED' && row.merchant_settlements_enabled;
-      return { id: row.id, verified, payerId: row.payer_id };
+      return {
+        id: row.id,
+        verified: row.kyc_status === 'VERIFIED',
+        payerId: row.payer_id,
+      };
     },
 
     async getItem(itemId: string): Promise<ItemRecord | null> {

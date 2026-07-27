@@ -7,16 +7,18 @@
 // Without it there is nothing to offer against, so the page says so and sends
 // you browsing rather than presenting a dropdown of every item on the platform.
 //
-// Enforces the VERIFIED gate (Req 2.4) before an offer can be made, and loads
-// the caller's own AVAILABLE items as candidates. Creating the Trade itself is
-// deferred until the other Trader accepts (see lib/actions/tradeProposals.ts).
+// Trading has no verification gate (Req 2.4, revised): any authenticated user
+// may offer a Trade. Verification only decides whether a Bond is required
+// (`domain/bond/bondPolicy.ts`), enforced later when the offer is accepted.
+// Loads the caller's own AVAILABLE items as candidates. Creating the Trade
+// itself is deferred until the other Trader accepts (see
+// lib/actions/tradeProposals.ts).
 
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -84,40 +86,6 @@ export default async function NewTradePage({
           <CardFooter>
             <Button asChild>
               <Link href="/sign-in?redirectTo=/trades/new">Go to sign in</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </Shell>
-    );
-  }
-
-  const { data: profile } = await supabase
-    .from('public_profiles')
-    .select('id, is_verified')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  // Req 2.4: only verified users may initiate a Trade from this page.
-  // "Verified" is provider-approved Managed Merchant onboarding
-  // (`merchant_status = APPROVED` with settlements enabled), not a standalone
-  // check — see `domain/bond/bondPolicy.ts`.
-  if (!profile || !profile.is_verified) {
-    return (
-      <Shell center>
-        <Card>
-          <CardHeader>
-            <CardTitle>Identity verification required</CardTitle>
-            <CardDescription>
-              Verify your identity before offering a trade.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Verifying lets us size the collateral that keeps both traders safe —
-            and a verified trader posts none at all.
-          </CardContent>
-          <CardFooter>
-            <Button asChild>
-              <Link href="/profile#payouts">Verify your identity</Link>
             </Button>
           </CardFooter>
         </Card>

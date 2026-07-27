@@ -4,21 +4,17 @@
 // verification status.
 //
 // THE RULE (revises Req 2.4 + 5.4). Trust is either identity or money:
-//   * Verified   -> no bond. A Trader is "verified" when their provider-approved
-//     Managed Merchant onboarding (`merchant_status = APPROVED` with settlements
-//     enabled — see `domain/orchestrator/merchantOnboarding.ts`) went through a
-//     real provider compliance decision, so they are identifiable, bannable and
-//     pursuable and trade with zero friction and zero cost.
+//   * Verified   -> no bond. A Trader is "verified" when their payer-side KYC
+//     is VERIFIED (`kyc_status`), so they are identifiable and pursuable and
+//     trade with zero friction and zero cost.
 //   * Anything else -> a bond sized from the Item's Fair_Market_Value. An
 //     unverified Trader is anonymous, so the only remedy that works on the day
 //     is money already in hand.
 //
-// Verification used to be a separate lightweight KYC payer check
-// (`kyc_status`), but that check never ran a real compliance decision — the
-// result was always simulated. Merchant onboarding is the flow that actually
-// carries a real identity (legal entity, ABN/ACN) through a real provider
-// compliance decision, so it is now the sole verification signal Bond exemption
-// reads. A trader who skips merchant onboarding posts collateral instead.
+// `kyc_status` is the payer-side identity signal this policy reads; it is
+// deliberately distinct from Managed Merchant onboarding (`merchant_status`),
+// which gates receiving cash in a Cash_Sale and has nothing to do with Trade
+// eligibility. Do not conflate the two — see `.kiro/steering/pinch-payments.md`.
 //
 // This replaces the previous model where EVERY Trader posted 100% of FMV and
 // only verified Traders could trade at all. The change matters because holds are

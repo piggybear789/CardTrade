@@ -3,8 +3,14 @@
 // lib/actions/listings.ts
 //
 // Server Actions for collectible Item listings (Req 3): create, update, delete,
-// and catalog reads. These are THIN wrappers that combine authentication + the
-// VERIFIED gate + Storage image upload + the pure validation/orchestration core.
+// and catalog reads. These are THIN wrappers that combine authentication +
+// Storage image upload + the pure validation/orchestration core.
+//
+// Listing has no verification gate (Req 3.1/3.1a): creating an Item requires
+// only an authenticated owner. Verification is checked later, at the point a
+// contract is entered — payer KYC (`kyc_status`) decides whether joining a
+// Trade requires a Bond (`domain/orchestrator/tradeProposal.ts`), and Managed
+// Merchant approval (`merchant_status`) gates receiving cash in a Cash_Sale.
 //
 // - Owner authorization is enforced twice over: RLS on the cookie-bound client
 //   (owner_id = auth.uid()) AND the item orchestrator's owner guard.
@@ -77,9 +83,8 @@ export type ListingActionResult<T> =
 /**
  * Listing action error codes.
  * - `not-authenticated` — no signed-in user.
- * - `not-verified`      — the caller is not VERIFIED (provider-approved Managed
- *   Merchant with settlements enabled). Blocks listing and trade-item creation
- *   entirely; never returned on the buy/trade paths.
+ * - `not-verified`      — reserved; unused. Listing has no verification gate
+ *   (Req 3.1/3.1a). Retained so existing error mapping stays exhaustive.
  * - `seller-not-verified` — reserved; unused. Retained so existing error
  *   mapping stays exhaustive.
  * - `validation-error`  — the submission failed schema validation (Req 3.2, 3.3).
@@ -113,32 +118,11 @@ async function getUserId(
 }
 
 /**
- * Read whether a profile is bond-exempt: provider-approved Managed Merchant
- * onboarding with settlements enabled (used by the VERIFIED gate, Req 2.4).
- * Reads the `public_profiles` view rather than `profiles` directly so this
- * stays readable under the caller's own RLS session.
- */
-async function isVerified(
-  client: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-): Promise<boolean> {
-  const { data } = await client
-    .from('public_profiles')
-    .select('is_verified')
-    .eq('id', userId)
-    .maybeSingle();
-  return Boolean(data?.is_verified);
-}
-
-/**
  * Create an Item (Req 3.1, 3.2, 3.3).
  *
- * Requires an authenticated, VERIFIED user. Verification is provider-approved
- * Managed Merchant onboarding (`merchant_status = APPROVED` with settlements
- * enabled) — listing is blocked entirely without it, unlike buying/trading,
- * which never gate on verification (unverified traders bond collateral
- * instead, per Req 5.4). Validates the submission (uploading images first,
- * then validating the resulting object paths), inserts the Item with
+ * Requires only an authenticated owner — listing has no verification gate
+ * (Req 3.1/3.1a). Validates the submission (uploading images first, then
+ * validating the resulting object paths), inserts the Item with
  * `owner_id = caller` and status AVAILABLE via the cookie-bound client (RLS
  * re-checks ownership). Returns field-level validation errors.
  */
@@ -150,18 +134,6 @@ export async function createItem(
   const userId = await getUserId(supabase);
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
-  }
-
-  // VERIFICATION GATE: listing requires an approved Managed Merchant, full
-  // stop. This is stricter than the Trade/Cash_Sale paths, which never block on
-  // verification — only listing does.
-  const verified = await isVerified(supabase, userId);
-  if (!verified) {
-    return {
-      ok: false,
-      error: 'not-verified',
-      message: 'Verify your identity before listing an item.',
-    };
   }
 
   // Guard the image count before any upload work (Req 3.3) so we never upload
@@ -263,12 +235,9 @@ export async function createItem(
  * the Counterpart of a proposal it is attached to, but never appears in catalog
  * search or facets, and is never republished.
  *
- * Two deliberate differences from {@link createItem}:
- *  - No Seller identity disclosure gate. That gate exists so every *published*
- *    listing has a payable legal seller (Req 3.9); a trade swaps goods for goods
- *    and moves no money to the offerer, so payout setup is not required.
- *  - The VERIFIED gate still applies, because trading is gated on identity
- *    (Req 2.4) and the Bond in Req 5.4 is sized from this Item's own FMV.
+ * Like {@link createItem}, this has no verification gate: an unverified Trader
+ * may still offer a Trade, they simply post a Bond instead of being exempt
+ * (`domain/bond/bondPolicy.ts`, enforced in `tradeProposal.ts`).
  */
 export async function createPrivateTradeItem(
   input: CreateItemInput,
@@ -278,15 +247,6 @@ export async function createPrivateTradeItem(
   const userId = await getUserId(supabase);
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
-  }
-
-  const verified = await isVerified(supabase, userId);
-  if (!verified) {
-    return {
-      ok: false,
-      error: 'not-verified',
-      message: 'Identity verification must be completed before offering a trade.',
-    };
   }
 
   const imageCount = Array.isArray(input.images) ? input.images.length : 0;

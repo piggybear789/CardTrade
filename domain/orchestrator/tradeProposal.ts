@@ -1,8 +1,8 @@
 // domain/orchestrator/tradeProposal.ts
 //
 // Trade proposal + collateral logic for the 2-Way Trade escrow (Req 5 + the
-// verified-merchant gate of Req 2.4). Like `tradeOrchestrator.ts`, this module
-// is the coordination layer that combines validation, persistence, and payment
+// bond-exemption gate of Req 2.4). Like `tradeOrchestrator.ts`, this module is
+// the coordination layer that combines validation, persistence, and payment
 // side effects — but it depends only on *interfaces* (a
 // `TradeProposalRepository` for data access and the `PaymentService` for
 // holds/voids) so it stays exhaustively testable against an in-memory fake. The
@@ -13,10 +13,10 @@
 //   * proposeTrade — guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
 //     on success create a Trade in COLLATERAL_PENDING, set both Items to
 //     RESERVED (Req 5.1), and place a bond for each Trader who requires one per
-//     the Bond Policy (`domain/bond/bondPolicy.ts`): Traders with a
-//     provider-approved Managed Merchant (`merchant_status = APPROVED` with
-//     settlements enabled) are exempt, everyone else bonds against their own
-//     paired Item's FMV (revised Req 2.4, 5.4).
+//     the Bond Policy (`domain/bond/bondPolicy.ts`): a Trader with VERIFIED
+//     payer KYC (`kyc_status`) is exempt, everyone else bonds against their own
+//     paired Item's FMV (revised Req 2.4, 5.4). Trading itself is never blocked
+//     by verification status — only the bond requirement changes.
 //   * createCollateralSideEffects — a `RunSideEffects` hook for the guarded
 //     transition core: on HOLDS_FAILED it cancels the Trade by voiding any
 //     active holds and restoring both Items to AVAILABLE (Req 5.6). The
@@ -39,7 +39,7 @@ export type ItemStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD';
 /** The Profile fields the proposal flow needs: the bond-exemption gate + payer reference. */
 export interface ProfileRecord {
   id: string;
-  /** True when `merchant_status = APPROVED` and settlements are enabled (Req 2.4). */
+  /** True when payer KYC is VERIFIED (`kyc_status`, Req 2.4). */
   verified: boolean;
   /** Provider payer reference used to place a Bond hold when not exempt (Req 5.4). */
   payerId: string | null;
@@ -239,9 +239,10 @@ export async function proposeTrade(
   // exchange (Req 5.2, revised).
 
   // 3. BOND GATE. Each Trader's collateral requirement comes from the Bond
-  //    Policy: verified Traders are exempt, everyone else bonds against the value
-  //    of what they RECEIVE. An unverified Trader with no payment instrument has
-  //    neither identity nor money behind the trade, so the proposal is refused.
+  //    Policy: a Trader with VERIFIED payer KYC is exempt, everyone else bonds
+  //    against the value of what they RECEIVE. An unverified Trader with no
+  //    payment instrument has neither identity nor money behind the trade, so
+  //    the proposal is refused — but trading itself is never blocked outright.
   const counterpartId = counterpartItem.ownerId;
   const counterpartProfile = await repository.getProfile(counterpartId);
   if (!counterpartProfile) {

@@ -120,11 +120,24 @@ export default async function SellerProfilePage({
 
       {/* Header */}
       <header className="mb-8 space-y-2 border-b pb-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-3xl font-bold tracking-tight">{displayName}</h2>
-          {seller.isVerified && <VerifiedBadge size={18} />}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">{displayName}</h1>
+              {seller.isVerified && <VerifiedBadge size={18} />}
+            </div>
+            <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
+          </div>
+
+          {canReport && (
+            <ReportDialog
+              targetType="user"
+              targetId={id}
+              triggerLabel="Report user"
+              triggerVariant="destructive"
+            />
+          )}
         </div>
-        <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
 
         {sellerIdentity ? (
           <div className="mt-3 rounded-lg border bg-muted/30 p-4">
@@ -164,16 +177,6 @@ export default async function SellerProfilePage({
             </dl>
           </div>
         ) : null}
-
-        {canReport && (
-          <div className="pt-1">
-            <ReportDialog
-              targetType="user"
-              targetId={id}
-              triggerLabel="Report user"
-            />
-          </div>
-        )}
       </header>
 
       {/* Listings */}

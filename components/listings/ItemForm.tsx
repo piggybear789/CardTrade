@@ -256,13 +256,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       });
       return;
     }
-    const fallback =
-      message ??
-      (code === "not-verified"
-        ? "Identity verification must be completed first."
-        : code === "seller-not-verified"
-          ? "Complete verified payout setup before listing an item."
-          : "We couldn't save your listing. Please try again.");
+    // Listing has no verification gate, so `not-verified`/`seller-not-verified`
+    // are not returned by `createItem` today; the generic fallback covers them
+    // if that ever changes.
+    const fallback = message ?? "We couldn't save your listing. Please try again.";
     setError({ field: null, message: fallback });
     toast.error(fallback);
   }

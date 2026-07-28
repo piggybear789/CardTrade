@@ -1,35 +1,18 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { Fraunces, IBM_Plex_Mono, Inter } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { Toaster } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import './globals.css';
 
-// Load the typefaces the design system already names (Inter for UI, an
-// old-style serif for the display voice, a mono for ledger figures) so the
-// brand renders identically across platforms instead of falling back to
-// whatever serif each OS happens to ship.
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-});
-
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  variable: '--font-display',
-  display: 'swap',
-  axes: ['opsz'],
-});
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-mono',
-  display: 'swap',
-});
+// The Geist pairing: Geist Sans carries headings and copy; Geist Mono is
+// reserved for labels and ledger data (prices, FMV figures, eyebrow labels),
+// which is where a monospaced voice actually helps.
+const geistSans = GeistSans;
+const geistMono = GeistMono;
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cardtrade.app';
 
@@ -67,11 +50,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f4efe4' },
-    { media: '(prefers-color-scheme: dark)', color: '#0c0b0a' },
-  ],
+  // The app ships a single light theme; the browser chrome colour matches the
+  // obsidian header bar (and the manifest's theme_color) in both OS modes.
+  themeColor: '#0c0b0a',
   colorScheme: 'light',
+  // Draw under notches/home indicators so the sticky header can pad itself
+  // with safe-area insets instead of leaving a hardware-coloured gap.
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -80,7 +65,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(inter.variable, fraunces.variable, plexMono.variable)}
+      className={cn(geistSans.variable, geistMono.variable)}
     >
       <head>
         <link rel="preconnect" href="https://images.pokemontcg.io" />
@@ -88,7 +73,7 @@ export default function RootLayout({
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main-content"
-          className="fixed left-4 top-3 z-[100] -translate-y-16 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-obsidian shadow-auction transition-transform hover:bg-gold/90 focus:outline-none focus-visible:translate-y-0 focus-visible:ring-2 focus-visible:ring-parchment"
+          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-obsidian shadow-auction transition-transform hover:bg-gold/90 focus:outline-none focus-visible:translate-y-0 focus-visible:ring-2 focus-visible:ring-parchment"
         >
           Skip to Main Content
         </a>

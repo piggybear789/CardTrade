@@ -46,7 +46,7 @@ export default async function SalesPage({
   );
 
   return (
-    <MarketplaceShell title="Sales" contentWidth="reading">
+    <MarketplaceShell title="Sales">
       <SectionHeader
         title="Sales"
         description="Items you are selling. Open a contract to set terms, ship, and get paid."

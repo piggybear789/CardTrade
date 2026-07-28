@@ -335,7 +335,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           <h2 className="truncate text-2xl font-semibold tracking-tight">
             {deal.title}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm tabular-nums text-muted-foreground">
             {cashCents == null
               ? 'No cash — goods only'
               : `${formatAud(totalCents)} total · ${formatAud(cashCents)} cash`}
@@ -559,7 +559,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           {deal.description ? (
             <div className="rounded-lg border-l-4 border-l-primary bg-muted/35 px-4 py-3">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Shared notes</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm">{deal.description}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm">{deal.description}</p>
             </div>
           ) : null}
 
@@ -780,9 +780,11 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
         <CardContent className="space-y-4 text-sm">
           {deal.handover_method === 'IN_PERSON' ? (
             <>
-              <p className="flex items-center gap-2">
-                <MapPin className="size-4 text-primary" aria-hidden />
-                Meet at {deal.meeting_location}
+              <p className="flex items-start gap-2">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                <span className="min-w-0 break-words">
+                  Meet at {deal.meeting_location}
+                </span>
               </p>
               <p className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="size-4" aria-hidden />
@@ -792,7 +794,7 @@ export function DealRoom({ view, myUserId }: DealRoomProps) {
           ) : deal.handover_method === 'DELIVERY' ? (
             <p className="flex items-start gap-2">
               <Truck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-              <span className="whitespace-pre-wrap">{deal.delivery_details}</span>
+              <span className="min-w-0 whitespace-pre-wrap break-words">{deal.delivery_details}</span>
             </p>
           ) : (
             <p className="text-muted-foreground">
@@ -1379,7 +1381,7 @@ function DealContributionPanel({
             </span>
           ) : null}
         </div>
-        <p className={cn('whitespace-pre-wrap text-sm', !itemText?.trim() && 'text-muted-foreground')}>
+        <p className={cn('whitespace-pre-wrap break-words text-sm', !itemText?.trim() && 'text-muted-foreground')}>
           {itemText?.trim() || (needsGoods ? 'Item details not added.' : 'Cash side — no item required.')}
         </p>
         {action ? <div className="mt-auto border-t pt-4">{action}</div> : null}

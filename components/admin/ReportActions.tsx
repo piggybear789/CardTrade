@@ -67,7 +67,6 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
         <Button
           type="button"
           variant="outline"
-          size="sm"
           disabled={isPending}
           onClick={() => run(() => hideItem(targetId), 'Listing hidden from the catalog.')}
         >
@@ -83,7 +82,6 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
       <Button
         type="button"
         variant="default"
-        size="sm"
         disabled={isPending}
         onClick={() =>
           run(() => setReportStatus(reportId, 'ACTIONED'), 'Report marked as actioned.')
@@ -100,7 +98,6 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
       <Button
         type="button"
         variant="ghost"
-        size="sm"
         disabled={isPending}
         onClick={() =>
           run(() => setReportStatus(reportId, 'DISMISSED'), 'Report dismissed.')

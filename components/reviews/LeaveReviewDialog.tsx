@@ -131,7 +131,7 @@ export function LeaveReviewDialog({
                   onClick={() => setRating(value)}
                   onMouseEnter={() => setHover(value)}
                   onMouseLeave={() => setHover(0)}
-                  className="rounded p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded p-1.5 touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Star
                     className={cn(

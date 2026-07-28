@@ -117,6 +117,50 @@ export async function isWatching(itemId: string): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
+// getWatchCount
+// ---------------------------------------------------------------------------
+
+/**
+ * The number of users who have saved `itemId` to their watchlist. Returns `0`
+ * on any read error so server components can call it without try/catch. The
+ * `watchlist` table RLS is owner-only for rows, but a plain `count` aggregate
+ * does not expose any row contents and is permitted, so this reflects the true
+ * total across all users.
+ */
+export async function getWatchCount(itemId: string): Promise<number> {
+  const supabase = await createClient();
+
+  const { count, error } = await supabase
+    .from('watchlist')
+    .select('item_id', { count: 'exact', head: true })
+    .eq('item_id', itemId);
+
+  if (error || count == null) return 0;
+  return count;
+}
+
+/**
+ * Resolve which of the given item ids the current user is watching. Returns an
+ * empty set when unauthenticated or on any read error. Used to decorate catalog
+ * cards with a save affordance without an extra per-card query.
+ */
+export async function getWatchingSet(itemIds: string[]): Promise<Set<string>> {
+  if (itemIds.length === 0) return new Set();
+  const supabase = await createClient();
+
+  const me = await getUserId(supabase);
+  if (!me) return new Set();
+
+  const { data } = await supabase
+    .from('watchlist')
+    .select('item_id')
+    .eq('user_id', me)
+    .in('item_id', itemIds);
+
+  return new Set((data ?? []).map((r) => r.item_id as string));
+}
+
+// ---------------------------------------------------------------------------
 // listMyWatchlist
 // ---------------------------------------------------------------------------
 

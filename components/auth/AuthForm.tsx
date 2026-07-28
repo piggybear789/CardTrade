@@ -205,6 +205,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
               name="email"
               type="email"
               autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
               placeholder="you@example.com"
               required
               disabled={isPending}
@@ -240,7 +242,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isPending}>
+          <Button type="submit" className="w-full" disabled={isPending} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>
           <p className="text-sm text-muted-foreground">

@@ -39,14 +39,17 @@ export function EmptyState({
       )}
     >
       {icon ? (
-        <div className="flex size-12 items-center justify-center rounded-full border bg-muted/40 text-muted-foreground">
+        <div
+          aria-hidden="true"
+          className="flex size-12 items-center justify-center rounded-full border bg-muted/40 text-muted-foreground"
+        >
           {icon}
         </div>
       ) : null}
       <Title className={cn('text-base font-semibold', icon && 'mt-4')}>
         {title}
       </Title>
-      <p className="mt-1.5 max-w-sm text-sm leading-6 text-muted-foreground">
+      <p className="mt-1.5 max-w-sm text-pretty text-sm leading-6 text-muted-foreground">
         {description}
       </p>
       {action ? (

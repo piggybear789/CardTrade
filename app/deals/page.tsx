@@ -58,7 +58,6 @@ export default async function DealsPage({
   return (
     <MarketplaceShell
       title="Deals"
-      contentWidth="reading"
       primaryAction={
         <Button
           asChild
@@ -73,7 +72,7 @@ export default async function DealsPage({
       }
     >
       <header className="mb-5 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-bold tracking-[-0.035em] sm:text-3xl">
+        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
           Private Deals
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
@@ -135,8 +134,10 @@ export default async function DealsPage({
                         : ''}
                   </p>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <DealStateBadge state={deal.state} />
+                {/* Cap the badge column so long state labels wrap instead of
+                    pushing the row past the viewport on narrow screens. */}
+                <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-1 text-right sm:max-w-none">
+                  <DealStateBadge state={deal.state} className="whitespace-normal text-right" />
                   <span className="text-xs text-muted-foreground">
                     {formatRelativeTime(deal.updatedAt)}
                   </span>

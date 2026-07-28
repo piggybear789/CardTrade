@@ -48,7 +48,7 @@ function Shell({
   center?: boolean;
 }) {
   return (
-    <MarketplaceShell title="Offer a Trade" contentWidth="form" center={center}>
+    <MarketplaceShell title="Offer a Trade" center={center}>
       {children}
     </MarketplaceShell>
   );

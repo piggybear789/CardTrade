@@ -28,9 +28,9 @@ export function ListingCarousel({ items }: { items: CatalogItem[] }) {
           <p className="market-label text-gold">Live Marketplace</p>
           <h2
             id="recent-listings"
-            className="mt-2 text-balance font-sans text-4xl font-bold tracking-[-0.035em] sm:text-5xl"
+            className="mt-2 text-balance font-sans text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl"
           >
-            Recently Listed
+            Recently listed
           </h2>
         </header>
 
@@ -46,7 +46,7 @@ export function ListingCarousel({ items }: { items: CatalogItem[] }) {
             size="icon"
             onClick={() => scroll(-1)}
             aria-label="Previous listings"
-            className="rounded-full bg-card shadow-sm"
+            className="size-11 rounded-full bg-card shadow-sm"
           >
             <ChevronLeft aria-hidden="true" />
           </Button>
@@ -55,7 +55,7 @@ export function ListingCarousel({ items }: { items: CatalogItem[] }) {
             size="icon"
             onClick={() => scroll(1)}
             aria-label="Next listings"
-            className="rounded-full bg-card shadow-sm"
+            className="size-11 rounded-full bg-card shadow-sm"
           >
             <ChevronRight aria-hidden="true" />
           </Button>

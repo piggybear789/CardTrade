@@ -428,11 +428,11 @@ export function EditTermsDialog({
                             type="button"
                             variant="secondary"
                             size="icon"
-                            className="absolute right-1 top-1 size-7 shadow-sm"
+                            className="absolute right-1 top-1 size-8 shadow-sm"
                             aria-label="Remove photo"
                             onClick={() => setKeptPhotoPaths((current) => current.filter((item) => item !== path))}
                           >
-                            <X className="size-3.5" aria-hidden />
+                            <X className="size-4" aria-hidden />
                           </Button>
                         </li>
                       );
@@ -444,11 +444,11 @@ export function EditTermsDialog({
                           type="button"
                           variant="secondary"
                           size="icon"
-                          className="absolute right-1 top-1 size-7 shadow-sm"
+                          className="absolute right-1 top-1 size-8 shadow-sm"
                           aria-label={`Remove ${file.name}`}
                           onClick={() => setNewPhotoFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
                         >
-                          <X className="size-3.5" aria-hidden />
+                          <X className="size-4" aria-hidden />
                         </Button>
                       </li>
                     ))}

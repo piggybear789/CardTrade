@@ -146,8 +146,9 @@ export function BuyButton({
       </DialogTrigger>
       <DialogContent>
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-8" role="status">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+            <span className="sr-only">Loading payment details…</span>
           </div>
         ) : showCardForm ? (
           <>
@@ -193,18 +194,22 @@ export function BuyButton({
                 </div>
                 <dl className="grid gap-2 text-sm">
                   {sellerIdentity.tradingName ? (
-                    <div>
+                    <div className="min-w-0">
                       <dt className="text-muted-foreground">Store</dt>
-                      <dd className="font-medium">{sellerIdentity.tradingName}</dd>
+                      <dd className="break-words font-medium">
+                        {sellerIdentity.tradingName}
+                      </dd>
                     </div>
                   ) : null}
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-muted-foreground">Legal seller</dt>
-                    <dd className="font-medium">{sellerIdentity.legalEntityName}</dd>
+                    <dd className="break-words font-medium">
+                      {sellerIdentity.legalEntityName}
+                    </dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-muted-foreground">Registration</dt>
-                    <dd className="font-medium">
+                    <dd className="break-words font-medium">
                       {formatRegistrationNumber(sellerIdentity.registrationNumber)}
                     </dd>
                   </div>
@@ -260,10 +265,13 @@ export function BuyButton({
             </div>
 
             <DialogFooter>
+              {/* Enabled until the request starts: clicking without ticking the
+                  box surfaces an inline error via handleBuy, which is clearer
+                  than a mysteriously disabled button. */}
               <Button
                 type="button"
                 onClick={handleBuy}
-                disabled={!confirmed || isPending}
+                disabled={isPending}
                 aria-busy={isPending}
               >
                 {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}

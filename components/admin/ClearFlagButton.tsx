@@ -46,9 +46,9 @@ export function ClearFlagButton({ tradeId }: ClearFlagButtonProps) {
     <Button
       type="button"
       variant="outline"
-      size="sm"
       disabled={isPending}
       onClick={handleClick}
+      aria-busy={isPending}
     >
       {isPending ? (
         <Loader2 className="animate-spin" aria-hidden />

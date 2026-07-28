@@ -86,17 +86,18 @@ export function CashSaleItemPreview({
       </div>
 
       <div className="min-w-0 space-y-1">
+        <p className="break-words text-sm font-semibold">{title}</p>
         {condition ? (
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {condition}
           </p>
         ) : null}
         {description ? (
-          <p className="line-clamp-3 text-sm text-muted-foreground">{description}</p>
+          <p className="line-clamp-3 break-words text-sm text-muted-foreground">{description}</p>
         ) : null}
         <Link
           href={`/listings/${itemId}`}
-          className="inline-block text-sm font-medium underline-offset-4 hover:underline"
+          className="inline-block rounded-sm text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           View the listing
         </Link>

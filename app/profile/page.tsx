@@ -53,7 +53,7 @@ export default async function ProfilePage() {
 
   if (error || !profile) {
     return (
-      <MarketplaceShell title="Profile" contentWidth="form" center>
+      <MarketplaceShell title="Profile" center>
         <Card>
           <CardHeader>
             {/* MarketplaceShell already renders the page-level h1 ("Profile"),
@@ -85,10 +85,10 @@ export default async function ProfilePage() {
   const paymentMethod = paymentMethodResult.ok ? paymentMethodResult.data : null;
 
   return (
-    <MarketplaceShell title="Profile" contentWidth="form">
+    <MarketplaceShell title="Profile">
       <header className="mb-6 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-bold tracking-[-0.035em]">
-          Profile Settings
+        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em]">
+          Profile settings
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Manage your public identity and verification status.

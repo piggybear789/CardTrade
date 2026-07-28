@@ -130,6 +130,8 @@ export function ProfileForm({
           onChange={(e) => setContactEmail(e.target.value)}
           maxLength={255}
           autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
           aria-invalid={contactEmailError ? true : undefined}
           aria-describedby={contactEmailError ? "contactEmail-error" : undefined}
           disabled={isSaving}
@@ -154,7 +156,7 @@ export function ProfileForm({
     return (
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         {fields}
-        <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+        <Button type="submit" disabled={isSaving} aria-busy={isSaving} className="w-full sm:w-auto">
           {isSaving ? "Saving…" : "Save changes"}
         </Button>
       </form>
@@ -207,6 +209,8 @@ export function ProfileForm({
               onChange={(e) => setContactEmail(e.target.value)}
               maxLength={255}
               autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
               aria-invalid={contactEmailError ? true : undefined}
               aria-describedby={
                 contactEmailError ? "contactEmail-error" : undefined
@@ -231,7 +235,7 @@ export function ProfileForm({
           ) : null}
         </CardContent>
         <CardFooter className="border-t px-6 py-4 sm:justify-end">
-          <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+          <Button type="submit" disabled={isSaving} aria-busy={isSaving} className="w-full sm:w-auto">
             {isSaving ? "Saving…" : "Save changes"}
           </Button>
         </CardFooter>

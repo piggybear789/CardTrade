@@ -283,7 +283,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         : null;
 
   return (
-    <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:min-h-[680px] lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:min-h-[680px] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border/80 lg:px-7 lg:pb-5 lg:pt-7">
         <CardTitle className="text-xl">
           {mode === "create" ? "List an item" : "Edit listing"}
@@ -318,6 +318,8 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 <img
                   src={coverUrl}
                   alt="Cover photo"
+                  width={640}
+                  height={640}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -358,6 +360,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                         <img
                           src={url}
                           alt="Existing item image"
+                          width={160}
+                          height={160}
+                          loading="lazy"
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -369,10 +374,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                         type="button"
                         onClick={() => removeKeptPath(path)}
                         disabled={isSubmitting}
-                        className="absolute right-1 top-1 rounded-full bg-background/80 p-1 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label="Remove image"
                       >
-                        <X className="size-3.5" aria-hidden />
+                        <X className="size-4" aria-hidden />
                       </button>
                     </li>
                   );
@@ -386,6 +391,8 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     <img
                       src={URL.createObjectURL(file)}
                       alt={file.name}
+                      width={160}
+                      height={160}
                       className="h-full w-full object-cover"
                       onLoad={(e) =>
                         URL.revokeObjectURL((e.target as HTMLImageElement).src)
@@ -395,10 +402,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => removeNewFile(index)}
                       disabled={isSubmitting}
-                      className="absolute right-1 top-1 rounded-full bg-background/80 p-1 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label={`Remove ${file.name}`}
                     >
-                      <X className="size-3.5" aria-hidden />
+                      <X className="size-4" aria-hidden />
                     </button>
                   </li>
                 ))}
@@ -437,6 +444,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               <Input
                 id="title"
                 name="title"
+                autoComplete="off"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={120}
@@ -566,9 +574,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   name="fmv"
                   type="number"
                   inputMode="decimal"
+                  autoComplete="off"
                   step="0.01"
                   min="0.01"
-                  placeholder="0.00"
+                  placeholder="123.45"
                   className="pl-7"
                   value={fmvDollars}
                   onChange={(e) => setFmvDollars(e.target.value)}
@@ -613,7 +622,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             className="w-full sm:w-auto"
           >
             {isSubmitting
-              ? "Saving..."
+              ? "Saving…"
               : mode === "create"
                 ? "Create listing"
                 : "Save changes"}

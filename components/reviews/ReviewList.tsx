@@ -20,13 +20,13 @@ export function ReviewList({ reviews }: { reviews: ReviewWithReviewer[] }) {
       {reviews.map((review) => (
         <li key={review.id} className="space-y-1.5 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-medium">
+            <span className="min-w-0 break-words text-sm font-medium">
               {review.reviewerName ?? 'Anonymous'}
             </span>
             <StarRating rating={review.rating} hideLabel />
           </div>
           {review.comment ? (
-            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+            <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground">
               {review.comment}
             </p>
           ) : null}

@@ -140,7 +140,7 @@ export function ChatThread({
           <button
             type="button"
             onClick={() => router.back()}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Go back"
           >
             <ArrowLeft className="size-4" aria-hidden />
@@ -162,21 +162,21 @@ export function ChatThread({
             {deal ? (
               <Link
                 href={`/deals/${deal.id}`}
-                className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+                className="block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
               >
                 Private deal: {deal.title}
               </Link>
             ) : trade ? (
               <Link
                 href={`/trades/${trade.id}`}
-                className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+                className="block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
               >
                 Trade contract
               </Link>
             ) : item ? (
               <Link
                 href={`/listings/${item.id}`}
-                className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+                className="block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
               >
                 Re: {item.title}
               </Link>
@@ -197,7 +197,7 @@ export function ChatThread({
 
       {/* Message list (scrollable). */}
       <div
-        className="flex-1 space-y-3 overflow-y-auto py-4"
+        className="flex-1 space-y-3 overflow-y-auto overscroll-contain py-4"
         role="log"
         aria-label={`Conversation with ${displayName}`}
         aria-live="polite"
@@ -212,7 +212,7 @@ export function ChatThread({
             if (message.kind === 'SYSTEM') {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <p className="max-w-[85%] rounded-full border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs text-muted-foreground">
+                  <p className="max-w-[85%] break-words rounded-full border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs text-muted-foreground">
                     {message.body}
                   </p>
                 </div>
@@ -235,6 +235,7 @@ export function ChatThread({
                   <p className="whitespace-pre-wrap break-words">{message.body}</p>
                   <time
                     dateTime={message.created_at}
+                    suppressHydrationWarning
                     className={cn(
                       'mt-1 block text-[0.7rem]',
                       isMine

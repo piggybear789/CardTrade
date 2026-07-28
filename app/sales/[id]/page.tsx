@@ -113,7 +113,11 @@ export default async function CashSalePage({
     sale.status === 'COMPLETED' ? await myReviewFor('cash_sale', sale.id) : null;
 
   return (
-    <MarketplaceShell title="Sale" contentWidth="detail">
+    // Title matches the viewer's side of the contract: the buyer is making a
+    // purchase, not a sale.
+    <MarketplaceShell
+      title={sale.buyer_id === user.id ? 'Purchase' : 'Sale'}
+    >
       <CashSaleView
         initialSale={sale}
         myUserId={user.id}

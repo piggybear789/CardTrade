@@ -58,7 +58,7 @@ export function NotificationBell({
   useEffect(() => {
     if (!open) return;
 
-    function onPointerDown(event: MouseEvent) {
+    function onPointerDown(event: PointerEvent) {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
@@ -70,10 +70,10 @@ export function NotificationBell({
       if (event.key === 'Escape') setOpen(false);
     }
 
-    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
@@ -139,7 +139,7 @@ export function NotificationBell({
               type="button"
               onClick={handleMarkAll}
               disabled={isPending || unreadCount === 0}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
             >
               {isPending ? (
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -150,7 +150,7 @@ export function NotificationBell({
             </button>
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-96 overflow-y-auto overscroll-contain">
             {visible.length === 0 ? (
               <div className="px-4 py-10 text-center text-sm text-muted-foreground">
                 You&apos;re all caught up.
@@ -186,12 +186,15 @@ export function NotificationBell({
                             >
                               {n.title}
                             </span>
-                            <span className="shrink-0 text-xs text-muted-foreground">
+                            <span
+                              className="shrink-0 text-xs text-muted-foreground"
+                              suppressHydrationWarning
+                            >
                               {formatRelativeTime(n.created_at)}
                             </span>
                           </span>
                           {n.body && (
-                            <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">
+                            <span className="mt-0.5 line-clamp-2 block break-words text-xs text-muted-foreground">
                               {n.body}
                             </span>
                           )}

@@ -34,9 +34,9 @@ export default async function NotificationsPage() {
   const initialNotifications = result.ok ? result.notifications : [];
 
   return (
-    <MarketplaceShell title="Notifications" contentWidth="reading">
+    <MarketplaceShell title="Notifications">
       <header className="mb-5 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-bold tracking-[-0.035em] sm:text-3xl">
+        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
           Activity
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">

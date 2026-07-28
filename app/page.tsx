@@ -5,7 +5,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check, X } from 'lucide-react';
 
 import { LogoMark } from '@/components/layout/Logo';
 
@@ -23,10 +23,13 @@ export const metadata = {
     'Buy, sell, and swap high-value collectibles with identity verification, live trade contracts, and collateral-backed escrow.',
 };
 
+// Iconic chase cards so the example trade reads as a serious, high-value swap:
+// "Moonbreon" (Prismatic Evolutions SIR), Pikachu ex SIR (Ascended Heroes),
+// and the "bubble Mew" SIR from Paldean Fates (#232).
 const CARD_IMAGES = {
-  mew: 'https://images.pokemontcg.io/sv3pt5/151.png',
-  pikachu: 'https://images.pokemontcg.io/sv3pt5/25.png',
-  venusaur: 'https://images.pokemontcg.io/sv3pt5/3.png',
+  umbreon: 'https://images.pokemontcg.io/sv8pt5/161.png',
+  pikachu: 'https://images.scrydex.com/pokemon/me2pt5-276/large',
+  mew: 'https://images.pokemontcg.io/sv4pt5/232.png',
 } as const;
 
 export default async function HomePage() {
@@ -42,7 +45,9 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col">
-      <main className="flex-1 overflow-hidden">
+      {/* Clip only the horizontal axis: decorative layers can bleed sideways,
+          but vertical clipping would eat focus rings at section edges. */}
+      <main className="flex-1 overflow-x-clip">
         <section className="relative isolate overflow-hidden bg-obsidian text-parchment">
           <div
             className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(227,192,106,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(227,192,106,0.08)_1px,transparent_1px)] [background-size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
@@ -51,13 +56,14 @@ export default async function HomePage() {
           <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8 lg:px-8 lg:py-24">
             <div className="max-w-2xl">
               <p className="market-label text-gold">Clearinghouse for Collectors</p>
-              <h1 className="mt-5 max-w-xl text-balance font-display text-5xl font-semibold leading-[0.98] tracking-[-0.045em] text-parchment sm:text-6xl lg:text-7xl">
-                The Deal Is Done When Both Collectors Agree.
+              <h1 className="mt-5 max-w-xl text-balance font-display text-5xl font-semibold leading-[1.04] tracking-[-0.03em] text-parchment sm:text-6xl sm:leading-[1.02] lg:text-7xl">
+                The deal is done{' '}
+                <span className="text-parchment/55">when both collectors agree.</span>
               </h1>
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
-                Poke-xchange locks each trader&apos;s verified identity and 100% of
-                the collectible&apos;s fair market value before either package
-                leaves the door.
+                Every trader is ID-verified, and every deal locks collateral for
+                the full trade value before anything ships — so nobody walks
+                away with your cards.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
@@ -85,6 +91,55 @@ export default async function HomePage() {
           </div>
         </section>
 
+        <section aria-labelledby="why-pokexchange" className="border-y border-border/70 bg-background">
+          <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:gap-20 lg:px-8 lg:py-20">
+            <header className="max-w-xl">
+              <p className="market-label text-gold">Why Poke-xchange</p>
+              <h2
+                id="why-pokexchange"
+                className="mt-3 text-balance font-sans text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl"
+              >
+                Built for the deals other sites won&apos;t touch.
+              </h2>
+              <p className="mt-5 text-pretty leading-7 text-muted-foreground">
+                Marketplaces handle simple sales. We protect the trades
+                collectors actually want to make.
+              </p>
+            </header>
+
+            <div className="border-t border-border">
+              {/* Below `sm` the rows stack and carry their own inline
+                  "Elsewhere:"/"Us:" labels, so a column-header row has nothing
+                  to line up with — hide it entirely. */}
+              <div className="hidden gap-x-6 border-b border-border py-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
+                <span aria-hidden="true" />
+                <span className="text-left">Typical marketplace</span>
+                <span className="text-left text-gold">Poke-xchange</span>
+              </div>
+              <ComparisonRow
+                aspect="Card-for-card swaps"
+                typical="Trust and hope"
+                ours="Backed by locked collateral"
+              />
+              <ComparisonRow
+                aspect="Who you're dealing with"
+                typical="Anonymous accounts"
+                ours="Government-ID-verified traders"
+              />
+              <ComparisonRow
+                aspect="If a deal goes wrong"
+                typical="“Sort it out yourselves”"
+                ours="Escrowed collateral pays you out"
+              />
+              <ComparisonRow
+                aspect="Mixing cash and cards"
+                typical="Meetups and PayPal F&F"
+                ours="One contract, signed by both sides"
+              />
+            </div>
+          </div>
+        </section>
+
         <section aria-labelledby="recent-listings" className="bg-background">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
             {previewItems.length > 0 ? (
@@ -95,14 +150,14 @@ export default async function HomePage() {
                   <p className="market-label text-gold">Live Marketplace</p>
                   <h2
                     id="recent-listings"
-                    className="mt-2 text-balance font-sans text-4xl font-bold tracking-[-0.035em] sm:text-5xl"
+                    className="mt-2 text-balance font-sans text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl"
                   >
-                    Recently Listed
+                    Recently listed
                   </h2>
                 </header>
                 <div className="mt-9 flex flex-col items-start justify-between gap-5 rounded-lg border border-dashed border-border bg-card/60 p-6 sm:flex-row sm:items-center">
                   <div>
-                    <h3 className="font-bold">No Public Listings Yet</h3>
+                    <h3 className="font-semibold">No Public Listings Yet</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       You can still make a protected deal with another collector.
                     </p>
@@ -116,12 +171,15 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="bg-obsidian text-parchment">
+        <section aria-labelledby="protection-plain-terms" className="bg-obsidian text-parchment">
           <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-20 lg:px-8 lg:py-20">
             <header className="max-w-xl">
               <p className="market-label text-gold">Protection in Plain Terms</p>
-              <h2 className="mt-3 text-balance font-sans text-4xl font-bold tracking-[-0.035em] sm:text-5xl">
-                Nothing Moves Until Everyone Agrees.
+              <h2
+                id="protection-plain-terms"
+                className="mt-3 text-balance font-sans text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl"
+              >
+                Nothing moves until everyone agrees.
               </h2>
               <p className="mt-5 text-pretty leading-7 text-parchment/60">
                 Cash sale, swap, or private deal—the protection adapts to the transaction.
@@ -130,8 +188,8 @@ export default async function HomePage() {
 
             <div className="border-t border-parchment/15">
               <ProcessStatement
-                label="KYC First"
-                text="Anyone listing an item or putting up collateral completes identity checks first."
+                label="Verify First"
+                text="Every trader completes government ID verification before they can list, buy, or trade."
               />
               <ProcessStatement
                 label="Shared Terms"
@@ -139,7 +197,7 @@ export default async function HomePage() {
               />
               <ProcessStatement
                 label="Settle Last"
-                text="Payment or held funds are released only after everyone receives and accepts the deal."
+                text="Funds and collateral release only after everyone receives and accepts the deal."
               />
             </div>
           </div>
@@ -158,13 +216,22 @@ export default async function HomePage() {
             </p>
           </div>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-3">
-            <Link className="text-muted-foreground hover:text-foreground" href="/listings">
+            <Link
+              className="rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              href="/listings"
+            >
               Marketplace
             </Link>
-            <Link className="text-muted-foreground hover:text-foreground" href="/deals">
+            <Link
+              className="rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              href="/deals"
+            >
               Deals
             </Link>
-            <Link className="text-muted-foreground hover:text-foreground" href="/profile#payouts">
+            <Link
+              className="rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              href="/profile#payouts"
+            >
               Verification
             </Link>
           </nav>
@@ -190,12 +257,6 @@ function ProtectedTradePreview() {
   return (
     <div className="relative mx-auto h-[31rem] w-full max-w-[35rem] sm:h-[36rem]">
       <div className="auction-stage absolute inset-x-4 inset-y-0 overflow-hidden rounded-lg border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:inset-x-8">
-        <div className="absolute inset-x-5 top-5 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-[0.1em] text-parchment/55">
-            Collateral Protected
-          </span>
-          <span className="size-2 rounded-full bg-trust shadow-[0_0_0_5px_hsl(var(--trust)/0.12)]" aria-hidden="true" />
-        </div>
         <Image
           src={CARD_IMAGES.pikachu}
           alt=""
@@ -205,7 +266,7 @@ function ProtectedTradePreview() {
           className="absolute left-[7%] top-[24%] w-[31%] -rotate-[9deg] rounded-[4%] opacity-80 shadow-2xl"
         />
         <Image
-          src={CARD_IMAGES.venusaur}
+          src={CARD_IMAGES.mew}
           alt=""
           width={245}
           height={342}
@@ -213,26 +274,25 @@ function ProtectedTradePreview() {
           className="absolute right-[7%] top-[24%] w-[31%] rotate-[9deg] rounded-[4%] opacity-80 shadow-2xl"
         />
         <Image
-          src={CARD_IMAGES.mew}
-          alt="Mew ex Pokémon trading card"
+          src={CARD_IMAGES.umbreon}
+          alt="Umbreon ex Pokémon trading card"
           width={245}
           height={342}
           sizes="(max-width: 639px) 47vw, 14rem"
           priority
           className="absolute left-1/2 top-[16%] z-10 w-[42%] -translate-x-1/2 rounded-[4%] drop-shadow-[0_22px_28px_rgba(0,0,0,0.65)]"
         />
-        <div className="ledger-strip absolute inset-x-0 bottom-0 z-20 border-t border-gold/30 px-5 py-4 sm:px-6">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="market-label text-obsidian/55">Protected Trade Value</p>
-              <p className="display-value mt-1 text-3xl">$380</p>
-            </div>
-            <div className="text-right">
-              <p className="market-label text-obsidian/55">Cash Exchanged</p>
-              <p className="display-value mt-1 text-xl">$0</p>
-            </div>
-          </div>
-        </div>
+        {/* Two guarantees, side by side — the pitch in the fewest possible words. */}
+        <ul className="ledger-strip absolute inset-x-0 bottom-0 z-20 grid grid-cols-2 gap-x-4 border-t border-gold/30 px-5 py-4 text-xs font-semibold text-obsidian sm:px-6 sm:text-sm">
+          <li className="flex items-center gap-1.5">
+            <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
+            Both parties KYC verified
+          </li>
+          <li className="flex items-center justify-end gap-1.5">
+            <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
+            Full value held in escrow
+          </li>
+        </ul>
       </div>
     </div>
   );
@@ -241,8 +301,42 @@ function ProtectedTradePreview() {
 function ProcessStatement({ label, text }: { label: string; text: string }) {
   return (
     <div className="grid gap-2 border-b border-parchment/15 py-6 sm:grid-cols-[9rem_1fr] sm:items-center sm:gap-6">
-      <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-gold">{label}</h3>
+      <h3 className="font-mono text-sm font-bold uppercase tracking-[0.08em] text-gold">{label}</h3>
       <p className="max-w-xl text-pretty leading-7 text-parchment/75">{text}</p>
+    </div>
+  );
+}
+
+function ComparisonRow({
+  aspect,
+  typical,
+  ours,
+}: {
+  aspect: string;
+  typical: string;
+  ours: string;
+}) {
+  return (
+    <div className="grid gap-2 border-b border-border py-5 sm:grid-cols-[1.1fr_1fr_1fr] sm:items-center sm:gap-6">
+      <h3 className="text-sm font-semibold">{aspect}</h3>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <X className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+        <span>
+          <span className="mr-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 sm:hidden">
+            Elsewhere:
+          </span>
+          {typical}
+        </span>
+      </p>
+      <p className="flex items-center gap-2 text-sm font-medium">
+        <Check className="size-4 shrink-0 text-trust" aria-hidden="true" />
+        <span>
+          <span className="mr-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-gold sm:hidden">
+            Us:
+          </span>
+          {ours}
+        </span>
+      </p>
     </div>
   );
 }

@@ -1,10 +1,9 @@
 import Link from 'next/link';
-import { ImageOff, Lock } from 'lucide-react';
+import { BadgeCheck, BadgeX, ImageOff, Lock, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { StarRating } from '@/components/listings/StarRating';
-import { VerifiedBadge } from '@/components/listings/VerifiedBadge';
+import { WatchButton } from '@/components/listings/WatchButton';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { CatalogItem } from '@/lib/actions/listings';
@@ -13,6 +12,12 @@ export interface ItemCardProps {
   item: CatalogItem;
   /** `catalog` is the compact, browse-first treatment used in the large grid. */
   variant?: 'default' | 'catalog';
+  /**
+   * Server-computed save state for the current user. When provided (and the
+   * viewer is not the owner), a heart overlay is shown on the artwork. Omit to
+   * hide the affordance (e.g. unauthenticated viewers or the item's owner).
+   */
+  initialWatching?: boolean;
 }
 
 /** Human-readable label for a non-AVAILABLE item, shown as an overlay badge. */
@@ -26,10 +31,11 @@ const UNAVAILABLE_LABEL: Record<string, string> = {
  * prioritizes scan speed; the default retains the richer auction-card treatment
  * used by carousels, watchlists, and seller profiles.
  */
-export function ItemCard({ item, variant = 'default' }: ItemCardProps) {
+export function ItemCard({ item, variant = 'default', initialWatching }: ItemCardProps) {
   const imageUrl = itemImageUrl(item.image_paths?.[0] ?? null);
   const seller = item.seller;
   const unavailableLabel = UNAVAILABLE_LABEL[item.status];
+  const showWatch = initialWatching !== undefined;
 
   if (variant === 'catalog') {
     return (
@@ -80,46 +86,49 @@ export function ItemCard({ item, variant = 'default' }: ItemCardProps) {
                 {unavailableLabel}
               </Badge>
             </span>
-          ) : (
-            <Badge
-              variant="secondary"
-              className="absolute left-2.5 top-2.5 z-20 max-w-[calc(100%-1.25rem)] truncate border-white/15 bg-black/65 px-2 py-0.5 text-[0.6875rem] text-parchment shadow-sm backdrop-blur hover:bg-black/65"
-            >
-              {item.condition}
-            </Badge>
-          )}
+          ) : null}
+          {showWatch ? (
+            <WatchButton
+              itemId={item.id}
+              initialWatching={initialWatching}
+              variant="icon"
+              className="pointer-events-auto absolute right-2.5 top-2.5 z-30 border border-white/15 bg-black/55 text-parchment hover:bg-black/75"
+            />
+          ) : null}
         </div>
 
         <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col pt-2.5">
-          <p className="display-value text-[0.9375rem] leading-tight text-foreground sm:text-base">
-            {formatAud(item.fmv_cents)}
-          </p>
-          <h3 className="mt-0.5 line-clamp-2 text-[0.75rem] font-medium leading-[1.35] text-foreground sm:text-[0.8125rem]">
+          <h3 className="line-clamp-2 text-[0.8125rem] font-normal leading-snug text-foreground sm:text-sm">
             {item.title}
           </h3>
-          <p className="mt-0.5 truncate text-[0.625rem] text-muted-foreground sm:text-[0.6875rem]">
-            {item.category}
+          <p className="mt-1 text-[0.9375rem] font-semibold leading-tight text-foreground sm:text-base">
+            {formatAud(item.fmv_cents)}
           </p>
 
-          <div className="mt-auto flex min-w-0 items-center justify-between gap-1.5 pt-1.5">
-            <span className="flex min-w-0 items-center gap-1">
-              {seller ? (
-                <Link
-                  href={`/sellers/${seller.id}`}
-                  className="pointer-events-auto relative z-10 truncate text-[0.625rem] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-[0.6875rem]"
-                >
+          <div className="mt-auto flex min-w-0 items-center gap-1.5 pt-1.5">
+            {seller ? (
+              <Link
+                href={`/sellers/${seller.id}`}
+                className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
+              >
+                <span className="truncate text-[0.625rem] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-[0.6875rem]">
                   {seller.displayName ?? 'Unknown seller'}
-                </Link>
-              ) : (
-                <span className="truncate text-[0.625rem] text-muted-foreground sm:text-[0.6875rem]">
-                  Unknown seller
                 </span>
-              )}
-              {seller?.isVerified ? <VerifiedBadge iconOnly size={12} /> : null}
-            </span>
-            {seller?.rating ? (
-              <span className="shrink-0">
-                <StarRating rating={seller.rating} count={seller.ratingCount} hideLabel />
+                {seller.isVerified ? (
+                  <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="Verified seller" />
+                ) : (
+                  <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
+                )}
+              </Link>
+            ) : (
+              <span className="truncate text-[0.625rem] text-muted-foreground sm:text-[0.6875rem]">
+                Unknown seller
+              </span>
+            )}
+            {seller?.rating != null ? (
+              <span className="flex shrink-0 items-center gap-0.5 text-[0.625rem] tabular-nums text-muted-foreground sm:text-[0.6875rem]">
+                <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+                {seller.rating.toFixed(1)}
               </span>
             ) : null}
           </div>
@@ -131,13 +140,13 @@ export function ItemCard({ item, variant = 'default' }: ItemCardProps) {
   return (
     <Card
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-lg border-border/70 p-0 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-gold/65 hover:shadow-auction motion-reduce:transform-none',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border/70 p-0 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-gold/65 hover:shadow-auction motion-reduce:transform-none',
         unavailableLabel && 'opacity-70',
       )}
     >
       <Link
         href={`/listings/${item.id}`}
-        className="absolute inset-0 z-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="absolute inset-0 z-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <span className="sr-only">{item.title}</span>
       </Link>
@@ -176,48 +185,50 @@ export function ItemCard({ item, variant = 'default' }: ItemCardProps) {
               {unavailableLabel}
             </Badge>
           </span>
-        ) : (
-          <span className="absolute left-3 top-3 z-20">
-            <Badge
-              variant="secondary"
-              className="border-white/15 bg-black/65 text-parchment shadow-sm backdrop-blur hover:bg-black/65"
-            >
-              {item.condition}
-            </Badge>
-          </span>
-        )}
+        ) : null}
+        {showWatch ? (
+          <WatchButton
+            itemId={item.id}
+            initialWatching={initialWatching}
+            variant="icon"
+            className="pointer-events-auto absolute right-3 top-3 z-30 border border-white/15 bg-black/55 text-parchment hover:bg-black/75"
+          />
+        ) : null}
       </div>
 
-      <div className="pointer-events-none relative flex flex-1 flex-col px-4 pb-3 pt-3.5">
-        <p className="market-label text-muted-foreground">{item.category}</p>
-        <h3 className="mt-1 line-clamp-2 text-[0.9375rem] font-semibold leading-snug text-foreground">
+      <div className="pointer-events-none relative flex flex-1 flex-col px-4 pb-4 pt-3.5">
+        <h3 className="line-clamp-2 text-sm font-normal leading-snug text-foreground">
           {item.title}
         </h3>
-
-        <div className="mt-auto flex items-center justify-between gap-2 pt-4">
-          <span className="flex min-w-0 items-center gap-1">
-            {seller ? (
-              <Link
-                href={`/sellers/${seller.id}`}
-                className="pointer-events-auto relative z-10 truncate text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                {seller.displayName ?? 'Unknown seller'}
-              </Link>
-            ) : (
-              <span className="truncate text-xs text-muted-foreground">Unknown seller</span>
-            )}
-            {seller?.isVerified ? <VerifiedBadge iconOnly size={13} /> : null}
-          </span>
-          <StarRating rating={seller?.rating} count={seller?.ratingCount} hideLabel />
-
-        </div>
-      </div>
-
-      <div className="ledger-strip pointer-events-none relative border-t border-gold/25 px-4 py-3">
-        <p className="market-label mb-1 text-obsidian/55">Fair market value</p>
-        <p className="display-value text-[1.45rem] leading-none">
+        <p className="mt-1.5 text-lg font-semibold leading-tight text-foreground">
           {formatAud(item.fmv_cents)}
         </p>
+
+        <div className="mt-auto flex items-center gap-1.5 pt-2.5">
+          {seller ? (
+            <Link
+              href={`/sellers/${seller.id}`}
+              className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
+            >
+              <span className="truncate text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+                {seller.displayName ?? 'Unknown seller'}
+              </span>
+              {seller.isVerified ? (
+                <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="Verified seller" />
+              ) : (
+                <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
+              )}
+            </Link>
+          ) : (
+            <span className="truncate text-xs text-muted-foreground">Unknown seller</span>
+          )}
+          {seller?.rating != null ? (
+            <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">
+              <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+              {seller.rating.toFixed(1)}
+            </span>
+          ) : null}
+        </div>
       </div>
     </Card>
   );

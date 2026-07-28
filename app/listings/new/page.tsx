@@ -34,7 +34,7 @@ export default async function NewListingPage() {
   }
 
   return (
-    <MarketplaceShell title="Sell an Item" contentWidth="full">
+    <MarketplaceShell title="Sell an Item">
       <ItemForm mode="create" />
     </MarketplaceShell>
   );

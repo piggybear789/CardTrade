@@ -18,14 +18,6 @@ import { PageShell } from '@/components/layout/PageShell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-/** Fluid, centered proportions for each kind of marketplace content. */
-const CONTENT_WIDTHS = {
-  full: 'w-full',
-  detail: 'w-full xl:w-11/12',
-  reading: 'w-full lg:w-5/6 xl:w-3/4',
-  form: 'w-full lg:w-2/3 xl:w-1/2',
-} as const;
-
 /** The rail's default action: list an item, available from every section. */
 function CreateListingAction() {
   return (
@@ -47,7 +39,6 @@ export function MarketplaceShell({
   eyebrow = 'Poke-xchange Market',
   primaryAction,
   filters,
-  contentWidth = 'full',
   center = false,
   children,
 }: {
@@ -58,8 +49,6 @@ export function MarketplaceShell({
   primaryAction?: ReactNode;
   /** Optional filter controls rendered below the rail navigation. */
   filters?: ReactNode;
-  /** Selects the centered, viewport-relative content proportion. */
-  contentWidth?: keyof typeof CONTENT_WIDTHS;
   /**
    * Centre the content in the section both ways, for a short interstitial that
    * is the whole page: verification prompts, payout setup, "not available".
@@ -71,17 +60,17 @@ export function MarketplaceShell({
   const action = primaryAction ?? <CreateListingAction />;
 
   return (
-    <PageShell
-      width="catalog"
-      className="min-h-0 flex-1 self-stretch px-0 py-0 sm:px-0 sm:py-0 lg:px-0 lg:py-0"
-    >
-      <div className="flex w-full items-start justify-between gap-4 px-4 pt-5 sm:px-6 lg:hidden">
+    <PageShell className="min-h-0 flex-1 self-stretch px-0 py-0 sm:px-0 sm:py-0 lg:px-0 lg:py-0">
+      <div className="flex w-full flex-wrap items-end justify-between gap-x-4 gap-y-3 px-4 pt-5 sm:px-6 lg:hidden">
         <div className="min-w-0">
           <p className="market-label text-gold">{eyebrow}</p>
-          <h1 className="mt-1 text-balance font-display text-3xl font-semibold tracking-[-0.04em]">
+          <h1 className="mt-1 text-balance font-display text-3xl font-semibold tracking-[-0.03em]">
             {title}
           </h1>
         </div>
+        {/* The rail (and its action) is desktop-only, so the primary action must
+            also live in the mobile header or small screens lose it entirely. */}
+        <div className="shrink-0">{action}</div>
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch lg:flex-row">
@@ -99,10 +88,14 @@ export function MarketplaceShell({
               contents outgrow the viewport, but the bar itself is hidden: it
               rendered as a full-width gutter down the middle of the workspace.
               Same treatment as the horizontal nav strips on mobile. */}
-          <div className="flex flex-col gap-5 lg:sticky lg:top-16 lg:-mx-1 lg:h-[calc(100dvh-4rem)] lg:gap-6 lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:py-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          {/* Header chrome is 4rem content + 1px bottom border: both terms
+              must appear here, or the rail runs 1px taller than the space
+              under the header and stretches the whole workspace row 1px past
+              the viewport — a permanent hairline page scroll. */}
+          <div className="flex flex-col gap-5 lg:sticky lg:top-[calc(4rem+1px+env(safe-area-inset-top))] lg:-mx-1 lg:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] lg:gap-6 lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:py-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="hidden lg:block">
               <p className="market-label text-gold">{eyebrow}</p>
-              <h1 className="mt-1 text-balance font-display text-[2rem] font-semibold tracking-[-0.045em]">
+              <h1 className="mt-1 text-balance font-display text-3xl font-semibold tracking-[-0.03em]">
                 {title}
               </h1>
               <div className="mt-4">{action}</div>
@@ -129,7 +122,6 @@ export function MarketplaceShell({
               // `my-auto` rather than `flex-1` so a centred interstitial keeps
               // its natural height instead of stretching to fill the section.
               center ? 'my-auto' : 'flex-1',
-              CONTENT_WIDTHS[contentWidth],
             )}
           >
             {children}

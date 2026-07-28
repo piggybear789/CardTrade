@@ -47,7 +47,7 @@ export default async function PurchasesPage({
   );
 
   return (
-    <MarketplaceShell title="Purchases" contentWidth="reading">
+    <MarketplaceShell title="Purchases">
       <SectionHeader
         title="Purchases"
         description="Items you are buying. Open a contract to agree terms, pay, and confirm handover."

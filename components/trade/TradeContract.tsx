@@ -218,9 +218,9 @@ function TraderColumn({
         <p
           className={cn(
             'flex items-center gap-1.5 text-xs',
-            party.verified
-              ? 'text-emerald-700 dark:text-emerald-400'
-              : 'text-amber-700 dark:text-amber-400',
+            // `text-trust` is the site-wide verified-identity token (matches
+            // DealRoom and listing pages).
+            party.verified ? 'text-trust' : 'text-amber-700',
           )}
         >
           <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
@@ -314,7 +314,8 @@ export function TradeContract({
     <div className="space-y-6">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Trade contract</h1>
+          {/* The page shell already renders the route <h1>. */}
+          <h2 className="text-2xl font-semibold tracking-tight">Trade contract</h2>
           <p className="text-sm text-muted-foreground">
             Live escrow status for this 2-way trade.
           </p>
@@ -403,7 +404,7 @@ export function TradeContract({
                   <GoodsColumn heading="You receive" items={goods.theirs} />
                 </div>
                 {goods.cashAmountCents > 0 ? (
-                  <p className="rounded-md bg-muted/40 p-3 text-sm font-medium">
+                  <p className="rounded-md bg-muted/40 p-3 text-sm font-medium tabular-nums">
                     {goods.cashDirection === 'outgoing'
                       ? `You also pay ${formatAud(goods.cashAmountCents)} in cash.`
                       : `You also receive ${formatAud(goods.cashAmountCents)} in cash.`}

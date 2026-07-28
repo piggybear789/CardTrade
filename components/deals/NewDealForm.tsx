@@ -562,6 +562,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                   }}
                   placeholder="Charizard for Blastoise + $50"
                   maxLength={DEAL_TITLE_MAX}
+                  autoComplete="off"
                   required
                   aria-invalid={titleError ? true : undefined}
                   aria-describedby={titleError ? 'deal-title-error' : undefined}

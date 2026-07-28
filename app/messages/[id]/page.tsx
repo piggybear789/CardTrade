@@ -49,7 +49,7 @@ export default async function ConversationPage({
   const { conversation, other, item, deal, trade } = result.data;
 
   return (
-    <MarketplaceShell title="Messages" contentWidth="full">
+    <MarketplaceShell title="Messages">
       <ChatThread
         conversationId={conversation.id}
         currentUserId={user.id}

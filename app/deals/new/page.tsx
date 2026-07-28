@@ -60,10 +60,10 @@ export default async function NewDealPage({
   // The choice step: offered once, skippable, and never a dead end.
   if (!verified && !acceptedCollateral) {
     return (
-      <MarketplaceShell title="Start a Deal" contentWidth="form" center>
+      <MarketplaceShell title="Start a Deal" center>
         <header className="mb-6 border-b border-border/70 pb-5">
           <p className="market-label text-gold">Private deal</p>
-          <h2 className="mt-2 text-balance text-2xl font-bold tracking-[-0.035em]">
+          <h2 className="mt-2 text-balance text-2xl font-semibold tracking-[-0.025em]">
             Verify your identity, or post collateral
           </h2>
           <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
@@ -91,10 +91,10 @@ export default async function NewDealPage({
   }
 
   return (
-    <MarketplaceShell title="Start a Deal" contentWidth="form">
+    <MarketplaceShell title="Start a Deal">
       <header className="mb-6 border-b border-border/70 pb-5">
         <p className="market-label text-gold">Private deal</p>
-        <h2 className="mt-2 text-balance text-2xl font-bold tracking-[-0.035em]">
+        <h2 className="mt-2 text-balance text-2xl font-semibold tracking-[-0.025em]">
           Start a private deal
         </h2>
         <p className="mt-1.5 text-sm leading-6 text-muted-foreground">

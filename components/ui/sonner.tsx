@@ -2,7 +2,9 @@
 
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-const Toaster = ({ theme = "system", ...props }: ToasterProps) => {
+// The app ships a single light theme (`colorScheme: 'light'` in the root
+// layout), so the toaster must match rather than follow the OS setting.
+const Toaster = ({ theme = "light", ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme}

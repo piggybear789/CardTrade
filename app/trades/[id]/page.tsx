@@ -193,7 +193,7 @@ export default async function TradePage({
   }
 
   return (
-    <MarketplaceShell title="Trade" contentWidth="reading">
+    <MarketplaceShell title="Trade">
       <TradeContract
         tradeId={trade.id}
         initiatorId={trade.initiator_id}

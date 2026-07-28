@@ -19,6 +19,7 @@ import { HandCoins, ImageOff, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -96,6 +97,8 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [counterOpen, setCounterOpen] = useState(false);
+  // Accepting opens a binding escrow sale at this price, so confirm first.
+  const [confirmingAccept, setConfirmingAccept] = useState(false);
 
   const imageUrl = itemImageUrl(offer.itemImagePath);
   const title = offer.itemTitle ?? 'Item';
@@ -153,12 +156,14 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate text-sm font-medium">{title}</p>
-            <Badge variant={status.variant}>{status.label}</Badge>
+            <Badge variant={status.variant} className="shrink-0">
+              {status.label}
+            </Badge>
           </div>
-          <p className="mt-0.5 text-lg font-bold tracking-tight">
+          <p className="mt-0.5 text-lg font-bold tabular-nums tracking-tight">
             {formatAud(offer.amountCents)}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {roleLabel} · with {counterparty}
             {offer.offeredByMe ? ' · your offer' : ''}
           </p>
@@ -170,7 +175,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                 <>
                   <Button
                     size="sm"
-                    onClick={() => respond('accept')}
+                    onClick={() => setConfirmingAccept(true)}
                     disabled={isPending}
                     aria-busy={isPending}
                   >
@@ -179,6 +184,18 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                     ) : null}
                     Accept
                   </Button>
+                  <ConfirmDialog
+                    open={confirmingAccept}
+                    onOpenChange={setConfirmingAccept}
+                    title="Accept this offer?"
+                    description={`Accepting opens a binding escrow sale of "${title}" with ${counterparty} at ${formatAud(offer.amountCents)}.`}
+                    confirmLabel="Accept offer"
+                    pending={isPending}
+                    onConfirm={() => {
+                      setConfirmingAccept(false);
+                      respond('accept');
+                    }}
+                  />
                   <Button
                     size="sm"
                     variant="outline"

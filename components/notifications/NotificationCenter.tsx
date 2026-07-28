@@ -114,12 +114,15 @@ export function NotificationCenter({
                     >
                       {n.title}
                     </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                    <span
+                      className="shrink-0 text-xs text-muted-foreground"
+                      suppressHydrationWarning
+                    >
                       {formatRelativeTime(n.created_at)}
                     </span>
                   </span>
                   {n.body && (
-                    <span className="mt-0.5 block text-sm text-muted-foreground">
+                    <span className="mt-0.5 block break-words text-sm text-muted-foreground">
                       {n.body}
                     </span>
                   )}

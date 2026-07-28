@@ -92,7 +92,7 @@ export function HoldStatus({
               <p className="truncate text-sm font-medium">
                 {ownerLabel(hold.trader_id, initiatorId, counterpartId, viewerRole)}
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm tabular-nums text-muted-foreground">
                 {formatAud(hold.amount_cents)}
                 {hold.captured_cents > 0 ? (
                   <span> · {formatAud(hold.captured_cents)} captured</span>

@@ -76,7 +76,6 @@ export default async function TradesPage({
   return (
     <MarketplaceShell
       title="Trades"
-      contentWidth="reading"
       primaryAction={
         <Button
           asChild

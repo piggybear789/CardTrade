@@ -42,7 +42,7 @@ export default async function DealPage({
 
   // Same container as the cash sale contract room, so both read as one flow.
   return (
-    <MarketplaceShell title="Deal Room" contentWidth="detail">
+    <MarketplaceShell title="Deal Room">
       <DealRoom view={result.view} myUserId={user.id} />
     </MarketplaceShell>
   );

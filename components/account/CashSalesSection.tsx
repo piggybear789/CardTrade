@@ -92,12 +92,14 @@ export function CashSalesSection({
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{title}</p>
-                  <p className="mt-0.5 text-lg font-bold tracking-tight">
+                  <p className="mt-0.5 text-lg font-bold tabular-nums tracking-tight">
                     {formatAud(sale.amountCents)}
                   </p>
                 </div>
 
-                <Badge variant={status.variant}>{status.label}</Badge>
+                <Badge variant={status.variant} className="shrink-0">
+                  {status.label}
+                </Badge>
               </Link>
             </Card>
           </li>

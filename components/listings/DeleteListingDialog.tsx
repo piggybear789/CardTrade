@@ -73,7 +73,7 @@ export function DeleteListingDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete this listing?</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="break-words">
             {itemTitle} will be permanently removed. This cannot be undone, and
             it cannot be done while the item is part of an active trade or sale.
           </DialogDescription>

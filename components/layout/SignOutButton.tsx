@@ -31,7 +31,6 @@ export function SignOutButton({ className }: { className?: string }) {
     <Button
       type="button"
       variant="ghost"
-      size="sm"
       onClick={handleSignOut}
       disabled={isPending}
       aria-label="Sign out"

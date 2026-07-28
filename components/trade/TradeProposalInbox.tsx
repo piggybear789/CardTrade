@@ -19,6 +19,7 @@ import { ArrowLeftRight, Coins, EyeOff, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatAud, formatRelativeTime, itemImageUrl } from '@/lib/format';
 import {
   acceptTradeProposal,
@@ -98,6 +99,9 @@ export function TradeProposalInbox({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Proposal awaiting an explicit accept confirmation: acceptance creates the
+  // binding trade and places collateral, so it must never be a single tap.
+  const [confirmingAcceptId, setConfirmingAcceptId] = useState<string | null>(null);
 
   if (proposals.length === 0) return null;
 
@@ -213,7 +217,7 @@ export function TradeProposalInbox({
                   </div>
 
                   {proposal.message ? (
-                    <p className="rounded-md bg-muted/40 p-3 text-sm">
+                    <p className="break-words rounded-md bg-muted/40 p-3 text-sm">
                       {proposal.message}
                     </p>
                   ) : null}
@@ -225,12 +229,13 @@ export function TradeProposalInbox({
                         line. Declining costs nothing.
                       </p>
                     ) : null}
-                    <div className="flex gap-2 sm:ml-auto">
+                    {/* Full-height wrapping buttons: three actions on one row
+                        overflow narrow phones, and Accept is high-stakes. */}
+                    <div className="flex flex-wrap gap-2 sm:ml-auto">
                     {isIncoming ? (
                       <>
                         <Button
                           variant="outline"
-                          size="sm"
                           disabled={busy}
                           onClick={() =>
                             run(
@@ -242,7 +247,7 @@ export function TradeProposalInbox({
                         >
                           Decline
                         </Button>
-                        <Button asChild variant="outline" size="sm" disabled={busy}>
+                        <Button asChild variant="outline" disabled={busy}>
                           <Link
                             href={`/trades/new?counterpartItemId=${proposal.offered[0]?.id ?? ''}&counter=${proposal.id}`}
                           >
@@ -250,16 +255,9 @@ export function TradeProposalInbox({
                           </Link>
                         </Button>
                         <Button
-                          size="sm"
                           disabled={busy}
                           aria-busy={busy}
-                          onClick={() =>
-                            run(
-                              proposal.id,
-                              () => acceptTradeProposal(proposal.id),
-                              'Trade accepted. Arranging collateral…',
-                            )
-                          }
+                          onClick={() => setConfirmingAcceptId(proposal.id)}
                         >
                           {busy ? (
                             <>
@@ -270,12 +268,29 @@ export function TradeProposalInbox({
                             'Accept Trade'
                           )}
                         </Button>
+                        <ConfirmDialog
+                          open={confirmingAcceptId === proposal.id}
+                          onOpenChange={(next) =>
+                            setConfirmingAcceptId(next ? proposal.id : null)
+                          }
+                          title="Accept this trade?"
+                          description={`Accepting creates a binding trade with ${proposal.counterpartyName}: both items are reserved and any required collateral is placed immediately.`}
+                          confirmLabel="Accept Trade"
+                          pending={busy}
+                          onConfirm={() => {
+                            setConfirmingAcceptId(null);
+                            run(
+                              proposal.id,
+                              () => acceptTradeProposal(proposal.id),
+                              'Trade accepted. Arranging collateral…',
+                            );
+                          }}
+                        />
                       </>
                     ) : (
                       <>
                         <Button
                           variant="outline"
-                          size="sm"
                           disabled={busy}
                           aria-busy={busy}
                           onClick={() =>
@@ -286,7 +301,14 @@ export function TradeProposalInbox({
                             )
                           }
                         >
-                          {busy ? 'Withdrawing…' : 'Withdraw'}
+                          {busy ? (
+                            <>
+                              <Loader2 className="animate-spin" aria-hidden />
+                              Withdrawing…
+                            </>
+                          ) : (
+                            'Withdraw'
+                          )}
                         </Button>
                         {/* Revise rather than withdraw and start over. */}
                         <EditTradeOfferDialog

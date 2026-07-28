@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
         hostname: 'images.pokemontcg.io',
         pathname: '/**',
       },
+      {
+        // Newer TCG sets (Mega Evolution era onward) serve card scans from
+        // Scrydex instead of images.pokemontcg.io.
+        protocol: 'https',
+        hostname: 'images.scrydex.com',
+        pathname: '/pokemon/**',
+      },
     ],
   },
 };

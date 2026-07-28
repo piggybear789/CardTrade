@@ -74,7 +74,7 @@ export function StarRating({
         </span>
       </span>
       {!hideLabel && (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs tabular-nums text-muted-foreground">
           {clamped.toFixed(1)}
           {count != null ? ` (${count})` : ''}
         </span>

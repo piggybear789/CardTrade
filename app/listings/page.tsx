@@ -12,6 +12,8 @@ import {
   searchCatalog,
   type CatalogSort,
 } from '@/lib/actions/listings';
+import { getWatchingSet } from '@/lib/actions/watchlist';
+import { createClient } from '@/lib/supabase/server';
 import {
   CatalogActiveFilters,
   CatalogFilters,
@@ -120,6 +122,12 @@ export default async function ListingsPage({
   ]);
 
   const items = result.ok ? result.items : [];
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Only decorate the heart for signed-in viewers; ownership is per-card.
+  const watchingSet = user ? await getWatchingSet(items.map((i) => i.id)) : new Set<string>();
   const total = result.ok ? result.total : 0;
   const pageSize = result.ok ? result.pageSize : 24;
   const hasMore = result.ok ? result.hasMore : false;
@@ -177,7 +185,7 @@ export default async function ListingsPage({
               <div className="min-w-0">
                 <h2
                   id="catalog-heading"
-                  className="text-balance text-xl font-bold tracking-[-0.035em] sm:text-2xl"
+                  className="text-balance text-xl font-semibold tracking-[-0.025em] sm:text-2xl"
                 >
                   {resultTitle}
                 </h2>
@@ -203,13 +211,22 @@ export default async function ListingsPage({
                   content box at every size. */}
               <div className="grid gap-x-4 gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))]">
                 {items.map((item) => (
-                  <ItemCard key={item.id} item={item} variant="catalog" />
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    variant="catalog"
+                    initialWatching={
+                      user && item.owner_id !== user.id
+                        ? watchingSet.has(item.id)
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
 
               {totalPages > 1 ? (
                 <nav
-                  className="mt-10 flex items-center justify-between border-t border-border/70 pt-6 sm:justify-center sm:gap-4"
+                  className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-6 sm:justify-center sm:gap-4"
                   aria-label="Marketplace pages"
                 >
                   {currentPage <= 1 ? (

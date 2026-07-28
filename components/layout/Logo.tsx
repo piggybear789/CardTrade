@@ -97,7 +97,12 @@ export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <LogoMark />
-      <span className="font-display text-xl font-semibold tracking-[-0.025em]" translate="no">
+      {/* Below ~360px the wordmark fights the bell and menu for space; the
+          mark alone still reads as home (the link keeps its aria-label). */}
+      <span
+        className="hidden font-display text-xl font-semibold tracking-[-0.025em] min-[360px]:inline"
+        translate="no"
+      >
         Poke-xchange
       </span>
     </span>

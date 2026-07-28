@@ -6,22 +6,12 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-const WIDTHS = {
-  form: 'sm:w-5/6 lg:w-2/3 xl:w-1/2',
-  reading: 'lg:w-5/6',
-  detail: 'lg:w-11/12',
-  standard: 'lg:w-11/12',
-  catalog: 'w-full',
-} as const;
-
 export function PageShell({
   children,
-  width = 'standard',
   centered = false,
   className,
 }: {
   children: ReactNode;
-  width?: keyof typeof WIDTHS;
   /** Vertically centre short pages within the available flex space. */
   centered?: boolean;
   className?: string;
@@ -31,7 +21,6 @@ export function PageShell({
       className={cn(
         'mx-auto flex w-full flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8',
         centered && 'flex flex-1 flex-col justify-center',
-        WIDTHS[width],
         className,
       )}
     >
@@ -64,7 +53,7 @@ export function PageHeader({
         {eyebrow ? (
           <p className="cardtrade-eyebrow mb-3">{eyebrow}</p>
         ) : null}
-        <h1 className="font-display text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+        <h1 className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
           {title}
         </h1>
         {description ? (

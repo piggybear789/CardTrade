@@ -30,7 +30,7 @@ export default async function SavedPage() {
   const result = await listMyWatchlist();
 
   return (
-    <MarketplaceShell title="Saved" contentWidth="reading">
+    <MarketplaceShell title="Saved">
       <SectionHeader
         title="Saved"
         description="Listings you are watching. Saving does not reserve an item."

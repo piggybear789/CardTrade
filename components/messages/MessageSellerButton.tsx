@@ -88,22 +88,26 @@ export function MessageSellerButton({
     return (
       <div className="space-y-2">
         <div className="rounded-lg border bg-muted/40 p-3">
-          <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <label
+            htmlFor="message-seller-input"
+            className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground"
+          >
             <MessageCircle className="size-4 text-muted-foreground" aria-hidden />
             Send seller a message
-          </p>
+          </label>
           <form onSubmit={handleInlineSend} className="flex items-center gap-2">
             <Input
+              id="message-seller-input"
               type="text"
-              placeholder="Good afternoon, is this still available?"
+              name="message"
+              placeholder="Is this still available?"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={isPending}
-              className="flex-1"
+              className="min-w-0 flex-1"
             />
             <Button
               type="submit"
-              size="sm"
               disabled={isPending || message.trim() === ''}
               aria-busy={isPending}
             >

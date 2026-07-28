@@ -64,7 +64,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">
+                  <p className="line-clamp-2 break-words text-sm font-medium">
                     Your item {yours}
                     <span className="mx-1.5 text-muted-foreground">↔</span>
                     Their item {theirs}
@@ -74,7 +74,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
                   </p>
                 </div>
 
-                <StateBadge state={trade.state} />
+                <StateBadge state={trade.state} className="shrink-0" />
               </Link>
             </Card>
           </li>

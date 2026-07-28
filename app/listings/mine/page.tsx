@@ -36,7 +36,6 @@ export default async function MyListingsPage() {
   return (
     <MarketplaceShell
       title="My Listings"
-      contentWidth="reading"
       primaryAction={
         <Button
           asChild

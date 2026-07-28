@@ -49,7 +49,7 @@ export default async function OffersPage({
   const visibleOffers = scope === 'past' ? past : active;
 
   return (
-    <MarketplaceShell title="Offers" contentWidth="reading">
+    <MarketplaceShell title="Offers">
       <SectionHeader
         title="Offers"
         description="Prices you have proposed. An accepted offer opens a purchase contract."

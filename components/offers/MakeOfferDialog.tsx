@@ -151,12 +151,12 @@ export function MakeOfferDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+            <div className="min-w-0 rounded-md border bg-muted/30 p-3 text-sm">
               <p className="font-medium">Verified seller</p>
               {sellerIdentity.tradingName ? (
-                <p>{sellerIdentity.tradingName}</p>
+                <p className="break-words">{sellerIdentity.tradingName}</p>
               ) : null}
-              <p className="text-muted-foreground">
+              <p className="break-words text-muted-foreground">
                 {sellerIdentity.legalEntityName} ·{' '}
                 {formatRegistrationNumber(sellerIdentity.registrationNumber)}
               </p>
@@ -188,13 +188,13 @@ export function MakeOfferDialog({
                   id="offer-amount"
                   type="number"
                   inputMode="decimal"
+                  autoComplete="off"
                   min="0.01"
                   step="0.01"
                   placeholder={placeholder}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="pl-7"
-                  autoFocus
                   required
                 />
               </div>
@@ -225,11 +225,9 @@ export function MakeOfferDialog({
           </div>
 
           <DialogFooter>
-            <Button
-              type="submit"
-              disabled={isPending || !confirmedSeller}
-              aria-busy={isPending}
-            >
+            {/* Stays enabled until the request starts; submitting without the
+                confirmation surfaces an inline error instead of a dead button. */}
+            <Button type="submit" disabled={isPending} aria-busy={isPending}>
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Sending…' : 'Send offer'}
             </Button>

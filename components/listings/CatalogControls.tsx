@@ -33,7 +33,7 @@ const SORT_LABELS: Record<CatalogSort, string> = {
   newest: 'Recently Listed',
   'price-asc': 'Price: Low to High',
   'price-desc': 'Price: High to Low',
-  rating: 'Top-Rated Sellers',
+  rating: 'Seller Rating: High to Low',
 };
 
 const AUD_FORMATTER = new Intl.NumberFormat('en-AU', {
@@ -162,7 +162,7 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
           ) : null}
         </Button>
         {hasActiveFilters ? (
-          <Button variant="ghost" size="sm" onClick={clearFilters} disabled={isPending}>
+          <Button variant="ghost" onClick={clearFilters} disabled={isPending}>
             Clear All
           </Button>
         ) : null}
@@ -176,7 +176,7 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
         )}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold tracking-tight">Refine Results</h2>
+          <h2 className="text-base font-semibold tracking-tight">Refine Results</h2>
           {hasActiveFilters ? (
             <button
               type="button"
@@ -203,7 +203,9 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
                     disabled={isPending}
                     aria-pressed={active}
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+                      // Taller rows on touch screens (~44px target); compact in
+                      // the desktop rail where a pointer is precise.
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
                       active
                         ? 'bg-gold/10 font-semibold text-foreground'
                         : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
@@ -278,7 +280,7 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
             disabled={isPending}
             aria-pressed={current.verifiedOnly}
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+              'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
               current.verifiedOnly
                 ? 'bg-gold/10 font-semibold text-foreground'
                 : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
@@ -378,7 +380,7 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
         type="button"
         onClick={reset}
         disabled={isPending}
-        className="px-1 text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
+        className="rounded-sm px-1 py-1.5 text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       >
         Clear all
       </button>

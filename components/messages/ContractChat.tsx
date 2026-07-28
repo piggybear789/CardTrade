@@ -144,7 +144,7 @@ export function ContractChat({
         <div
           ref={logRef}
           onScroll={handleLogScroll}
-          className="h-full space-y-3 overflow-y-auto bg-background p-4"
+          className="h-full space-y-3 overflow-y-auto overscroll-contain bg-background p-4"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"
@@ -160,7 +160,7 @@ export function ContractChat({
               if (message.kind === 'SYSTEM') {
                 return (
                   <div key={message.id} className="flex justify-center">
-                    <p className="max-w-[90%] rounded-full border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs text-muted-foreground">
+                    <p className="max-w-[90%] break-words rounded-full border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs text-muted-foreground">
                       {message.body}
                     </p>
                   </div>
@@ -188,7 +188,7 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-md"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <ArrowDown className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}
@@ -196,8 +196,12 @@ export function ContractChat({
         ) : null}
       </div>
       <form onSubmit={submit} className="border-t p-3">
+        <label htmlFor={`contract-chat-${conversationId}`} className="sr-only">
+          Write a message
+        </label>
         <div className="flex items-center gap-2">
           <Textarea
+            id={`contract-chat-${conversationId}`}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -219,10 +223,18 @@ export function ContractChat({
             disabled={!draft.trim() || isPending}
             aria-label="Send message"
           >
-            {isPending ? <Loader2 className="animate-spin" /> : <Send />}
+            {isPending ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : (
+              <Send aria-hidden />
+            )}
           </Button>
         </div>
-        {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="mt-2 text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
       </form>
     </section>
   );

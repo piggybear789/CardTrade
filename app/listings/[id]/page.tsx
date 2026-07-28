@@ -14,50 +14,57 @@
 // The buy/trade actions re-enforce these gates server-side; the gating here
 // only decides what to surface.
 
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { Pencil, LogIn, ArrowLeftRight, FileText } from 'lucide-react';
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Pencil, LogIn, ArrowLeftRight, FileText, Heart } from "lucide-react";
 
-import { getItem } from '@/lib/actions/listings';
-import { isWatching } from '@/lib/actions/watchlist';
-import { createClient } from '@/lib/supabase/server';
-import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
-import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { formatAud, formatRegistrationNumber, itemImageUrl } from '@/lib/format';
-import { BuyButton } from '@/components/listings/BuyButton';
-import { WatchButton } from '@/components/listings/WatchButton';
-import { MakeOfferDialog } from '@/components/offers/MakeOfferDialog';
-import { MessageSellerButton } from '@/components/messages/MessageSellerButton';
-import { ImageGallery, type GalleryImage } from '@/components/listings/ImageGallery';
-import { DeleteListingDialog } from '@/components/listings/DeleteListingDialog';
-import { ReportDialog } from '@/components/reports/ReportDialog';
-import { StarRating } from '@/components/listings/StarRating';
-import { VerifiedBadge } from '@/components/listings/VerifiedBadge';
-import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
-import { Badge, type BadgeProps } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { getItem } from "@/lib/actions/listings";
+import { getWatchCount, isWatching } from "@/lib/actions/watchlist";
+import { createClient } from "@/lib/supabase/server";
+import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
+import type { SellerIdentityDisclosure } from "@/domain/orchestrator/merchantOnboarding";
+import {
+  formatAud,
+  formatRegistrationNumber,
+  itemImageUrl,
+} from "@/lib/format";
+import { BuyButton } from "@/components/listings/BuyButton";
+import { WatchButton } from "@/components/listings/WatchButton";
+import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
+import { MessageSellerButton } from "@/components/messages/MessageSellerButton";
+import {
+  ImageGallery,
+  type GalleryImage,
+} from "@/components/listings/ImageGallery";
+import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
+import { ReportDialog } from "@/components/reports/ReportDialog";
+import { StarRating } from "@/components/listings/StarRating";
+import { VerifiedBadge } from "@/components/listings/VerifiedBadge";
+import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 
 // The page reads the signed-in user's cookies and reflects live availability,
 // so it must render dynamically (never statically prerendered).
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-type ItemStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD';
+type ItemStatus = "AVAILABLE" | "RESERVED" | "SOLD";
 
 /** Map each availability status to a Badge variant + human-readable label. */
 const STATUS_BADGE: Record<
   ItemStatus,
-  { variant: NonNullable<BadgeProps['variant']>; label: string }
+  { variant: NonNullable<BadgeProps["variant"]>; label: string }
 > = {
-  AVAILABLE: { variant: 'default', label: 'Available' },
-  RESERVED: { variant: 'secondary', label: 'Under Contract' },
-  SOLD: { variant: 'outline', label: 'Sold' },
+  AVAILABLE: { variant: "default", label: "Available" },
+  RESERVED: { variant: "secondary", label: "Under Contract" },
+  SOLD: { variant: "outline", label: "Sold" },
 };
 
 export async function generateMetadata({
@@ -68,7 +75,7 @@ export async function generateMetadata({
   const { id } = await params;
   const result = await getItem(id);
   if (!result.ok) {
-    return { title: 'Item not found · Poke-xchange' };
+    return { title: "Item not found · Poke-xchange" };
   }
   return {
     title: `${result.data.title} · Poke-xchange`,
@@ -98,17 +105,19 @@ export default async function ItemDetailPage({
   } = await supabase.auth.getUser();
 
   const isOwner = user?.id === item.owner_id;
-  // Authenticated non-owners can save the item to their watchlist.
+  // Authenticated non-owners can save the item to their watchlist. The save
+  // count is public social proof, shown to every viewer.
   let initialWatching = false;
   if (user && !isOwner) {
     initialWatching = await isWatching(item.id);
   }
+  const watchCount = await getWatchCount(item.id);
 
   // Seller's public info (catalog-safe view) for the listing's seller block.
   const { data: sellerRow } = await supabase
-    .from('public_profiles')
-    .select('display_name, rating, rating_count')
-    .eq('id', item.owner_id)
+    .from("public_profiles")
+    .select("display_name, rating, rating_count")
+    .eq("id", item.owner_id)
     .maybeSingle();
 
   // Load only the narrow, buyer-safe merchant identity projection. The badge may
@@ -116,28 +125,28 @@ export default async function ItemDetailPage({
   // the authenticated buyer's confirmation controls.
   const sellerIdentity = await loadSellerIdentityDisclosure(item.owner_id);
 
-  const status = (item.status as ItemStatus) ?? 'AVAILABLE';
+  const status = (item.status as ItemStatus) ?? "AVAILABLE";
   const statusBadge = STATUS_BADGE[status] ?? STATUS_BADGE.AVAILABLE;
-  const isAvailable = status === 'AVAILABLE';
+  const isAvailable = status === "AVAILABLE";
 
   // When the item is RESERVED and the viewer is the owner, resolve the active
   // contract (Cash_Sale or Trade) so we can link directly to the contract room.
   let activeSaleId: string | null = null;
   let activeTradeId: string | null = null;
-  if (isOwner && status === 'RESERVED') {
+  if (isOwner && status === "RESERVED") {
     const [{ data: saleRow }, { data: tradeRow }] = await Promise.all([
       supabase
-        .from('cash_sales')
-        .select('id')
-        .eq('item_id', item.id)
-        .not('status', 'in', '("COMPLETED","CANCELLED","FAILED","REFUNDED")')
+        .from("cash_sales")
+        .select("id")
+        .eq("item_id", item.id)
+        .not("status", "in", '("COMPLETED","CANCELLED","FAILED","REFUNDED")')
         .limit(1)
         .maybeSingle(),
       supabase
-        .from('trades')
-        .select('id')
+        .from("trades")
+        .select("id")
         .or(`initiator_item_id.eq.${item.id},counterpart_item_id.eq.${item.id}`)
-        .not('state', 'in', '("COMPLETED","FRAUD_RESOLVED")')
+        .not("state", "in", '("COMPLETED","FRAUD_RESOLVED")')
         .limit(1)
         .maybeSingle(),
     ]);
@@ -151,163 +160,220 @@ export default async function ItemDetailPage({
     .map((src, index) => ({ src, alt: `${item.title} — image ${index + 1}` }));
 
   return (
-    <MarketplaceShell title="Listing" contentWidth="detail">
-      <nav className="mb-6" aria-label="Breadcrumb">
-        <Link
-          href="/listings"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          ← Back to listings
-        </Link>
-      </nav>
+    <MarketplaceShell title="Listing">
+      {/* Split view (lg+), Facebook-Marketplace style: this wrapper is
+          exactly the height of the workspace content box — 100dvh less the
+          header (h-16 + 1px border + safe-area) and the section's lg:py-7 —
+          all hard chrome values, no text metrics. The breadcrumb then takes
+          its natural height inside and the split row gets the rest via
+          flex-1, so nothing here depends on estimating line heights: the
+          page itself never scrolls, the gallery pane stays put, and the
+          details pane scrolls internally (`overflow-y-auto`).
 
-      {/* Space-driven two-column layout. Flex wrapping on a shared basis rather
-          than viewport breakpoints: the workspace rail takes a proportional
-          slice at `lg`, so a `md:grid-cols-2` would flip to two columns at a
-          width the content area never actually receives, leaving both columns
-          cramped. Each column asks for ~22rem and the row wraps to a single
-          column whenever the real content box can't fit both — consistent at
-          every screen size, rail or no rail. */}
-      <div className="flex flex-wrap items-stretch gap-8">
-        {/* Gallery */}
-        <div className="min-w-0 flex-1 basis-[min(100%,22rem)]">
-          <ImageGallery images={images} title={item.title} />
-        </div>
+          The height can't come from the flex ancestors alone: body is
+          min-h-dvh, a floor rather than a cap, so a too-tall flex-1 chain
+          just grows the page instead of being clipped. The bound has to be
+          declared somewhere, and this wrapper is the one place where it's
+          composed purely of fixed paddings. Below lg the wrapper is
+          auto-height, the columns stack, and the page scrolls normally. */}
+      <div className="flex min-h-0 flex-col lg:h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))]">
+        <nav className="mb-6" aria-label="Breadcrumb">
+          <Link
+            href="/listings"
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            ← Back to listings
+          </Link>
+        </nav>
 
-        {/* Details — flex column that stretches to match the gallery so
-            secondary actions (save/report) stick to the bottom. */}
-        <div className="flex min-w-0 flex-1 basis-[min(100%,22rem)] flex-col">
-          <div className="space-y-6">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <h2 className="text-3xl font-bold tracking-tight">{item.title}</h2>
-              <Badge
-                variant={statusBadge.variant}
-                aria-label={`Availability: ${statusBadge.label}`}
-              >
-                {statusBadge.label}
-              </Badge>
-            </div>
+        {/* The column switch and the bounded height MUST share the same
+          breakpoint: if the columns could sit side by side without the
+          height cap, the page would scroll and the gallery would drift out
+          of view. `lg` is safe because the rail geometry guarantees the
+          content box is at least ~47rem there — enough for both columns plus
+          the gap. */}
+        <div className="flex min-h-0 flex-col items-stretch gap-8 lg:flex-1 lg:flex-row">
+          {/* Gallery — the frame caps itself below the row height (breathing
+            room), so centre it vertically rather than leaving it pinned to
+            the top of the pane. */}
+          <div className="min-w-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
+            <ImageGallery images={images} title={item.title} />
+          </div>
 
-            <p className="text-3xl font-semibold tracking-tight">
-              {formatAud(item.fmv_cents)}
-            </p>
+          {/* Details — its own scroll container while the split row has a fixed
+            height; stretches to match the gallery so secondary actions
+            (save/report) stick to the bottom when content is short. The
+            scrollbar itself is hidden (same treatment as the workspace rail):
+            it rendered as a visible gutter splitting the two panes. Wheel,
+            drag, and keyboard scrolling all still work. */}
+          <div className="flex min-w-0 flex-col overscroll-contain lg:flex-1 lg:overflow-y-auto lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h2 className="min-w-0 break-words text-3xl font-semibold tracking-[-0.025em]">
+                    {item.title}
+                  </h2>
+                  <Badge
+                    variant={statusBadge.variant}
+                    aria-label={`Availability: ${statusBadge.label}`}
+                  >
+                    {statusBadge.label}
+                  </Badge>
+                </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{item.category}</Badge>
-              <Badge variant="outline">{item.condition}</Badge>
-            </div>
+                <p className="text-3xl font-semibold tabular-nums tracking-tight">
+                  {formatAud(item.fmv_cents)}
+                </p>
 
-            {/* Seller block */}
-            <div className="rounded-lg border bg-card p-3">
-              <div className="flex flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Seller</p>
-                  <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{item.category}</Badge>
+                  <Badge variant="outline">{item.condition}</Badge>
+                  {watchCount > 0 ? (
+                    <span className="inline-flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
+                      <Heart
+                        className="size-4 fill-red-500 text-red-500"
+                        aria-hidden="true"
+                      />
+                      {watchCount} {watchCount === 1 ? "save" : "saves"}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Seller block */}
+                <div className="rounded-lg border bg-card p-3">
+                  <div className="flex flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">Seller</p>
+                      <div className="flex items-center gap-1.5">
+                        {isOwner ? (
+                          <p className="truncate text-sm font-medium">You</p>
+                        ) : (
+                          <Link
+                            href={`/sellers/${item.owner_id}`}
+                            className="truncate text-sm font-medium underline-offset-2 hover:underline"
+                          >
+                            {sellerRow?.display_name ?? "Unknown seller"}
+                          </Link>
+                        )}
+                        {sellerIdentity && <VerifiedBadge size={15} />}
+                      </div>
+                    </div>
                     {isOwner ? (
-                      <p className="truncate text-sm font-medium">You</p>
+                      <StarRating
+                        rating={sellerRow?.rating ?? null}
+                        count={sellerRow?.rating_count ?? undefined}
+                      />
                     ) : (
                       <Link
-                        href={`/sellers/${item.owner_id}`}
-                        className="truncate text-sm font-medium underline-offset-2 hover:underline"
+                        href={`/sellers/${item.owner_id}#reviews`}
+                        className="rounded-sm transition-colors hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="Read seller reviews"
                       >
-                        {sellerRow?.display_name ?? 'Unknown seller'}
+                        <StarRating
+                          rating={sellerRow?.rating ?? null}
+                          count={sellerRow?.rating_count ?? undefined}
+                        />
                       </Link>
                     )}
-                    {sellerIdentity && <VerifiedBadge size={15} />}
                   </div>
+
+                  {/* Inline identity disclosure — visible to buyers so they know
+                  who they're transacting with (Req 4.8). */}
+                  {sellerIdentity && !isOwner && (
+                    <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t pt-3 text-xs">
+                      <div className="min-w-0">
+                        <dt className="text-muted-foreground">Legal entity</dt>
+                        <dd className="break-words font-medium">
+                          {sellerIdentity.legalEntityName}
+                        </dd>
+                      </div>
+                      {sellerIdentity.tradingName && (
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground">Trading as</dt>
+                          <dd className="break-words font-medium">
+                            {sellerIdentity.tradingName}
+                          </dd>
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <dt className="text-muted-foreground">Registration</dt>
+                        <dd className="break-words font-medium">
+                          {formatRegistrationNumber(
+                            sellerIdentity.registrationNumber,
+                          )}
+                        </dd>
+                      </div>
+                      {sellerIdentity.organisationType && (
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground">Type</dt>
+                          <dd className="break-words font-medium">
+                            {sellerIdentity.organisationType}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  )}
                 </div>
-                <StarRating
-                  rating={sellerRow?.rating ?? null}
-                  count={sellerRow?.rating_count ?? undefined}
-                />
               </div>
 
-              {/* Inline identity disclosure — visible to buyers so they know
-                  who they're transacting with (Req 4.8). */}
-              {sellerIdentity && !isOwner && (
-                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t pt-3 text-xs">
-                  <div>
-                    <dt className="text-muted-foreground">Legal entity</dt>
-                    <dd className="font-medium">{sellerIdentity.legalEntityName}</dd>
-                  </div>
-                  {sellerIdentity.tradingName && (
-                    <div>
-                      <dt className="text-muted-foreground">Trading as</dt>
-                      <dd className="font-medium">{sellerIdentity.tradingName}</dd>
-                    </div>
-                  )}
-                  <div>
-                    <dt className="text-muted-foreground">Registration</dt>
-                    <dd className="font-medium">
-                      {formatRegistrationNumber(sellerIdentity.registrationNumber)}
-                    </dd>
-                  </div>
-                  {sellerIdentity.organisationType && (
-                    <div>
-                      <dt className="text-muted-foreground">Type</dt>
-                      <dd className="font-medium">{sellerIdentity.organisationType}</dd>
-                    </div>
-                  )}
-                </dl>
-              )}
+              <section
+                aria-labelledby="description-heading"
+                className="space-y-2"
+              >
+                <h2 id="description-heading" className="text-sm font-medium">
+                  Description
+                </h2>
+                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground">
+                  {item.description}
+                </p>
+              </section>
+
+              {/* Transaction entry points, gated by viewer context. */}
+              <ItemActions
+                itemId={item.id}
+                itemTitle={item.title}
+                sellerId={item.owner_id}
+                fmvCents={item.fmv_cents}
+                isOwner={isOwner}
+                isAuthenticated={Boolean(user)}
+                isAvailable={isAvailable}
+                sellerIdentity={sellerIdentity}
+                activeSaleId={activeSaleId}
+                activeTradeId={activeTradeId}
+              />
             </div>
-          </div>
 
-          <section aria-labelledby="description-heading" className="space-y-2">
-            <h2 id="description-heading" className="text-sm font-medium">
-              Description
-            </h2>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {item.description}
-            </p>
-          </section>
-
-          {/* Transaction entry points, gated by viewer context. */}
-          <ItemActions
-            itemId={item.id}
-            itemTitle={item.title}
-            sellerId={item.owner_id}
-            fmvCents={item.fmv_cents}
-            isOwner={isOwner}
-            isAuthenticated={Boolean(user)}
-            isAvailable={isAvailable}
-            sellerIdentity={sellerIdentity}
-            activeSaleId={activeSaleId}
-            activeTradeId={activeTradeId}
-          />
-          </div>
-
-          {/* Message seller — pushed to bottom of details rail, just above
+            {/* Message seller — pushed to bottom of details rail, just above
               the save/report divider. */}
-          {/* `mt-auto` pushes this down when the column has slack, but collapses
+            {/* `mt-auto` pushes this down when the column has slack, but collapses
               to zero once the content fills it — `pt-6` guarantees breathing
               room above regardless of how tight the column gets. */}
-          {user && !isOwner && isAvailable && (
-            <div className="mt-auto pt-6">
-              <MessageSellerButton
-                itemId={item.id}
-                sellerId={item.owner_id}
-                variant="inline"
-              />
-            </div>
-          )}
+            {user && !isOwner && isAvailable && (
+              <div className="mt-auto pt-6">
+                <MessageSellerButton
+                  itemId={item.id}
+                  sellerId={item.owner_id}
+                  variant="inline"
+                />
+              </div>
+            )}
 
-          {/* Secondary, lower-emphasis actions — save + report. */}
-          {user && !isOwner && (
-            <div className="flex items-center justify-between gap-3 pt-4">
-              <WatchButton
-                itemId={item.id}
-                initialWatching={initialWatching}
-                className="w-auto"
-              />
-              <ReportDialog
-                targetType="item"
-                targetId={item.id}
-                triggerLabel="Report listing"
-              />
-            </div>
-          )}
+            {/* Secondary, lower-emphasis actions — save + report. */}
+            {user && !isOwner && (
+              <div className="flex items-center justify-between gap-3 pt-4">
+                <WatchButton
+                  itemId={item.id}
+                  initialWatching={initialWatching}
+                  className="w-auto"
+                />
+                <ReportDialog
+                  targetType="item"
+                  targetId={item.id}
+                  triggerLabel="Report listing"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </MarketplaceShell>
@@ -355,7 +421,9 @@ function ItemActions({
       const contractHref = activeSaleId
         ? `/sales/${activeSaleId}`
         : `/trades/${activeTradeId}`;
-      const contractLabel = activeSaleId ? 'Open sale contract' : 'Open trade contract';
+      const contractLabel = activeSaleId
+        ? "Open sale contract"
+        : "Open trade contract";
       return (
         <div className="space-y-3">
           <Card className="border-gold/40 bg-gold/5">

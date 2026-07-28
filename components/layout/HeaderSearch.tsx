@@ -17,8 +17,10 @@ import { cn } from '@/lib/utils';
 function HeaderSearchFallback({ className }: { className?: string }) {
   return (
     <div role="search" className={cn('relative w-full', className)}>
+      {/* Default icon colour suits light surfaces (e.g. the menu panel); the
+          `.market-search` styles in globals.css recolour it for the dark bar. */}
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-parchment/50"
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70"
         aria-hidden="true"
       />
       <Input
@@ -82,7 +84,7 @@ function HeaderSearchInner({ className }: { className?: string }) {
       className={cn('relative w-full', className)}
     >
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-parchment/50"
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70"
         aria-hidden="true"
       />
       <Input

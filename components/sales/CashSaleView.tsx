@@ -28,7 +28,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ContractWorkspace } from '@/components/layout/ContractWorkspace';
 import { CashSaleChat } from './CashSaleChat';
@@ -281,6 +283,8 @@ export function CashSaleView({
   const [disputeReason, setDisputeReason] = useState('');
   const [chatId, setChatId] = useState<string | null>(conversationId);
   const [chatError, setChatError] = useState(false);
+  // Which irreversible action (if any) is awaiting explicit confirmation.
+  const [confirming, setConfirming] = useState<'cancel' | 'dispute' | null>(null);
   // Which method the selector picked while its required details are still missing.
   const [detailsFor, setDetailsFor] = useState<'DELIVERY' | 'IN_PERSON' | null>(null);
 
@@ -408,10 +412,12 @@ export function CashSaleView({
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Purchase contract
           </p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight">
+          {/* The page shell already renders the route <h1>; this is the
+              contract's own title within that document. */}
+          <h2 className="truncate text-2xl font-semibold tracking-tight">
             {sale.item_title}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          </h2>
+          <p className="mt-1 text-sm tabular-nums text-muted-foreground">
             {formatAud(sale.amount_cents)} total · {formatAud(itemTotal)} item
             {sale.shipping_cost_cents > 0
               ? ` · ${formatAud(sale.shipping_cost_cents)} shipping`
@@ -465,7 +471,7 @@ export function CashSaleView({
             </p>
           ) : (
             <>
-              <ul className="flex items-center gap-2 text-sm" aria-live="polite">
+              <ul className="flex min-w-0 flex-wrap items-center gap-2 text-sm" aria-live="polite">
                 {(
                   [
                     { label: 'You', accepted: iAccepted },
@@ -478,28 +484,29 @@ export function CashSaleView({
                   <li
                     key={entry.label}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-full border px-3 py-1',
+                      'flex min-w-0 max-w-full items-center gap-1.5 rounded-full border px-3 py-1',
                       entry.accepted
                         ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-700'
                         : 'border-border bg-muted/50 text-muted-foreground',
                     )}
                   >
                     {entry.accepted ? (
-                      <Check className="size-3.5" aria-hidden />
+                      <Check className="size-3.5 shrink-0" aria-hidden />
                     ) : (
-                      <CircleDot className="size-3.5" aria-hidden />
+                      <CircleDot className="size-3.5 shrink-0" aria-hidden />
                     )}
-                    <span className="text-xs font-medium">
+                    <span className="truncate text-xs font-medium">
                       {entry.label} {entry.accepted ? '✓' : '— pending'}
                     </span>
                   </li>
                 ))}
               </ul>
 
-              <div className="ml-auto flex items-center gap-2">
+              {/* Full-height buttons: this is the critical action strip on
+                  mobile, so it keeps proper touch targets. */}
+              <div className="ml-auto flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
-                  size="sm"
                   disabled={!termsSet || iAccepted || isPending}
                   aria-busy={busy('accept')}
                   onClick={() =>
@@ -521,17 +528,10 @@ export function CashSaleView({
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
                   variant="ghost"
                   disabled={isPending}
                   aria-busy={busy('cancel')}
-                  onClick={() =>
-                    run(
-                      'cancel',
-                      () => cancelCashSaleAgreement(sale.id),
-                      'Contract cancelled. The item is available again.',
-                    )
-                  }
+                  onClick={() => setConfirming('cancel')}
                 >
                   <X className="size-3.5" aria-hidden />
                   Cancel
@@ -602,7 +602,7 @@ export function CashSaleView({
                   {sale.dispute_reason ? (
                     <div className="mt-2 rounded-md border bg-muted/30 p-2">
                       <p className="text-xs font-medium text-muted-foreground">Reason given:</p>
-                      <p className="mt-0.5 whitespace-pre-wrap text-xs">{sale.dispute_reason}</p>
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-xs">{sale.dispute_reason}</p>
                     </div>
                   ) : null}
                 </div>
@@ -708,7 +708,7 @@ export function CashSaleView({
 
             {sale.tracking_number ? (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
-                <span>
+                <span className="min-w-0 break-all">
                   {sale.tracking_carrier} · {sale.tracking_number}
                   {sale.tracking_status ? (
                     <span className="ml-2 text-xs uppercase tracking-wide text-muted-foreground">
@@ -865,10 +865,14 @@ export function CashSaleView({
                   Accept the item
                 </Button>
                 <div className="space-y-2">
+                  <Label htmlFor="cash-sale-dispute-reason">
+                    Something wrong? Describe the issue to raise a dispute.
+                  </Label>
                   <Textarea
+                    id="cash-sale-dispute-reason"
                     value={disputeReason}
                     onChange={(event) => setDisputeReason(event.target.value)}
-                    placeholder="Something wrong? Describe the issue to raise a dispute."
+                    placeholder="e.g. The card arrived with a crease not shown in the photos…"
                     rows={2}
                   />
                   <Button
@@ -876,13 +880,7 @@ export function CashSaleView({
                     variant="destructive"
                     disabled={!disputeReason.trim() || isPending}
                     aria-busy={busy('dispute')}
-                    onClick={() =>
-                      run(
-                        'dispute',
-                        () => disputeCashSale(sale.id, disputeReason),
-                        'Dispute raised.',
-                      )
-                    }
+                    onClick={() => setConfirming('dispute')}
                   >
                     Raise dispute
                   </Button>
@@ -1055,19 +1053,19 @@ export function CashSaleView({
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Delivery address (private)
                 </p>
-                <p className="mt-1 whitespace-pre-wrap">{sale.delivery_address}</p>
+                <p className="mt-1 whitespace-pre-wrap break-words">{sale.delivery_address}</p>
               </div>
               {sale.shipping_notes ? (
-                <p className="whitespace-pre-wrap text-muted-foreground">
+                <p className="whitespace-pre-wrap break-words text-muted-foreground">
                   {sale.shipping_notes}
                 </p>
               ) : null}
             </>
           ) : (
             <>
-              <p className="flex items-center gap-2">
-                <MapPin className="size-4 text-primary" aria-hidden />
-                Meet at {sale.meeting_location}
+              <p className="flex items-start gap-2">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                <span className="min-w-0 break-words">Meet at {sale.meeting_location}</span>
               </p>
               <p className="text-muted-foreground">
                 {formatDateTime(sale.meeting_at) ?? 'No time agreed yet.'}
@@ -1214,7 +1212,7 @@ export function CashSaleView({
             <ol className="space-y-2 text-sm">
               {events.map((event) => (
                 <li key={event.id} className="flex flex-wrap justify-between gap-2">
-                  <span>
+                  <span className="min-w-0 break-words">
                     {event.event.toLowerCase().replace(/_/g, ' ')}
                     {event.detail ? (
                       <span className="text-muted-foreground"> — {event.detail}</span>
@@ -1229,6 +1227,38 @@ export function CashSaleView({
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Confirmation steps for the two irreversible actions in this room. */}
+      <ConfirmDialog
+        open={confirming === 'cancel'}
+        onOpenChange={(next) => setConfirming(next ? 'cancel' : null)}
+        title="Cancel this contract?"
+        description={`The agreement with ${them.name} ends and "${sale.item_title}" returns to the catalog. This cannot be undone.`}
+        confirmLabel="Cancel contract"
+        confirmVariant="destructive"
+        pending={busy('cancel')}
+        onConfirm={() => {
+          setConfirming(null);
+          run(
+            'cancel',
+            () => cancelCashSaleAgreement(sale.id),
+            'Contract cancelled. The item is available again.',
+          );
+        }}
+      />
+      <ConfirmDialog
+        open={confirming === 'dispute'}
+        onOpenChange={(next) => setConfirming(next ? 'dispute' : null)}
+        title="Raise a dispute?"
+        description="Funds stay locked in escrow while the case is reviewed, and the seller is notified immediately. You cannot undo this."
+        confirmLabel="Raise dispute"
+        confirmVariant="destructive"
+        pending={busy('dispute')}
+        onConfirm={() => {
+          setConfirming(null);
+          run('dispute', () => disputeCashSale(sale.id, disputeReason), 'Dispute raised.');
+        }}
+      />
     </div>
   );
 }

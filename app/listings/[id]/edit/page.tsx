@@ -66,14 +66,16 @@ export default async function EditListingPage({
   // Only AVAILABLE items are mutable (Req 3.5).
   if (item.status !== "AVAILABLE") {
     return (
-      <MarketplaceShell title="Edit Listing" contentWidth="form" center>
+      <MarketplaceShell title="Edit Listing" center>
         <NotEditable itemId={item.id} status={item.status} />
       </MarketplaceShell>
     );
   }
 
+  // Same canvas as the create flow, so the form renders identically in both
+  // entry points.
   return (
-    <MarketplaceShell title="Edit Listing" contentWidth="detail" center>
+    <MarketplaceShell title="Edit Listing">
       <ItemForm mode="edit" item={item} />
     </MarketplaceShell>
   );

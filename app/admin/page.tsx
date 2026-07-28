@@ -57,7 +57,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
 /** Render the 403-style "Not authorized" page without leaking any data. */
 function NotAuthorized() {
   return (
-    <PageShell width="form" centered>
+    <PageShell centered>
       <EmptyState
         icon={<ShieldAlert className="size-6" aria-hidden />}
         title="Not authorized"
@@ -145,9 +145,9 @@ export default async function AdminPage() {
   const openCount = reports.filter((r) => r.status === 'OPEN').length;
 
   return (
-    <MarketplaceShell title="Admin" contentWidth="detail">
+    <MarketplaceShell title="Admin">
       <header className="mb-8 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-bold tracking-[-0.035em] sm:text-3xl">
+        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
           Moderation console
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
@@ -196,11 +196,11 @@ export default async function AdminPage() {
                           </Badge>
                           <CardTitle className="text-base">{report.reason}</CardTitle>
                         </div>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="shrink-0 text-xs text-muted-foreground">
                           {formatRelativeTime(report.created_at)}
                         </span>
                       </div>
-                      <CardDescription>
+                      <CardDescription className="break-words">
                         Reported by {reporterName} ·{' '}
                         <Link
                           href={targetHref}
@@ -212,7 +212,7 @@ export default async function AdminPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {report.details ? (
-                        <p className="whitespace-pre-line text-sm text-foreground">
+                        <p className="whitespace-pre-line break-words text-sm text-foreground">
                           {report.details}
                         </p>
                       ) : (
@@ -268,7 +268,7 @@ export default async function AdminPage() {
                         <Badge variant="destructive">Manual reconciliation</Badge>
                         <Badge variant="outline">{trade.state}</Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="shrink-0 text-xs text-muted-foreground">
                         {formatRelativeTime(trade.created_at)}
                       </span>
                     </div>

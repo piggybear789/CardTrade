@@ -108,7 +108,7 @@ export default async function SellerProfilePage({
   const displayName = seller.displayName ?? 'Unknown seller';
 
   return (
-    <MarketplaceShell title="Seller" contentWidth="detail">
+    <MarketplaceShell title="Seller">
       <nav className="mb-6" aria-label="Breadcrumb">
         <Link
           href="/listings"
@@ -122,11 +122,26 @@ export default async function SellerProfilePage({
       <header className="mb-8 space-y-2 border-b pb-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
+            {/* The shell rail already renders the page h1 ("Seller"), so the
+                name is an h2 to keep the document outline hierarchical —
+                mirroring the listing detail page. */}
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">{displayName}</h1>
+              <h2 className="min-w-0 break-words text-3xl font-semibold tracking-[-0.025em]">
+                {displayName}
+              </h2>
               {seller.isVerified && <VerifiedBadge size={18} />}
             </div>
-            <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
+            {reviews.length > 0 ? (
+              <Link
+                href="#reviews"
+                className="w-fit rounded-sm transition-colors hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Jump to ${reviews.length} reviews`}
+              >
+                <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
+              </Link>
+            ) : (
+              <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
+            )}
           </div>
 
           {canReport && (
@@ -147,24 +162,28 @@ export default async function SellerProfilePage({
             </div>
             <dl className="grid gap-3 sm:grid-cols-2">
               {sellerIdentity.tradingName ? (
-                <div>
+                <div className="min-w-0">
                   <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Store className="h-3.5 w-3.5" aria-hidden />
                     Store
                   </dt>
-                  <dd className="text-sm font-medium">{sellerIdentity.tradingName}</dd>
+                  <dd className="break-words text-sm font-medium">
+                    {sellerIdentity.tradingName}
+                  </dd>
                 </div>
               ) : null}
-              <div>
+              <div className="min-w-0">
                 <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Building2 className="h-3.5 w-3.5" aria-hidden />
                   Legal seller
                 </dt>
-                <dd className="text-sm font-medium">{sellerIdentity.legalEntityName}</dd>
+                <dd className="break-words text-sm font-medium">
+                  {sellerIdentity.legalEntityName}
+                </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs text-muted-foreground">Registration</dt>
-                <dd className="text-sm font-medium">
+                <dd className="break-words text-sm font-medium">
                   {formatRegistrationNumber(sellerIdentity.registrationNumber)}
                 </dd>
               </div>
@@ -192,7 +211,7 @@ export default async function SellerProfilePage({
             compact
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
             {catalogItems.map((item) => (
               <ItemCard key={item.id} item={item} />
             ))}
@@ -201,7 +220,7 @@ export default async function SellerProfilePage({
       </section>
 
       {/* Reviews */}
-      <section aria-labelledby="reviews-heading">
+      <section id="reviews" aria-labelledby="reviews-heading" className="scroll-mt-24">
         <h2 id="reviews-heading" className="mb-4 text-xl font-semibold">
           Reviews {reviews.length > 0 ? `(${reviews.length})` : ''}
         </h2>

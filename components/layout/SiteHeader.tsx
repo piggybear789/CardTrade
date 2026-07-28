@@ -6,14 +6,13 @@
 // island is the sign-out control (see SignOutButton).
 
 import Link from 'next/link';
-import { Menu, ShieldCheck, UserRound } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/layout/Logo';
-import { SignOutButton } from '@/components/layout/SignOutButton';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
+import { SiteMenu } from '@/components/layout/SiteMenu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export async function SiteHeader() {
@@ -41,24 +40,13 @@ export async function SiteHeader() {
     isAdmin = Boolean(profile?.is_admin);
   }
 
-  // The top bar stays transactional: browse, sell, deal. Personal sections
-  // (messages, notifications, account) live in the marketplace rail, so they
-  // only appear in the mobile menu where no rail nav is present.
-  const personalLinks = isAuthenticated
-    ? [
-        { href: '/purchases', label: 'Purchases' },
-        { href: '/sales', label: 'Sales' },
-        { href: '/trades', label: 'Trades' },
-        { href: '/messages', label: 'Messages' },
-        { href: '/notifications', label: 'Notifications' },
-        { href: '/profile', label: 'Account' },
-        ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
-      ]
-    : [];
-
+  // The top bar stays transactional: browse, sell, deal. Everything personal
+  // (purchases, sales, messages, profile, admin, sign-out) lives behind the
+  // burger menu on every screen size, so signing in never floods the bar with
+  // a row of new controls.
   return (
-    <header className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent">
-      <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:px-5">
+    <header className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent">
+      <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           {/* The wordmark doubles as the route home, which is what users expect
               of a site logo. */}
@@ -85,37 +73,17 @@ export async function SiteHeader() {
         </div>
 
         <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">
-          <HeaderSearch />
+          <HeaderSearch className="market-search" />
         </div>
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-1 text-parchment sm:gap-2">
           {isAuthenticated && user ? (
-            <>
-              {isAdmin ? (
-                <nav aria-label="Admin" className="hidden items-center lg:flex">
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href="/admin">Admin</Link>
-                  </Button>
-                </nav>
-              ) : null}
-              <NotificationBell
-                userId={user.id}
-                initialNotifications={
-                  initialNotifications?.ok ? initialNotifications.notifications : []
-                }
-              />
-              <div className="hidden lg:block">
-                <Button asChild variant="ghost" size="sm">
-                  <Link href="/profile">
-                    <UserRound aria-hidden />
-                    Profile
-                  </Link>
-                </Button>
-              </div>
-              <div className="hidden lg:block">
-                <SignOutButton />
-              </div>
-            </>
+            <NotificationBell
+              userId={user.id}
+              initialNotifications={
+                initialNotifications?.ok ? initialNotifications.notifications : []
+              }
+            />
           ) : (
             <nav aria-label="Account" className="hidden items-center gap-1 lg:flex">
               <Button asChild variant="ghost" size="sm">
@@ -131,54 +99,7 @@ export async function SiteHeader() {
             </nav>
           )}
 
-          <details className="group relative lg:hidden">
-            <summary className="flex size-10 cursor-pointer list-none items-center justify-center rounded-md hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold [&::-webkit-details-marker]:hidden">
-              <Menu className="size-5" aria-hidden />
-              <span className="sr-only">Toggle navigation</span>
-            </summary>
-            <div className="absolute right-0 top-12 z-50 w-64 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-auction">
-              <div className="p-1 sm:hidden">
-                <HeaderSearch />
-              </div>
-              <nav aria-label="Mobile navigation" className="grid gap-1">
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/listings">Marketplace</Link>
-                </Button>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/listings/new">Sell an item</Link>
-                </Button>
-                {isAuthenticated ? (
-                  <>
-                    <Button asChild variant="ghost" className="justify-start">
-                      <Link href="/deals">Deals</Link>
-                    </Button>
-                    <div className="my-1 border-t" />
-                    {personalLinks.map((link) => (
-                      <Button
-                        key={link.href}
-                        asChild
-                        variant="ghost"
-                        className="justify-start"
-                      >
-                        <Link href={link.href}>{link.label}</Link>
-                      </Button>
-                    ))}
-                    <SignOutButton className="w-full justify-start" />
-                  </>
-                ) : (
-                  <>
-                    <div className="my-1 border-t" />
-                    <Button asChild variant="ghost" className="justify-start">
-                      <Link href="/sign-in">Sign in</Link>
-                    </Button>
-                    <Button asChild className="justify-start">
-                      <Link href="/sign-up">Get started</Link>
-                    </Button>
-                  </>
-                )}
-              </nav>
-            </div>
-          </details>
+          <SiteMenu isAuthenticated={isAuthenticated} isAdmin={isAdmin} />
         </div>
       </div>
     </header>

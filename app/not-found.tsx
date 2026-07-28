@@ -19,7 +19,7 @@ export default function NotFound() {
         <Compass className="size-6" aria-hidden="true" />
       </div>
       <p className="cardtrade-eyebrow mt-6">Error 404</p>
-      <h1 className="mt-4 font-display text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
+      <h1 className="mt-4 text-balance font-display text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl">
         We couldn&apos;t find that page
       </h1>
       <p className="mt-3 text-pretty leading-7 text-muted-foreground">

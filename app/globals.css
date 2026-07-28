@@ -32,28 +32,9 @@
     --radius: 0.625rem;
   }
 
-  .dark {
-    --background: 30 9% 5%;
-    --foreground: 42 30% 93%;
-    --card: 30 8% 8%;
-    --card-foreground: 42 30% 93%;
-    --popover: 30 8% 9%;
-    --popover-foreground: 42 30% 93%;
-    --primary: 40 45% 90%;
-    --primary-foreground: 30 9% 7%;
-    --secondary: 30 8% 15%;
-    --secondary-foreground: 42 30% 93%;
-    --muted: 30 7% 14%;
-    --muted-foreground: 37 12% 65%;
-    --accent: 38 24% 19%;
-    --accent-foreground: 42 30% 94%;
-    --destructive: 2 59% 37%;
-    --destructive-foreground: 42 30% 94%;
-    --border: 35 12% 22%;
-    --input: 35 12% 26%;
-    --ring: 42 62% 58%;
-    --trust: 172 66% 48%;
-  }
+  /* The app ships a single light theme (see `colorScheme: 'light'` in the
+     root layout); dark surfaces like the header use explicit tokens instead
+     of a mode switch. */
 
   * {
     @apply border-border;
@@ -61,6 +42,9 @@
 
   html {
     scroll-padding-top: 5rem;
+    /* Focus rings already communicate the tap; the grey flash just looks
+       broken next to them on Android/iOS. */
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
@@ -69,7 +53,6 @@
       radial-gradient(circle at 8% 0%, hsl(var(--gold) / 0.055), transparent 24rem),
       linear-gradient(hsl(var(--foreground) / 0.018) 1px, transparent 1px);
     background-size: auto, 100% 4rem;
-    font-feature-settings: 'kern' 1, 'ss01' 1, 'cv11' 1;
   }
 
   ::selection {
@@ -86,9 +69,11 @@
     background-color: hsl(var(--trust) / 0.1);
   }
 
+  /* Eyebrow labels and ledger figures speak in mono; everything else is
+     Geist Sans. */
   .cardtrade-eyebrow,
   .market-label {
-    @apply font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.12em];
+    @apply font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em];
   }
 
   .cardtrade-eyebrow {
@@ -98,21 +83,24 @@
     background-color: hsl(var(--gold) / 0.08);
   }
 
-  .market-header input {
+  /* Parchment-on-obsidian field styles for the search that sits directly in
+     the dark top bar. Scoped by class (not `.market-header input`) because
+     the burger menu's light popover also mounts a search inside the header. */
+  .market-search input {
     color: hsl(var(--primary-foreground));
     border-color: hsl(var(--primary-foreground) / 0.17);
     background: hsl(var(--primary-foreground) / 0.07);
   }
 
-  .market-header input::placeholder {
+  .market-search input::placeholder {
     color: hsl(var(--primary-foreground) / 0.48);
   }
 
-  .market-header [role='search'] > svg {
+  .market-search > svg {
     color: hsl(var(--primary-foreground) / 0.5);
   }
 
-  .market-header input:focus-visible {
+  .market-search input:focus-visible {
     border-color: hsl(var(--gold) / 0.7);
   }
 
@@ -126,7 +114,7 @@
   }
 
   .display-value {
-    @apply font-sans font-bold tabular-nums tracking-[-0.025em];
+    @apply font-mono font-bold tabular-nums tracking-[-0.01em];
     font-variant-numeric: lining-nums tabular-nums;
   }
 
@@ -141,7 +129,9 @@
   *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }

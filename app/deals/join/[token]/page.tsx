@@ -87,7 +87,7 @@ export default async function JoinDealPage({
       notFound();
     }
     return (
-      <PageShell width="form" centered>
+      <PageShell centered>
         <Card>
           <CardHeader>
             <h1 className="text-xl font-semibold leading-none tracking-tight">
@@ -118,14 +118,14 @@ export default async function JoinDealPage({
   const creatorName = preview.creatorName?.trim() || 'A Poke-xchange member';
 
   return (
-    <PageShell width="form" centered>
+    <PageShell centered>
       <Card>
         <CardHeader>
           <p className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Handshake className="size-4" aria-hidden />
             Private deal
           </p>
-          <h1 className="text-xl font-semibold leading-none tracking-tight">
+          <h1 className="break-words text-xl font-semibold leading-tight tracking-tight">
             {preview.title}
           </h1>
           <CardDescription className="flex flex-wrap items-center gap-1.5">
@@ -190,7 +190,7 @@ export default async function JoinDealPage({
                 <p className="mt-1 text-muted-foreground">No cash component.</p>
               ) : (
                 <>
-                  <p className="mt-1">
+                  <p className="mt-1 tabular-nums">
                     {formatAud(preview.cashAmountCents)} paid by{' '}
                     <strong>
                       {preview.cashPayerIsCreator
@@ -201,7 +201,7 @@ export default async function JoinDealPage({
                     </strong>
                   </p>
                   {preview.deliveryCostCents ? (
-                    <p className="mt-1 text-muted-foreground">
+                    <p className="mt-1 tabular-nums text-muted-foreground">
                       Plus {formatAud(preview.deliveryCostCents)} delivery —{' '}
                       {formatAud(
                         preview.cashAmountCents + preview.deliveryCostCents,
@@ -219,7 +219,9 @@ export default async function JoinDealPage({
               </p>
               {preview.handoverMethod === 'IN_PERSON' ? (
                 <>
-                  <p className="mt-1">Face to face — {preview.meetingLocation}</p>
+                  <p className="mt-1 break-words">
+                    Face to face — {preview.meetingLocation}
+                  </p>
                   <p className="mt-1 text-muted-foreground">
                     {preview.meetingAt
                       ? new Date(preview.meetingAt).toLocaleString('en-AU', {
@@ -323,7 +325,7 @@ function PreviewField({
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-1 whitespace-pre-wrap">
+      <p className="mt-1 whitespace-pre-wrap break-words">
         {value?.trim() ? (
           value
         ) : (

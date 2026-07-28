@@ -424,13 +424,6 @@ function CashSaleRoom({
                         ? `Accept terms & pay ${formatAud(sale.amount_cents)}`
                         : 'Accept terms'}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => focusSection(CASH_SALE_SECTIONS.terms)}
-                    >
-                      Edit terms
-                    </Button>
                   </>
                 ) : null}
                 <Button
@@ -820,15 +813,9 @@ function CashSaleRoom({
                 }
               />
               {editable ? (
-                <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    Both parties must accept version {sale.terms_version} before payment.
-                    Editing creates a new version and clears any acceptance.
-                  </p>
-                  <div className="flex justify-end">
-                    <CashSaleTermsDialog sale={sale} />
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Both parties must accept version {sale.terms_version} before payment.
+                </p>
               ) : null}
             </div>
           )}

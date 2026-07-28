@@ -132,7 +132,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 1. Somebody proposes how the item changes hands. Either party may.
   drafts.push({
     id: 'terms',
-    short: 'Delivery',
+    short: 'Terms',
     label: 'Propose handover terms',
     detail: termsSet
       ? isDelivery

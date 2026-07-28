@@ -122,7 +122,7 @@ export function useConversationRealtime(
     };
 
     const scheduleReconnect = () => {
-      if (!isMounted) return;
+      if (!isMounted || reconnectTimer !== null) return;
       if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         setConnectionStatus('error');
         return;
@@ -131,6 +131,7 @@ export function useConversationRealtime(
       reconnectAttempts += 1;
       setConnectionStatus('reconnecting');
       reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
         if (!isMounted) return;
         subscribe();
       }, delay);
@@ -139,13 +140,13 @@ export function useConversationRealtime(
     const subscribe = () => {
       if (!isMounted) return;
 
-      // Tear down any previous channel before creating a fresh one.
-      if (channel) {
-        supabase.removeChannel(channel);
-        channel = null;
-      }
+      // Retire the previous channel before replacing it. Its eventual CLOSED callback
+      // is ignored because callbacks only act while their channel is still current.
+      const previousChannel = channel;
+      channel = null;
+      if (previousChannel) void supabase.removeChannel(previousChannel);
 
-      channel = supabase
+      const nextChannel = supabase
         .channel(`conversation:${conversationId}`)
         .on(
           'postgres_changes',
@@ -172,24 +173,32 @@ export function useConversationRealtime(
             applyMessageChange(
               payload as RealtimePostgresChangesPayload<MessageRow>,
             ),
-        )
-        .subscribe((status) => {
-          if (!isMounted) return;
-          switch (status) {
-            case 'SUBSCRIBED':
-              // Fresh, authoritative snapshot on (re)connect avoids missing any
-              // messages that arrived while the channel was down.
-              reconnectAttempts = 0;
-              setConnectionStatus('live');
-              void loadInitial();
-              break;
-            case 'CHANNEL_ERROR':
-            case 'TIMED_OUT':
-            case 'CLOSED':
-              scheduleReconnect();
-              break;
-          }
-        });
+        );
+
+      channel = nextChannel;
+      nextChannel.subscribe((status) => {
+        if (!isMounted || channel !== nextChannel) return;
+        switch (status) {
+          case 'SUBSCRIBED':
+            // A successful subscription invalidates any retry queued by an earlier
+            // terminal callback and refreshes messages missed while disconnected.
+            if (reconnectTimer) {
+              clearTimeout(reconnectTimer);
+              reconnectTimer = null;
+            }
+            reconnectAttempts = 0;
+            setConnectionStatus('live');
+            void loadInitial();
+            break;
+          case 'CHANNEL_ERROR':
+          case 'TIMED_OUT':
+          case 'CLOSED':
+            channel = null;
+            void supabase.removeChannel(nextChannel);
+            scheduleReconnect();
+            break;
+        }
+      });
     };
 
     setConnectionStatus('connecting');

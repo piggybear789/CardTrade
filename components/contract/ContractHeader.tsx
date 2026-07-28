@@ -38,7 +38,9 @@ export function ContractHeader({
   connectionStatus,
   className,
 }: ContractHeaderProps) {
-  const degraded = connectionStatus !== undefined && connectionStatus !== 'live';
+  // Initial connection and brief retries are normal background work. Only surface a
+  // terminal failure, when the contract may actually be showing stale information.
+  const degraded = connectionStatus === 'error';
 
   return (
     <Card className={cn('border-border/90 shadow-sm', className)}>

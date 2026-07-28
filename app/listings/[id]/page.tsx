@@ -36,6 +36,7 @@ import {
   ImageGallery,
   type GalleryImage,
 } from "@/components/listings/ImageGallery";
+import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { StarRating } from "@/components/listings/StarRating";
@@ -455,6 +456,7 @@ function ItemActions({
             Edit listing
           </Link>
         </Button>
+        <CopyTradeLink itemId={itemId} />
         <DeleteListingDialog itemId={itemId} itemTitle={itemTitle} />
       </div>
     );

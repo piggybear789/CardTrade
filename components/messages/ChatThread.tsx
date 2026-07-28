@@ -27,10 +27,7 @@ import { ArrowLeft, Loader2, Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  useConversationRealtime,
-  type ConnectionStatus,
-} from '@/lib/realtime/useConversationRealtime';
+import { useConversationRealtime } from '@/lib/realtime/useConversationRealtime';
 import {
   sendMessage,
   markConversationRead,
@@ -53,14 +50,6 @@ export interface ChatThreadProps {
   /** Set when this thread belongs to a 2-way trade's contract room. */
   trade?: { id: string } | null;
 }
-
-/** Label + tone for the realtime connection indicator. */
-const CONNECTION_LABEL: Record<ConnectionStatus, { text: string; dot: string }> = {
-  connecting: { text: 'Connecting…', dot: 'bg-muted-foreground' },
-  live: { text: 'Live', dot: 'bg-emerald-500' },
-  reconnecting: { text: 'Reconnecting…', dot: 'bg-amber-500' },
-  error: { text: 'Offline', dot: 'bg-destructive' },
-};
 
 export function ChatThread({
   conversationId,
@@ -127,8 +116,6 @@ export function ChatThread({
     }
   }
 
-  const connection = CONNECTION_LABEL[connectionStatus];
-
   return (
     <section
       aria-label="Conversation"
@@ -186,13 +173,15 @@ export function ChatThread({
           </div>
         </div>
 
-        <span
-          className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
-          aria-live="polite"
-        >
-          <span className={cn('inline-block size-2 rounded-full', connection.dot)} aria-hidden />
-          {connection.text}
-        </span>
+        {connectionStatus === 'error' ? (
+          <span
+            className="flex shrink-0 items-center gap-1.5 text-xs text-destructive"
+            role="status"
+          >
+            <span className="inline-block size-2 rounded-full bg-destructive" aria-hidden />
+            Offline
+          </span>
+        ) : null}
       </header>
 
       {/* Message list (scrollable). */}

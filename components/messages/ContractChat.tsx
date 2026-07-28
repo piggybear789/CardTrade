@@ -126,10 +126,13 @@ export function ContractChat({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          {connectionStatus !== 'live' ? (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-2 rounded-full bg-amber-500" aria-hidden />
-              Connecting
+          {connectionStatus === 'error' ? (
+            <span
+              className="flex items-center gap-1.5 text-xs text-destructive"
+              role="status"
+            >
+              <span className="size-2 rounded-full bg-destructive" aria-hidden />
+              Offline
             </span>
           ) : null}
           {contractHref ? (

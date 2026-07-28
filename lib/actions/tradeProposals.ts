@@ -28,6 +28,7 @@ import {
   withdrawTradeProposal as withdrawTradeProposalUseCase,
   type RequestTradeProposalError,
   type RespondTradeProposalError,
+  type TradeCashDirection,
 } from '@/domain/orchestrator/tradeProposalRequest';
 import { createPrivateTradeItem, type ImageUpload } from '@/lib/actions/listings';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
@@ -93,8 +94,10 @@ export async function createTradeProposal(input: {
   offer: ProposalOffer;
   /** Further Items of the proposer's already listed or privately held goods. */
   extraItemIds?: string[];
-  /** Cash the proposer adds on top, proposer -> counterpart, in AUD cents. */
+  /** Cash amount in integer AUD cents. */
   cashAmountCents?: number;
+  /** Whether the proposer pays cash or requests it from the Counterpart. */
+  cashDirection?: TradeCashDirection;
   /** What the proposer says their whole side is worth, in AUD cents. */
   declaredValueCents?: number | null;
   message?: string | null;
@@ -132,25 +135,28 @@ export async function createTradeProposal(input: {
     proposerItemId = created.data.id;
   }
 
-  // Cash can only be offered to a Seller who can actually receive it, the same
-  // rule as a Cash_Sale (Req 3.9). Goods-only offers need nothing of the kind.
+  // The person receiving cash must be payout-approved, regardless of which
+  // participant the proposer selected to pay it.
   const cashAmountCents = Math.trunc(input.cashAmountCents ?? 0);
+  const cashDirection = input.cashDirection ?? 'PROPOSER_PAYS';
   if (cashAmountCents > 0) {
     const { data: requested } = await supabase
       .from('items')
       .select('owner_id')
       .eq('id', input.counterpartItemId)
       .maybeSingle();
-    const listerId = (requested?.owner_id as string | undefined) ?? null;
-    const listerIdentity = listerId
-      ? await loadSellerIdentityDisclosure(listerId)
+    const counterpartId = (requested?.owner_id as string | undefined) ?? null;
+    const receiverId =
+      cashDirection === 'COUNTERPART_PAYS' ? user.id : counterpartId;
+    const receiverIdentity = receiverId
+      ? await loadSellerIdentityDisclosure(receiverId)
       : null;
-    if (!listerIdentity) {
+    if (!receiverIdentity) {
       return {
         ok: false,
         error: 'cash-not-accepted',
         message:
-          'This trader cannot receive cash yet, so this offer has to be goods only.',
+          'The trader receiving cash must complete payout setup before this offer can be sent.',
       };
     }
   }
@@ -164,6 +170,7 @@ export async function createTradeProposal(input: {
       proposerItemId,
       extraItemIds: input.extraItemIds ?? [],
       cashAmountCents,
+      cashDirection,
       declaredValueCents: input.declaredValueCents ?? null,
       counterpartItemId: input.counterpartItemId,
       message: trimmed === '' ? null : trimmed.slice(0, TRADE_PROPOSAL_MESSAGE_MAX),
@@ -243,6 +250,7 @@ export async function acceptTradeProposal(
     p_initiator_extra_item_ids: authorized.initiatorExtraItemIds,
     p_counterpart_item_id: authorized.counterpartItemId,
     p_cash_amount_cents: authorized.cashAmountCents,
+    p_cash_direction: authorized.cashDirection,
   });
 
   if (finalizeError) {
@@ -328,6 +336,7 @@ export async function amendTradeProposal(input: {
   proposalId: string;
   extraItemIds?: string[];
   cashAmountCents?: number;
+  cashDirection?: TradeCashDirection;
   declaredValueCents?: number | null;
   message?: string | null;
 }): Promise<RespondTradeProposalResult> {
@@ -337,13 +346,31 @@ export async function amendTradeProposal(input: {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'unauthenticated' };
 
+  const repository = createDefaultTradeProposalRequestRepository();
+  const current = await repository.getProposal(input.proposalId);
+  const cashAmountCents = Math.trunc(input.cashAmountCents ?? 0);
+  const cashDirection = input.cashDirection ?? current?.cashDirection ?? 'PROPOSER_PAYS';
+  if (cashAmountCents > 0 && current?.proposerId === user.id) {
+    const receiverId =
+      cashDirection === 'COUNTERPART_PAYS' ? user.id : current.counterpartId;
+    if (!(await loadSellerIdentityDisclosure(receiverId))) {
+      return {
+        ok: false,
+        error: 'cash-not-accepted',
+        message:
+          'The trader receiving cash must complete payout setup before this offer can be updated.',
+      };
+    }
+  }
+
   const trimmed = (input.message ?? '').trim();
   const result = await amendTradeProposalUseCase(
     {
       proposalId: input.proposalId,
       actorId: user.id,
       extraItemIds: input.extraItemIds ?? [],
-      cashAmountCents: Math.trunc(input.cashAmountCents ?? 0),
+      cashAmountCents,
+      cashDirection,
       declaredValueCents: input.declaredValueCents ?? null,
       message: trimmed === '' ? null : trimmed.slice(0, TRADE_PROPOSAL_MESSAGE_MAX),
     },
@@ -399,10 +426,11 @@ export async function counterTradeProposal(input: {
   proposalId: string;
   /** The Item from the original offer you want, and any others in that offer. */
   wantedItemId: string;
-  /** Your own primary Item, plus any bundle and cash you are adding. */
+  /** Your own primary Item, plus any bundle and optional cash terms. */
   offeredItemId: string;
   extraItemIds?: string[];
   cashAmountCents?: number;
+  cashDirection?: TradeCashDirection;
   declaredValueCents?: number | null;
   message?: string | null;
 }): Promise<CreateTradeProposalResult> {
@@ -425,6 +453,21 @@ export async function counterTradeProposal(input: {
     return { ok: false, error: 'item-not-found' };
   }
 
+  const cashAmountCents = Math.trunc(input.cashAmountCents ?? 0);
+  const cashDirection = input.cashDirection ?? 'PROPOSER_PAYS';
+  if (cashAmountCents > 0) {
+    const receiverId =
+      cashDirection === 'COUNTERPART_PAYS' ? user.id : original.proposerId;
+    if (!(await loadSellerIdentityDisclosure(receiverId))) {
+      return {
+        ok: false,
+        error: 'cash-not-accepted',
+        message:
+          'The trader receiving cash must complete payout setup before this counter can be sent.',
+      };
+    }
+  }
+
   const trimmed = (input.message ?? '').trim();
   const result = await requestTradeProposal(
     {
@@ -432,7 +475,8 @@ export async function counterTradeProposal(input: {
       counterpartId: '',
       proposerItemId: input.offeredItemId,
       extraItemIds: input.extraItemIds ?? [],
-      cashAmountCents: Math.trunc(input.cashAmountCents ?? 0),
+      cashAmountCents,
+      cashDirection,
       declaredValueCents: input.declaredValueCents ?? null,
       counterpartItemId: input.wantedItemId,
       // The goods in the original offer may be privately held rather than listed.
@@ -475,8 +519,10 @@ export interface TradeProposalSummary {
     hidden: boolean;
   }[];
   requested: { id: string; title: string; fmvCents: number; imagePath: string | null };
-  /** Cash added on top, proposer -> counterpart. */
+  /** Cash amount in integer AUD cents. */
   cashAmountCents: number;
+  /** Which participant pays the cash. */
+  cashDirection: TradeCashDirection;
   /** The proposer's own valuation of their side, when they gave one. */
   declaredValueCents: number | null;
 }
@@ -503,7 +549,7 @@ export async function listMyTradeProposals(): Promise<
   const { data, error } = await supabase
     .from('trade_proposals')
     .select(
-      'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, message, created_at, cash_amount_cents, declared_value_cents, trade_proposal_items(item_id)',
+      'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, message, created_at, cash_amount_cents, cash_direction, declared_value_cents, trade_proposal_items(item_id)',
     )
     .eq('status', 'PENDING')
     .order('created_at', { ascending: false });
@@ -573,6 +619,7 @@ export async function listMyTradeProposals(): Promise<
       offered,
       requested,
       cashAmountCents: row.cash_amount_cents ?? 0,
+      cashDirection: row.cash_direction as TradeCashDirection,
       declaredValueCents: row.declared_value_cents ?? null,
     });
   }

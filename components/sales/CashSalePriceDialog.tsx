@@ -5,7 +5,7 @@
 // and clears both acceptances, so nothing is charged on the old number.
 
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
-import { Loader2, TicketPercent } from 'lucide-react';
+import { Loader2, TicketPercent as Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -68,8 +68,8 @@ export function CashSalePriceDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button type="button" variant="outline" size="sm">
-          <TicketPercent aria-hidden />
-          Request price change
+          <Pencil aria-hidden />
+          Edit
         </Button>
       </DialogTrigger>
       <DialogContent>

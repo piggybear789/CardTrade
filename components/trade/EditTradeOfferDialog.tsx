@@ -29,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatAud } from '@/lib/format';
 import { amendTradeProposal } from '@/lib/actions/tradeProposals';
 import { TRADE_PROPOSAL_MESSAGE_MAX } from '@/lib/marketplace-constants';
+import type { TradeCashDirection } from '@/domain/orchestrator/tradeProposalRequest';
 
 /** An item the proposer could include, with whether it is currently included. */
 export interface OfferableItem {
@@ -46,6 +47,7 @@ export interface EditTradeOfferDialogProps {
   /** Everything else the proposer could add. */
   offerableItems: OfferableItem[];
   currentCashCents: number;
+  currentCashDirection: TradeCashDirection;
   currentDeclaredValueCents: number | null;
   currentMessage: string | null;
   /** The value being asked for, so the running comparison still makes sense. */
@@ -81,6 +83,7 @@ export function EditTradeOfferDialog({
   currentExtraItemIds,
   offerableItems,
   currentCashCents,
+  currentCashDirection,
   currentDeclaredValueCents,
   currentMessage,
   requestedFmvCents,
@@ -92,6 +95,7 @@ export function EditTradeOfferDialog({
 
   const [extraItemIds, setExtraItemIds] = useState<string[]>(currentExtraItemIds);
   const [cashDollars, setCashDollars] = useState(centsToDollars(currentCashCents));
+  const [cashDirection, setCashDirection] = useState<TradeCashDirection>(currentCashDirection);
   const [valueDollars, setValueDollars] = useState(
     centsToDollars(currentDeclaredValueCents ?? 0),
   );
@@ -99,7 +103,10 @@ export function EditTradeOfferDialog({
 
   const cashAmountCents = dollarsToCents(cashDollars);
   const declaredValueCents = dollarsToCents(valueDollars);
-  const offerTotalCents = declaredValueCents + cashAmountCents;
+  const yourSideCents =
+    declaredValueCents + (cashDirection === 'PROPOSER_PAYS' ? cashAmountCents : 0);
+  const theirSideCents =
+    requestedFmvCents + (cashDirection === 'COUNTERPART_PAYS' ? cashAmountCents : 0);
 
   function toggleItem(itemId: string) {
     setExtraItemIds((current) =>
@@ -116,6 +123,7 @@ export function EditTradeOfferDialog({
         proposalId,
         extraItemIds,
         cashAmountCents,
+        cashDirection,
         declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
         message,
       });
@@ -177,9 +185,55 @@ export function EditTradeOfferDialog({
             </fieldset>
           ) : null}
 
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Cash adjustment</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label
+                className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm ${
+                  cashDirection === 'PROPOSER_PAYS' ? 'border-primary bg-primary/5' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="edit-cash-direction"
+                  value="PROPOSER_PAYS"
+                  checked={cashDirection === 'PROPOSER_PAYS'}
+                  onChange={() => setCashDirection('PROPOSER_PAYS')}
+                  className="mt-0.5"
+                  disabled={isPending}
+                />
+                <span>
+                  <span className="font-medium">I add cash</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">You pay them.</span>
+                </span>
+              </label>
+              <label
+                className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm ${
+                  cashDirection === 'COUNTERPART_PAYS' ? 'border-primary bg-primary/5' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="edit-cash-direction"
+                  value="COUNTERPART_PAYS"
+                  checked={cashDirection === 'COUNTERPART_PAYS'}
+                  onChange={() => setCashDirection('COUNTERPART_PAYS')}
+                  className="mt-0.5"
+                  disabled={isPending}
+                />
+                <span>
+                  <span className="font-medium">I request cash</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">They pay you.</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="edit-cash">Cash you add</Label>
+              <Label htmlFor="edit-cash">
+                {cashDirection === 'PROPOSER_PAYS' ? 'Cash you add' : 'Cash you request'}
+              </Label>
               <Input
                 id="edit-cash"
                 type="number"
@@ -224,8 +278,7 @@ export function EditTradeOfferDialog({
           </div>
 
           <p className="rounded-md border p-3 text-sm" role="status" aria-live="polite">
-            Your side {formatAud(offerTotalCents)} · their side{' '}
-            {formatAud(requestedFmvCents)}
+            You give {formatAud(yourSideCents)} · they give {formatAud(theirSideCents)}
           </p>
 
           {error ? (

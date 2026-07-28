@@ -107,3 +107,30 @@ export function formatRelativeTime(
     year: then.getFullYear() === now.getFullYear() ? undefined : 'numeric',
   });
 }
+
+/**
+ * Format an ISO timestamp as the absolute local date + time used across every
+ * contract room (cash sale, 2-way trade, private deal) — e.g.
+ * `"Tue, 28 Jul, 3:04 pm"`.
+ *
+ * Deliberately absolute rather than relative: contract rooms are rendered on the
+ * server and hydrated in the browser, and a relative label ("3h ago") computed
+ * at two different instants produces a hydration mismatch.
+ *
+ * Returns `null` for missing or unparseable input so callers can render nothing.
+ */
+export function formatContractDateTime(
+  iso: string | null | undefined,
+): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleString('en-AU', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+}

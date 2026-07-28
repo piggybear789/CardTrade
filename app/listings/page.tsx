@@ -209,7 +209,7 @@ export default async function ListingsPage({
                   slice, so cards were squeezed hardest exactly there. auto-fill
                   keeps tile size stable and lets the count fall out of the real
                   content box at every size. */}
-              <div className="grid gap-x-4 gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))]">
+              <div className="grid gap-x-4 gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
                 {items.map((item) => (
                   <ItemCard
                     key={item.id}

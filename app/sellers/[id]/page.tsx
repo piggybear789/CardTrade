@@ -224,7 +224,7 @@ export default async function SellerProfilePage({
         <h2 id="reviews-heading" className="mb-4 text-xl font-semibold">
           Reviews {reviews.length > 0 ? `(${reviews.length})` : ''}
         </h2>
-        <ReviewList reviews={reviews} />
+        <ReviewList reviews={reviews} revieweeName={displayName} />
       </section>
     </MarketplaceShell>
   );

@@ -9,29 +9,11 @@ import Link from 'next/link';
 import { ImageOff, ShoppingBag, Tag } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
-import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { formatAud, itemImageUrl } from '@/lib/format';
-import type { Enums } from '@/lib/supabase/database.types';
 import type { CashSaleSummary } from '@/lib/actions/account';
 import { EmptyState } from '@/components/account/EmptyState';
-
-/** Visual treatment for each cash-sale status. */
-const SALE_STATUS_BADGE: Record<
-  Enums<'cash_sale_status'>,
-  { label: string; variant: NonNullable<BadgeProps['variant']> }
-> = {
-  AGREEMENT: { label: 'Agreeing terms', variant: 'secondary' },
-  PAYMENT_PENDING: { label: 'Payment pending', variant: 'secondary' },
-  ESCROW_HELD: { label: 'Funds confirmed', variant: 'default' },
-  IN_TRANSIT: { label: 'In transit', variant: 'default' },
-  HANDOVER: { label: 'Handover', variant: 'default' },
-  INSPECTION: { label: 'Inspection', variant: 'default' },
-  COMPLETED: { label: 'Completed', variant: 'default' },
-  DISPUTED: { label: 'Disputed', variant: 'destructive' },
-  CANCELLED: { label: 'Cancelled', variant: 'outline' },
-  FAILED: { label: 'Failed', variant: 'destructive' },
-  REFUNDED: { label: 'Refunded', variant: 'outline' },
-};
+// One status vocabulary for cash sales, shared with the contract room.
+import { CashSaleStatusBadge } from '@/components/sales/CashSaleStatusBadge';
 
 export function CashSalesSection({
   sales,
@@ -64,7 +46,6 @@ export function CashSalesSection({
     <ul role="list" className="space-y-3">
       {sales.map((sale) => {
         const imageUrl = itemImageUrl(sale.itemImagePath);
-        const status = SALE_STATUS_BADGE[sale.status];
         const title = sale.itemTitle ?? 'Item';
         return (
           <li key={sale.id}>
@@ -97,9 +78,7 @@ export function CashSalesSection({
                   </p>
                 </div>
 
-                <Badge variant={status.variant} className="shrink-0">
-                  {status.label}
-                </Badge>
+                <CashSaleStatusBadge status={sale.status} className="shrink-0" />
               </Link>
             </Card>
           </li>

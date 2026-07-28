@@ -4,13 +4,11 @@
 // caller, loads the sale under participant-only RLS plus an explicit guard, and
 // hands a snapshot to the live client room. Reviews unlock on completion.
 
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import { CashSaleView, type SaleParty } from '@/components/sales/CashSaleView';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
-import { Button } from '@/components/ui/button';
 import { myReviewFor } from '@/lib/actions/reviews';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -147,16 +145,6 @@ export default async function CashSalePage({
         </div>
       ) : null}
 
-      {sale.status === 'CANCELLED' || sale.status === 'FAILED' ? (
-        <div className="mt-6 rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">
-            This contract is closed and the item is back in the catalog.
-          </p>
-          <Button asChild variant="secondary" className="mt-3">
-            <Link href="/listings">Browse listings</Link>
-          </Button>
-        </div>
-      ) : null}
     </MarketplaceShell>
   );
 }

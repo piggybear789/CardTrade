@@ -2,29 +2,30 @@
 
 // components/deals/DealStateBadge.tsx
 //
-// Renders a private deal's state as a badge. Covers all eight `deal_state`
-// values so the deal room, the "My deals" list, and any future surface read the
-// same labels.
+// Renders a private deal's state as a badge. Covers all eight `deal_state` values
+// and renders through the shared <ContractStatusBadge/>, so the deal room, the
+// "My deals" list, and any future surface read the same labels with the same
+// treatment as a cash sale or a trade.
 
-import { Badge, type BadgeProps } from '@/components/ui/badge';
+import {
+  ContractStatusBadge,
+  type ContractStatusMap,
+} from '@/components/contract';
 import type { Enums } from '@/lib/supabase/database.types';
 
 /** The deal lifecycle state enum. */
 export type DealState = Enums<'deal_state'>;
 
-/** Visual treatment + label for each deal state. */
-const STATE_BADGE: Record<
-  DealState,
-  { label: string; variant: NonNullable<BadgeProps['variant']> }
-> = {
-  INVITED: { label: 'Awaiting counterparty', variant: 'secondary' },
-  TERMS: { label: 'Agreeing terms', variant: 'secondary' },
-  CONFIRMATION: { label: 'Awaiting confirmation', variant: 'outline' },
-  ESCROW_PENDING: { label: 'Placing collateral', variant: 'outline' },
-  ESCROW_LOCKED: { label: 'Binding — collateral locked', variant: 'default' },
-  COMPLETED: { label: 'Completed', variant: 'default' },
-  CANCELLED: { label: 'Cancelled', variant: 'secondary' },
-  DISPUTED: { label: 'Disputed', variant: 'destructive' },
+/** Label + badge tone for each deal state. */
+export const DEAL_STATUS_MAP: ContractStatusMap<DealState> = {
+  INVITED: { label: 'Awaiting counterparty', tone: 'secondary' },
+  TERMS: { label: 'Agreeing terms', tone: 'secondary' },
+  CONFIRMATION: { label: 'Awaiting confirmation', tone: 'outline' },
+  ESCROW_PENDING: { label: 'Placing collateral', tone: 'outline' },
+  ESCROW_LOCKED: { label: 'Binding — collateral locked', tone: 'default' },
+  COMPLETED: { label: 'Completed', tone: 'default' },
+  CANCELLED: { label: 'Cancelled', tone: 'secondary' },
+  DISPUTED: { label: 'Disputed', tone: 'destructive' },
 };
 
 export interface DealStateBadgeProps {
@@ -34,10 +35,12 @@ export interface DealStateBadgeProps {
 
 /** A badge showing the given deal state. */
 export function DealStateBadge({ state, className }: DealStateBadgeProps) {
-  const { label, variant } = STATE_BADGE[state];
   return (
-    <Badge variant={variant} className={className} aria-label={`Deal state: ${label}`}>
-      {label}
-    </Badge>
+    <ContractStatusBadge
+      status={state}
+      map={DEAL_STATUS_MAP}
+      kind="Deal state"
+      className={className}
+    />
   );
 }

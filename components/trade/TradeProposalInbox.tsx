@@ -148,6 +148,8 @@ export function TradeProposalInbox({
         {[...incoming, ...outgoing].map((proposal) => {
           const busy = busyId === proposal.id && isPending;
           const isIncoming = proposal.direction === 'incoming';
+          const viewerPaysCash =
+            proposal.cashDirection === 'PROPOSER_PAYS' ? !isIncoming : isIncoming;
           return (
             <li key={proposal.id}>
               <Card>
@@ -194,7 +196,7 @@ export function TradeProposalInbox({
                       {proposal.cashAmountCents > 0 ? (
                         <p className="flex items-center gap-2 pl-[3.75rem] text-sm font-semibold">
                           <Coins className="size-4 shrink-0 text-gold" aria-hidden="true" />
-                          and {formatAud(proposal.cashAmountCents)} cash
+                          {viewerPaysCash ? 'You pay' : 'They pay'} {formatAud(proposal.cashAmountCents)} cash
                         </p>
                       ) : null}
                       {proposal.declaredValueCents ? (
@@ -319,6 +321,7 @@ export function TradeProposalInbox({
                             (item) => item.id !== proposal.offered[0]?.id,
                           )}
                           currentCashCents={proposal.cashAmountCents}
+                          currentCashDirection={proposal.cashDirection}
                           currentDeclaredValueCents={proposal.declaredValueCents}
                           currentMessage={proposal.message}
                           requestedFmvCents={proposal.requested.fmvCents}

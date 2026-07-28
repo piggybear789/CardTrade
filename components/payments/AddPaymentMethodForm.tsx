@@ -158,7 +158,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
           <Label htmlFor="pm-month">Month</Label>
           <select
             id="pm-month"
-            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground"
             value={expiryMonth}
             onChange={(e) => setExpiryMonth(e.target.value)}
             disabled={busy}
@@ -174,7 +174,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
           <Label htmlFor="pm-year">Year</Label>
           <select
             id="pm-year"
-            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground"
             value={expiryYear}
             onChange={(e) => setExpiryYear(e.target.value)}
             disabled={busy}

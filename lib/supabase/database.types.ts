@@ -264,6 +264,7 @@ export type Database = {
           evidence_pack_path: string | null;
           evidence_pack_complete: boolean | null;
           cash_amount_cents: number;
+          cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
           friction_tax_return_cents: number | null;
           friction_tax_platform_cents: number | null;
           partial_capture_failed: boolean;
@@ -295,6 +296,7 @@ export type Database = {
           evidence_pack_path?: string | null;
           evidence_pack_complete?: boolean | null;
           cash_amount_cents?: number;
+          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
           friction_tax_return_cents?: number | null;
           friction_tax_platform_cents?: number | null;
           partial_capture_failed?: boolean;
@@ -312,6 +314,7 @@ export type Database = {
           initiator_item_id?: string;
           counterpart_item_id?: string;
           cash_amount_cents?: number;
+          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
           state?: Database['cardtrade']['Enums']['trade_state'];
           version?: number;
           initiator_shipped_at?: string | null;
@@ -782,6 +785,7 @@ export type Database = {
           message: string | null;
           trade_id: string | null;
           cash_amount_cents: number;
+          cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
           declared_value_cents: number | null;
           created_at: string;
           responded_at: string | null;
@@ -796,6 +800,7 @@ export type Database = {
           message?: string | null;
           trade_id?: string | null;
           cash_amount_cents?: number;
+          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
           declared_value_cents?: number | null;
           created_at?: string;
           responded_at?: string | null;
@@ -810,6 +815,7 @@ export type Database = {
           message?: string | null;
           trade_id?: string | null;
           cash_amount_cents?: number;
+          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
           declared_value_cents?: number | null;
           created_at?: string;
           responded_at?: string | null;
@@ -1425,6 +1431,7 @@ export type Database = {
           p_initiator_extra_item_ids: string[];
           p_counterpart_item_id: string;
           p_cash_amount_cents: number;
+          p_cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
         };
         Returns: Database['cardtrade']['Tables']['trade_proposals']['Row'];
       };
@@ -1458,6 +1465,7 @@ export type Database = {
         | 'DECLINED'
         | 'WITHDRAWN'
         | 'SUPERSEDED';
+      trade_cash_direction: 'PROPOSER_PAYS' | 'COUNTERPART_PAYS';
       trade_state:
         | 'COLLATERAL_PENDING'
         | 'COLLATERAL_LOCKED'

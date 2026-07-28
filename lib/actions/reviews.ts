@@ -245,6 +245,13 @@ export async function leaveReview(
 // getReviewsFor
 // ---------------------------------------------------------------------------
 
+/**
+ * How `userId` (the reviewee whose profile is being viewed) related to the
+ * reviewer in the underlying transaction, so the UI can render "Bought item
+ * from ___" / "Sold item to ___" / "Traded item with ___".
+ */
+export type ReviewTransactionKind = 'bought' | 'sold' | 'traded';
+
 /** A review enriched with the reviewer's public display name, for the UI. */
 export interface ReviewWithReviewer {
   id: string;
@@ -253,12 +260,23 @@ export interface ReviewWithReviewer {
   createdAt: string;
   reviewerId: string;
   reviewerName: string | null;
+  /** The transaction kind, from the reviewee's perspective. */
+  transactionKind: ReviewTransactionKind;
+  /**
+   * The transaction's value in AUD cents, when it can be determined: the
+   * agreed item price for a cash sale, or the Fair_Market_Value of the goods
+   * `userId` received for a trade (equal by design to what they gave up).
+   * `null` if the source transaction could not be resolved.
+   */
+  valueCents: number | null;
 }
 
 /**
  * Public reviews written ABOUT `userId`, newest first, enriched with each
- * reviewer's public display name (via `public_profiles`). Reviews are publicly
- * selectable under RLS, so this works for any user.
+ * reviewer's public display name (via `public_profiles`), the transaction
+ * kind (bought/sold/traded) from `userId`'s perspective, and the transaction
+ * value. Reviews are publicly selectable under RLS, so this works for any
+ * user.
  */
 export async function getReviewsFor(
   userId: string,
@@ -267,7 +285,7 @@ export async function getReviewsFor(
 
   const { data: reviews } = await supabase
     .from('reviews')
-    .select('id, rating, comment, created_at, reviewer_id')
+    .select('id, rating, comment, created_at, reviewer_id, source_type, source_id')
     .eq('reviewee_id', userId)
     .order('created_at', { ascending: false });
 
@@ -275,10 +293,44 @@ export async function getReviewsFor(
   if (rows.length === 0) return [];
 
   const reviewerIds = Array.from(new Set(rows.map((r) => r.reviewer_id)));
-  const { data: profiles } = await supabase
-    .from('public_profiles')
-    .select('id, display_name')
-    .in('id', reviewerIds);
+  const cashSaleIds = Array.from(
+    new Set(
+      rows.filter((r) => r.source_type === 'cash_sale').map((r) => r.source_id),
+    ),
+  );
+  const tradeIds = Array.from(
+    new Set(rows.filter((r) => r.source_type === 'trade').map((r) => r.source_id)),
+  );
+
+  const [{ data: profiles }, { data: cashSales }, { data: tradeItems }] =
+    await Promise.all([
+      supabase.from('public_profiles').select('id, display_name').in('id', reviewerIds),
+      cashSaleIds.length > 0
+        ? supabase
+            .from('cash_sales')
+            .select('id, buyer_id, seller_id, agreed_price_cents')
+            .in('id', cashSaleIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              buyer_id: string;
+              seller_id: string;
+              agreed_price_cents: number;
+            }[],
+          }),
+      tradeIds.length > 0
+        ? supabase
+            .from('trade_items')
+            .select('trade_id, trader_id, items(fmv_cents)')
+            .in('trade_id', tradeIds)
+        : Promise.resolve({
+            data: [] as {
+              trade_id: string;
+              trader_id: string;
+              items: { fmv_cents: number } | null;
+            }[],
+          }),
+    ]);
 
   const nameById = new Map<string, string | null>(
     (profiles ?? []).map((p) => [
@@ -287,14 +339,41 @@ export async function getReviewsFor(
     ]),
   );
 
-  return rows.map((r) => ({
-    id: r.id,
-    rating: r.rating,
-    comment: r.comment,
-    createdAt: r.created_at,
-    reviewerId: r.reviewer_id,
-    reviewerName: nameById.get(r.reviewer_id) ?? null,
-  }));
+  const cashSaleById = new Map((cashSales ?? []).map((s) => [s.id as string, s]));
+
+  // For each trade, sum the Fair_Market_Value of the items the OTHER trader
+  // contributed — that's what `userId` received, and by the equal-value trade
+  // rule it matches what they gave up.
+  const tradeValueByTradeId = new Map<string, number>();
+  for (const row of tradeItems ?? []) {
+    if (row.trader_id === userId) continue;
+    const fmv = row.items?.fmv_cents ?? 0;
+    tradeValueByTradeId.set(row.trade_id, (tradeValueByTradeId.get(row.trade_id) ?? 0) + fmv);
+  }
+
+  return rows.map((r) => {
+    let transactionKind: ReviewTransactionKind = 'traded';
+    let valueCents: number | null = null;
+
+    if (r.source_type === 'cash_sale') {
+      const sale = cashSaleById.get(r.source_id);
+      transactionKind = sale?.seller_id === userId ? 'sold' : 'bought';
+      valueCents = sale?.agreed_price_cents ?? null;
+    } else {
+      valueCents = tradeValueByTradeId.get(r.source_id) ?? null;
+    }
+
+    return {
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.created_at,
+      reviewerId: r.reviewer_id,
+      reviewerName: nameById.get(r.reviewer_id) ?? null,
+      transactionKind,
+      valueCents,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

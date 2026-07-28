@@ -41,7 +41,7 @@ export interface ContractChatProps {
 
 /**
  * Chat panel embedded in a contract room (demo-contract-ux Req 1). It is
- * always given a real bounded height by the parent `ContractWorkspace`, so
+ * always given a real bounded height by `ContractSplit`, so
  * only the message log scrolls — the header and composer stay pinned, and
  * the contract page itself never grows with the conversation.
  */
@@ -109,32 +109,35 @@ export function ContractChat({
   return (
     <section
       className={cn(
-        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card shadow-sm',
+        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/90 bg-card shadow-sm',
         className,
       )}
     >
-      <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">{title}</h2>
-          <p className="truncate text-xs text-muted-foreground">With {counterpartyName}</p>
+      <header className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
+            <Send className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">{title}</h2>
+            <p className="truncate text-xs text-muted-foreground">
+              With {counterpartyName}
+            </p>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              className={cn(
-                'size-2 rounded-full',
-                connectionStatus === 'live' ? 'bg-emerald-500' : 'bg-amber-500',
-              )}
-              aria-hidden
-            />
-            {connectionStatus === 'live' ? 'Live' : 'Connecting'}
-          </span>
+          {connectionStatus !== 'live' ? (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2 rounded-full bg-amber-500" aria-hidden />
+              Connecting
+            </span>
+          ) : null}
           {contractHref ? (
             <Link
               href={contractHref}
-              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              className="inline-flex touch-manipulation items-center gap-1 rounded-sm text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              Open full conversation
+              Open Conversation
               <ExternalLink className="size-3" aria-hidden />
             </Link>
           ) : null}
@@ -144,14 +147,14 @@ export function ContractChat({
         <div
           ref={logRef}
           onScroll={handleLogScroll}
-          className="h-full space-y-3 overflow-y-auto overscroll-contain bg-background p-4"
+          className="h-full space-y-3 overflow-y-auto overscroll-contain bg-background p-3"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"
         >
           {messages.length === 0 ? (
             <div className="grid h-full place-items-center text-center">
-              <p className="max-w-48 text-sm text-muted-foreground">{emptyHint}</p>
+              <p className="max-w-56 text-sm leading-5 text-muted-foreground">{emptyHint}</p>
             </div>
           ) : (
             messages.map((message) => {
@@ -160,7 +163,7 @@ export function ContractChat({
               if (message.kind === 'SYSTEM') {
                 return (
                   <div key={message.id} className="flex justify-center">
-                    <p className="max-w-[90%] break-words rounded-full border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs text-muted-foreground">
+                    <p className="max-w-[92%] break-words rounded-md border bg-card px-3 py-2 text-center text-xs leading-4 text-muted-foreground shadow-sm">
                       {message.body}
                     </p>
                   </div>
@@ -174,7 +177,7 @@ export function ContractChat({
                       'max-w-[82%] rounded-2xl px-3 py-2 text-sm',
                       mine
                         ? 'rounded-br-sm bg-primary text-primary-foreground'
-                        : 'rounded-bl-sm border bg-card',
+                        : 'rounded-bl-sm border bg-card shadow-sm',
                     )}
                   >
                     <p className="whitespace-pre-wrap break-words">{message.body}</p>
@@ -188,20 +191,22 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <ArrowDown className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}
           </button>
         ) : null}
       </div>
-      <form onSubmit={submit} className="border-t p-3">
+      <form onSubmit={submit} className="border-t bg-card p-3">
         <label htmlFor={`contract-chat-${conversationId}`} className="sr-only">
           Write a message
         </label>
-        <div className="flex items-center gap-2">
+        <div className="flex items-end gap-2">
           <Textarea
             id={`contract-chat-${conversationId}`}
+            name="message"
+            autoComplete="off"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -214,12 +219,14 @@ export function ContractChat({
             }}
             placeholder={placeholder}
             maxLength={MESSAGE_BODY_MAX}
-            rows={2}
+            rows={1}
+            className="max-h-24 min-h-10 resize-none"
             disabled={isPending}
           />
           <Button
             type="submit"
             size="icon"
+            className="size-10 shrink-0"
             disabled={!draft.trim() || isPending}
             aria-label="Send message"
           >

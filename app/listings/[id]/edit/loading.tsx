@@ -1,7 +1,16 @@
 // app/listings/[id]/edit/loading.tsx
 //
-// Without this file, /listings/[id]/edit would inherit app/listings/loading.tsx's
-// catalog-grid skeleton (sidebar + card grid), which doesn't match an edit
-// form. Falls back to the generic route loading UI instead.
+// Mirrors the edit-listing form's photo/details card layout (same shape as
+// create), rather than the catalog-grid skeleton that
+// app/listings/loading.tsx would otherwise supply for this route.
 
-export { default } from '@/app/loading';
+import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { ItemFormSkeleton } from '@/components/listings/ItemFormSkeleton';
+
+export default function EditListingLoading() {
+  return (
+    <MarketplaceShellSkeleton>
+      <ItemFormSkeleton />
+    </MarketplaceShellSkeleton>
+  );
+}

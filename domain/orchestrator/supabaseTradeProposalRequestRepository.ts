@@ -14,6 +14,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type {
   CreateProposalParams,
   ProposalItemRecord,
+  TradeCashDirection,
   TradeProposalRecord,
   TradeProposalRequestRepository,
   TradeProposalStatus,
@@ -24,7 +25,7 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 
 /** The `trade_proposals` columns this repository reads. */
 const PROPOSAL_COLUMNS =
-  'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, status, message, trade_id, cash_amount_cents, declared_value_cents, trade_proposal_items(item_id)';
+  'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, status, message, trade_id, cash_amount_cents, cash_direction, declared_value_cents, trade_proposal_items(item_id)';
 
 interface ProposalRow {
   id: string;
@@ -36,6 +37,7 @@ interface ProposalRow {
   message: string | null;
   trade_id: string | null;
   cash_amount_cents: number | null;
+  cash_direction: TradeCashDirection;
   declared_value_cents: number | null;
   /** Embedded bundle rows from the joined select. */
   trade_proposal_items?: { item_id: string }[] | null;
@@ -51,6 +53,7 @@ function toProposal(row: ProposalRow): TradeProposalRecord {
     extraItemIds: (row.trade_proposal_items ?? []).map((entry) => entry.item_id),
     counterpartItemId: row.counterpart_item_id,
     cashAmountCents: row.cash_amount_cents ?? 0,
+    cashDirection: row.cash_direction,
     declaredValueCents: row.declared_value_cents ?? null,
     status: row.status,
     message: row.message,
@@ -126,6 +129,7 @@ export function createSupabaseTradeProposalRequestRepository(
           proposer_item_id: params.proposerItemId,
           counterpart_item_id: params.counterpartItemId,
           cash_amount_cents: params.cashAmountCents ?? 0,
+          cash_direction: params.cashDirection ?? 'PROPOSER_PAYS',
           declared_value_cents: params.declaredValueCents ?? null,
           message: params.message,
           status: 'PENDING',
@@ -179,6 +183,7 @@ export function createSupabaseTradeProposalRequestRepository(
       proposalId: string;
       extraItemIds: string[];
       cashAmountCents: number;
+      cashDirection: TradeCashDirection;
       declaredValueCents: number | null;
       message: string | null;
     }): Promise<TradeProposalRecord | null> {
@@ -187,6 +192,7 @@ export function createSupabaseTradeProposalRequestRepository(
         .from('trade_proposals')
         .update({
           cash_amount_cents: params.cashAmountCents,
+          cash_direction: params.cashDirection,
           declared_value_cents: params.declaredValueCents,
           message: params.message,
         })

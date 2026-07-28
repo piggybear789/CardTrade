@@ -2,57 +2,66 @@
 
 // components/trade/TradeContract.tsx
 //
-// The flagship real-time Trade Contract view (Req 11). A Client Component that
-// subscribes to the live Trade row + its Pre_Auth_Holds via useTradeRealtime,
-// and renders:
-//   * the current Trade_State as a badge                              (Req 11.1)
-//   * each hold's amount + live status                                (Req 11.1)
-//   * only the controls the state machine permits for this viewer     (Req 11.3, 11.4)
-//   * a Live / Reconnecting / Offline connection indicator            (Req 11.5)
-//   * the outcome once a fraud report has been settled                (Req 8.4)
+// The flagship real-time Trade Contract view (Req 11), on the same three pieces as the
+// cash sale and deal rooms:
 //
-// All updates arrive over the realtime channel, so the view reflects Trade_State
-// and hold changes without a page reload (Req 11.2). The viewer context (role +
-// derived TradeFacts) is rebuilt from the live trade row each render so the
-// ActionBar always reflects current facts.
+//   header        2-way swap · value each side · You ⇄ Ada ✓ · Trade_State
+//   ┌ your move ─────────────────────┬ chat ──────┐
+//   └────────────────────────────────┴────────────┘
+//   ●──●──○──○──○   Collateral Send Receive Accept Released
+//   Swap · Collateral · Demo                          (collapsed rows)
+//
+// The action card holds `ActionBar`, which remains the single place trade actions are
+// wired — the state machine decides what appears, not this component (Req 11.3, 11.4).
+// The rail is `deriveTradeSteps`, which reads the same TradeFacts the state machine
+// consumes, so the two can never disagree.
+//
+// All live state arrives over the realtime channel, so Trade_State and hold changes
+// render without a reload (Req 11.2), including the connection indicator (Req 11.5,
+// shown only while degraded) and the fraud outcome (Req 8.4).
 
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, ShieldCheck, Star, UserRound, Wifi, WifiOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
+import { Loader2 } from 'lucide-react';
 
 import { formatAud, itemImageUrl } from '@/lib/format';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ActionBar } from '@/components/trade/ActionBar';
 import { HoldStatus } from '@/components/trade/HoldStatus';
 import { StateBadge } from '@/components/trade/StateBadge';
-import { ContractChat } from '@/components/messages/ContractChat';
-import { ContractWorkspace } from '@/components/layout/ContractWorkspace';
+import {
+  ContractActionCard,
+  ContractConversationPanel,
+  ContractDetailList,
+  ContractDetailRow,
+  ContractExchangePanel,
+  ContractFocusProvider,
+  ContractHeader,
+  ContractLiveRow,
+  ContractPartyLine,
+  ContractProgressRail,
+  useContractConversation,
+  type ContractActionTone,
+  type ContractExchangeItem,
+  type ContractParty,
+} from '@/components/contract';
+import { TRADE_SECTIONS, currentStep, deriveTradeSteps } from '@/domain/contract';
 import { ensureTradeConversation } from '@/lib/actions/trades';
 import { availableActions } from '@/domain/state-machine/actions';
-import {
-  useTradeRealtime,
-  type ConnectionStatus,
-  type TradeRow,
-} from '@/lib/realtime/useTradeRealtime';
+import { useTradeRealtime, type TradeRow } from '@/lib/realtime/useTradeRealtime';
 import type {
   TradeFacts,
+  TradeState,
   TradeViewerContext,
   TradeViewerRole,
 } from '@/domain/state-machine/types';
 import type { ReactNode } from 'react';
 
 /**
- * Derive the aggregate TradeFacts snapshot the state machine needs from the live
- * trade row + holds. Mirrors the server-side derivation (which lives in a
- * server-only module) so it can run in the browser. Shipment/receipt/acceptance
- * legs come from the per-trader timestamps; hold activity from the live holds.
+ * Derive the aggregate TradeFacts snapshot the state machine needs from the live trade
+ * row + holds. Mirrors the server-side derivation (which lives in a server-only module)
+ * so it can run in the browser. Shipment/receipt/acceptance legs come from the
+ * per-trader timestamps; hold activity from the live holds.
  */
 function deriveFacts(
   trade: TradeRow,
@@ -80,54 +89,13 @@ function deriveFacts(
   };
 }
 
-/** Presentation for the realtime connection indicator (Req 11.5). */
-const CONNECTION_INDICATOR: Record<
-  ConnectionStatus,
-  { label: string; className: string; icon: 'live' | 'reconnecting' | 'offline' }
-> = {
-  live: {
-    label: 'Live',
-    className: 'text-emerald-600',
-    icon: 'live',
-  },
-  connecting: {
-    label: 'Reconnecting',
-    className: 'text-amber-600',
-    icon: 'reconnecting',
-  },
-  reconnecting: {
-    label: 'Reconnecting',
-    className: 'text-amber-600',
-    icon: 'reconnecting',
-  },
-  error: {
-    label: 'Offline',
-    className: 'text-destructive',
-    icon: 'offline',
-  },
+/** How loudly the action card should read for each Trade_State. */
+const STATE_TONE: Partial<Record<TradeState, ContractActionTone>> = {
+  COMPLETED: 'success',
+  COLLATERAL_LOCKED: 'success',
+  DISPUTED: 'danger',
+  FRAUD_RESOLVED: 'danger',
 };
-
-/** The small Live / Reconnecting / Offline pill (Req 11.5). */
-function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
-  const meta = CONNECTION_INDICATOR[status];
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 text-sm font-medium ${meta.className}`}
-      role="status"
-      aria-live="polite"
-      aria-label={`Connection status: ${meta.label}`}
-    >
-      {meta.icon === 'live' ? (
-        <Wifi className="size-4" aria-hidden />
-      ) : meta.icon === 'reconnecting' ? (
-        <Loader2 className="size-4 animate-spin" aria-hidden />
-      ) : (
-        <WifiOff className="size-4" aria-hidden />
-      )}
-      {meta.label}
-    </span>
-  );
-}
 
 /** One item on either side of the agreed swap. */
 export interface TradeGood {
@@ -146,48 +114,25 @@ export interface TradeGoods {
   cashDirection: 'incoming' | 'outgoing';
 }
 
-/** A column of goods, listing every item rather than assuming one per side. */
-function GoodsColumn({ heading, items }: { heading: string; items: TradeGood[] }) {
-  return (
-    <div className="min-w-0 flex-1">
-      <p className="market-label text-muted-foreground">{heading}</p>
-      {items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">Nothing recorded.</p>
-      ) : (
-        <ul className="mt-2 space-y-2">
-          {items.map((item) => {
-            const thumb = itemImageUrl(item.imagePath);
-            return (
-              <li key={item.id} className="flex items-center gap-2.5">
-                {thumb ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={thumb}
-                    alt=""
-                    width={96}
-                    height={96}
-                    className="size-10 shrink-0 rounded-md object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <span className="size-10 shrink-0 rounded-md bg-muted" aria-hidden="true" />
-                )}
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {item.title}
-                </span>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {formatAud(item.fmvCents)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
+/** Total Fair_Market_Value of one side of the swap, in integer AUD cents. */
+function sideValueCents(items: TradeGood[]): number {
+  return items.reduce((total, item) => total + item.fmvCents, 0);
 }
 
-/** Reputation summary for one trader, shown in the compact contract workspace. */
+/** Map trade goods into the shared exchange-panel item shape. */
+function toExchangeItems(items: TradeGood[]): ContractExchangeItem[] {
+  return items.map((item) => {
+    const url = itemImageUrl(item.imagePath);
+    return {
+      id: item.id,
+      title: item.title,
+      valueCents: item.fmvCents,
+      images: url ? [url] : [],
+    };
+  });
+}
+
+/** Reputation summary for one trader, shown in the compact party line. */
 export interface TradeParty {
   name: string;
   verified: boolean;
@@ -195,51 +140,22 @@ export interface TradeParty {
   ratingCount: number;
 }
 
-/** One trader's compact card: identity, verification, and feedback (Req 2.4). */
-function TraderColumn({
-  party,
-  isMe,
-}: {
-  party: TradeParty;
-  isMe: boolean;
-}) {
-  return (
-    <Card className={isMe ? 'border-primary/40' : undefined}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
-          <UserRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="truncate">{isMe ? 'You' : party.name}</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        {isMe ? (
-          <p className="truncate text-xs text-muted-foreground">{party.name}</p>
-        ) : null}
-        <p
-          className={cn(
-            'flex items-center gap-1.5 text-xs',
-            // `text-trust` is the site-wide verified-identity token (matches
-            // DealRoom and listing pages).
-            party.verified ? 'text-trust' : 'text-amber-700',
-          )}
-        >
-          <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
-          {party.verified ? 'Identity verified (KYC)' : 'Identity not verified'}
-        </p>
-        <p className="flex items-center gap-1 border-t pt-3 text-xs">
-          {party.rating === null ? (
-            <span className="text-muted-foreground">No reviews yet</span>
-          ) : (
-            <>
-              <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden />
-              <span className="font-medium">{party.rating.toFixed(1)}</span>
-              <span className="text-muted-foreground">({party.ratingCount})</span>
-            </>
-          )}
-        </p>
-      </CardContent>
-    </Card>
-  );
+/**
+ * Map a trader into the shared contract party shape. A trade is symmetric, so both sides
+ * carry the same role label and the same kind of exposure.
+ */
+function toContractParty(party: TradeParty, stakeCents: number): ContractParty {
+  return {
+    name: party.name,
+    roleLabel: 'Trader',
+    verified: party.verified,
+    rating: party.rating,
+    ratingCount: party.ratingCount,
+    stats:
+      stakeCents > 0
+        ? [{ label: 'Item value', value: formatAud(stakeCents) }]
+        : undefined,
+  };
 }
 
 export interface TradeContractProps {
@@ -254,15 +170,15 @@ export interface TradeContractProps {
   /** Compact reputation context for both traders, resolved on the server. */
   participants?: { initiator: TradeParty; counterpart: TradeParty };
   /**
-   * Slot for the Demo panel (task 15.3). The panel is a separate deliverable;
-   * this view accepts it as a prop and mounts it here when provided.
+   * Slot for the Demo panel (task 15.3). The panel is a separate deliverable; this view
+   * accepts it as a prop and mounts it in the collapsed detail rows.
    */
   demoPanel?: ReactNode;
 }
 
 /**
- * The live Trade Contract view. Bootstrapped with the participants + viewer role
- * from the server; all live state comes from the realtime hook.
+ * The live Trade Contract view. Bootstrapped with the participants + viewer role from
+ * the server; all live state comes from the realtime hook.
  */
 export function TradeContract({
   tradeId,
@@ -274,8 +190,6 @@ export function TradeContract({
   demoPanel,
 }: TradeContractProps) {
   const { trade, holds, connectionStatus } = useTradeRealtime(tradeId);
-  const [chatId, setChatId] = useState<string | null>(trade?.conversation_id ?? null);
-  const [chatError, setChatError] = useState(false);
 
   const viewer = useMemo<TradeViewerContext | null>(() => {
     if (!trade) return null;
@@ -287,195 +201,182 @@ export function TradeContract({
   const permittedActionCount =
     trade && viewer ? availableActions(trade.state, viewer).length : 0;
 
-  // An accepted trade is a contract room just like a Cash_Sale or Deal, so it
-  // gets the same participant-only chat. Trades accepted before the thread
-  // existed self-heal on first view (demo-contract-ux Req 1, 2).
-  useEffect(() => {
-    if (!trade) return;
-    if (trade.conversation_id) {
-      setChatId(trade.conversation_id);
-      return;
-    }
-    let cancelled = false;
-    void ensureTradeConversation(trade.id).then((result) => {
-      if (cancelled) return;
-      if (result.ok) setChatId(result.conversationId);
-      else setChatError(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [trade?.id, trade?.conversation_id]);
+  // An accepted trade is a contract room just like a Cash_Sale or Deal, so it gets the
+  // same participant-only chat. Trades accepted before the thread existed self-heal on
+  // first view (demo-contract-ux Req 1, 2).
+  const chat = useContractConversation(
+    trade?.conversation_id ?? null,
+    async () => {
+      if (!trade) return null;
+      const result = await ensureTradeConversation(trade.id);
+      return result.ok ? result.conversationId : null;
+    },
+    { enabled: trade !== null },
+  );
 
   const me = viewerRole === 'INITIATOR' ? participants?.initiator : participants?.counterpart;
   const them = viewerRole === 'INITIATOR' ? participants?.counterpart : participants?.initiator;
+  const myUserId = viewerRole === 'INITIATOR' ? initiatorId : counterpartId;
+  const theirName = them?.name ?? 'the other trader';
+
+  const yoursValueCents = sideValueCents(goods?.yours ?? []);
+  const theirsValueCents = sideValueCents(goods?.theirs ?? []);
+  const heldCents = holds.reduce((sum, hold) => sum + hold.amount_cents, 0);
+
+  const steps =
+    trade && viewer
+      ? deriveTradeSteps({
+          state: trade.state,
+          viewerRole,
+          facts: viewer.facts,
+          counterpartyName: theirName,
+        })
+      : [];
+  const step = currentStep(steps);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div>
-          {/* The page shell already renders the route <h1>. */}
-          <h2 className="text-2xl font-semibold tracking-tight">Trade contract</h2>
-          <p className="text-sm text-muted-foreground">
-            Live escrow status for this 2-way trade.
-          </p>
-        </div>
-        <ConnectionIndicator status={connectionStatus} />
-      </div>
+    <ContractFocusProvider>
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <ContractHeader
+          title="2-way trade"
+          money={
+            goods
+              ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}${
+                  goods.cashAmountCents > 0
+                    ? ` + ${formatAud(goods.cashAmountCents)} cash`
+                    : ''
+                }`
+              : undefined
+          }
+          parties={
+            me && them ? (
+              <ContractPartyLine
+                me={toContractParty(me, yoursValueCents)}
+                them={toContractParty(them, theirsValueCents)}
+              />
+            ) : null
+          }
+          status={trade ? <StateBadge state={trade.state} /> : null}
+          connectionStatus={connectionStatus}
+        />
 
-      {trade === null ? (
-        <Card>
-          <CardContent className="flex items-center gap-3 py-10 text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" aria-hidden />
-            Loading trade…
-          </CardContent>
-        </Card>
-      ) : (
-        <>
+        {trade === null ? (
           <Card>
-            <CardHeader>
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                <div className="space-y-1.5">
-                  <CardTitle className="text-lg">Escrow status</CardTitle>
-                  <CardDescription>
-                    The current stage of this trade&apos;s lifecycle.
-                  </CardDescription>
-                </div>
-                <StateBadge state={trade.state} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ViewerRoleLine role={viewerRole} />
+            <CardContent className="flex items-center gap-3 py-10 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" aria-hidden />
+              Loading trade…
             </CardContent>
           </Card>
+        ) : (
+          <>
+            <ContractLiveRow
+              action={
+                <ContractActionCard
+                  step={step}
+                  counterpartyName={theirName}
+                  tone={STATE_TONE[trade.state]}
+                >
+                  {viewer && permittedActionCount > 0 ? (
+                    <ActionBar tradeId={tradeId} state={trade.state} viewer={viewer} />
+                  ) : null}
 
-          {/* Compact participant summary beside a properly bounded conversation
-              panel (demo-contract-ux Req 1, 2). */}
-          {me && them ? (
-            <ContractWorkspace
-              parties={
-                <>
-                  <TraderColumn party={me} isMe />
-                  <TraderColumn party={them} isMe={false} />
-                </>
+                  {trade.state === 'FRAUD_RESOLVED' ? (
+                    <p className="text-xs text-muted-foreground">
+                      The other trader&apos;s deposit was paid to you.
+                    </p>
+                  ) : null}
+                </ContractActionCard>
               }
               conversation={
-                chatId ? (
-                  <ContractChat
-                    conversationId={chatId}
-                    currentUserId={viewerRole === 'INITIATOR' ? initiatorId : counterpartId}
-                    counterpartyName={them.name}
-                    title="Trade chat"
-                    placeholder="Message about the trade…"
-                    emptyHint="Use chat to coordinate shipping and receipt."
-                    contractHref={`/messages/${chatId}`}
-                  />
-                ) : (
-                  <Card className="grid flex-1 place-items-center">
-                    <CardContent className="pt-6 text-center text-sm text-muted-foreground">
-                      {chatError ? (
-                        'Chat could not be opened.'
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          <Loader2 className="size-4 animate-spin" aria-hidden />
-                          Opening chat…
-                        </span>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
+                <ContractConversationPanel
+                  conversationId={chat.conversationId}
+                  currentUserId={myUserId}
+                  counterpartyName={theirName}
+                  title="Chat"
+                  placeholder="Message about the trade…"
+                  emptyHint="Use chat to coordinate shipping and receipt."
+                  failed={chat.failed}
+                  onRetry={chat.retry}
+                />
               }
-            />
-          ) : null}
-
-          {/* The deal itself. A side can be several items plus cash, so it is
-              listed rather than implied by two item ids. */}
-          {goods ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">The swap</CardTitle>
-                <CardDescription>
-                  What each of you agreed to hand over.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <GoodsColumn heading="You give" items={goods.yours} />
-                  <GoodsColumn heading="You receive" items={goods.theirs} />
-                </div>
-                {goods.cashAmountCents > 0 ? (
-                  <p className="rounded-md bg-muted/40 p-3 text-sm font-medium tabular-nums">
-                    {goods.cashDirection === 'outgoing'
-                      ? `You also pay ${formatAud(goods.cashAmountCents)} in cash.`
-                      : `You also receive ${formatAud(goods.cashAmountCents)} in cash.`}
-                  </p>
-                ) : null}
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">What is on the line</CardTitle>
-              <CardDescription>
-                An unverified trader has agreed we can charge their card for the
-                full value of their item. Nothing is charged unless the trade goes
-                wrong.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <HoldStatus
-                holds={holds}
-                initiatorId={initiatorId}
-                counterpartId={counterpartId}
-                viewerRole={viewerRole}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Your actions</CardTitle>
-              <CardDescription>
-                Only the actions available to you right now are shown.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {viewer ? (
-                <ActionBar tradeId={tradeId} state={trade.state} viewer={viewer} />
+              progress={<ContractProgressRail steps={steps} />}
+            >
+              <ContractDetailList>
+              {goods ? (
+                <ContractDetailRow
+                  id={TRADE_SECTIONS.exchange}
+                  label="The swap"
+                  summary={`${goods.yours.length} for ${goods.theirs.length}${
+                    goods.cashAmountCents > 0
+                      ? ` plus ${formatAud(goods.cashAmountCents)} cash`
+                      : ''
+                  }`}
+                >
+                  <ContractExchangePanel
+                    sides={[
+                      {
+                        heading: 'You give',
+                        partyName: me?.name,
+                        items: toExchangeItems(goods.yours),
+                        isMine: true,
+                        cashCents:
+                          goods.cashDirection === 'outgoing'
+                            ? goods.cashAmountCents
+                            : null,
+                        cashLabel: `You also pay ${formatAud(goods.cashAmountCents)} in cash`,
+                        emptyLabel: 'You are putting up no goods.',
+                      },
+                      {
+                        heading: 'You receive',
+                        partyName: them?.name,
+                        items: toExchangeItems(goods.theirs),
+                        cashCents:
+                          goods.cashDirection === 'incoming'
+                            ? goods.cashAmountCents
+                            : null,
+                        cashLabel: `You also receive ${formatAud(goods.cashAmountCents)} in cash`,
+                        emptyLabel: 'They are putting up no goods.',
+                      },
+                    ]}
+                    footnote="The bundle and cash were fixed when the trade proposal was accepted, so neither side can change them here."
+                  />
+                </ContractDetailRow>
               ) : null}
-              {permittedActionCount === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No actions are available to you in the current state.
+
+              <ContractDetailRow
+                id={TRADE_SECTIONS.collateral}
+                label="Collateral"
+                summary={
+                  holds.length === 0
+                    ? 'Nothing on the line yet'
+                    : `${formatAud(heldCents)} across ${holds.length} hold${
+                        holds.length === 1 ? '' : 's'
+                      }`
+                }
+                contentClassName="gap-3"
+              >
+                <p className="text-muted-foreground">
+                  An unverified trader has agreed we can charge their card for the full
+                  value of their item. Nothing is charged unless the trade goes wrong.
                 </p>
+                <HoldStatus
+                  holds={holds}
+                  initiatorId={initiatorId}
+                  counterpartId={counterpartId}
+                  viewerRole={viewerRole}
+                />
+              </ContractDetailRow>
+
+              {demoPanel ? (
+                <ContractDetailRow label="Demo" summary="Fire simulated Pinch webhooks">
+                  {demoPanel}
+                </ContractDetailRow>
               ) : null}
-
-              {trade.state === 'FRAUD_RESOLVED' ? (
-                <p className="text-sm text-muted-foreground">
-                  This trade was closed as fraud. The other trader&apos;s deposit
-                  was paid to you.
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          {/* --- Demo panel mount point (task 15.3) --- */}
-          {demoPanel}
-        </>
-      )}
-    </div>
-  );
-}
-
-/** A short line telling the viewer which side of the trade they are on. */
-function ViewerRoleLine({ role }: { role: TradeViewerRole }) {
-  return (
-    <p className="text-sm text-muted-foreground">
-      You are the{' '}
-      <span className="font-medium text-foreground">
-        {role === 'INITIATOR' ? 'initiating' : 'counterpart'}
-      </span>{' '}
-      trader.
-    </p>
+            </ContractDetailList>
+            </ContractLiveRow>
+          </>
+        )}
+      </div>
+    </ContractFocusProvider>
   );
 }

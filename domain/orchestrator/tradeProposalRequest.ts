@@ -22,6 +22,9 @@ export type TradeProposalStatus =
   | 'WITHDRAWN'
   | 'SUPERSEDED';
 
+/** Which offer participant pays the optional cash component. */
+export type TradeCashDirection = 'PROPOSER_PAYS' | 'COUNTERPART_PAYS';
+
 /** The Item fields the negotiation needs: ownership, value, availability. */
 export interface ProposalItemRecord {
   id: string;
@@ -43,6 +46,8 @@ export interface TradeProposalRecord {
   extraItemIds: string[];
   counterpartItemId: string;
   cashAmountCents: number;
+  /** Which participant pays the optional cash component. */
+  cashDirection: TradeCashDirection;
   declaredValueCents: number | null;
   status: TradeProposalStatus;
   message: string | null;
@@ -58,8 +63,10 @@ export interface CreateProposalParams {
   /** Any further Items in the proposer's bundle. */
   extraItemIds?: string[];
   counterpartItemId: string;
-  /** Cash the proposer adds on top of their goods, proposer -> counterpart. */
+  /** Cash amount in integer AUD cents. */
   cashAmountCents?: number;
+  /** Defaults to proposer-paid cash for compatibility with existing offers. */
+  cashDirection?: TradeCashDirection;
   /**
    * What the proposer says their whole side is worth. Recorded for the
    * Counterpart to judge; never used to size a Bond.
@@ -102,6 +109,7 @@ export interface TradeProposalRequestRepository {
     proposalId: string;
     extraItemIds: string[];
     cashAmountCents: number;
+    cashDirection: TradeCashDirection;
     declaredValueCents: number | null;
     message: string | null;
   }): Promise<TradeProposalRecord | null>;
@@ -157,7 +165,12 @@ export async function requestTradeProposal(
   const { repository } = deps;
 
   const cashAmountCents = Math.trunc(params.cashAmountCents ?? 0);
-  if (!Number.isFinite(cashAmountCents) || cashAmountCents < 0) {
+  const cashDirection = params.cashDirection ?? 'PROPOSER_PAYS';
+  if (
+    !Number.isFinite(cashAmountCents) ||
+    cashAmountCents < 0 ||
+    (cashDirection !== 'PROPOSER_PAYS' && cashDirection !== 'COUNTERPART_PAYS')
+  ) {
     return { ok: false, error: 'invalid-cash' };
   }
   if (
@@ -209,6 +222,7 @@ export async function requestTradeProposal(
     ...params,
     extraItemIds,
     cashAmountCents,
+    cashDirection,
     declaredValueCents:
       params.declaredValueCents == null ? null : Math.trunc(params.declaredValueCents),
     // The counterpart is always the owner of the requested Item, never a
@@ -233,6 +247,7 @@ export async function amendTradeProposal(
     actorId: string;
     extraItemIds?: string[];
     cashAmountCents?: number;
+    cashDirection?: TradeCashDirection;
     declaredValueCents?: number | null;
     message?: string | null;
   },
@@ -245,7 +260,12 @@ export async function amendTradeProposal(
   }
 
   const cashAmountCents = Math.trunc(params.cashAmountCents ?? 0);
-  if (!Number.isFinite(cashAmountCents) || cashAmountCents < 0) {
+  const cashDirection = params.cashDirection ?? proposal.cashDirection;
+  if (
+    !Number.isFinite(cashAmountCents) ||
+    cashAmountCents < 0 ||
+    (cashDirection !== 'PROPOSER_PAYS' && cashDirection !== 'COUNTERPART_PAYS')
+  ) {
     return { ok: false, error: 'invalid-cash' };
   }
   if (
@@ -274,6 +294,7 @@ export async function amendTradeProposal(
     proposalId: params.proposalId,
     extraItemIds,
     cashAmountCents,
+    cashDirection,
     declaredValueCents:
       params.declaredValueCents == null ? null : Math.trunc(params.declaredValueCents),
     message: params.message ?? null,
@@ -361,6 +382,7 @@ export async function authorizeTradeProposalAcceptance(
       initiatorExtraItemIds: string[];
       counterpartItemId: string;
       cashAmountCents: number;
+      cashDirection: TradeCashDirection;
     }
   | { ok: false; error: RespondTradeProposalError }
 > {
@@ -395,5 +417,6 @@ export async function authorizeTradeProposalAcceptance(
     initiatorExtraItemIds: proposal.extraItemIds,
     counterpartItemId: proposal.counterpartItemId,
     cashAmountCents: proposal.cashAmountCents,
+    cashDirection: proposal.cashDirection,
   };
 }

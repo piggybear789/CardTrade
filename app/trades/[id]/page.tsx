@@ -54,7 +54,7 @@ export default async function TradePage({
   const { data: trade } = await supabase
     .from('trades')
     .select(
-      'id, initiator_id, counterpart_id, state, initiator_item_id, counterpart_item_id, cash_amount_cents',
+      'id, initiator_id, counterpart_id, state, initiator_item_id, counterpart_item_id, cash_amount_cents, cash_direction',
     )
     .eq('id', tradeId)
     .maybeSingle();
@@ -142,10 +142,17 @@ export default async function TradePage({
       .filter((entry) => entry.traderId !== user.id)
       .map((entry) => goodsById.get(entry.itemId))
       .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
-    // Cash always flows from the initiator to the counterpart.
+    // Cash direction is stored on the accepted contract, not inferred from who
+    // initiated it: a proposal can now request cash from the Counterpart.
     cashAmountCents: (trade.cash_amount_cents as number) ?? 0,
     cashDirection:
-      trade.initiator_id === user.id ? ('outgoing' as const) : ('incoming' as const),
+      (trade.cash_direction as string) === 'COUNTERPART_PAYS'
+        ? trade.counterpart_id === user.id
+          ? ('outgoing' as const)
+          : ('incoming' as const)
+        : trade.initiator_id === user.id
+          ? ('outgoing' as const)
+          : ('incoming' as const),
   };
 
   // Post-transaction review affordance: once the trade is COMPLETED, either

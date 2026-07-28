@@ -69,6 +69,7 @@ function fakeRepository(seed: {
         extraItemIds: params.extraItemIds ?? [],
         counterpartItemId: params.counterpartItemId,
         cashAmountCents: params.cashAmountCents ?? 0,
+        cashDirection: params.cashDirection ?? 'PROPOSER_PAYS',
         declaredValueCents: params.declaredValueCents ?? null,
         status: 'PENDING',
         message: params.message,
@@ -91,6 +92,7 @@ function fakeRepository(seed: {
         ...existing,
         extraItemIds: params.extraItemIds,
         cashAmountCents: params.cashAmountCents,
+        cashDirection: params.cashDirection,
         declaredValueCents: params.declaredValueCents,
         message: params.message,
       };

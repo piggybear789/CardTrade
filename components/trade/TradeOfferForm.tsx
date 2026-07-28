@@ -52,6 +52,7 @@ import {
   createTradeProposal,
 } from '@/lib/actions/tradeProposals';
 import { TRADE_PROPOSAL_MESSAGE_MAX } from '@/lib/marketplace-constants';
+import type { TradeCashDirection } from '@/domain/orchestrator/tradeProposalRequest';
 import type { ItemRow } from '@/lib/actions/listings';
 
 /** Collectible categories, mirroring the listing form. */
@@ -133,6 +134,7 @@ export function TradeOfferForm({
   /** Further items thrown in alongside the primary one. */
   const [extraItemIds, setExtraItemIds] = useState<string[]>([]);
   const [cashDollars, setCashDollars] = useState('');
+  const [cashDirection, setCashDirection] = useState<TradeCashDirection>('PROPOSER_PAYS');
   const [valueDollars, setValueDollars] = useState('');
 
   // Private item fields. FMV is not editable: it must match to the cent.
@@ -164,13 +166,16 @@ export function TradeOfferForm({
     return mode === 'private' ? listed + requested.fmvCents : listed;
   }, [mode, existingItemId, extraItemIds, ownItems, requested.fmvCents]);
 
-  /**
-   * What the offered side is worth: the stated trade value when given, otherwise
-   * the listed values of the goods, plus any cash either way.
-   */
-  const offerTotalCents =
-    (declaredValueCents > 0 ? declaredValueCents : goodsValueCents) + cashAmountCents;
-  const differenceCents = offerTotalCents - requested.fmvCents;
+  /** Value of goods on the proposer side, using their stated value when given. */
+  const offeredGoodsValueCents =
+    declaredValueCents > 0 ? declaredValueCents : goodsValueCents;
+  const youGiveTotalCents =
+    offeredGoodsValueCents +
+    (cashDirection === 'PROPOSER_PAYS' ? cashAmountCents : 0);
+  const theyGiveTotalCents =
+    requested.fmvCents +
+    (cashDirection === 'COUNTERPART_PAYS' ? cashAmountCents : 0);
+  const differenceCents = youGiveTotalCents - theyGiveTotalCents;
 
   function toggleExtraItem(itemId: string) {
     setExtraItemIds((current) =>
@@ -204,6 +209,7 @@ export function TradeOfferForm({
           offeredItemId: existingItemId,
           extraItemIds,
           cashAmountCents,
+          cashDirection,
           declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
           message,
         });
@@ -226,6 +232,7 @@ export function TradeOfferForm({
         message,
         extraItemIds,
         cashAmountCents,
+        cashDirection,
         declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
         offer:
           mode === 'existing'
@@ -376,7 +383,7 @@ export function TradeOfferForm({
             ) : null}
           </div>
         ) : (
-          <div className="space-y-4 rounded-lg border p-4">
+          <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Lock className="size-4 shrink-0 text-gold" aria-hidden="true" />
               Only {requested.ownerName} sees this item, and only inside this
@@ -492,9 +499,59 @@ export function TradeOfferForm({
           </fieldset>
         ) : null}
 
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">Cash adjustment (optional)</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label
+              className={cn(
+                'flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm transition-colors',
+                cashDirection === 'PROPOSER_PAYS' && 'border-primary bg-primary/5',
+              )}
+            >
+              <input
+                type="radio"
+                name="cash-direction"
+                value="PROPOSER_PAYS"
+                checked={cashDirection === 'PROPOSER_PAYS'}
+                onChange={() => setCashDirection('PROPOSER_PAYS')}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">I add cash</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  You pay {requested.ownerName}.
+                </span>
+              </span>
+            </label>
+            <label
+              className={cn(
+                'flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm transition-colors',
+                cashDirection === 'COUNTERPART_PAYS' && 'border-primary bg-primary/5',
+              )}
+            >
+              <input
+                type="radio"
+                name="cash-direction"
+                value="COUNTERPART_PAYS"
+                checked={cashDirection === 'COUNTERPART_PAYS'}
+                onChange={() => setCashDirection('COUNTERPART_PAYS')}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">I request cash</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {requested.ownerName} pays you.
+                </span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="offer-cash">Add cash (optional)</Label>
+            <Label htmlFor="offer-cash">
+              {cashDirection === 'PROPOSER_PAYS' ? 'Cash you add (AUD)' : 'Cash you request (AUD)'}
+            </Label>
             <Input
               id="offer-cash"
               type="number"
@@ -507,7 +564,9 @@ export function TradeOfferForm({
               onChange={(e) => setCashDollars(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Paid to {requested.ownerName} on top of your goods.
+              {cashDirection === 'PROPOSER_PAYS'
+                ? `Paid to ${requested.ownerName} on top of your goods.`
+                : `${requested.ownerName} pays you on top of their item.`}
             </p>
           </div>
 
@@ -553,10 +612,10 @@ export function TradeOfferForm({
         <div className="rounded-lg border p-3 text-sm" role="status" aria-live="polite">
           <dl className="space-y-1.5">
             <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted-foreground">Your side</dt>
+              <dt className="text-muted-foreground">You give</dt>
               <dd className="font-semibold tabular-nums">
-                {formatAud(offerTotalCents)}
-                {cashAmountCents > 0 ? (
+                {formatAud(youGiveTotalCents)}
+                {cashAmountCents > 0 && cashDirection === 'PROPOSER_PAYS' ? (
                   <span className="ml-1 font-normal text-muted-foreground">
                     incl. {formatAud(cashAmountCents)} cash
                   </span>
@@ -564,18 +623,23 @@ export function TradeOfferForm({
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted-foreground">Their side</dt>
+              <dt className="text-muted-foreground">They give</dt>
               <dd className="font-semibold tabular-nums">
-                {formatAud(requested.fmvCents)}
+                {formatAud(theyGiveTotalCents)}
+                {cashAmountCents > 0 && cashDirection === 'COUNTERPART_PAYS' ? (
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    incl. {formatAud(cashAmountCents)} cash
+                  </span>
+                ) : null}
               </dd>
             </div>
           </dl>
           <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
             {differenceCents === 0
-              ? 'Even on value.'
+              ? 'Even on the stated terms.'
               : differenceCents > 0
-                ? `You are offering ${formatAud(differenceCents)} more than you are asking for.`
-                : `You are offering ${formatAud(Math.abs(differenceCents))} less than you are asking for. ${requested.ownerName} may still accept.`}
+                ? `You give ${formatAud(differenceCents)} more than they give.`
+                : `You give ${formatAud(Math.abs(differenceCents))} less than they give. ${requested.ownerName} may still accept.`}
           </p>
         </div>
 
@@ -591,12 +655,19 @@ export function TradeOfferForm({
               const extras = extraItemIds.length;
               const parts = [primaryTitle];
               if (extras > 0) parts.push(`+ ${extras} more`);
-              if (cashAmountCents > 0) parts.push(`+ ${formatAud(cashAmountCents)}`);
+              if (cashAmountCents > 0 && cashDirection === 'PROPOSER_PAYS') {
+                parts.push(`+ ${formatAud(cashAmountCents)}`);
+              }
               return parts.join(' ');
             })()}
           </span>
           <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="min-w-0 truncate font-medium">{requested.title}</span>
+          <span className="min-w-0 truncate font-medium">
+            {requested.title}
+            {cashAmountCents > 0 && cashDirection === 'COUNTERPART_PAYS'
+              ? ` + ${formatAud(cashAmountCents)}`
+              : null}
+          </span>
           <Badge variant="secondary" className="shrink-0 tabular-nums">
             {formatAud(requested.fmvCents)}
           </Badge>

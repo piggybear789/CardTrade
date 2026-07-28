@@ -343,11 +343,12 @@ async function voidTradeHolds(tradeId: string): Promise<void> {
 }
 
 /**
- * Settle a completed Trade's cash leg (demo-contract-ux Task 1.2): cash always
- * flows initiator -> counterpart, so the INITIATOR's payer is charged and funds
- * settle into the COUNTERPART's payout merchant account. This performs a real
- * `requestTransfer` through the injected `PaymentService` so a cash-inclusive
- * trade is never presented as complete without the money having actually moved.
+ * Settle a completed Trade's cash leg (Req 5.4b). `cash_direction` identifies
+ * the participant who pays, so the completed contract remains the source of
+ * truth for both a proposer-paid cash contribution and a counterpart-paid cash
+ * request. This performs a real `requestTransfer` through the injected
+ * `PaymentService` so a cash-inclusive trade is never presented as complete
+ * without the money having actually moved.
  *
  * Failure is recorded but does not block completion — the goods have already
  * changed hands on both Traders' own acceptance, and reverting COMPLETED would
@@ -357,12 +358,20 @@ async function voidTradeHolds(tradeId: string): Promise<void> {
  */
 async function settleTradeCash(trade: TradeRow): Promise<void> {
   const admin = createAdminClient();
+  const payerProfileId =
+    trade.cash_direction === 'COUNTERPART_PAYS'
+      ? trade.counterpart_id
+      : trade.initiator_id;
+  const receiverProfileId =
+    trade.cash_direction === 'COUNTERPART_PAYS'
+      ? trade.initiator_id
+      : trade.counterpart_id;
   const [{ data: payer }, { data: receiver }] = await Promise.all([
-    admin.from('profiles').select('id, payer_id').eq('id', trade.initiator_id).maybeSingle(),
+    admin.from('profiles').select('id, payer_id').eq('id', payerProfileId).maybeSingle(),
     admin
       .from('profiles')
       .select('id, merchant_ref, merchant_status, merchant_settlements_enabled')
-      .eq('id', trade.counterpart_id)
+      .eq('id', receiverProfileId)
       .maybeSingle(),
   ]);
 

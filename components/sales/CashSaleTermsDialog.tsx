@@ -107,7 +107,11 @@ export function CashSaleTermsDialog({
             : null,
       });
       if (result.ok) {
-        toast.success('Terms saved. Both parties must accept this version.');
+        toast.success(
+          sale.fulfillment_method
+            ? 'Handover terms updated. Both parties must accept the new version.'
+            : 'Handover terms proposed. Both parties must accept before payment.',
+        );
         setOpen(false);
       } else {
         setError(result.message ?? 'Terms changed elsewhere. Review and try again.');
@@ -120,16 +124,19 @@ export function CashSaleTermsDialog({
         <DialogTrigger asChild>
           <Button type="button" variant="outline" size="sm">
             <Pencil aria-hidden />
-            {sale.fulfillment_method ? 'Edit details' : 'Set fulfillment details'}
+            Edit
           </Button>
         </DialogTrigger>
       )}
       <DialogContent>
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Fulfillment terms</DialogTitle>
+            <DialogTitle>
+              {sale.fulfillment_method ? 'Edit handover terms' : 'Propose handover terms'}
+            </DialogTitle>
             <DialogDescription>
-              Either party can edit these before payment. Every change clears both acceptances.
+              Add the details both parties will review. Saving creates a proposal that
+              both parties must accept before payment begins.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-5">
@@ -208,7 +215,11 @@ export function CashSaleTermsDialog({
           <DialogFooter>
             <Button type="submit" disabled={pending} aria-busy={pending}>
               {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-              Save as new version
+              {pending
+                ? 'Saving…'
+                : sale.fulfillment_method
+                  ? 'Save changes'
+                  : 'Propose terms'}
             </Button>
           </DialogFooter>
         </form>

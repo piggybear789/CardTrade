@@ -3,27 +3,16 @@
 // components/trade/HoldStatus.tsx
 //
 // Renders the current status of each Pre_Auth_Hold associated with a Trade
-// (Req 11.1). Each hold shows the trader it belongs to (labelled relative to
-// the viewer), the hold amount formatted as AUD (integer cents -> formatAud),
-// and its live status. Updates arrive via the realtime subscription upstream,
-// so this component is purely presentational.
+// (Req 11.1). Its only job now is to label each hold relative to the viewer and
+// order the viewer's own hold first; the presentation comes from the shared
+// <ContractHoldList/>, which the deal room's collateral list also uses.
+//
+// Purely presentational — hold updates arrive via the realtime subscription
+// upstream.
 
-import { Badge, type BadgeProps } from '@/components/ui/badge';
+import { ContractHoldList, type ContractHold } from '@/components/contract';
 import type { HoldRow } from '@/lib/realtime/useTradeRealtime';
 import type { TradeViewerRole } from '@/domain/state-machine/types';
-import { formatAud } from '@/lib/format';
-
-/** Human-readable label + badge variant for each hold_status enum value. */
-const HOLD_STATUS: Record<
-  HoldRow['status'],
-  { label: string; variant: NonNullable<BadgeProps['variant']> }
-> = {
-  ACTIVE: { label: 'Active', variant: 'default' },
-  VOIDED: { label: 'Released', variant: 'secondary' },
-  PARTIALLY_CAPTURED: { label: 'Partially captured', variant: 'destructive' },
-  FULLY_CAPTURED: { label: 'Fully captured', variant: 'destructive' },
-  FAILED: { label: 'Failed', variant: 'destructive' },
-};
 
 export interface HoldStatusProps {
   /** The holds for the trade (one per trader). */
@@ -64,47 +53,27 @@ export function HoldStatus({
   counterpartId,
   viewerRole,
 }: HoldStatusProps) {
-  if (holds.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Nothing is on the line yet.
-      </p>
-    );
-  }
+  const myId = viewerRole === 'INITIATOR' ? initiatorId : counterpartId;
 
   // Stable ordering: the viewer's own hold first, then the counterpart's.
-  const ordered = [...holds].sort((a, b) => {
-    const aMine = a.trader_id === (viewerRole === 'INITIATOR' ? initiatorId : counterpartId);
-    const bMine = b.trader_id === (viewerRole === 'INITIATOR' ? initiatorId : counterpartId);
-    return aMine === bMine ? 0 : aMine ? -1 : 1;
-  });
+  const ordered: ContractHold[] = [...holds]
+    .sort((a, b) => {
+      const aMine = a.trader_id === myId;
+      const bMine = b.trader_id === myId;
+      return aMine === bMine ? 0 : aMine ? -1 : 1;
+    })
+    .map((hold) => ({
+      id: hold.id,
+      label: ownerLabel(hold.trader_id, initiatorId, counterpartId, viewerRole),
+      amountCents: hold.amount_cents,
+      capturedCents: hold.captured_cents,
+      status: hold.status,
+    }));
 
   return (
-    <ul className="space-y-3" aria-label="What each trader has on the line">
-      {ordered.map((hold) => {
-        const status = HOLD_STATUS[hold.status];
-        return (
-          <li
-            key={hold.id}
-            className="flex items-center justify-between gap-4 rounded-md border p-3"
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {ownerLabel(hold.trader_id, initiatorId, counterpartId, viewerRole)}
-              </p>
-              <p className="text-sm tabular-nums text-muted-foreground">
-                {formatAud(hold.amount_cents)}
-                {hold.captured_cents > 0 ? (
-                  <span> · {formatAud(hold.captured_cents)} captured</span>
-                ) : null}
-              </p>
-            </div>
-            <Badge variant={status.variant} aria-label={`Hold status: ${status.label}`}>
-              {status.label}
-            </Badge>
-          </li>
-        );
-      })}
-    </ul>
+    <ContractHoldList
+      holds={ordered}
+      ariaLabel="What each trader has on the line"
+    />
   );
 }

@@ -1,0 +1,125 @@
+'use client';
+
+// components/contract/ContractProgressRail.tsx
+//
+// WHERE ARE WE. The whole lifecycle as one thin line of ticks, replacing the
+// seven-row action plan that carried a marker, a label, an owner badge, a sentence of
+// detail and a control on every row.
+//
+// It answers only one question — how far along is this — and leaves "what do I do now"
+// to `ContractActionCard`. Detail is still reachable: clicking a tick reveals that
+// step's line underneath, so nothing was lost, it is just no longer all on screen at
+// once.
+//
+// Steps come from the same pure derivation in `domain/contract` that feeds the action
+// card, so the two can never disagree.
+
+import { useState } from 'react';
+import { Check } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import type { ContractStep } from '@/domain/contract';
+
+export interface ContractProgressRailProps {
+  steps: ContractStep[];
+  className?: string;
+}
+
+/** The contract lifecycle as a row of ticks. */
+export function ContractProgressRail({ steps, className }: ContractProgressRailProps) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const open = steps.find((step) => step.id === openId) ?? null;
+
+  if (steps.length === 0) return null;
+
+  return (
+    <div className={cn('px-1', className)}>
+      <ol className="flex items-start" aria-label="Contract progress">
+        {steps.map((step, index) => {
+          const done = step.status === 'done';
+          const live = step.status === 'active';
+          const selected = openId === step.id;
+          const first = index === 0;
+          const last = index === steps.length - 1;
+
+          return (
+            <li key={step.id} className="flex min-w-0 flex-1 flex-col items-center">
+              {/* Connector halves either side of the tick, so the line never
+                  overshoots the first or last step. */}
+              <div className="flex w-full items-center" aria-hidden>
+                <span
+                  className={cn(
+                    'h-px flex-1',
+                    first ? 'bg-transparent' : done ? 'bg-emerald-500/50' : 'bg-border',
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setOpenId(selected ? null : step.id)}
+                  aria-label={`${step.label}${
+                    done ? ' — complete' : live ? ' — current step' : ''
+                  }`}
+                  aria-expanded={selected}
+                  className={cn(
+                    'grid size-5 shrink-0 touch-manipulation place-items-center rounded-full border transition-colors',
+                    'hover:border-foreground/40 hover:text-foreground',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    done && 'border-emerald-600/60 bg-emerald-500/15 text-emerald-700',
+                    live && 'border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
+                    !done && !live && 'border-border bg-card text-muted-foreground',
+                    selected && 'ring-2 ring-ring ring-offset-1',
+                  )}
+                >
+                  {done ? (
+                    <Check className="size-3" aria-hidden />
+                  ) : (
+                    <span
+                      className={cn(
+                        'size-1.5 rounded-full',
+                        live ? 'bg-current' : 'bg-muted-foreground/40',
+                      )}
+                      aria-hidden
+                    />
+                  )}
+                </button>
+                <span
+                  className={cn(
+                    'h-px flex-1',
+                    last
+                      ? 'bg-transparent'
+                      : steps[index + 1]?.status === 'done'
+                        ? 'bg-emerald-500/50'
+                        : 'bg-border',
+                  )}
+                />
+              </div>
+
+              <span
+                className={cn(
+                  'mt-1.5 max-w-full truncate px-1 text-xs',
+                  live
+                    ? 'font-semibold text-foreground'
+                    : done
+                      ? 'font-medium text-muted-foreground'
+                      : 'text-muted-foreground',
+                )}
+              >
+                {step.short ?? step.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      {open ? (
+        <p
+          className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+          aria-live="polite"
+        >
+          <span className="font-medium text-foreground">{open.label}</span>
+          {open.detail ? ` — ${open.detail}` : ''}
+        </p>
+      ) : null}
+    </div>
+  );
+}

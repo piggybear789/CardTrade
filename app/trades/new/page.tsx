@@ -101,6 +101,7 @@ export default async function NewTradePage({
           title="Pick Something to Trade For"
           description="Find a listing you want, then choose Propose Trade on it. You decide what to put up, and they decide whether it is fair."
           action={{ label: 'Browse Marketplace', href: '/listings' }}
+          className="border-none"
         />
       </Shell>
     );
@@ -132,6 +133,7 @@ export default async function NewTradePage({
           title="This Item Is Not Open to Offers"
           description="It may have sold, been reserved, or belong to you. Browse the marketplace for something else to trade for."
           action={{ label: 'Browse Marketplace', href: '/listings' }}
+          className="border-none"
         />
       </Shell>
     );

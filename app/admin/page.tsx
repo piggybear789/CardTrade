@@ -64,6 +64,7 @@ function NotAuthorized() {
         titleAs="h1"
         description="You don't have permission to view the moderation console."
         action={{ label: 'Return home', href: '/', variant: 'outline' }}
+        className="border-none"
       />
     </PageShell>
   );

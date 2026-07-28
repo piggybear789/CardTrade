@@ -93,8 +93,8 @@ function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
             )}
           </dd>
         </div>
-        {(party.stats ?? []).map((stat) => (
-          <div key={stat.label} className="min-w-0 border-l-2 border-border pl-2.5">
+        {(party.stats ?? []).map((stat, idx) => (
+          <div key={idx} className="min-w-0 border-l-2 border-border pl-2.5">
             <dt className="truncate text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
               {stat.label}
             </dt>

@@ -34,6 +34,8 @@ export interface ContractDetailRowProps {
   label: string;
   /** DOM id used by action-card focus links. */
   id?: string;
+  /** When true, this row is selected by default on mount. */
+  defaultOpen?: boolean;
   /** Current value shown beneath the selected tab. */
   summary?: ReactNode;
   /** Contextual edit control for this detail. */

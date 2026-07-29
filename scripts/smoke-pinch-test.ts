@@ -157,10 +157,10 @@ async function main() {
   step('Publishable key present for CaptureJS');
   const publishable = readPinchPublishableKey();
   assert(publishable?.startsWith('pk_test_'), `expected pk_test_…, got ${publishable ?? 'null'}`);
-  ok(`${publishable.slice(0, 12)}…`);
+  ok(`${publishable!.slice(0, 12)}…`);
 
   step('Tokenise test card (server probe)');
-  const token = await tryTokeniseViaCaptureHosts(publishable);
+  const token = await tryTokeniseViaCaptureHosts(publishable!);
   if (!token) {
     console.log('SKIP — CaptureJS is browser-only; no public token REST from Node');
     console.log('\nServer Pinch binding works: OAuth, merchants, payers, KYC delegate.');

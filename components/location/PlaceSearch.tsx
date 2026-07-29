@@ -126,7 +126,7 @@ export function PlaceSearch({
           className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-sm shadow-md"
         >
           {results.map((place) => (
-            <li key={place.placeId} role="option">
+            <li key={place.placeId} role="option" aria-selected={value?.placeId === place.placeId}>
               <button
                 type="button"
                 className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left hover:bg-accent"

@@ -46,6 +46,7 @@ export function PlaceMap({
     void (async () => {
       try {
         const mapboxgl = (await import('mapbox-gl')).default;
+        // @ts-expect-error — CSS import handled by bundler at runtime
         await import('mapbox-gl/dist/mapbox-gl.css');
         if (cancelled || !containerRef.current) return;
 

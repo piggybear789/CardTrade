@@ -65,6 +65,7 @@ export function PlacePicker({
     void (async () => {
       try {
         const mapboxgl = (await import('mapbox-gl')).default;
+        // @ts-expect-error — CSS import handled by bundler at runtime
         await import('mapbox-gl/dist/mapbox-gl.css');
         if (cancelled || !containerRef.current) return;
 
@@ -121,7 +122,7 @@ export function PlacePicker({
     if (!value || !mapRef.current || !markerRef.current) return;
     markerRef.current.setLngLat([value.lng, value.lat]);
     mapRef.current.easeTo({ center: [value.lng, value.lat], zoom: Math.max(mapRef.current.getZoom(), 12) });
-  }, [value?.lat, value?.lng, value?.placeId]);
+  }, [value]);
 
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;

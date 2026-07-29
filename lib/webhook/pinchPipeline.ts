@@ -27,7 +27,7 @@ import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database, Json } from '@/lib/supabase/database.types';
-import { getPaymentService } from '@/domain/services';
+import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
 import {
   PINCH_SIGNATURE_HEADER,
   signWebhookBody,
@@ -271,6 +271,15 @@ function authenticate(
   }
 
   // --- MockService delivery ------------------------------------------------
+  // Reject mock-signed envelopes when Pinch is live so demo buttons cannot
+  // advance real money flows without a provider signature.
+  if (isLivePaymentsProvider()) {
+    return NextResponse.json(
+      { ok: false, error: 'mock webhooks disabled while Pinch is live' },
+      { status: 401 },
+    );
+  }
+
   const providedSignature = headers.get(PINCH_SIGNATURE_HEADER);
   const expectedSignature = signWebhookBody(rawBody, WEBHOOK_SECRET);
   if (!providedSignature || !signaturesMatch(expectedSignature, providedSignature)) {

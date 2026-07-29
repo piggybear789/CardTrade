@@ -97,7 +97,7 @@ export function WatchButton({
           <Heart
             className={cn(
               'size-4 transition-colors',
-              watching && 'fill-red-500 text-red-500',
+              watching && 'fill-destructive text-destructive',
             )}
             aria-hidden
           />
@@ -121,7 +121,7 @@ export function WatchButton({
         <Loader2 className="animate-spin" aria-hidden />
       ) : (
         <Heart
-          className={cn(watching && 'fill-red-500 text-red-500')}
+          className={cn(watching && 'fill-destructive text-destructive')}
           aria-hidden
         />
       )}

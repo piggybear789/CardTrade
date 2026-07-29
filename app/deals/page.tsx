@@ -19,6 +19,10 @@ import { formatRelativeTime } from '@/lib/format';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
+  SectionHeader,
+  SectionLoadError,
+} from '@/components/layout/SectionHeader';
+import {
   SectionFilter,
   partitionByScope,
   resolveScope,
@@ -71,14 +75,10 @@ export default async function DealsPage({
         </Button>
       }
     >
-      <header className="mb-5 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
-          Private Deals
-        </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Escrow-backed handover between two members.
-        </p>
-      </header>
+      <SectionHeader
+        title="Private Deals"
+        description="Escrow-backed handover between two members."
+      />
 
       <SectionFilter
         scope={scope}
@@ -88,12 +88,9 @@ export default async function DealsPage({
       />
 
       {!result.ok ? (
-        <p
-          role="alert"
-          className="mb-5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          We couldn&apos;t load your deals right now. Try again shortly.
-        </p>
+        <div className="mb-5">
+          <SectionLoadError label="deals" />
+        </div>
       ) : null}
 
       {deals.length === 0 ? (

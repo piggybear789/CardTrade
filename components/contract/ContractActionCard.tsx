@@ -24,14 +24,14 @@ import type { ContractStep } from '@/domain/contract';
 export type ContractActionTone = 'default' | 'success' | 'warning' | 'danger';
 
 const TONE: Record<ContractActionTone, { card: string; eyebrow: string }> = {
-  default: { card: 'border-gold/50 bg-gold/[0.08]', eyebrow: 'text-amber-700' },
+  default: { card: 'border-gold/50 bg-gold/[0.08]', eyebrow: 'text-gold' },
   success: {
-    card: 'border-emerald-500/40 bg-emerald-500/[0.06]',
-    eyebrow: 'text-emerald-600 dark:text-emerald-400',
+    card: 'border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.06)]',
+    eyebrow: 'text-trust',
   },
   warning: {
-    card: 'border-amber-500/45 bg-amber-500/[0.06]',
-    eyebrow: 'text-amber-700 dark:text-amber-400',
+    card: 'border-gold/45 bg-gold/[0.06]',
+    eyebrow: 'text-gold',
   },
   danger: {
     card: 'border-destructive/45 bg-destructive/[0.06]',

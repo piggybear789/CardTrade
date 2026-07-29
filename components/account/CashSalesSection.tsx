@@ -26,7 +26,7 @@ export function CashSalesSection({
     return variant === 'purchases' ? (
       <EmptyState
         icon={<ShoppingBag className="size-6" aria-hidden />}
-        title="No purchases yet"
+        title="No Purchases Yet"
         description="Browse the marketplace and buy your first collectible."
         ctaLabel="Browse the marketplace"
         ctaHref="/listings"
@@ -34,7 +34,7 @@ export function CashSalesSection({
     ) : (
       <EmptyState
         icon={<Tag className="size-6" aria-hidden />}
-        title="No sales yet"
+        title="No Sales Yet"
         description="List an item so buyers can purchase it outright."
         ctaLabel="List an item"
         ctaHref="/listings/new"

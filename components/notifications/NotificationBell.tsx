@@ -119,7 +119,7 @@ export function NotificationBell({
         <Bell className="size-5" aria-hidden />
         {unreadCount > 0 && (
           <span
-            className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-4 text-white"
+            className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-4 text-destructive-foreground"
             aria-hidden
           >
             {badgeLabel}
@@ -165,14 +165,14 @@ export function NotificationBell({
                         type="button"
                         onClick={() => handleSelect(n)}
                         className={cn(
-                          'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent',
+                          'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                           unread && 'bg-accent/40',
                         )}
                       >
                         <span
                           className={cn(
                             'mt-1.5 size-2 shrink-0 rounded-full',
-                            unread ? 'bg-red-500' : 'bg-transparent',
+                            unread ? 'bg-destructive' : 'bg-transparent',
                           )}
                           aria-hidden
                         />

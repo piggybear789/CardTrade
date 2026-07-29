@@ -22,6 +22,7 @@ import { DemoPanel } from '@/components/trade/DemoPanel';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
+import { isPaymentDemoEnabled } from '@/domain/services';
 import type { TradeViewerRole } from '@/domain/state-machine/types';
 
 // Reads the authenticated user's session, so it must render dynamically.
@@ -208,7 +209,9 @@ export default async function TradePage({
         viewerRole={viewerRole}
         goods={goods}
         participants={participants}
-        demoPanel={<DemoPanel tradeId={trade.id} />}
+        demoPanel={
+          isPaymentDemoEnabled() ? <DemoPanel tradeId={trade.id} /> : null
+        }
       />
       {reviewSection}
     </MarketplaceShell>

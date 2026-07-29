@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AlertTriangle, Check, Handshake, Link2, Loader2 } from 'lucide-react';
 
+import { PlaceMap } from '@/components/location';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -419,7 +420,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
               <p
                 role="status"
                 aria-live="polite"
-                className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
+                className="cardtrade-warning flex items-start gap-2 rounded-md border p-2 text-xs"
               >
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                 <span>
@@ -646,22 +647,38 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
               Not agreed yet — choose a face-to-face meeting or a delivery.
             </p>
           ) : (
-            <ContractMoneyTable
-              ariaLabel="Handover terms"
-              rows={
-                deal.handover_method === 'IN_PERSON'
-                  ? [
-                      { label: 'Meeting point', hint: deal.meeting_location, value: '' },
-                      {
-                        label: 'When',
-                        value:
-                          formatContractDateTime(deal.meeting_at) ?? 'Not agreed yet',
-                        muted: !deal.meeting_at,
-                      },
-                    ]
-                  : [{ label: 'Delivery', hint: deal.delivery_details, value: '' }]
-              }
-            />
+            <>
+              <ContractMoneyTable
+                ariaLabel="Handover terms"
+                rows={
+                  deal.handover_method === 'IN_PERSON'
+                    ? [
+                        {
+                          label: 'Meeting point',
+                          hint: deal.meeting_location,
+                          value: '',
+                        },
+                        {
+                          label: 'When',
+                          value:
+                            formatContractDateTime(deal.meeting_at) ??
+                            'Not agreed yet',
+                          muted: !deal.meeting_at,
+                        },
+                      ]
+                    : [{ label: 'Delivery', hint: deal.delivery_details, value: '' }]
+                }
+              />
+              {deal.handover_method === 'IN_PERSON' &&
+              (deal.meeting_lat != null || deal.meeting_location) ? (
+                <PlaceMap
+                  lat={deal.meeting_lat}
+                  lng={deal.meeting_lng}
+                  label={deal.meeting_location}
+                  heightClassName="h-40"
+                />
+              ) : null}
+            </>
           )}
           {canEditTerms ? (
             <p className="text-xs text-muted-foreground">
@@ -750,7 +767,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 className={cn(
                   'flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2',
                   understated
-                    ? 'border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10'
+                    ? 'cardtrade-warning'
                     : 'bg-muted/25',
                 )}
               >

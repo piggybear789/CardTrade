@@ -11,6 +11,7 @@ import { LogoMark } from '@/components/layout/Logo';
 
 import { ListingCarousel } from '@/components/listings/ListingCarousel';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { searchCatalog } from '@/lib/actions/listings';
 import { createClient } from '@/lib/supabase/server';
 
@@ -105,16 +106,14 @@ export default async function HomePage() {
                     Recently listed
                   </h2>
                 </header>
-                <div className="mt-9 flex flex-col items-start justify-between gap-5 rounded-lg border border-dashed border-border bg-card/60 p-6 sm:flex-row sm:items-center">
-                  <div>
-                    <h3 className="font-semibold">No Public Listings Yet</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      You can still make a protected deal with another collector.
-                    </p>
-                  </div>
-                  <Button asChild>
-                    <Link href={dealHref}>Start a Private Deal</Link>
-                  </Button>
+                <div className="mt-9">
+                  <EmptyState
+                    title="No Public Listings Yet"
+                    description="You can still make a protected deal with another collector."
+                    action={{ label: 'Start a Private Deal', href: dealHref }}
+                    titleAs="h3"
+                    compact
+                  />
                 </div>
               </>
             )}
@@ -222,7 +221,7 @@ export default async function HomePage() {
 
 function ProtectedTradePreview() {
   return (
-    <div className="relative mx-auto h-[31rem] w-full max-w-[35rem] sm:h-[36rem]">
+    <div className="relative mx-auto h-[24rem] w-full max-w-[35rem] sm:h-[31rem] lg:h-[36rem]">
       <div className="auction-stage absolute inset-x-4 inset-y-0 overflow-hidden rounded-lg border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:inset-x-8">
         <Image
           src={CARD_IMAGES.pikachu}

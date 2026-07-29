@@ -137,7 +137,7 @@ export function LeaveReviewDialog({
                     className={cn(
                       'size-7 transition-colors',
                       value <= active
-                        ? 'fill-amber-400 text-amber-400'
+                        ? 'fill-gold text-gold'
                         : 'text-muted-foreground/40',
                     )}
                     aria-hidden

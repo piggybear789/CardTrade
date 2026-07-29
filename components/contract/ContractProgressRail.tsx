@@ -50,7 +50,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                 <span
                   className={cn(
                     'h-px flex-1',
-                    first ? 'bg-transparent' : done ? 'bg-emerald-500/50' : 'bg-border',
+                    first ? 'bg-transparent' : done ? 'cardtrade-success-fill' : 'bg-border',
                   )}
                 />
                 <button
@@ -64,7 +64,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     'grid size-5 shrink-0 touch-manipulation place-items-center rounded-full border transition-colors',
                     'hover:border-foreground/40 hover:text-foreground',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                    done && 'border-emerald-600/60 bg-emerald-500/15 text-emerald-700',
+                    done && 'cardtrade-success-chip',
                     live && 'border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
                     !done && !live && 'border-border bg-card text-muted-foreground',
                     selected && 'ring-2 ring-ring ring-offset-1',
@@ -88,7 +88,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     last
                       ? 'bg-transparent'
                       : steps[index + 1]?.status === 'done'
-                        ? 'bg-emerald-500/50'
+                        ? 'cardtrade-success-fill'
                         : 'bg-border',
                   )}
                 />

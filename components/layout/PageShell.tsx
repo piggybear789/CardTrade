@@ -1,7 +1,8 @@
 // components/layout/PageShell.tsx
 //
-// Canonical fluid route container and heading. Content widths scale with the
-// viewport while gutters, vertical rhythm, title sizing, and actions stay stable.
+// Canonical fluid route container for pages outside MarketplaceShell (join
+// deal, admin gate). Content widths scale with the viewport while gutters and
+// vertical rhythm stay stable. Section titles use SectionHeader instead.
 
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -26,45 +27,5 @@ export function PageShell({
     >
       {children}
     </main>
-  );
-}
-
-export function PageHeader({
-  title,
-  description,
-  eyebrow,
-  actions,
-  className,
-}: {
-  title: string;
-  description?: ReactNode;
-  eyebrow?: ReactNode;
-  actions?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <header
-      className={cn(
-        'mb-8 flex flex-col gap-4 border-b border-border/65 pb-5 sm:flex-row sm:items-end sm:justify-between',
-        className,
-      )}
-    >
-      <div className="min-w-0">
-        {eyebrow ? (
-          <p className="cardtrade-eyebrow mb-3">{eyebrow}</p>
-        ) : null}
-        <h1 className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
-      </div>
-      {actions ? (
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">{actions}</div>
-      ) : null}
-    </header>
   );
 }

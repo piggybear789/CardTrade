@@ -16,6 +16,10 @@ import { formatRelativeTime, itemImageUrl } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import {
+  SectionHeader,
+  SectionLoadError,
+} from '@/components/layout/SectionHeader';
 
 // Reads the signed-in user's session + live conversation state, so it must
 // render dynamically (never statically prerendered).
@@ -43,23 +47,24 @@ export default async function MessagesPage() {
 
   return (
     <MarketplaceShell title="Messages">
-      <header className="mb-5 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
-          Inbox
-        </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground" aria-live="polite">
-          {conversations.length === 1 ? '1 conversation' : `${conversations.length} conversations`}
-          {unreadTotal > 0 ? ` · ${unreadTotal} unread` : ''}
-        </p>
-      </header>
+      <div aria-live="polite">
+        <SectionHeader
+          title="Inbox"
+          description={
+            <>
+              {conversations.length === 1
+                ? '1 conversation'
+                : `${conversations.length} conversations`}
+              {unreadTotal > 0 ? ` · ${unreadTotal} unread` : ''}
+            </>
+          }
+        />
+      </div>
 
       {!result.ok ? (
-        <p
-          role="alert"
-          className="mb-5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          We couldn&apos;t load your conversations right now. Try again shortly.
-        </p>
+        <div className="mb-5">
+          <SectionLoadError label="conversations" />
+        </div>
       ) : null}
 
       {conversations.length === 0 ? (
@@ -129,7 +134,7 @@ export default async function MessagesPage() {
                       </p>
                     ) : c.trade ? (
                       <p className="truncate text-xs text-muted-foreground">
-                        Trade contract
+                        Trade
                       </p>
                     ) : c.item ? (
                       <p className="truncate text-xs text-muted-foreground">

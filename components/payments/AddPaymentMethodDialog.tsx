@@ -47,7 +47,8 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
         <DialogHeader>
           <DialogTitle>Add a payment method</DialogTitle>
           <DialogDescription>
-            Your card is sent straight to Pinch and never touches our servers.
+            Encrypted in your browser and sent to Pinch Payments — we never
+            store your full card number.
           </DialogDescription>
         </DialogHeader>
         <AddPaymentMethodForm

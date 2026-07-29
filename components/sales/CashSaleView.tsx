@@ -37,6 +37,7 @@ import {
   Truck,
   X,
 } from 'lucide-react';
+import { PlaceMap } from '@/components/location';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
@@ -175,6 +176,8 @@ export interface CashSaleViewProps {
   buyer: SaleParty;
   seller: SaleParty;
   conversationId: string | null;
+  /** When false, hide mock settle/fail webhook buttons (Pinch is live). */
+  paymentDemoEnabled?: boolean;
 }
 
 /** The bilateral cash-sale contract room. */
@@ -194,6 +197,7 @@ function CashSaleRoom({
   buyer,
   seller,
   conversationId,
+  paymentDemoEnabled = false,
 }: CashSaleViewProps) {
   const router = useRouter();
   const { focusSection } = useContractFocus();
@@ -440,8 +444,8 @@ function CashSaleRoom({
               </div>
             ) : null}
 
-            {/* The mock provider settles payment; this fires that webhook by hand. */}
-            {sale.status === 'PAYMENT_PENDING' ? (
+            {/* Mock-only: fire transfer.settled by hand. Hidden when Pinch is live. */}
+            {paymentDemoEnabled && sale.status === 'PAYMENT_PENDING' ? (
               <CashSaleDemoControls cashSaleId={sale.id} />
             ) : null}
 
@@ -812,6 +816,15 @@ function CashSaleRoom({
                       ]
                 }
               />
+              {!isDelivery &&
+              (sale.meeting_lat != null || sale.meeting_location) ? (
+                <PlaceMap
+                  lat={sale.meeting_lat}
+                  lng={sale.meeting_lng}
+                  label={sale.meeting_location}
+                  heightClassName="h-40"
+                />
+              ) : null}
               {editable ? (
                 <p className="text-xs text-muted-foreground">
                   Both parties must accept version {sale.terms_version} before payment.

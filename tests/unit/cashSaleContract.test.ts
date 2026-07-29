@@ -259,7 +259,9 @@ describe('cash sale — terms and dual acceptance', () => {
 
     expect(second.ok).toBe(true);
     if (!second.ok) return;
-    expect(second.sale.status).toBe('PAYMENT_PENDING');
+    // Successful realtime transfers settle synchronously (Pinch + mock), so the
+    // sale advances past PAYMENT_PENDING without a separate webhook.
+    expect(second.sale.status).toBe('ESCROW_HELD');
     expect(calls.transfers).toHaveLength(1);
     expect(calls.transfers[0].nonce).toBe(second.sale.paymentNonce);
     expect(calls.transfers[0].amount).toBe(second.sale.amountCents);
@@ -342,21 +344,16 @@ describe('cash sale — terms and dual acceptance', () => {
 });
 
 describe('cash sale — fulfillment', () => {
-  it('blocks shipment until the payment clears, then requires tracking', async () => {
+  it('allows shipment once payment has cleared, and requires tracking', async () => {
     const { deps, state } = makeDeps();
-    const { saleId } = await agreeAndPay(deps);
+    const { saleId, second } = await agreeAndPay(deps);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.sale.status).toBe('ESCROW_HELD');
 
-    const early = await recordCashSaleShipment(deps, {
-      actorId: ITEM.ownerId,
-      cashSaleId: saleId,
-      shipment: { carrier: 'Australia Post', trackingNumber: 'AP123456' },
-    });
-    expect(early).toMatchObject({ ok: false, error: 'INVALID_STATE' });
-
-    const settled = await settleCashSale(deps, { cashSaleId: saleId });
-    expect(settled.ok).toBe(true);
-    if (!settled.ok) return;
-    expect(settled.sale.status).toBe('ESCROW_HELD');
+    // A second settle after sync clearance is a no-op / invalid-state.
+    const settledAgain = await settleCashSale(deps, { cashSaleId: saleId });
+    expect(settledAgain).toMatchObject({ ok: false, error: 'INVALID_STATE' });
 
     const missingTracking = await recordCashSaleShipment(deps, {
       actorId: ITEM.ownerId,
@@ -431,15 +428,15 @@ describe('cash sale — fulfillment', () => {
 
   it('needs both confirmations to complete a face-to-face handover', async () => {
     const { deps, state } = makeDeps();
-    const { saleId } = await agreeAndPay(deps, {
+    const { saleId, second } = await agreeAndPay(deps, {
       fulfillmentMethod: 'IN_PERSON',
       meetingLocation: 'Melbourne Central, main concourse',
     } as unknown as typeof DELIVERY_TERMS);
 
-    const settled = await settleCashSale(deps, { cashSaleId: saleId });
-    expect(settled.ok).toBe(true);
-    if (!settled.ok) return;
-    expect(settled.sale.status).toBe('HANDOVER');
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    // In-person sales settle straight into HANDOVER when the transfer clears.
+    expect(second.sale.status).toBe('HANDOVER');
 
     const buyerConfirm = await confirmCashSaleHandover(deps, {
       actorId: BUYER.profileId,

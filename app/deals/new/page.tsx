@@ -21,6 +21,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NewDealForm } from '@/components/deals/NewDealForm';
 import { Button } from '@/components/ui/button';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import { SectionHeader } from '@/components/layout/SectionHeader';
 import { formatAud } from '@/lib/format';
 import { DEAL_DEFAULT_COLLATERAL_CENTS } from '@/lib/marketplace-constants';
 
@@ -61,17 +62,11 @@ export default async function NewDealPage({
   if (!verified && !acceptedCollateral) {
     return (
       <MarketplaceShell title="Start a Deal" center>
-        <header className="mb-6 border-b border-border/70 pb-5">
-          <p className="market-label text-gold">Private deal</p>
-          <h2 className="mt-2 text-balance text-2xl font-semibold tracking-[-0.025em]">
-            Verify your identity, or post collateral
-          </h2>
-          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-            A private deal is binding, so it has to be backed by something. Verify
-            once and neither of you puts up a cent — or skip, and each side is held
-            for the deal&apos;s value until the handover is done.
-          </p>
-        </header>
+        <p className="market-label text-gold mb-3">Private Deal</p>
+        <SectionHeader
+          title="Verify Your Identity, or Post Collateral"
+          description="A private deal is binding, so it has to be backed by something. Verify once and neither of you puts up a cent — or skip, and each side is held for the deal's value until the handover is done."
+        />
         <div className="flex flex-wrap gap-3">
           <Button asChild>
             <Link href="/profile#payouts">Verify my identity</Link>
@@ -92,16 +87,11 @@ export default async function NewDealPage({
 
   return (
     <MarketplaceShell title="Start a Deal">
-      <header className="mb-6 border-b border-border/70 pb-5">
-        <p className="market-label text-gold">Private deal</p>
-        <h2 className="mt-2 text-balance text-2xl font-semibold tracking-[-0.025em]">
-          Start a private deal
-        </h2>
-        <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-          Set the terms once, then share a private link with the other person.
-          Nothing becomes binding until you both confirm.
-        </p>
-      </header>
+      <p className="market-label text-gold mb-3">Private Deal</p>
+      <SectionHeader
+        title="Start a Private Deal"
+        description="Set the terms once, then share a private link with the other person. Nothing becomes binding until you both confirm."
+      />
       <NewDealForm collateralRequired={!verified} />
     </MarketplaceShell>
   );

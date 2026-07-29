@@ -14,6 +14,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AlertTriangle, ImagePlus, Loader2, Pencil, ShieldCheck, X } from 'lucide-react';
 
+import { PlacePicker } from '@/components/location';
+import type { PlaceValue } from '@/lib/location/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -117,6 +119,17 @@ function LocalPhotoPreview({ file }: { file: File }) {
   return <img src={url} alt="New item evidence" className="h-full w-full object-cover" />;
 }
 
+function placeFromDeal(deal: DealRow): PlaceValue | null {
+  if (!deal.meeting_location?.trim()) return null;
+  return {
+    label: deal.meeting_location,
+    placeId: deal.meeting_place_id ?? `deal:${deal.id}`,
+    lat: deal.meeting_lat ?? -37.8136,
+    lng: deal.meeting_lng ?? 144.9631,
+    precision: 'exact',
+  };
+}
+
 export interface EditTermsDialogProps {
   deal: DealRow;
   /** True when the viewer is the deal's creator (maps "mine" vs "theirs"). */
@@ -174,7 +187,9 @@ export function EditTermsDialog({
   const [keptPhotoPaths, setKeptPhotoPaths] = useState<string[]>(myPhotosInitial);
   const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const [meetingLocation, setMeetingLocation] = useState(deal.meeting_location ?? '');
+  const [meetingPlace, setMeetingPlace] = useState<PlaceValue | null>(() =>
+    placeFromDeal(deal),
+  );
   const [meetingAt, setMeetingAt] = useState(toLocalInputValue(deal.meeting_at));
   const [deliveryDetails, setDeliveryDetails] = useState(deliveryNotesFrom(deal));
   const [deliveryCost, setDeliveryCost] = useState(
@@ -195,7 +210,7 @@ export function EditTermsDialog({
     setMyItemText(myItemInitial);
     setKeptPhotoPaths(myPhotosInitial);
     setNewPhotoFiles([]);
-    setMeetingLocation(deal.meeting_location ?? '');
+    setMeetingPlace(placeFromDeal(deal));
     setMeetingAt(toLocalInputValue(deal.meeting_at));
     setDeliveryDetails(deliveryNotesFrom(deal));
     setDeliveryCost(centsToDollars(deal.delivery_cost_cents));
@@ -232,7 +247,7 @@ export function EditTermsDialog({
       return;
     }
 
-    if (method === 'IN_PERSON' && !meetingLocation.trim()) {
+    if (method === 'IN_PERSON' && !meetingPlace?.label.trim()) {
       setInlineError('Add where you plan to meet.');
       return;
     }
@@ -284,7 +299,11 @@ export function EditTermsDialog({
     startTransition(async () => {
       const result = await updateTerms(deal.id, {
         handoverMethod: method,
-        meetingLocation: method === 'IN_PERSON' ? meetingLocation : undefined,
+        meetingLocation:
+          method === 'IN_PERSON' ? meetingPlace!.label.trim() : undefined,
+        meetingLat: method === 'IN_PERSON' ? meetingPlace!.lat : null,
+        meetingLng: method === 'IN_PERSON' ? meetingPlace!.lng : null,
+        meetingPlaceId: method === 'IN_PERSON' ? meetingPlace!.placeId : null,
         meetingAt:
           method === 'IN_PERSON' && meetingAt
             ? new Date(meetingAt).toISOString()
@@ -339,7 +358,7 @@ export function EditTermsDialog({
 
           <div className="overflow-y-auto px-6">
             <div
-              className="mt-5 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
+              className="cardtrade-warning mt-5 flex items-start gap-2 rounded-lg border p-3 text-sm"
               role="note"
             >
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -512,17 +531,16 @@ export function EditTermsDialog({
 
             {method === 'IN_PERSON' ? (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="terms-location">Meeting location</Label>
-                  <Input
-                    id="terms-location"
-                    placeholder="e.g. Melbourne Central, outside the clock"
-                    value={meetingLocation}
-                    onChange={(e) => setMeetingLocation(e.target.value)}
-                    maxLength={DEAL_TEXT_MAX}
-                    required
-                  />
-                </div>
+                <PlacePicker
+                  id="terms-location"
+                  label="Meeting location"
+                  precision="exact"
+                  value={meetingPlace}
+                  onChange={setMeetingPlace}
+                  required
+                  hint="Pick a public spot both parties can find."
+                  textFallbackPlaceholder="e.g. Melbourne Central, outside the clock"
+                />
                 <div className="space-y-2">
                   <Label htmlFor="terms-time">Meeting time (optional)</Label>
                   <Input

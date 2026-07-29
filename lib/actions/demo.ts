@@ -24,6 +24,7 @@
 // subscription — so the panel does not need to refetch.
 
 import { createClient } from '@/lib/supabase/server';
+import { isPaymentDemoEnabled } from '@/domain/services';
 import { MockService } from '@/domain/services/mock/MockService';
 import {
   PINCH_EVENT_ID_HEADER,
@@ -52,6 +53,7 @@ export type DemoWebhookKind = 'confirm-holds' | 'fail-holds';
 export type FireTradeWebhookError =
   | 'unauthenticated'
   | 'not-participant'
+  | 'demo-disabled'
   | 'delivery-failed'
   | 'rejected';
 
@@ -136,6 +138,14 @@ export async function fireTradeWebhook(
   tradeId: string,
   kind: DemoWebhookKind,
 ): Promise<FireTradeWebhookResult> {
+  if (!isPaymentDemoEnabled()) {
+    return {
+      ok: false,
+      error: 'demo-disabled',
+      detail: 'Mock payment demos are disabled while Pinch is live.',
+    };
+  }
+
   const guard = await requireParticipant(tradeId);
   if (!guard.ok) return guard;
 
@@ -219,6 +229,7 @@ export type DemoCashSaleWebhookKind = 'settle-payment' | 'fail-payment';
 export type FireCashSaleWebhookError =
   | 'unauthenticated'
   | 'not-participant'
+  | 'demo-disabled'
   | 'delivery-failed'
   | 'rejected';
 
@@ -268,6 +279,14 @@ export async function fireCashSaleWebhook(
   cashSaleId: string,
   kind: DemoCashSaleWebhookKind,
 ): Promise<FireCashSaleWebhookResult> {
+  if (!isPaymentDemoEnabled()) {
+    return {
+      ok: false,
+      error: 'demo-disabled',
+      detail: 'Mock payment demos are disabled while Pinch is live.',
+    };
+  }
+
   const guard = await requireCashSaleParticipant(cashSaleId);
   if (!guard.ok) return guard;
 

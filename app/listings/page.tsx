@@ -23,6 +23,7 @@ import { ItemCard } from '@/components/listings/ItemCard';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import { SectionLoadError } from '@/components/layout/SectionHeader';
 
 // Always render fresh — the catalog reflects live availability + URL filters
 // (Req 3.8, Phase 7). Search/filter/sort/pagination are driven by search params.
@@ -172,12 +173,9 @@ export default async function ListingsPage({
       filters={<CatalogFilters facets={facets} current={current} />}
     >
       {!result.ok ? (
-        <p
-          role="alert"
-          className="mb-5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          We couldn&apos;t load the marketplace right now. Try again shortly.
-        </p>
+        <div className="mb-5">
+          <SectionLoadError label="marketplace" />
+        </div>
       ) : (
       <div aria-labelledby="catalog-heading" className="min-w-0">
           <header className="mb-4 border-b border-border/70 pb-4">

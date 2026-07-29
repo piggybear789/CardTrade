@@ -197,6 +197,11 @@ export type Database = {
           hidden: boolean;
           seller_rating: number | null;
           seller_verified: boolean;
+          location_label: string | null;
+          location_place_id: string | null;
+          location_lat: number | null;
+          location_lng: number | null;
+          location_precision: 'suburb' | 'exact' | null;
           created_at: string;
           updated_at: string;
         };
@@ -213,6 +218,11 @@ export type Database = {
           hidden?: boolean;
           seller_rating?: number | null;
           seller_verified?: boolean;
+          location_label?: string | null;
+          location_place_id?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
+          location_precision?: 'suburb' | 'exact' | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -229,6 +239,11 @@ export type Database = {
           hidden?: boolean;
           seller_rating?: number | null;
           seller_verified?: boolean;
+          location_label?: string | null;
+          location_place_id?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
+          location_precision?: 'suburb' | 'exact' | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -415,6 +430,9 @@ export type Database = {
           shipping_notes: string | null;
           delivery_address: string | null;
           meeting_location: string | null;
+          meeting_lat: number | null;
+          meeting_lng: number | null;
+          meeting_place_id: string | null;
           meeting_at: string | null;
           terms_version: number;
           terms_updated_at: string | null;
@@ -476,6 +494,9 @@ export type Database = {
           shipping_notes?: string | null;
           delivery_address?: string | null;
           meeting_location?: string | null;
+          meeting_lat?: number | null;
+          meeting_lng?: number | null;
+          meeting_place_id?: string | null;
           meeting_at?: string | null;
           terms_version?: number;
           terms_updated_at?: string | null;
@@ -537,6 +558,9 @@ export type Database = {
           shipping_notes?: string | null;
           delivery_address?: string | null;
           meeting_location?: string | null;
+          meeting_lat?: number | null;
+          meeting_lng?: number | null;
+          meeting_place_id?: string | null;
           meeting_at?: string | null;
           terms_version?: number;
           terms_updated_at?: string | null;
@@ -1015,6 +1039,9 @@ export type Database = {
           cash_payer_id: string | null;
           handover_method: Database['cardtrade']['Enums']['handover_method'] | null;
           meeting_location: string | null;
+          meeting_lat: number | null;
+          meeting_lng: number | null;
+          meeting_place_id: string | null;
           meeting_at: string | null;
           delivery_details: string | null;
           delivery_cost_cents: number | null;
@@ -1051,6 +1078,9 @@ export type Database = {
           cash_payer_id?: string | null;
           handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
           meeting_location?: string | null;
+          meeting_lat?: number | null;
+          meeting_lng?: number | null;
+          meeting_place_id?: string | null;
           meeting_at?: string | null;
           delivery_details?: string | null;
           delivery_cost_cents?: number | null;
@@ -1086,6 +1116,9 @@ export type Database = {
           cash_payer_id?: string | null;
           handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
           meeting_location?: string | null;
+          meeting_lat?: number | null;
+          meeting_lng?: number | null;
+          meeting_place_id?: string | null;
           meeting_at?: string | null;
           delivery_details?: string | null;
           delivery_cost_cents?: number | null;

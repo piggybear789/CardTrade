@@ -26,8 +26,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { PlacePicker } from '@/components/location';
+import type { PlaceValue } from '@/lib/location/types';
 import { updateCashSaleTerms } from '@/lib/actions/cashSale';
 import type { Tables } from '@/lib/supabase/database.types';
+
+function placeFromSale(sale: Tables<'cash_sales'>): PlaceValue | null {
+  if (!sale.meeting_location?.trim()) return null;
+  return {
+    label: sale.meeting_location,
+    placeId: sale.meeting_place_id ?? `sale:${sale.id}`,
+    lat: sale.meeting_lat ?? -37.8136,
+    lng: sale.meeting_lng ?? 144.9631,
+    precision: 'exact',
+  };
+}
 
 type CashSaleRow = Tables<'cash_sales'>;
 
@@ -61,7 +74,9 @@ export function CashSaleTermsDialog({
   );
   const [shippingNotes, setShippingNotes] = useState(sale.shipping_notes ?? '');
   const [address, setAddress] = useState(sale.delivery_address ?? '');
-  const [location, setLocation] = useState(sale.meeting_location ?? '');
+  const [meetingPlace, setMeetingPlace] = useState<PlaceValue | null>(() =>
+    placeFromSale(sale),
+  );
   const [meetingAt, setMeetingAt] = useState(
     sale.meeting_at ? sale.meeting_at.slice(0, 16) : '',
   );
@@ -78,7 +93,7 @@ export function CashSaleTermsDialog({
     setShippingCost((sale.shipping_cost_cents / 100).toFixed(2));
     setShippingNotes(sale.shipping_notes ?? '');
     setAddress(sale.delivery_address ?? '');
-    setLocation(sale.meeting_location ?? '');
+    setMeetingPlace(placeFromSale(sale));
     setMeetingAt(sale.meeting_at ? sale.meeting_at.slice(0, 16) : '');
   }, [open, sale]);
 
@@ -89,7 +104,7 @@ export function CashSaleTermsDialog({
       setError('Add the delivery address and a valid shipping cost.');
       return;
     }
-    if (method === 'IN_PERSON' && !location.trim()) {
+    if (method === 'IN_PERSON' && !meetingPlace?.label.trim()) {
       setError('Add the meeting location.');
       return;
     }
@@ -100,7 +115,11 @@ export function CashSaleTermsDialog({
         shippingCostCents: method === 'DELIVERY' ? cents : 0,
         shippingNotes: method === 'DELIVERY' ? shippingNotes : null,
         deliveryAddress: method === 'DELIVERY' ? address : null,
-        meetingLocation: method === 'IN_PERSON' ? location : null,
+        meetingLocation:
+          method === 'IN_PERSON' ? meetingPlace!.label.trim() : null,
+        meetingLat: method === 'IN_PERSON' ? meetingPlace!.lat : null,
+        meetingLng: method === 'IN_PERSON' ? meetingPlace!.lng : null,
+        meetingPlaceId: method === 'IN_PERSON' ? meetingPlace!.placeId : null,
         meetingAt:
           method === 'IN_PERSON' && meetingAt
             ? new Date(meetingAt).toISOString()
@@ -189,16 +208,16 @@ export function CashSaleTermsDialog({
               </>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="sale-location">Meeting location</Label>
-                  <Input
-                    id="sale-location"
-                    value={location}
-                    onChange={(event) => setLocation(event.target.value)}
-                    placeholder="A public, agreed meeting point"
-                    required
-                  />
-                </div>
+                <PlacePicker
+                  id="sale-location"
+                  label="Meeting location"
+                  precision="exact"
+                  value={meetingPlace}
+                  onChange={setMeetingPlace}
+                  required
+                  hint="Pick a public spot both parties can find."
+                  textFallbackPlaceholder="A public, agreed meeting point"
+                />
                 <div className="space-y-2">
                   <Label htmlFor="sale-meeting-at">Meeting time</Label>
                   <Input

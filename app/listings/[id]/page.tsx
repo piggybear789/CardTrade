@@ -42,15 +42,9 @@ import { ReportDialog } from "@/components/reports/ReportDialog";
 import { StarRating } from "@/components/listings/StarRating";
 import { VerifiedBadge } from "@/components/listings/VerifiedBadge";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
+import { PlaceMap } from "@/components/location";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 // The page reads the signed-in user's cookies and reflects live availability,
 // so it must render dynamically (never statically prerendered).
@@ -161,7 +155,9 @@ export default async function ItemDetailPage({
     .map((src, index) => ({ src, alt: `${item.title} — image ${index + 1}` }));
 
   return (
-    <MarketplaceShell title="Listing">
+    <MarketplaceShell
+      title={item.title.length > 40 ? `${item.title.slice(0, 37)}…` : item.title}
+    >
       {/* Split view (lg+), Facebook-Marketplace style: this wrapper is
           exactly the height of the workspace content box — 100dvh less the
           header (h-16 + 1px border + safe-area) and the section's lg:py-7 —
@@ -181,7 +177,7 @@ export default async function ItemDetailPage({
         <nav className="mb-6" aria-label="Breadcrumb">
           <Link
             href="/listings"
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            className="rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             ← Back to listings
           </Link>
@@ -232,7 +228,7 @@ export default async function ItemDetailPage({
                   {watchCount > 0 ? (
                     <span className="inline-flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
                       <Heart
-                        className="size-4 fill-red-500 text-red-500"
+                        className="size-4 fill-destructive text-destructive"
                         aria-hidden="true"
                       />
                       {watchCount} {watchCount === 1 ? "save" : "saves"}
@@ -329,6 +325,24 @@ export default async function ItemDetailPage({
                 </p>
               </section>
 
+              {item.location_label ||
+              (item.location_lat != null && item.location_lng != null) ? (
+                <section
+                  aria-labelledby="location-heading"
+                  className="space-y-2"
+                >
+                  <h2 id="location-heading" className="text-sm font-medium">
+                    Based near
+                  </h2>
+                  <PlaceMap
+                    lat={item.location_lat}
+                    lng={item.location_lng}
+                    label={item.location_label}
+                    heightClassName="h-40"
+                  />
+                </section>
+              ) : null}
+
               {/* Transaction entry points, gated by viewer context. */}
               <ItemActions
                 itemId={item.id}
@@ -422,28 +436,22 @@ function ItemActions({
       const contractHref = activeSaleId
         ? `/sales/${activeSaleId}`
         : `/trades/${activeTradeId}`;
-      const contractLabel = activeSaleId
-        ? "Open sale contract"
-        : "Open trade contract";
+      const contractLabel = activeSaleId ? "Open Sale" : "Open Trade";
       return (
-        <div className="space-y-3">
-          <Card className="border-gold/40 bg-gold/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Under contract</CardTitle>
-              <CardDescription>
-                This item is currently in an active contract. Manage it from the
-                contract room.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full sm:w-auto">
-                <Link href={contractHref}>
-                  <FileText aria-hidden />
-                  {contractLabel}
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="space-y-3 rounded-lg border border-gold/40 bg-gold/5 p-4">
+          <div>
+            <p className="text-base font-semibold">Under Contract</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This item is in an active {activeSaleId ? "sale" : "trade"}. Manage
+              it from the contract room.
+            </p>
+          </div>
+          <Button asChild className="w-full sm:w-auto">
+            <Link href={contractHref}>
+              <FileText aria-hidden />
+              {contractLabel}
+            </Link>
+          </Button>
         </div>
       );
     }
@@ -465,36 +473,32 @@ function ItemActions({
   // Non-owner: the item must be AVAILABLE to buy or trade.
   if (!isAvailable) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Not available</CardTitle>
-          <CardDescription>
-            This item is not currently available for purchase or trade.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="rounded-lg border border-dashed px-4 py-5">
+        <p className="text-base font-semibold">Not Available</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          This item is not currently available for purchase or trade.
+        </p>
+      </div>
     );
   }
 
   // Unauthenticated visitors are prompted to sign in first (Req 1.7).
   if (!isAuthenticated) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sign in to continue</CardTitle>
-          <CardDescription>
+      <div className="space-y-3 rounded-lg border border-dashed px-4 py-5">
+        <div>
+          <p className="text-base font-semibold">Sign In to Continue</p>
+          <p className="mt-1 text-sm text-muted-foreground">
             Sign in to buy this item or propose a trade.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild className="w-full sm:w-auto">
-            <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
-              <LogIn aria-hidden />
-              Sign in
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+          </p>
+        </div>
+        <Button asChild className="w-full sm:w-auto">
+          <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
+            <LogIn aria-hidden />
+            Sign In
+          </Link>
+        </Button>
+      </div>
     );
   }
 
@@ -509,15 +513,21 @@ function ItemActions({
   return (
     <div className="space-y-5">
       {!sellerIdentity ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Open to trades only</CardTitle>
-            <CardDescription>
-              This seller cannot take cash payments yet. You can still offer a
-              swap, or message them.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="space-y-3 rounded-lg border border-dashed px-4 py-4">
+          <div>
+            <p className="text-base font-semibold">Open to Trades Only</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This seller cannot take cash payments yet. You can still propose a
+              trade, or message them.
+            </p>
+          </div>
+          <Button asChild className="w-full sm:w-auto">
+            <Link href={`/trades/new?counterpartItemId=${itemId}`}>
+              <ArrowLeftRight aria-hidden />
+              Propose Trade
+            </Link>
+          </Button>
+        </div>
       ) : null}
 
       {/* Primary transaction row — Buy / Trade / Offer inline. Each action
@@ -527,12 +537,14 @@ function ItemActions({
         {sellerIdentity ? (
           <BuyButton itemId={itemId} sellerIdentity={sellerIdentity} />
         ) : null}
-        <Button asChild variant="outline" size="lg">
-          <Link href={`/trades/new?counterpartItemId=${itemId}`}>
-            <ArrowLeftRight aria-hidden />
-            Propose trade
-          </Link>
-        </Button>
+        {sellerIdentity ? (
+          <Button asChild variant="outline" size="lg">
+            <Link href={`/trades/new?counterpartItemId=${itemId}`}>
+              <ArrowLeftRight aria-hidden />
+              Propose Trade
+            </Link>
+          </Button>
+        ) : null}
         {sellerIdentity ? (
           <MakeOfferDialog
             itemId={itemId}

@@ -34,6 +34,8 @@ import {
   type ItemRow,
   type ImageUpload,
 } from "@/lib/actions/listings";
+import { PlacePicker } from "@/components/location";
+import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,7 +88,25 @@ type ErrorField =
   | "condition"
   | "fmvCents"
   | "images"
+  | "location"
   | null;
+
+function placeFromItem(item?: ItemRow): PlaceValue | null {
+  if (
+    !item?.location_label ||
+    item.location_lat == null ||
+    item.location_lng == null
+  ) {
+    return null;
+  }
+  return {
+    label: item.location_label,
+    placeId: item.location_place_id ?? `item:${item.id}`,
+    lat: item.location_lat,
+    lng: item.location_lng,
+    precision: item.location_precision === "exact" ? "exact" : "suburb",
+  };
+}
 
 export interface ItemFormProps {
   /** `create` renders an empty form; `edit` prefills from {@link item}. */
@@ -122,6 +142,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   const [condition, setCondition] = React.useState(item?.condition ?? "");
   const [fmvDollars, setFmvDollars] = React.useState(
     item ? centsToDollars(item.fmv_cents) : "",
+  );
+  const [location, setLocation] = React.useState<PlaceValue | null>(() =>
+    placeFromItem(item),
   );
 
   // Edit mode: existing stored object paths the user chooses to keep.
@@ -193,6 +216,22 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       return;
     }
 
+    if (!location?.label.trim()) {
+      setError({
+        field: "location",
+        message: "Add where this listing is based (suburb or city).",
+      });
+      return;
+    }
+
+    const locationPayload = {
+      label: location.label.trim(),
+      placeId: location.placeId,
+      lat: location.lat,
+      lng: location.lng,
+      precision: "suburb" as const,
+    };
+
     setIsSubmitting(true);
     try {
       if (mode === "create") {
@@ -203,6 +242,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           condition,
           fmvCents,
           images: newFiles as unknown as ImageUpload[],
+          location: locationPayload,
         });
 
         if (result.ok) {
@@ -224,6 +264,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           condition,
           fmvCents,
           images,
+          location: locationPayload,
         });
 
         if (result.ok) {
@@ -270,6 +311,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   const conditionError = errorFor("condition");
   const fmvError = errorFor("fmvCents");
   const imagesError = errorFor("images");
+  const locationError = errorFor("location");
   const generalError = error && error.field === null ? error.message : undefined;
 
   // The first image (kept or newly added) is the cover shown in the big
@@ -595,6 +637,19 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   Enter dollars and cents, e.g. 123.45.
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <PlacePicker
+                label="Based near"
+                precision="suburb"
+                value={location}
+                onChange={setLocation}
+                disabled={isSubmitting}
+                required
+                error={locationError}
+                hint="Suburb or city only — shown publicly on your listing."
+              />
             </div>
 
             {generalError ? (

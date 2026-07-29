@@ -66,14 +66,14 @@ export function OffersSection({
     return scope === 'past' ? (
       <SharedEmptyState
         icon={<HandCoins className="size-6" aria-hidden />}
-        title="No past offers"
+        title="No Past Offers"
         description="Decided or withdrawn offers will be kept here."
         compact
       />
     ) : (
       <EmptyState
         icon={<HandCoins className="size-6" aria-hidden />}
-        title="No offers yet"
+        title="No Offers Yet"
         description="Make an offer on a listing, or wait for buyers to send you one."
         ctaLabel="Browse the marketplace"
         ctaHref="/listings"

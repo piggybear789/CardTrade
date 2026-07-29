@@ -66,7 +66,7 @@ export function StarRating({
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={`fg-${i}`}
-              className="fill-amber-400 text-amber-400"
+              className="fill-gold text-gold"
               style={{ width: size, height: size, minWidth: size }}
               aria-hidden
             />

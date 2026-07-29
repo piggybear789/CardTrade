@@ -6,20 +6,8 @@
 // panel that fires SIMULATED Pinch webhooks into the real Webhook_Handler,
 // exercising the exact code path a live Pinch webhook would (Req 10.1).
 //
-// In this frontend-first MVP the payment provider is mocked, so the collateral
-// pre-auth confirmation that advances a Trade COLLATERAL_PENDING ->
-// COLLATERAL_LOCKED (Req 5.5) — and the failure that would cancel it (Req 5.6)
-// — never arrive from a real provider. This panel lets a demo operator deliver
-// them on demand. Shipping/receipt/acceptance/dispute/fraud (Req 6.2, 6.4, 6.6,
-// 7.1, 8.1) are real participant actions surfaced by the ActionBar, so the panel
-// deliberately covers only the PAYMENT/COLLATERAL webhooks.
-//
-// The signing happens server-side (the shared secret must never reach the
-// browser), so each control calls the `fireTradeWebhook` server action via
-// useTransition. The action only DELIVERS the webhook; the resulting
-// Trade_State transition is committed by the handler and flows back into the
-// view over the existing realtime subscription, so this panel never refetches.
-// Outcomes are surfaced with sonner toasts.
+// Collapsed by default and labelled as hackathon / test mode so judges never
+// mistake these buttons for production payment steps.
 
 import { useState, useTransition } from 'react';
 import { ChevronDown, ChevronUp, FlaskConical } from 'lucide-react';
@@ -37,6 +25,7 @@ const ERROR_MESSAGES: Record<FireTradeWebhookError, string> = {
   unauthenticated: 'Please sign in to use the demo controls.',
   'not-participant': 'Only participants in this trade can use the demo controls.',
   'delivery-failed': 'The simulated webhook could not be delivered.',
+  'demo-disabled': 'Mock payment demos are disabled while Pinch is live.',
   rejected: 'This trade cannot accept that event in its current state.',
 };
 
@@ -82,26 +71,32 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
 
   return (
     <section
-      className="rounded-lg border border-dashed border-amber-500/50 bg-amber-500/5"
-      aria-label="Demo controls"
+      className="cardtrade-demo rounded-lg border border-dashed"
+      aria-label="Hackathon test mode controls"
     >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="demo-panel-body"
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        aria-label={open ? 'Collapse hackathon test controls' : 'Expand hackathon test controls'}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        <span className="flex items-center gap-2">
-          <FlaskConical className="size-4 text-amber-600" aria-hidden />
-          <span className="text-xs font-semibold uppercase tracking-wide text-amber-600">
-            Demo controls
+        <span className="flex min-w-0 items-center gap-2">
+          <FlaskConical className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <span className="min-w-0">
+            <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
+              Hackathon · Test Mode
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Simulated payments — not live Pinch
+            </span>
           </span>
         </span>
         {open ? (
-          <ChevronUp className="size-4 text-amber-600" aria-hidden />
+          <ChevronUp className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         ) : (
-          <ChevronDown className="size-4 text-amber-600" aria-hidden />
+          <ChevronDown className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         )}
       </button>
 

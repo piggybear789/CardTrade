@@ -37,7 +37,8 @@ import type {
 } from '@/domain/orchestrator/disputeResolution';
 import type { OrchestratorError } from '@/domain/orchestrator/tradeOrchestrator';
 import type { ProposeTradeError } from '@/domain/orchestrator/tradeProposal';
-import { getPaymentService } from '@/domain/services';
+import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
+import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import {
   factsFromTrade,
   hasRecorded,
@@ -223,9 +224,34 @@ export async function proposeTrade(
       event: 'HOLDS_CONFIRMED',
       actorId: initiatorId,
     });
+  } else if (isLivePaymentsProvider()) {
+    // Pinch realtime charges return synchronously. Advance the trade from the
+    // hold rows instead of waiting for a webhook (or the mock DemoPanel).
+    await syncTradeHoldsFromPinch(result.trade.id, initiatorId);
   }
 
   return { ok: true, tradeId: result.trade.id };
+}
+
+/**
+ * After Pinch `POST /payments/realtime`, hold rows already reflect ACTIVE/FAILED.
+ * Drive HOLDS_CONFIRMED / HOLDS_FAILED from that truth so trades leave
+ * COLLATERAL_PENDING without a fake webhook button.
+ */
+async function syncTradeHoldsFromPinch(tradeId: string, actorId: string): Promise<void> {
+  const admin = createAdminClient();
+  const repository = createSupabaseTradeProposalRepository(admin);
+  const holds = await repository.getHolds(tradeId);
+  if (holds.length === 0) return;
+
+  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  if (holds.every((h) => h.status === 'ACTIVE')) {
+    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    return;
+  }
+  if (holds.some((h) => h.status === 'FAILED')) {
+    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
+  }
 }
 
 // ---------------------------------------------------------------------------

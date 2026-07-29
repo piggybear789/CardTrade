@@ -25,7 +25,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
       <ShieldCheck
         className={cn(
           'size-3.5 shrink-0',
-          party.verified ? 'text-trust' : 'text-amber-600 dark:text-amber-400',
+          party.verified ? 'text-trust' : 'text-gold',
         )}
         aria-hidden
       />
@@ -34,7 +34,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
       </span>
       {party.rating === null ? null : (
         <span className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
-          <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
+          <Star className="size-3 fill-gold text-gold" aria-hidden />
           {Number(party.rating).toFixed(1)}
         </span>
       )}
@@ -66,7 +66,7 @@ function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
         <div
           className={cn(
             'flex shrink-0 items-center gap-1 text-xs font-medium',
-            party.verified ? 'text-trust' : 'text-amber-600 dark:text-amber-400',
+            party.verified ? 'text-trust' : 'text-gold',
           )}
         >
           <ShieldCheck className="size-3.5" aria-hidden />
@@ -84,7 +84,7 @@ function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
               'No reviews yet'
             ) : (
               <>
-                <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
+                <Star className="size-3 fill-gold text-gold" aria-hidden />
                 {Number(party.rating).toFixed(1)}
                 <span className="font-normal text-muted-foreground">
                   ({party.ratingCount})

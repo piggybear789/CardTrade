@@ -155,8 +155,8 @@ export function BuyButton({
             <DialogHeader>
               <DialogTitle>Add a payment method</DialogTitle>
               <DialogDescription>
-                A card is required to buy. It goes straight to Pinch — we never
-                see it.
+                A card is required to buy. Details are encrypted in your browser
+                via Pinch — we never store the full card number.
               </DialogDescription>
             </DialogHeader>
             <AddPaymentMethodForm

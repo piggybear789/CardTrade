@@ -90,6 +90,9 @@ export interface CashSaleRecord {
   shippingNotes: string | null;
   deliveryAddress: string | null;
   meetingLocation: string | null;
+  meetingLat: number | null;
+  meetingLng: number | null;
+  meetingPlaceId: string | null;
   meetingAt: string | null;
   termsVersion: number;
   buyerTermsAcceptedVersion: number | null;
@@ -154,6 +157,9 @@ export interface CashSaleTermsInput {
   shippingNotes?: string | null;
   deliveryAddress?: string | null;
   meetingLocation?: string | null;
+  meetingLat?: number | null;
+  meetingLng?: number | null;
+  meetingPlaceId?: string | null;
   meetingAt?: string | null;
 }
 
@@ -330,9 +336,22 @@ function normalizeTerms(input: CashSaleTermsInput): Required<CashSaleTermsInput>
       input.fulfillmentMethod === 'IN_PERSON'
         ? input.meetingLocation?.trim() || null
         : null,
+    meetingLat:
+      input.fulfillmentMethod === 'IN_PERSON' ? normalizeCoord(input.meetingLat) : null,
+    meetingLng:
+      input.fulfillmentMethod === 'IN_PERSON' ? normalizeCoord(input.meetingLng) : null,
+    meetingPlaceId:
+      input.fulfillmentMethod === 'IN_PERSON'
+        ? input.meetingPlaceId?.trim() || null
+        : null,
     meetingAt:
       input.fulfillmentMethod === 'IN_PERSON' ? input.meetingAt ?? null : null,
   };
+}
+
+function normalizeCoord(value: number | null | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return value;
 }
 
 /** Buy Now creates a reserved agreement; it does not submit payment. */
@@ -592,6 +611,13 @@ async function submitClaimedPayment(
     cashSaleId: sale.id,
     transferId: transfer.transferId,
   });
+
+  // Pinch realtime payments settle synchronously. Advance ESCROW_HELD here so
+  // the sale does not wait on a webhook (or the mock Demo panel).
+  if (transfer.status === 'SETTLED') {
+    return settleCashSale(deps, { cashSaleId: sale.id });
+  }
+
   return { ok: true, sale: submitted ?? sale };
 }
 /** Record one party's acceptance; the second acceptance claims and submits payment. */

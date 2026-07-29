@@ -9,7 +9,6 @@
 // Merchant onboarding (`merchant_status = APPROVED` with settlements enabled),
 // not a separate KYC step.
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 
@@ -28,6 +27,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
+import { SectionHeader } from "@/components/layout/SectionHeader";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // This page reads the authenticated user's cookies, so it must render
 // dynamically (never statically prerendered at build time).
@@ -53,25 +54,13 @@ export default async function ProfilePage() {
 
   if (error || !profile) {
     return (
-      <MarketplaceShell title="Profile" center>
-        <Card>
-          <CardHeader>
-            {/* MarketplaceShell already renders the page-level h1 ("Profile"),
-                so this error title is an h2 to keep the heading order valid. */}
-            <h2 className="text-xl font-semibold leading-none tracking-tight">
-              Profile unavailable
-            </h2>
-            <CardDescription>
-              We couldn&apos;t load your profile right now. Please try again
-              shortly.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/profile">Try again</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <MarketplaceShell title="Account" center>
+        <EmptyState
+          title="Account Unavailable"
+          description="We couldn't load your account right now. Reload the page to try again."
+          action={{ label: "Try Again", href: "/profile" }}
+          compact
+        />
       </MarketplaceShell>
     );
   }
@@ -85,15 +74,11 @@ export default async function ProfilePage() {
   const paymentMethod = paymentMethodResult.ok ? paymentMethodResult.data : null;
 
   return (
-    <MarketplaceShell title="Profile">
-      <header className="mb-6 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em]">
-          Profile settings
-        </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Manage your public identity and verification status.
-        </p>
-      </header>
+    <MarketplaceShell title="Account">
+      <SectionHeader
+        title="Account Settings"
+        description="Manage your public identity and verification status."
+      />
 
       <div className="space-y-6">
         {/* Identity verification leads the page: it's the one thing that fully

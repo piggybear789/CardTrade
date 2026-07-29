@@ -38,6 +38,8 @@ const GROUPS = [
     ],
   },
   {
+    // Umbrella for live escrow rooms: cash purchases/sales, 2-way trades, and
+    // private invite deals. Individual labels keep the glossary distinct.
     label: 'Contracts',
     links: [
       { href: '/purchases', label: 'Purchases', icon: ShoppingBag },

@@ -64,9 +64,12 @@ export function SiteMenu({ isAuthenticated, isAdmin }: SiteMenuProps) {
         { href: '/purchases', label: 'Purchases' },
         { href: '/sales', label: 'Sales' },
         { href: '/trades', label: 'Trades' },
+        { href: '/deals', label: 'Deals' },
+        { href: '/offers', label: 'Offers' },
+        { href: '/saved', label: 'Saved' },
         { href: '/messages', label: 'Messages' },
         { href: '/notifications', label: 'Notifications' },
-        { href: '/profile', label: 'Profile' },
+        { href: '/profile', label: 'Account' },
         ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
       ]
     : [];

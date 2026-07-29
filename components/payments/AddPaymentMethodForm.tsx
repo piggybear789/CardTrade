@@ -8,13 +8,14 @@
 // reaches the server.
 
 import { useEffect, useState, useTransition } from 'react';
-import { Loader2 } from 'lucide-react';
+import { CreditCard, Loader2, Lock, ShieldCheck } from 'lucide-react';
 
 import { attachPaymentSource, getTokenisationConfig } from '@/lib/actions/payments';
 import { usePinchCapture } from './usePinchCapture';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 /** Detect card network from the leading digits. */
 function detectCardBrand(cardNumber: string): string {
@@ -120,8 +121,47 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
   const captureUnavailable = captureStatus === 'error' || Boolean(configError);
   const busy = isPending || isLoadingCapture;
 
+  const brand = detectCardBrand(cardNumber.replace(/\s+/g, ''));
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div
+        className={cn(
+          'flex gap-3 rounded-lg border px-3 py-2.5 cardtrade-trust-mark',
+        )}
+        role="note"
+      >
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
+        <div className="min-w-0 space-y-0.5 text-sm leading-snug">
+          <p className="font-medium text-foreground">
+            Encrypted card entry — secured by Pinch
+          </p>
+          <p className="text-muted-foreground">
+            Your card number is tokenised in the browser. We never store the
+            full number on our servers.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2" aria-label="Accepted cards">
+        {(['Visa', 'Mastercard', 'Amex'] as const).map((name) => (
+          <span
+            key={name}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[0.6875rem] font-semibold tracking-wide text-muted-foreground',
+              brand === name && 'border-trust/40 text-foreground',
+            )}
+          >
+            <CreditCard className="size-3.5" aria-hidden />
+            {name}
+          </span>
+        ))}
+        <span className="inline-flex items-center gap-1 text-[0.6875rem] text-muted-foreground">
+          <Lock className="size-3 text-gold" aria-hidden />
+          TLS encrypted
+        </span>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="pm-name">Name on card</Label>
         <Input
@@ -136,16 +176,23 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
       <div className="space-y-2">
         <Label htmlFor="pm-number">Card number</Label>
-        <Input
-          id="pm-number"
-          inputMode="numeric"
-          autoComplete="cc-number"
-          placeholder="4242 4242 4242 4242"
-          value={cardNumber}
-          onChange={(e) => setCardNumber(e.target.value)}
-          disabled={busy}
-          required
-        />
+        <div className="relative">
+          <Lock
+            className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-gold"
+            aria-hidden
+          />
+          <Input
+            id="pm-number"
+            inputMode="numeric"
+            autoComplete="cc-number"
+            placeholder="•••• •••• •••• ••••"
+            className="pl-9"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(e.target.value)}
+            disabled={busy}
+            required
+          />
+        </div>
         {environment === 'test' ? (
           <p className="text-xs text-muted-foreground">
             Test mode: use 4242 4242 4242 4242 with any future expiry and CVC.
@@ -214,8 +261,33 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
       <Button type="submit" disabled={busy || captureUnavailable} aria-busy={busy} className="w-full">
         {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
-        {isLoadingCapture ? 'Loading…' : isPending ? 'Saving…' : 'Save card and continue'}
+        {isLoadingCapture ? (
+          'Loading secure checkout…'
+        ) : isPending ? (
+          'Saving…'
+        ) : (
+          <>
+            <Lock className="size-3.5" aria-hidden />
+            Save card securely
+          </>
+        )}
       </Button>
+
+      <p className="flex items-start justify-center gap-1.5 text-center text-[0.6875rem] leading-relaxed text-muted-foreground">
+        <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
+        <span>
+          Payments processed by{' '}
+          <a
+            href="https://getpinch.com.au"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            Pinch Payments
+          </a>
+          . Card data is not stored on Poke-xchange.
+        </span>
+      </p>
     </form>
   );
 }

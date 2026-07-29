@@ -175,6 +175,11 @@ function normalizeText(
   return trimmed.slice(0, max);
 }
 
+function finiteCoord(value: number | null | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return value;
+}
+
 /**
  * Render a DELIVERY handover as human-readable `delivery_details`: the postage
  * price (which is what makes the handover complete) plus any shipping notes the
@@ -386,6 +391,10 @@ export interface CreateDealInput {
   handoverMethod: HandoverMethod;
   /** Required when `handoverMethod === 'IN_PERSON'`. */
   meetingLocation?: string;
+  /** Optional Mapbox coords for an in-person meeting pin. */
+  meetingLat?: number | null;
+  meetingLng?: number | null;
+  meetingPlaceId?: string | null;
   /** Optional ISO timestamp for an in-person meeting. */
   meetingAt?: string | null;
   /**
@@ -571,6 +580,14 @@ export async function createDeal(
       creator_item_text: photosRequired ? normalizeText(input.description) : null,
       handover_method: handoverMethod,
       meeting_location: handoverMethod === 'IN_PERSON' ? meetingLocation : null,
+      meeting_lat:
+        handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLat) : null,
+      meeting_lng:
+        handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLng) : null,
+      meeting_place_id:
+        handoverMethod === 'IN_PERSON'
+          ? normalizeText(input.meetingPlaceId)
+          : null,
       meeting_at: handoverMethod === 'IN_PERSON' ? (input.meetingAt ?? null) : null,
       delivery_details: deliveryDetails,
       delivery_cost_cents: deliveryCostCents,
@@ -840,6 +857,10 @@ export interface UpdateTermsInput {
   handoverMethod: HandoverMethod;
   /** Required when `handoverMethod === 'IN_PERSON'`. */
   meetingLocation?: string;
+  /** Optional Mapbox coords for an in-person meeting pin. */
+  meetingLat?: number | null;
+  meetingLng?: number | null;
+  meetingPlaceId?: string | null;
   /** Optional ISO timestamp for an in-person meeting. */
   meetingAt?: string | null;
   /** Optional shipping notes when `handoverMethod === 'DELIVERY'`. */
@@ -957,6 +978,14 @@ export async function updateTerms(
   const patch: TablesUpdate<'deals'> = {
     handover_method: input.handoverMethod,
     meeting_location: input.handoverMethod === 'IN_PERSON' ? meetingLocation : null,
+    meeting_lat:
+      input.handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLat) : null,
+    meeting_lng:
+      input.handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLng) : null,
+    meeting_place_id:
+      input.handoverMethod === 'IN_PERSON'
+        ? normalizeText(input.meetingPlaceId)
+        : null,
     meeting_at: input.handoverMethod === 'IN_PERSON' ? (input.meetingAt ?? null) : null,
     delivery_details: deliveryDetails,
     delivery_cost_cents: deliveryCostCents,

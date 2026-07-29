@@ -10,6 +10,7 @@ import { CashSaleView, type SaleParty } from '@/components/sales/CashSaleView';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
+import { isPaymentDemoEnabled } from '@/domain/services';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -122,6 +123,7 @@ export default async function CashSalePage({
         buyer={buyer}
         seller={seller}
         conversationId={sale.conversation_id}
+        paymentDemoEnabled={isPaymentDemoEnabled()}
       />
 
       {sale.status === 'COMPLETED' ? (

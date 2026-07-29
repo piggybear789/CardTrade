@@ -205,7 +205,7 @@ export default async function SellerProfilePage({
         </h2>
         {catalogItems.length === 0 ? (
           <EmptyState
-            title="No available listings"
+            title="No Available Listings"
             titleAs="h3"
             description="This seller has no available listings right now."
             compact

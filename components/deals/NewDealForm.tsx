@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 
 import { ShareDealLink } from '@/components/deals/ShareDealLink';
+import { PlacePicker } from '@/components/location';
+import type { PlaceValue } from '@/lib/location/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -264,7 +266,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const [role, setRole] = useState<DealRole | null>(null);
   const [description, setDescription] = useState('');
   const [handover, setHandover] = useState<HandoverMethod | null>(null);
-  const [meetingLocation, setMeetingLocation] = useState('');
+  const [meetingPlace, setMeetingPlace] = useState<PlaceValue | null>(null);
   const [meetingAt, setMeetingAt] = useState('');
   const [offerKinds, setOfferKinds] = useState<DealOfferKind[]>([]);
   const [cash, setCash] = useState('');
@@ -359,7 +361,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
       fail('handover', 'Choose face to face or delivery.', 'deal-handover-IN_PERSON');
       return;
     }
-    if (handover === 'IN_PERSON' && !meetingLocation.trim()) {
+    if (handover === 'IN_PERSON' && !meetingPlace?.label.trim()) {
       fail('meetingLocation', 'Add where you plan to meet.', 'deal-meeting-location');
       return;
     }
@@ -417,7 +419,11 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
           description: description.trim() || undefined,
           handoverMethod: handover,
           meetingLocation:
-            handover === 'IN_PERSON' ? meetingLocation.trim() : undefined,
+            handover === 'IN_PERSON' ? meetingPlace!.label.trim() : undefined,
+          meetingLat: handover === 'IN_PERSON' ? meetingPlace!.lat : null,
+          meetingLng: handover === 'IN_PERSON' ? meetingPlace!.lng : null,
+          meetingPlaceId:
+            handover === 'IN_PERSON' ? meetingPlace!.placeId : null,
           meetingAt:
             handover === 'IN_PERSON' && meetingAt
               ? new Date(meetingAt).toISOString()
@@ -464,7 +470,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
         <CardHeader>
           <CardTitle>
             <h2 className="flex items-center gap-2 text-xl">
-              <CheckCircle2 className="size-5 text-emerald-600" aria-hidden />
+              <CheckCircle2 className="size-5 text-trust" aria-hidden />
               Deal created
             </h2>
           </CardTitle>
@@ -480,7 +486,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
             share it with the person you intend to deal with.
           </p>
           {collateralRequired ? (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+            <div className="cardtrade-warning rounded-md border p-3 text-sm">
               <p className="flex items-center gap-2 font-medium">
                 <ShieldAlert className="size-4 shrink-0" aria-hidden />
                 Collateral applies to this deal
@@ -523,7 +529,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
       <form onSubmit={handleSubmit} noValidate aria-busy={isPending}>
         <fieldset disabled={isPending} className="contents">
           {collateralRequired ? (
-            <div className="mx-6 mt-6 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+            <div className="cardtrade-warning mx-6 mt-6 rounded-md border p-3 text-sm">
               <p className="flex items-center gap-2 font-medium">
                 <ShieldAlert className="size-4 shrink-0" aria-hidden />
                 Backing this deal with collateral
@@ -699,29 +705,21 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
               </fieldset>
 
               {handover === 'IN_PERSON' ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="deal-meeting-location">
-                      Meeting place
-                      <Required />
-                    </Label>
-                    <Input
-                      id="deal-meeting-location"
-                      value={meetingLocation}
-                      onChange={(event) => {
-                        setMeetingLocation(event.target.value);
-                        clearError('meetingLocation');
-                      }}
-                      placeholder="Melbourne Central, main entrance"
-                      maxLength={DEAL_TEXT_MAX}
-                      required
-                      aria-invalid={locationError ? true : undefined}
-                      aria-describedby={
-                        locationError ? 'deal-location-error' : undefined
-                      }
-                    />
-                    <FieldError id="deal-location-error" message={locationError} />
-                  </div>
+                <div className="space-y-4">
+                  <PlacePicker
+                    id="deal-meeting-location"
+                    label="Meeting place"
+                    precision="exact"
+                    value={meetingPlace}
+                    onChange={(place) => {
+                      setMeetingPlace(place);
+                      clearError('meetingLocation');
+                    }}
+                    required
+                    error={locationError}
+                    hint="Pick a public spot both parties can find."
+                    textFallbackPlaceholder="Melbourne Central, main entrance"
+                  />
                   <div className="space-y-2">
                     <Label htmlFor="deal-meeting-at">
                       Date and time{' '}

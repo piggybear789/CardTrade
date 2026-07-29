@@ -168,7 +168,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md border-border/80 bg-card shadow-market">
       <CardHeader>
         {/* The auth pages have no shell-provided heading, so the card title is
             the page's single h1. CardTitle renders a div, so use a semantic

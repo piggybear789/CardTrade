@@ -11,6 +11,10 @@ import { createClient } from '@/lib/supabase/server';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import {
+  SectionHeader,
+  SectionLoadError,
+} from '@/components/layout/SectionHeader';
 
 export const metadata = {
   title: 'Notifications · Poke-xchange',
@@ -35,14 +39,16 @@ export default async function NotificationsPage() {
 
   return (
     <MarketplaceShell title="Notifications">
-      <header className="mb-5 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
-          Activity
-        </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Your offers, messages, trades, and sales updates.
-        </p>
-      </header>
+      <SectionHeader
+        title="Activity"
+        description="Your offers, messages, trades, and sales updates."
+      />
+
+      {!result.ok ? (
+        <div className="mb-5">
+          <SectionLoadError label="notifications" />
+        </div>
+      ) : null}
 
       <div className="flex w-full flex-col">
         <NotificationCenter

@@ -47,6 +47,15 @@ export type ItemRow = Tables<'items'>;
  */
 export type { ImageUpload };
 
+/** Public listing base location (suburb-level). */
+export interface ItemLocationInput {
+  label: string;
+  placeId: string;
+  lat: number;
+  lng: number;
+  precision?: 'suburb' | 'exact';
+}
+
 /** Fields accepted when creating an Item (images are uploaded, then validated). */
 export interface CreateItemInput {
   title: string;
@@ -55,6 +64,8 @@ export interface CreateItemInput {
   condition: string;
   fmvCents: number;
   images: ImageUpload[];
+  /** Required for public catalog listings; optional for private trade items. */
+  location?: ItemLocationInput | null;
 }
 
 /** Fields accepted when updating an Item. Images may mix kept paths + new uploads. */
@@ -65,6 +76,59 @@ export interface UpdateItemInput {
   condition: string;
   fmvCents: number;
   images: (string | ImageUpload)[];
+  location?: ItemLocationInput | null;
+}
+
+/** Validate and normalize a listing location, or return a field error. */
+function normalizeItemLocation(
+  location: ItemLocationInput | null | undefined,
+  required: boolean,
+):
+  | {
+      ok: true;
+      value: {
+        location_label: string;
+        location_place_id: string;
+        location_lat: number;
+        location_lng: number;
+        location_precision: 'suburb' | 'exact';
+      } | null;
+    }
+  | { ok: false; field: string; message: string } {
+  if (!location) {
+    if (required) {
+      return {
+        ok: false,
+        field: 'location',
+        message: 'Add where this listing is based (suburb or city).',
+      };
+    }
+    return { ok: true, value: null };
+  }
+  const label = location.label?.trim() ?? '';
+  if (!label) {
+    return { ok: false, field: 'location', message: 'Add where this listing is based.' };
+  }
+  if (
+    !Number.isFinite(location.lat) ||
+    !Number.isFinite(location.lng) ||
+    location.lat < -90 ||
+    location.lat > 90 ||
+    location.lng < -180 ||
+    location.lng > 180
+  ) {
+    return { ok: false, field: 'location', message: 'Pick a place on the map.' };
+  }
+  return {
+    ok: true,
+    value: {
+      location_label: label.slice(0, 255),
+      location_place_id: (location.placeId || `text:${label}`).slice(0, 255),
+      location_lat: location.lat,
+      location_lng: location.lng,
+      location_precision: location.precision === 'exact' ? 'exact' : 'suburb',
+    },
+  };
 }
 
 /** Discriminated result returned by every listing action. */
@@ -199,6 +263,17 @@ export async function createItem(
     };
   }
 
+  const location = normalizeItemLocation(input.location, true);
+  if (!location.ok) {
+    await removeImages(admin, imagePaths);
+    return {
+      ok: false,
+      error: 'validation-error',
+      field: location.field,
+      message: location.message,
+    };
+  }
+
   // Insert via the cookie-bound client so RLS enforces owner_id = auth.uid().
   const { data, error } = await supabase
     .from('items')
@@ -211,6 +286,7 @@ export async function createItem(
       fmv_cents: validated.value.fmvCents,
       image_paths: validated.value.images,
       status: 'AVAILABLE',
+      ...(location.value ?? {}),
     })
     .select('*')
     .single();
@@ -381,6 +457,17 @@ export async function updateItem(
 
   const resolvedImages = [...keptPaths, ...uploadedPaths];
 
+  const location = normalizeItemLocation(input.location, true);
+  if (!location.ok) {
+    await removeImages(admin, uploadedPaths);
+    return {
+      ok: false,
+      error: 'validation-error',
+      field: location.field,
+      message: location.message,
+    };
+  }
+
   const orchestrator = createDefaultItemOrchestrator();
   const result = await orchestrator.updateItem({
     itemId,
@@ -424,6 +511,20 @@ export async function updateItem(
         };
       default:
         return { ok: false, error: 'persistence-error' };
+    }
+  }
+
+  // Location is outside the pure item-content orchestrator; patch it after the
+  // guarded content update so suburb pins stay in sync with edits.
+  if (location.value) {
+    const { data: withLocation, error: locationError } = await supabase
+      .from('items')
+      .update(location.value)
+      .eq('id', itemId)
+      .select('*')
+      .maybeSingle();
+    if (!locationError && withLocation) {
+      return { ok: true, data: withLocation as ItemRow };
     }
   }
 

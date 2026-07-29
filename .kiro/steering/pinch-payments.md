@@ -16,8 +16,10 @@ else (orchestrators, state machine, server actions, UI) depends on those
 interfaces only.
 
 - The concrete binding is chosen in exactly one place: `getPaymentService()` in
-  `domain/services/index.ts`, switched by `PAYMENTS_PROVIDER` (`mock` | `pinch`).
-  Missing credentials fall back to the Mock with a warning.
+  `domain/services/index.ts` via `isLivePaymentsProvider()`:
+  credentials present → Pinch; `PAYMENTS_PROVIDER=mock` → Mock; explicit
+  `PAYMENTS_PROVIDER=pinch` without credentials fails closed (no silent fake
+  money). KYC stays on the Mock delegate (`PINCH_KYC_MODE=mock`).
 - The real binding lives in `domain/services/pinch/`: `config.ts` (env),
   `PinchClient.ts` (OAuth + transport + error normalisation), `PinchService.ts`
   (the contract), `metadata.ts` (CardTrade context on provider records),
@@ -28,8 +30,10 @@ interfaces only.
 - Never `import` a Pinch SDK/HTTP client outside `domain/services/pinch/**`,
   except `app/api/webhooks/pinch/route.ts`, which uses the verification and
   translation helpers.
-- `PAYMENTS_PROVIDER=mock` remains the default for demos. Flipping to `pinch`
-  moves real money in `live` mode; keep `PINCH_ENV=test` unless told otherwise.
+- With credentials + `PINCH_ENV=test`, charges hit the real Pinch test API
+  (test cards, Time-Travel). `PINCH_ENV=live` moves real money — only when
+  intentional. Without credentials, the Mock stays available for UI demos;
+  DemoPanel / mock webhooks are gated off whenever Pinch is live.
 
 ## Money
 

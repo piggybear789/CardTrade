@@ -26,6 +26,7 @@ import { ReportActions } from '@/components/admin/ReportActions';
 import { ClearFlagButton } from '@/components/admin/ClearFlagButton';
 import { PageShell } from '@/components/layout/PageShell';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import { SectionHeader } from '@/components/layout/SectionHeader';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
@@ -60,7 +61,7 @@ function NotAuthorized() {
     <PageShell centered>
       <EmptyState
         icon={<ShieldAlert className="size-6" aria-hidden />}
-        title="Not authorized"
+        title="Not Authorized"
         titleAs="h1"
         description="You don't have permission to view the moderation console."
         action={{ label: 'Return home', href: '/', variant: 'outline' }}
@@ -147,14 +148,10 @@ export default async function AdminPage() {
 
   return (
     <MarketplaceShell title="Admin">
-      <header className="mb-8 border-b border-border/70 pb-5">
-        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
-          Moderation console
-        </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Triage community reports and review flagged trades.
-        </p>
-      </header>
+      <SectionHeader
+        title="Moderation Console"
+        description="Triage community reports and review flagged trades."
+      />
 
       {/* Open reports */}
       <section aria-labelledby="reports-heading" className="mb-12">
@@ -167,7 +164,7 @@ export default async function AdminPage() {
 
         {reports.length === 0 ? (
           <EmptyState
-            title="No reports"
+            title="No Reports"
             titleAs="h3"
             description="No reports have been submitted."
             compact
@@ -253,7 +250,7 @@ export default async function AdminPage() {
 
         {trades.length === 0 ? (
           <EmptyState
-            title="No flagged trades"
+            title="No Flagged Trades"
             titleAs="h3"
             description="No trades need manual reconciliation."
             compact

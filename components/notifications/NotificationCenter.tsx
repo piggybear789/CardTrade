@@ -60,7 +60,7 @@ export function NotificationCenter({
     return (
       <EmptyState
         icon={<BellOff className="size-6" aria-hidden />}
-        title="No notifications yet"
+        title="No Notifications Yet"
         description="Offers, messages, trades, and sales updates will show up here."
       />
     );
@@ -93,14 +93,14 @@ export function NotificationCenter({
                 type="button"
                 onClick={() => handleSelect(n)}
                 className={cn(
-                  'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent',
+                  'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                   unread && 'bg-accent/40',
                 )}
               >
                 <span
                   className={cn(
                     'mt-1.5 size-2 shrink-0 rounded-full',
-                    unread ? 'bg-red-500' : 'bg-transparent',
+                    unread ? 'bg-destructive' : 'bg-transparent',
                   )}
                   aria-hidden
                 />

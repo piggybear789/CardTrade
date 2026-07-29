@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BadgeCheck, BadgeX, ImageOff, Lock, Star } from 'lucide-react';
+import { BadgeCheck, BadgeX, ImageOff, Lock, MapPin, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -104,6 +104,12 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           <p className="mt-1 text-[0.9375rem] font-semibold leading-tight text-foreground sm:text-base">
             {formatAud(item.fmv_cents)}
           </p>
+          {item.location_label ? (
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[0.625rem] text-muted-foreground sm:text-[0.6875rem]">
+              <MapPin className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{item.location_label}</span>
+            </p>
+          ) : null}
 
           <div className="mt-auto flex min-w-0 items-center gap-1.5 pt-1.5">
             {seller ? (
@@ -127,7 +133,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             )}
             {seller?.rating != null ? (
               <span className="flex shrink-0 items-center gap-0.5 text-[0.625rem] tabular-nums text-muted-foreground sm:text-[0.6875rem]">
-                <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+                <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
                 {seller.rating.toFixed(1)}
               </span>
             ) : null}
@@ -203,6 +209,12 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
         <p className="mt-1.5 text-lg font-semibold leading-tight text-foreground">
           {formatAud(item.fmv_cents)}
         </p>
+        {item.location_label ? (
+          <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{item.location_label}</span>
+          </p>
+        ) : null}
 
         <div className="mt-auto flex items-center gap-1.5 pt-2.5">
           {seller ? (
@@ -224,7 +236,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           )}
           {seller?.rating != null ? (
             <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">
-              <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+              <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
               {seller.rating.toFixed(1)}
             </span>
           ) : null}

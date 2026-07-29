@@ -154,8 +154,10 @@ export default async function NewTradePage({
     .eq('status', 'AVAILABLE')
     .order('created_at', { ascending: false });
 
+  // The form is a short, self-contained interstitial, so it sits centred rather
+  // than filling the workspace column.
   return (
-    <Shell>
+    <Shell center>
       <TradeOfferForm
         requested={{
           id: requested.id,

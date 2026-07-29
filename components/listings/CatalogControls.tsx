@@ -46,12 +46,13 @@ const AUD_FORMATTER = new Intl.NumberFormat('en-AU', {
 export interface CatalogFilterState {
   q: string;
   categories: string[];
-  condition: string;
   /** Dollar strings suitable for filter inputs; empty when unset. */
   min: string;
   max: string;
   /** Restrict to items whose seller has a VERIFIED KYC_Status. */
   verifiedOnly: boolean;
+  /** Include sold items in results. */
+  includeSold: boolean;
 }
 
 /** Merge URL updates, remove blank values, and reset the result page. */
@@ -87,7 +88,7 @@ function useCatalogNav() {
 }
 
 export interface CatalogFiltersProps {
-  facets: { categories: string[]; conditions: string[] };
+  facets: { categories: string[] };
   current: CatalogFilterState;
 }
 /** Marketplace navigation and filter rail, collapsed into a disclosure on mobile. */
@@ -103,10 +104,10 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
   const hasActiveFilters =
     current.q !== '' ||
     current.categories.length > 0 ||
-    current.condition !== '' ||
     current.min !== '' ||
     current.max !== '' ||
-    current.verifiedOnly;
+    current.verifiedOnly ||
+    current.includeSold;
 
   function toggleCategory(category: string) {
     const next = current.categories.includes(category)
@@ -154,10 +155,10 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
           {hasActiveFilters ? (
             <span className="flex size-5 items-center justify-center rounded-full border border-gold/40 bg-gold/20 text-[0.6875rem] font-semibold text-foreground">
               {current.categories.length +
-                Number(Boolean(current.condition)) +
                 Number(Boolean(current.min || current.max)) +
                 Number(Boolean(current.q)) +
-                Number(current.verifiedOnly)}
+                Number(current.verifiedOnly) +
+                Number(current.includeSold)}
             </span>
           ) : null}
         </Button>
@@ -300,27 +301,32 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
           </button>
         </div>
 
-        {facets.conditions.length > 0 ? (
-          <div className="border-t border-border/70 pt-5">
-            <Label htmlFor="catalog-condition" className="market-label mb-2 block text-muted-foreground">
-              Condition
-            </Label>
-            <Select
-              value={current.condition === '' ? 'all' : current.condition}
-              onValueChange={(value) => pushWith({ condition: value === 'all' ? null : value })}
-            >
-              <SelectTrigger id="catalog-condition" aria-label="Filter by condition">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Condition</SelectItem>
-                {facets.conditions.map((value) => (
-                  <SelectItem key={value} value={value}>{value}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
+        <div className="border-t border-border/70 pt-5">
+          <p className="market-label mb-2 text-muted-foreground">Availability</p>
+          <button
+            type="button"
+            onClick={() => pushWith({ sold: current.includeSold ? null : '1' })}
+            disabled={isPending}
+            aria-pressed={current.includeSold}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
+              current.includeSold
+                ? 'bg-gold/10 font-semibold text-foreground'
+                : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
+            )}
+          >
+            <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+              {current.includeSold ? (
+                <Check className="size-4 text-gold" />
+              ) : (
+                <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+              )}
+            </span>
+            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              Include sold items
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -331,10 +337,10 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
   const hasFilters =
     Boolean(current.q) ||
     current.categories.length > 0 ||
-    Boolean(current.condition) ||
     Boolean(current.min) ||
     Boolean(current.max) ||
-    current.verifiedOnly;
+    current.verifiedOnly ||
+    current.includeSold;
 
   if (!hasFilters) return null;
 
@@ -359,9 +365,6 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
           disabled={isPending}
         />
       ))}
-      {current.condition ? (
-        <FilterChip label={current.condition} onRemove={() => pushWith({ condition: null })} disabled={isPending} />
-      ) : null}
       {current.min || current.max ? (
         <FilterChip
           label={priceLabel}
@@ -373,6 +376,13 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
         <FilterChip
           label="Verified sellers only"
           onRemove={() => pushWith({ verified: null })}
+          disabled={isPending}
+        />
+      ) : null}
+      {current.includeSold ? (
+        <FilterChip
+          label="Including sold"
+          onRemove={() => pushWith({ sold: null })}
           disabled={isPending}
         />
       ) : null}

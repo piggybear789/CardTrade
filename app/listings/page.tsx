@@ -99,10 +99,10 @@ export default async function ListingsPage({
   const raw = await searchParams;
   const q = firstString(raw.q).trim();
   const categories = parseCategories(raw.category);
-  const condition = firstString(raw.condition).trim();
   const minDollars = firstString(raw.min).trim();
   const maxDollars = firstString(raw.max).trim();
   const verifiedOnly = firstString(raw.verified).trim() === '1';
+  const includeSold = firstString(raw.sold).trim() === '1';
   const sortRaw = firstString(raw.sort) as CatalogSort;
   const sort: CatalogSort = SORT_KEYS.includes(sortRaw) ? sortRaw : 'newest';
   const pageRaw = Number(firstString(raw.page));
@@ -112,10 +112,10 @@ export default async function ListingsPage({
     searchCatalog({
       q,
       categories,
-      condition,
       minCents: dollarsToCents(minDollars),
       maxCents: dollarsToCents(maxDollars),
       verifiedOnly,
+      includeSold,
       sort,
       page,
     }),
@@ -137,18 +137,18 @@ export default async function ListingsPage({
   const current = {
     q,
     categories,
-    condition,
     min: minDollars,
     max: maxDollars,
     verifiedOnly,
+    includeSold,
   };
   const hasAnyFilter =
     q !== '' ||
     categories.length > 0 ||
-    condition !== '' ||
     minDollars !== '' ||
     maxDollars !== '' ||
-    verifiedOnly;
+    verifiedOnly ||
+    includeSold;
   const resultTitle = q
     ? `Results for “${q}”`
     : categories.length === 1
@@ -161,8 +161,7 @@ export default async function ListingsPage({
       primaryAction={
         <Button
           asChild
-          variant="outline"
-          className="w-full border-gold/45 bg-gold/12 text-foreground hover:border-gold/60 hover:bg-gold/20"
+          className="w-full border border-white/15 bg-obsidian text-parchment font-semibold shadow-sm hover:bg-obsidian/80 hover:border-white/25"
         >
           <Link href="/listings/new">
             <Plus aria-hidden="true" className="text-gold" />

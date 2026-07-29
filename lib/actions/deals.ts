@@ -63,7 +63,7 @@ import { formatAud } from '@/lib/format';
 import {
   removeImages,
   uploadImages,
-  type ImageUpload,
+  type ImageInput,
 } from '@/lib/storage/itemImages';
 import {
   DEAL_CASH_MAX,
@@ -362,8 +362,13 @@ export type DealRole = Enums<'deal_role'>;
 /** What a TRADER creator is putting up. `ITEMS` requires photos. */
 export type DealOfferKind = (typeof DEAL_OFFER_KINDS)[number];
 
-/** A photo of the goods the creator brings (raw file or base64 payload). */
-export type DealPhotoUpload = ImageUpload;
+/**
+ * A photo of the goods the creator brings: normally the object path of a photo
+ * the browser already uploaded to Storage (`lib/storage/uploadItemImages.ts`), so
+ * the file never rides inside a Server Action body. Raw bytes and base64 payloads
+ * are still accepted for non-browser callers.
+ */
+export type DealPhotoUpload = ImageInput;
 
 /** Input for {@link createDeal}. There is no counterparty at creation time. */
 export interface CreateDealInput {
@@ -877,8 +882,23 @@ export interface UpdateTermsInput {
   /**
    * The caller's retained Storage paths plus any newly selected image uploads.
    * Retained paths must already belong to the caller's side of this deal.
+   *
+   * Prefer sending retained paths here and putting freshly uploaded photos in
+   * {@link UpdateTermsInput.myNewPhotoPaths}: a browser upload also produces a
+   * path, and a bare string here means "keep this one", so the two cannot be
+   * told apart in a single list.
    */
   myPhotos?: (string | DealPhotoUpload)[];
+  /**
+   * Object paths of photos the browser just uploaded through a signed URL
+   * (`lib/storage/uploadItemImages.ts`), appended after the retained ones.
+   *
+   * Separate from `myPhotos` because retained paths are checked against the
+   * photos already on this deal, while these are new and are checked against the
+   * caller's own Storage prefix instead. Only meaningful when `myPhotos` is set,
+   * since that is what signals a photo edit.
+   */
+  myNewPhotoPaths?: string[];
   /** Cash component in integer AUD cents, or null to remove it. */
   cashAmountCents?: number | null;
   /** Which party pays the cash component. */
@@ -1083,9 +1103,14 @@ export async function updateTerms(
       return { ok: false, error: 'invalid-photo' };
     }
 
-    const newPhotos = input.myPhotos.filter(
-      (photo): photo is DealPhotoUpload => typeof photo !== 'string',
-    );
+    // Raw bytes still work for non-browser callers; the browser sends paths in
+    // `myNewPhotoPaths` instead, so its photos never enter this action's body.
+    const newPhotos: (string | DealPhotoUpload)[] = [
+      ...input.myPhotos.filter(
+        (photo): photo is DealPhotoUpload => typeof photo !== 'string',
+      ),
+      ...(input.myNewPhotoPaths ?? []),
+    ];
     const finalCount = retainedPaths.length + newPhotos.length;
     if (goodsRequired && finalCount < DEAL_PHOTOS_MIN) {
       return { ok: false, error: 'photos-required' };
@@ -1099,6 +1124,8 @@ export async function updateTerms(
 
     if (newPhotos.length > 0) {
       try {
+        // `uploadImages` uploads the bytes and, for a path, verifies it belongs
+        // to this caller before passing it through.
         newlyUploadedPaths = await uploadImages(createAdminClient(), userId, newPhotos);
       } catch (error) {
         return {

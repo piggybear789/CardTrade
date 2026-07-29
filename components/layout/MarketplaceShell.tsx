@@ -23,8 +23,7 @@ function CreateListingAction() {
   return (
     <Button
       asChild
-      variant="outline"
-      className="w-full border-gold/45 bg-gold/12 text-foreground hover:border-gold/60 hover:bg-gold/20"
+      className="w-full border border-white/15 bg-obsidian text-parchment font-semibold shadow-sm hover:bg-obsidian/80 hover:border-white/25"
     >
       <Link href="/listings/new">
         <Plus aria-hidden="true" className="text-gold" />
@@ -78,7 +77,14 @@ export function MarketplaceShell({
             the viewport. The min/max keep it usable at the extremes: a floor so
             the nav labels never crush on smaller laptops, and a cap so it does
             not sprawl on ultrawide displays. */}
-        <aside className="w-full min-w-0 px-4 sm:px-6 lg:w-1/5 lg:min-w-[13.5rem] lg:max-w-[19rem] lg:shrink-0 lg:self-stretch lg:border-r lg:border-border/80 lg:bg-card/90 lg:px-5 lg:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)]">
+        {/* `data-app-rail` tells app/globals.css that this page has a rail, so
+            dialogs — which portal to <body>, outside this tree — can centre on
+            the content column instead of the viewport. Width changes here must
+            be mirrored in the `--app-rail-width` clamp. */}
+        <aside
+          data-app-rail
+          className="w-full min-w-0 border-b border-border/50 px-4 pb-2 sm:px-6 lg:w-1/5 lg:min-w-[13.5rem] lg:max-w-[19rem] lg:shrink-0 lg:self-stretch lg:border-b-0 lg:border-r lg:border-border/80 lg:bg-card/90 lg:pb-0 lg:px-5 lg:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)]"
+        >
           {/* The rail background stretches the full column; its contents stay in
               view, with identity status held at the bottom of the rail.
               The inset px-1/-mx-1 pair gives focus rings room to draw: setting

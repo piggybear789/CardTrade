@@ -41,7 +41,12 @@ const DialogContent = React.forwardRef<
         // Stays wider than it is tall: the height cap is below the default
         // width, so a dialog grows sideways first and scrolls rather than
         // becoming a full-height column. Both caps yield to small viewports.
-        "fixed left-[50%] top-[50%] z-50 grid max-h-[calc(100dvh-3rem)] w-[calc(100%-2rem)] max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-card p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg sm:p-6",
+        //
+        // Centred on the content column, not the viewport: `--app-rail-width`
+        // (app/globals.css) is the workspace rail's width on pages that have
+        // one, and 0px everywhere else, so shifting by half of it puts the
+        // dialog over the content that opened it. The overlay stays full-bleed.
+        "fixed left-[calc(50%+(var(--app-rail-width,0px)/2))] top-[50%] z-50 grid max-h-[calc(100dvh-3rem)] w-[calc(100%-2rem)] max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-card p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg sm:p-6",
         className
       )}
       {...props}

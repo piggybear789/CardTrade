@@ -14,10 +14,11 @@
 //    money is integer cents end-to-end.
 //  - Image count is enforced client-side (1–10) with a friendly message before
 //    any upload work happens on the server (Req 3.3).
-//  - In create mode, selected files are passed straight through as `File`
-//    (a `Blob`) to `createItem`. In edit mode, previously stored image paths are
-//    kept as plain `string`s and any newly added files are appended, matching
-//    `UpdateItemInput.images: (string | ImageUpload)[]`.
+//  - Selected files are uploaded browser → Supabase Storage first
+//    (`uploadItemImages`), and only the resulting object paths are sent to the
+//    action. That keeps photo bytes out of the Server Action body, which Next
+//    caps, and preserves the original file and its EXIF. In edit mode the paths
+//    already on the Item are kept and the newly uploaded ones appended.
 //  - Field-level validation errors returned by the action (`field` + `message`)
 //    are surfaced inline against the offending input and announced to assistive
 //    tech via `role="alert"` + `aria-describedby`.
@@ -28,15 +29,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ImageOff, ImagePlus, X } from "lucide-react";
 
-import {
-  createItem,
-  updateItem,
-  type ItemRow,
-  type ImageUpload,
-} from "@/lib/actions/listings";
+import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
+import { uploadItemImages } from "@/lib/storage/uploadItemImages";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -234,6 +231,21 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
     setIsSubmitting(true);
     try {
+      // Photos go browser → Storage first; only their object paths travel in the
+      // action call. Sending the files themselves puts them in the Server Action
+      // body, which Next caps at `serverActions.bodySizeLimit`, and a single
+      // phone photo can exceed it.
+      let uploadedPaths: string[] = [];
+      if (newFiles.length > 0) {
+        const uploaded = await uploadItemImages(newFiles);
+        if (!uploaded.ok) {
+          setError({ field: "images", message: uploaded.message });
+          setIsSubmitting(false);
+          return;
+        }
+        uploadedPaths = uploaded.paths;
+      }
+
       if (mode === "create") {
         const result = await createItem({
           title,
@@ -241,7 +253,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           category,
           condition,
           fmvCents,
-          images: newFiles as unknown as ImageUpload[],
+          images: uploadedPaths,
           location: locationPayload,
         });
 
@@ -253,10 +265,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         }
         surfaceActionError(result.error, result.field, result.message);
       } else {
-        const images: (string | ImageUpload)[] = [
-          ...keptPaths,
-          ...(newFiles as unknown as ImageUpload[]),
-        ];
+        // Paths already on the Item, then the ones just uploaded — both are
+        // plain object paths, so the action does no byte handling at all.
+        const images: string[] = [...keptPaths, ...uploadedPaths];
         const result = await updateItem(item!.id, {
           title,
           description,

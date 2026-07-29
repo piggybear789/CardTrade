@@ -1,19 +1,23 @@
-'use client';
+﻿'use client';
 
 // components/deals/NewDealForm.tsx
 //
-// Creates a private deal as a short, role-driven flow: identify the deal,
-// choose the handover, then describe what the creator is offering. Conditional
-// requirements are enforced both here for immediate feedback and by createDeal
-// at the server boundary. Money crosses that boundary as integer AUD cents.
+// Creates a private deal as a short, role-driven flow: name the deal, pick your
+// side, pick the handover. Everything that is detail rather than decision — the
+// meeting place, the delivery cost, the photos and the write-up — folds into its
+// own dialog behind a summary row, the same shape as the trade offer card, so the
+// form's height never depends on which path you took.
+//
+// Conditional requirements are enforced both here for immediate feedback and by
+// createDeal at the server boundary. Money crosses that boundary as integer AUD
+// cents.
 
-import { useRef, useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   CheckCircle2,
-  ImagePlus,
   Loader2,
   MapPin,
   Repeat,
@@ -21,11 +25,17 @@ import {
   ShoppingCart,
   Tag,
   Truck,
-  X,
 } from 'lucide-react';
 
 import { ShareDealLink } from '@/components/deals/ShareDealLink';
-import { PlacePicker } from '@/components/location';
+import {
+  DealGoodsDialog,
+  type DealGoods,
+} from '@/components/deals/DealGoodsDialog';
+import {
+  HandoverDetailsDialog,
+  type HandoverDetails,
+} from '@/components/handover/HandoverDetailsDialog';
 import type { PlaceValue } from '@/lib/location/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,14 +46,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { ChoiceTile } from '@/components/ui/choice-tile';
+import { DialogRow } from '@/components/ui/dialog-row';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   createDeal,
   type CreateDealResult,
   type DealOfferKind,
-  type DealPhotoUpload,
   type DealRole,
   type HandoverMethod,
 } from '@/lib/actions/deals';
@@ -52,10 +62,10 @@ import {
   DEAL_DEFAULT_COLLATERAL_CENTS,
   DEAL_DELIVERY_COST_MAX,
   DEAL_PHOTOS_MAX,
-  DEAL_TEXT_MAX,
   DEAL_TITLE_MAX,
 } from '@/lib/marketplace-constants';
 import { formatAud } from '@/lib/format';
+import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { cn } from '@/lib/utils';
 
 /** Form fields that can own an inline validation message. */
@@ -71,6 +81,17 @@ type ErrorField =
   | 'general';
 
 type FormError = { field: ErrorField; message: string };
+
+/**
+ * Fields that live inside a dialog rather than on the card. A failure on one of
+ * these has to reopen its window, or the message would point at nothing.
+ */
+const DIALOG_FIELDS: Partial<Record<ErrorField, 'handover' | 'goods'>> = {
+  meetingLocation: 'handover',
+  deliveryCost: 'handover',
+  offerKinds: 'goods',
+  photos: 'goods',
+};
 
 const ERROR_TARGETS: Record<ErrorField, string> = {
   title: 'deal-title',
@@ -173,36 +194,6 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-/** Numbered section wrapper for a short, scannable form flow. */
-function FormSection({
-  number,
-  title,
-  description,
-  children,
-}: {
-  number: number;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="py-6 first:pt-0 last:pb-0" aria-labelledby={`step-${number}`}>
-      <div className="mb-4 flex items-start gap-3">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {number}
-        </span>
-        <div>
-          <h2 id={`step-${number}`} className="font-semibold leading-7">
-            {title}
-          </h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      <div className="space-y-5 sm:pl-10">{children}</div>
-    </section>
-  );
-}
-
 /** The three sides a creator can be on. */
 const ROLE_OPTIONS: {
   value: DealRole;
@@ -211,13 +202,8 @@ const ROLE_OPTIONS: {
   icon: typeof ShoppingCart;
 }[] = [
   { value: 'BUYER', label: 'Buying', hint: 'I pay cash', icon: ShoppingCart },
-  { value: 'SELLER', label: 'Selling', hint: 'I receive cash', icon: Tag },
-  {
-    value: 'TRADER',
-    label: 'Trading',
-    hint: 'I put up cards, cash or items',
-    icon: Repeat,
-  },
+  { value: 'SELLER', label: 'Selling', hint: 'I get cash', icon: Tag },
+  { value: 'TRADER', label: 'Trading', hint: 'I put goods up', icon: Repeat },
 ];
 
 /** How the goods change hands. */
@@ -230,22 +216,15 @@ const HANDOVER_OPTIONS: {
   {
     value: 'IN_PERSON',
     label: 'Face to face',
-    hint: 'Meet and exchange in person',
+    hint: 'Meet and swap in person',
     icon: MapPin,
   },
   {
     value: 'DELIVERY',
     label: 'Delivery',
-    hint: 'Post it with a separate delivery cost',
+    hint: 'Post it, cost on top',
     icon: Truck,
   },
-];
-
-/** What a trader can put up. `ITEMS` makes photos mandatory. */
-const OFFER_OPTIONS: { value: DealOfferKind; label: string; hint: string }[] = [
-  { value: 'CARDS', label: 'Cards', hint: 'Graded or raw cards' },
-  { value: 'CASH', label: 'Cash', hint: 'A cash amount on top' },
-  { value: 'ITEMS', label: 'Other items', hint: 'Photos required' },
 ];
 
 type CreatedDeal = { dealId: string; shareToken: string; title: string };
@@ -275,20 +254,31 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const [error, setError] = useState<FormError | null>(null);
   const [created, setCreated] = useState<CreatedDeal | null>(null);
   const [isPending, startTransition] = useTransition();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  /** The two detail windows: handover specifics, and photos plus the write-up. */
+  const [handoverDialogOpen, setHandoverDialogOpen] = useState(false);
+  const [goodsDialogOpen, setGoodsDialogOpen] = useState(false);
 
   const tradesCash = role === 'TRADER' && offerKinds.includes('CASH');
-  const tradesItems = role === 'TRADER' && offerKinds.includes('ITEMS');
+  const tradesGoods =
+    role === 'TRADER' &&
+    (offerKinds.includes('CARDS') || offerKinds.includes('ITEMS'));
   const cashRequired = role === 'BUYER' || role === 'SELLER' || tradesCash;
-  const showPhotos = role === 'SELLER' || role === 'TRADER';
-  const photosRequired = role === 'SELLER' || tradesItems;
+  /**
+   * A trader's cash is part of what they are putting up, so it is edited in the
+   * goods dialog beside the photos. A buyer's or seller's amount is the deal's
+   * price, which stays on the card.
+   */
+  const cashInGoodsDialog = tradesCash;
+  const showPhotos = role === 'SELLER' || tradesGoods;
+  const photosRequired = showPhotos;
+  /**
+   * Whether this side has anything of its own to describe. A buyer is putting up
+   * cash, so there is nothing for them to photograph and no goods row at all —
+   * the item is the other side's to describe.
+   */
+  const putsGoodsUp = role === 'SELLER' || role === 'TRADER';
 
-  const cashLabel =
-    role === 'BUYER'
-      ? 'Amount you pay'
-      : role === 'SELLER'
-        ? 'Amount you receive'
-        : 'Cash you put up';
+  const cashLabel = role === 'BUYER' ? 'Amount you pay' : 'Amount you receive';
 
   // What each side is held for while the creator stays unverified: the deal's own
   // cash value, or the flat default for a pure swap. The server resolves the real
@@ -296,6 +286,50 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const enteredCash = cashRequired ? dollarsToCents(cash) : null;
   const collateralStakeCents =
     enteredCash && enteredCash > 0 ? enteredCash : DEAL_DEFAULT_COLLATERAL_CENTS;
+
+  // Each dialog is seeded from committed state, so these must be stable: the
+  // dialog re-seeds its draft whenever `value` changes, and a fresh object every
+  // render would wipe what is being typed.
+  const handoverDetails = useMemo<HandoverDetails>(
+    () => ({ place: meetingPlace, meetingAt, deliveryCostDollars: deliveryCost }),
+    [meetingPlace, meetingAt, deliveryCost],
+  );
+  const goods = useMemo<DealGoods>(
+    () => ({ description, photos, cashDollars: cash, offerKinds }),
+    [description, photos, cash, offerKinds],
+  );
+
+  const deliveryCents = dollarsToCents(deliveryCost);
+  const handoverDetailsSet =
+    handover === 'IN_PERSON'
+      ? Boolean(meetingPlace?.label.trim())
+      : deliveryCents !== null;
+
+  /** One-line summary of each dialog, so its row states what it holds. */
+  const handoverSummary =
+    handover === 'IN_PERSON'
+      ? meetingPlace?.label.trim() || 'Pick a public spot'
+      : deliveryCents !== null
+        ? `${formatAud(deliveryCents)} postage`
+        : 'Postage, on top of the deal';
+
+  /** The goods row names the side it is describing, which is always your own. */
+  const goodsLabel =
+    role === 'SELLER' ? 'What you are selling' : 'What you are putting up';
+
+  const goodsSummary = (() => {
+    const parts: string[] = [];
+    if (photos.length > 0) {
+      parts.push(`${photos.length} photo${photos.length === 1 ? '' : 's'}`);
+    }
+    if (cashInGoodsDialog && enteredCash && enteredCash > 0) {
+      parts.push(`${formatAud(enteredCash)} cash`);
+    }
+    if (description.trim() !== '') parts.push('described');
+    if (parts.length > 0) return parts.join(' · ');
+    if (role === 'TRADER') return 'Cards, cash or items';
+    return 'Photos and condition';
+  })();
 
   function messageFor(field: ErrorField): string | undefined {
     return error?.field === field ? error.message : undefined;
@@ -314,34 +348,23 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
     setRole(nextRole);
     clearError('role');
     if (nextRole !== 'TRADER') setOfferKinds([]);
+    // A buyer has no goods row, so nothing typed in one should still be sent.
+    if (nextRole === 'BUYER') setDescription('');
     if (nextRole === 'BUYER') setPhotos([]);
   }
 
-  function toggleOfferKind(kind: DealOfferKind) {
-    setOfferKinds((current) =>
-      current.includes(kind)
-        ? current.filter((selected) => selected !== kind)
-        : [...current, kind],
-    );
-    clearError('offerKinds');
-  }
-
-  function handlePhotosSelected(event: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(event.target.files ?? []);
-    if (photos.length + picked.length > DEAL_PHOTOS_MAX) {
-      setError({
-        field: 'photos',
-        message: `You can add up to ${DEAL_PHOTOS_MAX} photos.`,
-      });
-    } else if (picked.length > 0) {
-      setPhotos((current) => [...current, ...picked]);
-      clearError('photos');
-    }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  function removePhoto(index: number) {
-    setPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  /**
+   * A validation failure the user cannot see, because the field lives in a
+   * dialog: record it and open the window holding it.
+   */
+  function failInDialog(
+    field: ErrorField,
+    message: string,
+    dialog: 'handover' | 'goods',
+  ) {
+    setError({ field, message });
+    if (dialog === 'handover') setHandoverDialogOpen(true);
+    else setGoodsDialogOpen(true);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -357,62 +380,88 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
       fail('role', 'Choose whether you are buying, selling, or trading.', 'deal-role-BUYER');
       return;
     }
-    if (handover === null) {
-      fail('handover', 'Choose face to face or delivery.', 'deal-handover-IN_PERSON');
-      return;
-    }
-    if (handover === 'IN_PERSON' && !meetingPlace?.label.trim()) {
-      fail('meetingLocation', 'Add where you plan to meet.', 'deal-meeting-location');
-      return;
-    }
     if (role === 'TRADER' && offerKinds.length === 0) {
-      fail('offerKinds', 'Choose at least one thing you are putting up.', 'deal-offer-CARDS');
+      failInDialog(
+        'offerKinds',
+        'Choose at least one thing you are putting up.',
+        'goods',
+      );
+      return;
+    }
+    // Checks run in the order the card reads, so the first thing missing is the
+    // first thing you see.
+    if (photosRequired && photos.length === 0) {
+      failInDialog(
+        'photos',
+        role === 'SELLER'
+          ? 'Add at least one photo of the item you are selling.'
+          : 'Add at least one photo of the items you are putting up.',
+        'goods',
+      );
       return;
     }
 
     let cashAmountCents: number | undefined;
     if (cashRequired) {
+      // A trader's amount lives in the goods dialog, so a failure has to reopen
+      // it rather than point at a field that is not on the card.
+      const failCash = (message: string) => {
+        if (cashInGoodsDialog) failInDialog('cash', message, 'goods');
+        else fail('cash', message, 'deal-cash');
+      };
       cashAmountCents = dollarsToCents(cash) ?? undefined;
       if (cashAmountCents === undefined || cashAmountCents <= 0) {
-        fail('cash', 'Enter an amount greater than zero.', 'deal-cash');
+        failCash('Enter an amount greater than zero.');
         return;
       }
       if (cashAmountCents > DEAL_CASH_MAX) {
-        fail('cash', 'That amount is too large.', 'deal-cash');
+        failCash('That amount is too large.');
         return;
       }
+    }
+
+    if (handover === null) {
+      fail('handover', 'Choose face to face or delivery.', 'deal-handover-IN_PERSON');
+      return;
+    }
+    if (handover === 'IN_PERSON' && !meetingPlace?.label.trim()) {
+      failInDialog('meetingLocation', 'Add where you plan to meet.', 'handover');
+      return;
     }
 
     let deliveryCostCents: number | undefined;
     if (handover === 'DELIVERY') {
       deliveryCostCents = dollarsToCents(deliveryCost) ?? undefined;
       if (deliveryCostCents === undefined) {
-        fail(
+        failInDialog(
           'deliveryCost',
           'Enter the delivery cost, or 0 for free delivery.',
-          'deal-delivery-cost',
+          'handover',
         );
         return;
       }
       if (deliveryCostCents > DEAL_DELIVERY_COST_MAX) {
-        fail('deliveryCost', 'That delivery cost is too large.', 'deal-delivery-cost');
+        failInDialog('deliveryCost', 'That delivery cost is too large.', 'handover');
         return;
       }
     }
 
-    if (photosRequired && photos.length === 0) {
-      fail(
-        'photos',
-        role === 'SELLER'
-          ? 'Add at least one photo of the item you are selling.'
-          : 'Add at least one photo of the items you are putting up.',
-        'deal-photos',
-      );
-      return;
-    }
-
     startTransition(async () => {
       try {
+        // Photos go browser → Storage first, and only their object paths travel
+        // in the action call: bytes in a Server Action body hit Next's size cap,
+        // and these photos are the arbitration evidence base, so the original
+        // file and its EXIF are worth preserving intact.
+        let photoPaths: string[] = [];
+        if (showPhotos && photos.length > 0) {
+          const uploaded = await uploadItemImages(photos);
+          if (!uploaded.ok) {
+            failInDialog('photos', uploaded.message, 'goods');
+            return;
+          }
+          photoPaths = uploaded.paths;
+        }
+
         const result = await createDeal({
           title: dealTitle,
           role,
@@ -431,9 +480,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
           cashAmountCents,
           deliveryCostCents,
           offerKinds: role === 'TRADER' ? offerKinds : undefined,
-          photos: showPhotos
-            ? (photos as unknown as DealPhotoUpload[])
-            : undefined,
+          photos: showPhotos ? photoPaths : undefined,
         });
 
         if (result.ok) {
@@ -447,6 +494,15 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
         }
 
         const nextError = errorFromResult(result);
+        const dialog =
+          nextError.field === 'cash' && cashInGoodsDialog
+            ? 'goods'
+            : DIALOG_FIELDS[nextError.field];
+        if (dialog) {
+          // The field is in a window the user closed, so reopen it on the error.
+          failInDialog(nextError.field, nextError.message, dialog);
+          return;
+        }
         setError(nextError);
         if (nextError.field === 'general') {
           toast.error(nextError.message);
@@ -466,44 +522,38 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
 
   if (created) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2 className="flex items-center gap-2 text-xl">
-              <CheckCircle2 className="size-5 text-trust" aria-hidden />
-              Deal created
-            </h2>
+      <Card className="mx-auto w-full max-w-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <CheckCircle2 className="size-5 text-trust" aria-hidden />
+            Deal created
           </CardTitle>
           <CardDescription>
-            Send this private link to the person you&apos;re dealing with. They can
-            review the terms before joining.
+            Send this link to the person you&apos;re dealing with. The first person
+            to join takes the other seat.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <ShareDealLink shareToken={created.shareToken} title={created.title} />
-          <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-            The first person to open the link and join takes the other seat. Only
-            share it with the person you intend to deal with.
-          </p>
           {collateralRequired ? (
-            <div className="cardtrade-warning rounded-md border p-3 text-sm">
-              <p className="flex items-center gap-2 font-medium">
-                <ShieldAlert className="size-4 shrink-0" aria-hidden />
-                Collateral applies to this deal
-              </p>
-              <p className="mt-1">
-                You skipped verification, so when you both confirm, each side is
-                held for the deal&apos;s value. Verify before then and nothing is
-                held.
-              </p>
-              <Button asChild size="sm" variant="outline" className="mt-3">
-                <Link href="/profile#payouts">Verify my identity</Link>
-              </Button>
-            </div>
+            <p className="cardtrade-warning flex items-start gap-2 rounded-lg border p-3 text-xs">
+              <ShieldAlert className="mt-px size-4 shrink-0" aria-hidden />
+              <span>
+                You skipped verification, so each side is held for the deal&apos;s
+                value once you both confirm.{' '}
+                <Link
+                  href="/profile#payouts"
+                  className="font-medium underline underline-offset-4"
+                >
+                  Verify instead
+                </Link>{' '}
+                and nothing is held.
+              </span>
+            </p>
           ) : null}
         </CardContent>
-        <CardFooter className="flex-col-reverse items-stretch gap-2 sm:flex-row sm:justify-end">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
+        <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted/20 px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
+          <Button asChild variant="ghost" className="w-full sm:w-auto">
             <Link href="/deals">All deals</Link>
           </Button>
           <Button asChild className="w-full sm:w-auto">
@@ -524,467 +574,209 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const photosError = messageFor('photos');
   const generalError = messageFor('general');
 
+  // Deliberately shaped like the trade offer card (components/trade/
+  // TradeOfferForm.tsx): one narrow centred card, bordered choice tiles in a grid,
+  // and conditional fields that appear only once the role or handover asks.
   return (
-    <Card>
+    <Card className="mx-auto w-full max-w-lg">
       <form onSubmit={handleSubmit} noValidate aria-busy={isPending}>
         <fieldset disabled={isPending} className="contents">
-          {collateralRequired ? (
-            <div className="cardtrade-warning mx-6 mt-6 rounded-md border p-3 text-sm">
-              <p className="flex items-center gap-2 font-medium">
-                <ShieldAlert className="size-4 shrink-0" aria-hidden />
-                Backing this deal with collateral
-              </p>
-              <p className="mt-1">
-                You&apos;re unverified, so both sides will be held for about{' '}
-                {formatAud(collateralStakeCents)} once you both confirm — released
-                when you both mark the deal complete.{' '}
-                <Link
-                  href="/profile#payouts"
-                  className="font-medium underline underline-offset-4"
-                >
-                  Verify instead
-                </Link>{' '}
-                and your card stays out of it.
-              </p>
-            </div>
-          ) : null}
-          <CardContent className="divide-y pt-6">
-            <FormSection
-              number={1}
-              title="Deal basics"
-              description="Name the deal and choose your side."
-            >
-              <div className="space-y-2">
-                <Label htmlFor="deal-title">
-                  Deal title
-                  <Required />
-                </Label>
-                <Input
-                  id="deal-title"
-                  value={title}
-                  onChange={(event) => {
-                    setTitle(event.target.value);
-                    clearError('title');
-                  }}
-                  placeholder="Charizard for Blastoise + $50"
-                  maxLength={DEAL_TITLE_MAX}
-                  autoComplete="off"
-                  required
-                  aria-invalid={titleError ? true : undefined}
-                  aria-describedby={titleError ? 'deal-title-error' : undefined}
-                />
-                <FieldError id="deal-title-error" message={titleError} />
-              </div>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Start a private deal</CardTitle>
+            <CardDescription>
+              Nothing is binding until you both confirm.
+            </CardDescription>
+          </CardHeader>
 
-              <fieldset
-                className="space-y-2"
-                aria-invalid={roleError ? true : undefined}
-                aria-describedby={roleError ? 'deal-role-error' : undefined}
-              >
-                <legend className="text-sm font-medium">
-                  Your role
-                  <Required />
-                </legend>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {ROLE_OPTIONS.map((option) => {
-                    const Icon = option.icon;
-                    const selected = role === option.value;
-                    return (
-                      <label
-                        key={option.value}
-                        htmlFor={`deal-role-${option.value}`}
-                        className={cn(
-                          'flex min-h-20 cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
-                          selected
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'hover:border-foreground/20 hover:bg-muted/50',
-                          roleError && 'border-destructive',
-                        )}
-                      >
-                        <input
-                          id={`deal-role-${option.value}`}
-                          type="radio"
-                          name="deal-role"
-                          value={option.value}
-                          checked={selected}
-                          onChange={() => chooseRole(option.value)}
-                          className="size-4 shrink-0"
-                          required
-                        />
-                        <span>
-                          <span className="flex items-center gap-1.5 font-medium">
-                            <Icon className="size-4 text-primary" aria-hidden />
-                            {option.label}
-                          </span>
-                          <span className="mt-1 block text-xs leading-4 text-muted-foreground">
-                            {option.hint}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <FieldError id="deal-role-error" message={roleError} />
-              </fieldset>
-
-              <div className="space-y-2">
-                <Label htmlFor="deal-description">
-                  Description{' '}
-                  <span className="font-normal text-muted-foreground">(optional)</span>
-                </Label>
-                <Textarea
-                  id="deal-description"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Items, condition, grading and anything else both sides should know"
-                  maxLength={DEAL_TEXT_MAX}
-                  rows={4}
-                  aria-describedby="deal-description-hint"
-                />
-                <p id="deal-description-hint" className="text-xs text-muted-foreground">
-                  Be specific about condition and flaws. This description may be
-                  used if the deal needs arbitration.
-                </p>
-              </div>
-            </FormSection>
-
-            <FormSection
-              number={2}
-              title="Handover"
-              description="Choose how the items will change hands."
-            >
-              <fieldset
-                className="space-y-2"
-                aria-invalid={handoverError ? true : undefined}
-                aria-describedby={handoverError ? 'deal-handover-error' : undefined}
-              >
-                <legend className="sr-only">Handover method</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {HANDOVER_OPTIONS.map((option) => {
-                    const Icon = option.icon;
-                    const selected = handover === option.value;
-                    return (
-                      <label
-                        key={option.value}
-                        htmlFor={`deal-handover-${option.value}`}
-                        className={cn(
-                          'flex min-h-20 cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
-                          selected
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'hover:border-foreground/20 hover:bg-muted/50',
-                          handoverError && 'border-destructive',
-                        )}
-                      >
-                        <input
-                          id={`deal-handover-${option.value}`}
-                          type="radio"
-                          name="deal-handover"
-                          value={option.value}
-                          checked={selected}
-                          onChange={() => {
-                            setHandover(option.value);
-                            clearError('handover');
-                          }}
-                          className="size-4 shrink-0"
-                          required
-                        />
-                        <span>
-                          <span className="flex items-center gap-1.5 font-medium">
-                            <Icon className="size-4 text-primary" aria-hidden />
-                            {option.label}
-                          </span>
-                          <span className="mt-1 block text-xs leading-4 text-muted-foreground">
-                            {option.hint}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <FieldError id="deal-handover-error" message={handoverError} />
-              </fieldset>
-
-              {handover === 'IN_PERSON' ? (
-                <div className="space-y-4">
-                  <PlacePicker
-                    id="deal-meeting-location"
-                    label="Meeting place"
-                    precision="exact"
-                    value={meetingPlace}
-                    onChange={(place) => {
-                      setMeetingPlace(place);
-                      clearError('meetingLocation');
-                    }}
-                    required
-                    error={locationError}
-                    hint="Pick a public spot both parties can find."
-                    textFallbackPlaceholder="Melbourne Central, main entrance"
-                  />
-                  <div className="space-y-2">
-                    <Label htmlFor="deal-meeting-at">
-                      Date and time{' '}
-                      <span className="font-normal text-muted-foreground">
-                        (optional)
-                      </span>
-                    </Label>
-                    <Input
-                      id="deal-meeting-at"
-                      type="datetime-local"
-                      value={meetingAt}
-                      onChange={(event) => setMeetingAt(event.target.value)}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </FormSection>
-
-            <FormSection
-              number={3}
-              title="Your side of the deal"
-              description="Add the amount, items and evidence you are putting forward."
-            >
-              {role === null ? (
-                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  Choose your role above to see what is required from you.
-                </p>
-              ) : null}
-
-              {role === 'TRADER' ? (
-                <fieldset
-                  className="space-y-2"
-                  aria-invalid={offerError ? true : undefined}
-                  aria-describedby={offerError ? 'deal-offer-error' : undefined}
-                >
-                  <legend className="text-sm font-medium">
-                    What are you putting up?
-                    <Required />
-                  </legend>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {OFFER_OPTIONS.map((option) => {
-                      const selected = offerKinds.includes(option.value);
-                      return (
-                        <label
-                          key={option.value}
-                          htmlFor={`deal-offer-${option.value}`}
-                          className={cn(
-                            'flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
-                            selected
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'hover:border-foreground/20 hover:bg-muted/50',
-                            offerError && 'border-destructive',
-                          )}
-                        >
-                          <input
-                            id={`deal-offer-${option.value}`}
-                            type="checkbox"
-                            name="deal-offer"
-                            value={option.value}
-                            checked={selected}
-                            onChange={() => toggleOfferKind(option.value)}
-                            className="mt-0.5 size-4"
-                          />
-                          <span>
-                            <span className="font-medium">{option.label}</span>
-                            <span className="mt-1 block text-xs leading-4 text-muted-foreground">
-                              {option.hint}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <FieldError id="deal-offer-error" message={offerError} />
-                </fieldset>
-              ) : null}
-
-              {role !== null && (cashRequired || handover === 'DELIVERY') ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {cashRequired ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="deal-cash">
-                        {cashLabel} (AUD)
-                        <Required />
-                      </Label>
-                      <div className="relative">
-                        <span
-                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                          aria-hidden
-                        >
-                          $
-                        </span>
-                        <Input
-                          id="deal-cash"
-                          type="number"
-                          inputMode="decimal"
-                          min="0.01"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={cash}
-                          onChange={(event) => {
-                            setCash(event.target.value);
-                            clearError('cash');
-                          }}
-                          className="pl-7"
-                          required
-                          aria-invalid={cashError ? true : undefined}
-                          aria-describedby={cashError ? 'deal-cash-error' : undefined}
-                        />
-                      </div>
-                      <FieldError id="deal-cash-error" message={cashError} />
-                      <p className="text-xs text-muted-foreground">
-                        {role === 'TRADER'
-                          ? 'Cash included on your side.'
-                          : 'For the goods only. Delivery is separate.'}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {handover === 'DELIVERY' ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="deal-delivery-cost">
-                        Delivery cost (AUD)
-                        <Required />
-                      </Label>
-                      <div className="relative">
-                        <span
-                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                          aria-hidden
-                        >
-                          $
-                        </span>
-                        <Input
-                          id="deal-delivery-cost"
-                          type="number"
-                          inputMode="decimal"
-                          min="0"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={deliveryCost}
-                          onChange={(event) => {
-                            setDeliveryCost(event.target.value);
-                            clearError('deliveryCost');
-                          }}
-                          className="pl-7"
-                          required
-                          aria-invalid={deliveryError ? true : undefined}
-                          aria-describedby={
-                            deliveryError
-                              ? 'deal-delivery-error'
-                              : 'deal-delivery-hint'
-                          }
-                        />
-                      </div>
-                      <FieldError
-                        id="deal-delivery-error"
-                        message={deliveryError}
-                      />
-                      {!deliveryError ? (
-                        <p
-                          id="deal-delivery-hint"
-                          className="text-xs text-muted-foreground"
-                        >
-                          Added on top. Enter 0 for free delivery.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {showPhotos ? (
-                <div className="space-y-3">
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <Label htmlFor="deal-photos">
-                        Item photos
-                        {photosRequired ? <Required /> : null}
-                      </Label>
-                      <p
-                        id="deal-photos-hint"
-                        className="mt-1 text-xs text-muted-foreground"
-                      >
-                        Clear front, back and flaw photos give both sides a fair
-                        record.
-                      </p>
-                    </div>
-                    <span
-                      className="shrink-0 text-xs tabular-nums text-muted-foreground"
-                      aria-live="polite"
-                    >
-                      {photos.length}/{DEAL_PHOTOS_MAX}
-                    </span>
-                  </div>
-
-                  <label
-                    htmlFor="deal-photos"
-                    className={cn(
-                      'flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed bg-muted/30 px-4 py-5 text-center transition-colors hover:bg-muted/60 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
-                      photosError && 'border-destructive',
-                    )}
+          <CardContent className="space-y-5">
+            {collateralRequired ? (
+              <p className="cardtrade-warning flex items-start gap-2 rounded-lg border p-3 text-xs">
+                <ShieldAlert className="mt-px size-4 shrink-0" aria-hidden />
+                <span>
+                  You&apos;re unverified, so each side is held for about{' '}
+                  {formatAud(collateralStakeCents)} once you both confirm.{' '}
+                  <Link
+                    href="/profile#payouts"
+                    className="font-medium underline underline-offset-4"
                   >
-                    <ImagePlus className="mb-2 size-5 text-muted-foreground" aria-hidden />
-                    <span className="text-sm font-medium">Choose photos</span>
-                    <span className="mt-1 text-xs text-muted-foreground">
-                      JPG, PNG, WebP or GIF
-                    </span>
-                    <Input
-                      id="deal-photos"
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handlePhotosSelected}
-                      className="sr-only"
-                      required={photosRequired && photos.length === 0}
-                      aria-invalid={photosError ? true : undefined}
-                      aria-describedby={
-                        photosError ? 'deal-photos-error' : 'deal-photos-hint'
-                      }
-                    />
-                  </label>
-                  <FieldError id="deal-photos-error" message={photosError} />
+                    Verify instead
+                  </Link>{' '}
+                  and nothing is held.
+                </span>
+              </p>
+            ) : null}
 
-                  {photos.length > 0 ? (
-                    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {photos.map((file, index) => (
-                        <li
-                          key={`${file.name}-${file.lastModified}-${index}`}
-                          className="relative aspect-square overflow-hidden rounded-lg border bg-muted"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={file.name}
-                            className="h-full w-full object-cover"
-                            onLoad={(event) =>
-                              URL.revokeObjectURL(
-                                (event.target as HTMLImageElement).src,
-                              )
-                            }
-                          />
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            onClick={() => removePhoto(index)}
-                            className="absolute right-1.5 top-1.5 size-10 rounded-full bg-background/90 shadow-sm"
-                            aria-label={`Remove ${file.name}`}
-                          >
-                            <X aria-hidden />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="deal-title">
+                Deal title
+                <Required />
+              </Label>
+              <Input
+                id="deal-title"
+                value={title}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  clearError('title');
+                }}
+                placeholder="Charizard for Blastoise + $50"
+                maxLength={DEAL_TITLE_MAX}
+                autoComplete="off"
+                required
+                aria-invalid={titleError ? true : undefined}
+                aria-describedby={titleError ? 'deal-title-error' : undefined}
+              />
+              <FieldError id="deal-title-error" message={titleError} />
+            </div>
+
+            <fieldset
+              className="space-y-2"
+              aria-invalid={roleError ? true : undefined}
+              aria-describedby={roleError ? 'deal-role-error' : undefined}
+            >
+              <legend className="text-sm font-medium">
+                Your side
+                <Required />
+              </legend>
+              <div className="grid grid-cols-3 gap-1.5">
+                {ROLE_OPTIONS.map((option) => (
+                  <ChoiceTile
+                    key={option.value}
+                    id={`deal-role-${option.value}`}
+                    name="deal-role"
+                    type="radio"
+                    icon={option.icon}
+                    label={option.label}
+                    hint={option.hint}
+                    checked={role === option.value}
+                    invalid={Boolean(roleError)}
+                    onChange={() => chooseRole(option.value)}
+                  />
+                ))}
+              </div>
+              <FieldError id="deal-role-error" message={roleError} />
+            </fieldset>
+
+            {/* Only the side putting goods up has anything to describe: a buyer is
+                putting up cash, and the other side's item is theirs to photograph.
+                The row sits straight after the side you are on, so "what am I
+                describing here" is answered by the tiles above it. */}
+            {putsGoodsUp ? (
+              <div className="space-y-2">
+                <DialogRow
+                  label={goodsLabel}
+                  hint={goodsSummary}
+                  filled={
+                    photos.length > 0 ||
+                    offerKinds.length > 0 ||
+                    description.trim() !== ''
+                  }
+                  required
+                  invalid={Boolean(
+                    photosError || offerError || (cashInGoodsDialog && cashError),
+                  )}
+                  onClick={() => setGoodsDialogOpen(true)}
+                />
+                <FieldError
+                  id="deal-photos-error"
+                  message={
+                    photosError ??
+                    offerError ??
+                    (cashInGoodsDialog ? cashError : undefined)
+                  }
+                />
+              </div>
+            ) : null}
+
+            {cashRequired && !cashInGoodsDialog ? (
+              <div className="space-y-2">
+                <Label htmlFor="deal-cash">
+                  {cashLabel}
+                  <Required />
+                </Label>
+                <div className="relative">
+                  <span
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                    aria-hidden
+                  >
+                    $
+                  </span>
+                  <Input
+                    id="deal-cash"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={cash}
+                    onChange={(event) => {
+                      setCash(event.target.value);
+                      clearError('cash');
+                    }}
+                    className="pl-7"
+                    required
+                    aria-invalid={cashError ? true : undefined}
+                    aria-describedby={cashError ? 'deal-cash-error' : undefined}
+                  />
                 </div>
-              ) : null}
-            </FormSection>
+                <FieldError id="deal-cash-error" message={cashError} />
+              </div>
+            ) : null}
+
+            <fieldset
+              className="space-y-2"
+              aria-invalid={handoverError ? true : undefined}
+              aria-describedby={handoverError ? 'deal-handover-error' : undefined}
+            >
+              <legend className="text-sm font-medium">
+                Handover
+                <Required />
+              </legend>
+              <div className="grid grid-cols-2 gap-1.5">
+                {HANDOVER_OPTIONS.map((option) => (
+                  <ChoiceTile
+                    key={option.value}
+                    id={`deal-handover-${option.value}`}
+                    name="deal-handover"
+                    type="radio"
+                    icon={option.icon}
+                    label={option.label}
+                    hint={option.hint}
+                    checked={handover === option.value}
+                    invalid={Boolean(handoverError)}
+                    onChange={() => {
+                      setHandover(option.value);
+                      clearError('handover');
+                    }}
+                  />
+                ))}
+              </div>
+              <FieldError id="deal-handover-error" message={handoverError} />
+            </fieldset>
+
+            {/* The meeting picker and the delivery cost live in their own window:
+                a search box plus a map is most of a page, and only one of the two
+                methods ever needs either. */}
+            {handover !== null ? (
+              <div className="space-y-2">
+                <DialogRow
+                  label={
+                    handover === 'IN_PERSON' ? 'Where you will meet' : 'Delivery cost'
+                  }
+                  hint={handoverSummary}
+                  filled={handoverDetailsSet}
+                  required
+                  invalid={Boolean(locationError || deliveryError)}
+                  onClick={() => setHandoverDialogOpen(true)}
+                />
+                <FieldError
+                  id="deal-handover-details-error"
+                  message={locationError ?? deliveryError}
+                />
+              </div>
+            ) : null}
 
             {generalError ? (
-              <p
-                role="alert"
-                className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
-              >
+              <p id="deal-form-error" role="alert" className="text-sm text-destructive">
                 {generalError}
               </p>
             ) : null}
@@ -993,7 +785,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
           <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted/20 px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => router.push('/deals')}
               className="w-full sm:w-auto"
             >
@@ -1006,6 +798,45 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
           </CardFooter>
         </fieldset>
       </form>
+
+      {handover !== null ? (
+        <HandoverDetailsDialog
+          open={handoverDialogOpen}
+          onOpenChange={setHandoverDialogOpen}
+          method={handover}
+          value={handoverDetails}
+          error={locationError ?? deliveryError}
+          onSave={(details) => {
+            setMeetingPlace(details.place);
+            setMeetingAt(details.meetingAt);
+            setDeliveryCost(details.deliveryCostDollars);
+            clearError('meetingLocation');
+            clearError('deliveryCost');
+          }}
+        />
+      ) : null}
+
+      <DealGoodsDialog
+        open={goodsDialogOpen}
+        onOpenChange={setGoodsDialogOpen}
+        title={goodsLabel}
+        value={goods}
+        role={role}
+        error={photosError}
+        cashError={cashInGoodsDialog ? cashError : undefined}
+        offerError={offerError}
+        onSave={(next) => {
+          setDescription(next.description);
+          setPhotos(next.photos);
+          if (role === 'TRADER') {
+            setOfferKinds(next.offerKinds);
+            setCash(next.cashDollars);
+          }
+          clearError('photos');
+          clearError('offerKinds');
+          clearError('cash');
+        }}
+      />
     </Card>
   );
 }

@@ -37,9 +37,9 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { itemImageUrl } from '@/lib/format';
+import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import {
   updateTerms,
-  type DealPhotoUpload,
   type DealRow,
   type HandoverMethod,
   type UpdateTermsResult,
@@ -297,6 +297,20 @@ export function EditTermsDialog({
     }
 
     startTransition(async () => {
+      // New photos go browser → Storage first; the action only ever sees object
+      // paths, so a large photo cannot exceed Next's Server Action body cap and
+      // the original file (EXIF included) is what lands in the evidence base.
+      let newPhotoPaths: string[] = [];
+      if (newPhotoFiles.length > 0) {
+        const uploaded = await uploadItemImages(newPhotoFiles);
+        if (!uploaded.ok) {
+          setInlineError(uploaded.message);
+          toast.error(uploaded.message);
+          return;
+        }
+        newPhotoPaths = uploaded.paths;
+      }
+
       const result = await updateTerms(deal.id, {
         handoverMethod: method,
         meetingLocation:
@@ -313,10 +327,11 @@ export function EditTermsDialog({
         title,
         description,
         myItemText,
-        myPhotos: [
-          ...keptPhotoPaths,
-          ...(newPhotoFiles as unknown as DealPhotoUpload[]),
-        ],
+        // Retained and newly uploaded paths stay in separate fields: both are
+        // strings, and the action checks them differently — retained against this
+        // deal's current photos, new ones against your own Storage prefix.
+        myPhotos: keptPhotoPaths,
+        myNewPhotoPaths: newPhotoPaths,
         cashAmountCents,
         cashPayerId: cashAmountCents === null ? null : cashPayerId,
         collateralCents,

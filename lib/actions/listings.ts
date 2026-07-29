@@ -32,6 +32,8 @@ import {
 import {
   removeImages,
   uploadImages,
+  verifyStoredImages,
+  type ImageInput,
   type ImageUpload,
 } from '@/lib/storage/itemImages';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
@@ -42,10 +44,12 @@ export type ItemRow = Tables<'items'>;
 
 /**
  * An image supplied to create/update. Either raw binary (`Blob`/`File`) or a
- * base64 payload (optionally a `data:` URL). During an update, a plain `string`
- * is treated as an already-stored object path and passed through unchanged.
+ * base64 payload (optionally a `data:` URL). A plain `string` is treated as an
+ * already-stored object path and passed through unchanged — that is how a
+ * browser-uploaded photo (`lib/storage/uploadItemImages.ts`) arrives, and how an
+ * update keeps the images it already had.
  */
-export type { ImageUpload };
+export type { ImageInput, ImageUpload };
 
 /** Public listing base location (suburb-level). */
 export interface ItemLocationInput {
@@ -63,7 +67,12 @@ export interface CreateItemInput {
   category: string;
   condition: string;
   fmvCents: number;
-  images: ImageUpload[];
+  /**
+   * Bytes to upload, or the object path of a photo the browser already uploaded
+   * through a signed URL (`lib/storage/uploadItemImages.ts`). Paths are verified
+   * against the caller's own prefix before anything is persisted.
+   */
+  images: ImageInput[];
   /** Required for public catalog listings; optional for private trade items. */
   location?: ItemLocationInput | null;
 }
@@ -442,6 +451,20 @@ export async function updateItem(
     }
   }
 
+  // A path arriving as a string is a client claim, whether it is an image being
+  // kept from this Item or one the browser just uploaded through a signed URL.
+  // Confirm each belongs to the caller before it can be written to `image_paths`.
+  try {
+    await verifyStoredImages(admin, userId, keptPaths);
+  } catch (e) {
+    return {
+      ok: false,
+      error: 'validation-error',
+      field: 'images',
+      message: e instanceof Error ? e.message : 'One of these images is not yours.',
+    };
+  }
+
   let uploadedPaths: string[] = [];
   if (newUploads.length > 0) {
     try {
@@ -743,14 +766,18 @@ export interface SearchCatalogParams {
   q?: string;
   /** Restrict to these categories (OR-ed together). */
   categories?: string[];
-  /** Restrict to a single condition. */
+  /** Restrict to a single condition (legacy, prefer `conditions`). */
   condition?: string;
+  /** Restrict to these conditions (OR-ed together, multi-select). */
+  conditions?: string[];
   /** Minimum fair market value, in integer AUD cents (inclusive). */
   minCents?: number;
   /** Maximum fair market value, in integer AUD cents (inclusive). */
   maxCents?: number;
   /** When true, restrict results to items whose seller is KYC VERIFIED. */
   verifiedOnly?: boolean;
+  /** Include sold items in addition to available. */
+  includeSold?: boolean;
   /** Result ordering (defaults to `newest`). */
   sort?: CatalogSort;
   /** 1-based page number (defaults to 1). */
@@ -870,8 +897,14 @@ export async function searchCatalog(
   let query = supabase
     .from('items')
     .select('*', { count: 'exact' })
-    .eq('status', 'AVAILABLE')
     .eq('hidden', false);
+
+  // Status filter: default to AVAILABLE only; optionally include SOLD.
+  if (params.includeSold) {
+    query = query.in('status', ['AVAILABLE', 'SOLD']);
+  } else {
+    query = query.eq('status', 'AVAILABLE');
+  }
 
   // Full-text search (skip empty / whitespace-only queries).
   const q = params.q?.trim();
@@ -888,8 +921,13 @@ export async function searchCatalog(
     query = query.in('category', categories);
   }
 
-  // Condition.
-  if (params.condition && params.condition.trim() !== '') {
+  // Condition multi-select.
+  const conditions = (params.conditions ?? []).filter((c) => c.trim() !== '');
+  if (conditions.length > 0) {
+    query = query.in('condition', conditions);
+  }
+  // Legacy single-condition param (backwards compat with old URLs).
+  if (conditions.length === 0 && params.condition && params.condition.trim() !== '') {
     query = query.eq('condition', params.condition);
   }
 
@@ -955,11 +993,10 @@ export async function searchCatalog(
 /** Distinct filter option lists for the catalog filter UI. */
 export interface CatalogFacets {
   categories: string[];
-  conditions: string[];
 }
 
 /**
- * Fetch the distinct `category` and `condition` values among AVAILABLE,
+ * Fetch the distinct `category` values among AVAILABLE and SOLD,
  * non-hidden items to populate the filter rail. Dedupe happens in JS — simple
  * and sufficient for MVP scale (a dedicated aggregate/RPC can replace this if
  * the catalog grows large).
@@ -969,25 +1006,21 @@ export async function getCatalogFacets(): Promise<CatalogFacets> {
 
   const { data, error } = await supabase
     .from('items')
-    .select('category, condition')
-    .eq('status', 'AVAILABLE')
+    .select('category')
+    .in('status', ['AVAILABLE', 'SOLD'])
     .eq('hidden', false);
 
   if (error || !data) {
-    return { categories: [], conditions: [] };
+    return { categories: [] };
   }
 
   const categories = new Set<string>();
-  const conditions = new Set<string>();
   for (const row of data) {
     const category = row.category as string | null;
-    const condition = row.condition as string | null;
     if (category) categories.add(category);
-    if (condition) conditions.add(condition);
   }
 
   return {
     categories: Array.from(categories).sort(),
-    conditions: Array.from(conditions).sort(),
   };
 }

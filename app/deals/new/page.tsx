@@ -20,8 +20,14 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { NewDealForm } from '@/components/deals/NewDealForm';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
-import { SectionHeader } from '@/components/layout/SectionHeader';
 import { formatAud } from '@/lib/format';
 import { DEAL_DEFAULT_COLLATERAL_CENTS } from '@/lib/marketplace-constants';
 
@@ -62,36 +68,34 @@ export default async function NewDealPage({
   if (!verified && !acceptedCollateral) {
     return (
       <MarketplaceShell title="Start a Deal" center>
-        <p className="market-label text-gold mb-3">Private Deal</p>
-        <SectionHeader
-          title="Verify Your Identity, or Post Collateral"
-          description="A private deal is binding, so it has to be backed by something. Verify once and neither of you puts up a cent — or skip, and each side is held for the deal's value until the handover is done."
-        />
-        <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link href="/profile#payouts">Verify my identity</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/deals/new?collateral=1">Skip — post collateral instead</Link>
-          </Button>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Skipping doesn&apos;t block the deal. When you both confirm, each side is
-          held for the deal&apos;s value (at least{' '}
-          {formatAud(DEAL_DEFAULT_COLLATERAL_CENTS)}), released as soon as you both
-          mark it complete. Verify instead and nothing is held.
-        </p>
+        {/* Same shape as the trade flow's gate states: one narrow centred card,
+            a one-line consequence, and the choice in the footer. */}
+        <Card className="mx-auto w-full max-w-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Verify, or post collateral</CardTitle>
+            <CardDescription>
+              Verify once and nothing is held. Skip, and each side is held for the
+              deal&apos;s value (min {formatAud(DEAL_DEFAULT_COLLATERAL_CENTS)})
+              until you both mark it complete.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted/20 px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
+            <Button asChild variant="ghost" className="w-full sm:w-auto">
+              <Link href="/deals/new?collateral=1">Post collateral</Link>
+            </Button>
+            <Button asChild className="w-full sm:w-auto">
+              <Link href="/profile#payouts">Verify my identity</Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </MarketplaceShell>
     );
   }
 
+  // The form is a short, self-contained interstitial — like /trades/new — so it
+  // sits centred in the workspace and carries its own heading.
   return (
-    <MarketplaceShell title="Start a Deal">
-      <p className="market-label text-gold mb-3">Private Deal</p>
-      <SectionHeader
-        title="Start a Private Deal"
-        description="Set the terms once, then share a private link with the other person. Nothing becomes binding until you both confirm."
-      />
+    <MarketplaceShell title="Start a Deal" center>
       <NewDealForm collateralRequired={!verified} />
     </MarketplaceShell>
   );

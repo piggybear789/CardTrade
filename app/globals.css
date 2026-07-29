@@ -53,6 +53,24 @@
       radial-gradient(circle at 8% 0%, hsl(var(--gold) / 0.055), transparent 24rem),
       linear-gradient(hsl(var(--foreground) / 0.018) 1px, transparent 1px);
     background-size: auto, 100% 4rem;
+
+    /* Width of the workspace rail, for anything that must centre on the content
+       column rather than the viewport. A dialog portals to <body>, so it cannot
+       measure the layout it belongs to; publishing the rail width here lets it
+       shift by half and land centred over the content it came from.
+
+       Zero by default: the landing page and the public join-by-token invite opt
+       out of MarketplaceShell, and their dialogs should centre on the viewport. */
+    --app-rail-width: 0px;
+  }
+
+  /* Kept in step with the rail in components/layout/MarketplaceShell.tsx:
+     `lg:w-1/5 lg:min-w-[13.5rem] lg:max-w-[19rem]`, and only from `lg` up,
+     where the rail becomes a column instead of a strip above the content. */
+  @media (min-width: 1024px) {
+    body:has([data-app-rail]) {
+      --app-rail-width: clamp(13.5rem, 20vw, 19rem);
+    }
   }
 
   ::selection {

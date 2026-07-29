@@ -52,7 +52,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           <span className="sr-only">View {item.title}</span>
         </Link>
 
-        <div className="auction-stage pointer-events-none relative aspect-[5/6] overflow-hidden rounded-xl border border-white/10 p-[7%] shadow-market transition-[transform,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:shadow-auction motion-reduce:transform-none">
+        <div className="auction-stage pointer-events-none relative aspect-[5/6] overflow-hidden rounded-xl border border-white/10 p-[7%] shadow-market transition-shadow duration-150 group-hover:shadow-auction">
           <div
             className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.09),transparent_52%)]"
             aria-hidden="true"
@@ -65,7 +65,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
               width={512}
               height={512}
               className={cn(
-                'relative z-10 h-full w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transform-none',
+                'relative z-10 h-full w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)]',
                 unavailableLabel && 'grayscale-[35%]',
               )}
               loading="lazy"
@@ -146,7 +146,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
   return (
     <Card
       className={cn(
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border/70 p-0 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-gold/65 hover:shadow-auction motion-reduce:transform-none',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border/70 p-0 transition-[border-color,box-shadow] duration-150 hover:border-gold/65 hover:shadow-auction',
         unavailableLabel && 'opacity-70',
       )}
     >
@@ -170,7 +170,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             width={512}
             height={640}
             className={cn(
-              'relative z-10 h-full w-full object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)] transition-transform duration-500 group-hover:scale-[1.035] motion-reduce:transform-none',
+              'relative z-10 h-full w-full object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]',
               unavailableLabel && 'grayscale-[35%]',
             )}
             loading="lazy"

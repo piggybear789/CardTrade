@@ -39,8 +39,7 @@ export default async function MyListingsPage() {
       primaryAction={
         <Button
           asChild
-          variant="outline"
-          className="w-full border-gold/45 bg-gold/12 text-foreground hover:border-gold/60 hover:bg-gold/20"
+          className="w-full border border-white/15 bg-obsidian text-parchment font-semibold shadow-sm hover:bg-obsidian/80 hover:border-white/25"
         >
           <Link href="/listings/new">
             <Plus aria-hidden="true" className="text-gold" />

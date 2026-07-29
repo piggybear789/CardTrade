@@ -98,10 +98,10 @@ export function MarketplaceNav({
     <nav aria-label="Marketplace sections" className="flex flex-col gap-4 lg:gap-5">
       {GROUPS.map((group) => (
         <div key={group.label}>
-          <p className="market-label hidden px-3 pb-1.5 text-muted-foreground lg:block">
+          <p className="market-label px-3 pb-1.5 text-muted-foreground lg:block">
             {group.label}
           </p>
-          <ul className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+          <ul className="-mx-1 flex flex-wrap gap-1 px-1 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:px-0 lg:pb-0">
             {group.links.map((link) => {
               const active = isActive(pathname, link.href);
               const Icon = link.icon;
@@ -111,7 +111,7 @@ export function MarketplaceNav({
                     href={link.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:gap-3',
+                      'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:gap-3',
                       active
                         ? 'bg-gold/10 font-semibold text-foreground'
                         : 'font-medium text-foreground/85 hover:bg-muted/70 hover:text-foreground',

@@ -30,7 +30,7 @@ import {
   type RespondTradeProposalError,
   type TradeCashDirection,
 } from '@/domain/orchestrator/tradeProposalRequest';
-import { createPrivateTradeItem, type ImageUpload } from '@/lib/actions/listings';
+import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { proposeTrade } from '@/lib/actions/trades';
@@ -63,8 +63,12 @@ export type RespondTradeProposalResult =
       message?: string;
     };
 
-/** An image supplied for a privately offered Item. */
-type ProposalImage = ImageUpload;
+/**
+ * An image supplied for a privately offered Item: normally the object path of a
+ * photo the browser already uploaded to Storage, so the file never rides inside
+ * this action's body. Raw bytes are still accepted for non-browser callers.
+ */
+type ProposalImage = ImageInput;
 
 /** What the proposer is putting up: an existing Item, or a new private one. */
 export type ProposalOffer =

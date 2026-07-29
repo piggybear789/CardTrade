@@ -2,19 +2,24 @@
 
 // components/trade/TradeOfferForm.tsx
 //
-// Offer a 2-Way Trade against one specific listing. Replaces the old
-// two-dropdown pairing form: the Item being requested is fixed context supplied
-// by the listing you came from, and the only decision is what you put up.
+// Offer a 2-Way Trade against one specific listing.
 //
-// Two ways to answer that:
-//   * an Item you already have listed, filtered to those that match the
-//     requested Fair_Market_Value to the cent (Req 5.2), or
-//   * an Item described here and now, created privately — owned and valued, but
-//     never published to the catalog.
+// The Item being requested is fixed context supplied by the listing you came
+// from, so the only decision here is what you put up. Kept deliberately small:
+// a narrow centred card, one list of everything you are putting up, and the
+// optional terms (cash, your own valuation, a note) folded away behind a single
+// disclosure so the common case — "these cards for that card" — is two clicks.
 //
-// The Fair_Market_Value of a private Item is fixed to the requested Item's value
-// rather than typed, because an unequal pairing is rejected outright and there is
-// no reason to let someone discover that after filling in a form.
+// Both side quests happen in dialogs rather than inline — Offer Terms, where an
+// unlisted Item is described (`UnlistedItemDialog`), and Payment Terms, where the
+// optional cash, valuation and note live (`PaymentTermsDialog`).
+// Between them they were nine fields that pushed the running total off screen, and
+// moving them out means the card's height no longer depends on which paths you
+// took. The card keeps a one-line summary of each, so nothing is hidden.
+//
+// Selection order carries meaning: the first Item you tick is the primary one
+// recorded on the proposal, the rest ride along as the bundle. An unlisted draft
+// always takes the primary slot, so every ticked listing becomes bundle.
 //
 // Nothing is reserved and no collateral is requested here. The offer sits PENDING
 // until the other Trader accepts.
@@ -23,9 +28,8 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeftRight, Lock } from 'lucide-react';
+import { ArrowDown, Lock, Pencil, X } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -35,49 +39,25 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { DialogRow } from '@/components/ui/dialog-row';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+  EMPTY_PAYMENT_TERMS,
+  PaymentTermsDialog,
+  type PaymentTerms,
+} from '@/components/trade/PaymentTermsDialog';
+import {
+  UnlistedItemDialog,
+  type UnlistedItemDraft,
+} from '@/components/trade/UnlistedItemDialog';
 import { formatAud, itemImageUrl } from '@/lib/format';
+import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { cn } from '@/lib/utils';
 import {
   counterTradeProposal,
   createTradeProposal,
 } from '@/lib/actions/tradeProposals';
-import { TRADE_PROPOSAL_MESSAGE_MAX } from '@/lib/marketplace-constants';
-import type { TradeCashDirection } from '@/domain/orchestrator/tradeProposalRequest';
 import type { ItemRow } from '@/lib/actions/listings';
 
-/** Collectible categories, mirroring the listing form. */
-const CATEGORIES = [
-  'Trading Cards',
-  'Coins',
-  'Stamps',
-  'Comics',
-  'Memorabilia',
-] as const;
-
-/** Condition grades, mirroring the listing form (TCGplayer's standard scale). */
-const CONDITIONS = [
-  'Unopened',
-  'Near Mint',
-  'Mint',
-  'Lightly Played',
-  'Heavily Played',
-  'Damaged',
-] as const;
-
-const IMAGES_MIN = 1;
-const IMAGES_MAX = 10;
-
-/** Friendly copy for each typed proposal failure. */
 /** Parse a dollars string into integer AUD cents; 0 when blank or invalid. */
 function dollarsToCents(value: string): number {
   const trimmed = value.trim();
@@ -87,6 +67,7 @@ function dollarsToCents(value: string): number {
   return Math.round(amount * 100);
 }
 
+/** Friendly copy for each typed proposal failure. */
 const ERROR_MESSAGES: Record<string, string> = {
   'item-not-found': 'That item could not be found.',
   'invalid-cash': 'Enter a valid cash amount.',
@@ -126,47 +107,30 @@ export function TradeOfferForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // A counter answers with goods you already hold, so the inline "create a
-  // private item" path is not offered there.
-  const [mode, setMode] = useState<'existing' | 'private'>('existing');
-  const [existingItemId, setExistingItemId] = useState('');
-  const [message, setMessage] = useState('');
-  /** Further items thrown in alongside the primary one. */
-  const [extraItemIds, setExtraItemIds] = useState<string[]>([]);
-  const [cashDollars, setCashDollars] = useState('');
-  const [cashDirection, setCashDirection] = useState<TradeCashDirection>('PROPOSER_PAYS');
-  const [valueDollars, setValueDollars] = useState('');
+  /** Ticked items, in the order they were ticked: the first is the primary. */
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  /**
+   * An unlisted Item described for this offer. A counter answers with goods you
+   * already hold, so it is unavailable there.
+   */
+  const [unlisted, setUnlisted] = useState<UnlistedItemDraft | null>(null);
+  const [unlistedDialogOpen, setUnlistedDialogOpen] = useState(false);
+  /** Cash, your valuation and a note, all set in their own dialog. */
+  const [terms, setTerms] = useState<PaymentTerms>(EMPTY_PAYMENT_TERMS);
+  const [termsDialogOpen, setTermsDialogOpen] = useState(false);
 
-  // Private item fields. FMV is not editable: it must match to the cent.
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [condition, setCondition] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
+  const { cashDirection, message } = terms;
+  const cashAmountCents = dollarsToCents(terms.cashDollars);
+  const declaredValueCents = dollarsToCents(terms.valueDollars);
 
-  // Any item can be offered now: a bundle plus cash rarely matches a single
-  // listing price, and it is the other trader's acceptance that agrees the value.
-  const matchingItems = ownItems;
-
-  /** Items still available to add, once the primary one is chosen. */
-  const addableItems = useMemo(
-    () => ownItems.filter((item) => item.id !== existingItemId),
-    [ownItems, existingItemId],
-  );
-
-  const cashAmountCents = dollarsToCents(cashDollars);
-  const declaredValueCents = dollarsToCents(valueDollars);
-
-  /** Sum of the listed values of the goods being offered, for the live total. */
+  /** Listed value of the goods ticked, plus the assumed value of an unlisted one. */
   const goodsValueCents = useMemo(() => {
-    const ids = mode === 'existing' ? [existingItemId, ...extraItemIds] : extraItemIds;
-    const listed = ids
+    const listed = selectedItemIds
       .map((id) => ownItems.find((item) => item.id === id)?.fmv_cents ?? 0)
       .reduce((sum, value) => sum + value, 0);
-    return mode === 'private' ? listed + requested.fmvCents : listed;
-  }, [mode, existingItemId, extraItemIds, ownItems, requested.fmvCents]);
+    return unlisted ? listed + requested.fmvCents : listed;
+  }, [selectedItemIds, ownItems, unlisted, requested.fmvCents]);
 
-  /** Value of goods on the proposer side, using their stated value when given. */
   const offeredGoodsValueCents =
     declaredValueCents > 0 ? declaredValueCents : goodsValueCents;
   const youGiveTotalCents =
@@ -177,36 +141,60 @@ export function TradeOfferForm({
     (cashDirection === 'COUNTERPART_PAYS' ? cashAmountCents : 0);
   const differenceCents = youGiveTotalCents - theyGiveTotalCents;
 
-  function toggleExtraItem(itemId: string) {
-    setExtraItemIds((current) =>
+  function toggleItem(itemId: string) {
+    setSelectedItemIds((current) =>
       current.includes(itemId)
         ? current.filter((id) => id !== itemId)
         : [...current, itemId],
     );
   }
 
-  const privateComplete =
-    title.trim() !== '' &&
-    description.trim() !== '' &&
-    category !== '' &&
-    condition !== '' &&
-    files.length >= IMAGES_MIN &&
-    files.length <= IMAGES_MAX;
+  /** Everything on your side of the table, for the count on the legend. */
+  const offeredCount = selectedItemIds.length + (unlisted ? 1 : 0);
+  const canSubmit = !isPending && offeredCount > 0;
 
-  const canSubmit =
-    !isPending &&
-    (mode === 'existing' ? existingItemId !== '' : privateComplete);
+  /** One-line summary of the optional terms, shown on the collapsed disclosure. */
+  const termsSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (cashAmountCents > 0) {
+      parts.push(
+        cashDirection === 'PROPOSER_PAYS'
+          ? `+ ${formatAud(cashAmountCents)} from you`
+          : `+ ${formatAud(cashAmountCents)} from them`,
+      );
+    }
+    if (declaredValueCents > 0) parts.push(`valued ${formatAud(declaredValueCents)}`);
+    if (message.trim() !== '') parts.push('note added');
+    return parts.join(' · ');
+  }, [cashAmountCents, cashDirection, declaredValueCents, message]);
 
   function handleSubmit() {
     setError(null);
+    const [primaryItemId, ...extraItemIds] = selectedItemIds;
+
     startTransition(async () => {
+      // Photos go browser → Storage first, and only their object paths travel in
+      // the action call. Sending the files themselves would put them in the
+      // Server Action body, which Next caps, and re-encoding them to fit would
+      // strip the EXIF that makes a photo worth having in a dispute.
+      let imagePaths: string[] = [];
+      if (unlisted && !counterOfProposalId) {
+        const uploaded = await uploadItemImages(unlisted.images);
+        if (!uploaded.ok) {
+          setError(uploaded.message);
+          toast.error(uploaded.message);
+          return;
+        }
+        imagePaths = uploaded.paths;
+      }
+
       // Countering needs an item of your own to put up, so it does not support
-      // creating a private item inline.
-      if (counterOfProposalId && mode === 'existing') {
+      // describing an unlisted item inline.
+      if (counterOfProposalId) {
         const countered = await counterTradeProposal({
           proposalId: counterOfProposalId,
           wantedItemId: requested.id,
-          offeredItemId: existingItemId,
+          offeredItemId: primaryItemId,
           extraItemIds,
           cashAmountCents,
           cashDirection,
@@ -230,24 +218,25 @@ export function TradeOfferForm({
       const result = await createTradeProposal({
         counterpartItemId: requested.id,
         message,
-        extraItemIds,
+        // An unlisted item takes the primary slot, so every ticked listing rides
+        // along as part of the bundle.
+        extraItemIds: unlisted ? selectedItemIds : extraItemIds,
         cashAmountCents,
         cashDirection,
         declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
-        offer:
-          mode === 'existing'
-            ? { kind: 'existing', itemId: existingItemId }
-            : {
-                kind: 'private',
-                title,
-                description,
-                category,
-                condition,
-                // Your own valuation when you gave one, otherwise assume you are
-                // matching what you are asking for.
-                fmvCents: declaredValueCents > 0 ? declaredValueCents : requested.fmvCents,
-                images: files,
-              },
+        offer: unlisted
+          ? {
+              kind: 'private',
+              title: unlisted.title,
+              description: unlisted.description,
+              category: unlisted.category,
+              condition: unlisted.condition,
+              // Your own valuation when you gave one, otherwise assume you are
+              // matching what you are asking for.
+              fmvCents: declaredValueCents > 0 ? declaredValueCents : requested.fmvCents,
+              images: imagePaths,
+            }
+          : { kind: 'existing', itemId: primaryItemId },
       });
 
       if (result.ok) {
@@ -265,18 +254,18 @@ export function TradeOfferForm({
   const thumb = itemImageUrl(requested.imagePath);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{counterOfProposalId ? 'Counter their offer' : 'Offer a trade'}</CardTitle>
+    <Card className="mx-auto w-full max-w-lg">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl">
+          {counterOfProposalId ? 'Counter their offer' : 'Offer a trade'}
+        </CardTitle>
         <CardDescription>
-          {counterOfProposalId
-            ? `Answer with your own terms. This replaces their offer, and ${requested.ownerName} then decides.`
-            : `Put up whatever you think is fair — items, cash, or both. ${requested.ownerName} decides whether to accept, and until then nothing is reserved and no card is on the line.`}
+          Nothing is reserved until {requested.ownerName} accepts.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* What you are asking for. */}
+      <CardContent className="space-y-5">
+        {/* What is on the table. */}
         <section
           aria-label="Item you are requesting"
           className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3"
@@ -288,389 +277,149 @@ export function TradeOfferForm({
               alt=""
               width={96}
               height={96}
-              className="size-14 shrink-0 rounded-md object-cover"
+              className="size-12 shrink-0 rounded-md object-cover"
             />
           ) : null}
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              You want
+              {requested.ownerName} is offering up
             </p>
             <p className="truncate font-semibold">{requested.title}</p>
-            <p className="text-sm tabular-nums text-muted-foreground">
-              {formatAud(requested.fmvCents)}
-            </p>
           </div>
+          <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">
+            {formatAud(requested.fmvCents)}
+          </span>
         </section>
 
-        {/* What you put up. */}
-        <fieldset className="space-y-3">
-          <legend className="text-sm font-medium">What you offer</legend>
+        <div className="flex items-center justify-center">
+          <ArrowDown className="size-4 text-muted-foreground" aria-hidden="true" />
+        </div>
 
-          <div
-            className={cn('grid gap-2 sm:grid-cols-2', counterOfProposalId && 'hidden')}
-          >
-            <label
-              className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${
-                mode === 'existing' ? 'border-primary bg-primary/5' : ''
-              }`}
-            >
-              <input
-                type="radio"
-                name="offer-mode"
-                value="existing"
-                checked={mode === 'existing'}
-                onChange={() => setMode('existing')}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-medium">An item I&apos;ve listed</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {matchingItems.length === 1
-                    ? '1 item available'
-                    : `${matchingItems.length} items available`}
-                </span>
-              </span>
-            </label>
-
-            <label
-              className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${
-                mode === 'private' ? 'border-primary bg-primary/5' : ''
-              }`}
-            >
-              <input
-                type="radio"
-                name="offer-mode"
-                value="private"
-                checked={mode === 'private'}
-                onChange={() => setMode('private')}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-medium">Something not listed</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Stays private to this trade
-                </span>
-              </span>
-            </label>
-          </div>
-        </fieldset>
-
-        {mode === 'existing' ? (
-          <div className="space-y-2">
-            <Label htmlFor="existing-item">Your item</Label>
-            <Select value={existingItemId} onValueChange={setExistingItemId}>
-              <SelectTrigger id="existing-item">
-                <SelectValue placeholder="Select an item" />
-              </SelectTrigger>
-              <SelectContent>
-                {matchingItems.length === 0 ? (
-                  <SelectItem value="__none" disabled>
-                    Nothing you own matches this value
-                  </SelectItem>
-                ) : (
-                  matchingItems.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.title}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            {matchingItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                You have nothing listed. Offer something unlisted instead.
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Lock className="size-4 shrink-0 text-gold" aria-hidden="true" />
-              Only {requested.ownerName} sees this item, and only inside this
-              trade. It is never added to the marketplace.
-            </p>
-
-            <div className="space-y-2">
-              <Label htmlFor="private-title">Title</Label>
-              <Input
-                id="private-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={120}
-                autoComplete="off"
-                placeholder="1999 Charizard, holo…"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="private-description">Description</Label>
-              <Textarea
-                id="private-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={2000}
-                rows={3}
-                placeholder="Condition details, grading, anything they should know…"
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="private-category">Category</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger id="private-category">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="private-condition">Condition</Label>
-                <Select value={condition} onValueChange={setCondition}>
-                  <SelectTrigger id="private-condition">
-                    <SelectValue placeholder="Select a condition" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CONDITIONS.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="private-images">
-                Photos ({IMAGES_MIN}–{IMAGES_MAX})
-              </Label>
-              <Input
-                id="private-images"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {files.length === 0
-                  ? 'Photos are the evidence base if this trade is ever disputed.'
-                  : `${files.length} selected`}
-              </p>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Set what it is worth under “Your trade value” below. If you leave that
-              blank we assume you are matching {requested.title}.
-            </p>
-          </div>
-        )}
-
-        {/* Throw in more goods. Nothing here has to match the listing price —
-            the other trader decides whether the whole bundle is fair. */}
-        {addableItems.length > 0 ? (
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Add more items (optional)</legend>
-            <ul className="space-y-1">
-              {addableItems.map((item) => (
-                <li key={item.id}>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-md border p-2.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={extraItemIds.includes(item.id)}
-                      onChange={() => toggleExtraItem(item.id)}
-                      className="size-4 shrink-0"
-                    />
-                    <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {formatAud(item.fmv_cents)}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </fieldset>
-        ) : null}
-
+        {/* Your side: one list of everything you are putting up, listed or not. */}
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Cash adjustment (optional)</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label
-              className={cn(
-                'flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm transition-colors',
-                cashDirection === 'PROPOSER_PAYS' && 'border-primary bg-primary/5',
-              )}
-            >
-              <input
-                type="radio"
-                name="cash-direction"
-                value="PROPOSER_PAYS"
-                checked={cashDirection === 'PROPOSER_PAYS'}
-                onChange={() => setCashDirection('PROPOSER_PAYS')}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-medium">I add cash</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  You pay {requested.ownerName}.
+          <legend className="text-sm font-medium">
+            You offer
+            {offeredCount > 0 ? (
+              <span className="ml-1 font-normal text-muted-foreground">
+                ({offeredCount} selected)
+              </span>
+            ) : null}
+          </legend>
+
+          {/* The unlisted draft sits at the top: it is the primary item. */}
+          {unlisted ? (
+            <div className="flex items-center gap-3 rounded-md border border-primary bg-primary/5 p-2.5 text-sm">
+              <Lock className="size-4 shrink-0 text-gold" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate font-medium">
+                {unlisted.title}
+                <span className="ml-1.5 font-normal text-muted-foreground">
+                  not listed
                 </span>
               </span>
-            </label>
-            <label
-              className={cn(
-                'flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm transition-colors',
-                cashDirection === 'COUNTERPART_PAYS' && 'border-primary bg-primary/5',
-              )}
-            >
-              <input
-                type="radio"
-                name="cash-direction"
-                value="COUNTERPART_PAYS"
-                checked={cashDirection === 'COUNTERPART_PAYS'}
-                onChange={() => setCashDirection('COUNTERPART_PAYS')}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-medium">I request cash</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {requested.ownerName} pays you.
-                </span>
-              </span>
-            </label>
-          </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="size-8 shrink-0 p-0"
+                onClick={() => setUnlistedDialogOpen(true)}
+              >
+                <Pencil aria-hidden="true" />
+                <span className="sr-only">Edit {unlisted.title}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="size-8 shrink-0 p-0"
+                onClick={() => setUnlisted(null)}
+              >
+                <X aria-hidden="true" />
+                <span className="sr-only">Remove {unlisted.title}</span>
+              </Button>
+            </div>
+          ) : null}
+
+          {/* No "you have nothing listed" copy: the row below is the answer, and
+              saying it twice reads as an error when it is a normal way to trade. */}
+          {ownItems.length === 0 ? null : (
+            // Setting overflow on one axis makes this a scroll container on both,
+            // which clips the focus ring on the rows at its edges. The inset
+            // padding/negative-margin pair gives the ring room to draw without
+            // moving the rows — same treatment as the rail in MarketplaceShell.
+            <ul className="-mx-1 -my-1 max-h-48 space-y-1 overflow-y-auto px-1 py-1">
+              {ownItems.map((item) => {
+                const checked = selectedItemIds.includes(item.id);
+                return (
+                  <li key={item.id}>
+                    <label
+                      className={cn(
+                        'flex cursor-pointer items-center gap-3 rounded-md border p-2.5 text-sm ring-offset-background transition-colors',
+                        // The whole row takes the focus ring, not just the native
+                        // checkbox: at this size the box's own ring is easy to miss.
+                        'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
+                        checked && 'border-primary bg-primary/5',
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleItem(item.id)}
+                        className="size-4 shrink-0"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {formatAud(item.fmv_cents)}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {counterOfProposalId || unlisted ? null : (
+            <DialogRow
+              label="Offer Terms"
+              hint="Add an unlisted item"
+              onClick={() => setUnlistedDialogOpen(true)}
+            />
+          )}
         </fieldset>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="offer-cash">
-              {cashDirection === 'PROPOSER_PAYS' ? 'Cash you add (AUD)' : 'Cash you request (AUD)'}
-            </Label>
-            <Input
-              id="offer-cash"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              autoComplete="off"
-              placeholder="0.00"
-              value={cashDollars}
-              onChange={(e) => setCashDollars(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              {cashDirection === 'PROPOSER_PAYS'
-                ? `Paid to ${requested.ownerName} on top of your goods.`
-                : `${requested.ownerName} pays you on top of their item.`}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="offer-value">Your trade value (optional)</Label>
-            <Input
-              id="offer-value"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              autoComplete="off"
-              placeholder={
-                goodsValueCents > 0
-                  ? (goodsValueCents / 100).toFixed(2)
-                  : requested.fmvCents
-                    ? (requested.fmvCents / 100).toFixed(2)
-                    : '0.00'
-              }
-              value={valueDollars}
-              onChange={(e) => setValueDollars(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              What you reckon your side is worth. They see it and decide.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="offer-message">Note (optional)</Label>
-          <Textarea
-            id="offer-message"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            maxLength={TRADE_PROPOSAL_MESSAGE_MAX}
-            rows={2}
-            placeholder="Anything you want them to know…"
-          />
-        </div>
+        {/* Payment Terms: one row summarising whatever the dialog holds. */}
+        <DialogRow
+          label="Payment Terms"
+          hint={termsSummary || 'Optional'}
+          filled={termsSummary !== ''}
+          onClick={() => setTermsDialogOpen(true)}
+        />
 
         {/* Running total. Sides do not have to match — this just shows where the
             offer stands so nobody has to do the arithmetic themselves. */}
-        <div className="rounded-lg border p-3 text-sm" role="status" aria-live="polite">
-          <dl className="space-y-1.5">
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted-foreground">You give</dt>
-              <dd className="font-semibold tabular-nums">
-                {formatAud(youGiveTotalCents)}
-                {cashAmountCents > 0 && cashDirection === 'PROPOSER_PAYS' ? (
-                  <span className="ml-1 font-normal text-muted-foreground">
-                    incl. {formatAud(cashAmountCents)} cash
-                  </span>
-                ) : null}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted-foreground">They give</dt>
-              <dd className="font-semibold tabular-nums">
-                {formatAud(theyGiveTotalCents)}
-                {cashAmountCents > 0 && cashDirection === 'COUNTERPART_PAYS' ? (
-                  <span className="ml-1 font-normal text-muted-foreground">
-                    incl. {formatAud(cashAmountCents)} cash
-                  </span>
-                ) : null}
-              </dd>
-            </div>
-          </dl>
+        <div
+          className="rounded-lg border bg-muted/20 p-3 text-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-muted-foreground">You give</span>
+            <span className="font-semibold tabular-nums">
+              {formatAud(youGiveTotalCents)}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between gap-3">
+            <span className="text-muted-foreground">They give</span>
+            <span className="font-semibold tabular-nums">
+              {formatAud(theyGiveTotalCents)}
+            </span>
+          </div>
           <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
             {differenceCents === 0
               ? 'Even on the stated terms.'
               : differenceCents > 0
-                ? `You give ${formatAud(differenceCents)} more than they give.`
-                : `You give ${formatAud(Math.abs(differenceCents))} less than they give. ${requested.ownerName} may still accept.`}
+                ? `You give ${formatAud(differenceCents)} more.`
+                : `You give ${formatAud(Math.abs(differenceCents))} less. ${requested.ownerName} may still accept.`}
           </p>
-        </div>
-
-        {/* The pairing, stated plainly. */}
-        <div className="flex items-center justify-center gap-3 rounded-md bg-muted/40 p-3 text-sm">
-          <span className="min-w-0 truncate font-medium">
-            {(() => {
-              const primaryTitle =
-                mode === 'existing'
-                  ? matchingItems.find((i) => i.id === existingItemId)?.title ??
-                    'Your item'
-                  : title.trim() || 'Your item';
-              const extras = extraItemIds.length;
-              const parts = [primaryTitle];
-              if (extras > 0) parts.push(`+ ${extras} more`);
-              if (cashAmountCents > 0 && cashDirection === 'PROPOSER_PAYS') {
-                parts.push(`+ ${formatAud(cashAmountCents)}`);
-              }
-              return parts.join(' ');
-            })()}
-          </span>
-          <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="min-w-0 truncate font-medium">
-            {requested.title}
-            {cashAmountCents > 0 && cashDirection === 'COUNTERPART_PAYS'
-              ? ` + ${formatAud(cashAmountCents)}`
-              : null}
-          </span>
-          <Badge variant="secondary" className="shrink-0 tabular-nums">
-            {formatAud(requested.fmvCents)}
-          </Badge>
         </div>
 
         {error ? (
@@ -693,6 +442,25 @@ export function TradeOfferForm({
           {isPending ? 'Sending Offer…' : 'Send Offer'}
         </Button>
       </CardFooter>
+
+      <UnlistedItemDialog
+        open={unlistedDialogOpen}
+        onOpenChange={setUnlistedDialogOpen}
+        initial={unlisted}
+        counterpartName={requested.ownerName}
+        onSave={setUnlisted}
+      />
+
+      <PaymentTermsDialog
+        open={termsDialogOpen}
+        onOpenChange={setTermsDialogOpen}
+        terms={terms}
+        counterpartName={requested.ownerName}
+        valuePlaceholder={(
+          (goodsValueCents > 0 ? goodsValueCents : requested.fmvCents) / 100
+        ).toFixed(2)}
+        onSave={setTerms}
+      />
     </Card>
   );
 }

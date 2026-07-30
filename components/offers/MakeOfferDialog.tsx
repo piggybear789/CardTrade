@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { HandCoins, Loader2 } from 'lucide-react';
 
+import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -60,8 +61,10 @@ export interface MakeOfferDialogProps {
   fmvCents?: number;
   /** Current provider-approved seller identity the buyer must acknowledge. */
   sellerIdentity: SellerIdentityDisclosure;
-  /** Trigger button size. Defaults to `lg` for the primary action row. */
+  /** Trigger button size when `appearance` is `button`. */
   size?: 'default' | 'sm' | 'lg';
+  /** `icon` = round chip + label below (item detail). */
+  appearance?: 'button' | 'icon';
 }
 
 /**
@@ -73,6 +76,7 @@ export function MakeOfferDialog({
   fmvCents,
   sellerIdentity,
   size = 'lg',
+  appearance = 'button',
 }: MakeOfferDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -135,10 +139,14 @@ export function MakeOfferDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size={size} className="w-full sm:w-auto">
-          <HandCoins aria-hidden />
-          Make an offer
-        </Button>
+        {appearance === 'icon' ? (
+          <ListingActionIcon icon={HandCoins} label="Make an offer" />
+        ) : (
+          <Button type="button" variant="outline" size={size} className="w-full sm:w-auto">
+            <HandCoins aria-hidden />
+            Make an offer
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
@@ -146,13 +154,13 @@ export function MakeOfferDialog({
             <DialogTitle>Make an offer</DialogTitle>
             <DialogDescription>
               Propose a price for this item. The seller can accept, decline, or
-              counter your offer.
+              counter your offer. Accepted offers are paid through Pinch Payments.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="min-w-0 rounded-md border bg-muted/30 p-3 text-sm">
-              <p className="font-medium">Verified seller</p>
+              <p className="font-medium">DittoShield verified seller</p>
               {sellerIdentity.tradingName ? (
                 <p className="break-words">{sellerIdentity.tradingName}</p>
               ) : null}
@@ -171,7 +179,8 @@ export function MakeOfferDialog({
                 disabled={isPending}
               />
               <span>
-                I confirm this is the seller I intend to pay if the offer is accepted.
+                I confirm this is the seller I intend to pay through Pinch Payments
+                if the offer is accepted.
               </span>
             </label>
 

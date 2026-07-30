@@ -35,7 +35,7 @@ import { DEAL_DEFAULT_COLLATERAL_CENTS } from '@/lib/marketplace-constants';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Start a deal · Poke-xchange',
+  title: 'Start a deal · NoDitto',
   description: 'Start a private 1:1 binding deal with one other member.',
 };
 
@@ -72,11 +72,12 @@ export default async function NewDealPage({
             a one-line consequence, and the choice in the footer. */}
         <Card className="mx-auto w-full max-w-lg">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl">Verify, or post collateral</CardTitle>
+            <CardTitle className="text-xl">Use DittoShield, or post collateral</CardTitle>
             <CardDescription>
-              Verify once and nothing is held. Skip, and each side is held for the
-              deal&apos;s value (min {formatAud(DEAL_DEFAULT_COLLATERAL_CENTS)})
-              until you both mark it complete.
+              Complete DittoShield (Anti-Impostor Verification) once and nothing is
+              held. Skip, and each side is held for the deal&apos;s value (min{' '}
+              {formatAud(DEAL_DEFAULT_COLLATERAL_CENTS)}) until you both mark it
+              complete.
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted/20 px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
@@ -84,7 +85,7 @@ export default async function NewDealPage({
               <Link href="/deals/new?collateral=1">Post collateral</Link>
             </Button>
             <Button asChild className="w-full sm:w-auto">
-              <Link href="/profile#payouts">Verify my identity</Link>
+              <Link href="/profile#payouts">Start DittoShield</Link>
             </Button>
           </CardFooter>
         </Card>

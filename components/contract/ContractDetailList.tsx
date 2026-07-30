@@ -7,6 +7,7 @@
 // it aligned with chat and preventing several dense sections from opening at once.
 //
 // Action-card focus links select the matching tab through `ContractFocusProvider`.
+// Optional `explainer` copy surfaces next to each tab via an (i) control.
 
 import {
   Children,
@@ -18,9 +19,15 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { ScrollText } from 'lucide-react';
+import { CircleHelp, ScrollText } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useContractFocus } from './ContractFocus';
 
@@ -32,6 +39,8 @@ export interface ContractDetailListProps {
 export interface ContractDetailRowProps {
   /** Short noun: Item, Terms, Money, Collateral. */
   label: string;
+  /** Plain-language “what is this?” shown from the (i) next to the tab. */
+  explainer?: string;
   /** DOM id used by action-card focus links. */
   id?: string;
   /** When true, this row is selected by default on mount. */
@@ -105,82 +114,146 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
   if (!activeRow) return null;
 
   return (
-    <Card
-      className={cn(
-        'flex h-full min-h-0 flex-col overflow-hidden border-border/90 shadow-sm',
-        className,
-      )}
-    >
-      <div className="flex items-center gap-3 border-b bg-muted/20 px-4 py-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
-          <ScrollText className="size-4" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">Contract Details</h2>
-          <p className="truncate text-xs text-muted-foreground">
-            Review one part of the agreement at a time
-          </p>
-        </div>
-      </div>
-
-      <div
-        className="flex shrink-0 overflow-x-auto border-b bg-card px-2"
-        role="tablist"
-        aria-label="Contract details"
-      >
-        {rows.map((row, index) => {
-          const selected = index === activeIndex;
-          return (
-            <button
-              key={rowKey(row, index)}
-              id={`${tabsId}-tab-${index}`}
-              type="button"
-              role="tab"
-              tabIndex={selected ? 0 : -1}
-              aria-selected={selected}
-              aria-controls={row.props.id ?? `${tabsId}-panel-${index}`}
-              onClick={() => selectTab(index)}
-              onKeyDown={(event) => handleTabKeyDown(event, index)}
-              className={cn(
-                'relative shrink-0 touch-manipulation px-3 py-2.5 text-xs font-medium transition-colors',
-                'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                selected
-                  ? 'text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-gold'
-                  : 'text-muted-foreground',
-              )}
-            >
-              {row.props.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <section
-        id={activeRow.props.id ?? `${tabsId}-panel-${activeIndex}`}
-        role="tabpanel"
-        aria-labelledby={`${tabsId}-tab-${activeIndex}`}
+    <TooltipProvider delayDuration={200}>
+      <Card
         className={cn(
-          'flex min-h-0 flex-1 scroll-mt-20 flex-col transition-colors duration-300',
-          focusedId === activeRow.props.id && 'bg-gold/10',
-          activeRow.props.className,
+          'flex h-full min-h-0 flex-col overflow-hidden border-border/90 shadow-sm',
+          className,
         )}
       >
-        <div
+        {/* One card surface, divided by rules — matching the chat panel this
+            sits beside. See the note in ContractChat. */}
+        <div className="flex items-center gap-3 border-b px-4 py-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
+            <ScrollText className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Contract Details</h2>
+            <p className="truncate text-xs text-muted-foreground">
+              Review one part of the agreement at a time
+            </p>
+          </div>
+        </div>
+
+        {/* The strip scrolls when the labels outrun the panel, but the native
+            bar is suppressed: it drew a grey rail across the full width and
+            sat on top of the active tab's gold underline. The clipped next tab
+            is the affordance instead.
+
+            The active row's edit action docks at the right end of this same
+            strip on wider screens — giving it its own row above the panel
+            content cost a full row of vertical space for one small button. On
+            phones the strip has no width to spare (the button would bury the
+            tabs), so the action moves into the panel there instead. */}
+        <div className="flex shrink-0 items-center border-b">
+          <div
+            className="flex min-w-0 flex-1 overflow-x-auto px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            role="tablist"
+            aria-label="Contract details"
+          >
+            {rows.map((row, index) => {
+            const selected = index === activeIndex;
+            const explainer = row.props.explainer?.trim();
+            return (
+              <div
+                key={rowKey(row, index)}
+                className={cn(
+                  // On phones the tabs share the strip evenly so all of them
+                  // fit without horizontal scrolling; from `sm` they take
+                  // their natural width, left-aligned.
+                  'relative flex min-w-0 flex-1 items-center justify-center gap-0.5 sm:flex-none sm:justify-start',
+                  selected &&
+                    'after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-gold',
+                )}
+              >
+                <button
+                  id={`${tabsId}-tab-${index}`}
+                  type="button"
+                  role="tab"
+                  tabIndex={selected ? 0 : -1}
+                  aria-selected={selected}
+                  aria-controls={row.props.id ?? `${tabsId}-panel-${index}`}
+                  onClick={() => selectTab(index)}
+                  onKeyDown={(event) => handleTabKeyDown(event, index)}
+                  className={cn(
+                    'touch-manipulation py-2.5 text-xs font-medium transition-colors',
+                    explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
+                    'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                    selected ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                >
+                  {row.props.label}
+                </button>
+                {explainer ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          'mr-1.5 grid size-5 place-items-center rounded-full transition-colors',
+                          'text-muted-foreground hover:text-foreground',
+                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          selected ? 'text-foreground/70' : null,
+                        )}
+                        aria-label={`What is ${row.props.label}?`}
+                        onClick={(event) => {
+                          // Keep the tab selected when opening the explainer.
+                          event.stopPropagation();
+                          selectTab(index);
+                        }}
+                      >
+                        <CircleHelp className="size-3.5" aria-hidden />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      align="start"
+                      className="max-w-[16rem] text-pretty leading-relaxed"
+                    >
+                      {explainer}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
+              </div>
+            );
+          })}
+          </div>
+          {activeRow.props.action ? (
+            <div className="hidden shrink-0 py-1 pl-2 pr-3 sm:block">
+              {activeRow.props.action}
+            </div>
+          ) : null}
+        </div>
+
+        <section
+          id={activeRow.props.id ?? `${tabsId}-panel-${activeIndex}`}
+          role="tabpanel"
+          aria-labelledby={`${tabsId}-tab-${activeIndex}`}
           className={cn(
-            'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-card p-4 text-sm',
-            activeRow.props.contentClassName,
+            'flex min-h-0 flex-1 scroll-mt-20 flex-col transition-colors duration-300',
+            focusedId === activeRow.props.id && 'bg-gold/10',
+            activeRow.props.className,
           )}
         >
-          {activeRow.props.summary ? (
-            <p className="sr-only">{activeRow.props.summary}</p>
-          ) : null}
-          {activeRow.props.action ? (
-            <div className="mb-3 flex shrink-0 justify-end">{activeRow.props.action}</div>
-          ) : null}
-          {activeRow.props.children}
-        </div>
-      </section>
-    </Card>
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-card p-4 text-sm',
+              activeRow.props.contentClassName,
+            )}
+          >
+            {activeRow.props.summary ? (
+              <p className="sr-only">{activeRow.props.summary}</p>
+            ) : null}
+            {activeRow.props.action ? (
+              <div className="mb-3 flex shrink-0 justify-end sm:hidden">
+                {activeRow.props.action}
+              </div>
+            ) : null}
+            {activeRow.props.children}
+          </div>
+        </section>
+      </Card>
+    </TooltipProvider>
   );
 }
 

@@ -18,6 +18,8 @@ import { sequenceSteps, type ContractStep, type ContractStepDraft } from './step
 export const TRADE_SECTIONS = {
   actions: 'contract-actions',
   exchange: 'contract-exchange',
+  terms: 'contract-terms',
+  money: 'contract-money',
   collateral: 'contract-collateral',
 } as const;
 
@@ -89,7 +91,9 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   const drafts: ContractStepDraft[] = [
     {
       id: 'collateral',
-      short: 'Collateral',
+      // Rail shorts must fit a five-tick rail on a 320px screen (~6
+      // characters). 'Holds' matches the release step's "Both holds released".
+      short: 'Holds',
       label: 'Both traders post collateral',
       detail: symmetricDetail(
         holds,
@@ -111,7 +115,8 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   if (state === 'DISPUTED') {
     drafts.push({
       id: 'dispute',
-      short: 'Dispute',
+      // 'Review' matches the deal and cash-sale rails for the same state.
+      short: 'Review',
       label: 'Dispute under review',
       detail:
         'Both holds stay active while the case is reviewed. A condition dispute settles with a fixed friction tax; objective fraud captures the full collateral.',
@@ -178,7 +183,8 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     },
     {
       id: 'release',
-      short: 'Released',
+      // Terminal tick reads 'Done' in every flow (cash sale, deal, trade).
+      short: 'Done',
       label: 'Both holds released',
       detail: 'Neither card is charged once the swap completes.',
       owner: 'platform',

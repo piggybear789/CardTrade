@@ -9,16 +9,11 @@
 //
 // Each control is wired to its corresponding trade server action (Req 6.1/6.3/
 // 6.5, 7.1, 8.1):
-//   RECORD_SHIPMENT   -> recordShipment
+//   RECORD_SHIPMENT   -> recordShipment (carrier + tracking when Delivery)
 //   RECORD_RECEIPT    -> recordReceipt
 //   RECORD_ACCEPTANCE -> recordAcceptance
 //   RAISE_DISPUTE     -> raiseDispute
 //   REPORT_FRAUD      -> reportFraud
-//
-// The two irreversible escalations (dispute, fraud) require an explicit
-// confirmation dialog. Typed action errors returned by the server actions are
-// surfaced as toasts; on success the live realtime subscription updates the
-// view, so no manual refetch is needed.
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -32,12 +27,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { availableActions } from '@/domain/state-machine/actions';
 import type {
   TradeAction,
   TradeState,
   TradeViewerContext,
 } from '@/domain/state-machine/types';
+import type { HandoverMethod } from '@/lib/handover/terms';
 import {
   raiseDispute,
   recordAcceptance,
@@ -55,8 +53,6 @@ interface ActionConfig {
   /** Toast shown on success. */
   successMessage: string;
   variant: NonNullable<ButtonProps['variant']>;
-  /** The server action invoked with the trade id. */
-  run: (tradeId: string) => Promise<ActionResult>;
   /** Irreversible actions require an explicit confirmation dialog. */
   confirm?: { title: string; description: string; confirmLabel: string };
 }
@@ -66,25 +62,21 @@ const ACTION_CONFIG: Record<TradeAction, ActionConfig> = {
     label: 'Record shipment',
     successMessage: 'Shipment recorded.',
     variant: 'default',
-    run: recordShipment,
   },
   RECORD_RECEIPT: {
     label: 'Record receipt',
     successMessage: 'Receipt recorded.',
     variant: 'default',
-    run: recordReceipt,
   },
   RECORD_ACCEPTANCE: {
     label: 'Accept item',
     successMessage: 'Acceptance recorded.',
     variant: 'default',
-    run: recordAcceptance,
   },
   RAISE_DISPUTE: {
     label: 'Raise dispute',
     successMessage: 'Condition dispute raised.',
     variant: 'outline',
-    run: raiseDispute,
     confirm: {
       title: 'Raise a condition dispute?',
       description:
@@ -96,7 +88,6 @@ const ACTION_CONFIG: Record<TradeAction, ActionConfig> = {
     label: 'Report fraud',
     successMessage: 'Fraud reported.',
     variant: 'destructive',
-    run: reportFraud,
     confirm: {
       title: 'Report fraud?',
       description:
@@ -129,33 +120,68 @@ function errorMessage(result: ActionResult): string {
   );
 }
 
+async function runAction(
+  action: TradeAction,
+  tradeId: string,
+  shipment?: { carrier: string; trackingNumber: string },
+): Promise<ActionResult> {
+  switch (action) {
+    case 'RECORD_SHIPMENT':
+      return recordShipment(tradeId, shipment);
+    case 'RECORD_RECEIPT':
+      return recordReceipt(tradeId);
+    case 'RECORD_ACCEPTANCE':
+      return recordAcceptance(tradeId);
+    case 'RAISE_DISPUTE':
+      return raiseDispute(tradeId);
+    case 'REPORT_FRAUD':
+      return reportFraud(tradeId);
+  }
+}
+
 export interface ActionBarProps {
   tradeId: string;
   state: TradeState;
   viewer: TradeViewerContext;
+  /** When Delivery, recording shipment requires carrier + tracking. */
+  handoverMethod?: HandoverMethod | null;
 }
 
 /**
  * State-dependent trade controls (Req 11.3, 11.4). Renders one button per
  * permitted action and nothing at all when `availableActions` is empty.
  */
-export function ActionBar({ tradeId, state, viewer }: ActionBarProps) {
+export function ActionBar({
+  tradeId,
+  state,
+  viewer,
+  handoverMethod = null,
+}: ActionBarProps) {
   const [isPending, startTransition] = useTransition();
   const [pendingConfirm, setPendingConfirm] = useState<TradeAction | null>(null);
+  const [shipOpen, setShipOpen] = useState(false);
+  const [carrier, setCarrier] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
 
   const actions = availableActions(state, viewer);
+  const deliveryShip = handoverMethod === 'DELIVERY';
 
-  // No permitted actions -> render nothing (Req 11.4).
   if (actions.length === 0) {
     return null;
   }
 
-  function invoke(action: TradeAction) {
+  function invoke(
+    action: TradeAction,
+    shipment?: { carrier: string; trackingNumber: string },
+  ) {
     const config = ACTION_CONFIG[action];
     startTransition(async () => {
-      const result = await config.run(tradeId);
+      const result = await runAction(action, tradeId, shipment);
       if (result.ok) {
         toast.success(config.successMessage);
+        setShipOpen(false);
+        setCarrier('');
+        setTrackingNumber('');
       } else {
         toast.error(errorMessage(result));
       }
@@ -164,6 +190,10 @@ export function ActionBar({ tradeId, state, viewer }: ActionBarProps) {
 
   function handleClick(action: TradeAction) {
     const config = ACTION_CONFIG[action];
+    if (action === 'RECORD_SHIPMENT') {
+      setShipOpen(true);
+      return;
+    }
     if (config.confirm) {
       setPendingConfirm(action);
     } else {
@@ -172,6 +202,9 @@ export function ActionBar({ tradeId, state, viewer }: ActionBarProps) {
   }
 
   const confirmConfig = pendingConfirm ? ACTION_CONFIG[pendingConfirm] : null;
+  const canSubmitShip =
+    !deliveryShip ||
+    (carrier.trim() !== '' && trackingNumber.trim().length >= 2);
 
   return (
     <>
@@ -191,6 +224,83 @@ export function ActionBar({ tradeId, state, viewer }: ActionBarProps) {
           );
         })}
       </div>
+
+      <Dialog
+        open={shipOpen}
+        onOpenChange={(open) => {
+          if (!open) setShipOpen(false);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record shipment</DialogTitle>
+            <DialogDescription>
+              {deliveryShip
+                ? 'Add the carrier and tracking number for what you are sending.'
+                : 'Confirm you have handed over your goods. Tracking is optional for face-to-face swaps.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="trade-ship-carrier">
+                Carrier
+                {deliveryShip ? (
+                  <span className="text-destructive" aria-hidden>
+                    {' '}
+                    *
+                  </span>
+                ) : null}
+              </Label>
+              <Input
+                id="trade-ship-carrier"
+                value={carrier}
+                onChange={(event) => setCarrier(event.target.value)}
+                placeholder="e.g. Australia Post"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="trade-ship-tracking">
+                Tracking number
+                {deliveryShip ? (
+                  <span className="text-destructive" aria-hidden>
+                    {' '}
+                    *
+                  </span>
+                ) : null}
+              </Label>
+              <Input
+                id="trade-ship-tracking"
+                value={trackingNumber}
+                onChange={(event) => setTrackingNumber(event.target.value)}
+                placeholder="Tracking number"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setShipOpen(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={isPending || !canSubmitShip}
+              aria-busy={isPending}
+              onClick={() =>
+                invoke('RECORD_SHIPMENT', {
+                  carrier: carrier.trim(),
+                  trackingNumber: trackingNumber.trim(),
+                })
+              }
+            >
+              {isPending ? 'Saving…' : 'Record shipment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={pendingConfirm !== null}

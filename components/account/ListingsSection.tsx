@@ -38,7 +38,7 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
       <EmptyState
         icon={<PackagePlus className="size-6" aria-hidden />}
         title="You haven't listed anything yet"
-        description="List a collectible to start selling or trading on Poke-xchange."
+        description="List a collectible to start selling or trading on NoDitto."
         ctaLabel="List an item"
         ctaHref="/listings/new"
       />

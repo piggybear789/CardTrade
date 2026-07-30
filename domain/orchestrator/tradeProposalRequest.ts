@@ -25,6 +25,43 @@ export type TradeProposalStatus =
 /** Which offer participant pays the optional cash component. */
 export type TradeCashDirection = 'PROPOSER_PAYS' | 'COUNTERPART_PAYS';
 
+/** Face to face or postage — mirrors `handover_method`. */
+export type TradeHandoverMethod = 'IN_PERSON' | 'DELIVERY';
+
+/** Handover / delivery terms carried on a proposal (and copied onto the trade). */
+export interface ProposalHandoverTerms {
+  handoverMethod: TradeHandoverMethod | null;
+  meetingLocation: string | null;
+  meetingLat: number | null;
+  meetingLng: number | null;
+  meetingPlaceId: string | null;
+  meetingAt: string | null;
+  deliveryDetails: string | null;
+  deliveryCostCents: number | null;
+}
+
+/** Empty / legacy handover — null method, no details. */
+export const EMPTY_PROPOSAL_HANDOVER: ProposalHandoverTerms = {
+  handoverMethod: null,
+  meetingLocation: null,
+  meetingLat: null,
+  meetingLng: null,
+  meetingPlaceId: null,
+  meetingAt: null,
+  deliveryDetails: null,
+  deliveryCostCents: null,
+};
+
+/**
+ * True when a handover method is chosen. Meeting place / postage cost are
+ * agreed later in the trade room — not required on the offer itself.
+ */
+export function isProposalHandoverComplete(terms: ProposalHandoverTerms): boolean {
+  return (
+    terms.handoverMethod === 'IN_PERSON' || terms.handoverMethod === 'DELIVERY'
+  );
+}
+
 /** The Item fields the negotiation needs: ownership, value, availability. */
 export interface ProposalItemRecord {
   id: string;
@@ -52,6 +89,7 @@ export interface TradeProposalRecord {
   status: TradeProposalStatus;
   message: string | null;
   tradeId: string | null;
+  handover: ProposalHandoverTerms;
 }
 
 /** Fields needed to persist a new PENDING proposal. */
@@ -78,6 +116,8 @@ export interface CreateProposalParams {
    */
   allowPrivateTarget?: boolean;
   message: string | null;
+  /** Face-to-face or postage terms; required for new offers. */
+  handover: ProposalHandoverTerms;
 }
 
 /** Data-access seam for Trade_Proposal reads and writes. */
@@ -112,6 +152,7 @@ export interface TradeProposalRequestRepository {
     cashDirection: TradeCashDirection;
     declaredValueCents: number | null;
     message: string | null;
+    handover: ProposalHandoverTerms;
   }): Promise<TradeProposalRecord | null>;
 }
 
@@ -133,6 +174,7 @@ export type RequestTradeProposalError =
   | 'counterpart-item-private'
   | 'invalid-cash'
   | 'invalid-declared-value'
+  | 'invalid-handover'
   | 'empty-offer'
   | 'duplicate-pending';
 
@@ -179,6 +221,9 @@ export async function requestTradeProposal(
       Math.trunc(params.declaredValueCents) <= 0)
   ) {
     return { ok: false, error: 'invalid-declared-value' };
+  }
+  if (!isProposalHandoverComplete(params.handover)) {
+    return { ok: false, error: 'invalid-handover' };
   }
 
   // De-duplicate the bundle and drop the primary Item if it was repeated.
@@ -250,6 +295,7 @@ export async function amendTradeProposal(
     cashDirection?: TradeCashDirection;
     declaredValueCents?: number | null;
     message?: string | null;
+    handover?: ProposalHandoverTerms;
   },
   deps: { repository: TradeProposalRequestRepository },
 ): Promise<RequestTradeProposalResult> {
@@ -275,6 +321,10 @@ export async function amendTradeProposal(
   ) {
     return { ok: false, error: 'invalid-declared-value' };
   }
+  const handover = params.handover ?? proposal.handover;
+  if (!isProposalHandoverComplete(handover)) {
+    return { ok: false, error: 'invalid-handover' };
+  }
 
   const extraItemIds = Array.from(new Set(params.extraItemIds ?? [])).filter(
     (id) => id && id !== proposal.proposerItemId,
@@ -298,6 +348,7 @@ export async function amendTradeProposal(
     declaredValueCents:
       params.declaredValueCents == null ? null : Math.trunc(params.declaredValueCents),
     message: params.message ?? null,
+    handover,
   });
   if (!updated) return { ok: false, error: 'not-owner' };
   return { ok: true, proposal: updated };
@@ -383,6 +434,7 @@ export async function authorizeTradeProposalAcceptance(
       counterpartItemId: string;
       cashAmountCents: number;
       cashDirection: TradeCashDirection;
+      handover: ProposalHandoverTerms;
     }
   | { ok: false; error: RespondTradeProposalError }
 > {
@@ -418,5 +470,6 @@ export async function authorizeTradeProposalAcceptance(
     counterpartItemId: proposal.counterpartItemId,
     cashAmountCents: proposal.cashAmountCents,
     cashDirection: proposal.cashDirection,
+    handover: proposal.handover,
   };
 }

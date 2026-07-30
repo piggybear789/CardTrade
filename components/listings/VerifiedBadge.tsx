@@ -28,14 +28,14 @@ export function VerifiedBadge({
         'text-trust inline-flex items-center gap-1 font-medium',
         className,
       )}
-      title="Pinch merchant identity verified"
-      aria-label="Pinch-verified seller"
+      title="DittoShield verified through Pinch Payments"
+      aria-label="DittoShield-verified seller"
     >
       <BadgeCheck
         style={{ width: size, height: size, minWidth: size }}
         aria-hidden
       />
-      {!iconOnly && <span className="text-xs">Verified</span>}
+      {!iconOnly && <span className="text-xs">DittoShield verified</span>}
     </span>
   );
 }

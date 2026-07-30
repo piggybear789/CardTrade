@@ -91,6 +91,8 @@ export interface DealGoodsDialogProps {
   role: DealRole | null;
   /** A validation message about the photos from the form's submit attempt. */
   error?: string;
+  /** A validation message about the write-up from the form's submit attempt. */
+  descriptionError?: string;
   /** A validation message about the cash amount from the form's submit attempt. */
   cashError?: string;
   /** A validation message about the kinds picked, from the form's submit attempt. */
@@ -105,6 +107,7 @@ export function DealGoodsDialog({
   value,
   role,
   error,
+  descriptionError,
   cashError,
   offerError,
   onSave,
@@ -166,9 +169,11 @@ export function DealGoodsDialog({
   const showCash = trading && draft.offerKinds.includes('CASH');
 
   const atCap = draft.photos.length >= DEAL_PHOTOS_MAX;
+  const descriptionRequired = photosRequired;
   const complete =
     (!trading || draft.offerKinds.length > 0) &&
     (!photosRequired || draft.photos.length > 0) &&
+    (!descriptionRequired || draft.description.trim() !== '') &&
     (!showCash || isPositiveAmount(draft.cashDollars));
 
   return (
@@ -343,22 +348,45 @@ export function DealGoodsDialog({
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="deal-description">
-              Description{' '}
-              <span className="font-normal text-muted-foreground">(optional)</span>
-            </Label>
-            <Textarea
-              id="deal-description"
-              value={draft.description}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, description: event.target.value }))
-              }
-              placeholder="Condition, grading, anything both sides should know"
-              maxLength={DEAL_TEXT_MAX}
-              rows={3}
-            />
-          </div>
+          {descriptionRequired ? (
+            <div className="space-y-2">
+              <Label htmlFor="deal-description">
+                Description
+                <span className="text-destructive" aria-hidden>
+                  {' '}
+                  *
+                </span>
+                <span className="sr-only"> (required)</span>
+              </Label>
+              <Textarea
+                id="deal-description"
+                value={draft.description}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="Condition, grading, anything both sides should know"
+                maxLength={DEAL_TEXT_MAX}
+                rows={3}
+                required
+                aria-invalid={descriptionError ? true : undefined}
+                aria-describedby={
+                  descriptionError ? 'deal-description-error' : undefined
+                }
+              />
+              {descriptionError ? (
+                <p
+                  id="deal-description-error"
+                  role="alert"
+                  className="text-sm text-destructive"
+                >
+                  {descriptionError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <DialogFooter className="gap-2">

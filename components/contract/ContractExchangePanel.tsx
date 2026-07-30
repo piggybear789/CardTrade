@@ -13,13 +13,18 @@
 // Each side owns its own edit control (`action`), which is the shape the trade room
 // needs once composition becomes editable: the person who brings the goods is the
 // person who can change them.
+//
+// Pass `compact` for denser summary surfaces (tighter padding, truncated notes,
+// fewer thumbs, no footnote).
 
 import type { ReactNode } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 
 import { formatAud } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ContractPartyStats } from './ContractPartyLine';
 import { ContractThumbnails } from './ContractImageLightbox';
+import type { ContractParty } from './types';
 
 /** One thing on a side of the exchange. */
 export interface ContractExchangeItem {
@@ -55,56 +60,64 @@ export interface ContractExchangeSide {
   emptyLabel?: string;
   /** Right-aligned status badge, e.g. "Needs evidence". */
   badge?: ReactNode;
+  /** Trust stats (feedback, sales, collateral) shown under the party name. */
+  party?: ContractParty | null;
 }
 
-function SideColumn({ side }: { side: ContractExchangeSide }) {
+function SideColumn({
+  side,
+  compact,
+}: {
+  side: ContractExchangeSide;
+  compact: boolean;
+}) {
   const total = side.items.reduce((sum, item) => sum + (item.valueCents ?? 0), 0);
-  const showTotal = side.items.length > 1 && total > 0;
+  const showTotal = !compact && side.items.length > 1 && total > 0;
 
   return (
     <article
       className={cn(
-        'flex h-full min-w-0 flex-col gap-3 rounded-xl border bg-background p-3',
-        side.isMine ? 'border-primary/35' : 'border-border',
+        'flex h-full min-w-0 flex-col rounded-xl border border-border bg-background',
+        compact ? 'gap-2 p-2.5' : 'gap-3 p-3',
       )}
     >
-      <header className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-            {side.heading}
+      <header className="flex min-w-0 items-center gap-2">
+        <div className="min-w-0 flex-1 truncate">
+          <p className="truncate text-sm font-medium">
+            {side.partyName ?? side.heading}
           </p>
-          {side.partyName ? (
-            <p className="truncate text-sm font-medium">{side.partyName}</p>
-          ) : null}
         </div>
         {side.badge ? <div className="shrink-0">{side.badge}</div> : null}
+        {!compact && side.party ? (
+          <ContractPartyStats party={side.party} framed className="shrink-0" />
+        ) : null}
       </header>
 
       {side.items.length === 0 && !side.note ? (
-        <p className="text-sm text-muted-foreground">
+        <p className={cn('text-muted-foreground', compact ? 'text-xs' : 'text-sm')}>
           {side.emptyLabel ?? 'Nothing recorded.'}
         </p>
       ) : null}
 
       {side.items.length > 0 ? (
-        <ul className="space-y-2">
+        <ul className={cn(compact ? 'space-y-1.5' : 'space-y-2')}>
           {side.items.map((item) => (
             <li key={item.id} className="flex items-center gap-2.5">
               <ContractThumbnails
                 images={item.images ?? []}
                 label={item.title}
                 size="sm"
-                max={2}
+                max={compact ? 1 : 2}
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{item.title}</p>
-                {item.subtitle ? (
+                {!compact && item.subtitle ? (
                   <p className="truncate text-xs uppercase tracking-wide text-muted-foreground">
                     {item.subtitle}
                   </p>
                 ) : null}
               </div>
-              {item.valueCents != null ? (
+              {!compact && item.valueCents != null ? (
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                   {formatAud(item.valueCents)}
                 </span>
@@ -121,23 +134,34 @@ function SideColumn({ side }: { side: ContractExchangeSide }) {
       ) : null}
 
       {side.note?.trim() ? (
-        <p className="whitespace-pre-wrap break-words text-sm">{side.note}</p>
+        <p
+          className={cn(
+            'break-words text-sm',
+            compact ? 'line-clamp-2' : 'whitespace-pre-wrap',
+          )}
+        >
+          {side.note}
+        </p>
       ) : null}
 
       {side.images && side.images.length > 0 ? (
         <ContractThumbnails
           images={side.images}
           label={`${side.partyName ?? side.heading} evidence`}
+          max={compact ? 3 : undefined}
+          size={compact ? 'sm' : undefined}
         />
       ) : null}
 
-      {side.cashCents != null && side.cashCents > 0 ? (
+      {!compact && side.cashCents != null && side.cashCents > 0 ? (
         <p className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium tabular-nums">
           {side.cashLabel ?? `Plus ${formatAud(side.cashCents)} cash`}
         </p>
       ) : null}
 
-      {side.action ? <div className="mt-auto pt-1">{side.action}</div> : null}
+      {!compact && side.action ? (
+        <div className="mt-auto pt-1">{side.action}</div>
+      ) : null}
     </article>
   );
 }
@@ -147,6 +171,8 @@ export interface ContractExchangePanelProps {
   sides: ContractExchangeSide[];
   /** Footnote, e.g. that photos are a snapshot taken when the contract opened. */
   footnote?: ReactNode;
+  /** Denser layout for summary surfaces. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -154,34 +180,56 @@ export interface ContractExchangePanelProps {
 export function ContractExchangePanel({
   sides,
   footnote,
+  compact = false,
   className,
 }: ContractExchangePanelProps) {
   const twoSided = sides.length === 2;
 
   return (
-    <div className={cn('flex h-full min-h-0 w-full flex-col gap-3', className)}>
+    <div
+      className={cn(
+        'flex h-full min-h-0 w-full flex-col',
+        compact ? 'gap-2' : 'gap-3',
+        className,
+      )}
+    >
       <div
         className={cn(
           'min-h-0 flex-1',
           twoSided
-            ? 'grid items-stretch gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
-            : 'grid gap-3',
+            ? cn(
+                'grid items-stretch md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',
+                compact ? 'gap-2' : 'gap-3',
+              )
+            : cn('grid', compact ? 'gap-2' : 'gap-3'),
         )}
       >
-        <SideColumn side={sides[0]} />
+        <SideColumn side={sides[0]} compact={compact} />
         {twoSided ? (
           <>
             <div className="flex items-center justify-center" aria-hidden>
-              <span className="grid size-8 place-items-center rounded-full border bg-background text-primary shadow-sm">
-                <ArrowLeftRight className="size-4 rotate-90 md:rotate-0" />
+              <span
+                className={cn(
+                  'grid place-items-center rounded-full border bg-background text-primary shadow-sm',
+                  compact ? 'size-7' : 'size-8',
+                )}
+              >
+                <ArrowLeftRight
+                  className={cn(
+                    'rotate-90 md:rotate-0',
+                    compact ? 'size-3.5' : 'size-4',
+                  )}
+                />
               </span>
             </div>
-            <SideColumn side={sides[1]} />
+            <SideColumn side={sides[1]} compact={compact} />
           </>
         ) : null}
       </div>
 
-      {footnote ? <p className="text-xs text-muted-foreground">{footnote}</p> : null}
+      {!compact && footnote ? (
+        <p className="text-xs text-muted-foreground">{footnote}</p>
+      ) : null}
     </div>
   );
 }

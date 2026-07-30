@@ -88,26 +88,30 @@ export function PaymentTermsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg gap-3">
+        <DialogHeader className="space-y-1">
           <DialogTitle>Payment Terms</DialogTitle>
           <DialogDescription>
-            Cash, what you say your side is worth, and a note. All optional —
-            goods-only offers are perfectly normal.
+            Cash adjustments are handled by Pinch Payments. Valuation and a note
+            are optional.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Cash adjustment</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {(
                 [
-                  ['PROPOSER_PAYS', 'I add cash', `You pay ${counterpartName}.`],
+                  [
+                    'PROPOSER_PAYS',
+                    'I add cash',
+                    `You pay ${counterpartName} through Pinch Payments.`,
+                  ],
                   [
                     'COUNTERPART_PAYS',
                     'I request cash',
-                    `${counterpartName} pays you.`,
+                    `${counterpartName} pays you through Pinch Payments.`,
                   ],
                 ] as const
               ).map(([value, label, hint]) => (
@@ -140,8 +144,8 @@ export function PaymentTermsDialog({
             </div>
           </fieldset>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
               <Label htmlFor="terms-cash">Cash (AUD)</Label>
               <Input
                 id="terms-cash"
@@ -156,7 +160,7 @@ export function PaymentTermsDialog({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="terms-value">Your side is worth</Label>
               <Input
                 id="terms-value"
@@ -169,20 +173,17 @@ export function PaymentTermsDialog({
                 value={draft.valueDollars}
                 onChange={(e) => set('valueDollars', e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                What you reckon your side is worth. They see it and decide.
-              </p>
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="terms-message">Note</Label>
             <Textarea
               id="terms-message"
               value={draft.message}
               onChange={(e) => set('message', e.target.value)}
               maxLength={TRADE_PROPOSAL_MESSAGE_MAX}
-              rows={3}
+              rows={2}
               placeholder="Anything you want them to know…"
             />
           </div>

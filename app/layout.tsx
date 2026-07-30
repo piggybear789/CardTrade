@@ -14,37 +14,39 @@ import './globals.css';
 const geistSans = GeistSans;
 const geistMono = GeistMono;
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cardtrade.app';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  // Pages self-brand their titles as "<Section> · Poke-xchange", so this is only
+  // Pages self-brand their titles as "<Section> · NoDitto", so this is only
   // the fallback for routes that don't set one — no title template, to avoid
   // double-suffixing those existing titles.
-  title: 'Poke-xchange — Protected Trades for Serious Collectors',
+  title: 'NoDitto — Know who is on the other side',
   description:
-    'Buy, sell, and swap high-value collectibles with identity verification, live trade contracts, and collateral-backed escrow.',
-  applicationName: 'Poke-xchange',
+    'Buy, sell, and swap high-value collectibles with DittoShield anti-impostor verification, collateral-backed contracts, and Pinch Payments.',
+  applicationName: 'NoDitto',
+  alternates: { canonical: '/' },
   keywords: [
     'collectibles',
     'trading cards',
-    'escrow',
+    'anti-impostor verification',
     'marketplace',
     'card trading',
+    'Pinch Payments',
   ],
   openGraph: {
     type: 'website',
-    siteName: 'Poke-xchange',
-    title: 'Poke-xchange — Protected Trades for Serious Collectors',
+    siteName: 'NoDitto',
+    title: 'NoDitto — Know who is on the other side',
     description:
-      'Collateral-backed escrow and live trade contracts for high-value collectibles.',
+      'DittoShield verification, collateral-backed contracts, and Pinch Payments for high-value collectibles.',
     url: siteUrl,
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Poke-xchange — Protected Trades for Serious Collectors',
+    title: 'NoDitto — Know who is on the other side',
     description:
-      'Collateral-backed escrow and live trade contracts for high-value collectibles.',
+      'DittoShield verification, collateral-backed contracts, and Pinch Payments for high-value collectibles.',
   },
   robots: { index: true, follow: true },
 };

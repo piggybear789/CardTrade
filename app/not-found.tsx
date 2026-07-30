@@ -9,7 +9,7 @@ import { Compass, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const metadata = {
-  title: 'Page not found · Poke-xchange',
+  title: 'Page not found · NoDitto',
 };
 
 export default function NotFound() {
@@ -24,7 +24,7 @@ export default function NotFound() {
       </h1>
       <p className="mt-3 text-pretty leading-7 text-muted-foreground">
         The link may be broken, or the listing or deal may have been removed.
-        Everything on Poke-xchange stays one click from the marketplace.
+        Everything on NoDitto stays one click from the marketplace.
       </p>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <Button asChild size="lg">
@@ -36,7 +36,7 @@ export default function NotFound() {
       </div>
       <p className="mt-10 inline-flex items-center gap-2 text-xs text-muted-foreground">
         <ShieldCheck className="size-4 text-trust" aria-hidden="true" />
-        Every trade on Poke-xchange is collateral-backed and identity-verified.
+        Every trade on NoDitto shows collateral terms and DittoShield identity status.
       </p>
     </main>
   );

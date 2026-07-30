@@ -46,14 +46,16 @@ export async function SiteHeader() {
   // a row of new controls.
   return (
     <header className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent">
-      <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex h-16 w-full items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
+        {/* Logo keeps intrinsic width on mobile so equal flex-1 columns cannot
+            shrink the wordmark out of view. */}
+        <div className="flex min-w-0 shrink-0 items-center gap-3 sm:min-w-0 sm:flex-1">
           {/* The wordmark doubles as the route home, which is what users expect
               of a site logo. */}
           <Link
             href="/"
-            aria-label="Poke-xchange home"
-            className="rounded-md text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            aria-label="NoDitto home"
+            className="min-w-0 rounded-md text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
             <Logo />
           </Link>
@@ -76,7 +78,7 @@ export async function SiteHeader() {
           <HeaderSearch className="market-search" />
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-1 text-parchment sm:gap-2">
+        <div className="ml-auto flex shrink-0 items-center justify-end gap-1 text-parchment sm:min-w-0 sm:flex-1 sm:gap-2">
           {isAuthenticated && user ? (
             <NotificationBell
               userId={user.id}

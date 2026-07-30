@@ -12,13 +12,23 @@
 // list so the first paint is populated even before the realtime channel opens.
 // Mark-read state is updated optimistically in the hook, then persisted via the
 // RLS-scoped server actions.
+//
+// The panel is a Popover rather than a hand-placed absolute box: the bell is not
+// the last control in the header, so anchoring a panel to its edge pushes the
+// panel off the opposite side of a narrow viewport. The popover keeps itself
+// inside the viewport, and portals out of the header's backdrop filter.
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/format';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   markAllNotificationsRead,
   markNotificationRead,
@@ -45,7 +55,6 @@ export function NotificationBell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const {
     notifications,
@@ -53,30 +62,6 @@ export function NotificationBell({
     markReadLocal,
     markAllReadLocal,
   } = useNotifications(userId, initialNotifications);
-
-  // Close the panel on outside click or Escape.
-  useEffect(() => {
-    if (!open) return;
-
-    function onPointerDown(event: PointerEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
 
   function handleSelect(notification: NotificationRow) {
     // Optimistically mark read, persist best-effort, then navigate.
@@ -103,12 +88,8 @@ export function NotificationBell({
   const visible = notifications.slice(0, PANEL_LIMIT);
 
   return (
-    <div className="relative" ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         aria-label={
           unreadCount > 0
             ? `Notifications, ${unreadCount} unread`
@@ -125,89 +106,92 @@ export function NotificationBell({
             {badgeLabel}
           </span>
         )}
-      </button>
+      </PopoverTrigger>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-label="Notifications"
-          className="absolute right-0 z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
-        >
-          <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
-            <p className="text-sm font-semibold">Notifications</p>
-            <button
-              type="button"
-              onClick={handleMarkAll}
-              disabled={isPending || unreadCount === 0}
-              className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            >
-              {isPending ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-              ) : (
-                <CheckCheck className="size-3.5" aria-hidden />
-              )}
-              Mark all read
-            </button>
-          </div>
-
-          <div className="max-h-96 overflow-y-auto overscroll-contain">
-            {visible.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                You&apos;re all caught up.
-              </div>
+      <PopoverContent
+        aria-label="Notifications"
+        align="end"
+        sideOffset={8}
+        // Keep a comfortable gutter when the panel has to shift inward.
+        collisionPadding={16}
+        // Never taller than the space below the header, so the list scrolls
+        // instead of running past the bottom of a short viewport.
+        className="flex max-h-[min(28rem,var(--radix-popover-content-available-height,28rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg p-0 shadow-lg"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-2.5">
+          <p className="text-sm font-semibold">Notifications</p>
+          <button
+            type="button"
+            onClick={handleMarkAll}
+            disabled={isPending || unreadCount === 0}
+            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isPending ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
             ) : (
-              <ul role="list" className="divide-y">
-                {visible.map((n) => {
-                  const unread = n.read_at === null;
-                  return (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelect(n)}
-                        className={cn(
-                          'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                          unread && 'bg-accent/40',
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'mt-1.5 size-2 shrink-0 rounded-full',
-                            unread ? 'bg-destructive' : 'bg-transparent',
-                          )}
-                          aria-hidden
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-baseline justify-between gap-2">
-                            <span
-                              className={cn(
-                                'truncate text-sm',
-                                unread ? 'font-semibold' : 'font-medium',
-                              )}
-                            >
-                              {n.title}
-                            </span>
-                            <span
-                              className="shrink-0 text-xs text-muted-foreground"
-                              suppressHydrationWarning
-                            >
-                              {formatRelativeTime(n.created_at)}
-                            </span>
-                          </span>
-                          {n.body && (
-                            <span className="mt-0.5 line-clamp-2 block break-words text-xs text-muted-foreground">
-                              {n.body}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <CheckCheck className="size-3.5" aria-hidden />
             )}
-          </div>
+            Mark all read
+          </button>
         </div>
-      )}
-    </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {visible.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              You&apos;re all caught up.
+            </div>
+          ) : (
+            <ul role="list" className="divide-y">
+              {visible.map((n) => {
+                const unread = n.read_at === null;
+                return (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(n)}
+                      className={cn(
+                        'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                        unread && 'bg-accent/40',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'mt-1.5 size-2 shrink-0 rounded-full',
+                          unread ? 'bg-destructive' : 'bg-transparent',
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span
+                            className={cn(
+                              'truncate text-sm',
+                              unread ? 'font-semibold' : 'font-medium',
+                            )}
+                          >
+                            {n.title}
+                          </span>
+                          <span
+                            className="shrink-0 text-xs text-muted-foreground"
+                            suppressHydrationWarning
+                          >
+                            {formatRelativeTime(n.created_at)}
+                          </span>
+                        </span>
+                        {n.body && (
+                          <span className="mt-0.5 line-clamp-2 block break-words text-xs text-muted-foreground">
+                            {n.body}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

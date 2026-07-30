@@ -2,6 +2,16 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.noditto.app' }],
+        destination: 'https://noditto.app/:path*',
+        permanent: true,
+      },
+    ];
+  },
   // NOTE: `serverActions.bodySizeLimit` is deliberately left at the 1 MB default.
   // Every photo path in the app (listings, unlisted trade items, deal goods) now
   // uploads browser → Supabase Storage through a signed URL and sends only the

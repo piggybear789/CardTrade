@@ -66,7 +66,7 @@ export function ChatThread({
   const [isSending, startSending] = useTransition();
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const displayName = otherName?.trim() || 'Poke-xchange member';
+  const displayName = otherName?.trim() || 'NoDitto member';
   const itemThumb = item ? itemImageUrl(item.imagePath) : null;
 
   // Auto-scroll to the newest message whenever the list grows/changes.
@@ -119,7 +119,7 @@ export function ChatThread({
   return (
     <section
       aria-label="Conversation"
-      className="flex min-h-0 w-full flex-1 flex-col"
+      className="flex min-h-[min(36rem,calc(100dvh-12rem-env(safe-area-inset-bottom)))] w-full flex-1 flex-col lg:min-h-[min(40rem,calc(100dvh-10rem))]"
     >
       {/* Header: back button + other participant + optional item context. */}
       <header className="flex items-center justify-between gap-4 border-b pb-4">

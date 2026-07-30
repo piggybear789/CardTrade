@@ -15,6 +15,7 @@ import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
 } from '@supabase/supabase-js';
+import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -139,12 +140,12 @@ export function useDealRealtime(dealId: string): UseDealRealtimeResult {
       if (!isMounted) return;
 
       if (channel) {
-        supabase.removeChannel(channel);
+        void supabase.removeChannel(channel);
         channel = null;
       }
 
-      channel = supabase
-        .channel(`deal:${dealId}`)
+      const nextChannel = supabase
+        .channel(uniqueRealtimeTopic(`deal:${dealId}`))
         .on(
           'postgres_changes',
           {
@@ -168,23 +169,27 @@ export function useDealRealtime(dealId: string): UseDealRealtimeResult {
             applyHoldChange(
               payload as RealtimePostgresChangesPayload<DealHoldRow>,
             ),
-        )
-        .subscribe((status) => {
-          if (!isMounted) return;
-          switch (status) {
-            case 'SUBSCRIBED':
-              // Authoritative snapshot on (re)connect: nothing missed while down.
-              reconnectAttempts = 0;
-              setConnectionStatus('live');
-              void loadInitial();
-              break;
-            case 'CHANNEL_ERROR':
-            case 'TIMED_OUT':
-            case 'CLOSED':
-              scheduleReconnect();
-              break;
-          }
-        });
+        );
+
+      channel = nextChannel;
+      nextChannel.subscribe((status) => {
+        if (!isMounted || channel !== nextChannel) return;
+        switch (status) {
+          case 'SUBSCRIBED':
+            // Authoritative snapshot on (re)connect: nothing missed while down.
+            reconnectAttempts = 0;
+            setConnectionStatus('live');
+            void loadInitial();
+            break;
+          case 'CHANNEL_ERROR':
+          case 'TIMED_OUT':
+          case 'CLOSED':
+            channel = null;
+            void supabase.removeChannel(nextChannel);
+            scheduleReconnect();
+            break;
+        }
+      });
     };
 
     setConnectionStatus('connecting');

@@ -75,7 +75,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               Hackathon · Test Mode
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Simulated payments — not live Pinch
+              Simulated payments — not live Pinch Payments
             </span>
           </span>
         </span>
@@ -89,7 +89,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
       {open ? (
         <div id="cash-sale-demo-body" className="space-y-3 px-4 pb-4">
           <p className="text-xs text-muted-foreground">
-            In production, Pinch delivers a webhook when the payment clears. Simulate
+            In production, Pinch Payments delivers a webhook when the payment clears. Simulate
             that here to advance the sale.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -114,7 +114,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               {busy('fail-payment') ? (
                 <Loader2 className="animate-spin" aria-hidden />
               ) : null}
-              Simulate payment failed
+              Simulate Pinch Payments failure
             </Button>
           </div>
         </div>

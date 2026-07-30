@@ -2,11 +2,11 @@
 
 export type PlacePrecision = 'suburb' | 'exact';
 
-/** A resolved Mapbox place ready to persist / show on a map. */
+/** A resolved place ready to persist / show on a map. */
 export interface PlaceValue {
-  /** Human label, e.g. "Fitzroy, Victoria, Australia" or a POI name. */
+  /** Human label, e.g. "Fitzroy, VIC" or a street / POI name. */
   label: string;
-  /** Mapbox feature id. */
+  /** Provider place id (Geoapify place_id, or synthetic text:/geo: fallback). */
   placeId: string;
   lat: number;
   lng: number;

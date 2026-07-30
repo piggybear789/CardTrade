@@ -162,7 +162,7 @@ export class PinchService implements PaymentService, KycService {
       );
     }
 
-    const { firstName, lastName } = splitName(details?.displayName, 'CardTrade');
+    const { firstName, lastName } = splitName(details?.displayName, 'NoDitto');
     const response = await this.opts.client.request<PinchPayerResponse>(
       'POST',
       '/payers',
@@ -260,7 +260,7 @@ export class PinchService implements PaymentService, KycService {
         ref: params.ref,
         nonce: params.nonce,
         kind: 'TRANSFER',
-        description: `CardTrade payment ${params.ref}`,
+        description: `NoDitto payment ${params.ref}`,
         merchantRef: params.merchantRef,
         applicationFee: params.applicationFee,
       });
@@ -298,7 +298,7 @@ export class PinchService implements PaymentService, KycService {
         amount: params.amount,
         ref: params.ref,
         kind: 'HOLD',
-        description: 'CardTrade collateral hold',
+        description: 'NoDitto collateral hold',
       });
       return {
         holdId: payment.id,
@@ -321,7 +321,7 @@ export class PinchService implements PaymentService, KycService {
     try {
       const payment = await this.getPayment(holdId);
       const amount = payment.amount ?? 0;
-      const refund = await this.refund(holdId, amount, 'CardTrade collateral released');
+      const refund = await this.refund(holdId, amount, 'NoDitto collateral released');
       return {
         holdId,
         payerId: '',
@@ -349,7 +349,7 @@ export class PinchService implements PaymentService, KycService {
       const refund = await this.refund(
         params.holdId,
         refundAmount,
-        'CardTrade dispute resolution — friction tax',
+        'NoDitto dispute resolution — friction tax',
       );
       return {
         captureId: params.holdId,

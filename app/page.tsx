@@ -1,7 +1,4 @@
 // app/page.tsx
-//
-// Poke-xchange landing page. Presents one concrete, collateral-backed trade so
-// collectors can understand the clearinghouse before entering the marketplace.
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -19,7 +16,7 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Poke-xchange — Protected Trades for Serious Collectors',
+  title: 'NoDitto - Protected Marketplace for Collectors',
   description:
     'Buy, sell, and swap high-value collectibles with identity verification, live trade contracts, and collateral-backed escrow.',
 };
@@ -56,14 +53,15 @@ export default async function HomePage() {
           />
           <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8 lg:px-8 lg:py-24">
             <div className="max-w-2xl">
-              <p className="market-label text-gold">Clearinghouse for Collectors</p>
+              <p className="market-label text-gold">A Clearinghouse for Collectors</p>
               <h1 className="mt-5 max-w-xl text-balance font-display text-5xl font-semibold leading-[1.04] tracking-[-0.03em] text-parchment sm:text-6xl sm:leading-[1.02] lg:text-7xl">
-                Full transparency{' '}
-                <span className="text-parchment/55">in every transaction.</span>
+                Impostors{' '}
+                <span className="text-parchment/55">are not welcome.</span>
               </h1>
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
-                Every trader verifies their identity, and every transaction is backed by
-                collateral, so you can buy, sell, and trade with less risk.
+                With NoDitto, transparency is crucial to a safe deal. 
+                Every trader verifies their identity. Every transaction is backed by
+                collateral. Buy, sell, and trade with less risk.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
@@ -123,12 +121,12 @@ export default async function HomePage() {
         <section aria-labelledby="why-pokexchange" className="border-y border-white/10 bg-obsidian text-parchment">
           <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-20 lg:px-8 lg:py-20">
             <header className="max-w-xl">
-              <p className="market-label text-gold">Why Poke-xchange</p>
+              <p className="market-label text-gold">Why NoDitto</p>
               <h2
                 id="why-pokexchange"
                 className="mt-3 text-balance font-sans text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl"
               >
-                Nobody wants to deal with Team Rocket.
+                Nobody wants to deal with fraudsters.
               </h2>
               <p className="mt-5 text-pretty leading-7 text-parchment/60">
                 Every trader is KYC-verified, and every transaction is backed by collateral.
@@ -143,7 +141,7 @@ export default async function HomePage() {
               <div className="hidden gap-x-6 border-b border-parchment/15 py-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-parchment/60 sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
                 <span aria-hidden="true" />
                 <span className="text-left">Typical marketplace</span>
-                <span className="text-left text-gold">Poke-xchange</span>
+                <span className="text-left text-gold">NoDitto</span>
               </div>
               <ComparisonRow
                 aspect="Card-for-card swaps"
@@ -157,8 +155,8 @@ export default async function HomePage() {
               />
               <ComparisonRow
                 aspect="If a deal goes wrong"
-                typical="“Sort it out yourselves”"
-                ours="Escrowed collateral pays you out"
+                typical="You're on your own"
+                ours="Escrowed collateral pays you back"
               />
               <ComparisonRow
                 aspect="Mixing cash and cards"
@@ -175,7 +173,7 @@ export default async function HomePage() {
           <div className="max-w-xl">
             <div className="flex items-center gap-2 font-display text-lg font-semibold">
               <LogoMark className="size-6" />
-              <span translate="no">Poke-xchange</span>
+              <span translate="no">NoDitto</span>
             </div>
             <p className="mt-2 text-pretty leading-6 text-muted-foreground">
               Safety-first escrow for trading cards, coins, stamps, comics, and memorabilia.
@@ -211,7 +209,7 @@ export default async function HomePage() {
             >
               Pokémon TCG API
             </a>
-            . Pokémon names and artwork belong to their respective owners. Poke-xchange is not affiliated with or endorsed by The Pokémon Company.
+            . Pokémon names and artwork belong to their respective owners. NoDitto is not affiliated with or endorsed by The Pokémon Company.
           </p>
         </div>
       </footer>

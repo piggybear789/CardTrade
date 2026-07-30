@@ -28,6 +28,7 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         gold: "hsl(var(--gold))",
+        ditto: "hsl(var(--ditto))",
         obsidian: "hsl(var(--obsidian))",
         charcoal: "hsl(var(--charcoal))",
         parchment: "hsl(var(--parchment))",

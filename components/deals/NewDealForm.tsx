@@ -32,11 +32,6 @@ import {
   DealGoodsDialog,
   type DealGoods,
 } from '@/components/deals/DealGoodsDialog';
-import {
-  HandoverDetailsDialog,
-  type HandoverDetails,
-} from '@/components/handover/HandoverDetailsDialog';
-import type { PlaceValue } from '@/lib/location/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -60,7 +55,6 @@ import {
 import {
   DEAL_CASH_MAX,
   DEAL_DEFAULT_COLLATERAL_CENTS,
-  DEAL_DELIVERY_COST_MAX,
   DEAL_PHOTOS_MAX,
   DEAL_TITLE_MAX,
 } from '@/lib/marketplace-constants';
@@ -75,9 +69,8 @@ type ErrorField =
   | 'offerKinds'
   | 'cash'
   | 'handover'
-  | 'meetingLocation'
-  | 'deliveryCost'
   | 'photos'
+  | 'description'
   | 'general';
 
 type FormError = { field: ErrorField; message: string };
@@ -86,11 +79,10 @@ type FormError = { field: ErrorField; message: string };
  * Fields that live inside a dialog rather than on the card. A failure on one of
  * these has to reopen its window, or the message would point at nothing.
  */
-const DIALOG_FIELDS: Partial<Record<ErrorField, 'handover' | 'goods'>> = {
-  meetingLocation: 'handover',
-  deliveryCost: 'handover',
+const DIALOG_FIELDS: Partial<Record<ErrorField, 'goods'>> = {
   offerKinds: 'goods',
   photos: 'goods',
+  description: 'goods',
 };
 
 const ERROR_TARGETS: Record<ErrorField, string> = {
@@ -99,9 +91,8 @@ const ERROR_TARGETS: Record<ErrorField, string> = {
   offerKinds: 'deal-offer-CARDS',
   cash: 'deal-cash',
   handover: 'deal-handover-IN_PERSON',
-  meetingLocation: 'deal-meeting-location',
-  deliveryCost: 'deal-delivery-cost',
   photos: 'deal-photos',
+  description: 'deal-description',
   general: 'deal-form-error',
 };
 
@@ -128,6 +119,10 @@ const ACTION_ERRORS: Record<
     field: 'photos',
     message: 'Add at least one clear photo of what you are putting up.',
   },
+  'item-details-required': {
+    field: 'description',
+    message: 'Describe the item or items you are putting up.',
+  },
   'too-many-photos': {
     field: 'photos',
     message: `You can add up to ${DEAL_PHOTOS_MAX} photos.`,
@@ -139,14 +134,6 @@ const ACTION_ERRORS: Record<
   'invalid-handover': {
     field: 'handover',
     message: 'Choose how the goods change hands.',
-  },
-  'missing-meeting-location': {
-    field: 'meetingLocation',
-    message: 'Add where you plan to meet.',
-  },
-  'invalid-delivery-cost': {
-    field: 'deliveryCost',
-    message: 'Enter the delivery cost, or 0 for free delivery.',
   },
   'persistence-error': {
     field: 'general',
@@ -206,7 +193,7 @@ const ROLE_OPTIONS: {
   { value: 'TRADER', label: 'Trading', hint: 'I put goods up', icon: Repeat },
 ];
 
-/** How the goods change hands. */
+/** How the goods change hands — details are agreed later in the deal room. */
 const HANDOVER_OPTIONS: {
   value: HandoverMethod;
   label: string;
@@ -216,13 +203,13 @@ const HANDOVER_OPTIONS: {
   {
     value: 'IN_PERSON',
     label: 'Face to face',
-    hint: 'Meet and swap in person',
+    hint: 'Meet and swap',
     icon: MapPin,
   },
   {
     value: 'DELIVERY',
     label: 'Delivery',
-    hint: 'Post it, cost on top',
+    hint: 'Post it',
     icon: Truck,
   },
 ];
@@ -245,17 +232,13 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const [role, setRole] = useState<DealRole | null>(null);
   const [description, setDescription] = useState('');
   const [handover, setHandover] = useState<HandoverMethod | null>(null);
-  const [meetingPlace, setMeetingPlace] = useState<PlaceValue | null>(null);
-  const [meetingAt, setMeetingAt] = useState('');
   const [offerKinds, setOfferKinds] = useState<DealOfferKind[]>([]);
   const [cash, setCash] = useState('');
-  const [deliveryCost, setDeliveryCost] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
   const [error, setError] = useState<FormError | null>(null);
   const [created, setCreated] = useState<CreatedDeal | null>(null);
   const [isPending, startTransition] = useTransition();
-  /** The two detail windows: handover specifics, and photos plus the write-up. */
-  const [handoverDialogOpen, setHandoverDialogOpen] = useState(false);
+  /** Photos plus the write-up — edited away from the card. */
   const [goodsDialogOpen, setGoodsDialogOpen] = useState(false);
 
   const tradesCash = role === 'TRADER' && offerKinds.includes('CASH');
@@ -278,7 +261,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
    */
   const putsGoodsUp = role === 'SELLER' || role === 'TRADER';
 
-  const cashLabel = role === 'BUYER' ? 'Amount you pay' : 'Amount you receive';
+  const cashLabel = role === 'BUYER' ? 'Cash you bring' : 'Cash you receive';
 
   // What each side is held for while the creator stays unverified: the deal's own
   // cash value, or the flat default for a pure swap. The server resolves the real
@@ -287,31 +270,11 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const collateralStakeCents =
     enteredCash && enteredCash > 0 ? enteredCash : DEAL_DEFAULT_COLLATERAL_CENTS;
 
-  // Each dialog is seeded from committed state, so these must be stable: the
-  // dialog re-seeds its draft whenever `value` changes, and a fresh object every
-  // render would wipe what is being typed.
-  const handoverDetails = useMemo<HandoverDetails>(
-    () => ({ place: meetingPlace, meetingAt, deliveryCostDollars: deliveryCost }),
-    [meetingPlace, meetingAt, deliveryCost],
-  );
+  // Seeded from committed state so the dialog re-seed does not wipe typing.
   const goods = useMemo<DealGoods>(
     () => ({ description, photos, cashDollars: cash, offerKinds }),
     [description, photos, cash, offerKinds],
   );
-
-  const deliveryCents = dollarsToCents(deliveryCost);
-  const handoverDetailsSet =
-    handover === 'IN_PERSON'
-      ? Boolean(meetingPlace?.label.trim())
-      : deliveryCents !== null;
-
-  /** One-line summary of each dialog, so its row states what it holds. */
-  const handoverSummary =
-    handover === 'IN_PERSON'
-      ? meetingPlace?.label.trim() || 'Pick a public spot'
-      : deliveryCents !== null
-        ? `${formatAud(deliveryCents)} postage`
-        : 'Postage, on top of the deal';
 
   /** The goods row names the side it is describing, which is always your own. */
   const goodsLabel =
@@ -328,7 +291,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
     if (description.trim() !== '') parts.push('described');
     if (parts.length > 0) return parts.join(' · ');
     if (role === 'TRADER') return 'Cards, cash or items';
-    return 'Photos and condition';
+    return 'Photos and description';
   })();
 
   function messageFor(field: ErrorField): string | undefined {
@@ -357,14 +320,9 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
    * A validation failure the user cannot see, because the field lives in a
    * dialog: record it and open the window holding it.
    */
-  function failInDialog(
-    field: ErrorField,
-    message: string,
-    dialog: 'handover' | 'goods',
-  ) {
+  function failInDialog(field: ErrorField, message: string, dialog: 'goods') {
     setError({ field, message });
-    if (dialog === 'handover') setHandoverDialogOpen(true);
-    else setGoodsDialogOpen(true);
+    if (dialog === 'goods') setGoodsDialogOpen(true);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -400,6 +358,16 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
       );
       return;
     }
+    if (photosRequired && description.trim() === '') {
+      failInDialog(
+        'description',
+        role === 'SELLER'
+          ? 'Describe the item you are selling.'
+          : 'Describe the item or items you are putting up.',
+        'goods',
+      );
+      return;
+    }
 
     let cashAmountCents: number | undefined;
     if (cashRequired) {
@@ -424,27 +392,6 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
       fail('handover', 'Choose face to face or delivery.', 'deal-handover-IN_PERSON');
       return;
     }
-    if (handover === 'IN_PERSON' && !meetingPlace?.label.trim()) {
-      failInDialog('meetingLocation', 'Add where you plan to meet.', 'handover');
-      return;
-    }
-
-    let deliveryCostCents: number | undefined;
-    if (handover === 'DELIVERY') {
-      deliveryCostCents = dollarsToCents(deliveryCost) ?? undefined;
-      if (deliveryCostCents === undefined) {
-        failInDialog(
-          'deliveryCost',
-          'Enter the delivery cost, or 0 for free delivery.',
-          'handover',
-        );
-        return;
-      }
-      if (deliveryCostCents > DEAL_DELIVERY_COST_MAX) {
-        failInDialog('deliveryCost', 'That delivery cost is too large.', 'handover');
-        return;
-      }
-    }
 
     startTransition(async () => {
       try {
@@ -467,18 +414,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
           role,
           description: description.trim() || undefined,
           handoverMethod: handover,
-          meetingLocation:
-            handover === 'IN_PERSON' ? meetingPlace!.label.trim() : undefined,
-          meetingLat: handover === 'IN_PERSON' ? meetingPlace!.lat : null,
-          meetingLng: handover === 'IN_PERSON' ? meetingPlace!.lng : null,
-          meetingPlaceId:
-            handover === 'IN_PERSON' ? meetingPlace!.placeId : null,
-          meetingAt:
-            handover === 'IN_PERSON' && meetingAt
-              ? new Date(meetingAt).toISOString()
-              : null,
           cashAmountCents,
-          deliveryCostCents,
           offerKinds: role === 'TRADER' ? offerKinds : undefined,
           photos: showPhotos ? photoPaths : undefined,
         });
@@ -545,7 +481,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                   href="/profile#payouts"
                   className="font-medium underline underline-offset-4"
                 >
-                  Verify instead
+                  Use DittoShield instead
                 </Link>{' '}
                 and nothing is held.
               </span>
@@ -567,11 +503,10 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const titleError = messageFor('title');
   const roleError = messageFor('role');
   const handoverError = messageFor('handover');
-  const locationError = messageFor('meetingLocation');
   const offerError = messageFor('offerKinds');
   const cashError = messageFor('cash');
-  const deliveryError = messageFor('deliveryCost');
   const photosError = messageFor('photos');
+  const descriptionError = messageFor('description');
   const generalError = messageFor('general');
 
   // Deliberately shaped like the trade offer card (components/trade/
@@ -599,7 +534,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                     href="/profile#payouts"
                     className="font-medium underline underline-offset-4"
                   >
-                    Verify instead
+                    Use DittoShield instead
                   </Link>{' '}
                   and nothing is held.
                 </span>
@@ -637,7 +572,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                 Your side
                 <Required />
               </legend>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-1 gap-1.5 min-[400px]:grid-cols-3">
                 {ROLE_OPTIONS.map((option) => (
                   <ChoiceTile
                     key={option.value}
@@ -672,7 +607,10 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                   }
                   required
                   invalid={Boolean(
-                    photosError || offerError || (cashInGoodsDialog && cashError),
+                    photosError ||
+                      descriptionError ||
+                      offerError ||
+                      (cashInGoodsDialog && cashError),
                   )}
                   onClick={() => setGoodsDialogOpen(true)}
                 />
@@ -680,6 +618,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                   id="deal-photos-error"
                   message={
                     photosError ??
+                    descriptionError ??
                     offerError ??
                     (cashInGoodsDialog ? cashError : undefined)
                   }
@@ -751,29 +690,10 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                 ))}
               </div>
               <FieldError id="deal-handover-error" message={handoverError} />
+              <p className="text-xs text-muted-foreground">
+                Meeting place, postage and tracking are agreed in the deal room.
+              </p>
             </fieldset>
-
-            {/* The meeting picker and the delivery cost live in their own window:
-                a search box plus a map is most of a page, and only one of the two
-                methods ever needs either. */}
-            {handover !== null ? (
-              <div className="space-y-2">
-                <DialogRow
-                  label={
-                    handover === 'IN_PERSON' ? 'Where you will meet' : 'Delivery cost'
-                  }
-                  hint={handoverSummary}
-                  filled={handoverDetailsSet}
-                  required
-                  invalid={Boolean(locationError || deliveryError)}
-                  onClick={() => setHandoverDialogOpen(true)}
-                />
-                <FieldError
-                  id="deal-handover-details-error"
-                  message={locationError ?? deliveryError}
-                />
-              </div>
-            ) : null}
 
             {generalError ? (
               <p id="deal-form-error" role="alert" className="text-sm text-destructive">
@@ -799,23 +719,6 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
         </fieldset>
       </form>
 
-      {handover !== null ? (
-        <HandoverDetailsDialog
-          open={handoverDialogOpen}
-          onOpenChange={setHandoverDialogOpen}
-          method={handover}
-          value={handoverDetails}
-          error={locationError ?? deliveryError}
-          onSave={(details) => {
-            setMeetingPlace(details.place);
-            setMeetingAt(details.meetingAt);
-            setDeliveryCost(details.deliveryCostDollars);
-            clearError('meetingLocation');
-            clearError('deliveryCost');
-          }}
-        />
-      ) : null}
-
       <DealGoodsDialog
         open={goodsDialogOpen}
         onOpenChange={setGoodsDialogOpen}
@@ -823,6 +726,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
         value={goods}
         role={role}
         error={photosError}
+        descriptionError={descriptionError}
         cashError={cashInGoodsDialog ? cashError : undefined}
         offerError={offerError}
         onSave={(next) => {
@@ -833,6 +737,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
             setCash(next.cashDollars);
           }
           clearError('photos');
+          clearError('description');
           clearError('offerKinds');
           clearError('cash');
         }}

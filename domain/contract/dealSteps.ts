@@ -24,7 +24,8 @@ export type DealStepState =
 
 /** Section ids the deal plan's `focus` actions point at. */
 export const DEAL_SECTIONS = {
-  exchange: 'contract-exchange',
+  summary: 'contract-summary',
+  items: 'contract-items',
   terms: 'contract-terms',
   money: 'contract-money',
   collateral: 'contract-collateral',
@@ -93,7 +94,9 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
     {
       id: 'join',
       short: 'Join',
-      label: 'The other party joins',
+      label: joined
+        ? 'The other party joined'
+        : 'Waiting for the other party to join',
       detail: joined
         ? `${them} took the seat.`
         : 'Send your share link to the person you mean to deal with. The first person to open it takes the seat.',
@@ -105,7 +108,8 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
     },
     {
       id: 'document',
-      short: 'Evidence',
+      // Six ticks in this rail: 'Evidence' truncated on mobile.
+      short: 'Items',
       label: 'Both sides document what they bring',
       detail: contributionsComplete
         ? 'Item details and evidence photos are on the record for both sides.'
@@ -114,12 +118,12 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
       done: contributionsComplete,
       action: contributionsComplete
         ? undefined
-        : { label: 'Add your side', kind: 'focus', target: DEAL_SECTIONS.exchange },
+        : { label: 'Add your side', kind: 'focus', target: DEAL_SECTIONS.items },
     },
     {
       id: 'terms',
       short: 'Terms',
-      label: 'Agree the handover',
+      label: 'Set the handover',
       detail: termsComplete
         ? 'Handover method and details are set.'
         : 'Choose a face-to-face meeting or a delivery, and fill in the details.',
@@ -127,11 +131,13 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
       done: termsComplete,
       action: termsComplete
         ? undefined
-        : { label: 'Agree terms', kind: 'focus', target: DEAL_SECTIONS.terms },
+        : { label: 'Set terms', kind: 'focus', target: DEAL_SECTIONS.terms },
     },
     {
       id: 'confirm',
-      short: 'Confirm',
+      // Rail shorts must survive a six-tick rail on a 360px screen (~6
+      // characters); 'Confirm' and 'Binding' truncated on mobile.
+      short: 'Sign',
       label: 'Both confirm the same terms',
       detail:
         myConfirmed && theirConfirmed
@@ -151,7 +157,7 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
     },
     {
       id: 'engage',
-      short: 'Binding',
+      short: 'Locked',
       label: collateralRequired ? 'Collateral locked' : 'Contract becomes binding',
       detail: collateralRequired
         ? 'Both cards are authorised for the deal stake. Nothing is charged unless somebody fails to deliver.'
@@ -170,7 +176,9 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
   if (state === 'DISPUTED') {
     drafts.push({
       id: 'dispute',
-      short: 'Dispute',
+      // 'Review' keeps the six-tick disputed rail under the truncation budget
+      // and matches the label "Dispute under review".
+      short: 'Review',
       label: 'Dispute under review',
       detail: 'Collateral stays held on both sides while the case is reviewed.',
       owner: 'platform',

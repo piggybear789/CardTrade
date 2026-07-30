@@ -9,14 +9,16 @@
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Handshake, Plus } from 'lucide-react';
+import { Handshake } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { listMyDeals } from '@/lib/actions/deals';
 import { DealStateBadge } from '@/components/deals/DealStateBadge';
-import { Button } from '@/components/ui/button';
 import { formatRelativeTime } from '@/lib/format';
-import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import {
+  MarketplaceShell,
+  RailPrimaryAction,
+} from '@/components/layout/MarketplaceShell';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   SectionHeader,
@@ -33,7 +35,7 @@ import { isDealPast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Deals · Poke-xchange',
+  title: 'Deals · NoDitto',
   description: 'Your private 1:1 binding deals.',
 };
 
@@ -59,25 +61,17 @@ export default async function DealsPage({
   );
   const deals = scope === 'past' ? past : active;
 
+  // One node, two homes: the rail on desktop, the section heading below `lg`.
+  const primaryAction = (
+    <RailPrimaryAction href="/deals/new">Start a Deal</RailPrimaryAction>
+  );
+
   return (
-    <MarketplaceShell
-      title="Deals"
-      primaryAction={
-        <Button
-          asChild
-          variant="outline"
-          className="w-full border-gold/45 bg-gold/12 text-foreground hover:border-gold/60 hover:bg-gold/20"
-        >
-          <Link href="/deals/new">
-            <Plus aria-hidden="true" className="text-gold" />
-            Start a Deal
-          </Link>
-        </Button>
-      }
-    >
+    <MarketplaceShell title="Deals" primaryAction={primaryAction}>
       <SectionHeader
         title="Private Deals"
         description="Escrow-backed handover between two members."
+        mobileAction={primaryAction}
       />
 
       <SectionFilter
@@ -110,31 +104,31 @@ export default async function DealsPage({
             <li key={deal.id}>
               <Link
                 href={`/deals/${deal.id}`}
-                className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                className="flex flex-col gap-3 p-4 transition-colors hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:flex-row sm:items-center"
               >
-                <span
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full border border-gold/35 bg-gold/10"
-                  aria-hidden="true"
-                >
-                  <Handshake className="size-4 text-gold" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{deal.title}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {deal.otherPartyId === null
-                      ? 'Awaiting counterparty'
-                      : `With ${deal.otherPartyName?.trim() || 'Poke-xchange member'}`}
-                    {deal.myConfirmed && !deal.theirConfirmed
-                      ? ' · you confirmed'
-                      : !deal.myConfirmed && deal.theirConfirmed
-                        ? ' · they confirmed'
-                        : ''}
-                  </p>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full border border-gold/35 bg-gold/10"
+                    aria-hidden="true"
+                  >
+                    <Handshake className="size-4 text-gold" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{deal.title}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {deal.otherPartyId === null
+                        ? 'Awaiting counterparty'
+                        : `With ${deal.otherPartyName?.trim() || 'NoDitto member'}`}
+                      {deal.myConfirmed && !deal.theirConfirmed
+                        ? ' · you confirmed'
+                        : !deal.myConfirmed && deal.theirConfirmed
+                          ? ' · they confirmed'
+                          : ''}
+                    </p>
+                  </div>
                 </div>
-                {/* Cap the badge column so long state labels wrap instead of
-                    pushing the row past the viewport on narrow screens. */}
-                <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-1 text-right sm:max-w-none">
-                  <DealStateBadge state={deal.state} className="whitespace-normal text-right" />
+                <div className="flex flex-wrap items-center gap-2 pl-12 sm:max-w-none sm:shrink-0 sm:flex-col sm:items-end sm:gap-1 sm:pl-0 sm:text-right">
+                  <DealStateBadge state={deal.state} className="whitespace-normal" />
                   <span className="text-xs text-muted-foreground">
                     {formatRelativeTime(deal.updatedAt)}
                   </span>

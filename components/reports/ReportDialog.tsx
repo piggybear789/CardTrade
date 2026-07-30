@@ -17,6 +17,7 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Flag, Loader2 } from 'lucide-react';
 
+import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import {
   Dialog,
@@ -76,6 +77,8 @@ export interface ReportDialogProps {
   triggerLabel: string;
   /** Semantic style for the trigger; defaults to the low-key ghost treatment. */
   triggerVariant?: ButtonProps['variant'];
+  /** `icon` = round chip + label below (item detail action row). */
+  appearance?: 'button' | 'icon';
 }
 
 /**
@@ -88,6 +91,7 @@ export function ReportDialog({
   targetId,
   triggerLabel,
   triggerVariant = 'ghost',
+  appearance = 'button',
 }: ReportDialogProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -129,19 +133,23 @@ export function ReportDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant={triggerVariant}
-          size="sm"
-          className={
-            triggerVariant === 'ghost'
-              ? 'text-muted-foreground hover:text-foreground'
-              : undefined
-          }
-        >
-          <Flag aria-hidden />
-          {triggerLabel}
-        </Button>
+        {appearance === 'icon' ? (
+          <ListingActionIcon icon={Flag} label="Report" />
+        ) : (
+          <Button
+            type="button"
+            variant={triggerVariant}
+            size="sm"
+            className={
+              triggerVariant === 'ghost'
+                ? 'text-muted-foreground hover:text-foreground'
+                : undefined
+            }
+          >
+            <Flag aria-hidden />
+            {triggerLabel}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>

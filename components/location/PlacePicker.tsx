@@ -1,12 +1,11 @@
 'use client';
 
-// Search + interactive map for choosing a place. Suburb mode snaps labels to
-// locality; exact mode allows street/POI pins for meetup points.
+// Autocomplete place picker (suburb vs exact). No interactive map —
+// selection comes from Geoapify Address Autocomplete suggestions.
 
-import { useEffect, useRef, useState } from 'react';
-import type { Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
+import { useEffect, useState } from 'react';
 
-import { reverseGeocode, readMapboxToken } from '@/lib/location/mapbox';
+import { readGeoapifyKey } from '@/lib/location/geoapify';
 import { AU_DEFAULT_CENTER, type PlacePrecision, type PlaceValue } from '@/lib/location/types';
 import { PlaceSearch } from './PlaceSearch';
 import { Label } from '@/components/ui/label';
@@ -39,95 +38,17 @@ export function PlacePicker({
   className,
   textFallbackPlaceholder,
 }: PlacePickerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapboxMap | null>(null);
-  const markerRef = useRef<MapboxMarker | null>(null);
-  const onChangeRef = useRef(onChange);
-  const precisionRef = useRef(precision);
-  const token = readMapboxToken();
+  const apiKey = readGeoapifyKey();
   const [textOnly, setTextOnly] = useState(value?.label ?? '');
 
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-  useEffect(() => {
-    precisionRef.current = precision;
-  }, [precision]);
   useEffect(() => {
     if (value?.label) setTextOnly(value.label);
   }, [value?.label]);
 
-  useEffect(() => {
-    if (!token || !containerRef.current) return;
-
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const mapboxgl = (await import('mapbox-gl')).default;
-        // @ts-expect-error — CSS import handled by bundler at runtime
-        await import('mapbox-gl/dist/mapbox-gl.css');
-        if (cancelled || !containerRef.current) return;
-
-        mapboxgl.accessToken = token;
-        const startLng = value?.lng ?? AU_DEFAULT_CENTER.lng;
-        const startLat = value?.lat ?? AU_DEFAULT_CENTER.lat;
-
-        const map = new mapboxgl.Map({
-          container: containerRef.current,
-          style: 'mapbox://styles/mapbox/streets-v12',
-          center: [startLng, startLat],
-          zoom: value ? 13 : 10,
-        });
-        map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-
-        const marker = new mapboxgl.Marker({ color: '#0f172a', draggable: true })
-          .setLngLat([startLng, startLat])
-          .addTo(map);
-
-        const applyCoords = async (lat: number, lng: number) => {
-          marker.setLngLat([lng, lat]);
-          map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 12) });
-          const place = await reverseGeocode(lat, lng, precisionRef.current);
-          if (place) onChangeRef.current(place);
-        };
-
-        map.on('click', (event) => {
-          void applyCoords(event.lngLat.lat, event.lngLat.lng);
-        });
-        marker.on('dragend', () => {
-          const lngLat = marker.getLngLat();
-          void applyCoords(lngLat.lat, lngLat.lng);
-        });
-
-        mapRef.current = map;
-        markerRef.current = marker;
-      } catch {
-        // Leave text search working without the map canvas.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      markerRef.current?.remove();
-      mapRef.current?.remove();
-      markerRef.current = null;
-      mapRef.current = null;
-    };
-    // Mount once per token; pin syncs via the value effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  useEffect(() => {
-    if (!value || !mapRef.current || !markerRef.current) return;
-    markerRef.current.setLngLat([value.lng, value.lat]);
-    mapRef.current.easeTo({ center: [value.lng, value.lat], zoom: Math.max(mapRef.current.getZoom(), 12) });
-  }, [value]);
-
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
 
-  if (!token) {
+  if (!apiKey) {
     return (
       <div className={cn('space-y-2', className)}>
         {label ? (
@@ -163,7 +84,7 @@ export function PlacePicker({
         />
         {hint && !error ? (
           <p id={hintId} className="text-xs text-muted-foreground">
-            {hint} Map preview unavailable until a Mapbox token is configured.
+            {hint} Address search unavailable until a Geoapify key is configured.
           </p>
         ) : null}
         {error ? (
@@ -176,7 +97,7 @@ export function PlacePicker({
   }
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('space-y-2', className)}>
       {label ? (
         <Label htmlFor={id}>
           {label}
@@ -200,12 +121,6 @@ export function PlacePicker({
         onTextFallback={(text) => {
           if (!text.trim()) onChange(null);
         }}
-      />
-
-      <div
-        ref={containerRef}
-        className="h-52 w-full overflow-hidden rounded-lg border"
-        aria-label="Map — click or drag the pin to set the location"
       />
 
       {value ? (

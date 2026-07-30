@@ -35,7 +35,6 @@ import {
   Loader2,
   PackageCheck,
   Truck,
-  X,
 } from 'lucide-react';
 import { PlaceMap } from '@/components/location';
 import { Button } from '@/components/ui/button';
@@ -379,9 +378,7 @@ function CashSaleRoom({
         action={
           <ContractActionCard
             step={step}
-            counterpartyName={them.name}
             tone={isLegacy ? 'warning' : STATUS_TONE[sale.status]}
-            eyebrow={isLegacy ? 'Cannot continue' : undefined}
             title={isLegacy ? 'This contract cannot be continued' : undefined}
             detail={
               isLegacy
@@ -395,9 +392,13 @@ function CashSaleRoom({
               </Button>
             ) : null}
 
-            {/* Agree the terms, then accept them. */}
+            {/* Agree the terms, then accept them. Cancel is the fire exit, not
+                a peer of the primary action: it sits below as a quiet link so
+                a thumb aiming for the CTA cannot land on it, and turns
+                destructive only on hover/press. The confirm dialog remains the
+                real guard. */}
             {editable && !isLegacy ? (
-              <div className="flex flex-wrap items-center gap-2">
+              <>
                 {!termsSet ? (
                   <Button
                     type="button"
@@ -406,42 +407,40 @@ function CashSaleRoom({
                     Choose a method
                   </Button>
                 ) : !iAccepted ? (
-                  <>
-                    <Button
-                      type="button"
-                      disabled={isPending}
-                      aria-busy={busy('accept')}
-                      onClick={() =>
-                        run(
-                          'accept',
-                          () => acceptCashSaleTerms(sale.id, sale.terms_version),
-                          'Terms accepted.',
-                        )
-                      }
-                    >
-                      {busy('accept') ? (
-                        <Loader2 className="animate-spin" aria-hidden />
-                      ) : (
-                        <Check aria-hidden />
-                      )}
-                      {iAmBuyer
-                        ? `Accept terms & pay ${formatAud(sale.amount_cents)}`
-                        : 'Accept terms'}
-                    </Button>
-                  </>
+                  <Button
+                    type="button"
+                    disabled={isPending}
+                    aria-busy={busy('accept')}
+                    onClick={() =>
+                      run(
+                        'accept',
+                        () => acceptCashSaleTerms(sale.id, sale.terms_version),
+                        'Terms accepted.',
+                      )
+                    }
+                  >
+                    {busy('accept') ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : (
+                      <Check aria-hidden />
+                    )}
+                    {iAmBuyer
+                      ? `Accept & pay ${formatAud(sale.amount_cents)} with Pinch Payments`
+                      : 'Accept terms'}
+                  </Button>
                 ) : null}
                 <Button
                   type="button"
-                  variant="outline"
-                  className="border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                  variant="ghost"
+                  size="sm"
+                  className="self-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:self-end"
                   aria-haspopup="dialog"
                   disabled={isPending}
                   onClick={() => setConfirming('cancel')}
                 >
-                  <X aria-hidden />
-                  Cancel
+                  Cancel this contract
                 </Button>
-              </div>
+              </>
             ) : null}
 
             {/* Mock-only: fire transfer.settled by hand. Hidden when Pinch is live. */}
@@ -780,7 +779,7 @@ function CashSaleRoom({
 
                 <p className="mx-auto mt-4 max-w-md text-xs leading-4 text-muted-foreground">
                   Either party can propose terms. Both parties must accept the saved
-                  proposal before payment begins.
+                  proposal before Pinch Payments begins collection.
                 </p>
               </div>
             ) : (
@@ -827,7 +826,8 @@ function CashSaleRoom({
               ) : null}
               {editable ? (
                 <p className="text-xs text-muted-foreground">
-                  Both parties must accept version {sale.terms_version} before payment.
+                  Both parties must accept version {sale.terms_version} before
+                  Pinch Payments begins collection.
                 </p>
               ) : null}
             </div>
@@ -836,12 +836,12 @@ function CashSaleRoom({
 
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.payment}
-          label="Money"
-          summary={`${formatAud(sale.amount_cents)} · buyer pays`}
+          label="Pinch Payments"
+          summary={`${formatAud(sale.amount_cents)} · buyer pays via Pinch Payments`}
         >
           <>
             <ContractMoneyTable
-              ariaLabel="Payment breakdown"
+              ariaLabel="Pinch Payments breakdown"
               rows={[
                 { label: 'Agreed item price', value: formatAud(itemTotal) },
                 {
@@ -853,7 +853,7 @@ function CashSaleRoom({
                   value: formatAud(sale.platform_fee_cents),
                 },
                 {
-                  label: 'Buyer pays',
+                  label: 'Buyer pays via Pinch Payments',
                   value: formatAud(sale.amount_cents),
                   total: true,
                 },
@@ -883,15 +883,15 @@ function CashSaleRoom({
         >
           {sellerBondCents === 0 ? (
             <p className="w-full rounded-lg border bg-background p-4 text-muted-foreground">
-              The seller is identity verified, and the buyer pays before anything ships,
-              so neither side posts a bond.
+              The seller is DittoShield verified, and the buyer pays through Pinch
+              Payments before anything ships, so neither side posts a bond.
             </p>
           ) : (
             <>
               <p className="text-muted-foreground">
-                The seller is not identity verified, so they post a bond. The buyer posts
-                none — their payment is collected up front. Released when the contract
-                completes.
+                The seller is not DittoShield verified, so they post a bond. The buyer
+                posts none — Pinch Payments collects their payment up front. The bond is
+                released when the contract completes.
               </p>
               <ContractMoneyTable
                 ariaLabel="Collateral"

@@ -13,10 +13,11 @@
 //   * proposeTrade — guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
 //     on success create a Trade in COLLATERAL_PENDING, set both Items to
 //     RESERVED (Req 5.1), and place a bond for each Trader who requires one per
-//     the Bond Policy (`domain/bond/bondPolicy.ts`): a Trader with VERIFIED
-//     payer KYC (`kyc_status`) is exempt, everyone else bonds against their own
-//     paired Item's FMV (revised Req 2.4, 5.4). Trading itself is never blocked
-//     by verification status — only the bond requirement changes.
+//     the Bond Policy (`domain/bond/bondPolicy.ts`): a Trader with APPROVED
+//     Managed Merchant identity (`merchant_status`) is exempt, everyone else
+//     bonds against their own paired Item's FMV (revised Req 2.4, 5.4). Trading
+//     itself (including cash terms) is never blocked by verification — only the
+//     bond requirement changes.
 //   * createCollateralSideEffects — a `RunSideEffects` hook for the guarded
 //     transition core: on HOLDS_FAILED it cancels the Trade by voiding any
 //     active holds and restoring both Items to AVAILABLE (Req 5.6). The
@@ -39,7 +40,7 @@ export type ItemStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD';
 /** The Profile fields the proposal flow needs: the bond-exemption gate + payer reference. */
 export interface ProfileRecord {
   id: string;
-  /** True when payer KYC is VERIFIED (`kyc_status`, Req 2.4). */
+  /** True when Managed Merchant identity is APPROVED (`merchant_status`). */
   verified: boolean;
   /** Provider payer reference used to place a Bond hold when not exempt (Req 5.4). */
   payerId: string | null;
@@ -239,9 +240,9 @@ export async function proposeTrade(
   // exchange (Req 5.2, revised).
 
   // 3. BOND GATE. Each Trader's collateral requirement comes from the Bond
-  //    Policy: a Trader with VERIFIED payer KYC is exempt, everyone else bonds
-  //    against the value of what they RECEIVE. An unverified Trader with no
-  //    payment instrument has neither identity nor money behind the trade, so
+  //    Policy: a Trader with APPROVED merchant identity is exempt, everyone else
+  //    bonds against the value of what they RECEIVE. An unverified Trader with
+  //    no payment instrument has neither identity nor money behind the trade, so
   //    the proposal is refused — but trading itself is never blocked outright.
   const counterpartId = counterpartItem.ownerId;
   const counterpartProfile = await repository.getProfile(counterpartId);

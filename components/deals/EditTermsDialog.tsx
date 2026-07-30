@@ -2,12 +2,12 @@
 
 // components/deals/EditTermsDialog.tsx
 //
-// Step 3 of the private deal flow: agree the handover. Either party may edit the
-// terms while the deal is in TERMS or CONFIRMATION.
+// Section-scoped editor for a private deal. Each Contract Detail row opens this
+// dialog with a `section` that shows only that row's fields and saves only those
+// keys through `updateTerms` — so "Edit terms" never dumps the whole deal form.
 //
-// The dialog carries an explicit warning that editing CLEARS BOTH CONFIRMATIONS —
-// the database enforces this with a trigger, so the UI must never imply that a
-// tick survives a terms change.
+// Editing still CLEARS BOTH CONFIRMATIONS (database trigger); the warning stays
+// on every section.
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -42,6 +42,7 @@ import {
   updateTerms,
   type DealRow,
   type HandoverMethod,
+  type UpdateTermsInput,
   type UpdateTermsResult,
 } from '@/lib/actions/deals';
 import {
@@ -51,8 +52,40 @@ import {
   DEAL_PHOTOS_MAX,
   DEAL_PHOTOS_MIN,
   DEAL_TEXT_MAX,
-  DEAL_TITLE_MAX,
 } from '@/lib/marketplace-constants';
+import { deliveryNotesFromDetails } from '@/lib/handover/terms';
+import { cn } from '@/lib/utils';
+
+/** Which Contract Detail row opened this dialog. */
+export type EditTermsSection = 'exchange' | 'terms' | 'money' | 'collateral';
+
+const SECTION_COPY: Record<
+  EditTermsSection,
+  { title: string; description: string; saveLabel: string }
+> = {
+  exchange: {
+    title: 'Your side of the trade',
+    description: 'Describe and photograph what you bring.',
+    saveLabel: 'Save your side',
+  },
+  terms: {
+    title: 'Handover terms',
+    description: 'Choose how the goods change hands, then fill in the details.',
+    saveLabel: 'Save terms',
+  },
+  money: {
+    title: 'Cash component',
+    description:
+      'Optional cash that settles between you at the handover. Leave blank for goods only.',
+    saveLabel: 'Save cash',
+  },
+  collateral: {
+    title: 'Agreed trade value',
+    description:
+      'The total worth of the exchange. When collateral is required, each hold is 100% of this.',
+    saveLabel: 'Save value',
+  },
+};
 
 /** Friendly, inline-safe messages for each typed updateTerms error. */
 const ERROR_MESSAGES: Record<string, string> = {
@@ -77,25 +110,14 @@ function messageForError(result: Extract<UpdateTermsResult, { ok: false }>): str
   return ERROR_MESSAGES[result.error] ?? result.detail ?? 'Could not save the terms.';
 }
 
-/**
- * Recover just the human-written shipping notes from `delivery_details`. The
- * server prepends a generated price line ("Delivered — $12.00 delivery…") to
- * whatever the parties typed, so that line is dropped here rather than being fed
- * back in as notes and duplicated on every save.
- */
 function deliveryNotesFrom(deal: DealRow): string {
-  const stored = deal.delivery_details ?? '';
-  if (deal.delivery_cost_cents == null) return stored;
-  const [first, ...rest] = stored.split('\n');
-  return first.startsWith('Delivered —') ? rest.join('\n') : stored;
+  return deliveryNotesFromDetails(deal.delivery_details);
 }
 
-/** Format integer AUD cents as a plain dollars string for a number input. */
 function centsToDollars(cents: number | null): string {
   return cents == null ? '' : (cents / 100).toFixed(2);
 }
 
-/** Convert an ISO timestamp to a value the datetime-local input accepts. */
 function toLocalInputValue(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
@@ -106,7 +128,6 @@ function toLocalInputValue(iso: string | null): string {
   )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Preview a newly selected local file and release its object URL on cleanup. */
 function LocalPhotoPreview({ file }: { file: File }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -132,6 +153,8 @@ function placeFromDeal(deal: DealRow): PlaceValue | null {
 
 export interface EditTermsDialogProps {
   deal: DealRow;
+  /** Which detail row opened this — controls fields and save payload. */
+  section: EditTermsSection;
   /** True when the viewer is the deal's creator (maps "mine" vs "theirs"). */
   iAmCreator: boolean;
   /** True when at least one party has already confirmed (sharpens the warning). */
@@ -142,9 +165,10 @@ export interface EditTermsDialogProps {
   triggerClassName?: string;
 }
 
-/** Dialog for editing the deal's substantive terms, including the handover. */
+/** Dialog for editing one section of a deal's substantive terms. */
 export function EditTermsDialog({
   deal,
+  section,
   iAmCreator,
   someoneConfirmed,
   triggerLabel = 'Edit terms',
@@ -154,9 +178,8 @@ export function EditTermsDialog({
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const copy = SECTION_COPY[section];
 
-  // `counterparty_id` is null until somebody joins via the share link, and terms
-  // are only editable after that — so the payer choice is hidden while it is.
   const myPartyId = iAmCreator ? deal.creator_id : deal.counterparty_id;
   const theirPartyId = iAmCreator ? deal.counterparty_id : deal.creator_id;
 
@@ -181,8 +204,6 @@ export function EditTermsDialog({
   const [method, setMethod] = useState<HandoverMethod>(
     deal.handover_method ?? 'IN_PERSON',
   );
-  const [title, setTitle] = useState(deal.title);
-  const [description, setDescription] = useState(deal.description ?? '');
   const [myItemText, setMyItemText] = useState(myItemInitial);
   const [keptPhotoPaths, setKeptPhotoPaths] = useState<string[]>(myPhotosInitial);
   const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
@@ -201,12 +222,9 @@ export function EditTermsDialog({
     deal.cash_payer_id ?? deal.creator_id,
   );
 
-  // Re-seed the form whenever the live deal changes underneath a closed dialog.
   useEffect(() => {
     if (open) return;
     setMethod(deal.handover_method ?? 'IN_PERSON');
-    setTitle(deal.title);
-    setDescription(deal.description ?? '');
     setMyItemText(myItemInitial);
     setKeptPhotoPaths(myPhotosInitial);
     setNewPhotoFiles([]);
@@ -234,27 +252,30 @@ export function EditTermsDialog({
     event.preventDefault();
     setInlineError(null);
 
-    if (goodsRequired && !myItemText.trim()) {
-      setInlineError('Describe the item or items you are bringing.');
-      return;
-    }
-    if (goodsRequired && totalPhotos < DEAL_PHOTOS_MIN) {
-      setInlineError('Add at least one clear photo of what you are bringing.');
-      return;
-    }
-    if (totalPhotos > DEAL_PHOTOS_MAX) {
-      setInlineError(`You can add at most ${DEAL_PHOTOS_MAX} photos.`);
-      return;
+    if (section === 'exchange') {
+      if (goodsRequired && !myItemText.trim()) {
+        setInlineError('Describe the item or items you are bringing.');
+        return;
+      }
+      if (goodsRequired && totalPhotos < DEAL_PHOTOS_MIN) {
+        setInlineError('Add at least one clear photo of what you are bringing.');
+        return;
+      }
+      if (totalPhotos > DEAL_PHOTOS_MAX) {
+        setInlineError(`You can add at most ${DEAL_PHOTOS_MAX} photos.`);
+        return;
+      }
     }
 
-    if (method === 'IN_PERSON' && !meetingPlace?.label.trim()) {
-      setInlineError('Add where you plan to meet.');
-      return;
+    if (section === 'terms') {
+      if (method === 'IN_PERSON' && !meetingPlace?.label.trim()) {
+        setInlineError('Add where you plan to meet.');
+        return;
+      }
     }
-    // Delivery is priced separately from the goods, so the cost is what has to
-    // be agreed; shipping notes stay optional.
+
     let deliveryCostCents: number | null = null;
-    if (method === 'DELIVERY') {
+    if (section === 'terms' && method === 'DELIVERY') {
       const dollars = Number.parseFloat(deliveryCost);
       if (!Number.isFinite(dollars) || dollars < 0) {
         setInlineError('Enter the delivery cost, or 0 for free delivery.');
@@ -267,9 +288,8 @@ export function EditTermsDialog({
       }
     }
 
-    // Dollars -> integer cents at the boundary; blank removes the cash leg.
     let cashAmountCents: number | null = null;
-    if (cash.trim()) {
+    if (section === 'money' && cash.trim()) {
       const dollars = Number.parseFloat(cash);
       if (!Number.isFinite(dollars) || dollars <= 0) {
         setInlineError('Enter a cash amount greater than zero, or leave it blank.');
@@ -283,7 +303,7 @@ export function EditTermsDialog({
     }
 
     let collateralCents: number | null = null;
-    if (collateral.trim()) {
+    if (section === 'collateral' && collateral.trim()) {
       const dollars = Number.parseFloat(collateral);
       if (!Number.isFinite(dollars) || dollars < 1) {
         setInlineError('Enter collateral of at least $1, or leave it blank for automatic.');
@@ -297,11 +317,8 @@ export function EditTermsDialog({
     }
 
     startTransition(async () => {
-      // New photos go browser → Storage first; the action only ever sees object
-      // paths, so a large photo cannot exceed Next's Server Action body cap and
-      // the original file (EXIF included) is what lands in the evidence base.
       let newPhotoPaths: string[] = [];
-      if (newPhotoFiles.length > 0) {
+      if (section === 'exchange' && newPhotoFiles.length > 0) {
         const uploaded = await uploadItemImages(newPhotoFiles);
         if (!uploaded.ok) {
           setInlineError(uploaded.message);
@@ -311,37 +328,38 @@ export function EditTermsDialog({
         newPhotoPaths = uploaded.paths;
       }
 
-      const result = await updateTerms(deal.id, {
-        handoverMethod: method,
-        meetingLocation:
-          method === 'IN_PERSON' ? meetingPlace!.label.trim() : undefined,
-        meetingLat: method === 'IN_PERSON' ? meetingPlace!.lat : null,
-        meetingLng: method === 'IN_PERSON' ? meetingPlace!.lng : null,
-        meetingPlaceId: method === 'IN_PERSON' ? meetingPlace!.placeId : null,
-        meetingAt:
+      const input: UpdateTermsInput = {};
+      if (section === 'exchange') {
+        input.myItemText = myItemText;
+        input.myPhotos = keptPhotoPaths;
+        input.myNewPhotoPaths = newPhotoPaths;
+      } else if (section === 'terms') {
+        input.handoverMethod = method;
+        input.meetingLocation =
+          method === 'IN_PERSON' ? meetingPlace!.label.trim() : undefined;
+        input.meetingLat = method === 'IN_PERSON' ? meetingPlace!.lat : null;
+        input.meetingLng = method === 'IN_PERSON' ? meetingPlace!.lng : null;
+        input.meetingPlaceId = method === 'IN_PERSON' ? meetingPlace!.placeId : null;
+        input.meetingAt =
           method === 'IN_PERSON' && meetingAt
             ? new Date(meetingAt).toISOString()
-            : null,
-        deliveryDetails: method === 'DELIVERY' ? deliveryDetails : undefined,
-        deliveryCostCents,
-        title,
-        description,
-        myItemText,
-        // Retained and newly uploaded paths stay in separate fields: both are
-        // strings, and the action checks them differently — retained against this
-        // deal's current photos, new ones against your own Storage prefix.
-        myPhotos: keptPhotoPaths,
-        myNewPhotoPaths: newPhotoPaths,
-        cashAmountCents,
-        cashPayerId: cashAmountCents === null ? null : cashPayerId,
-        collateralCents,
-      });
+            : null;
+        input.deliveryDetails = method === 'DELIVERY' ? deliveryDetails : undefined;
+        input.deliveryCostCents = deliveryCostCents;
+      } else if (section === 'money') {
+        input.cashAmountCents = cash.trim() ? cashAmountCents : null;
+        input.cashPayerId = cash.trim() ? cashPayerId : null;
+      } else {
+        input.collateralCents = collateral.trim() ? collateralCents : null;
+      }
+
+      const result = await updateTerms(deal.id, input);
 
       if (result.ok) {
         toast.success(
           result.confirmationsCleared
-            ? 'Terms saved — both parties must confirm again.'
-            : 'Terms saved.',
+            ? 'Saved — both parties must confirm again.'
+            : 'Saved.',
         );
         setOpen(false);
         router.refresh();
@@ -356,220 +374,285 @@ export function EditTermsDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className={triggerClassName}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(
+            'h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5',
+            triggerClassName,
+          )}
+        >
           <Pencil aria-hidden />
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-hidden p-0">
-        <form onSubmit={handleSubmit} className="flex max-h-[92vh] flex-col">
-          <DialogHeader className="border-b px-6 py-5 text-left">
-            <DialogTitle>Build the deal</DialogTitle>
-            <DialogDescription>
-              Add your side first, then review the shared handover and money terms.
-              Each person controls their own item evidence.
-            </DialogDescription>
+      <DialogContent
+        className={cn(
+          'gap-0 overflow-hidden p-0 sm:max-h-[min(92dvh,100dvh-3rem)]',
+          section === 'exchange' ? 'sm:max-w-xl' : 'sm:max-w-lg',
+        )}
+      >
+        <form
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <DialogHeader className="shrink-0 border-b px-4 py-3 text-left sm:px-5">
+            <DialogTitle>{copy.title}</DialogTitle>
+            <DialogDescription>{copy.description}</DialogDescription>
           </DialogHeader>
 
-          <div className="overflow-y-auto px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5">
             <div
-              className="cardtrade-warning mt-5 flex items-start gap-2 rounded-lg border p-3 text-sm"
+              className="cardtrade-warning mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm"
               role="note"
             >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <p>
-              {someoneConfirmed
-                ? 'Changing any term clears both confirmations — you will both need to confirm again.'
-                : 'Any change to the terms clears both confirmations, so you both re-confirm before the deal becomes binding.'}
-            </p>
-          </div>
-
-          <div className="space-y-6 py-5">
-            <fieldset className="space-y-4 rounded-xl border-2 border-primary/20 bg-primary/[0.03] p-4 sm:p-5">
-              <legend className="px-2 text-sm font-semibold text-primary">Your side of the trade</legend>
-              <div className="flex items-start gap-3">
-                <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                  <ShieldCheck className="size-5" aria-hidden />
-                </div>
-                <div>
-                  <p className="font-medium">Describe and photograph what you bring</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    The other participant cannot edit this evidence. Photos become part of the binding record.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="terms-my-item">
-                  Item details {goodsRequired ? <span className="text-destructive">*</span> : null}
-                </Label>
-                <Textarea
-                  id="terms-my-item"
-                  value={myItemText}
-                  onChange={(event) => setMyItemText(event.target.value)}
-                  placeholder="e.g. 1999 Base Set Charizard, PSA 10 — certification number, condition notes and anything included"
-                  maxLength={DEAL_TEXT_MAX}
-                  rows={4}
-                  required={goodsRequired}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Be specific enough that both parties can identify the exact collectible.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-end justify-between gap-3">
-                  <div>
-                    <Label htmlFor="terms-photos">
-                      Evidence photos {goodsRequired ? <span className="text-destructive">*</span> : null}
-                    </Label>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {totalPhotos} of {DEAL_PHOTOS_MAX} photos · front, back and condition details
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={totalPhotos >= DEAL_PHOTOS_MAX}
-                    onClick={() => photoInputRef.current?.click()}
-                  >
-                    <ImagePlus aria-hidden />
-                    Add photos
-                  </Button>
-                </div>
-                <Input
-                  ref={photoInputRef}
-                  id="terms-photos"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  multiple
-                  className="sr-only"
-                  onChange={handlePhotosSelected}
-                />
-
-                {totalPhotos > 0 ? (
-                  <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Your deal photos">
-                    {keptPhotoPaths.map((path) => {
-                      const url = itemImageUrl(path);
-                      return (
-                        <li key={path} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
-                          {url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={url} alt="Existing item evidence" className="h-full w-full object-cover" />
-                          ) : null}
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            className="absolute right-1 top-1 size-8 shadow-sm"
-                            aria-label="Remove photo"
-                            onClick={() => setKeptPhotoPaths((current) => current.filter((item) => item !== path))}
-                          >
-                            <X className="size-4" aria-hidden />
-                          </Button>
-                        </li>
-                      );
-                    })}
-                    {newPhotoFiles.map((file, index) => (
-                      <li key={`${file.name}-${file.lastModified}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
-                        <LocalPhotoPreview file={file} />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon"
-                          className="absolute right-1 top-1 size-8 shadow-sm"
-                          aria-label={`Remove ${file.name}`}
-                          onClick={() => setNewPhotoFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                        >
-                          <X className="size-4" aria-hidden />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <button
-                    type="button"
-                    className="flex w-full flex-col items-center justify-center rounded-lg border border-dashed bg-background px-4 py-8 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => photoInputRef.current?.click()}
-                  >
-                    <ImagePlus className="mb-2 size-6 text-primary" aria-hidden />
-                    <span className="text-sm font-medium">Add clear photos of your item</span>
-                    <span className="mt-1 text-xs text-muted-foreground">JPEG, PNG, WebP or GIF</span>
-                  </button>
-                )}
-              </div>
-            </fieldset>
-
-            <fieldset className="space-y-4 rounded-xl border p-4 sm:p-5">
-              <legend className="px-2 text-sm font-semibold">Shared deal summary</legend>
-              <div className="space-y-2">
-                <Label htmlFor="terms-title">Deal title</Label>
-                <Input
-                  id="terms-title"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  maxLength={DEAL_TITLE_MAX}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="terms-description">Shared notes</Label>
-                <Textarea
-                  id="terms-description"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Condition expectations, grading details or anything else both parties agree to"
-                  maxLength={DEAL_TEXT_MAX}
-                  rows={3}
-                />
-              </div>
-            </fieldset>
-
-            <fieldset className="space-y-4 rounded-xl border p-4 sm:p-5">
-              <legend className="px-2 text-sm font-semibold">Handover</legend>
-              <div className="space-y-2">
-                <Label htmlFor="terms-method">Method</Label>
-              <Select
-                value={method}
-                onValueChange={(value) => setMethod(value as HandoverMethod)}
-              >
-                <SelectTrigger id="terms-method">
-                  <SelectValue placeholder="Choose a handover method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="IN_PERSON">Meet in person</SelectItem>
-                  <SelectItem value="DELIVERY">Delivery / shipping</SelectItem>
-                </SelectContent>
-              </Select>
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <p>
+                {someoneConfirmed
+                  ? 'Changing this clears both confirmations — you will both need to confirm again.'
+                  : 'Any change clears both confirmations, so you both re-confirm before the deal becomes binding.'}
+              </p>
             </div>
 
-            {method === 'IN_PERSON' ? (
-              <>
-                <PlacePicker
-                  id="terms-location"
-                  label="Meeting location"
-                  precision="exact"
-                  value={meetingPlace}
-                  onChange={setMeetingPlace}
-                  required
-                  hint="Pick a public spot both parties can find."
-                  textFallbackPlaceholder="e.g. Melbourne Central, outside the clock"
-                />
+            <div className="space-y-4 py-4">
+              {section === 'exchange' ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                      <ShieldCheck className="size-5" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="font-medium">Describe and photograph what you bring</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        The other participant cannot edit this evidence. Photos become
+                        part of the binding record.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="terms-my-item">
+                      Item details{' '}
+                      {goodsRequired ? <span className="text-destructive">*</span> : null}
+                    </Label>
+                    <Textarea
+                      id="terms-my-item"
+                      value={myItemText}
+                      onChange={(event) => setMyItemText(event.target.value)}
+                      placeholder="e.g. 1999 Base Set Charizard, PSA 10 — certification number, condition notes and anything included"
+                      maxLength={DEAL_TEXT_MAX}
+                      rows={4}
+                      required={goodsRequired}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <Label htmlFor="terms-photos">
+                          Evidence photos{' '}
+                          {goodsRequired ? (
+                            <span className="text-destructive">*</span>
+                          ) : null}
+                        </Label>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {totalPhotos} of {DEAL_PHOTOS_MAX} photos · front, back and
+                          condition details
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={totalPhotos >= DEAL_PHOTOS_MAX}
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        <ImagePlus aria-hidden />
+                        Add photos
+                      </Button>
+                    </div>
+                    <Input
+                      ref={photoInputRef}
+                      id="terms-photos"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      multiple
+                      className="sr-only"
+                      onChange={handlePhotosSelected}
+                    />
+
+                    {totalPhotos > 0 ? (
+                      <ul
+                        className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+                        aria-label="Your deal photos"
+                      >
+                        {keptPhotoPaths.map((path) => {
+                          const url = itemImageUrl(path);
+                          return (
+                            <li
+                              key={path}
+                              className="group relative aspect-square overflow-hidden rounded-lg border bg-muted"
+                            >
+                              {url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={url}
+                                  alt="Existing item evidence"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : null}
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                className="absolute right-1 top-1 size-8 shadow-sm"
+                                aria-label="Remove photo"
+                                onClick={() =>
+                                  setKeptPhotoPaths((current) =>
+                                    current.filter((item) => item !== path),
+                                  )
+                                }
+                              >
+                                <X className="size-4" aria-hidden />
+                              </Button>
+                            </li>
+                          );
+                        })}
+                        {newPhotoFiles.map((file, index) => (
+                          <li
+                            key={`${file.name}-${file.lastModified}-${index}`}
+                            className="group relative aspect-square overflow-hidden rounded-lg border bg-muted"
+                          >
+                            <LocalPhotoPreview file={file} />
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="absolute right-1 top-1 size-8 shadow-sm"
+                              aria-label={`Remove ${file.name}`}
+                              onClick={() =>
+                                setNewPhotoFiles((current) =>
+                                  current.filter((_, itemIndex) => itemIndex !== index),
+                                )
+                              }
+                            >
+                              <X className="size-4" aria-hidden />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex w-full flex-col items-center justify-center rounded-lg border border-dashed bg-background px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        <ImagePlus className="mb-2 size-6 text-primary" aria-hidden />
+                        <span className="text-sm font-medium">
+                          Add clear photos of your item
+                        </span>
+                        <span className="mt-1 text-xs text-muted-foreground">
+                          JPEG, PNG, WebP or GIF
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : null}
+
+              {section === 'terms' ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="terms-method">Method</Label>
+                    <Select
+                      value={method}
+                      onValueChange={(value) => setMethod(value as HandoverMethod)}
+                    >
+                      <SelectTrigger id="terms-method">
+                        <SelectValue placeholder="Choose a handover method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IN_PERSON">Meet in person</SelectItem>
+                        <SelectItem value="DELIVERY">Delivery / shipping</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {method === 'IN_PERSON' ? (
+                    <>
+                      <PlacePicker
+                        id="terms-location"
+                        label="Meeting location"
+                        precision="exact"
+                        value={meetingPlace}
+                        onChange={setMeetingPlace}
+                        required
+                        hint="Pick a public spot both parties can find."
+                        textFallbackPlaceholder="e.g. Melbourne Central, outside the clock"
+                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="terms-time">Meeting time (optional)</Label>
+                        <Input
+                          id="terms-time"
+                          type="datetime-local"
+                          value={meetingAt}
+                          onChange={(e) => setMeetingAt(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="terms-delivery-cost">Delivery cost (AUD)</Label>
+                        <div className="relative">
+                          <span
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                            aria-hidden
+                          >
+                            $
+                          </span>
+                          <Input
+                            id="terms-delivery-cost"
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={deliveryCost}
+                            onChange={(e) => setDeliveryCost(e.target.value)}
+                            className="pl-7"
+                            aria-describedby="terms-delivery-cost-hint"
+                            required
+                          />
+                        </div>
+                        <p
+                          id="terms-delivery-cost-hint"
+                          className="text-xs text-muted-foreground"
+                        >
+                          Charged on top of the cash component. Enter 0 for free
+                          delivery.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="terms-delivery">Delivery notes (optional)</Label>
+                        <Textarea
+                          id="terms-delivery"
+                          placeholder="Courier, tracked post, timing…"
+                          value={deliveryDetails}
+                          onChange={(e) => setDeliveryDetails(e.target.value)}
+                          maxLength={DEAL_TEXT_MAX}
+                          rows={3}
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : null}
+
+              {section === 'money' ? (
                 <div className="space-y-2">
-                  <Label htmlFor="terms-time">Meeting time (optional)</Label>
-                  <Input
-                    id="terms-time"
-                    type="datetime-local"
-                    value={meetingAt}
-                    onChange={(e) => setMeetingAt(e.target.value)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="terms-delivery-cost">Delivery cost (AUD)</Label>
+                  <Label htmlFor="terms-cash">Cash component (AUD)</Label>
                   <div className="relative">
                     <span
                       className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
@@ -577,50 +660,6 @@ export function EditTermsDialog({
                     >
                       $
                     </span>
-                    <Input
-                      id="terms-delivery-cost"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={deliveryCost}
-                      onChange={(e) => setDeliveryCost(e.target.value)}
-                      className="pl-7"
-                      aria-describedby="terms-delivery-cost-hint"
-                      required
-                    />
-                  </div>
-                  <p
-                    id="terms-delivery-cost-hint"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Charged on top of the cash component. Enter 0 for free
-                    delivery.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="terms-delivery">Delivery notes (optional)</Label>
-                  <Textarea
-                    id="terms-delivery"
-                    placeholder="Courier, tracked post, timing…"
-                    value={deliveryDetails}
-                    onChange={(e) => setDeliveryDetails(e.target.value)}
-                    maxLength={DEAL_TEXT_MAX}
-                    rows={3}
-                  />
-                </div>
-              </>
-            )}
-            </fieldset>
-
-            <fieldset className="space-y-4 rounded-xl border p-4 sm:p-5">
-              <legend className="px-2 text-sm font-semibold">Money &amp; protection</legend>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="terms-cash">Cash component (AUD)</Label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden>$</span>
                     <Input
                       id="terms-cash"
                       type="number"
@@ -639,19 +678,33 @@ export function EditTermsDialog({
                         <SelectValue placeholder="Choose who pays" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={myPartyId}>I pay</SelectItem>
-                        <SelectItem value={theirPartyId}>They pay</SelectItem>
+                        <SelectItem value={myPartyId}>I bring the cash</SelectItem>
+                        <SelectItem value={theirPartyId}>They bring the cash</SelectItem>
                       </SelectContent>
                     </Select>
+                  ) : cash.trim() && !theirPartyId ? (
+                    <p className="text-xs text-muted-foreground">
+                      You&apos;ll be recorded as the payer for now. You can switch it
+                      once the other party joins.
+                    </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">Leave blank for a goods-only trade.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Leave blank for a goods-only trade.
+                    </p>
                   )}
                 </div>
+              ) : null}
 
+              {section === 'collateral' ? (
                 <div className="space-y-2">
                   <Label htmlFor="terms-collateral">Agreed trade value (AUD)</Label>
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden>$</span>
+                    <span
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                      aria-hidden
+                    >
+                      $
+                    </span>
                     <Input
                       id="terms-collateral"
                       type="number"
@@ -665,27 +718,35 @@ export function EditTermsDialog({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    The total worth of the exchange — cards plus any cash. When collateral is required, each person&apos;s hold is 100% of this amount. If left blank it falls back to the cash value only, which understates a trade that also includes cards.
+                    Cards plus any cash. If left blank it falls back to the cash value
+                    only, which understates a trade that also includes cards.
                   </p>
                 </div>
-              </div>
-            </fieldset>
+              ) : null}
 
-            {inlineError ? (
-              <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {inlineError}
-              </p>
-            ) : null}
-          </div>
+              {inlineError ? (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                >
+                  {inlineError}
+                </p>
+              ) : null}
+            </div>
           </div>
 
-          <DialogFooter className="border-t bg-background px-6 py-4">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isPending}>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 py-3 sm:px-5">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={isPending}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-              {isPending ? 'Saving…' : 'Save deal changes'}
+              {isPending ? 'Saving…' : copy.saveLabel}
             </Button>
           </DialogFooter>
         </form>

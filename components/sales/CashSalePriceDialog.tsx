@@ -67,7 +67,12 @@ export function CashSalePriceDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+        >
           <Pencil aria-hidden />
           Edit
         </Button>

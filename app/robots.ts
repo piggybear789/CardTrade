@@ -5,7 +5,7 @@
 
 import type { MetadataRoute } from 'next';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cardtrade.app';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
 
 export default function robots(): MetadataRoute.Robots {
   return {

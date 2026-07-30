@@ -16,9 +16,15 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, LogIn, ArrowLeftRight, FileText, Heart } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Heart,
+  LogIn,
+  Pencil,
+} from "lucide-react";
 
-import { getItem } from "@/lib/actions/listings";
+import { getItem, type ItemRow } from "@/lib/actions/listings";
 import { getWatchCount, isWatching } from "@/lib/actions/watchlist";
 import { createClient } from "@/lib/supabase/server";
 import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
@@ -31,6 +37,7 @@ import {
 import { BuyButton } from "@/components/listings/BuyButton";
 import { WatchButton } from "@/components/listings/WatchButton";
 import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
+import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
 import { MessageSellerButton } from "@/components/messages/MessageSellerButton";
 import {
   ImageGallery,
@@ -70,10 +77,10 @@ export async function generateMetadata({
   const { id } = await params;
   const result = await getItem(id);
   if (!result.ok) {
-    return { title: "Item not found · Poke-xchange" };
+    return { title: "Item not found · NoDitto" };
   }
   return {
-    title: `${result.data.title} · Poke-xchange`,
+    title: `${result.data.title} · NoDitto`,
     description: result.data.description.slice(0, 160),
   };
 }
@@ -100,29 +107,38 @@ export default async function ItemDetailPage({
   } = await supabase.auth.getUser();
 
   const isOwner = user?.id === item.owner_id;
-  // Authenticated non-owners can save the item to their watchlist. The save
-  // count is public social proof, shown to every viewer.
-  let initialWatching = false;
-  if (user && !isOwner) {
-    initialWatching = await isWatching(item.id);
-  }
-  const watchCount = await getWatchCount(item.id);
-
-  // Seller's public info (catalog-safe view) for the listing's seller block.
-  const { data: sellerRow } = await supabase
-    .from("public_profiles")
-    .select("display_name, rating, rating_count")
-    .eq("id", item.owner_id)
-    .maybeSingle();
-
-  // Load only the narrow, buyer-safe merchant identity projection. The badge may
-  // be shown publicly; full details cross the Server Component boundary only in
-  // the authenticated buyer's confirmation controls.
-  const sellerIdentity = await loadSellerIdentityDisclosure(item.owner_id);
-
   const status = (item.status as ItemStatus) ?? "AVAILABLE";
   const statusBadge = STATUS_BADGE[status] ?? STATUS_BADGE.AVAILABLE;
   const isAvailable = status === "AVAILABLE";
+
+  // Authenticated non-owners: watch state, own goods for Propose Trade, and
+  // public seller profile + identity can load together.
+  const canProposeTrade = Boolean(user && !isOwner && isAvailable);
+
+  const [initialWatching, watchCount, sellerRowResult, sellerIdentity, ownItemsResult] =
+    await Promise.all([
+      user && !isOwner ? isWatching(item.id) : Promise.resolve(false),
+      getWatchCount(item.id),
+      supabase
+        .from("public_profiles")
+        .select("display_name, rating, rating_count")
+        .eq("id", item.owner_id)
+        .maybeSingle(),
+      loadSellerIdentityDisclosure(item.owner_id),
+      canProposeTrade
+        ? supabase
+            .from("items")
+            .select("*")
+            .eq("owner_id", user!.id)
+            .eq("status", "AVAILABLE")
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as ItemRow[] }),
+    ]);
+
+  const sellerRow = sellerRowResult.data;
+  const ownItems = (ownItemsResult.data ?? []) as ItemRow[];
+  const sellerDisplayName =
+    (sellerRow?.display_name as string | null)?.trim() || "The other trader";
 
   // When the item is RESERVED and the viewer is the owner, resolve the active
   // contract (Cash_Sale or Trade) so we can link directly to the contract room.
@@ -174,13 +190,13 @@ export default async function ItemDetailPage({
           composed purely of fixed paddings. Below lg the wrapper is
           auto-height, the columns stack, and the page scrolls normally. */}
       <div className="flex min-h-0 flex-col lg:h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))]">
-        <nav className="mb-6" aria-label="Breadcrumb">
-          <Link
-            href="/listings"
-            className="rounded-sm text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            ← Back to listings
-          </Link>
+        <nav className="mb-4 sm:mb-6" aria-label="Breadcrumb">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/listings">
+              <ArrowLeft aria-hidden="true" />
+              Back to listings
+            </Link>
+          </Button>
         </nav>
 
         {/* The column switch and the bounded height MUST share the same
@@ -207,7 +223,7 @@ export default async function ItemDetailPage({
             <div className="space-y-6">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <h2 className="min-w-0 break-words text-3xl font-semibold tracking-[-0.025em]">
+                  <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.025em] sm:text-2xl lg:text-3xl">
                     {item.title}
                   </h2>
                   <Badge
@@ -236,29 +252,32 @@ export default async function ItemDetailPage({
                   ) : null}
                 </div>
 
-                {/* Seller block */}
-                <div className="rounded-lg border bg-card p-3">
-                  <div className="flex flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Seller</p>
-                      <div className="flex items-center gap-1.5">
-                        {isOwner ? (
-                          <p className="truncate text-sm font-medium">You</p>
-                        ) : (
-                          <Link
-                            href={`/sellers/${item.owner_id}`}
-                            className="truncate text-sm font-medium underline-offset-2 hover:underline"
-                          >
-                            {sellerRow?.display_name ?? "Unknown seller"}
-                          </Link>
-                        )}
-                        {sellerIdentity && <VerifiedBadge size={15} />}
-                      </div>
+                {/* Seller block — compact: name + trust + rating on one row,
+                    identity as dense label/value lines. */}
+                <div className="rounded-lg border bg-card px-3 py-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="sr-only">Seller</span>
+                    <div className="flex min-w-0 items-center gap-1">
+                      {isOwner ? (
+                        <p className="truncate text-sm font-semibold">You</p>
+                      ) : (
+                        <Link
+                          href={`/sellers/${item.owner_id}`}
+                          className="truncate text-sm font-semibold underline-offset-2 hover:underline"
+                        >
+                          {sellerRow?.display_name ?? "Unknown seller"}
+                        </Link>
+                      )}
+                      {sellerIdentity ? (
+                        <VerifiedBadge size={14} iconOnly className="shrink-0" />
+                      ) : null}
                     </div>
                     {isOwner ? (
                       <StarRating
                         rating={sellerRow?.rating ?? null}
                         count={sellerRow?.rating_count ?? undefined}
+                        size={12}
+                        className="text-[0.6875rem]"
                       />
                     ) : (
                       <Link
@@ -269,6 +288,8 @@ export default async function ItemDetailPage({
                         <StarRating
                           rating={sellerRow?.rating ?? null}
                           count={sellerRow?.rating_count ?? undefined}
+                          size={12}
+                          className="text-[0.6875rem]"
                         />
                       </Link>
                     )}
@@ -276,42 +297,67 @@ export default async function ItemDetailPage({
 
                   {/* Inline identity disclosure — visible to buyers so they know
                   who they're transacting with (Req 4.8). */}
-                  {sellerIdentity && !isOwner && (
-                    <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t pt-3 text-xs">
-                      <div className="min-w-0">
-                        <dt className="text-muted-foreground">Legal entity</dt>
-                        <dd className="break-words font-medium">
+                  {sellerIdentity && !isOwner ? (
+                    <dl className="mt-1.5 space-y-0.5 border-t border-border/70 pt-1.5 text-[0.6875rem] leading-snug">
+                      <div className="flex min-w-0 gap-1.5">
+                        <dt className="shrink-0 text-muted-foreground">Legal</dt>
+                        <dd className="min-w-0 break-words font-medium">
                           {sellerIdentity.legalEntityName}
                         </dd>
                       </div>
-                      {sellerIdentity.tradingName && (
-                        <div className="min-w-0">
-                          <dt className="text-muted-foreground">Trading as</dt>
-                          <dd className="break-words font-medium">
+                      {sellerIdentity.tradingName ? (
+                        <div className="flex min-w-0 gap-1.5">
+                          <dt className="shrink-0 text-muted-foreground">
+                            Trading as
+                          </dt>
+                          <dd className="min-w-0 break-words font-medium">
                             {sellerIdentity.tradingName}
                           </dd>
                         </div>
-                      )}
-                      <div className="min-w-0">
-                        <dt className="text-muted-foreground">Registration</dt>
-                        <dd className="break-words font-medium">
-                          {formatRegistrationNumber(
-                            sellerIdentity.registrationNumber,
-                          )}
-                        </dd>
-                      </div>
-                      {sellerIdentity.organisationType && (
-                        <div className="min-w-0">
-                          <dt className="text-muted-foreground">Type</dt>
-                          <dd className="break-words font-medium">
-                            {sellerIdentity.organisationType}
+                      ) : null}
+                      <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5">
+                        <div className="flex min-w-0 gap-1.5">
+                          <dt className="shrink-0 text-muted-foreground">Reg</dt>
+                          <dd className="min-w-0 break-words font-medium">
+                            {formatRegistrationNumber(
+                              sellerIdentity.registrationNumber,
+                            )}
                           </dd>
                         </div>
-                      )}
+                        {sellerIdentity.organisationType ? (
+                          <div className="flex min-w-0 gap-1.5">
+                            <dt className="shrink-0 text-muted-foreground">
+                              Type
+                            </dt>
+                            <dd className="min-w-0 break-words font-medium">
+                              {sellerIdentity.organisationType}
+                            </dd>
+                          </div>
+                        ) : null}
+                      </div>
                     </dl>
-                  )}
+                  ) : null}
                 </div>
               </div>
+
+              {/* Transaction entry points sit above the description so Buy /
+                  Trade / Offer / Save / Report are reachable without scrolling. */}
+              <ItemActions
+                itemId={item.id}
+                itemTitle={item.title}
+                itemImagePath={(item.image_paths ?? [])[0] ?? null}
+                sellerId={item.owner_id}
+                sellerDisplayName={sellerDisplayName}
+                fmvCents={item.fmv_cents}
+                isOwner={isOwner}
+                isAuthenticated={Boolean(user)}
+                isAvailable={isAvailable}
+                sellerIdentity={sellerIdentity}
+                activeSaleId={activeSaleId}
+                activeTradeId={activeTradeId}
+                initialWatching={initialWatching}
+                ownItems={ownItems}
+              />
 
               <section
                 aria-labelledby="description-heading"
@@ -342,20 +388,6 @@ export default async function ItemDetailPage({
                   />
                 </section>
               ) : null}
-
-              {/* Transaction entry points, gated by viewer context. */}
-              <ItemActions
-                itemId={item.id}
-                itemTitle={item.title}
-                sellerId={item.owner_id}
-                fmvCents={item.fmv_cents}
-                isOwner={isOwner}
-                isAuthenticated={Boolean(user)}
-                isAvailable={isAvailable}
-                sellerIdentity={sellerIdentity}
-                activeSaleId={activeSaleId}
-                activeTradeId={activeTradeId}
-              />
             </div>
 
             {/* Message seller — pushed to bottom of details rail, just above
@@ -369,22 +401,6 @@ export default async function ItemDetailPage({
                   itemId={item.id}
                   sellerId={item.owner_id}
                   variant="inline"
-                />
-              </div>
-            )}
-
-            {/* Secondary, lower-emphasis actions — save + report. */}
-            {user && !isOwner && (
-              <div className="flex items-center justify-between gap-3 pt-4">
-                <WatchButton
-                  itemId={item.id}
-                  initialWatching={initialWatching}
-                  className="w-auto"
-                />
-                <ReportDialog
-                  targetType="item"
-                  targetId={item.id}
-                  triggerLabel="Report listing"
                 />
               </div>
             )}
@@ -407,7 +423,9 @@ export default async function ItemDetailPage({
 function ItemActions({
   itemId,
   itemTitle,
+  itemImagePath,
   sellerId,
+  sellerDisplayName,
   fmvCents,
   isOwner,
   isAuthenticated,
@@ -415,10 +433,14 @@ function ItemActions({
   sellerIdentity,
   activeSaleId,
   activeTradeId,
+  initialWatching,
+  ownItems,
 }: {
   itemId: string;
   itemTitle: string;
+  itemImagePath: string | null;
   sellerId: string;
+  sellerDisplayName: string;
   fmvCents: number;
   isOwner: boolean;
   isAuthenticated: boolean;
@@ -426,7 +448,40 @@ function ItemActions({
   sellerIdentity: SellerIdentityDisclosure | null;
   activeSaleId: string | null;
   activeTradeId: string | null;
+  initialWatching: boolean;
+  ownItems: ItemRow[];
 }) {
+  const watchReport =
+    isAuthenticated && !isOwner ? (
+      <>
+        <WatchButton
+          itemId={itemId}
+          initialWatching={initialWatching}
+          variant="action"
+        />
+        <ReportDialog
+          targetType="item"
+          targetId={itemId}
+          triggerLabel="Report listing"
+          appearance="icon"
+        />
+      </>
+    ) : null;
+
+  const proposeTrade =
+    isAuthenticated && !isOwner && isAvailable ? (
+      <ProposeTradeDialog
+        requested={{
+          id: itemId,
+          title: itemTitle,
+          fmvCents,
+          imagePath: itemImagePath,
+          ownerName: sellerDisplayName,
+        }}
+        ownItems={ownItems}
+        emphasize={!sellerIdentity}
+      />
+    ) : null;
   // Owner controls: when the item is under contract, surface the active
   // contract link prominently instead of edit/delete (which aren't allowed on
   // RESERVED items anyway per Req 3.5).
@@ -473,11 +528,22 @@ function ItemActions({
   // Non-owner: the item must be AVAILABLE to buy or trade.
   if (!isAvailable) {
     return (
-      <div className="rounded-lg border border-dashed px-4 py-5">
-        <p className="text-base font-semibold">Not Available</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          This item is not currently available for purchase or trade.
-        </p>
+      <div className="space-y-4">
+        <div className="rounded-lg border border-dashed px-4 py-5">
+          <p className="text-base font-semibold">Not Available</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            This item is not currently available for purchase or trade.
+          </p>
+        </div>
+        {watchReport ? (
+          <div
+            className="grid grid-cols-2 justify-items-center gap-2"
+            role="group"
+            aria-label="Listing actions"
+          >
+            {watchReport}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -507,53 +573,49 @@ function ItemActions({
   // buyer can inspect first (Req 4.8). Trading needs neither, because no cash
   // moves — so a seller without a payout account is trade-only, not unavailable.
   //
-  // Visual hierarchy: Buy / Trade / Offer sit in one inline row as the
-  // transactional actions. "Message seller" lives below as a separate section
-  // with its own input affordance, matching the reference inline-message pattern.
+  // Buy / Trade / Offer / Save / Report are compact icon chips above the
+  // description. "Message seller" stays lower in the details rail.
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {!sellerIdentity ? (
         <div className="space-y-3 rounded-lg border border-dashed px-4 py-4">
           <div>
             <p className="text-base font-semibold">Open to Trades Only</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              This seller cannot take cash payments yet. You can still propose a
-              trade, or message them.
+              This seller cannot accept a cash purchase yet. You can still
+              propose a trade — including one with cash — or message them.
             </p>
           </div>
-          <Button asChild className="w-full sm:w-auto">
-            <Link href={`/trades/new?counterpartItemId=${itemId}`}>
-              <ArrowLeftRight aria-hidden />
-              Propose Trade
-            </Link>
-          </Button>
+          <div
+            className="grid grid-cols-3 justify-items-center gap-2"
+            role="group"
+            aria-label="Listing actions"
+          >
+            {proposeTrade}
+            {watchReport}
+          </div>
         </div>
-      ) : null}
-
-      {/* Primary transaction row — Buy / Trade / Offer inline. Each action
-          grows from a shared basis so they wrap in balanced rows instead of
-          leaving one button stranded on a line of its own. */}
-      <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 [&>*]:basis-[9.5rem]">
-        {sellerIdentity ? (
-          <BuyButton itemId={itemId} sellerIdentity={sellerIdentity} />
-        ) : null}
-        {sellerIdentity ? (
-          <Button asChild variant="outline" size="lg">
-            <Link href={`/trades/new?counterpartItemId=${itemId}`}>
-              <ArrowLeftRight aria-hidden />
-              Propose Trade
-            </Link>
-          </Button>
-        ) : null}
-        {sellerIdentity ? (
+      ) : (
+        <div
+          className="grid grid-cols-5 justify-items-center gap-1 sm:gap-2"
+          role="group"
+          aria-label="Listing actions"
+        >
+          <BuyButton
+            itemId={itemId}
+            sellerIdentity={sellerIdentity}
+            appearance="icon"
+          />
+          {proposeTrade}
           <MakeOfferDialog
             itemId={itemId}
             fmvCents={fmvCents}
             sellerIdentity={sellerIdentity}
-            size="lg"
+            appearance="icon"
           />
-        ) : null}
-      </div>
+          {watchReport}
+        </div>
+      )}
     </div>
   );
 }

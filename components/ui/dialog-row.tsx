@@ -51,16 +51,18 @@ export function DialogRow({
       )}
     >
       <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-      {label}
-      {required ? (
-        <>
-          <span className="-ml-1 text-destructive" aria-hidden="true">
-            *
-          </span>
-          <span className="sr-only">(required)</span>
-        </>
-      ) : null}
-      <span className="ml-auto truncate pl-2 text-xs font-normal text-muted-foreground">
+      <span className="min-w-0 shrink-0">
+        {label}
+        {required ? (
+          <>
+            <span className="ml-0.5 text-destructive" aria-hidden="true">
+              *
+            </span>
+            <span className="sr-only">(required)</span>
+          </>
+        ) : null}
+      </span>
+      <span className="ml-auto min-w-0 truncate pl-2 text-xs font-normal text-muted-foreground">
         {hint}
       </span>
     </button>

@@ -5,6 +5,7 @@ import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
 } from '@supabase/supabase-js';
+import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -13,6 +14,9 @@ export type TradeRow = Tables<'trades'>;
 
 /** A pre-auth hold row, strongly typed from the generated database types. */
 export type HoldRow = Tables<'pre_auth_holds'>;
+
+/** One append-only audit row from the trade state machine. */
+export type TradeTransitionRow = Tables<'trade_state_transitions'>;
 
 /**
  * Connection state of the underlying Realtime channel, surfaced to the UI so a
@@ -31,6 +35,8 @@ export interface UseTradeRealtimeResult {
   trade: TradeRow | null;
   /** The live set of pre-auth holds for the trade. */
   holds: HoldRow[];
+  /** Append-only state-machine history, oldest first. */
+  transitions: TradeTransitionRow[];
   /** Current Realtime connection status (drives the live indicator). */
   connectionStatus: ConnectionStatus;
 }
@@ -48,14 +54,15 @@ function backoffDelay(attempt: number): number {
 }
 
 /**
- * Subscribe to a single trade and its pre-auth holds in real time.
+ * Subscribe to a single trade, its pre-auth holds, and its state-transition
+ * history in real time.
  *
  * Given a `tradeId`, this hook:
- * 1. Fetches the initial trade row and its associated `pre_auth_holds` via the
- *    browser Supabase client.
- * 2. Subscribes to Postgres Changes on the `trades` row (`id=eq.tradeId`) and on
- *    `pre_auth_holds` (`trade_id=eq.tradeId`) so updates arrive without a page
- *    reload, well within the 5s budget (Req 11.2).
+ * 1. Fetches the initial trade row, holds, and transitions via the browser
+ *    Supabase client.
+ * 2. Subscribes to Postgres Changes on `trades`, `pre_auth_holds`, and
+ *    `trade_state_transitions` so updates arrive without a page reload
+ *    (Req 11.2).
  * 3. Exposes a {@link ConnectionStatus} derived from the channel's subscribe
  *    callback, and auto-reconnects with exponential backoff on drop (Req 11.5).
  *
@@ -64,6 +71,7 @@ function backoffDelay(attempt: number): number {
 export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
   const [trade, setTrade] = useState<TradeRow | null>(null);
   const [holds, setHolds] = useState<HoldRow[]>([]);
+  const [transitions, setTransitions] = useState<TradeTransitionRow[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>('connecting');
 
@@ -104,6 +112,18 @@ export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
     [],
   );
 
+  // Append-only: INSERT is the only mutation the audit table admits.
+  const applyTransitionInsert = useCallback(
+    (payload: RealtimePostgresChangesPayload<TradeTransitionRow>) => {
+      if (payload.eventType !== 'INSERT') return;
+      const next = payload.new as TradeTransitionRow;
+      setTransitions((prev) =>
+        prev.some((row) => row.id === next.id) ? prev : [...prev, next],
+      );
+    },
+    [],
+  );
+
   useEffect(() => {
     const supabase = supabaseRef.current;
     if (!supabase || !tradeId) return;
@@ -112,17 +132,28 @@ export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
     let channel: RealtimeChannel | null = null;
     let reconnectAttempts = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let subscribeEpoch = 0;
 
-    // Load the current trade + holds snapshot before/while the channel connects,
+    // Load the current trade + holds + history before/while the channel connects,
     // so the view has data even if the first realtime event has not yet arrived.
     const loadInitial = async () => {
-      const [{ data: tradeData }, { data: holdData }] = await Promise.all([
+      const [
+        { data: tradeData },
+        { data: holdData },
+        { data: transitionData },
+      ] = await Promise.all([
         supabase.from('trades').select('*').eq('id', tradeId).single(),
         supabase.from('pre_auth_holds').select('*').eq('trade_id', tradeId),
+        supabase
+          .from('trade_state_transitions')
+          .select('*')
+          .eq('trade_id', tradeId)
+          .order('created_at'),
       ]);
       if (!isMounted) return;
       if (tradeData) setTrade(tradeData as TradeRow);
       if (holdData) setHolds(holdData as HoldRow[]);
+      if (transitionData) setTransitions(transitionData as TradeTransitionRow[]);
     };
 
     const scheduleReconnect = () => {
@@ -136,21 +167,24 @@ export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
       setConnectionStatus('reconnecting');
       reconnectTimer = setTimeout(() => {
         if (!isMounted) return;
-        subscribe();
+        void subscribe();
       }, delay);
     };
 
-    const subscribe = () => {
+    const subscribe = async () => {
       if (!isMounted) return;
+      const epoch = ++subscribeEpoch;
 
       // Tear down any previous channel before creating a fresh one.
       if (channel) {
-        supabase.removeChannel(channel);
+        const previous = channel;
         channel = null;
+        await supabase.removeChannel(previous);
       }
+      if (!isMounted || epoch !== subscribeEpoch) return;
 
-      channel = supabase
-        .channel(`trade:${tradeId}`)
+      const nextChannel = supabase
+        .channel(uniqueRealtimeTopic(`trade:${tradeId}`))
         .on(
           'postgres_changes',
           {
@@ -177,35 +211,53 @@ export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
               payload as RealtimePostgresChangesPayload<HoldRow>,
             ),
         )
-        .subscribe((status) => {
-          if (!isMounted) return;
-          switch (status) {
-            case 'SUBSCRIBED':
-              // Fresh, authoritative snapshot on (re)connect avoids missing any
-              // changes that occurred while the channel was down.
-              reconnectAttempts = 0;
-              setConnectionStatus('live');
-              void loadInitial();
-              break;
-            case 'CHANNEL_ERROR':
-            case 'TIMED_OUT':
-            case 'CLOSED':
-              scheduleReconnect();
-              break;
-          }
-        });
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'cardtrade',
+            table: 'trade_state_transitions',
+            filter: `trade_id=eq.${tradeId}`,
+          },
+          (payload) =>
+            applyTransitionInsert(
+              payload as RealtimePostgresChangesPayload<TradeTransitionRow>,
+            ),
+        );
+
+      channel = nextChannel;
+      nextChannel.subscribe((status) => {
+        if (!isMounted || channel !== nextChannel) return;
+        switch (status) {
+          case 'SUBSCRIBED':
+            // Fresh, authoritative snapshot on (re)connect avoids missing any
+            // changes that occurred while the channel was down.
+            reconnectAttempts = 0;
+            setConnectionStatus('live');
+            void loadInitial();
+            break;
+          case 'CHANNEL_ERROR':
+          case 'TIMED_OUT':
+          case 'CLOSED':
+            channel = null;
+            void supabase.removeChannel(nextChannel);
+            scheduleReconnect();
+            break;
+        }
+      });
     };
 
     setConnectionStatus('connecting');
     void loadInitial();
-    subscribe();
+    void subscribe();
 
     return () => {
       isMounted = false;
+      subscribeEpoch += 1;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (channel) supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
-  }, [tradeId, applyTradeChange, applyHoldChange]);
+  }, [tradeId, applyTradeChange, applyHoldChange, applyTransitionInsert]);
 
-  return { trade, holds, connectionStatus };
+  return { trade, holds, transitions, connectionStatus };
 }

@@ -17,7 +17,7 @@ import {
 } from '@/components/layout/SectionHeader';
 
 export const metadata = {
-  title: 'Notifications · Poke-xchange',
+  title: 'Notifications · NoDitto',
 };
 
 // Reads the authenticated user's session and reflects live data, so it must

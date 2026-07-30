@@ -131,14 +131,19 @@ export async function recordLifecycleTimestamp(params: {
   action: LifecycleAction;
   role: TradeViewerRole;
   at?: Date;
+  /** Extra columns written with the timestamp (e.g. tracking on shipment). */
+  extra?: TablesUpdate<'trades'>;
 }): Promise<RecordTimestampResult> {
   const spec = LIFECYCLE_SPECS[params.action];
   const column = spec.columns[params.role];
   const stampedAt = (params.at ?? new Date()).toISOString();
 
-  // Build a typed single-column update; the computed key is one of the known
-  // timestamp columns, so this is a well-formed `trades` update patch.
-  const patch = { [column]: stampedAt } as TablesUpdate<'trades'>;
+  // Build a typed update; the computed key is one of the known timestamp
+  // columns, so this is a well-formed `trades` update patch.
+  const patch = {
+    ...(params.extra ?? {}),
+    [column]: stampedAt,
+  } as TablesUpdate<'trades'>;
 
   const admin = createAdminClient();
   const { data } = await admin

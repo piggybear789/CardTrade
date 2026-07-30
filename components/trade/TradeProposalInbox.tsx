@@ -27,6 +27,7 @@ import {
   withdrawTradeProposal,
   type TradeProposalSummary,
 } from '@/lib/actions/tradeProposals';
+import { summarizeHandover } from '@/lib/handover/terms';
 import {
   EditTradeOfferDialog,
   type OfferableItem,
@@ -196,7 +197,8 @@ export function TradeProposalInbox({
                       {proposal.cashAmountCents > 0 ? (
                         <p className="flex items-center gap-2 pl-[3.75rem] text-sm font-semibold">
                           <Coins className="size-4 shrink-0 text-gold" aria-hidden="true" />
-                          {viewerPaysCash ? 'You pay' : 'They pay'} {formatAud(proposal.cashAmountCents)} cash
+                          {viewerPaysCash ? 'You pay' : 'They pay'}{' '}
+                          {formatAud(proposal.cashAmountCents)} via Pinch Payments
                         </p>
                       ) : null}
                       {proposal.declaredValueCents ? (
@@ -217,6 +219,20 @@ export function TradeProposalInbox({
                       imagePath={proposal.requested.imagePath}
                     />
                   </div>
+
+                  {proposal.handoverMethod ? (
+                    <p className="text-sm text-muted-foreground">
+                      Delivery Terms:{' '}
+                      <span className="font-medium text-foreground">
+                        {summarizeHandover({
+                          handover_method: proposal.handoverMethod,
+                          meeting_location: proposal.meetingLocation,
+                          delivery_cost_cents: proposal.deliveryCostCents,
+                          delivery_details: proposal.deliveryDetails,
+                        })}
+                      </span>
+                    </p>
+                  ) : null}
 
                   {proposal.message ? (
                     <p className="break-words rounded-md bg-muted/40 p-3 text-sm">
@@ -325,6 +341,9 @@ export function TradeProposalInbox({
                           currentDeclaredValueCents={proposal.declaredValueCents}
                           currentMessage={proposal.message}
                           requestedFmvCents={proposal.requested.fmvCents}
+                          currentHandoverMethod={proposal.handoverMethod}
+                          currentMeetingLocation={proposal.meetingLocation}
+                          currentDeliveryCostCents={proposal.deliveryCostCents}
                         />
                       </>
                     )}

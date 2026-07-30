@@ -77,7 +77,7 @@ export default async function ProfilePage() {
     <MarketplaceShell title="Account">
       <SectionHeader
         title="Account Settings"
-        description="Manage your public identity and verification status."
+        description="Manage your public identity, DittoShield status, and Pinch Payments payout details."
       />
 
       <div className="space-y-6">
@@ -123,10 +123,10 @@ export default async function ProfilePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">How you pay</CardTitle>
+            <CardTitle className="text-xl">How you pay with Pinch Payments</CardTitle>
             <CardDescription>
               The card you buy with, and the one your collateral is held against.
-              Card details go straight to Pinch and never touch our servers.
+              Card details go straight to Pinch Payments and never touch our servers.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -140,12 +140,14 @@ export default async function ProfilePage() {
                     {paymentMethod.label ?? "Card saved"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Saved and ready for purchases and collateral.
+                    Saved with Pinch Payments for purchases and collateral.
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No payment method saved.</p>
+              <p className="text-sm text-muted-foreground">
+                No Pinch Payments method saved.
+              </p>
             )}
 
             <AddPaymentMethodDialog

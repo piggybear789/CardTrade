@@ -16,7 +16,7 @@ import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Deal room · Poke-xchange',
+  title: 'Deal room · NoDitto',
   description: 'A private 1:1 binding deal between two members.',
 };
 

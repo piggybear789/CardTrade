@@ -176,11 +176,13 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 3. The buyer's payment is collected in full before anything ships.
   drafts.push({
     id: 'payment',
-    short: 'Payment',
+    // Six ticks in the delivery branch: 'Payment' sat right on the truncation
+    // budget. 'Escrow' matches the label "Payment clears into escrow".
+    short: 'Escrow',
     label: 'Payment clears into escrow',
     detail:
       viewerRole === 'BUYER'
-        ? 'Your payment method is charged and the funds are held by Poke-xchange.'
+        ? 'Your payment method is charged and the funds are held by NoDitto.'
         : "The buyer's payment is collected and held before you send anything.",
     owner: 'platform',
     done: FUNDS_CLEARED.has(status),
@@ -198,7 +200,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   if (status === 'DISPUTED') {
     drafts.push({
       id: 'dispute',
-      short: 'Dispute',
+      // 'Review' matches the deal and trade rails for the same state.
+      short: 'Review',
       label: 'Dispute under review',
       detail: facts.disputeRaisedByMe
         ? 'You raised a dispute. Funds stay in escrow while the case is reviewed.'
@@ -230,7 +233,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
 
     drafts.push({
       id: 'receive',
-      short: 'Delivered',
+      // Six ticks in the delivery branch: 'Delivered' truncated on mobile.
+      short: 'Arrive',
       label: 'Buyer confirms the item arrived',
       detail:
         viewerRole === 'BUYER'
@@ -247,7 +251,9 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     // 4b. In-person branch: a single mutual confirmation.
     drafts.push({
       id: 'handover',
-      short: 'Handover',
+      // Rail shorts must survive a five-tick rail on a 320px screen (~6
+      // characters); 'Handover' truncated to 'Handov…'.
+      short: 'Meet',
       label: 'Both confirm the handover',
       detail:
         myHandoverConfirmed && theirHandoverConfirmed

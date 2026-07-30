@@ -5,7 +5,7 @@ import { AuthForm } from '@/components/auth/AuthForm';
 import { AuthFormSkeleton } from '@/components/auth/AuthFormSkeleton';
 
 export const metadata: Metadata = {
-  title: 'Sign in · Poke-xchange',
+  title: 'Sign in · NoDitto',
 };
 
 // Sign-in page (Req 1.1, 1.7). The form is a Client Component wrapped in a

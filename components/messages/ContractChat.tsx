@@ -113,7 +113,12 @@ export function ContractChat({
         className,
       )}
     >
-      <header className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+      {/* Header, log, and composer all sit on the panel's own `bg-card`: the
+          card is one surface and the border rules divide it. Tinting each band
+          separately banded the panel, and with only 3 points of lightness
+          between `--card` and `--background` the tints read as dirt, not depth.
+          Depth comes from the bubbles instead. */}
+      <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
             <Send className="size-4" aria-hidden />
@@ -150,7 +155,7 @@ export function ContractChat({
         <div
           ref={logRef}
           onScroll={handleLogScroll}
-          className="h-full space-y-3 overflow-y-auto overscroll-contain bg-background p-3"
+          className="h-full space-y-3 overflow-y-auto overscroll-contain p-3"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"
@@ -166,7 +171,7 @@ export function ContractChat({
               if (message.kind === 'SYSTEM') {
                 return (
                   <div key={message.id} className="flex justify-center">
-                    <p className="max-w-[92%] break-words rounded-md border bg-card px-3 py-2 text-center text-xs leading-4 text-muted-foreground shadow-sm">
+                    <p className="max-w-[92%] break-words rounded-2xl border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs leading-4 text-muted-foreground">
                       {message.body}
                     </p>
                   </div>
@@ -180,7 +185,7 @@ export function ContractChat({
                       'max-w-[82%] rounded-2xl px-3 py-2 text-sm',
                       mine
                         ? 'rounded-br-sm bg-primary text-primary-foreground'
-                        : 'rounded-bl-sm border bg-card shadow-sm',
+                        : 'rounded-bl-sm bg-muted text-foreground',
                     )}
                   >
                     <p className="whitespace-pre-wrap break-words">{message.body}</p>
@@ -201,7 +206,7 @@ export function ContractChat({
           </button>
         ) : null}
       </div>
-      <form onSubmit={submit} className="border-t bg-card p-3">
+      <form onSubmit={submit} className="border-t p-3">
         <label htmlFor={`contract-chat-${conversationId}`} className="sr-only">
           Write a message
         </label>

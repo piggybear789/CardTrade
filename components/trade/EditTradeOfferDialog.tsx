@@ -8,13 +8,15 @@
 //
 // The primary item is fixed here: swapping out what you are fundamentally
 // offering is a different offer, so that path is Withdraw and offer again.
+// Handover is method-only — place, postage and tracking are agreed in the room.
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Pencil } from 'lucide-react';
+import { MapPin, Pencil, Truck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ChoiceTile } from '@/components/ui/choice-tile';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatAud } from '@/lib/format';
 import { amendTradeProposal } from '@/lib/actions/tradeProposals';
 import { TRADE_PROPOSAL_MESSAGE_MAX } from '@/lib/marketplace-constants';
+import type { HandoverMethod } from '@/lib/handover/terms';
 import type { TradeCashDirection } from '@/domain/orchestrator/tradeProposalRequest';
 
 /** An item the proposer could include, with whether it is currently included. */
@@ -52,6 +55,11 @@ export interface EditTradeOfferDialogProps {
   currentMessage: string | null;
   /** The value being asked for, so the running comparison still makes sense. */
   requestedFmvCents: number;
+  currentHandoverMethod: HandoverMethod | null;
+  /** @deprecated Details are agreed in the room; kept for call-site compatibility. */
+  currentMeetingLocation?: string | null;
+  /** @deprecated Details are agreed in the room; kept for call-site compatibility. */
+  currentDeliveryCostCents?: number | null;
 }
 
 /** Format integer cents as a plain dollars string for an input. */
@@ -74,6 +82,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'item-unavailable': 'One of those items is no longer available.',
   'invalid-cash': 'Enter a valid cash amount.',
   'invalid-declared-value': 'Enter a valid value for your side.',
+  'invalid-handover': 'Choose face to face or delivery.',
   unauthenticated: 'Sign in to edit this offer.',
 };
 
@@ -87,6 +96,7 @@ export function EditTradeOfferDialog({
   currentDeclaredValueCents,
   currentMessage,
   requestedFmvCents,
+  currentHandoverMethod,
 }: EditTradeOfferDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -100,6 +110,7 @@ export function EditTradeOfferDialog({
     centsToDollars(currentDeclaredValueCents ?? 0),
   );
   const [message, setMessage] = useState(currentMessage ?? '');
+  const [handover, setHandover] = useState<HandoverMethod | null>(currentHandoverMethod);
 
   const cashAmountCents = dollarsToCents(cashDollars);
   const declaredValueCents = dollarsToCents(valueDollars);
@@ -118,6 +129,10 @@ export function EditTradeOfferDialog({
 
   function handleSave() {
     setError(null);
+    if (handover === null) {
+      setError(ERROR_MESSAGES['invalid-handover']);
+      return;
+    }
     startTransition(async () => {
       const result = await amendTradeProposal({
         proposalId,
@@ -126,143 +141,161 @@ export function EditTradeOfferDialog({
         cashDirection,
         declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
         message,
+        handover: { method: handover },
       });
       if (result.ok) {
-        setOpen(false);
         toast.success('Offer updated.');
+        setOpen(false);
         router.refresh();
         return;
       }
       const copy =
-        result.message ??
-        ERROR_MESSAGES[result.error ?? ''] ??
-        'Your changes could not be saved.';
+        ERROR_MESSAGES[result.error] ??
+        ('detail' in result ? result.detail : undefined) ??
+        ('message' in result ? result.message : undefined) ??
+        'Could not update the offer.';
       setError(copy);
       toast.error(copy);
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setExtraItemIds(currentExtraItemIds);
+          setCashDollars(centsToDollars(currentCashCents));
+          setCashDirection(currentCashDirection);
+          setValueDollars(centsToDollars(currentDeclaredValueCents ?? 0));
+          setMessage(currentMessage ?? '');
+          setHandover(currentHandoverMethod);
+          setError(null);
+        }
+      }}
+    >
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" disabled={isPending}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+        >
           <Pencil aria-hidden />
-          Edit terms
+          Edit offer
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit your offer</DialogTitle>
+          <DialogTitle>Edit offer</DialogTitle>
           <DialogDescription>
-            They see the new terms straight away. To change {primaryTitle} itself,
-            withdraw and offer again.
+            Primary item stays {primaryTitle}. Meeting place, postage and tracking
+            are agreed in the trade room after acceptance.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           {offerableItems.length > 0 ? (
             <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Items you are including</legend>
-              <ul className="max-h-48 space-y-1 overflow-y-auto">
-                {offerableItems.map((item) => (
-                  <li key={item.id}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-md border p-2.5 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={extraItemIds.includes(item.id)}
-                        onChange={() => toggleItem(item.id)}
-                        className="size-4 shrink-0"
-                        disabled={isPending}
-                      />
-                      <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                      <span className="shrink-0 tabular-nums text-muted-foreground">
-                        {formatAud(item.fmvCents)}
-                      </span>
-                    </label>
-                  </li>
-                ))}
+              <legend className="text-sm font-medium">Also include</legend>
+              <ul className="space-y-1.5">
+                {offerableItems.map((item) => {
+                  const checked = extraItemIds.includes(item.id);
+                  return (
+                    <li key={item.id}>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-primary">
+                        <input
+                          type="checkbox"
+                          className="size-4"
+                          checked={checked}
+                          onChange={() => toggleItem(item.id)}
+                          disabled={isPending}
+                        />
+                        <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                        <span className="tabular-nums text-muted-foreground">
+                          {formatAud(item.fmvCents)}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             </fieldset>
           ) : null}
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Cash adjustment</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label
-                className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm ${
-                  cashDirection === 'PROPOSER_PAYS' ? 'border-primary bg-primary/5' : ''
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="edit-cash-direction"
-                  value="PROPOSER_PAYS"
-                  checked={cashDirection === 'PROPOSER_PAYS'}
-                  onChange={() => setCashDirection('PROPOSER_PAYS')}
-                  className="mt-0.5"
-                  disabled={isPending}
-                />
-                <span>
-                  <span className="font-medium">I add cash</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">You pay them.</span>
-                </span>
-              </label>
-              <label
-                className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm ${
-                  cashDirection === 'COUNTERPART_PAYS' ? 'border-primary bg-primary/5' : ''
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="edit-cash-direction"
-                  value="COUNTERPART_PAYS"
-                  checked={cashDirection === 'COUNTERPART_PAYS'}
-                  onChange={() => setCashDirection('COUNTERPART_PAYS')}
-                  className="mt-0.5"
-                  disabled={isPending}
-                />
-                <span>
-                  <span className="font-medium">I request cash</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">They pay you.</span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="edit-cash">
-                {cashDirection === 'PROPOSER_PAYS' ? 'Cash you add' : 'Cash you request'}
-              </Label>
-              <Input
-                id="edit-cash"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                autoComplete="off"
-                placeholder="0.00"
-                value={cashDollars}
-                onChange={(e) => setCashDollars(e.target.value)}
-                disabled={isPending}
-              />
+              <Label htmlFor="edit-cash">Cash</Label>
+              <div className="relative">
+                <span
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                  aria-hidden
+                >
+                  $
+                </span>
+                <Input
+                  id="edit-cash"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  className="pl-7"
+                  value={cashDollars}
+                  onChange={(e) => setCashDollars(e.target.value)}
+                  disabled={isPending}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-value">Your trade value</Label>
-              <Input
-                id="edit-value"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                autoComplete="off"
-                placeholder="0.00"
-                value={valueDollars}
-                onChange={(e) => setValueDollars(e.target.value)}
-                disabled={isPending}
-              />
+              <Label htmlFor="edit-value">Your side valued at</Label>
+              <div className="relative">
+                <span
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                  aria-hidden
+                >
+                  $
+                </span>
+                <Input
+                  id="edit-value"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  className="pl-7"
+                  value={valueDollars}
+                  onChange={(e) => setValueDollars(e.target.value)}
+                  disabled={isPending}
+                />
+              </div>
             </div>
           </div>
+
+          {cashAmountCents > 0 ? (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">Who pays the cash</legend>
+              <div className="grid grid-cols-2 gap-1.5">
+                <ChoiceTile
+                  id="edit-cash-you"
+                  name="edit-cash-direction"
+                  type="radio"
+                  label="You pay via Pinch Payments"
+                  hint="Added to your side"
+                  checked={cashDirection === 'PROPOSER_PAYS'}
+                  onChange={() => setCashDirection('PROPOSER_PAYS')}
+                />
+                <ChoiceTile
+                  id="edit-cash-them"
+                  name="edit-cash-direction"
+                  type="radio"
+                  label="They pay via Pinch Payments"
+                  hint="Added to theirs"
+                  checked={cashDirection === 'COUNTERPART_PAYS'}
+                  onChange={() => setCashDirection('COUNTERPART_PAYS')}
+                />
+              </div>
+            </fieldset>
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="edit-message">Note</Label>
@@ -276,6 +309,40 @@ export function EditTradeOfferDialog({
               placeholder="Anything you want them to know…"
             />
           </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Handover</legend>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(
+                [
+                  {
+                    value: 'IN_PERSON' as const,
+                    label: 'Face to face',
+                    hint: 'Meet and swap',
+                    icon: MapPin,
+                  },
+                  {
+                    value: 'DELIVERY' as const,
+                    label: 'Delivery',
+                    hint: 'Post it',
+                    icon: Truck,
+                  },
+                ] as const
+              ).map((option) => (
+                <ChoiceTile
+                  key={option.value}
+                  id={`edit-handover-${option.value}`}
+                  name="edit-handover"
+                  type="radio"
+                  icon={option.icon}
+                  label={option.label}
+                  hint={option.hint}
+                  checked={handover === option.value}
+                  onChange={() => setHandover(option.value)}
+                />
+              ))}
+            </div>
+          </fieldset>
 
           <p className="rounded-md border p-3 text-sm" role="status" aria-live="polite">
             You give {formatAud(yourSideCents)} · they give {formatAud(theirSideCents)}

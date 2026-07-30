@@ -1,12 +1,12 @@
 'use client';
 
-// Read-only Mapbox map with a single marker. Dynamically imports mapbox-gl so
-// the SSR bundle never touches the browser-only library.
+// Read-only location preview: Geoapify static map image + Open in Maps link.
+// No interactive map SDK — keeps the client bundle free of map libraries.
 
-import { useEffect, useRef, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { ExternalLink, MapPin } from 'lucide-react';
 
-import { mapsExternalUrl, readMapboxToken } from '@/lib/location/mapbox';
+import { mapsExternalUrl, staticMapUrl } from '@/lib/location/geoapify';
 import { cn } from '@/lib/utils';
 
 export interface PlaceMapProps {
@@ -16,6 +16,7 @@ export interface PlaceMapProps {
   className?: string;
   /** Map height; default 12rem. */
   heightClassName?: string;
+  /** Kept for call-site compatibility; static maps are non-interactive. */
   interactive?: boolean;
 }
 
@@ -25,54 +26,18 @@ export function PlaceMap({
   label,
   className,
   heightClassName = 'h-48',
-  interactive = false,
 }: PlaceMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
-  const token = readMapboxToken();
   const hasCoords =
     typeof lat === 'number' &&
     typeof lng === 'number' &&
     Number.isFinite(lat) &&
     Number.isFinite(lng);
 
-  useEffect(() => {
-    if (!hasCoords || !token || !containerRef.current) return;
-
-    let cancelled = false;
-    let map: import('mapbox-gl').Map | null = null;
-    let marker: import('mapbox-gl').Marker | null = null;
-
-    void (async () => {
-      try {
-        const mapboxgl = (await import('mapbox-gl')).default;
-        // @ts-expect-error — CSS import handled by bundler at runtime
-        await import('mapbox-gl/dist/mapbox-gl.css');
-        if (cancelled || !containerRef.current) return;
-
-        mapboxgl.accessToken = token;
-        map = new mapboxgl.Map({
-          container: containerRef.current,
-          style: 'mapbox://styles/mapbox/streets-v12',
-          center: [lng!, lat!],
-          zoom: 12,
-          interactive,
-          attributionControl: true,
-        });
-        marker = new mapboxgl.Marker({ color: '#0f172a' })
-          .setLngLat([lng!, lat!])
-          .addTo(map);
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      marker?.remove();
-      map?.remove();
-    };
-  }, [hasCoords, token, lat, lng, interactive]);
+  const imageUrl = hasCoords ? staticMapUrl(lat, lng) : null;
+  const externalUrl = hasCoords
+    ? mapsExternalUrl(lat, lng, label ?? undefined)
+    : null;
 
   if (!hasCoords) {
     return (
@@ -91,7 +56,7 @@ export function PlaceMap({
     );
   }
 
-  if (!token || failed) {
+  if (!imageUrl || failed) {
     return (
       <div
         className={cn(
@@ -102,12 +67,13 @@ export function PlaceMap({
       >
         <p className="font-medium text-foreground">{label ?? 'Meeting point'}</p>
         <a
-          href={mapsExternalUrl(lat!, lng!, label ?? undefined)}
+          href={externalUrl!}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-semibold underline-offset-4 hover:underline"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold underline-offset-4 hover:underline"
         >
           Open in Maps
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
         </a>
       </div>
     );
@@ -115,17 +81,33 @@ export function PlaceMap({
 
   return (
     <div className={cn('overflow-hidden rounded-lg border', className)}>
-      <div ref={containerRef} className={cn('w-full', heightClassName)} />
+      <a
+        href={externalUrl!}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn('relative block w-full overflow-hidden bg-muted', heightClassName)}
+        aria-label={label ? `Open ${label} in Maps` : 'Open location in Maps'}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- remote static map; avoid next/image remote config */}
+        <img
+          src={imageUrl}
+          alt={label ? `Map of ${label}` : 'Location map'}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+      </a>
       {label ? (
         <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-sm">
           <span className="min-w-0 truncate text-muted-foreground">{label}</span>
           <a
-            href={mapsExternalUrl(lat!, lng!, label)}
+            href={externalUrl!}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 font-semibold underline-offset-4 hover:underline"
+            className="inline-flex shrink-0 items-center gap-1 font-semibold underline-offset-4 hover:underline"
           >
             Open
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           </a>
         </div>
       ) : null}

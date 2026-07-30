@@ -7,10 +7,10 @@
 // Storage image upload + the pure validation/orchestration core.
 //
 // Listing has no verification gate (Req 3.1/3.1a): creating an Item requires
-// only an authenticated owner. Verification is checked later, at the point a
-// contract is entered — payer KYC (`kyc_status`) decides whether joining a
-// Trade requires a Bond (`domain/orchestrator/tradeProposal.ts`), and Managed
-// Merchant approval (`merchant_status`) gates receiving cash in a Cash_Sale.
+// only an authenticated owner. Verification is checked later: Managed Merchant
+// approval (`merchant_status`) decides whether joining a Trade requires a Bond
+// (`domain/orchestrator/tradeProposal.ts`), and also gates receiving cash in a
+// Cash_Sale. Trade offers with cash terms are not blocked on payout setup.
 //
 // - Owner authorization is enforced twice over: RLS on the cookie-bound client
 //   (owner_id = auth.uid()) AND the item orchestrator's owner guard.
@@ -990,37 +990,95 @@ export async function searchCatalog(
   };
 }
 
-/** Distinct filter option lists for the catalog filter UI. */
+/**
+ * Catalog page fetch for the mobile infinite-scroll client. Same predicates as
+ * {@link searchCatalog}, plus a serializable watchlist id list for the viewer.
+ */
+export async function fetchCatalogPage(params: SearchCatalogParams): Promise<
+  | ({
+      ok: true;
+      items: CatalogItem[];
+      total: number;
+      page: number;
+      pageSize: number;
+      hasMore: boolean;
+      watchingIds: string[];
+    })
+  | { ok: false; error: ListingActionError; message?: string }
+> {
+  const result = await searchCatalog(params);
+  if (!result.ok) return result;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let watchingIds: string[] = [];
+  if (user && result.items.length > 0) {
+    const { data } = await supabase
+      .from('watchlist')
+      .select('item_id')
+      .eq('user_id', user.id)
+      .in(
+        'item_id',
+        result.items.map((item) => item.id),
+      );
+    watchingIds = (data ?? []).map((row) => row.item_id as string);
+  }
+
+  return {
+    ok: true,
+    items: result.items,
+    total: result.total,
+    page: result.page,
+    pageSize: result.pageSize,
+    hasMore: result.hasMore,
+    watchingIds,
+  };
+}
+
+/** Distinct filter option lists and bounds for the catalog filter UI. */
 export interface CatalogFacets {
   categories: string[];
+  /**
+   * Highest `fmv_cents` in the listable catalog — the ceiling for the price
+   * range control, so its span always covers the inventory it filters. 0 when
+   * nothing is listed.
+   */
+  maxPriceCents: number;
 }
 
 /**
- * Fetch the distinct `category` values among AVAILABLE and SOLD,
- * non-hidden items to populate the filter rail. Dedupe happens in JS — simple
- * and sufficient for MVP scale (a dedicated aggregate/RPC can replace this if
- * the catalog grows large).
+ * Fetch the distinct `category` values and the top price among AVAILABLE and
+ * SOLD, non-hidden items to populate the filter rail. Dedupe and the maximum
+ * are computed in one pass in JS — simple and sufficient for MVP scale (a
+ * dedicated aggregate/RPC can replace this if the catalog grows large).
  */
 export async function getCatalogFacets(): Promise<CatalogFacets> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from('items')
-    .select('category')
+    .select('category, fmv_cents')
     .in('status', ['AVAILABLE', 'SOLD'])
     .eq('hidden', false);
 
   if (error || !data) {
-    return { categories: [] };
+    return { categories: [], maxPriceCents: 0 };
   }
 
   const categories = new Set<string>();
+  let maxPriceCents = 0;
   for (const row of data) {
     const category = row.category as string | null;
     if (category) categories.add(category);
+    const cents = row.fmv_cents as number | null;
+    if (cents != null && cents > maxPriceCents) maxPriceCents = cents;
   }
 
   return {
     categories: Array.from(categories).sort(),
+    maxPriceCents,
   };
 }

@@ -8,11 +8,15 @@ import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSk
 
 export default function DealsLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton hasPrimaryAction>
       <div className="min-w-0 space-y-5">
-        <header className="mb-5 space-y-2 border-b border-border/70 pb-5">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-72 max-w-full" />
+        <header className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </div>
+          {/* SectionHeader's mobileAction — the rail's CTA below `lg`. */}
+          <Skeleton className="h-10 w-full shrink-0 rounded-md sm:w-36 lg:hidden" />
         </header>
         <Skeleton className="h-9 w-56 rounded-md" />
         <div className="overflow-hidden rounded-xl border border-border/70">

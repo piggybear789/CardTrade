@@ -28,7 +28,7 @@ export type ContractStepStatus = 'done' | 'active' | 'blocked' | 'upcoming';
  * - `you`      — the viewer must act.
  * - `them`     — the counterparty must act.
  * - `both`     — either or both sides act; the step completes when both have.
- * - `platform` — Poke-xchange or the payment provider acts; nobody is waiting on
+ * - `platform` — NoDitto or the payment provider acts; nobody is waiting on
  *                a person (payment settling, a dispute under review).
  */
 export type ContractStepOwner = 'you' | 'them' | 'both' | 'platform';

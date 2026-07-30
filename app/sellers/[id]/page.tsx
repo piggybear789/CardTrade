@@ -45,7 +45,7 @@ export async function generateMetadata({
     .eq('id', id)
     .maybeSingle();
   const name = (data?.display_name as string | null) ?? 'Seller';
-  return { title: `${name} · Poke-xchange` };
+  return { title: `${name} · NoDitto` };
 }
 
 export default async function SellerProfilePage({
@@ -158,7 +158,7 @@ export default async function SellerProfilePage({
           <div className="mt-3 rounded-lg border bg-muted/30 p-4">
             <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
               <BadgeCheck className="h-4 w-4" aria-hidden />
-              Pinch merchant verified
+              DittoShield verified through Pinch Payments
             </div>
             <dl className="grid gap-3 sm:grid-cols-2">
               {sellerIdentity.tradingName ? (

@@ -8,6 +8,7 @@ import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
 } from '@supabase/supabase-js';
+import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -65,9 +66,12 @@ export function useCashSaleRealtime(cashSaleId: string) {
 
     const subscribe = () => {
       if (!mounted) return;
-      if (channel) void client.removeChannel(channel);
-      channel = client
-        .channel(`cash-sale:${cashSaleId}`)
+      if (channel) {
+        void client.removeChannel(channel);
+        channel = null;
+      }
+      const nextChannel = client
+        .channel(uniqueRealtimeTopic(`cash-sale:${cashSaleId}`))
         .on(
           'postgres_changes',
           {
@@ -103,21 +107,25 @@ export function useCashSaleRealtime(cashSaleId: string) {
                 : [...current, next],
             );
           },
-        )
-        .subscribe((status) => {
-          if (!mounted) return;
-          if (status === 'SUBSCRIBED') {
-            retries = 0;
-            setConnectionStatus('live');
-            void loadSnapshot();
-          } else if (
-            status === 'CHANNEL_ERROR' ||
-            status === 'TIMED_OUT' ||
-            status === 'CLOSED'
-          ) {
-            reconnect();
-          }
-        });
+        );
+
+      channel = nextChannel;
+      nextChannel.subscribe((status) => {
+        if (!mounted || channel !== nextChannel) return;
+        if (status === 'SUBSCRIBED') {
+          retries = 0;
+          setConnectionStatus('live');
+          void loadSnapshot();
+        } else if (
+          status === 'CHANNEL_ERROR' ||
+          status === 'TIMED_OUT' ||
+          status === 'CLOSED'
+        ) {
+          channel = null;
+          void client.removeChannel(nextChannel);
+          reconnect();
+        }
+      });
     };
 
     setConnectionStatus('connecting');

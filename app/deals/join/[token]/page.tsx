@@ -64,7 +64,7 @@ function roleLabel(role: DealRole | null, creatorName: string): string {
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Join a deal · Poke-xchange',
+  title: 'Join a deal · NoDitto',
   description: 'Join a private 1:1 binding deal you were sent a link to.',
 };
 
@@ -115,7 +115,7 @@ export default async function JoinDealPage({
     redirect(`/deals/${preview.dealId}`);
   }
 
-  const creatorName = preview.creatorName?.trim() || 'A Poke-xchange member';
+  const creatorName = preview.creatorName?.trim() || 'A NoDitto member';
 
   return (
     <PageShell centered>
@@ -252,7 +252,7 @@ export default async function JoinDealPage({
             <span>
               Joining doesn&apos;t commit you. You agree the handover together
               first, and the deal only becomes binding once you both confirm. If
-              either of you isn&apos;t identity verified by then, both sides are
+              either of you isn&apos;t DittoShield verified by then, both sides are
               held for the deal&apos;s value until you both mark it complete —
               verified members post nothing.
             </span>

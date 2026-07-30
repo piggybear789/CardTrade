@@ -5,20 +5,20 @@
 // catalog querying. Prices remain readable dollars in the URL and integer cents
 // at the action boundary.
 
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   BadgeCheck,
   Check,
   ChevronRight,
-  CircleDollarSign,
+  Plus,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
 
+import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import type { CatalogSort } from '@/lib/actions/listings';
 
@@ -41,6 +42,29 @@ const AUD_FORMATTER = new Intl.NumberFormat('en-AU', {
   currency: 'AUD',
   maximumFractionDigits: 2,
 });
+
+/**
+ * Whole dollars for the price slider readout. Exact rather than rounded: the
+ * slider's step is always a whole number of dollars, so every reachable value
+ * lands on one.
+ */
+const AUD_WHOLE_FORMATTER = new Intl.NumberFormat('en-AU', {
+  style: 'currency',
+  currency: 'AUD',
+  maximumFractionDigits: 0,
+});
+
+/** Price ceiling used when nothing is listed yet, so the slider still spans. */
+const FALLBACK_CEILING_CENTS = 100_000;
+
+/** Price slider stops below $10, where the bulk of listings sit. */
+const LOW_PRICE_STOPS_CENTS = [0, 200, 500];
+
+/**
+ * Repeated for every decade from $10 up to the ceiling. Every multiplier lands
+ * on a whole number of dollars at each decade, so no stop needs cents.
+ */
+const PRICE_DECADE_MULTIPLIERS = [1, 1.5, 2, 3, 4, 5, 7.5];
 
 /** Current URL-backed catalog filter values. */
 export interface CatalogFilterState {
@@ -88,18 +112,47 @@ function useCatalogNav() {
 }
 
 export interface CatalogFiltersProps {
-  facets: { categories: string[] };
+  facets: { categories: string[]; maxPriceCents: number };
   current: CatalogFilterState;
+  /** Mobile Sell button target; omitted when the page keeps Sell elsewhere. */
+  mobileSellHref?: string;
 }
 /** Marketplace navigation and filter rail, collapsed into a disclosure on mobile. */
-export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
+export function CatalogFilters({
+  facets,
+  current,
+  mobileSellHref = '/listings/new',
+}: CatalogFiltersProps) {
   const { isPending, pushWith, reset } = useCatalogNav();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [minPrice, setMinPrice] = useState(current.min);
-  const [maxPrice, setMaxPrice] = useState(current.max);
 
-  useEffect(() => setMinPrice(current.min), [current.min]);
-  useEffect(() => setMaxPrice(current.max), [current.max]);
+  // Rounding the ceiling up to a legible figure keeps the track's top end
+  // stable as inventory comes and goes, rather than shifting on every new
+  // high-value listing.
+  const ceilingCents = niceCeilingCents(facets.maxPriceCents);
+  const priceLadder = useMemo(
+    () => buildPriceLadderCents(ceilingCents),
+    [ceilingCents],
+  );
+  const topStop = priceLadder.length - 1;
+
+  // The slider moves between ladder positions, not dollars, so each step is
+  // proportionate to the price it lands on. The URL still carries plain dollars.
+  const urlMinStop = current.min
+    ? nearestPriceStop(priceLadder, Number(current.min) * 100)
+    : 0;
+  const urlMaxStop = current.max
+    ? nearestPriceStop(priceLadder, Number(current.max) * 100)
+    : topStop;
+
+  // The URL owns the committed range; this holds the in-flight drag so the
+  // readout tracks the thumbs without a server round trip per pixel.
+  const [priceStops, setPriceStops] = useState<[number, number]>([
+    urlMinStop,
+    urlMaxStop,
+  ]);
+
+  useEffect(() => setPriceStops([urlMinStop, urlMaxStop]), [urlMinStop, urlMaxStop]);
 
   const hasActiveFilters =
     current.q !== '' ||
@@ -109,6 +162,13 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
     current.verifiedOnly ||
     current.includeSold;
 
+  // Search has its own field on mobile — the Filters badge counts refine-only.
+  const refineCount =
+    current.categories.length +
+    Number(Boolean(current.min || current.max)) +
+    Number(current.verifiedOnly) +
+    Number(current.includeSold);
+
   function toggleCategory(category: string) {
     const next = current.categories.includes(category)
       ? current.categories.filter((value) => value !== category)
@@ -116,16 +176,17 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
     pushWith({ category: next });
   }
 
-  function commitPrices(nextMin: string, nextMax: string) {
+  function commitPrices([minStop, maxStop]: [number, number]) {
     pushWith({
-      min: sanitizeDollars(nextMin),
-      max: sanitizeDollars(nextMax),
+      min: minStop > 0 ? dollarsParam(priceLadder[minStop]) : null,
+      // A thumb parked at the top means "no upper limit", not "at most the
+      // ceiling" — sending it would drop the very items it was rounded past.
+      max: maxStop < topStop ? dollarsParam(priceLadder[maxStop]) : null,
     });
   }
 
   function clearFilters() {
-    setMinPrice('');
-    setMaxPrice('');
+    setPriceStops([0, topStop]);
     reset();
   }
 
@@ -143,37 +204,49 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
       )}
       aria-busy={isPending}
     >
-      <div className="flex items-center justify-between py-4 lg:hidden">
-        <Button
-          variant="outline"
-          onClick={() => setFiltersOpen((open) => !open)}
-          aria-expanded={filtersOpen}
-          aria-controls="catalog-filter-panel"
-        >
-          <SlidersHorizontal aria-hidden="true" />
-          Filters
-          {hasActiveFilters ? (
-            <span className="flex size-5 items-center justify-center rounded-full border border-gold/40 bg-gold/20 text-[0.6875rem] font-semibold text-foreground">
-              {current.categories.length +
-                Number(Boolean(current.min || current.max)) +
-                Number(Boolean(current.q)) +
-                Number(current.verifiedOnly) +
-                Number(current.includeSold)}
-            </span>
-          ) : null}
-        </Button>
-        {hasActiveFilters ? (
-          <Button variant="ghost" onClick={clearFilters} disabled={isPending}>
-            Clear All
+      <div className="flex flex-col gap-2 py-3 lg:hidden">
+        <HeaderSearch />
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            asChild
+            className="border border-white/15 bg-obsidian font-semibold text-parchment shadow-sm hover:border-white/25 hover:bg-obsidian/80"
+          >
+            <Link href={mobileSellHref}>
+              <Plus aria-hidden="true" className="text-gold" />
+              Sell
+            </Link>
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-controls="catalog-filter-panel"
+          >
+            Filters
+            {refineCount > 0 ? (
+              <span className="flex size-5 items-center justify-center rounded-full border border-gold/40 bg-gold/20 text-[0.6875rem] font-semibold text-foreground">
+                {refineCount}
+              </span>
+            ) : null}
+          </Button>
+        </div>
+        {hasActiveFilters ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            disabled={isPending}
+            className="self-start rounded-sm text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            Clear all
+          </button>
         ) : null}
       </div>
 
       <div
         id="catalog-filter-panel"
         className={cn(
-          'mb-5 space-y-5 rounded-xl border border-border/70 bg-card p-4 shadow-market lg:mb-0 lg:mt-4 lg:block lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t lg:bg-transparent lg:px-0 lg:pb-1 lg:pt-4 lg:shadow-none',
-          filtersOpen ? 'block' : 'hidden',
+          'space-y-5 rounded-xl border border-border/70 bg-card p-4 shadow-market lg:mt-4 lg:block lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t lg:bg-transparent lg:px-0 lg:pb-1 lg:pt-4 lg:shadow-none',
+          filtersOpen ? 'mb-3 block' : 'hidden',
         )}
       >
         <div className="flex items-center justify-between">
@@ -229,47 +302,35 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
         ) : null}
 
         <div className="border-t border-border/70 pt-5">
-          <p className="market-label mb-2 text-muted-foreground">Price in AUD</p>
-          <div className="flex items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <CircleDollarSign className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Label htmlFor="min-price" className="sr-only">Minimum Price</Label>
-              <Input
-                id="min-price"
-                name="min-price"
-                type="number"
-                inputMode="decimal"
-                autoComplete="off"
-                min="0"
-                placeholder="Min…"
-                value={minPrice}
-                onChange={(event) => setMinPrice(event.target.value)}
-                onBlur={() => commitPrices(minPrice, maxPrice)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') commitPrices(minPrice, maxPrice);
-                }}
-                className="pl-8"
-              />
-            </div>
-            <span className="text-muted-foreground" aria-hidden="true">–</span>
-            <div className="relative min-w-0 flex-1">
-              <Label htmlFor="max-price" className="sr-only">Maximum Price</Label>
-              <Input
-                id="max-price"
-                name="max-price"
-                type="number"
-                inputMode="decimal"
-                autoComplete="off"
-                min="0"
-                placeholder="Max…"
-                value={maxPrice}
-                onChange={(event) => setMaxPrice(event.target.value)}
-                onBlur={() => commitPrices(minPrice, maxPrice)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') commitPrices(minPrice, maxPrice);
-                }}
-              />
-            </div>
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <p className="market-label text-muted-foreground">Price in AUD</p>
+            {/* Tabular figures so the readout does not jitter mid-drag. */}
+            <p className="text-xs font-semibold tabular-nums">
+              {priceRangeLabel(priceLadder, priceStops, topStop)}
+            </p>
+          </div>
+          <Slider
+            value={priceStops}
+            onValueChange={(next) => setPriceStops([next[0], next[1]])}
+            // Commit on release, not on change: every drag step would otherwise
+            // be its own navigation and re-query.
+            onValueCommit={(next) => commitPrices([next[0], next[1]])}
+            min={0}
+            max={topStop}
+            step={1}
+            minStepsBetweenThumbs={1}
+            thumbLabels={['Minimum price', 'Maximum price']}
+            // Thumbs carry a ladder position; announce the price it stands for.
+            thumbValueText={(stop) => priceStopLabel(priceLadder, stop, topStop)}
+            // Room for the thumbs' focus rings, which sit outside the track.
+            className="px-0.5 py-2"
+          />
+          <div
+            className="mt-1 flex justify-between text-[0.6875rem] text-muted-foreground tabular-nums"
+            aria-hidden="true"
+          >
+            <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
+            <span>{AUD_WHOLE_FORMATTER.format(ceilingCents / 100)}+</span>
           </div>
         </div>
 
@@ -295,7 +356,7 @@ export function CatalogFilters({ facets, current }: CatalogFiltersProps) {
               )}
             </span>
             <span className="flex min-w-0 flex-1 items-center gap-1.5">
-              Verified sellers only
+              DittoShield sellers only
               <BadgeCheck className="size-3.5 text-gold" aria-hidden="true" />
             </span>
           </button>
@@ -351,7 +412,7 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
       : `Up to ${AUD_FORMATTER.format(Number(current.max))}`;
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
+    <div className="mt-2 flex flex-wrap items-center gap-2 sm:mt-4" aria-label="Active filters">
       {current.q ? (
         <FilterChip label={`“${current.q}”`} onRemove={() => pushWith({ q: null })} disabled={isPending} />
       ) : null}
@@ -374,7 +435,7 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
       ) : null}
       {current.verifiedOnly ? (
         <FilterChip
-          label="Verified sellers only"
+          label="DittoShield sellers only"
           onRemove={() => pushWith({ verified: null })}
           disabled={isPending}
         />
@@ -445,11 +506,78 @@ export function CatalogSortControl({ current }: { current: CatalogSort }) {
   );
 }
 
-/** Normalize a dollar input to a clean URL value. */
-function sanitizeDollars(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed === '') return null;
-  const number = Number(trimmed);
-  if (!Number.isFinite(number) || number < 0) return null;
-  return String(number);
+/** Cents to the readable dollar string the catalog URL carries. */
+function dollarsParam(cents: number): string {
+  return String(Math.round(cents) / 100);
+}
+
+/**
+ * Round a cents figure up to the next 1, 2, or 5 × 10ⁿ. Used for the slider's
+ * top end so the track reads in round numbers and only moves when inventory
+ * crosses an order of magnitude, rather than on every new high-value listing.
+ */
+function niceCeilingCents(cents: number): number {
+  if (!Number.isFinite(cents) || cents <= 0) return FALLBACK_CEILING_CENTS;
+  const magnitude = 10 ** Math.floor(Math.log10(cents));
+  for (const multiple of [1, 2, 5]) {
+    const candidate = multiple * magnitude;
+    if (candidate >= cents) return candidate;
+  }
+  return 10 * magnitude;
+}
+
+/**
+ * The prices the range slider can land on, a handful per order of magnitude
+ * rather than one uniform step. A catalog spanning a few dollars to a few
+ * thousand leaves a linear track no good option: a step fine enough for cheap
+ * cards takes hundreds of key presses to cross, and one coarse enough to cross
+ * is wider than most listings are worth. Stepping by magnitude keeps the low
+ * end precise and the top end reachable.
+ */
+function buildPriceLadderCents(ceilingCents: number): number[] {
+  const stops = LOW_PRICE_STOPS_CENTS.filter((cents) => cents < ceilingCents);
+  for (let decadeCents = 1000; decadeCents < ceilingCents; decadeCents *= 10) {
+    for (const multiplier of PRICE_DECADE_MULTIPLIERS) {
+      const cents = multiplier * decadeCents;
+      if (cents < ceilingCents) stops.push(cents);
+    }
+  }
+  stops.push(ceilingCents);
+  return stops;
+}
+
+/**
+ * Ladder position closest to a price, for seeding the thumbs from the URL.
+ * Hand-written URLs can name any amount; the thumb takes the nearest stop.
+ */
+function nearestPriceStop(ladder: number[], cents: number): number {
+  let nearest = 0;
+  let smallestGap = Infinity;
+  for (let stop = 0; stop < ladder.length; stop += 1) {
+    const gap = Math.abs(ladder[stop] - cents);
+    if (gap < smallestGap) {
+      nearest = stop;
+      smallestGap = gap;
+    }
+  }
+  return nearest;
+}
+
+/** The price a single thumb stands for, spoken form included. */
+function priceStopLabel(ladder: number[], stop: number, topStop: number): string {
+  const price = AUD_WHOLE_FORMATTER.format(ladder[stop] / 100);
+  return stop >= topStop ? `${price} or more` : price;
+}
+
+/** Plain-language summary of the selected range for the rail readout. */
+function priceRangeLabel(
+  ladder: number[],
+  [minStop, maxStop]: [number, number],
+  topStop: number,
+): string {
+  const openEnded = maxStop >= topStop;
+  if (minStop <= 0 && openEnded) return 'Any price';
+  const from = AUD_WHOLE_FORMATTER.format(ladder[minStop] / 100);
+  if (openEnded) return `${from}+`;
+  return `${from} – ${AUD_WHOLE_FORMATTER.format(ladder[maxStop] / 100)}`;
 }

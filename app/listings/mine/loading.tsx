@@ -10,13 +10,15 @@ import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSk
 
 export default function MyListingsLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton hasPrimaryAction>
       <div className="min-w-0">
         <header className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0 space-y-2">
             <Skeleton className="h-8 w-40" />
             <Skeleton className="h-4 w-64" />
           </div>
+          {/* SectionHeader's mobileAction — the rail's CTA below `lg`. */}
+          <Skeleton className="h-10 w-full shrink-0 rounded-md sm:w-36 lg:hidden" />
         </header>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

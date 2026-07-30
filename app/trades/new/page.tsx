@@ -2,10 +2,10 @@
 //
 // Offer a 2-Way Trade on one specific listing.
 //
-// Discovery happens in the catalog, not here: this page is reached from a
-// listing's "Propose Trade" action, which supplies `?counterpartItemId=`.
-// Without it there is nothing to offer against, so the page says so and sends
-// you browsing rather than presenting a dropdown of every item on the platform.
+// Discovery happens in the catalog. The listing page opens Propose Trade as a
+// dialog; this route remains for shared links and inbox counter-offers
+// (`?counterpartItemId=` / `?counter=`). Without a target listing the page
+// sends you browsing rather than presenting every item on the platform.
 //
 // Trading has no verification gate (Req 2.4, revised): any authenticated user
 // may offer a Trade. Verification only decides whether a Bond is required
@@ -26,12 +26,15 @@ import {
 } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TradeOfferForm } from '@/components/trade/TradeOfferForm';
-import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import {
+  MarketplaceShell,
+  RailPrimaryAction,
+} from '@/components/layout/MarketplaceShell';
 import { createClient } from '@/lib/supabase/server';
 import type { ItemRow } from '@/lib/actions/listings';
 
 export const metadata = {
-  title: 'Offer a trade · Poke-xchange',
+  title: 'Offer a trade · NoDitto',
   description: 'Offer goods, cash, or both in exchange for a listing.',
 };
 
@@ -48,7 +51,16 @@ function Shell({
   center?: boolean;
 }) {
   return (
-    <MarketplaceShell title="Offer a Trade" center={center}>
+    <MarketplaceShell
+      title="Offer a Trade"
+      center={center}
+      primaryAction={
+        // No plus: browsing the marketplace creates nothing.
+        <RailPrimaryAction href="/listings" glyph={null}>
+          Browse Marketplace
+        </RailPrimaryAction>
+      }
+    >
       {children}
     </MarketplaceShell>
   );

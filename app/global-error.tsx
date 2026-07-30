@@ -46,7 +46,7 @@ export default function GlobalError({
               color: '#c99a3b',
             }}
           >
-            Poke-xchange
+            NoDitto
           </p>
           <h1
             style={{

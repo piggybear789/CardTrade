@@ -57,7 +57,7 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
             // The card is stored server-side, so confirm it and re-render the
             // page that shows it. Without this the dialog just closed and the
             // save looked like it had not happened.
-            toast.success('Payment method saved.');
+            toast.success('Payment method saved with Pinch Payments.');
             router.refresh();
             onAttached?.();
           }}

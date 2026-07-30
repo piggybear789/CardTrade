@@ -4,12 +4,11 @@
 //
 // The two parties as one line inside the header: `You ⇄ Ada Lovelace ✓ 4.8`.
 //
-// Earlier versions of this room gave each participant a full card — verification line,
-// a table of reputation figures, and a consent tick — which was ~330px of chrome to say
-// two names. The figures still exist, one click away behind "Details"; the consent tick
-// is gone entirely because `ContractActionCard` states in words whose move it is.
+// Header stays as a compact name line. Reputation figures live inside each exchange
+// side card (`ContractPartyStats`). Optional `showDetails` still expands full cards
+// where a room wants them (e.g. cash-sale parties tab uses `ContractPartyDetails`).
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ChevronDown, ShieldCheck, Star, UserPlus } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -30,7 +29,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
         aria-hidden
       />
       <span className="sr-only">
-        {party.verified ? 'Identity verified' : 'Identity not verified'}
+        {party.verified ? 'DittoShield verified' : 'DittoShield not verified'}
       </span>
       {party.rating === null ? null : (
         <span className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
@@ -39,6 +38,98 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
         </span>
       )}
     </span>
+  );
+}
+
+/** Short noun for a party stat label, for the compact meta line. */
+function shortStatNoun(label: ReactNode): string {
+  if (typeof label !== 'string') return '';
+  const lower = label.toLowerCase();
+  if (lower.includes('purchase')) return 'buys';
+  if (lower.includes('sale')) return 'sales';
+  if (lower.includes('collateral') || lower.includes('stake')) return 'stake';
+  if (lower.includes('value')) return 'value';
+  return lower.replace(/\s+completed$/i, '').trim();
+}
+
+/** Compact trust line — verified · rating · sales · buys — for exchange side cards. */
+export function ContractPartyStats({
+  party,
+  className,
+  /** Soft bordered chip beside a party name. */
+  framed = false,
+}: {
+  party: ContractParty;
+  className?: string;
+  framed?: boolean;
+}) {
+  const bits: ReactNode[] = [
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 font-medium',
+        party.verified ? 'text-trust' : 'text-gold',
+      )}
+    >
+      <ShieldCheck className="size-3 shrink-0" aria-hidden />
+      {party.verified ? 'DittoShield verified' : 'Unverified'}
+    </span>,
+    party.rating === null ? (
+      <span className="text-muted-foreground">New</span>
+    ) : (
+      <span className="inline-flex items-center gap-1">
+        <Star className="size-3 fill-gold text-gold" aria-hidden />
+        <span className="font-medium tabular-nums">
+          {Number(party.rating).toFixed(1)}
+        </span>
+        <span className="text-muted-foreground">({party.ratingCount})</span>
+      </span>
+    ),
+  ];
+
+  for (const stat of party.stats ?? []) {
+    if (stat.muted) continue;
+    const noun = shortStatNoun(stat.label);
+    bits.push(
+      <span className="inline-flex min-w-0 items-baseline gap-1 text-muted-foreground">
+        <span className="truncate font-medium tabular-nums text-foreground">
+          {stat.value}
+        </span>
+        {noun ? <span className="shrink-0">{noun}</span> : null}
+      </span>,
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        'space-y-1',
+        framed &&
+          'rounded-lg border border-border/70 bg-muted/35 px-2.5 py-1.5 shadow-sm',
+        className,
+      )}
+    >
+      <p
+        aria-label="Reputation summary"
+        className={cn(
+          'flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-snug',
+          framed && 'justify-end sm:max-w-[14rem]',
+        )}
+      >
+        {bits.map((bit, idx) => (
+          <span key={idx} className="inline-flex items-center">
+            {bit}
+          </span>
+        ))}
+      </p>
+      {party.legalEntityName ? (
+        <p className="truncate text-[11px] text-muted-foreground">
+          <span className="font-medium text-foreground">{party.legalEntityName}</span>
+          {party.registrationNumber ? (
+            <span> · {party.registrationNumber}</span>
+          ) : null}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -63,67 +154,9 @@ function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
             {isMe ? party.name : (party.roleLabel ?? 'Counterparty')}
           </p>
         </div>
-        <div
-          className={cn(
-            'flex shrink-0 items-center gap-1 text-xs font-medium',
-            party.verified ? 'text-trust' : 'text-gold',
-          )}
-        >
-          <ShieldCheck className="size-3.5" aria-hidden />
-          {party.verified ? 'KYC verified' : 'Not verified'}
-        </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 text-xs">
-        <div className="min-w-0 border-l-2 border-border pl-2.5">
-          <dt className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-            Feedback
-          </dt>
-          <dd className="mt-0.5 flex items-center gap-1 font-medium">
-            {party.rating === null ? (
-              'No reviews yet'
-            ) : (
-              <>
-                <Star className="size-3 fill-gold text-gold" aria-hidden />
-                {Number(party.rating).toFixed(1)}
-                <span className="font-normal text-muted-foreground">
-                  ({party.ratingCount})
-                </span>
-              </>
-            )}
-          </dd>
-        </div>
-        {(party.stats ?? []).map((stat, idx) => (
-          <div key={idx} className="min-w-0 border-l-2 border-border pl-2.5">
-            <dt className="truncate text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-              {stat.label}
-            </dt>
-            <dd
-              className={cn(
-                'mt-0.5 truncate',
-                stat.muted ? 'text-muted-foreground' : 'font-medium tabular-nums',
-              )}
-            >
-              {stat.value}
-            </dd>
-          </div>
-        ))}
-        {party.legalEntityName ? (
-          <div className="col-span-2 border-t border-border/70 pt-3">
-            <dt className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-              Legal seller
-            </dt>
-            <dd className="mt-0.5 min-w-0 font-medium">
-              <span className="block truncate">{party.legalEntityName}</span>
-              {party.registrationNumber ? (
-                <span className="block font-normal text-muted-foreground">
-                  {party.registrationNumber}
-                </span>
-              ) : null}
-            </dd>
-          </div>
-        ) : null}
-      </dl>
+      <ContractPartyStats party={party} className="pt-3" />
     </section>
   );
 }
@@ -166,7 +199,7 @@ export interface ContractPartyLineProps {
 export function ContractPartyLine({
   me,
   them,
-  showDetails = true,
+  showDetails = false,
   separator = '⇄',
   className,
 }: ContractPartyLineProps) {

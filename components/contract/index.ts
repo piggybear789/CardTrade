@@ -6,7 +6,7 @@
 // The room says each fact ONCE, in one place:
 //
 //   ContractHeader          what this is · what it is worth · who · what state
-//     └ ContractPartyLine   both parties on one line, figures behind a disclosure
+//     └ ContractPartyLine   both parties on one line (optional details disclosure)
 //   ContractLiveRow         one live surface for action, conversation, and progress
 //     ├ ContractActionCard  what happens NOW, and the only control for it
 //     └ ContractProgressRail where we are in the lifecycle — ticks, no prose
@@ -38,7 +38,11 @@ export { ContractHoldList } from './ContractHoldList';
 export { ContractImageLightbox, ContractThumbnails } from './ContractImageLightbox';
 export { ContractLiveRow } from './ContractLiveRow';
 export { ContractMoneyTable } from './ContractMoneyTable';
-export { ContractPartyDetails, ContractPartyLine } from './ContractPartyLine';
+export {
+  ContractPartyDetails,
+  ContractPartyLine,
+  ContractPartyStats,
+} from './ContractPartyLine';
 export { ContractProgressRail } from './ContractProgressRail';
 export { ContractStatusBadge } from './ContractStatusBadge';
 export { ContractTimeline } from './ContractTimeline';

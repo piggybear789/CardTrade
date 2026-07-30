@@ -134,7 +134,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
         <div className="min-w-0 space-y-0.5 text-sm leading-snug">
           <p className="font-medium text-foreground">
-            Encrypted card entry — secured by Pinch
+            Encrypted card entry — secured by Pinch Payments
           </p>
           <p className="text-muted-foreground">
             Your card number is tokenised in the browser. We never store the
@@ -268,7 +268,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
         ) : (
           <>
             <Lock className="size-3.5" aria-hidden />
-            Save card securely
+            Save with Pinch Payments
           </>
         )}
       </Button>
@@ -285,7 +285,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
           >
             Pinch Payments
           </a>
-          . Card data is not stored on Poke-xchange.
+          . Card data is not stored on NoDitto.
         </span>
       </p>
     </form>

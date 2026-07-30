@@ -9,7 +9,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getMyPurchases } from '@/lib/actions/account';
 import { CashSalesSection } from '@/components/account/CashSalesSection';
-import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import {
+  MarketplaceShell,
+  RailPrimaryAction,
+} from '@/components/layout/MarketplaceShell';
 import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHeader';
 import {
   SectionFilter,
@@ -22,7 +25,7 @@ import { isCashSalePast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Purchases · Poke-xchange',
+  title: 'Purchases · NoDitto',
   description: 'Contracts where you are the buyer.',
 };
 
@@ -46,11 +49,20 @@ export default async function PurchasesPage({
     isCashSalePast(sale.status),
   );
 
+  // One node, two homes: the rail on desktop, the section heading below `lg`.
+  // No plus: browsing the marketplace creates nothing.
+  const primaryAction = (
+    <RailPrimaryAction href="/listings" glyph={null}>
+      Browse Marketplace
+    </RailPrimaryAction>
+  );
+
   return (
-    <MarketplaceShell title="Purchases">
+    <MarketplaceShell title="Purchases" primaryAction={primaryAction}>
       <SectionHeader
         title="Purchases"
-        description="Items you are buying. Open a contract to agree terms, pay, and confirm handover."
+        description="Items you are buying. Open a contract to agree terms, pay through Pinch Payments, and confirm handover."
+        mobileAction={primaryAction}
       />
       <SectionFilter
         scope={scope}

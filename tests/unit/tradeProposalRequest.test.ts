@@ -13,6 +13,7 @@ import {
   declineTradeProposal,
   requestTradeProposal,
   withdrawTradeProposal,
+  EMPTY_PROPOSAL_HANDOVER,
   type CreateProposalParams,
   type ProposalItemRecord,
   type TradeProposalRecord,
@@ -74,6 +75,7 @@ function fakeRepository(seed: {
         status: 'PENDING',
         message: params.message,
         tradeId: null,
+        handover: params.handover ?? EMPTY_PROPOSAL_HANDOVER,
       };
       proposals.set(record.id, record);
       return record;
@@ -95,6 +97,7 @@ function fakeRepository(seed: {
         cashDirection: params.cashDirection,
         declaredValueCents: params.declaredValueCents,
         message: params.message,
+        handover: params.handover,
       };
       proposals.set(params.proposalId, next);
       return next;
@@ -123,6 +126,16 @@ function validOffer(): CreateProposalParams {
     proposerItemId: 'item-a',
     counterpartItemId: 'item-b',
     message: null,
+    handover: {
+      handoverMethod: 'DELIVERY',
+      meetingLocation: null,
+      meetingLat: null,
+      meetingLng: null,
+      meetingPlaceId: null,
+      meetingAt: null,
+      deliveryDetails: 'Delivered — free delivery.',
+      deliveryCostCents: 0,
+    },
   };
 }
 

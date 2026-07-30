@@ -32,9 +32,18 @@ function NavGroupSkeleton() {
 export function MarketplaceShellSkeleton({
   /** Extra rail content rendered directly below the nav skeleton (e.g. catalog filters). */
   filters,
+  /**
+   * Match whether the route passes `MarketplaceShell.primaryAction`. Sections
+   * without one must not reserve the button's space in the rail, or the rail
+   * jumps by a button's height when the real shell swaps in. Below `lg` the
+   * action lives in the page's own section header, so its placeholder belongs
+   * in the route's `loading.tsx`, not here.
+   */
+  hasPrimaryAction = false,
   children,
 }: {
   filters?: ReactNode;
+  hasPrimaryAction?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -46,38 +55,51 @@ export function MarketplaceShellSkeleton({
     >
       <span className="sr-only">Loading…</span>
 
-      {/* Mobile header — matches MarketplaceShell's title block. */}
-      <div className="flex w-full flex-wrap items-end justify-between gap-x-4 gap-y-3 px-4 pt-5 sm:px-6 lg:hidden">
-        <div className="min-w-0 space-y-2">
-          <Skeleton className="h-3 w-28" />
-          <Skeleton className="h-9 w-44" />
-        </div>
-        <Skeleton className="h-10 w-36 shrink-0 rounded-md" />
-      </div>
-
+      {/* No mobile header: the real shell prints none either — below `lg` the
+          page's own section header is the top of the page. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch lg:flex-row">
-        {/* Rail — same proportional width/min/max as the real aside. */}
+        {/* Rail — same proportional width/min/max as the real aside, and like it
+            desktop-only: below `lg` filters live in the content column. */}
         <aside className="hidden w-full min-w-0 px-4 sm:px-6 lg:block lg:w-1/5 lg:min-w-[13.5rem] lg:max-w-[19rem] lg:shrink-0 lg:self-stretch lg:border-r lg:border-border/80 lg:bg-card/90 lg:px-5">
           <div className="flex flex-col gap-6 py-7">
-            <div className="space-y-2">
+            <div className="hidden space-y-2 lg:block">
               <Skeleton className="h-3 w-28" />
               <Skeleton className="h-9 w-40" />
-              <Skeleton className="mt-4 h-10 w-full rounded-md" />
+              {hasPrimaryAction ? (
+                <Skeleton className="mt-4 h-10 w-full rounded-md" />
+              ) : null}
             </div>
 
-            <NavGroupSkeleton />
+            <div className="hidden lg:block">
+              <NavGroupSkeleton />
+            </div>
 
-            {filters}
+            <div className="hidden lg:block">{filters}</div>
 
-            <div className="mt-auto">
+            <div className="mt-auto hidden lg:block">
               <Skeleton className="h-[4.5rem] w-full rounded-lg" />
             </div>
           </div>
         </aside>
 
-        <section className="flex w-full min-w-0 flex-1 flex-col items-center px-4 pb-10 pt-5 sm:px-6 lg:w-auto lg:px-7 lg:py-7 xl:px-8">
-          <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
+        <section className="flex w-full min-w-0 flex-1 flex-col items-center px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:w-auto lg:px-7 lg:pb-10 lg:py-7 xl:px-8">
+          <div className="flex min-h-0 w-full flex-1 flex-col">
+            {filters ? <div className="min-w-0 lg:hidden">{filters}</div> : null}
+            {children}
+          </div>
         </section>
+      </div>
+
+      {/* Fixed hub bar placeholder — matches MobileBottomNav geometry. */}
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        aria-hidden="true"
+      >
+        <div className="mx-auto grid h-14 max-w-lg grid-cols-5 gap-1 px-2">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} className="mx-auto mt-2 size-9 rounded-md" />
+          ))}
+        </div>
       </div>
     </div>
   );

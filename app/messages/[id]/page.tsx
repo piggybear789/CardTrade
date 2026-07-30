@@ -20,8 +20,8 @@ import { ChatThread } from '@/components/messages/ChatThread';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Conversation · Poke-xchange',
-  description: 'Your conversation with another Poke-xchange member.',
+  title: 'Conversation · NoDitto',
+  description: 'Your conversation with another NoDitto member.',
 };
 
 export default async function ConversationPage({

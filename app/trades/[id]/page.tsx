@@ -23,13 +23,15 @@ import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
 import { isPaymentDemoEnabled } from '@/domain/services';
+import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
+import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { TradeViewerRole } from '@/domain/state-machine/types';
 
 // Reads the authenticated user's session, so it must render dynamically.
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Trade contract · Poke-xchange',
+  title: 'Trade contract · NoDitto',
   description: 'Live escrow status and actions for a 2-way trade.',
 };
 
@@ -86,7 +88,7 @@ export default async function TradePage({
   const partyFor = (id: string) => {
     const row = partyById.get(id);
     return {
-      name: (row?.display_name as string | null)?.trim() || 'Poke-xchange member',
+      name: (row?.display_name as string | null)?.trim() || 'NoDitto member',
       verified: Boolean(row?.is_verified),
       rating: row?.rating == null ? null : Number(row.rating),
       ratingCount: (row?.rating_count as number | null) ?? 0,
@@ -156,6 +158,20 @@ export default async function TradePage({
           : ('incoming' as const),
   };
 
+  // Cash may be agreed before the receiver can take payouts — surface that in
+  // the contract room so settlement is an explicit later step, not a surprise.
+  let cashReceiverPayoutReady = true;
+  if (goods.cashAmountCents > 0) {
+    const cashReceiverId =
+      (trade.cash_direction as string) === 'COUNTERPART_PAYS'
+        ? (trade.initiator_id as string)
+        : (trade.counterpart_id as string);
+    const receiver = await createSupabaseMerchantRepository().loadMerchant(
+      cashReceiverId,
+    );
+    cashReceiverPayoutReady = canReceiveFunds(receiver);
+  }
+
   // Post-transaction review affordance: once the trade is COMPLETED, either
   // participant may review the other trader (unless already reviewed).
   let reviewSection: React.ReactNode = null;
@@ -209,6 +225,7 @@ export default async function TradePage({
         viewerRole={viewerRole}
         goods={goods}
         participants={participants}
+        cashReceiverPayoutReady={cashReceiverPayoutReady}
         demoPanel={
           isPaymentDemoEnabled() ? <DemoPanel tradeId={trade.id} /> : null
         }

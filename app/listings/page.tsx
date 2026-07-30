@@ -3,7 +3,6 @@ import {
   ChevronLeft,
   ChevronRight,
   PackageOpen,
-  Plus,
   Search,
 } from 'lucide-react';
 
@@ -19,10 +18,13 @@ import {
   CatalogFilters,
   CatalogSortControl,
 } from '@/components/listings/CatalogControls';
-import { ItemCard } from '@/components/listings/ItemCard';
+import { CatalogInfiniteGrid } from '@/components/listings/CatalogInfiniteGrid';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import {
+  MarketplaceShell,
+  RailPrimaryAction,
+} from '@/components/layout/MarketplaceShell';
 import { SectionLoadError } from '@/components/layout/SectionHeader';
 
 // Always render fresh — the catalog reflects live availability + URL filters
@@ -30,7 +32,7 @@ import { SectionLoadError } from '@/components/layout/SectionHeader';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Marketplace · Poke-xchange',
+  title: 'Marketplace · NoDitto',
   description: 'Browse available collectibles for sale or trade.',
 };
 
@@ -90,6 +92,7 @@ function buildPageHref(raw: RawSearchParams, page: number): string {
 /**
  * Server-rendered browse surface for the AVAILABLE catalog (Req 3.8, Phase 7).
  * Filtering remains URL-driven and database-backed; only the controls hydrate.
+ * Mobile appends pages via infinite scroll; desktop keeps page links.
  */
 export default async function ListingsPage({
   searchParams,
@@ -107,13 +110,15 @@ export default async function ListingsPage({
   const sort: CatalogSort = SORT_KEYS.includes(sortRaw) ? sortRaw : 'newest';
   const pageRaw = Number(firstString(raw.page));
   const page = Number.isFinite(pageRaw) && pageRaw > 1 ? Math.trunc(pageRaw) : 1;
+  const minCents = dollarsToCents(minDollars);
+  const maxCents = dollarsToCents(maxDollars);
 
   const [result, facets] = await Promise.all([
     searchCatalog({
       q,
       categories,
-      minCents: dollarsToCents(minDollars),
-      maxCents: dollarsToCents(maxDollars),
+      minCents,
+      maxCents,
       verifiedOnly,
       includeSold,
       sort,
@@ -155,19 +160,22 @@ export default async function ListingsPage({
       ? categories[0]
       : 'Today’s picks';
 
+  const gridKey = [
+    q,
+    categories.join('\0'),
+    minDollars,
+    maxDollars,
+    verifiedOnly ? '1' : '0',
+    includeSold ? '1' : '0',
+    sort,
+    String(currentPage),
+  ].join('|');
+
   return (
     <MarketplaceShell
       title="Marketplace"
       primaryAction={
-        <Button
-          asChild
-          className="w-full border border-white/15 bg-obsidian text-parchment font-semibold shadow-sm hover:bg-obsidian/80 hover:border-white/25"
-        >
-          <Link href="/listings/new">
-            <Plus aria-hidden="true" className="text-gold" />
-            Create New Listing
-          </Link>
-        </Button>
+        <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
       }
       filters={<CatalogFilters facets={facets} current={current} />}
     >
@@ -177,16 +185,16 @@ export default async function ListingsPage({
         </div>
       ) : (
       <div aria-labelledby="catalog-heading" className="min-w-0">
-          <header className="mb-4 border-b border-border/70 pb-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <header className="mb-3 border-b border-border/70 pb-3 sm:mb-4 sm:pb-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
               <div className="min-w-0">
                 <h2
                   id="catalog-heading"
-                  className="text-balance text-xl font-semibold tracking-[-0.025em] sm:text-2xl"
+                  className="text-balance text-lg font-semibold tracking-[-0.025em] sm:text-2xl"
                 >
                   {resultTitle}
                 </h2>
-                <p className="mt-1 text-[0.8125rem] text-muted-foreground" aria-live="polite">
+                <p className="mt-0.5 text-[0.8125rem] text-muted-foreground" aria-live="polite">
                   {COUNT_FORMATTER.format(total)}{' '}
                   {total === 1 ? 'collectible' : 'collectibles'} available in Australia
                 </p>
@@ -200,30 +208,27 @@ export default async function ListingsPage({
             hasAnyFilter ? <NoMatches /> : <EmptyCatalog />
           ) : (
             <>
-              {/* Column count follows the available width, not the viewport.
-                  Fixed breakpoints fought the workspace rail: the grid stepped
-                  3 -> 4 columns at `lg`, the same point the rail claims its
-                  slice, so cards were squeezed hardest exactly there. auto-fill
-                  keeps tile size stable and lets the count fall out of the real
-                  content box at every size. */}
-              <div className="grid gap-x-4 gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
-                {items.map((item) => (
-                  <ItemCard
-                    key={item.id}
-                    item={item}
-                    variant="catalog"
-                    initialWatching={
-                      user && item.owner_id !== user.id
-                        ? watchingSet.has(item.id)
-                        : undefined
-                    }
-                  />
-                ))}
-              </div>
+              <CatalogInfiniteGrid
+                key={gridKey}
+                initialItems={items}
+                initialPage={currentPage}
+                initialHasMore={hasMore}
+                currentUserId={user?.id ?? null}
+                initialWatchingIds={Array.from(watchingSet)}
+                query={{
+                  q,
+                  categories,
+                  minCents,
+                  maxCents,
+                  verifiedOnly,
+                  includeSold,
+                  sort,
+                }}
+              />
 
               {totalPages > 1 ? (
                 <nav
-                  className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-6 sm:justify-center sm:gap-4"
+                  className="mt-10 hidden flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-6 sm:justify-center sm:gap-4 lg:flex"
                   aria-label="Marketplace pages"
                 >
                   {currentPage <= 1 ? (

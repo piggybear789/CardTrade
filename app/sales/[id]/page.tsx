@@ -15,7 +15,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/database.types';
 
 export const metadata = {
-  title: 'Purchase contract · Poke-xchange',
+  title: 'Purchase contract · NoDitto',
 };
 
 export const dynamic = 'force-dynamic';
@@ -85,7 +85,7 @@ export default async function CashSalePage({
     const rating = profile?.rating as number | string | null | undefined;
     return {
       id: userId,
-      name: (profile?.display_name as string | null)?.trim() || 'Poke-xchange member',
+      name: (profile?.display_name as string | null)?.trim() || 'NoDitto member',
       role,
       verified: Boolean(profile?.is_verified),
       rating: rating === null || rating === undefined ? null : Number(rating),

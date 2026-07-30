@@ -1,0 +1,38 @@
+'use client';
+
+// Viewport-tier mounts so a single control tree (e.g. catalog filters with
+// stable ids) is not duplicated in the rail and the mobile column.
+
+import type { ReactNode } from 'react';
+import { useSyncExternalStore } from 'react';
+
+const LG_QUERY = '(min-width: 1024px)';
+
+function subscribeLg(onChange: () => void) {
+  const media = window.matchMedia(LG_QUERY);
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+
+function getLgSnapshot() {
+  return window.matchMedia(LG_QUERY).matches;
+}
+
+/** SSR assumes mobile so the first paint matches the thumb-first shell. */
+function getLgServerSnapshot() {
+  return false;
+}
+
+function useIsLg() {
+  return useSyncExternalStore(subscribeLg, getLgSnapshot, getLgServerSnapshot);
+}
+
+/** Renders children only below the `lg` breakpoint. */
+export function MobileOnly({ children }: { children: ReactNode }) {
+  return useIsLg() ? null : children;
+}
+
+/** Renders children only at the `lg` breakpoint and up. */
+export function DesktopOnly({ children }: { children: ReactNode }) {
+  return useIsLg() ? children : null;
+}

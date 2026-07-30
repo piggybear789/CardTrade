@@ -26,16 +26,81 @@ import {
   declineTradeProposal as declineTradeProposalUseCase,
   requestTradeProposal,
   withdrawTradeProposal as withdrawTradeProposalUseCase,
+  type ProposalHandoverTerms,
   type RequestTradeProposalError,
   type RespondTradeProposalError,
   type TradeCashDirection,
+  type TradeHandoverMethod,
 } from '@/domain/orchestrator/tradeProposalRequest';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
-import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { proposeTrade } from '@/lib/actions/trades';
 import { getPaymentService } from '@/domain/services';
 import { TRADE_PROPOSAL_MESSAGE_MAX } from '@/lib/marketplace-constants';
+import {
+  describeDelivery,
+  toHandoverColumns,
+  type HandoverMethod,
+} from '@/lib/handover/terms';
+
+/**
+ * Client-facing handover payload for create / amend / counter. Amounts are
+ * integer AUD cents; meetingAt may be a `datetime-local` value or ISO string.
+ */
+export interface TradeHandoverInput {
+  method: HandoverMethod;
+  meetingLocation?: string | null;
+  meetingLat?: number | null;
+  meetingLng?: number | null;
+  meetingPlaceId?: string | null;
+  meetingAt?: string | null;
+  deliveryCostCents?: number | null;
+  deliveryNotes?: string | null;
+}
+
+/** Normalize UI handover into the domain record shape. */
+function toProposalHandover(input: TradeHandoverInput): ProposalHandoverTerms {
+  const meetingAtRaw = input.meetingAt?.trim() || null;
+  const meetingAt =
+    meetingAtRaw && !meetingAtRaw.includes('Z') && !meetingAtRaw.includes('+')
+      ? new Date(meetingAtRaw).toISOString()
+      : meetingAtRaw;
+  const columns = toHandoverColumns({
+    handoverMethod: input.method,
+    meetingLocation: input.meetingLocation,
+    meetingLat: input.meetingLat,
+    meetingLng: input.meetingLng,
+    meetingPlaceId: input.meetingPlaceId,
+    meetingAt,
+    deliveryCostCents: input.deliveryCostCents,
+    deliveryNotes: input.deliveryNotes,
+  });
+  return {
+    handoverMethod: columns.handover_method as TradeHandoverMethod,
+    meetingLocation: columns.meeting_location,
+    meetingLat: columns.meeting_lat,
+    meetingLng: columns.meeting_lng,
+    meetingPlaceId: columns.meeting_place_id,
+    meetingAt: columns.meeting_at,
+    deliveryDetails: columns.delivery_details,
+    deliveryCostCents: columns.delivery_cost_cents,
+  };
+}
+
+/** Ensure DELIVERY always has a details blob when cost is set. */
+function ensureDeliveryDetails(handover: ProposalHandoverTerms): ProposalHandoverTerms {
+  if (
+    handover.handoverMethod === 'DELIVERY' &&
+    handover.deliveryCostCents != null &&
+    !handover.deliveryDetails?.trim()
+  ) {
+    return {
+      ...handover,
+      deliveryDetails: describeDelivery(handover.deliveryCostCents, null),
+    };
+  }
+  return handover;
+}
 
 /** Auth failure shared by every action here. */
 type AuthError = 'unauthenticated';
@@ -48,8 +113,7 @@ export type CreateTradeProposalResult =
       error:
         | AuthError
         | RequestTradeProposalError
-        | 'item-create-failed'
-        | 'cash-not-accepted';
+        | 'item-create-failed';
       field?: string;
       message?: string;
     };
@@ -105,6 +169,8 @@ export async function createTradeProposal(input: {
   /** What the proposer says their whole side is worth, in AUD cents. */
   declaredValueCents?: number | null;
   message?: string | null;
+  /** Face-to-face or postage — required for new offers. */
+  handover: TradeHandoverInput;
 }): Promise<CreateTradeProposalResult> {
   const supabase = await createClient();
   const {
@@ -139,33 +205,14 @@ export async function createTradeProposal(input: {
     proposerItemId = created.data.id;
   }
 
-  // The person receiving cash must be payout-approved, regardless of which
-  // participant the proposer selected to pay it.
+  // Cash on a trade is agreed terms, not a Cash_Sale. Offers stay open without
+  // payout setup; collateral covers risk unless both sides are verified, and
+  // the cash leg settles later when the receiver can take payouts.
   const cashAmountCents = Math.trunc(input.cashAmountCents ?? 0);
   const cashDirection = input.cashDirection ?? 'PROPOSER_PAYS';
-  if (cashAmountCents > 0) {
-    const { data: requested } = await supabase
-      .from('items')
-      .select('owner_id')
-      .eq('id', input.counterpartItemId)
-      .maybeSingle();
-    const counterpartId = (requested?.owner_id as string | undefined) ?? null;
-    const receiverId =
-      cashDirection === 'COUNTERPART_PAYS' ? user.id : counterpartId;
-    const receiverIdentity = receiverId
-      ? await loadSellerIdentityDisclosure(receiverId)
-      : null;
-    if (!receiverIdentity) {
-      return {
-        ok: false,
-        error: 'cash-not-accepted',
-        message:
-          'The trader receiving cash must complete payout setup before this offer can be sent.',
-      };
-    }
-  }
 
   const trimmed = (input.message ?? '').trim();
+  const handover = ensureDeliveryDetails(toProposalHandover(input.handover));
   const result = await requestTradeProposal(
     {
       proposerId: user.id,
@@ -178,6 +225,7 @@ export async function createTradeProposal(input: {
       declaredValueCents: input.declaredValueCents ?? null,
       counterpartItemId: input.counterpartItemId,
       message: trimmed === '' ? null : trimmed.slice(0, TRADE_PROPOSAL_MESSAGE_MAX),
+      handover,
     },
     { repository: createDefaultTradeProposalRequestRepository() },
   );
@@ -245,6 +293,7 @@ export async function acceptTradeProposal(
   }
 
   const admin = createAdminClient();
+  const { handover } = authorized;
   const { error: finalizeError } = await admin.rpc('finalize_trade_acceptance', {
     p_proposal_id: proposalId,
     p_trade_id: created.tradeId,
@@ -255,6 +304,14 @@ export async function acceptTradeProposal(
     p_counterpart_item_id: authorized.counterpartItemId,
     p_cash_amount_cents: authorized.cashAmountCents,
     p_cash_direction: authorized.cashDirection,
+    p_handover_method: handover.handoverMethod,
+    p_meeting_location: handover.meetingLocation,
+    p_meeting_lat: handover.meetingLat,
+    p_meeting_lng: handover.meetingLng,
+    p_meeting_place_id: handover.meetingPlaceId,
+    p_meeting_at: handover.meetingAt,
+    p_delivery_details: handover.deliveryDetails,
+    p_delivery_cost_cents: handover.deliveryCostCents,
   });
 
   if (finalizeError) {
@@ -343,6 +400,7 @@ export async function amendTradeProposal(input: {
   cashDirection?: TradeCashDirection;
   declaredValueCents?: number | null;
   message?: string | null;
+  handover?: TradeHandoverInput;
 }): Promise<RespondTradeProposalResult> {
   const supabase = await createClient();
   const {
@@ -350,33 +408,22 @@ export async function amendTradeProposal(input: {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'unauthenticated' };
 
-  const repository = createDefaultTradeProposalRequestRepository();
-  const current = await repository.getProposal(input.proposalId);
   const cashAmountCents = Math.trunc(input.cashAmountCents ?? 0);
-  const cashDirection = input.cashDirection ?? current?.cashDirection ?? 'PROPOSER_PAYS';
-  if (cashAmountCents > 0 && current?.proposerId === user.id) {
-    const receiverId =
-      cashDirection === 'COUNTERPART_PAYS' ? user.id : current.counterpartId;
-    if (!(await loadSellerIdentityDisclosure(receiverId))) {
-      return {
-        ok: false,
-        error: 'cash-not-accepted',
-        message:
-          'The trader receiving cash must complete payout setup before this offer can be updated.',
-      };
-    }
-  }
 
   const trimmed = (input.message ?? '').trim();
+  const handover = input.handover
+    ? ensureDeliveryDetails(toProposalHandover(input.handover))
+    : undefined;
   const result = await amendTradeProposalUseCase(
     {
       proposalId: input.proposalId,
       actorId: user.id,
       extraItemIds: input.extraItemIds ?? [],
       cashAmountCents,
-      cashDirection,
+      cashDirection: input.cashDirection,
       declaredValueCents: input.declaredValueCents ?? null,
       message: trimmed === '' ? null : trimmed.slice(0, TRADE_PROPOSAL_MESSAGE_MAX),
+      handover,
     },
     { repository: createDefaultTradeProposalRequestRepository() },
   );
@@ -437,6 +484,8 @@ export async function counterTradeProposal(input: {
   cashDirection?: TradeCashDirection;
   declaredValueCents?: number | null;
   message?: string | null;
+  /** Face-to-face or postage — required on the counter. */
+  handover: TradeHandoverInput;
 }): Promise<CreateTradeProposalResult> {
   const supabase = await createClient();
   const {
@@ -459,20 +508,9 @@ export async function counterTradeProposal(input: {
 
   const cashAmountCents = Math.trunc(input.cashAmountCents ?? 0);
   const cashDirection = input.cashDirection ?? 'PROPOSER_PAYS';
-  if (cashAmountCents > 0) {
-    const receiverId =
-      cashDirection === 'COUNTERPART_PAYS' ? user.id : original.proposerId;
-    if (!(await loadSellerIdentityDisclosure(receiverId))) {
-      return {
-        ok: false,
-        error: 'cash-not-accepted',
-        message:
-          'The trader receiving cash must complete payout setup before this counter can be sent.',
-      };
-    }
-  }
 
   const trimmed = (input.message ?? '').trim();
+  const handover = ensureDeliveryDetails(toProposalHandover(input.handover));
   const result = await requestTradeProposal(
     {
       proposerId: user.id,
@@ -486,6 +524,7 @@ export async function counterTradeProposal(input: {
       // The goods in the original offer may be privately held rather than listed.
       allowPrivateTarget: true,
       message: trimmed === '' ? null : trimmed.slice(0, TRADE_PROPOSAL_MESSAGE_MAX),
+      handover,
     },
     { repository },
   );
@@ -529,6 +568,11 @@ export interface TradeProposalSummary {
   cashDirection: TradeCashDirection;
   /** The proposer's own valuation of their side, when they gave one. */
   declaredValueCents: number | null;
+  /** Face-to-face or postage summary for the inbox card. */
+  handoverMethod: TradeHandoverMethod | null;
+  meetingLocation: string | null;
+  deliveryCostCents: number | null;
+  deliveryDetails: string | null;
 }
 
 /**
@@ -553,7 +597,7 @@ export async function listMyTradeProposals(): Promise<
   const { data, error } = await supabase
     .from('trade_proposals')
     .select(
-      'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, message, created_at, cash_amount_cents, cash_direction, declared_value_cents, trade_proposal_items(item_id)',
+      'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, message, created_at, cash_amount_cents, cash_direction, declared_value_cents, handover_method, meeting_location, delivery_cost_cents, delivery_details, trade_proposal_items(item_id)',
     )
     .eq('status', 'PENDING')
     .order('created_at', { ascending: false });
@@ -597,7 +641,7 @@ export async function listMyTradeProposals(): Promise<
     ]),
   );
   const namesById = new Map(
-    (profileRows ?? []).map((p) => [p.id as string, (p.display_name as string) ?? 'CardTrade member']),
+    (profileRows ?? []).map((p) => [p.id as string, (p.display_name as string) ?? 'NoDitto member']),
   );
 
   const proposals: TradeProposalSummary[] = [];
@@ -617,7 +661,7 @@ export async function listMyTradeProposals(): Promise<
       direction: incoming ? 'incoming' : 'outgoing',
       counterpartyName:
         namesById.get(incoming ? row.proposer_id : row.counterpart_id) ??
-        'CardTrade member',
+        'NoDitto member',
       message: row.message,
       createdAt: row.created_at,
       offered,
@@ -625,6 +669,10 @@ export async function listMyTradeProposals(): Promise<
       cashAmountCents: row.cash_amount_cents ?? 0,
       cashDirection: row.cash_direction as TradeCashDirection,
       declaredValueCents: row.declared_value_cents ?? null,
+      handoverMethod: (row.handover_method as TradeHandoverMethod | null) ?? null,
+      meetingLocation: row.meeting_location ?? null,
+      deliveryCostCents: row.delivery_cost_cents ?? null,
+      deliveryDetails: row.delivery_details ?? null,
     });
   }
 

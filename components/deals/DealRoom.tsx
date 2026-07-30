@@ -9,7 +9,7 @@
 //   ┌ your move ─────────────────────┬ chat / share link ┐
 //   └────────────────────────────────┴───────────────────┘
 //   ●──●──○──○──○   Join Evidence Terms Confirm Binding Done
-//   What each side brings · Terms · Money · Collateral · History   (collapsed rows)
+//   Summary · Items · Terms · Money · Collateral · History   (inspector tabs)
 //
 // A deal is created SOLO and shared as a LINK, so the room has two shapes: while nobody
 // has joined, the conversation column carries the share link and the party line shows an
@@ -23,11 +23,11 @@
 // clears BOTH confirmations. The action card says so and the confirm control resets for
 // both sides.
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Check, Handshake, Link2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, Handshake, Link2, Loader2, Pencil } from 'lucide-react';
 
 import { PlaceMap } from '@/components/location';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +61,7 @@ import {
   useContractConversation,
   useContractFocus,
   type ContractActionTone,
+  type ContractExchangeSide,
   type ContractHold,
   type ContractParty,
 } from '@/components/contract';
@@ -71,6 +72,7 @@ import { ShareDealLink } from '@/components/deals/ShareDealLink';
 import { useDealRealtime } from '@/lib/realtime/useDealRealtime';
 import { dealStakeCents } from '@/domain/deal/dealCollateral';
 import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
+import { deliveryNotesFromDetails } from '@/lib/handover/terms';
 import {
   DEAL_COLLATERAL_MAX,
   DEAL_COLLATERAL_MIN,
@@ -114,7 +116,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-permitted': 'You cannot do that on this deal.',
   'invalid-state': 'The deal has moved on — refreshing.',
   'not-joined': 'Nobody has joined this deal yet — share the link first.',
-  'terms-incomplete': 'Agree the handover before confirming.',
+  'terms-incomplete': 'Set the handover terms before confirming.',
   'escrow-failed':
     'The collateral hold could not be placed. Both confirmations were cleared — add a payment method, or verify your identity, and try again.',
   'already-recorded': 'You have already marked this deal complete.',
@@ -142,7 +144,7 @@ function termsCompleteFor(deal: DealRow): boolean {
  * deal has no counterparty yet.
  */
 function nameOf(party: DealParty | null): string {
-  return party?.displayName?.trim() || 'Poke-xchange member';
+  return party?.displayName?.trim() || 'NoDitto member';
 }
 
 /**
@@ -264,7 +266,10 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
   const iMarkedComplete = view.completeMarkedBy.includes(myUserId);
   const theyMarkedComplete = them ? view.completeMarkedBy.includes(them.id) : false;
 
-  const canEditTerms = deal.state === 'TERMS' || deal.state === 'CONFIRMATION';
+  const canEditTerms =
+    deal.state === 'INVITED' ||
+    deal.state === 'TERMS' ||
+    deal.state === 'CONFIRMATION';
   const canConfirm = deal.state === 'TERMS' || deal.state === 'CONFIRMATION';
   const canCancel =
     deal.state === 'INVITED' || deal.state === 'TERMS' || deal.state === 'CONFIRMATION';
@@ -346,19 +351,66 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
     ? deal.counterparty_photo_paths
     : deal.creator_photo_paths;
 
+  const deliveryNotes = deliveryNotesFromDetails(deal.delivery_details);
   const termsSummary =
     deal.handover_method === 'IN_PERSON'
       ? `Meet at ${deal.meeting_location ?? 'a place to be agreed'}`
       : deal.handover_method === 'DELIVERY'
-        ? 'Delivered'
+        ? deal.delivery_cost_cents == null
+          ? 'Delivery — set postage'
+          : deal.delivery_cost_cents === 0
+            ? 'Free delivery'
+            : `${formatAud(deal.delivery_cost_cents)} postage`
         : 'Not agreed yet';
+  const moneySummary =
+    cashCents == null
+      ? 'No cash — goods for goods'
+      : deal.cash_payer_id === myUserId
+        ? `You bring ${formatAud(totalCents)} cash`
+        : deal.cash_payer_id
+          ? `${nameOf(them)} brings ${formatAud(totalCents)} cash`
+          : `${formatAud(totalCents)} · payer not agreed`;
+  const collateralSummary = collateralRequired
+    ? `Both sides post ${formatAud(collateralStakeCents)}`
+    : 'None required — both parties verified';
+
+  const exchangeSides: ContractExchangeSide[] = [
+    {
+      heading: 'Your side',
+      partyName: nameOf(me),
+      items: [],
+      note: myItemText,
+      images: photoUrls(myPhotos),
+      isMine: true,
+      emptyLabel: 'Add your item details and evidence photos.',
+      badge: me.role ? (
+        <Badge variant="outline">{ROLE_BADGE[me.role]}</Badge>
+      ) : null,
+    },
+    {
+      heading: 'Their side',
+      partyName: them ? nameOf(them) : 'Nobody yet',
+      items: [],
+      note: theirItemText,
+      images: photoUrls(theirPhotos),
+      emptyLabel: them
+        ? 'Waiting for their item evidence.'
+        : 'Nobody has joined this deal yet.',
+      badge: them?.role ? (
+        <Badge variant="outline">{ROLE_BADGE[them.role]}</Badge>
+      ) : null,
+    },
+  ];
+
+  const editTriggerClass =
+    'h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5';
 
   const latestEvent =
     view.events.length > 0 ? view.events[view.events.length - 1] : null;
 
   /** The share-link card stands in for chat until somebody takes the seat. */
   const conversationPanel = awaitingJoin ? (
-    <Card id={DEAL_SECTIONS.share} className="flex h-full flex-col border-primary/40">
+    <Card id={DEAL_SECTIONS.share} className="flex h-full flex-col border-border/90">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Link2 className="size-4 text-primary" aria-hidden />
@@ -410,11 +462,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
 
       <ContractLiveRow
         action={
-          <ContractActionCard
-            step={step}
-            counterpartyName={them ? nameOf(them) : 'the other party'}
-            tone={STATE_TONE[deal.state]}
-          >
+          <ContractActionCard step={step} tone={STATE_TONE[deal.state]}>
             {/* Terms were edited, so both confirmations were cleared. */}
             {termsChangedNotice ? (
               <p
@@ -429,78 +477,23 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
               </p>
             ) : null}
 
-            {canConfirm ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {myConfirmed ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isPending || deal.state !== 'CONFIRMATION'}
-                    aria-busy={busy('unconfirm')}
-                    onClick={() =>
-                      run(
-                        'unconfirm',
-                        () => unconfirmDeal(deal.id),
-                        'Confirmation withdrawn.',
-                      )
-                    }
-                  >
-                    {busy('unconfirm') ? (
-                      <Loader2 className="animate-spin" aria-hidden />
-                    ) : (
-                      <Check aria-hidden />
-                    )}
-                    Withdraw my confirmation
-                  </Button>
-                ) : confirmBlocked ? (
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      focusSection(
-                        awaitingJoin
-                          ? DEAL_SECTIONS.share
-                          : !contributionsComplete
-                            ? DEAL_SECTIONS.exchange
-                            : DEAL_SECTIONS.terms,
-                      )
-                    }
-                  >
-                    {awaitingJoin
-                      ? 'Share the link'
-                      : !contributionsComplete
-                        ? 'Add your side'
-                        : 'Agree the handover'}
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    disabled={isPending || deal.state !== 'CONFIRMATION'}
-                    aria-busy={busy('confirm')}
-                    onClick={() =>
-                      run(
-                        'confirm',
-                        () => confirmDeal(deal.id),
-                        "Confirmed — you're happy with the deal.",
-                      )
-                    }
-                  >
-                    {busy('confirm') ? (
-                      <Loader2 className="animate-spin" aria-hidden />
-                    ) : (
-                      <Check aria-hidden />
-                    )}
-                    {theirConfirmed ? 'Confirm — this makes it binding' : 'Confirm'}
-                  </Button>
-                )}
-
+            {deal.state === 'INVITED' ? (
+              <>
+                <Button
+                  type="button"
+                  onClick={() => focusSection(DEAL_SECTIONS.share)}
+                >
+                  Share the link
+                </Button>
                 {canCancel ? (
                   <ReasonDialog
                     title="Cancel this deal?"
                     description="You can cancel until the deal becomes binding. Once collateral is locked, you must complete or dispute it."
                     confirmLabel="Cancel deal"
-                    triggerLabel="Cancel"
+                    triggerLabel="Cancel this deal"
                     triggerVariant="ghost"
-                    triggerSize="default"
+                    triggerSize="sm"
+                    triggerClassName="self-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:self-end"
                     reasonRequired={false}
                     onConfirm={(reason) =>
                       run(
@@ -511,7 +504,100 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                     }
                   />
                 ) : null}
-              </div>
+              </>
+            ) : null}
+
+            {canConfirm ? (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  {myConfirmed ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isPending || deal.state !== 'CONFIRMATION'}
+                      aria-busy={busy('unconfirm')}
+                      onClick={() =>
+                        run(
+                          'unconfirm',
+                          () => unconfirmDeal(deal.id),
+                          'Confirmation withdrawn.',
+                        )
+                      }
+                    >
+                      {busy('unconfirm') ? (
+                        <Loader2 className="animate-spin" aria-hidden />
+                      ) : (
+                        <Check aria-hidden />
+                      )}
+                      Withdraw my confirmation
+                    </Button>
+                  ) : confirmBlocked ? (
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        focusSection(
+                          awaitingJoin
+                            ? DEAL_SECTIONS.share
+                            : !contributionsComplete
+                              ? DEAL_SECTIONS.items
+                              : DEAL_SECTIONS.terms,
+                        )
+                      }
+                    >
+                      {awaitingJoin
+                        ? 'Share the link'
+                        : !contributionsComplete
+                          ? 'Add your side'
+                          : 'Set the handover'}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      disabled={isPending || deal.state !== 'CONFIRMATION'}
+                      aria-busy={busy('confirm')}
+                      onClick={() =>
+                        run(
+                          'confirm',
+                          () => confirmDeal(deal.id),
+                          "Confirmed — you're happy with the deal.",
+                        )
+                      }
+                    >
+                      {busy('confirm') ? (
+                        <Loader2 className="animate-spin" aria-hidden />
+                      ) : (
+                        <Check aria-hidden />
+                      )}
+                      {theirConfirmed
+                        ? 'Confirm — this makes it binding'
+                        : 'Confirm'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* The fire exit sits below the primary action as a quiet
+                    link, never beside it — same treatment as the cash-sale
+                    room. */}
+                {canCancel ? (
+                  <ReasonDialog
+                    title="Cancel this deal?"
+                    description="You can cancel until the deal becomes binding. Once collateral is locked, you must complete or dispute it."
+                    confirmLabel="Cancel deal"
+                    triggerLabel="Cancel this deal"
+                    triggerVariant="ghost"
+                    triggerSize="sm"
+                    triggerClassName="self-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:self-end"
+                    reasonRequired={false}
+                    onConfirm={(reason) =>
+                      run(
+                        'cancel',
+                        () => cancelDeal(deal.id, reason || undefined),
+                        'Deal cancelled.',
+                      )
+                    }
+                  />
+                ) : null}
+              </>
             ) : null}
 
             {deal.state === 'ESCROW_LOCKED' ? (
@@ -562,27 +648,10 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
       >
         <ContractDetailList>
         <ContractDetailRow
-          id={DEAL_SECTIONS.exchange}
-          label="Each side"
-          summary={
-            contributionsComplete
-              ? 'Both sides documented'
-              : 'Item details and evidence photos outstanding'
-          }
-          action={
-            canEditTerms ? (
-              <EditTermsDialog
-                deal={deal}
-                iAmCreator={iAmCreator}
-                someoneConfirmed={myConfirmed || theirConfirmed}
-                triggerLabel={
-                  myItemText?.trim() || myPhotos.length > 0
-                    ? 'Edit your side'
-                    : 'Add your side'
-                }
-              />
-            ) : null
-          }
+          id={DEAL_SECTIONS.summary}
+          label="Summary"
+          defaultOpen
+          summary="Items, terms, money and collateral at a glance"
           contentClassName="space-y-3"
         >
           {deal.description ? (
@@ -594,34 +663,107 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
             </div>
           ) : null}
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Items
+              </p>
+              {canEditTerms ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={editTriggerClass}
+                  onClick={() => focusSection(DEAL_SECTIONS.items)}
+                >
+                  <Pencil aria-hidden />
+                  {myItemText?.trim() || myPhotos.length > 0
+                    ? 'Edit items'
+                    : 'Add your side'}
+                </Button>
+              ) : null}
+            </div>
+            <ContractExchangePanel sides={exchangeSides} compact />
+          </div>
+
+          <DealSummaryRow
+            label="Terms"
+            value={termsSummary}
+            action={
+              canEditTerms ? (
+                <EditTermsDialog
+                  deal={deal}
+                  section="terms"
+                  iAmCreator={iAmCreator}
+                  someoneConfirmed={myConfirmed || theirConfirmed}
+                  triggerLabel={termsComplete ? 'Edit terms' : 'Set terms'}
+                  triggerClassName={editTriggerClass}
+                />
+              ) : null
+            }
+          />
+          <DealSummaryRow
+            label="Money"
+            value={moneySummary}
+            action={
+              canEditTerms ? (
+                <EditTermsDialog
+                  deal={deal}
+                  section="money"
+                  iAmCreator={iAmCreator}
+                  someoneConfirmed={myConfirmed || theirConfirmed}
+                  triggerLabel={cashCents == null ? 'Set cash' : 'Edit cash'}
+                  triggerClassName={editTriggerClass}
+                />
+              ) : null
+            }
+          />
+          <DealSummaryRow
+            label="Collateral"
+            value={collateralSummary}
+            action={
+              canEditTerms ? (
+                <EditTermsDialog
+                  deal={deal}
+                  section="collateral"
+                  iAmCreator={iAmCreator}
+                  someoneConfirmed={myConfirmed || theirConfirmed}
+                  triggerLabel="Set value"
+                  triggerClassName={editTriggerClass}
+                />
+              ) : null
+            }
+          />
+        </ContractDetailRow>
+
+        <ContractDetailRow
+          id={DEAL_SECTIONS.items}
+          label="Items"
+          summary={
+            contributionsComplete
+              ? 'Both sides documented'
+              : 'Item details and evidence photos outstanding'
+          }
+          action={
+            canEditTerms ? (
+              <EditTermsDialog
+                deal={deal}
+                section="exchange"
+                iAmCreator={iAmCreator}
+                someoneConfirmed={myConfirmed || theirConfirmed}
+                triggerLabel={
+                  myItemText?.trim() || myPhotos.length > 0
+                    ? 'Edit your side'
+                    : 'Add your side'
+                }
+                triggerClassName={editTriggerClass}
+              />
+            ) : null
+          }
+          contentClassName="space-y-3"
+        >
           <ContractExchangePanel
-            sides={[
-              {
-                heading: 'Your side',
-                partyName: nameOf(me),
-                items: [],
-                note: myItemText,
-                images: photoUrls(myPhotos),
-                isMine: true,
-                emptyLabel: 'Add your item details and evidence photos.',
-                badge: me.role ? (
-                  <Badge variant="outline">{ROLE_BADGE[me.role]}</Badge>
-                ) : null,
-              },
-              {
-                heading: 'Their side',
-                partyName: them ? nameOf(them) : 'Nobody yet',
-                items: [],
-                note: theirItemText,
-                images: photoUrls(theirPhotos),
-                emptyLabel: them
-                  ? 'Waiting for their item evidence.'
-                  : 'Nobody has joined this deal yet.',
-                badge: them?.role ? (
-                  <Badge variant="outline">{ROLE_BADGE[them.role]}</Badge>
-                ) : null,
-              },
-            ]}
+            sides={exchangeSides}
             footnote="Descriptions and photos become part of the deal record. Changing either side clears both confirmations."
           />
         </ContractDetailRow>
@@ -634,9 +776,11 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
             canEditTerms ? (
               <EditTermsDialog
                 deal={deal}
+                section="terms"
                 iAmCreator={iAmCreator}
                 someoneConfirmed={myConfirmed || theirConfirmed}
-                triggerLabel={termsComplete ? 'Edit terms' : 'Agree terms'}
+                triggerLabel={termsComplete ? 'Edit terms' : 'Set terms'}
+                triggerClassName={editTriggerClass}
               />
             ) : null
           }
@@ -666,7 +810,21 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                           muted: !deal.meeting_at,
                         },
                       ]
-                    : [{ label: 'Delivery', hint: deal.delivery_details, value: '' }]
+                    : [
+                        {
+                          label: 'Postage',
+                          value:
+                            deal.delivery_cost_cents == null
+                              ? 'Not set'
+                              : deal.delivery_cost_cents === 0
+                                ? 'Free'
+                                : formatAud(deal.delivery_cost_cents),
+                          muted: deal.delivery_cost_cents == null,
+                        },
+                        ...(deliveryNotes
+                          ? [{ label: 'Notes', hint: deliveryNotes, value: '' }]
+                          : []),
+                      ]
                 }
               />
               {deal.handover_method === 'IN_PERSON' &&
@@ -694,10 +852,18 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
         <ContractDetailRow
           id={DEAL_SECTIONS.money}
           label="Money"
-          summary={
-            cashCents == null
-              ? 'No cash — goods for goods'
-              : `${formatAud(totalCents)} direct between you`
+          summary={moneySummary}
+          action={
+            canEditTerms ? (
+              <EditTermsDialog
+                deal={deal}
+                section="money"
+                iAmCreator={iAmCreator}
+                someoneConfirmed={myConfirmed || theirConfirmed}
+                triggerLabel={cashCents == null ? 'Set cash' : 'Edit cash'}
+                triggerClassName={editTriggerClass}
+              />
+            ) : null
           }
           contentClassName="space-y-3"
         >
@@ -720,9 +886,9 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 {
                   label:
                     deal.cash_payer_id === myUserId
-                      ? 'You pay'
+                      ? 'Your cash at handover'
                       : deal.cash_payer_id
-                        ? `${nameOf(them)} pays`
+                        ? `${nameOf(them)}'s cash at handover`
                         : 'Payer not agreed',
                   value: formatAud(totalCents),
                   total: true,
@@ -732,25 +898,23 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
           )}
           <p className="text-xs text-muted-foreground">
             Cash and goods change hands between the two of you at the handover.
-            Poke-xchange holds only the collateral.
+            NoDitto holds only the collateral.
           </p>
         </ContractDetailRow>
 
         <ContractDetailRow
           id={DEAL_SECTIONS.collateral}
           label="Collateral"
-          summary={
-            collateralRequired
-              ? `Both sides post ${formatAud(collateralStakeCents)}`
-              : 'None required — both parties verified'
-          }
+          summary={collateralSummary}
           action={
             canEditTerms ? (
               <EditTermsDialog
                 deal={deal}
+                section="collateral"
                 iAmCreator={iAmCreator}
                 someoneConfirmed={myConfirmed || theirConfirmed}
                 triggerLabel="Set value"
+                triggerClassName={editTriggerClass}
               />
             ) : null
           }
@@ -791,19 +955,19 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
           {!collateralRequired ? (
             <p className="text-muted-foreground">
               {them
-                ? 'You are both identity verified, so this deal is binding on your identities alone.'
-                : 'You are identity verified. If an unverified member joins, both sides post collateral.'}
+                ? 'You are both DittoShield verified, so this deal is binding on your identities alone.'
+                : 'You are DittoShield verified. If an unverified member joins, both sides post collateral.'}
             </p>
           ) : (
             <>
               <p className="text-muted-foreground">
                 {them === null
-                  ? 'You are not identity verified, so both sides will post collateral once the deal is confirmed.'
+                  ? 'You are not DittoShield verified, so both sides will post collateral once the deal is confirmed.'
                   : !me.isVerified && !them.isVerified
-                    ? 'Neither of you is identity verified, so both sides post collateral.'
+                    ? 'Neither of you is DittoShield verified, so both sides post collateral.'
                     : !me.isVerified
-                      ? 'You are not identity verified, so both sides post collateral.'
-                      : `${nameOf(them)} is not identity verified, so both sides post collateral.`}{' '}
+                      ? 'You are not DittoShield verified, so both sides post collateral.'
+                      : `${nameOf(them)} is not DittoShield verified, so both sides post collateral.`}{' '}
                 Held when you both confirm, released as soon as you both mark the deal
                 complete.
               </p>
@@ -821,7 +985,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
               />
               {!me.isVerified && !escrowEngaged ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/profile#payouts">Verify my identity instead</Link>
+                  <Link href="/profile#payouts">Use DittoShield instead</Link>
                 </Button>
               ) : null}
             </>
@@ -838,7 +1002,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 emptyLabel={
                   deal.state === 'ESCROW_PENDING'
                     ? 'No holds recorded yet.'
-                    : 'No collateral held — both parties are identity verified.'
+                    : 'No collateral held — both parties are DittoShield verified.'
                 }
               />
             </div>
@@ -867,6 +1031,29 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
   );
 }
 
+/** Compact label + value row used on the Summary tab. */
+function DealSummaryRow({
+  label,
+  value,
+  action,
+}: {
+  label: string;
+  value: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <p className="mt-0.5 truncate text-sm">{value}</p>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+}
+
 /** A confirm dialog that collects an optional or required short reason. */
 function ReasonDialog({
   title,
@@ -875,6 +1062,7 @@ function ReasonDialog({
   triggerLabel,
   triggerVariant,
   triggerSize = 'sm',
+  triggerClassName,
   reasonRequired,
   onConfirm,
 }: {
@@ -884,6 +1072,7 @@ function ReasonDialog({
   triggerLabel: string;
   triggerVariant: 'outline' | 'ghost' | 'destructive';
   triggerSize?: 'sm' | 'lg' | 'default';
+  triggerClassName?: string;
   reasonRequired: boolean;
   onConfirm: (reason: string) => void;
 }) {
@@ -894,7 +1083,12 @@ function ReasonDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant={triggerVariant} size={triggerSize}>
+        <Button
+          type="button"
+          variant={triggerVariant}
+          size={triggerSize}
+          className={triggerClassName}
+        >
           {triggerLabel}
         </Button>
       </DialogTrigger>

@@ -11,6 +11,7 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 
+import { DittoArtwork } from '@/components/brand/DittoArtwork';
 import { createClient } from '@/lib/supabase/server';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import type { Enums } from '@/lib/supabase/database.types';
@@ -31,9 +32,9 @@ const VERIFICATION_RAIL: Record<
   }
 > = {
   APPROVED: { label: 'Verified', variant: 'default', action: null },
-  PENDING: { label: 'Pending', variant: 'secondary', action: 'Check progress' },
-  REJECTED: { label: 'Rejected', variant: 'destructive', action: 'Try again' },
-  NONE: { label: 'Unverified', variant: 'outline', action: 'Verify identity' },
+  PENDING: { label: 'Pending', variant: 'secondary', action: 'Check DittoShield progress' },
+  REJECTED: { label: 'Rejected', variant: 'destructive', action: 'Retry DittoShield' },
+  NONE: { label: 'Unverified', variant: 'outline', action: 'Start DittoShield' },
 };
 
 /** The rail's identity block, read from the caller's own RLS-scoped profile. */
@@ -62,16 +63,29 @@ export async function KycRailStatus() {
 
   return (
     <section
-      className="hidden rounded-lg border border-border/70 bg-muted/45 p-3 lg:block"
+      className="relative overflow-hidden rounded-lg border border-border/70 bg-muted/45 p-3"
       aria-labelledby="marketplace-identity"
     >
-      <div className="flex items-center justify-between gap-2">
-        <p id="marketplace-identity" className="market-label text-muted-foreground">
-          Identity
-        </p>
-        <Badge variant={status.variant} aria-label={`Identity status: ${status.label}`}>
-          {status.label}
-        </Badge>
+      <div className="flex gap-3">
+        <DittoArtwork
+          variant="duplicate"
+          decorative
+          className="w-11 shrink-0 self-start rounded-md border-ditto/25"
+          sizes="2.75rem"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p id="marketplace-identity" className="market-label text-muted-foreground">
+              DittoShield
+            </p>
+            <Badge variant={status.variant} aria-label={`DittoShield status: ${status.label}`}>
+              {status.label}
+            </Badge>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Anti-Impostor Verification
+          </p>
+        </div>
       </div>
 
       {status.action ? (

@@ -9,7 +9,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { listMyOffers } from '@/lib/actions/offers';
 import { OffersSection } from '@/components/account/OffersSection';
-import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import {
+  MarketplaceShell,
+  RailPrimaryAction,
+} from '@/components/layout/MarketplaceShell';
 import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHeader';
 import {
   SectionFilter,
@@ -22,7 +25,7 @@ import { isOfferPast } from '@/lib/lifecycle';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Offers · Poke-xchange',
+  title: 'Offers · NoDitto',
   description: 'Offers you have made on listings.',
 };
 
@@ -48,11 +51,20 @@ export default async function OffersPage({
   );
   const visibleOffers = scope === 'past' ? past : active;
 
+  // One node, two homes: the rail on desktop, the section heading below `lg`.
+  // No plus: browsing the marketplace creates nothing.
+  const primaryAction = (
+    <RailPrimaryAction href="/listings" glyph={null}>
+      Browse Marketplace
+    </RailPrimaryAction>
+  );
+
   return (
-    <MarketplaceShell title="Offers">
+    <MarketplaceShell title="Offers" primaryAction={primaryAction}>
       <SectionHeader
         title="Offers"
         description="Prices you have proposed. An accepted offer opens a purchase contract."
+        mobileAction={primaryAction}
       />
 
       <SectionFilter

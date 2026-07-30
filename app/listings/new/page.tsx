@@ -3,11 +3,10 @@
 // Create-listing page (Req 3.1, 3.2, 3.3, 3.7).
 //
 // Listing has no verification gate (Req 3.1/3.1a): any authenticated user can
-// list, regardless of KYC_Status or Managed Merchant approval. Those checks
-// apply later, at the point a contract is actually entered — payer KYC
-// (`kyc_status`) decides whether a Trade requires a Bond, and Managed Merchant
-// approval (`merchant_status`) gates receiving cash in a Cash_Sale — never
-// listing itself.
+// list, regardless of Managed Merchant approval. That check applies later: it
+// decides whether a Trade requires a Bond, and gates receiving cash in a
+// Cash_Sale — never listing itself, and never whether a trade offer (including
+// cash terms) can be sent.
 
 import { redirect } from 'next/navigation';
 
@@ -19,7 +18,7 @@ import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'List an item · Poke-xchange',
+  title: 'List an item · NoDitto',
   description: 'Create a new collectible listing for sale or trade.',
 };
 

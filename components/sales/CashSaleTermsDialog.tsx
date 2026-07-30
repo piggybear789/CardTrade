@@ -129,7 +129,7 @@ export function CashSaleTermsDialog({
         toast.success(
           sale.fulfillment_method
             ? 'Handover terms updated. Both parties must accept the new version.'
-            : 'Handover terms proposed. Both parties must accept before payment.',
+            : 'Handover terms proposed. Both parties must accept before Pinch Payments collects payment.',
         );
         setOpen(false);
       } else {
@@ -141,7 +141,12 @@ export function CashSaleTermsDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {hideTrigger ? null : (
         <DialogTrigger asChild>
-          <Button type="button" variant="outline" size="sm">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+          >
             <Pencil aria-hidden />
             Edit
           </Button>
@@ -155,7 +160,7 @@ export function CashSaleTermsDialog({
             </DialogTitle>
             <DialogDescription>
               Add the details both parties will review. Saving creates a proposal that
-              both parties must accept before payment begins.
+              both parties must accept before payment begins through Pinch Payments.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-5">

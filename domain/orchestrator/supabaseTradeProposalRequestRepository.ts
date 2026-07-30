@@ -13,19 +13,22 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type {
   CreateProposalParams,
+  ProposalHandoverTerms,
   ProposalItemRecord,
   TradeCashDirection,
+  TradeHandoverMethod,
   TradeProposalRecord,
   TradeProposalRequestRepository,
   TradeProposalStatus,
 } from './tradeProposalRequest';
+import { EMPTY_PROPOSAL_HANDOVER } from './tradeProposalRequest';
 
 /** The Supabase admin client type (service-role, RLS-bypassing). */
 type AdminClient = ReturnType<typeof createAdminClient>;
 
 /** The `trade_proposals` columns this repository reads. */
 const PROPOSAL_COLUMNS =
-  'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, status, message, trade_id, cash_amount_cents, cash_direction, declared_value_cents, trade_proposal_items(item_id)';
+  'id, proposer_id, counterpart_id, proposer_item_id, counterpart_item_id, status, message, trade_id, cash_amount_cents, cash_direction, declared_value_cents, handover_method, meeting_location, meeting_lat, meeting_lng, meeting_place_id, meeting_at, delivery_details, delivery_cost_cents, trade_proposal_items(item_id)';
 
 interface ProposalRow {
   id: string;
@@ -39,8 +42,42 @@ interface ProposalRow {
   cash_amount_cents: number | null;
   cash_direction: TradeCashDirection;
   declared_value_cents: number | null;
+  handover_method: TradeHandoverMethod | null;
+  meeting_location: string | null;
+  meeting_lat: number | null;
+  meeting_lng: number | null;
+  meeting_place_id: string | null;
+  meeting_at: string | null;
+  delivery_details: string | null;
+  delivery_cost_cents: number | null;
   /** Embedded bundle rows from the joined select. */
   trade_proposal_items?: { item_id: string }[] | null;
+}
+
+function handoverFromRow(row: ProposalRow): ProposalHandoverTerms {
+  return {
+    handoverMethod: row.handover_method,
+    meetingLocation: row.meeting_location,
+    meetingLat: row.meeting_lat,
+    meetingLng: row.meeting_lng,
+    meetingPlaceId: row.meeting_place_id,
+    meetingAt: row.meeting_at,
+    deliveryDetails: row.delivery_details,
+    deliveryCostCents: row.delivery_cost_cents,
+  };
+}
+
+function handoverToColumns(handover: ProposalHandoverTerms) {
+  return {
+    handover_method: handover.handoverMethod,
+    meeting_location: handover.meetingLocation,
+    meeting_lat: handover.meetingLat,
+    meeting_lng: handover.meetingLng,
+    meeting_place_id: handover.meetingPlaceId,
+    meeting_at: handover.meetingAt,
+    delivery_details: handover.deliveryDetails,
+    delivery_cost_cents: handover.deliveryCostCents,
+  };
 }
 
 /** Map a persisted row to the domain record. */
@@ -58,6 +95,7 @@ function toProposal(row: ProposalRow): TradeProposalRecord {
     status: row.status,
     message: row.message,
     tradeId: row.trade_id,
+    handover: handoverFromRow(row),
   };
 }
 
@@ -121,6 +159,7 @@ export function createSupabaseTradeProposalRequestRepository(
     async createProposal(
       params: CreateProposalParams,
     ): Promise<TradeProposalRecord> {
+      const handover = params.handover ?? EMPTY_PROPOSAL_HANDOVER;
       const { data, error } = await client
         .from('trade_proposals')
         .insert({
@@ -133,6 +172,7 @@ export function createSupabaseTradeProposalRequestRepository(
           declared_value_cents: params.declaredValueCents ?? null,
           message: params.message,
           status: 'PENDING',
+          ...handoverToColumns(handover),
         })
         .select(PROPOSAL_COLUMNS)
         .single();
@@ -186,6 +226,7 @@ export function createSupabaseTradeProposalRequestRepository(
       cashDirection: TradeCashDirection;
       declaredValueCents: number | null;
       message: string | null;
+      handover: ProposalHandoverTerms;
     }): Promise<TradeProposalRecord | null> {
       // Re-guard on PENDING so an offer cannot be edited after it is answered.
       const { data } = await client
@@ -195,6 +236,7 @@ export function createSupabaseTradeProposalRequestRepository(
           cash_direction: params.cashDirection,
           declared_value_cents: params.declaredValueCents,
           message: params.message,
+          ...handoverToColumns(params.handover),
         })
         .eq('id', params.proposalId)
         .eq('status', 'PENDING')

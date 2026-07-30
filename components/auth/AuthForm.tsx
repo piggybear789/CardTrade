@@ -57,7 +57,7 @@ const COPY: Record<
     description: "Welcome back. Enter your credentials to continue.",
     submitLabel: "Sign in",
     pendingLabel: "Signing in…",
-    switchPrompt: "New to Poke-xchange?",
+    switchPrompt: "New to NoDitto?",
     switchHref: "/sign-up",
     switchCta: "Create an account",
     autoComplete: "current-password",

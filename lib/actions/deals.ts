@@ -84,6 +84,11 @@ import {
   DEAL_TITLE_MIN,
 } from '@/lib/marketplace-constants';
 import type { Enums, Tables, TablesUpdate } from '@/lib/supabase/database.types';
+import {
+  areHandoverTermsComplete,
+  describeDelivery,
+  type HandoverMethod,
+} from '@/lib/handover/terms';
 
 // ---------------------------------------------------------------------------
 // Shared shapes (type-only exports are erased and permitted in 'use server')
@@ -98,7 +103,7 @@ export type DealHoldRow = Tables<'deal_holds'>;
 /** The deal lifecycle state enum. */
 export type DealState = Enums<'deal_state'>;
 /** How the two parties hand over: meet in person, or ship/deliver. */
-export type HandoverMethod = Enums<'handover_method'>;
+export type { HandoverMethod };
 
 /** A failed action result carrying a typed error code and optional detail. */
 export interface ActionFailure<E extends string> {
@@ -180,29 +185,9 @@ function finiteCoord(value: number | null | undefined): number | null {
   return value;
 }
 
-/**
- * Render a DELIVERY handover as human-readable `delivery_details`: the postage
- * price (which is what makes the handover complete) plus any shipping notes the
- * parties added. `delivery_cost_cents` stays the machine-readable source of
- * truth for the money.
- */
-function describeDelivery(costCents: number, notes: string | null): string {
-  const priceLine =
-    costCents === 0
-      ? 'Delivered — free delivery.'
-      : `Delivered — ${formatAud(costCents)} delivery on top of the cash amount.`;
-  return notes ? `${priceLine}\n${notes}` : priceLine;
-}
-
 /** True when the handover terms are fully specified for the chosen method. */
 function areTermsComplete(deal: DealRow): boolean {
-  if (deal.handover_method === 'IN_PERSON') {
-    return Boolean(deal.meeting_location && deal.meeting_location.trim());
-  }
-  if (deal.handover_method === 'DELIVERY') {
-    return Boolean(deal.delivery_details && deal.delivery_details.trim());
-  }
-  return false;
+  return areHandoverTermsComplete(deal);
 }
 
 /** The tuned bounds the pure collateral policy is evaluated against. */
@@ -380,7 +365,10 @@ export interface CreateDealInput {
    * - `TRADER` — the caller puts up `offerKinds`; `ITEMS` requires photos.
    */
   role: DealRole;
-  /** Everything the parties should know: condition, grading, terms, extras. */
+  /**
+   * Item write-up (condition, grading, extras). Required when the creator brings
+   * cards or items; ignored for cash-only sides.
+   */
   description?: string;
   /**
    * Cash component in integer AUD cents. Required for `BUYER` (what they pay)
@@ -396,7 +384,7 @@ export interface CreateDealInput {
   handoverMethod: HandoverMethod;
   /** Required when `handoverMethod === 'IN_PERSON'`. */
   meetingLocation?: string;
-  /** Optional Mapbox coords for an in-person meeting pin. */
+  /** Optional coords for an in-person meeting pin. */
   meetingLat?: number | null;
   meetingLng?: number | null;
   meetingPlaceId?: string | null;
@@ -419,6 +407,7 @@ export type CreateDealError =
   | 'invalid-offer-kinds'
   | 'invalid-cash'
   | 'photos-required'
+  | 'item-details-required'
   | 'too-many-photos'
   | 'upload-failed'
   | 'invalid-handover'
@@ -508,30 +497,20 @@ export async function createDeal(
     return { ok: false, error: 'invalid-cash' };
   }
 
-  // The method of exchange, agreed up front so the joiner sees it in the
-  // preview. The method decides which detail is mandatory (same rule as
-  // `updateTerms`), and a complete handover lets the join advance the deal
-  // straight to CONFIRMATION.
+  // Method of exchange only — meeting place / postage are agreed in the room
+  // once both parties are on the deal. An incomplete handover leaves the join
+  // in TERMS; a fully specified one can still jump straight to CONFIRMATION.
   const handoverMethod = input.handoverMethod;
   if (handoverMethod !== 'IN_PERSON' && handoverMethod !== 'DELIVERY') {
     return { ok: false, error: 'invalid-handover' };
   }
-  const meetingLocation = normalizeText(input.meetingLocation);
-  if (handoverMethod === 'IN_PERSON' && !meetingLocation) {
-    return { ok: false, error: 'missing-meeting-location' };
-  }
+  const meetingLocation =
+    handoverMethod === 'IN_PERSON' ? normalizeText(input.meetingLocation) : null;
 
-  // Delivery is priced separately from the goods: the cost is its own amount,
-  // charged on top of the cash component. It doubles as the handover detail, so
-  // stating it is what makes a DELIVERY handover complete.
   let deliveryCostCents: number | null = null;
   let deliveryDetails: string | null = null;
-  if (handoverMethod === 'DELIVERY') {
-    const raw = input.deliveryCostCents;
-    if (raw == null) {
-      return { ok: false, error: 'invalid-delivery-cost' };
-    }
-    deliveryCostCents = Math.round(raw);
+  if (handoverMethod === 'DELIVERY' && input.deliveryCostCents != null) {
+    deliveryCostCents = Math.round(input.deliveryCostCents);
     if (
       !Number.isInteger(deliveryCostCents) ||
       deliveryCostCents < DEAL_DELIVERY_COST_MIN ||
@@ -545,14 +524,22 @@ export async function createDeal(
     );
   }
 
-  // Photos of the goods the creator brings — the arbitration evidence base.
+  // Photos + write-up of the goods the creator brings — the arbitration evidence
+  // base. Cards and items both need it; cash-only traders do not.
   const photos = input.photos ?? [];
-  const photosRequired = role === 'SELLER' || offerKinds.includes('ITEMS');
-  if (photosRequired && photos.length < DEAL_PHOTOS_MIN) {
+  const bringsGoods =
+    role === 'SELLER' ||
+    offerKinds.includes('CARDS') ||
+    offerKinds.includes('ITEMS');
+  if (bringsGoods && photos.length < DEAL_PHOTOS_MIN) {
     return { ok: false, error: 'photos-required' };
   }
   if (photos.length > DEAL_PHOTOS_MAX) {
     return { ok: false, error: 'too-many-photos' };
+  }
+  const itemDescription = normalizeText(input.description);
+  if (bringsGoods && !itemDescription) {
+    return { ok: false, error: 'item-details-required' };
   }
 
   const admin = createAdminClient();
@@ -576,13 +563,13 @@ export async function createDeal(
       counterparty_id: null,
       state: 'INVITED',
       title,
-      description: normalizeText(input.description),
+      description: itemDescription,
       creator_role: role,
       creator_offer_kinds: offerKinds,
       creator_photo_paths: photoPaths,
       // Keep the creator's goods inside their owned contribution as well as the
       // shared summary, so the bilateral room is complete immediately.
-      creator_item_text: photosRequired ? normalizeText(input.description) : null,
+      creator_item_text: bringsGoods ? itemDescription : null,
       handover_method: handoverMethod,
       meeting_location: handoverMethod === 'IN_PERSON' ? meetingLocation : null,
       meeting_lat:
@@ -859,10 +846,15 @@ export async function joinDealByToken(token: string): Promise<JoinDealResult> {
 
 /** Input for {@link updateTerms}. */
 export interface UpdateTermsInput {
-  handoverMethod: HandoverMethod;
+  /**
+   * When set, replaces the handover method and its details. Omit to leave the
+   * existing handover untouched (section-scoped editors for exchange / money /
+   * collateral).
+   */
+  handoverMethod?: HandoverMethod;
   /** Required when `handoverMethod === 'IN_PERSON'`. */
   meetingLocation?: string;
-  /** Optional Mapbox coords for an in-person meeting pin. */
+  /** Optional coords for an in-person meeting pin. */
   meetingLat?: number | null;
   meetingLng?: number | null;
   meetingPlaceId?: string | null;
@@ -913,7 +905,6 @@ export interface UpdateTermsInput {
 /** Errors surfaced by {@link updateTerms}. */
 export type UpdateTermsError =
   | DealAuthError
-  | 'not-joined'
   | 'invalid-state'
   | 'invalid-title'
   | 'item-details-required'
@@ -942,13 +933,15 @@ export type UpdateTermsResult =
  * clears both confirmations when it changes, so renegotiating postage sends the
  * deal back for re-confirmation just like changing the cash amount does.
  *
- * Allowed from TERMS **and** CONFIRMATION: editing from CONFIRMATION is the
- * point of the critical rule — the database trigger clears BOTH confirmations
- * and bumps `terms_updated_at`, so the parties must re-tick "I'm happy with the
- * deal". This action never attempts to preserve confirmations.
+ * Allowed from INVITED (creator preparing the deal before anyone joins), TERMS,
+ * and CONFIRMATION. Editing from CONFIRMATION is the point of the critical rule
+ * — the database trigger clears BOTH confirmations and bumps `terms_updated_at`,
+ * so the parties must re-tick "I'm happy with the deal". This action never
+ * attempts to preserve confirmations.
  *
  * When the deal was in TERMS and the handover is now fully specified, the deal
- * advances to CONFIRMATION.
+ * advances to CONFIRMATION. INVITED stays INVITED — join still owns that
+ * transition, and jumps straight to CONFIRMATION when terms are already complete.
  */
 export async function updateTerms(
   dealId: string,
@@ -958,58 +951,64 @@ export async function updateTerms(
   if (!guard.ok) return guard;
   const { supabase, userId, deal, iAmCreator } = guard.ctx;
 
-  // Terms are agreed BETWEEN two parties — nobody has joined the link yet.
-  if (deal.counterparty_id === null) {
-    return { ok: false, error: 'not-joined' };
-  }
-  if (deal.state !== 'TERMS' && deal.state !== 'CONFIRMATION') {
+  // Creator can prep the deal while the share link is open; both parties can
+  // edit once someone has joined. Confirm / escrow still require a counterparty.
+  const editable =
+    deal.state === 'INVITED' ||
+    deal.state === 'TERMS' ||
+    deal.state === 'CONFIRMATION';
+  if (!editable) {
     return { ok: false, error: 'invalid-state' };
   }
 
-  // Handover validation — the method decides which detail is mandatory. For a
-  // delivery that is the POSTAGE COST (priced separately from the goods); an
-  // omitted cost falls back to whatever the deal already agreed.
-  const meetingLocation = normalizeText(input.meetingLocation);
-  if (input.handoverMethod === 'IN_PERSON' && !meetingLocation) {
-    return { ok: false, error: 'missing-meeting-location' };
-  }
+  const patch: TablesUpdate<'deals'> = {};
 
-  let deliveryCostCents: number | null = null;
+  // Handover — only when the caller is editing the Terms section. Omitting
+  // `handoverMethod` leaves the existing method and details alone.
+  let meetingLocation: string | null = null;
   let deliveryDetails: string | null = null;
-  if (input.handoverMethod === 'DELIVERY') {
-    const raw = input.deliveryCostCents ?? deal.delivery_cost_cents;
-    if (raw == null) {
-      return { ok: false, error: 'invalid-delivery-cost' };
+  if (input.handoverMethod !== undefined) {
+    meetingLocation = normalizeText(input.meetingLocation);
+    if (input.handoverMethod === 'IN_PERSON' && !meetingLocation) {
+      return { ok: false, error: 'missing-meeting-location' };
     }
-    deliveryCostCents = Math.round(raw);
-    if (
-      !Number.isInteger(deliveryCostCents) ||
-      deliveryCostCents < DEAL_DELIVERY_COST_MIN ||
-      deliveryCostCents > DEAL_DELIVERY_COST_MAX
-    ) {
-      return { ok: false, error: 'invalid-delivery-cost' };
-    }
-    deliveryDetails = describeDelivery(
-      deliveryCostCents,
-      normalizeText(input.deliveryDetails),
-    );
-  }
 
-  const patch: TablesUpdate<'deals'> = {
-    handover_method: input.handoverMethod,
-    meeting_location: input.handoverMethod === 'IN_PERSON' ? meetingLocation : null,
-    meeting_lat:
-      input.handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLat) : null,
-    meeting_lng:
-      input.handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLng) : null,
-    meeting_place_id:
+    let deliveryCostCents: number | null = null;
+    if (input.handoverMethod === 'DELIVERY') {
+      const raw = input.deliveryCostCents ?? deal.delivery_cost_cents;
+      if (raw == null) {
+        return { ok: false, error: 'invalid-delivery-cost' };
+      }
+      deliveryCostCents = Math.round(raw);
+      if (
+        !Number.isInteger(deliveryCostCents) ||
+        deliveryCostCents < DEAL_DELIVERY_COST_MIN ||
+        deliveryCostCents > DEAL_DELIVERY_COST_MAX
+      ) {
+        return { ok: false, error: 'invalid-delivery-cost' };
+      }
+      deliveryDetails = describeDelivery(
+        deliveryCostCents,
+        normalizeText(input.deliveryDetails),
+      );
+    }
+
+    patch.handover_method = input.handoverMethod;
+    patch.meeting_location =
+      input.handoverMethod === 'IN_PERSON' ? meetingLocation : null;
+    patch.meeting_lat =
+      input.handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLat) : null;
+    patch.meeting_lng =
+      input.handoverMethod === 'IN_PERSON' ? finiteCoord(input.meetingLng) : null;
+    patch.meeting_place_id =
       input.handoverMethod === 'IN_PERSON'
         ? normalizeText(input.meetingPlaceId)
-        : null,
-    meeting_at: input.handoverMethod === 'IN_PERSON' ? (input.meetingAt ?? null) : null,
-    delivery_details: deliveryDetails,
-    delivery_cost_cents: deliveryCostCents,
-  };
+        : null;
+    patch.meeting_at =
+      input.handoverMethod === 'IN_PERSON' ? (input.meetingAt ?? null) : null;
+    patch.delivery_details = deliveryDetails;
+    patch.delivery_cost_cents = deliveryCostCents;
+  }
 
   if (input.title !== undefined) {
     const title = input.title.trim();
@@ -1141,7 +1140,12 @@ export async function updateTerms(
       ...newlyUploadedPaths,
     ];
     droppedPhotoPaths = myCurrentPhotos.filter((path) => !retainedPaths.includes(path));
-  } else if (goodsRequired) {
+  } else if (
+    goodsRequired &&
+    (input.myItemText !== undefined || input.myPhotos !== undefined)
+  ) {
+    // Only enforce goods completeness when this save is editing the exchange
+    // side — money / terms / collateral edits must not block on missing photos.
     if (!resultingItemText) return { ok: false, error: 'item-details-required' };
     if (myCurrentPhotos.length < DEAL_PHOTOS_MIN) {
       return { ok: false, error: 'photos-required' };
@@ -1155,7 +1159,7 @@ export async function updateTerms(
     .from('deals')
     .update(patch)
     .eq('id', dealId)
-    .in('state', ['TERMS', 'CONFIRMATION'])
+    .in('state', ['INVITED', 'TERMS', 'CONFIRMATION'])
     .select('*')
     .maybeSingle();
 
@@ -1201,7 +1205,15 @@ export async function updateTerms(
     detail:
       input.handoverMethod === 'IN_PERSON'
         ? `In person — ${meetingLocation}`
-        : (deliveryDetails ?? 'Delivery'),
+        : input.handoverMethod === 'DELIVERY'
+          ? (deliveryDetails ?? 'Delivery')
+          : input.cashAmountCents !== undefined
+            ? 'Cash terms updated'
+            : input.collateralCents !== undefined
+              ? 'Agreed trade value updated'
+              : input.myItemText !== undefined || input.myPhotos !== undefined
+                ? 'Exchange evidence updated'
+                : 'Deal terms updated',
   });
 
   if (confirmationsCleared) {

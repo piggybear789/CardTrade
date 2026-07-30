@@ -66,7 +66,7 @@ export function ContractImageLightbox({
 
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next ? index : null)}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent mobile="center" className="max-w-3xl">
         <DialogTitle className="sr-only">{label}</DialogTitle>
         <div className="flex items-center gap-2">
           {images.length > 1 ? (

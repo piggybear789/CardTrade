@@ -19,8 +19,8 @@ export default function ItemDetailLoading() {
         aria-label="Loading listing"
       >
         <span className="sr-only">Loading…</span>
-        <div className="mb-6">
-          <Skeleton className="h-4 w-32" />
+        <div className="mb-4 sm:mb-6">
+          <Skeleton className="h-9 w-40 rounded-md" />
         </div>
 
         <div className="flex min-h-0 flex-col items-stretch gap-8 lg:flex-1 lg:flex-row">
@@ -45,17 +45,21 @@ export default function ItemDetailLoading() {
                 <Skeleton className="h-16 w-full rounded-lg" />
               </div>
 
+              {/* Icon action row — above description, matching ItemActions. */}
+              <div className="grid grid-cols-5 justify-items-center gap-1 sm:gap-2">
+                {Array.from({ length: 5 }, (_, index) => (
+                  <div key={index} className="flex flex-col items-center gap-1.5">
+                    <Skeleton className="size-12 rounded-full" />
+                    <Skeleton className="h-3 w-14" />
+                  </div>
+                ))}
+              </div>
+
               <div className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-2/3" />
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Skeleton className="h-11 flex-1 basis-[9.5rem] rounded-md" />
-                <Skeleton className="h-11 flex-1 basis-[9.5rem] rounded-md" />
-                <Skeleton className="h-11 flex-1 basis-[9.5rem] rounded-md" />
               </div>
             </div>
           </div>

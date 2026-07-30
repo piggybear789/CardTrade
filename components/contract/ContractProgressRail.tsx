@@ -45,9 +45,11 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
           return (
             <li key={step.id} className="flex min-w-0 flex-1 flex-col items-center">
               {/* Connector halves either side of the tick, so the line never
-                  overshoots the first or last step. */}
-              <div className="flex w-full items-center" aria-hidden>
+                  overshoots the first or last step. Only the connectors are
+                  aria-hidden — the tick button itself must stay reachable. */}
+              <div className="flex w-full items-center">
                 <span
+                  aria-hidden
                   className={cn(
                     'h-px flex-1',
                     first ? 'bg-transparent' : done ? 'cardtrade-success-fill' : 'bg-border',
@@ -62,6 +64,9 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                   aria-expanded={selected}
                   className={cn(
                     'grid size-5 shrink-0 touch-manipulation place-items-center rounded-full border transition-colors',
+                    // The tick stays 20px visually, but an invisible overlay
+                    // stretches the hit area to ~44px for touch guidelines.
+                    "relative before:absolute before:-inset-3 before:content-['']",
                     'hover:border-foreground/40 hover:text-foreground',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     done && 'cardtrade-success-chip',
@@ -83,6 +88,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                   )}
                 </button>
                 <span
+                  aria-hidden
                   className={cn(
                     'h-px flex-1',
                     last

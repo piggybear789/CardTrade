@@ -4,17 +4,16 @@
 // verification status.
 //
 // THE RULE (revises Req 2.4 + 5.4). Trust is either identity or money:
-//   * Verified   -> no bond. A Trader is "verified" when their payer-side KYC
-//     is VERIFIED (`kyc_status`), so they are identifiable and pursuable and
-//     trade with zero friction and zero cost.
+//   * Verified   -> no bond. A Trader is "verified" when Managed Merchant
+//     onboarding is APPROVED (`merchant_status`), so they are identifiable and
+//     pursuable and trade with zero friction and zero cost.
 //   * Anything else -> a bond sized from the Item's Fair_Market_Value. An
 //     unverified Trader is anonymous, so the only remedy that works on the day
 //     is money already in hand.
 //
-// `kyc_status` is the payer-side identity signal this policy reads; it is
-// deliberately distinct from Managed Merchant onboarding (`merchant_status`),
-// which gates receiving cash in a Cash_Sale and has nothing to do with Trade
-// eligibility. Do not conflate the two — see `.kiro/steering/pinch-payments.md`.
+// Trades (including cash terms) are never blocked on verification — only the
+// bond requirement changes. Cash_Sale purchase still needs an approved seller
+// identity so the buyer can pay them; that is a separate gate.
 //
 // This replaces the previous model where EVERY Trader posted 100% of FMV and
 // only verified Traders could trade at all. The change matters because holds are

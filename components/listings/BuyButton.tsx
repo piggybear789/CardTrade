@@ -18,6 +18,7 @@ import { CreditCard, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { formatRegistrationNumber } from '@/lib/format';
+import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { AddPaymentMethodForm } from '@/components/payments/AddPaymentMethodForm';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,9 +48,12 @@ const ERROR_MESSAGES: Record<string, string> = {
 export function BuyButton({
   itemId,
   sellerIdentity,
+  appearance = 'button',
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
+  /** `icon` = round chip + label below (item detail). */
+  appearance?: 'button' | 'icon';
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -139,10 +143,18 @@ export function BuyButton({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" size="lg" className="flex-1 sm:flex-none">
-          <ShoppingCart aria-hidden />
-          Buy now
-        </Button>
+        {appearance === 'icon' ? (
+          <ListingActionIcon
+            icon={ShoppingCart}
+            label="Buy now"
+            variant="default"
+          />
+        ) : (
+          <Button type="button" size="lg" className="flex-1 sm:flex-none">
+            <ShoppingCart aria-hidden />
+            Buy now
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         {loading ? (
@@ -156,7 +168,7 @@ export function BuyButton({
               <DialogTitle>Add a payment method</DialogTitle>
               <DialogDescription>
                 A card is required to buy. Details are encrypted in your browser
-                via Pinch — we never store the full card number.
+                by Pinch Payments — we never store the full card number.
               </DialogDescription>
             </DialogHeader>
             <AddPaymentMethodForm
@@ -181,7 +193,8 @@ export function BuyButton({
               <DialogTitle>Start a purchase contract</DialogTitle>
               <DialogDescription>
                 This reserves the item and opens a private contract with the seller.
-                You pay only after you both agree how the item changes hands.
+                You pay through Pinch Payments only after you both agree how the item
+                changes hands.
               </DialogDescription>
             </DialogHeader>
 
@@ -190,7 +203,7 @@ export function BuyButton({
               <div className="rounded-lg border bg-muted/30 p-4">
                 <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
                   <ShieldCheck className="h-4 w-4" aria-hidden />
-                  Pinch merchant verified
+                  DittoShield verified via Pinch Payments
                 </div>
                 <dl className="grid gap-2 text-sm">
                   {sellerIdentity.tradingName ? (
@@ -227,7 +240,9 @@ export function BuyButton({
                   <p className="truncate text-sm font-medium">
                     {paymentLabel ?? 'Card on file'}
                   </p>
-                  <p className="text-xs text-muted-foreground">Payment method</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pinch Payments method
+                  </p>
                 </div>
                 <Button
                   type="button"

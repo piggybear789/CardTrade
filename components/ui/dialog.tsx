@@ -22,38 +22,61 @@ const DialogOverlay = React.forwardRef<
     ref={ref}
     className={cn(
       "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
+      className,
     )}
     {...props}
   />
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+type DialogContentProps = React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+> & {
+  /**
+   * Mobile presentation below `sm`:
+   * - `sheet` (default) — docks to the bottom with safe-area padding
+   * - `center` — floating card (lightbox / media viewers)
+   */
+  mobile?: "sheet" | "center";
+};
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  DialogContentProps
+>(({ className, children, mobile = "sheet", ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        // Stays wider than it is tall: the height cap is below the default
-        // width, so a dialog grows sideways first and scrolls rather than
-        // becoming a full-height column. Both caps yield to small viewports.
-        //
-        // Centred on the content column, not the viewport: `--app-rail-width`
-        // (app/globals.css) is the workspace rail's width on pages that have
-        // one, and 0px everywhere else, so shifting by half of it puts the
-        // dialog over the content that opened it. The overlay stays full-bleed.
-        "fixed left-[calc(50%+(var(--app-rail-width,0px)/2))] top-[50%] z-50 grid max-h-[calc(100dvh-3rem)] w-[calc(100%-2rem)] max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-card p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg sm:p-6",
-        className
+        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        mobile === "sheet" && [
+          // Phone: bottom sheet
+          "inset-x-0 bottom-0 top-auto max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
+          "max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=open]:slide-in-from-bottom",
+          // sm+: centred on the viewport (not the content column beside the rail)
+          "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-4 sm:rounded-lg sm:border sm:border-border sm:p-6 sm:pb-6",
+          "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+        ],
+        mobile === "center" && [
+          "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-xl p-4",
+          "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:p-6",
+        ],
+        className,
       )}
       {...props}
     >
+      {mobile === "sheet" ? (
+        <div
+          className="mx-auto mt-2.5 mb-1 h-1 w-10 shrink-0 rounded-full bg-border sm:hidden"
+          aria-hidden="true"
+        />
+      ) : null}
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-        <X className="h-4 w-4" aria-hidden="true" />
+      <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-muted/80 opacity-90 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none sm:size-8 sm:rounded-sm sm:bg-transparent sm:opacity-70">
+        <X className="size-4" aria-hidden="true" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -67,8 +90,8 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
-      className
+      "flex flex-col gap-1.5 pr-12 text-left",
+      className,
     )}
     {...props}
   />
@@ -81,8 +104,10 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-      className
+      // Stick actions to the visible bottom of the sheet while content scrolls.
+      "sticky bottom-0 z-10 mt-auto flex flex-col-reverse gap-2 border-t border-border/70 bg-card/95 pt-3 backdrop-blur supports-[backdrop-filter]:bg-card/90 [&>a]:w-full [&>button]:w-full",
+      "sm:static sm:z-auto sm:mt-0 sm:border-0 sm:bg-transparent sm:pt-0 sm:backdrop-blur-none sm:flex-row sm:justify-end sm:gap-2 sm:[&>a]:w-auto sm:[&>button]:w-auto",
+      className,
     )}
     {...props}
   />
@@ -96,8 +121,8 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
-      className
+      "text-lg font-semibold leading-snug tracking-tight",
+      className,
     )}
     {...props}
   />

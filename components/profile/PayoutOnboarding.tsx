@@ -12,7 +12,7 @@
 //   APPROVED        -> the exact identity buyers see at checkout.
 //
 // Bank details are submitted straight through to the provider and never stored
-// by Poke-xchange, so they are write-only here: the form never renders back an
+// by NoDitto, so they are write-only here: the form never renders back an
 // account number, and nothing in `MerchantStateData` carries one.
 
 import { useState, useTransition } from 'react';
@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { BadgeCheck, Loader2, ShieldAlert, ShieldCheck, Wallet } from 'lucide-react';
 
+import { DittoArtwork } from '@/components/brand/DittoArtwork';
 import {
   simulateMerchantCompliance,
   submitMerchantOnboarding,
@@ -57,14 +58,16 @@ const STEPS = [
   {
     id: 'identity',
     title: 'Who is selling',
-    dialogTitle: 'Verify your identity',
-    dialogDescription: 'The legal name and registration buyers see before they pay.',
+    dialogTitle: 'Start DittoShield',
+    dialogDescription:
+      'Anti-Impostor Verification for the legal name and registration buyers see before they pay through Pinch Payments.',
   },
   {
     id: 'account',
     title: 'Where to pay you',
     dialogTitle: 'Payout account',
-    dialogDescription: 'Where we send your money, sent straight to the provider.',
+    dialogDescription:
+      'Where Pinch Payments sends your money. Account details go straight to Pinch Payments.',
   },
 ] as const;
 
@@ -319,7 +322,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
       if (result.ok) {
         setState(result.data);
         setFormOpen(false);
-        toast.success('Identity submitted for verification.');
+        toast.success('DittoShield verification submitted.');
         router.refresh();
         return;
       }
@@ -352,15 +355,28 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1.5">
-            <CardTitle className="text-xl">Identity verification</CardTitle>
-            <CardDescription>
-              Verifying is what unlocks listing and drops trade collateral to
-              zero. It doubles as payout setup: buyers see your legal name and
-              registration before they pay.
-            </CardDescription>
+          <div className="flex min-w-0 gap-3">
+            <DittoArtwork
+              variant="detective"
+              decorative
+              className="hidden w-14 shrink-0 rounded-md border-ditto/25 sm:block"
+              sizes="3.5rem"
+            />
+            <div className="space-y-1.5">
+              <CardTitle className="text-xl">
+                DittoShield{' '}
+                <span className="text-muted-foreground">
+                  (Anti-Impostor Verification)
+                </span>
+              </CardTitle>
+              <CardDescription>
+                DittoShield drops trade collateral to zero. It doubles as payout
+                setup: buyers see your legal name and registration before they pay
+                you through Pinch Payments, and trade cash can settle into your account.
+              </CardDescription>
+            </div>
           </div>
-          <Badge variant={badge.variant} aria-label={`Verification status: ${badge.label}`}>
+          <Badge variant={badge.variant} aria-label={`DittoShield status: ${badge.label}`}>
             {badge.label}
           </Badge>
         </div>
@@ -373,10 +389,10 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
           <div className="flex items-start gap-3 rounded-lg border border-gold/50 bg-gold/10 p-4">
             <ShieldAlert className="mt-0.5 size-5 shrink-0 text-gold" aria-hidden />
             <div>
-              <p className="font-semibold">You are not verified</p>
+              <p className="font-semibold">DittoShield is not active</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                You cannot list an item yet, and trades hold collateral against
-                you until this is approved.
+                Trades hold collateral against you until this is approved. Cash
+                purchases and receiving trade cash also need payout setup.
               </p>
             </div>
           </div>
@@ -428,8 +444,8 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
           <div className="rounded-lg border p-4 text-sm">
             <p className="font-medium">Checking your bank details</p>
             <p className="mt-1 text-muted-foreground">
-              Our payment provider is confirming the account before money can be
-              sent to it. You can keep listing and trading while it happens.
+              Pinch Payments is confirming the account before money can be sent
+              to it. You can keep listing and trading while it happens.
             </p>
             {state.complianceStatus ? (
               <p className="mt-2 text-xs text-muted-foreground">
@@ -441,7 +457,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
 
         {state.merchantStatus === 'REJECTED' ? (
           <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
-            <p className="font-medium">Your verification was declined</p>
+            <p className="font-medium">DittoShield verification was declined</p>
             <p className="mt-1 text-muted-foreground">
               Check your details and send them again.
             </p>
@@ -460,7 +476,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
                 <Wallet aria-hidden />
                 {state.merchantStatus === 'REJECTED'
                   ? 'Fix and resubmit'
-                  : 'Verify my identity'}
+                  : 'Start DittoShield'}
               </Button>
             </DialogTrigger>
             {/* Wider than the default so the field pairs sit side by side and the
@@ -593,7 +609,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
                     />
                     <span>
                       I agree that my legal name, store name and registration number
-                      are shown to buyers before they pay.
+                      are shown to buyers before they pay through Pinch Payments.
                     </span>
                   </label>
                   {errorFor('buyerDisclosureConsent') ? (

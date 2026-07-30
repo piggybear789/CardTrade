@@ -62,6 +62,7 @@ Generated DB types live in `lib/supabase/database.types.ts` (`Tables<'items'>`, 
 Copy `.env.local.example` to `.env.local`:
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — browser-safe
+- `NEXT_PUBLIC_GEOAPIFY_KEY` — browser-safe Geoapify key for address autocomplete + static maps (restrict by HTTP referrer in the Geoapify dashboard)
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only, RLS-bypassing
 - `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `pinch` (real Pinch Payments API)
 - `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks

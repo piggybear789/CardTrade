@@ -14,6 +14,7 @@ import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
 } from '@supabase/supabase-js';
+import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -108,6 +109,9 @@ export function useConversationRealtime(
     let channel: RealtimeChannel | null = null;
     let reconnectAttempts = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    // Bumps on every subscribe/cleanup so overlapping async teardowns cannot
+    // attach listeners to a recycled channel or a superseded attempt.
+    let subscribeEpoch = 0;
 
     // Load the current message history before/while the channel connects so the
     // thread has content even if the first realtime event has not yet arrived.
@@ -133,21 +137,28 @@ export function useConversationRealtime(
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
         if (!isMounted) return;
-        subscribe();
+        void subscribe();
       }, delay);
     };
 
-    const subscribe = () => {
+    const subscribe = async () => {
       if (!isMounted) return;
+      const epoch = ++subscribeEpoch;
 
-      // Retire the previous channel before replacing it. Its eventual CLOSED callback
-      // is ignored because callbacks only act while their channel is still current.
+      // Retire the previous channel before replacing it. Await removal so the
+      // client registry cannot hand back a still-subscribed topic. Stale CLOSED
+      // callbacks are ignored via the channel !== nextChannel guard below.
       const previousChannel = channel;
       channel = null;
-      if (previousChannel) void supabase.removeChannel(previousChannel);
+      if (previousChannel) {
+        await supabase.removeChannel(previousChannel);
+      }
+      if (!isMounted || epoch !== subscribeEpoch) return;
 
+      // UUID topic: a per-effect counter still collides across Strict Mode
+      // remounts and ChatThread + ContractChat sharing one conversationId.
       const nextChannel = supabase
-        .channel(`conversation:${conversationId}`)
+        .channel(uniqueRealtimeTopic(`conversation:${conversationId}`))
         .on(
           'postgres_changes',
           {
@@ -203,12 +214,14 @@ export function useConversationRealtime(
 
     setConnectionStatus('connecting');
     void loadInitial();
-    subscribe();
+    void subscribe();
 
     return () => {
       isMounted = false;
+      subscribeEpoch += 1;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (channel) supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
+      channel = null;
     };
   }, [conversationId, applyMessageChange]);
 

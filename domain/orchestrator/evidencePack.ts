@@ -80,7 +80,7 @@ function escapePdfText(value: string): string {
 export function buildEvidencePackPdf(input: EvidencePackInput): Uint8Array {
   const id = input.offendingIdentity;
   const lines: string[] = [
-    'CardTrade Police Evidence Pack',
+    'NoDitto Police Evidence Pack',
     `Trade: ${input.tradeId}`,
     `Generated: ${input.generatedAt}`,
     '',

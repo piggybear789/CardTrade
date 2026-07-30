@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Loader2, MapPin } from 'lucide-react';
 
-import { searchPlaces } from '@/lib/location/mapbox';
+import { searchPlaces } from '@/lib/location/geoapify';
 import type { PlacePrecision, PlaceValue } from '@/lib/location/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,7 @@ export interface PlaceSearchProps {
   'aria-invalid'?: boolean;
   'aria-describedby'?: string;
   className?: string;
-  /** Allow free-text when Mapbox is unavailable (graceful degrade). */
+  /** Allow free-text when Geoapify is unavailable (graceful degrade). */
   onTextFallback?: (label: string) => void;
 }
 

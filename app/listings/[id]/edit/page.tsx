@@ -28,7 +28,7 @@ import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Edit listing · Poke-xchange",
+  title: "Edit listing · NoDitto",
   description: "Update the details of your collectible listing.",
 };
 

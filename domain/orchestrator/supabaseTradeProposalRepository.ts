@@ -39,7 +39,7 @@ type AdminClient = ReturnType<typeof createAdminClient>;
  *
  * Column mapping (see `supabase/migrations/0001_schema.sql`,
  * `0005_merchant_onboarding.sql`):
- * - profiles: `id`, `kyc_status`, `payer_id`
+ * - profiles: `id`, `merchant_status`, `payer_id`
  * - items:    `id`, `owner_id`, `fmv_cents`, `status`
  * - trades:   `initiator_id`, `counterpart_id`, `initiator_item_id`,
  *             `counterpart_item_id`, `state`, `version`
@@ -52,18 +52,20 @@ export function createSupabaseTradeProposalRepository(
     async getProfile(profileId: string): Promise<ProfileRecord | null> {
       const { data } = await client
         .from('profiles')
-        .select('id, kyc_status, payer_id')
+        .select('id, merchant_status, payer_id')
         .eq('id', profileId)
         .maybeSingle();
       if (!data) return null;
       const row = data as {
         id: string;
-        kyc_status: string;
+        merchant_status: string;
         payer_id: string | null;
       };
+      // Bond exemption follows Managed Merchant approval — the same identity
+      // signal the profile rail and payout setup treat as "verified".
       return {
         id: row.id,
-        verified: row.kyc_status === 'VERIFIED',
+        verified: row.merchant_status === 'APPROVED',
         payerId: row.payer_id,
       };
     },

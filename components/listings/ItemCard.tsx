@@ -121,7 +121,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                   {seller.displayName ?? 'Unknown seller'}
                 </span>
                 {seller.isVerified ? (
-                  <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="Verified seller" />
+                  <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="DittoShield-verified seller" />
                 ) : (
                   <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
                 )}
@@ -226,7 +226,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                 {seller.displayName ?? 'Unknown seller'}
               </span>
               {seller.isVerified ? (
-                <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="Verified seller" />
+                <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="DittoShield-verified seller" />
               ) : (
                 <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
               )}

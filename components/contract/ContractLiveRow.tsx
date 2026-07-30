@@ -1,9 +1,13 @@
+'use client';
+
 // components/contract/ContractLiveRow.tsx
 //
-// The active contract area in reading order: current action and lifecycle first, then
-// a bounded detail inspector beside the live conversation.
+// The active contract area in reading order: current action and lifecycle first,
+// then details beside chat on desktop. Below `lg`, Details / Chat are tabs so
+// the room is not a 48rem stacked scroll of two fixed panes.
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { MessageCircle, ScrollText } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -17,6 +21,8 @@ export interface ContractLiveRowProps {
   className?: string;
 }
 
+type MobilePane = 'details' | 'chat';
+
 /** Action and progress above the equal-height details/chat workspace. */
 export function ContractLiveRow({
   action,
@@ -25,6 +31,8 @@ export function ContractLiveRow({
   children,
   className,
 }: ContractLiveRowProps) {
+  const [pane, setPane] = useState<MobilePane>('details');
+
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-4', className)}>
       <Card className="shrink-0 overflow-hidden border-border/90 shadow-sm">
@@ -36,11 +44,82 @@ export function ContractLiveRow({
         ) : null}
       </Card>
 
-      <div className="grid min-h-[48rem] gap-4 lg:min-h-[28rem] lg:flex-1 lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
-        <div className="h-[24rem] min-w-0 lg:h-auto lg:min-h-0 [&>*]:h-full">
+      {/* Mobile: one pane at a time, thumb-friendly tab switch. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:hidden">
+        <div
+          role="tablist"
+          aria-label="Contract workspace"
+          className="grid grid-cols-2 gap-1 rounded-lg border border-border/80 bg-muted/40 p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            id="contract-tab-details"
+            aria-controls="contract-panel-details"
+            aria-selected={pane === 'details'}
+            onClick={() => setPane('details')}
+            className={cn(
+              'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              pane === 'details'
+                ? 'bg-card font-semibold text-foreground shadow-sm'
+                : 'font-medium text-muted-foreground',
+            )}
+          >
+            <ScrollText className="size-4 shrink-0" aria-hidden="true" />
+            Details
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="contract-tab-chat"
+            aria-controls="contract-panel-chat"
+            aria-selected={pane === 'chat'}
+            onClick={() => setPane('chat')}
+            className={cn(
+              'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              pane === 'chat'
+                ? 'bg-card font-semibold text-foreground shadow-sm'
+                : 'font-medium text-muted-foreground',
+            )}
+          >
+            <MessageCircle className="size-4 shrink-0" aria-hidden="true" />
+            Chat
+          </button>
+        </div>
+
+        {/* `hidden` alone cannot hide these: preflight's `[hidden]{display:none}`
+            and a `flex`/`block` utility have equal specificity, and the utility
+            wins on order. The display class has to be conditional too. */}
+        <div
+          id="contract-panel-details"
+          role="tabpanel"
+          aria-labelledby="contract-tab-details"
+          hidden={pane !== 'details'}
+          className={cn(
+            'min-h-[min(28rem,60dvh)] min-w-0 [&>*]:h-full',
+            pane === 'details' ? 'block' : 'hidden',
+          )}
+        >
           {children}
         </div>
-        <div className="flex h-[24rem] min-w-0 flex-col lg:h-auto lg:min-h-0 [&>*]:h-full">
+        <div
+          id="contract-panel-chat"
+          role="tabpanel"
+          aria-labelledby="contract-tab-chat"
+          hidden={pane !== 'chat'}
+          className={cn(
+            'min-h-[min(28rem,60dvh)] min-w-0 flex-col [&>*]:h-full',
+            pane === 'chat' ? 'flex' : 'hidden',
+          )}
+        >
+          {conversation}
+        </div>
+      </div>
+
+      {/* Desktop: persistent split inspector + conversation. */}
+      <div className="hidden min-h-[28rem] gap-4 lg:grid lg:flex-1 lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
+        <div className="min-h-0 min-w-0 [&>*]:h-full">{children}</div>
+        <div className="flex min-h-0 min-w-0 flex-col [&>*]:h-full">
           {conversation}
         </div>
       </div>

@@ -11,7 +11,7 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 
-import { DittoArtwork } from '@/components/brand/DittoArtwork';
+import { DittoShieldMark } from '@/components/brand/DittoShieldMark';
 import { createClient } from '@/lib/supabase/server';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import type { Enums } from '@/lib/supabase/database.types';
@@ -67,12 +67,7 @@ export async function KycRailStatus() {
       aria-labelledby="marketplace-identity"
     >
       <div className="flex gap-3">
-        <DittoArtwork
-          variant="duplicate"
-          decorative
-          className="w-11 shrink-0 self-start rounded-md border-ditto/25"
-          sizes="2.75rem"
-        />
+        <DittoShieldMark className="size-11 self-start" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <p id="marketplace-identity" className="market-label text-muted-foreground">

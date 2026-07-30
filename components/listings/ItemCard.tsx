@@ -111,8 +111,8 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             </p>
           ) : null}
 
-          <div className="mt-auto flex min-w-0 items-center gap-1.5 pt-1.5">
-            {seller ? (
+          {seller ? (
+            <div className="mt-auto flex min-w-0 items-center gap-1.5 pt-1.5">
               <Link
                 href={`/sellers/${seller.id}`}
                 className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
@@ -126,18 +126,14 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                   <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
                 )}
               </Link>
-            ) : (
-              <span className="truncate text-[0.625rem] text-muted-foreground sm:text-[0.6875rem]">
-                Unknown seller
-              </span>
-            )}
-            {seller?.rating != null ? (
-              <span className="flex shrink-0 items-center gap-0.5 text-[0.625rem] tabular-nums text-muted-foreground sm:text-[0.6875rem]">
-                <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
-                {seller.rating.toFixed(1)}
-              </span>
-            ) : null}
-          </div>
+              {seller.rating != null ? (
+                <span className="flex shrink-0 items-center gap-0.5 text-[0.625rem] tabular-nums text-muted-foreground sm:text-[0.6875rem]">
+                  <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
+                  {seller.rating.toFixed(1)}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </Card>
     );
@@ -216,8 +212,8 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           </p>
         ) : null}
 
-        <div className="mt-auto flex items-center gap-1.5 pt-2.5">
-          {seller ? (
+        {seller ? (
+          <div className="mt-auto flex items-center gap-1.5 pt-2.5">
             <Link
               href={`/sellers/${seller.id}`}
               className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
@@ -231,16 +227,14 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                 <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
               )}
             </Link>
-          ) : (
-            <span className="truncate text-xs text-muted-foreground">Unknown seller</span>
-          )}
-          {seller?.rating != null ? (
-            <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">
-              <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
-              {seller.rating.toFixed(1)}
-            </span>
-          ) : null}
-        </div>
+            {seller.rating != null ? (
+              <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">
+                <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
+                {seller.rating.toFixed(1)}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </Card>
   );

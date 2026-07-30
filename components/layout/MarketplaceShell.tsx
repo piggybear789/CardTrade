@@ -68,7 +68,6 @@ export function RailPrimaryAction({
 
 export async function MarketplaceShell({
   title,
-  eyebrow = 'NoDitto Market',
   primaryAction,
   filters,
   center = false,
@@ -80,7 +79,6 @@ export async function MarketplaceShell({
    * SectionHeader carries the visible heading.
    */
   title: string;
-  eyebrow?: string;
   /**
    * The section's one next action, shown in the rail. Opt-in per section: a
    * room you are already inside — a contract, a thread, an item form — has no
@@ -142,8 +140,7 @@ export async function MarketplaceShell({
               the viewport — a permanent hairline page scroll. */}
           <div className="flex flex-col lg:sticky lg:top-[calc(4rem+1px+env(safe-area-inset-top))] lg:-mx-1 lg:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] lg:gap-6 lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:py-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="hidden lg:block">
-              <p className="market-label text-gold">{eyebrow}</p>
-              <h1 className="mt-1 text-balance font-display text-3xl font-semibold tracking-[-0.03em]">
+              <h1 className="text-balance font-display text-3xl font-semibold tracking-[-0.03em]">
                 {title}
               </h1>
               {primaryAction ? <div className="mt-4">{primaryAction}</div> : null}

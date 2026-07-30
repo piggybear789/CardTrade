@@ -1,9 +1,12 @@
 // app/page.tsx
+//
+// NoDitto landing page. Presents one concrete, collateral-backed trade so
+// collectors can understand the clearinghouse before entering the marketplace.
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Check, X } from 'lucide-react';
 
+import { DittoArtwork } from '@/components/brand/DittoArtwork';
 import { LogoMark } from '@/components/layout/Logo';
 
 import { ListingCarousel } from '@/components/listings/ListingCarousel';
@@ -16,19 +19,10 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'NoDitto - Protected Marketplace for Collectors',
+  title: 'NoDitto',
   description:
-    'Buy, sell, and swap high-value collectibles with identity verification, live trade contracts, and collateral-backed escrow.',
+    'Buy, sell, and swap high-value collectibles with DittoShield anti-impostor verification, live contracts, collateral protection, and Pinch Payments.',
 };
-
-// Iconic chase cards so the example trade reads as a serious, high-value swap:
-// "Moonbreon" (Prismatic Evolutions SIR), Pikachu ex SIR (Ascended Heroes),
-// and the "bubble Mew" SIR from Paldean Fates (#232).
-const CARD_IMAGES = {
-  umbreon: 'https://images.pokemontcg.io/sv8pt5/161.png',
-  pikachu: 'https://images.scrydex.com/pokemon/me2pt5-276/large',
-  mew: 'https://images.pokemontcg.io/sv4pt5/232.png',
-} as const;
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -53,15 +47,15 @@ export default async function HomePage() {
           />
           <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8 lg:px-8 lg:py-24">
             <div className="max-w-2xl">
-              <p className="market-label text-gold">A Clearinghouse for Collectors</p>
+              <p className="market-label text-ditto">No more blind trust</p>
               <h1 className="mt-5 max-w-xl text-balance font-display text-5xl font-semibold leading-[1.04] tracking-[-0.03em] text-parchment sm:text-6xl sm:leading-[1.02] lg:text-7xl">
-                Impostors{' '}
-                <span className="text-parchment/55">are not welcome.</span>
+                A marketplace without{' '}
+                <span className="text-parchment/55">imposters.</span>
               </h1>
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
-                With NoDitto, transparency is crucial to a safe deal. 
-                Every trader verifies their identity. Every transaction is backed by
-                collateral. Buy, sell, and trade with less risk.
+                Transparency is crucial for a safe deal. With NoDitto, every trader is
+                ID-checked, and every transaction is backed by collateral. Buy, sell,
+                and trade with no risk.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
@@ -118,19 +112,19 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section aria-labelledby="why-pokexchange" className="border-y border-white/10 bg-obsidian text-parchment">
+        <section aria-labelledby="why-noditto" className="border-y border-white/10 bg-obsidian text-parchment">
           <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-20 lg:px-8 lg:py-20">
             <header className="max-w-xl">
               <p className="market-label text-gold">Why NoDitto</p>
               <h2
-                id="why-pokexchange"
+                id="why-noditto"
                 className="mt-3 text-balance font-sans text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl"
               >
-                Nobody wants to deal with fraudsters.
+                Know who you&apos;re dealing with.
               </h2>
               <p className="mt-5 text-pretty leading-7 text-parchment/60">
-                Every trader is KYC-verified, and every transaction is backed by collateral.
-                Buy, sell, and trade with less risk.
+                DittoShield verifies identity through Pinch Payments. Contracts show the
+                terms, collateral, and next action before anything moves.
               </p>
             </header>
 
@@ -140,8 +134,8 @@ export default async function HomePage() {
                   to line up with — hide it entirely. */}
               <div className="hidden gap-x-6 border-b border-parchment/15 py-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-parchment/60 sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
                 <span aria-hidden="true" />
-                <span className="text-left">Typical marketplace</span>
-                <span className="text-left text-gold">NoDitto</span>
+                <span className="text-center">Typical marketplace</span>
+                <span className="text-center text-gold">NoDitto</span>
               </div>
               <ComparisonRow
                 aspect="Card-for-card swaps"
@@ -151,17 +145,17 @@ export default async function HomePage() {
               <ComparisonRow
                 aspect="Who you're dealing with"
                 typical="Anonymous accounts"
-                ours="Government-ID-verified traders"
+                ours="DittoShield identity status"
               />
               <ComparisonRow
                 aspect="If a deal goes wrong"
-                typical="You're on your own"
-                ours="Escrowed collateral pays you back"
+                typical="“Sort it out yourselves”"
+                ours="Contract-backed collateral protection"
               />
               <ComparisonRow
                 aspect="Mixing cash and cards"
                 typical="Meetups and PayPal F&F"
-                ours="One contract, signed by both sides"
+                ours="One contract with Pinch Payments"
               />
             </div>
           </div>
@@ -176,7 +170,7 @@ export default async function HomePage() {
               <span translate="no">NoDitto</span>
             </div>
             <p className="mt-2 text-pretty leading-6 text-muted-foreground">
-              Safety-first escrow for trading cards, coins, stamps, comics, and memorabilia.
+              Safer contracts for trading cards, coins, stamps, comics, and memorabilia.
             </p>
           </div>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-3">
@@ -196,7 +190,7 @@ export default async function HomePage() {
               className="rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               href="/profile#payouts"
             >
-              Verification
+              DittoShield
             </Link>
           </nav>
           <p className="border-t pt-5 text-xs leading-5 text-muted-foreground md:col-span-2">
@@ -209,7 +203,9 @@ export default async function HomePage() {
             >
               Pokémon TCG API
             </a>
-            . Pokémon names and artwork belong to their respective owners. NoDitto is not affiliated with or endorsed by The Pokémon Company.
+            . Pokémon names and artwork belong to their respective owners. NoDitto is not
+            affiliated with or endorsed by The Pokémon Company. Payments are processed by
+            Pinch Payments.
           </p>
         </div>
       </footer>
@@ -221,40 +217,33 @@ function ProtectedTradePreview() {
   return (
     <div className="relative mx-auto h-[24rem] w-full max-w-[35rem] sm:h-[31rem] lg:h-[36rem]">
       <div className="auction-stage absolute inset-x-4 inset-y-0 overflow-hidden rounded-lg border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:inset-x-8">
-        <Image
-          src={CARD_IMAGES.pikachu}
-          alt=""
-          width={245}
-          height={342}
+        <DittoArtwork
+          variant="duplicate"
+          decorative
+          className="absolute left-[7%] top-[24%] w-[31%] -rotate-[9deg] border-white/15 opacity-75 shadow-2xl"
           sizes="(max-width: 639px) 34vw, 10rem"
-          className="absolute left-[7%] top-[24%] w-[31%] -rotate-[9deg] rounded-[4%] opacity-80 shadow-2xl"
         />
-        <Image
-          src={CARD_IMAGES.mew}
-          alt=""
-          width={245}
-          height={342}
+        <DittoArtwork
+          variant="detective"
+          decorative
+          className="absolute right-[7%] top-[24%] w-[31%] rotate-[9deg] border-white/15 opacity-75 shadow-2xl"
           sizes="(max-width: 639px) 34vw, 10rem"
-          className="absolute right-[7%] top-[24%] w-[31%] rotate-[9deg] rounded-[4%] opacity-80 shadow-2xl"
         />
-        <Image
-          src={CARD_IMAGES.umbreon}
-          alt="Umbreon ex Pokémon trading card"
-          width={245}
-          height={342}
+        <DittoArtwork
+          variant="classic"
+          className="absolute left-1/2 top-[16%] z-10 w-[42%] -translate-x-1/2 border-ditto/35 drop-shadow-[0_22px_28px_rgba(0,0,0,0.65)]"
           sizes="(max-width: 639px) 47vw, 14rem"
           priority
-          className="absolute left-1/2 top-[16%] z-10 w-[42%] -translate-x-1/2 rounded-[4%] drop-shadow-[0_22px_28px_rgba(0,0,0,0.65)]"
         />
         {/* Two guarantees, side by side — the pitch in the fewest possible words. */}
         <ul className="ledger-strip absolute inset-x-0 bottom-0 z-20 grid grid-cols-2 gap-x-4 border-t border-gold/30 px-5 py-4 text-xs font-semibold text-obsidian sm:px-6 sm:text-sm">
           <li className="flex items-center gap-1.5">
             <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-            All Parties ID Verified
+            DittoShield Status Shown
           </li>
           <li className="flex items-center justify-end gap-1.5">
             <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-            Full Value Held In Escrow
+            Pinch Payments Disclosed
           </li>
         </ul>
       </div>

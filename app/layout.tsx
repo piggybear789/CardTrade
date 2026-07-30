@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   // Pages self-brand their titles as "<Section> · NoDitto", so this is only
   // the fallback for routes that don't set one — no title template, to avoid
   // double-suffixing those existing titles.
-  title: 'NoDitto — Know who is on the other side',
+  title: 'NoDitto',
   description:
     'Buy, sell, and swap high-value collectibles with DittoShield anti-impostor verification, collateral-backed contracts, and Pinch Payments.',
   applicationName: 'NoDitto',
@@ -37,14 +37,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'NoDitto',
-    title: 'NoDitto — Know who is on the other side',
+    title: 'NoDitto',
     description:
       'DittoShield verification, collateral-backed contracts, and Pinch Payments for high-value collectibles.',
     url: siteUrl,
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NoDitto — Know who is on the other side',
+    title: 'NoDitto',
     description:
       'DittoShield verification, collateral-backed contracts, and Pinch Payments for high-value collectibles.',
   },

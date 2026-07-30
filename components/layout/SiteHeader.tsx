@@ -31,19 +31,20 @@ export async function SiteHeader() {
   // Surface the Admin link only to admins. RLS scopes this read to the caller's
   // own profile, so a non-admin can never learn about (or reach) the console.
   let isAdmin = false;
+  let displayName: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_admin')
+      .select('is_admin, display_name')
       .eq('id', user.id)
       .maybeSingle();
     isAdmin = Boolean(profile?.is_admin);
+    displayName = profile?.display_name?.trim() || null;
   }
 
-  // The top bar stays transactional: browse, sell, deal. Everything personal
-  // (purchases, sales, messages, profile, admin, sign-out) lives behind the
-  // burger menu on every screen size, so signing in never floods the bar with
-  // a row of new controls.
+  // The top bar stays transactional: browse, sell, deal, plus the caller's name
+  // as a profile shortcut. Everything else (purchases, sales, messages, admin,
+  // sign-out) lives behind the burger menu.
   return (
     <header className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent">
       <div className="flex h-16 w-full items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
@@ -80,12 +81,23 @@ export async function SiteHeader() {
 
         <div className="ml-auto flex shrink-0 items-center justify-end gap-1 text-parchment sm:min-w-0 sm:flex-1 sm:gap-2">
           {isAuthenticated && user ? (
-            <NotificationBell
-              userId={user.id}
-              initialNotifications={
-                initialNotifications?.ok ? initialNotifications.notifications : []
-              }
-            />
+            <>
+              <NotificationBell
+                userId={user.id}
+                initialNotifications={
+                  initialNotifications?.ok ? initialNotifications.notifications : []
+                }
+              />
+              <Button asChild variant="ghost" size="sm" className="max-w-[9rem] sm:max-w-[14rem]">
+                <Link
+                  href="/profile"
+                  className="truncate font-medium"
+                  title={displayName ?? 'Your profile'}
+                >
+                  {displayName ?? 'Profile'}
+                </Link>
+              </Button>
+            </>
           ) : (
             <nav aria-label="Account" className="hidden items-center gap-1 lg:flex">
               <Button asChild variant="ghost" size="sm">

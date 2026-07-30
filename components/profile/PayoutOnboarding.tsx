@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { BadgeCheck, Loader2, ShieldAlert, ShieldCheck, Wallet } from 'lucide-react';
 
-import { DittoArtwork } from '@/components/brand/DittoArtwork';
+import { DittoShieldMark } from '@/components/brand/DittoShieldMark';
 import {
   simulateMerchantCompliance,
   submitMerchantOnboarding,
@@ -356,12 +356,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 gap-3">
-            <DittoArtwork
-              variant="detective"
-              decorative
-              className="hidden w-14 shrink-0 rounded-md border-ditto/25 sm:block"
-              sizes="3.5rem"
-            />
+            <DittoShieldMark className="hidden sm:block" />
             <div className="space-y-1.5">
               <CardTitle className="text-xl">
                 DittoShield{' '}

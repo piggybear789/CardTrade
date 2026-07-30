@@ -53,7 +53,5 @@ await sharp('scripts/_icon-mask.svg')
   .composite([{ input: ditto, top: inset, left: inset }])
   .toFile('app/icon.png');
 
-await sharp('app/icon.png').toFile('public/icon.png');
-
 const final = await sharp('public/brand/ditto.png').metadata();
 console.log('final brand', final.width, final.height);

@@ -2,9 +2,8 @@
 //
 // NoDitto brand mark and wordmark.
 //
-// The mark is official Ditto artwork with a classic red prohibition overlay —
-// literally "no Ditto" — which is the joke the name is built on. Served
-// unoptimized so Next's image pipeline does not re-encode and soften the PNG.
+// The mark is the local photo Ditto asset. Served unoptimized so Next's image
+// pipeline does not re-encode and soften the PNG.
 
 import Image from 'next/image';
 
@@ -14,7 +13,7 @@ import { cn } from '@/lib/utils';
 const DITTO_MARK = '/brand/ditto.png';
 
 /**
- * The icon-only NoDitto mark: real Ditto with a red cancel / prohibition sign.
+ * The icon-only NoDitto mark: photo Ditto.
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
@@ -28,31 +27,10 @@ export function LogoMark({ className }: { className?: string }) {
         width={128}
         height={128}
         sizes="32px"
-        quality={100}
         unoptimized
         className="size-full object-contain"
         priority
       />
-      {/* Classic "no" sign — faint so Ditto still reads underneath. */}
-      <svg
-        viewBox="0 0 32 32"
-        fill="none"
-        className="pointer-events-none absolute inset-0 size-full opacity-45"
-      >
-        <circle
-          cx="16"
-          cy="16"
-          r="13.25"
-          stroke="#e11d2e"
-          strokeWidth="2.75"
-        />
-        <path
-          d="M7.2 24.8 24.8 7.2"
-          stroke="#e11d2e"
-          strokeWidth="2.75"
-          strokeLinecap="round"
-        />
-      </svg>
     </span>
   );
 }

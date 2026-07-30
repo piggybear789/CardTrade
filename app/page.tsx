@@ -3,10 +3,10 @@
 // NoDitto landing page. Presents one concrete, collateral-backed trade so
 // collectors can understand the clearinghouse before entering the marketplace.
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Check, X } from 'lucide-react';
 
-import { DittoArtwork } from '@/components/brand/DittoArtwork';
 import { LogoMark } from '@/components/layout/Logo';
 
 import { ListingCarousel } from '@/components/listings/ListingCarousel';
@@ -23,6 +23,25 @@ export const metadata = {
   description:
     'Buy, sell, and swap high-value collectibles with DittoShield anti-impostor verification, live contracts, collateral protection, and Pinch Payments.',
 };
+
+// Iconic chase cards so the example trade reads as a serious, high-value swap:
+// "Moonbreon" (Prismatic Evolutions SIR), Pikachu ex SIR (Ascended Heroes),
+// and the "bubble Mew" SIR from Paldean Fates (#232). Prefer `_hires` scans
+// from the Pokémon TCG CDN; Ascended Heroes is only on Scrydex's large size.
+const CARD_IMAGES = {
+  umbreon: {
+    src: 'https://images.pokemontcg.io/sv8pt5/161_hires.png',
+    alt: 'Umbreon ex Special Illustration Rare Pokémon trading card',
+  },
+  pikachu: {
+    src: 'https://images.scrydex.com/pokemon/me2pt5-276/large',
+    alt: '',
+  },
+  mew: {
+    src: 'https://images.pokemontcg.io/sv4pt5/232_hires.png',
+    alt: '',
+  },
+} as const;
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -217,33 +236,43 @@ function ProtectedTradePreview() {
   return (
     <div className="relative mx-auto h-[24rem] w-full max-w-[35rem] sm:h-[31rem] lg:h-[36rem]">
       <div className="auction-stage absolute inset-x-4 inset-y-0 overflow-hidden rounded-lg border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:inset-x-8">
-        <DittoArtwork
-          variant="duplicate"
-          decorative
-          className="absolute left-[7%] top-[24%] w-[31%] -rotate-[9deg] border-white/15 opacity-75 shadow-2xl"
+        <Image
+          src={CARD_IMAGES.pikachu.src}
+          alt={CARD_IMAGES.pikachu.alt}
+          width={488}
+          height={680}
+          quality={100}
           sizes="(max-width: 639px) 34vw, 10rem"
+          className="absolute left-[7%] top-[24%] w-[31%] -rotate-[9deg] rounded-[4%] opacity-80 shadow-2xl"
         />
-        <DittoArtwork
-          variant="detective"
-          decorative
-          className="absolute right-[7%] top-[24%] w-[31%] rotate-[9deg] border-white/15 opacity-75 shadow-2xl"
+        <Image
+          src={CARD_IMAGES.mew.src}
+          alt={CARD_IMAGES.mew.alt}
+          width={488}
+          height={680}
+          quality={100}
           sizes="(max-width: 639px) 34vw, 10rem"
+          className="absolute right-[7%] top-[24%] w-[31%] rotate-[9deg] rounded-[4%] opacity-80 shadow-2xl"
         />
-        <DittoArtwork
-          variant="classic"
-          className="absolute left-1/2 top-[16%] z-10 w-[42%] -translate-x-1/2 border-ditto/35 drop-shadow-[0_22px_28px_rgba(0,0,0,0.65)]"
+        <Image
+          src={CARD_IMAGES.umbreon.src}
+          alt={CARD_IMAGES.umbreon.alt}
+          width={488}
+          height={680}
+          quality={100}
           sizes="(max-width: 639px) 47vw, 14rem"
           priority
+          className="absolute left-1/2 top-[16%] z-10 w-[42%] -translate-x-1/2 rounded-[4%] drop-shadow-[0_22px_28px_rgba(0,0,0,0.65)]"
         />
         {/* Two guarantees, side by side — the pitch in the fewest possible words. */}
         <ul className="ledger-strip absolute inset-x-0 bottom-0 z-20 grid grid-cols-2 gap-x-4 border-t border-gold/30 px-5 py-4 text-xs font-semibold text-obsidian sm:px-6 sm:text-sm">
           <li className="flex items-center gap-1.5">
             <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-            DittoShield Status Shown
+            All Parties ID Verified
           </li>
           <li className="flex items-center justify-end gap-1.5">
             <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-            Pinch Payments Disclosed
+            Powered by Pinch Payments
           </li>
         </ul>
       </div>

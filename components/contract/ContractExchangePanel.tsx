@@ -188,14 +188,14 @@ export function ContractExchangePanel({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 w-full flex-col',
-        compact ? 'gap-2' : 'gap-3',
+        'flex w-full flex-col',
+        compact ? 'gap-2' : 'h-full min-h-0 gap-3',
         className,
       )}
     >
       <div
         className={cn(
-          'min-h-0 flex-1',
+          compact ? null : 'min-h-0 flex-1',
           twoSided
             ? cn(
                 'grid items-stretch md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',

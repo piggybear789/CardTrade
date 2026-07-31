@@ -16,12 +16,17 @@
 // open seat; once joined it is the full two-party contract.
 //
 // IDENTITY OR MONEY: verification is not a gate. Two verified parties make the deal
-// binding with nothing held; if either is unverified, BOTH are held for the deal's stake
+// binding with nothing held by default; if either is unverified — or the deal opts into
+// DittoEscrow (`collateral_opt_in`) — BOTH are held for the deal's stake
 // (`domain/deal/dealCollateral.ts`).
 //
-// CRITICAL RULE surfaced here: if either party edits a substantive term, the database
-// clears BOTH confirmations. The action card says so and the confirm control resets for
-// both sides.
+// CASH VIA PINCH: meetup/delivery is goods and inspection only. Any cash component
+// is charged on confirm and settled through Pinch when both mark complete — never
+// handed over as physical cash.
+//
+// CRITICAL RULE surfaced here: if either party edits a substantive term (including
+// opt-in), the database clears BOTH confirmations. The action card says so and the
+// confirm control resets for both sides.
 
 import { useState, useTransition, type ReactNode } from 'react';
 import Link from 'next/link';
@@ -70,7 +75,7 @@ import { DealStateBadge, type DealState } from '@/components/deals/DealStateBadg
 import { EditTermsDialog } from '@/components/deals/EditTermsDialog';
 import { ShareDealLink } from '@/components/deals/ShareDealLink';
 import { useDealRealtime } from '@/lib/realtime/useDealRealtime';
-import { dealStakeCents } from '@/domain/deal/dealCollateral';
+import { resolveDealCollateral } from '@/domain/deal/dealCollateral';
 import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
 import { deliveryNotesFromDetails } from '@/lib/handover/terms';
 import {
@@ -118,7 +123,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-joined': 'Nobody has joined this deal yet — share the link first.',
   'terms-incomplete': 'Set the handover terms before confirming.',
   'escrow-failed':
-    'The collateral hold could not be placed. Both confirmations were cleared — add a payment method, or verify your identity, and try again.',
+    'Escrow could not engage (collateral and/or deal cash via Pinch). Both confirmations were cleared — add a payment method, agree who pays, or verify your identity, and try again.',
   'already-recorded': 'You have already marked this deal complete.',
   'invalid-reason': 'Add a short reason.',
   'persistence-error': 'Something went wrong. Please try again.',
@@ -222,21 +227,29 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
   const theirConfirmed =
     (iAmCreator ? deal.counterparty_confirmed_at : deal.creator_confirmed_at) !== null;
 
-  const bothVerified = them !== null && me.isVerified && them.isVerified;
-  // Identity or money. Two verified parties hold nothing; anything else and BOTH sides
-  // are held for the deal's stake, recomputed from the live terms.
-  const collateralRequired = them === null ? !me.isVerified : !bothVerified;
-  const collateralStakeCents = dealStakeCents(
-    {
+  // Identity or money (or opt-in). Match server `collateralForDeal` so the room
+  // reflects verified-to-verified, unverified, and DittoEscrow opt-in the same way.
+  const collateralOutcome = resolveDealCollateral({
+    creator: view.creator.isVerified,
+    counterparty:
+      deal.counterparty_id === null
+        ? null
+        : iAmCreator
+          ? (view.counterparty?.isVerified ?? false)
+          : me.isVerified,
+    optIn: deal.collateral_opt_in,
+    basis: {
       collateralCents: deal.collateral_cents,
       cashAmountCents: deal.cash_amount_cents,
     },
-    {
+    policy: {
       defaultCents: DEAL_DEFAULT_COLLATERAL_CENTS,
       minCents: DEAL_COLLATERAL_MIN,
       maxCents: DEAL_COLLATERAL_MAX,
     },
-  );
+  });
+  const collateralRequired = collateralOutcome.required;
+  const collateralStakeCents = collateralOutcome.stakeCents;
   const termsComplete = termsCompleteFor(deal);
   const creatorBringsGoods =
     deal.creator_role === 'SELLER' ||
@@ -298,7 +311,6 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
 
   const cashCents = deal.cash_amount_cents;
   const deliveryCents = deal.delivery_cost_cents ?? 0;
-  const totalCents = (cashCents ?? 0) + deliveryCents;
 
   /** Run a deal action, toasting the outcome and refreshing server data. */
   function run(
@@ -362,16 +374,19 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
             ? 'Free delivery'
             : `${formatAud(deal.delivery_cost_cents)} postage`
         : 'Not agreed yet';
+  const cashPayment = (view.payments ?? [])[0] ?? null;
   const moneySummary =
     cashCents == null
       ? 'No cash — goods for goods'
       : deal.cash_payer_id === myUserId
-        ? `You bring ${formatAud(totalCents)} cash`
+        ? `You pay ${formatAud(cashCents)} via Pinch`
         : deal.cash_payer_id
-          ? `${nameOf(them)} brings ${formatAud(totalCents)} cash`
-          : `${formatAud(totalCents)} · payer not agreed`;
+          ? `${nameOf(them)} pays ${formatAud(cashCents)} via Pinch`
+          : `${formatAud(cashCents)} · payer not agreed`;
   const collateralSummary = collateralRequired
-    ? `Both sides post ${formatAud(collateralStakeCents)}`
+    ? collateralOutcome.reason === 'OPT_IN'
+      ? `DittoEscrow · both sides post ${formatAud(collateralStakeCents)}`
+      : `Both sides post ${formatAud(collateralStakeCents)}`
     : 'None required — both parties verified';
 
   const exchangeSides: ContractExchangeSide[] = [
@@ -446,7 +461,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
       <ContractHeader
         title={deal.title}
         money={
-          cashCents == null ? 'Goods only' : `${formatAud(totalCents)} total`
+          cashCents == null ? 'Goods only' : `${formatAud(cashCents)} via Pinch`
         }
         parties={
           <ContractPartyLine
@@ -878,27 +893,60 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 { label: 'Cash amount', value: formatAud(cashCents) },
                 {
                   label:
-                    deal.handover_method === 'DELIVERY'
-                      ? 'Delivery'
-                      : 'Delivery (not applicable)',
-                  value: formatAud(deliveryCents),
-                },
-                {
-                  label:
                     deal.cash_payer_id === myUserId
-                      ? 'Your cash at handover'
+                      ? 'You pay (via Pinch)'
                       : deal.cash_payer_id
-                        ? `${nameOf(them)}'s cash at handover`
+                        ? `${nameOf(them)} pays (via Pinch)`
                         : 'Payer not agreed',
-                  value: formatAud(totalCents),
+                  value: formatAud(cashCents),
                   total: true,
                 },
+                ...(deal.handover_method === 'DELIVERY'
+                  ? [
+                      {
+                        label: 'Postage (agreed separately)',
+                        value:
+                          deliveryCents === 0
+                            ? 'Free'
+                            : formatAud(deliveryCents),
+                      },
+                    ]
+                  : []),
+                ...(cashPayment
+                  ? [
+                      {
+                        label: 'Pinch status',
+                        value:
+                          cashPayment.status === 'HELD'
+                            ? 'Held on confirm'
+                            : cashPayment.status === 'SETTLED'
+                              ? 'Settled'
+                              : cashPayment.status === 'REFUNDED'
+                                ? 'Refunded'
+                                : cashPayment.status,
+                      },
+                    ]
+                  : deal.state === 'CONFIRMATION' ||
+                      deal.state === 'TERMS' ||
+                      deal.state === 'INVITED'
+                    ? [
+                        {
+                          label: 'Pinch status',
+                          value: 'Charges when you both confirm',
+                          muted: true,
+                        },
+                      ]
+                    : []),
               ]}
             />
           )}
           <p className="text-xs text-muted-foreground">
-            Cash and goods change hands between the two of you at the handover.
-            NoDitto holds only the collateral.
+            {deal.handover_method === 'IN_PERSON'
+              ? 'Meetup is for goods and inspection only. Deal cash settles through Pinch when the deal locks — not handed over in person.'
+              : deal.handover_method === 'DELIVERY'
+                ? 'Delivery hands over goods only. Deal cash settles through Pinch when the deal locks — not paid to a courier.'
+                : 'Deal cash settles through Pinch when you both confirm. Handover is for goods only.'}{' '}
+            Collateral, when required, is a separate Pinch hold.
           </p>
         </ContractDetailRow>
 
@@ -955,21 +1003,25 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
           {!collateralRequired ? (
             <p className="text-muted-foreground">
               {them
-                ? 'You are both DittoShield verified, so this deal is binding on your identities alone.'
-                : 'You are DittoShield verified. If an unverified member joins, both sides post collateral.'}
+                ? 'You are both DittoShield verified, so this deal is binding on your identities alone. You can still opt into DittoEscrow from Edit value.'
+                : 'You are DittoShield verified. If an unverified member joins, both sides post collateral. You can also require DittoEscrow from Edit value.'}
             </p>
           ) : (
             <>
               <p className="text-muted-foreground">
-                {them === null
-                  ? 'You are not DittoShield verified, so both sides will post collateral once the deal is confirmed.'
-                  : !me.isVerified && !them.isVerified
-                    ? 'Neither of you is DittoShield verified, so both sides post collateral.'
-                    : !me.isVerified
-                      ? 'You are not DittoShield verified, so both sides post collateral.'
-                      : `${nameOf(them)} is not DittoShield verified, so both sides post collateral.`}{' '}
-                Held when you both confirm, released as soon as you both mark the deal
-                complete.
+                {collateralOutcome.reason === 'OPT_IN'
+                  ? them === null
+                    ? 'DittoEscrow is on, so both sides will post collateral once the deal is confirmed — even if the other party is verified.'
+                    : 'DittoEscrow is on, so both sides post collateral even though you are both DittoShield verified.'
+                  : them === null
+                    ? 'You are not DittoShield verified, so both sides will post collateral once the deal is confirmed.'
+                    : !me.isVerified && !them.isVerified
+                      ? 'Neither of you is DittoShield verified, so both sides post collateral.'
+                      : !me.isVerified
+                        ? 'You are not DittoShield verified, so both sides post collateral.'
+                        : `${nameOf(them)} is not DittoShield verified, so both sides post collateral.`}{' '}
+                Held via Pinch when you both confirm, released as soon as you both mark
+                the deal complete.
               </p>
               <ContractMoneyTable
                 ariaLabel="Collateral"
@@ -1000,7 +1052,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 holds={contractHolds}
                 ariaLabel="Collateral holds"
                 emptyLabel={
-                  deal.state === 'ESCROW_PENDING'
+                  deal.state === 'ESCROW_PENDING' || collateralRequired
                     ? 'No holds recorded yet.'
                     : 'No collateral held — both parties are DittoShield verified.'
                 }

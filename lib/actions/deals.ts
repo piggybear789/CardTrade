@@ -40,7 +40,12 @@
 // IDENTITY OR MONEY: a deal does NOT require KYC. Verification is offered on the
 // way in (see `app/deals/new/page.tsx`) and may be skipped — an unverified party
 // backs the deal with collateral instead. `domain/deal/dealCollateral.ts` owns
-// that rule; when both parties are verified no collateral is held at all.
+// that rule: both verified → no hold by default; either unverified → both post
+// stake; both verified + `collateral_opt_in` → both post stake via Pinch anyway.
+//
+// CASH VIA PINCH: handover (face-to-face or delivery) is goods/inspection only.
+// Any `cash_amount_cents` is charged from the payer on confirm (`deal_payments`)
+// and settled to the recipient when both mark complete — never physical cash.
 //
 // CRITICAL RULE mirrored from the database: a BEFORE UPDATE trigger on `deals`
 // NULLS both `*_confirmed_at` columns and bumps `terms_updated_at` whenever a
@@ -59,6 +64,9 @@ import {
   resolveDealCollateral,
   type DealCollateralOutcome,
 } from '@/domain/deal/dealCollateral';
+import { resolveDealCashSettlement } from '@/domain/deal/dealCash';
+import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
+import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import { formatAud } from '@/lib/format';
 import {
   removeImages,
@@ -100,8 +108,12 @@ export type DealRow = Tables<'deals'>;
 export type DealEventRow = Tables<'deal_events'>;
 /** A collateral hold row belonging to a deal. */
 export type DealHoldRow = Tables<'deal_holds'>;
+/** A Pinch cash-settlement row belonging to a deal (separate from collateral). */
+export type DealPaymentRow = Tables<'deal_payments'>;
 /** The deal lifecycle state enum. */
 export type DealState = Enums<'deal_state'>;
+/** Status of a deal's Pinch cash escrow row. */
+export type DealPaymentStatus = Enums<'deal_payment_status'>;
 /** How the two parties hand over: meet in person, or ship/deliver. */
 export type { HandoverMethod };
 
@@ -200,12 +212,13 @@ const DEAL_COLLATERAL_POLICY = {
 /**
  * Collateral held per party when the binding contract engages, per
  * `domain/deal/dealCollateral.ts`: nothing when both parties are identity
- * verified, otherwise BOTH post the deal's stake (its agreed
- * `collateral_cents`, else its cash component, else the flat default).
+ * verified (unless `collateral_opt_in`), otherwise BOTH post the deal's stake
+ * (its agreed `collateral_cents`, else its cash component, else the flat
+ * default). Opt-in still places real Pinch holds on confirm.
  *
  * Pass `counterparty: null` for an unjoined deal — the outcome then describes
  * only the creator, and `stakeCents` is what both sides would post if an
- * unverified member takes the share link.
+ * unverified member takes the share link (or if opt-in is on).
  */
 function collateralForDeal(
   deal: DealRow,
@@ -214,6 +227,7 @@ function collateralForDeal(
   return resolveDealCollateral({
     creator: verified.creator,
     counterparty: verified.counterparty,
+    optIn: deal.collateral_opt_in,
     basis: {
       collateralCents: deal.collateral_cents,
       cashAmountCents: deal.cash_amount_cents,
@@ -397,6 +411,12 @@ export interface CreateDealInput {
   deliveryCostCents?: number;
   /** Optional shipping notes for a `DELIVERY` handover (carrier, timing…). */
   deliveryDetails?: string;
+  /**
+   * When true, both parties post Pinch collateral on confirm even if both are
+   * DittoShield verified. Ignored when either party is unverified (collateral
+   * is already required).
+   */
+  collateralOptIn?: boolean;
 }
 
 /** Errors surfaced by {@link createDeal}. */
@@ -431,7 +451,7 @@ export type CreateDealResult =
  *
  * | role   | cash component            | photos                        |
  * |--------|---------------------------|-------------------------------|
- * | BUYER  | what the caller PAYS      | not needed (they bring cash)  |
+ * | BUYER  | what the caller PAYS      | not needed (they pay via Pinch) |
  * | SELLER | what the caller RECEIVES  | REQUIRED — they bring goods   |
  * | TRADER | only when `CASH` is offered| REQUIRED when `ITEMS` offered |
  *
@@ -587,6 +607,7 @@ export async function createDeal(
       // A SELLER is paid by the joiner, who does not exist yet: leave the payer
       // NULL and let the join (or the agreed terms) fill it in.
       cash_payer_id: cashAmountCents !== null && role !== 'SELLER' ? me : null,
+      collateral_opt_in: Boolean(input.collateralOptIn),
     })
     .select('*')
     .single();
@@ -900,6 +921,11 @@ export interface UpdateTermsInput {
    * collateral is required, each participant's hold is 100% of this value.
    */
   collateralCents?: number | null;
+  /**
+   * Opt into DittoEscrow even when both parties are DittoShield verified.
+   * Changing this clears both confirmations (database trigger).
+   */
+  collateralOptIn?: boolean;
 }
 
 /** Errors surfaced by {@link updateTerms}. */
@@ -1071,6 +1097,10 @@ export async function updateTerms(
       }
       patch.collateral_cents = cents;
     }
+  }
+
+  if (input.collateralOptIn !== undefined) {
+    patch.collateral_opt_in = Boolean(input.collateralOptIn);
   }
 
   const myRole = iAmCreator ? deal.creator_role : mirrorRole(deal.creator_role);
@@ -1327,10 +1357,10 @@ async function revertToConfirmation(
  * trusted from the client) only to size the collateral: verified-to-verified
  * engages with no holds at all, otherwise BOTH parties post the deal's stake.
  *
- * Engagement sequence: CONFIRMATION -> ESCROW_PENDING, place a collateral hold
- * for EACH party that needs one via the payment service, record the `deal_holds`
- * rows with the service-role client (the table has no end-user insert policy),
- * then ESCROW_PENDING -> ESCROW_LOCKED. If any hold fails, every placed hold is
+ * Engagement sequence: CONFIRMATION -> ESCROW_PENDING, place collateral holds
+ * when required, charge any deal cash from the payer into Pinch escrow
+ * (`deal_payments`), record rows with the service-role client, then
+ * ESCROW_PENDING -> ESCROW_LOCKED. If any charge fails, every placed hold is
  * voided, the deal reverts to CONFIRMATION with both confirmations cleared, and
  * a typed `escrow-failed` error is returned.
  */
@@ -1353,7 +1383,7 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
   }
 
   // A binding trade needs an auditable description and photo evidence for every
-  // side that brings goods. A BUYER may legitimately bring cash only.
+  // side that brings goods. A BUYER may legitimately offer Pinch cash only.
   const creatorBringsGoods =
     deal.creator_role === 'SELLER' ||
     (deal.creator_role === 'TRADER' &&
@@ -1432,9 +1462,10 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
 
   const pendingDeal = pending as DealRow;
 
-  // Identity or money: both parties' verification is read here only to SIZE the
-  // collateral. Verified-to-verified holds nothing; otherwise both post the
-  // deal's stake, so the honest unverified party is never alone at risk.
+  // Identity or money (or opt-in escrow): both parties' verification is read
+  // here only to SIZE the collateral. Verified-to-verified holds nothing unless
+  // `collateral_opt_in`; otherwise both post the deal's stake via Pinch, so the
+  // honest unverified party is never alone at risk.
   const verification = await readVerification(supabase, [
     pendingDeal.creator_id,
     counterpartyId,
@@ -1445,20 +1476,54 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
   });
   const collateralCents = collateral.perPartyCents;
 
+  const cashPlan = resolveDealCashSettlement({
+    cashAmountCents: pendingDeal.cash_amount_cents,
+    cashPayerId: pendingDeal.cash_payer_id,
+    creatorId: pendingDeal.creator_id,
+    counterpartyId,
+  });
+  // A positive cash amount without a resolvable payer/recipient cannot bind —
+  // cash must settle through Pinch, never as an informal handshake amount.
+  if (
+    typeof pendingDeal.cash_amount_cents === 'number' &&
+    pendingDeal.cash_amount_cents > 0 &&
+    cashPlan === null
+  ) {
+    await revertToConfirmation(supabase, dealId);
+    const detail =
+      'Cash is set but the payer is not agreed. Edit the money terms, then confirm again.';
+    await logDealEvent(supabase, {
+      dealId,
+      actorId: userId,
+      event: 'ESCROW_FAILED',
+      fromState: 'ESCROW_PENDING',
+      toState: 'CONFIRMATION',
+      detail,
+    });
+    return { ok: false, error: 'escrow-failed', detail };
+  }
+
+  const cashDetail = cashPlan
+    ? ` Charging ${formatAud(cashPlan.amountCents)} deal cash from the payer via Pinch.`
+    : '';
   await logDealEvent(supabase, {
     dealId,
     actorId: userId,
     event: 'BOTH_CONFIRMED',
     fromState: 'CONFIRMATION',
     toState: 'ESCROW_PENDING',
-    detail: collateral.required
-      ? `Placing ${formatAud(collateralCents)} collateral on each party.`
-      : 'Both parties are identity verified — no collateral required.',
+    detail:
+      (collateral.required
+        ? collateral.reason === 'OPT_IN'
+          ? `DittoEscrow opted in — placing ${formatAud(collateralCents)} on each party via Pinch.`
+          : `Placing ${formatAud(collateralCents)} collateral on each party via Pinch.`
+        : 'Both parties are identity verified — no collateral required.') + cashDetail,
   });
 
   const payments = getPaymentService();
   const parties = [pendingDeal.creator_id, counterpartyId];
   const placed: { partyId: string; holdRef: string }[] = [];
+  let cashPaymentRef: string | null = null;
   let failureDetail: string | null = null;
 
   if (collateral.required) {
@@ -1486,9 +1551,29 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
     }
   }
 
-  if (failureDetail) {
-    // Compensate: release anything already held, then hand control back to the
-    // parties with both confirmations cleared.
+  if (!failureDetail && cashPlan) {
+    const pinchPayerId = await resolvePayerId(cashPlan.payerId);
+    if (!pinchPayerId) {
+      failureDetail = 'The cash payer has no payment method on file.';
+    } else {
+      try {
+        const cashHold = await payments.placeHold({
+          payerId: pinchPayerId,
+          amount: cashPlan.amountCents,
+          ref: `deal-cash:${dealId}`,
+        });
+        if (cashHold.status !== 'ACTIVE') {
+          failureDetail = 'Deal cash could not be charged via Pinch.';
+        } else {
+          cashPaymentRef = cashHold.holdId;
+        }
+      } catch (e) {
+        failureDetail = e instanceof Error ? e.message : 'Deal cash charge failed.';
+      }
+    }
+  }
+
+  async function compensateEscrowCharges(): Promise<void> {
     for (const { holdRef } of placed) {
       try {
         await payments.voidHold(holdRef);
@@ -1496,6 +1581,17 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
         // Best-effort release; the provider is the source of truth.
       }
     }
+    if (cashPaymentRef) {
+      try {
+        await payments.voidHold(cashPaymentRef);
+      } catch {
+        // best-effort
+      }
+    }
+  }
+
+  if (failureDetail) {
+    await compensateEscrowCharges();
     await revertToConfirmation(supabase, dealId);
     await logDealEvent(supabase, {
       dealId,
@@ -1508,11 +1604,11 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
     return { ok: false, error: 'escrow-failed', detail: failureDetail };
   }
 
-  // Record the holds with the service-role client (no end-user insert policy).
-  // Nothing to record when both parties are verified and no hold was placed.
-  if (placed.length > 0) {
-    try {
-      const admin = createAdminClient();
+  // Record collateral + cash rows with the service-role client (no end-user
+  // insert policy on either table).
+  try {
+    const admin = createAdminClient();
+    if (placed.length > 0) {
       const { error: holdError } = await admin.from('deal_holds').insert(
         placed.map(({ partyId, holdRef }) => ({
           deal_id: dealId,
@@ -1523,27 +1619,32 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
         })),
       );
       if (holdError) throw new Error(holdError.message);
-    } catch (e) {
-      for (const { holdRef } of placed) {
-        try {
-          await payments.voidHold(holdRef);
-        } catch {
-          // best-effort
-        }
-      }
-      await revertToConfirmation(supabase, dealId);
-      const detail =
-        e instanceof Error ? e.message : 'Could not record the collateral holds.';
-      await logDealEvent(supabase, {
-        dealId,
-        actorId: userId,
-        event: 'ESCROW_FAILED',
-        fromState: 'ESCROW_PENDING',
-        toState: 'CONFIRMATION',
-        detail,
-      });
-      return { ok: false, error: 'escrow-failed', detail };
     }
+    if (cashPlan && cashPaymentRef) {
+      const { error: paymentError } = await admin.from('deal_payments').insert({
+        deal_id: dealId,
+        payer_id: cashPlan.payerId,
+        recipient_id: cashPlan.recipientId,
+        amount_cents: cashPlan.amountCents,
+        payment_ref: cashPaymentRef,
+        status: 'HELD' as const,
+      });
+      if (paymentError) throw new Error(paymentError.message);
+    }
+  } catch (e) {
+    await compensateEscrowCharges();
+    await revertToConfirmation(supabase, dealId);
+    const detail =
+      e instanceof Error ? e.message : 'Could not record the escrow charges.';
+    await logDealEvent(supabase, {
+      dealId,
+      actorId: userId,
+      event: 'ESCROW_FAILED',
+      fromState: 'ESCROW_PENDING',
+      toState: 'CONFIRMATION',
+      detail,
+    });
+    return { ok: false, error: 'escrow-failed', detail };
   }
 
   const { data: locked } = await supabase
@@ -1558,26 +1659,47 @@ export async function confirmDeal(dealId: string): Promise<ConfirmDealResult> {
     ? (locked.state as DealState)
     : 'ESCROW_PENDING';
 
+  const lockedParts: string[] = [];
+  if (collateral.required) {
+    lockedParts.push(
+      collateral.reason === 'OPT_IN'
+        ? `${formatAud(collateralCents)} DittoEscrow collateral held per party via Pinch`
+        : `${formatAud(collateralCents)} collateral held per party via Pinch`,
+    );
+  } else {
+    lockedParts.push('Backed by both parties’ verified identity — no collateral held');
+  }
+  if (cashPlan) {
+    lockedParts.push(
+      `${formatAud(cashPlan.amountCents)} deal cash held from the payer via Pinch`,
+    );
+  }
+
   await logDealEvent(supabase, {
     dealId,
     actorId: null,
     event: 'ESCROW_LOCKED',
     fromState: 'ESCROW_PENDING',
     toState: finalState,
-    detail: collateral.required
-      ? `${formatAud(collateralCents)} collateral held per party.`
-      : 'Backed by both parties’ verified identity — no collateral held.',
+    detail: `${lockedParts.join('. ')}.`,
   });
 
   for (const partyId of parties) {
+    const cashNote = cashPlan
+      ? ` ${formatAud(cashPlan.amountCents)} cash is held via Pinch until you both mark complete.`
+      : '';
     await notifyDeal(
       partyId,
       'Deal is binding',
       collateral.required
-        ? `Both parties confirmed "${pendingDeal.title}". ${formatAud(
-            collateralCents,
-          )} collateral is now held on each side.`
-        : `Both parties confirmed "${pendingDeal.title}". It's binding, backed by your verified identities.`,
+        ? collateral.reason === 'OPT_IN'
+          ? `Both parties confirmed "${pendingDeal.title}". DittoEscrow is on — ${formatAud(
+              collateralCents,
+            )} is now held on each side via Pinch.${cashNote}`
+          : `Both parties confirmed "${pendingDeal.title}". ${formatAud(
+              collateralCents,
+            )} collateral is now held on each side via Pinch.${cashNote}`
+        : `Both parties confirmed "${pendingDeal.title}". It's binding, backed by your verified identities.${cashNote}`,
       dealId,
     );
   }
@@ -1822,7 +1944,7 @@ export async function completeDeal(
     await notifyDeal(
       otherParty,
       'The other party marked the deal complete',
-      `Mark "${deal.title}" complete to release both collateral holds.`,
+      `Mark "${deal.title}" complete to release collateral and settle any Pinch cash.`,
       dealId,
     );
     return {
@@ -1833,14 +1955,27 @@ export async function completeDeal(
     };
   }
 
-  // Both marked: release the collateral and finish.
+  // Both marked: settle Pinch cash (if any), release collateral, finish.
   const payments = getPaymentService();
-  const { data: holds } = await supabase
-    .from('deal_holds')
-    .select('*')
-    .eq('deal_id', dealId);
-
   const admin = createAdminClient();
+
+  const [{ data: holds }, { data: cashRows }] = await Promise.all([
+    supabase.from('deal_holds').select('*').eq('deal_id', dealId),
+    admin.from('deal_payments').select('*').eq('deal_id', dealId),
+  ]);
+
+  let cashSettled = false;
+  for (const row of (cashRows ?? []) as DealPaymentRow[]) {
+    if (row.status !== 'HELD' || !row.payment_ref) continue;
+    try {
+      const settled = await settleDealCashPayment(row);
+      cashSettled = settled || cashSettled;
+    } catch {
+      // Best-effort; the deal still completes and the payment row stays HELD
+      // for reconciliation (same tolerance as trade cash settlement).
+    }
+  }
+
   for (const hold of (holds ?? []) as DealHoldRow[]) {
     if (hold.status !== 'ACTIVE' || !hold.hold_ref) continue;
     try {
@@ -1867,25 +2002,101 @@ export async function completeDeal(
   }
   if (!completedDeal) return { ok: false, error: 'invalid-state' };
 
+  const hadCash = ((cashRows ?? []) as DealPaymentRow[]).length > 0;
   await logDealEvent(supabase, {
     dealId,
     actorId: userId,
     event: 'DEAL_COMPLETED',
     fromState: 'ESCROW_LOCKED',
     toState: 'COMPLETED',
-    detail: 'Both parties marked complete; collateral released.',
+    detail: hadCash
+      ? cashSettled
+        ? 'Both parties marked complete; collateral released and Pinch cash settled.'
+        : 'Both parties marked complete; collateral released. Cash settlement is pending reconciliation.'
+      : 'Both parties marked complete; collateral released.',
   });
 
   for (const partyId of [deal.creator_id, counterpartyId]) {
     await notifyDeal(
       partyId,
       'Deal completed',
-      `"${deal.title}" is complete and the collateral holds were released.`,
+      hadCash
+        ? `"${deal.title}" is complete. Collateral was released and cash settles through Pinch.`
+        : `"${deal.title}" is complete and the collateral holds were released.`,
       dealId,
     );
   }
 
   return { ok: true, state: 'COMPLETED', completed: true, waitingForOther: false };
+}
+
+/**
+ * Settle one HELD deal cash payment after both parties mark complete.
+ *
+ * Default (platform payout): keep the charge placed on confirm — `fullCapture`
+ * confirms the Pinch payment stayed collected (same charge-and-refund model as
+ * cash-sale platform mode).
+ *
+ * Direct payout (`PAYOUT_MODE=direct`): when the recipient can receive funds,
+ * charge them via `requestTransfer` to their merchant and refund the escrow
+ * hold so the payer is not double-charged net.
+ *
+ * @returns true when the row was marked SETTLED.
+ */
+async function settleDealCashPayment(row: DealPaymentRow): Promise<boolean> {
+  if (row.status !== 'HELD' || !row.payment_ref) return false;
+
+  const admin = createAdminClient();
+  const payments = getPaymentService();
+  const direct = process.env.PAYOUT_MODE === 'direct';
+
+  if (direct) {
+    const [{ data: payerProfile }, merchant] = await Promise.all([
+      admin
+        .from('profiles')
+        .select('payer_id')
+        .eq('id', row.payer_id)
+        .maybeSingle(),
+      createSupabaseMerchantRepository(admin).loadMerchant(row.recipient_id),
+    ]);
+    const pinchPayerId = (payerProfile?.payer_id as string | null) ?? null;
+    const merchantRef = merchant?.merchantRef ?? null;
+    if (pinchPayerId && merchantRef && canReceiveFunds(merchant)) {
+      const transfer = await payments.requestTransfer({
+        payerId: pinchPayerId,
+        amount: row.amount_cents,
+        ref: `deal-cash-settle:${row.deal_id}`,
+        nonce: `deal-cash-settle:${row.deal_id}`,
+        merchantRef,
+      });
+      if (transfer.status === 'SETTLED') {
+        try {
+          await payments.voidHold(row.payment_ref);
+        } catch {
+          // Escrow refund is best-effort once the recipient transfer cleared.
+        }
+        await admin
+          .from('deal_payments')
+          .update({
+            status: 'SETTLED',
+            transfer_ref: transfer.transferId || null,
+          })
+          .eq('id', row.id)
+          .eq('status', 'HELD');
+        return true;
+      }
+    }
+  }
+
+  // Platform settle: the confirm-time charge is the settlement.
+  const capture = await payments.fullCapture(row.payment_ref);
+  if (capture.status !== 'SETTLED') return false;
+  await admin
+    .from('deal_payments')
+    .update({ status: 'SETTLED' })
+    .eq('id', row.id)
+    .eq('status', 'HELD');
+  return true;
 }
 
 /** Errors surfaced by {@link raiseDealDispute}. */
@@ -1902,9 +2113,9 @@ export type RaiseDealDisputeResult =
   | ActionFailure<RaiseDealDisputeError>;
 
 /**
- * Raise a dispute on a binding deal (ESCROW_LOCKED -> DISPUTED). Both collateral
- * holds stay locked so the funds remain available while the dispute is worked
- * through.
+ * Raise a dispute on a binding deal (ESCROW_LOCKED -> DISPUTED). Collateral
+ * holds and any Pinch cash payment (`deal_payments` HELD) stay locked so the
+ * funds remain available while the dispute is worked through.
  */
 export async function raiseDealDispute(
   dealId: string,
@@ -1972,6 +2183,8 @@ export interface DealView {
   /** True while the deal is created but unjoined (share the link). */
   awaitingJoin: boolean;
   holds: DealHoldRow[];
+  /** Pinch cash escrow rows for this deal (empty when goods-only). */
+  payments: DealPaymentRow[];
   /** Timeline, oldest first. */
   events: DealEventRow[];
   /** True when the caller is the deal's creator. */
@@ -1980,7 +2193,10 @@ export interface DealView {
   myConfirmed: boolean;
   /** The other party's confirmation state. */
   theirConfirmed: boolean;
-  /** True when BOTH parties are KYC VERIFIED — they post no collateral. */
+  /**
+   * True when BOTH parties are merchant-approved. They still post collateral when
+   * `deal.collateral_opt_in` is on.
+   */
   bothVerified: boolean;
   /** True when the handover terms are fully specified (step 2). */
   termsComplete: boolean;
@@ -1988,7 +2204,8 @@ export interface DealView {
   completeMarkedBy: string[];
   /**
    * Per-party collateral that will be (or was) held, in integer AUD cents. `0`
-   * when both parties are verified and the deal is backed by identity instead.
+   * when both parties are verified, opt-in is off, and the deal is backed by
+   * identity instead.
    */
   collateralCents: number;
   /**
@@ -1996,7 +2213,7 @@ export interface DealView {
    * while a party is still unverified, or before anybody has joined.
    */
   collateralStakeCents: number;
-  /** True when collateral will actually be held on both sides. */
+  /** True when collateral will actually be held on both sides (via Pinch). */
   collateralRequired: boolean;
   /**
    * The deal's participant-only chat thread, or `null` while the deal is
@@ -2061,39 +2278,41 @@ export async function getDeal(dealId: string): Promise<GetDealResult> {
   // Only query for the ids that actually exist — an unjoined deal has one party.
   const partyIds = [deal.creator_id, ...(deal.counterparty_id ? [deal.counterparty_id] : [])];
 
-  const [profilesRes, holdsRes, eventsRes, statsResults] = await Promise.all([
-    supabase
-      .from('public_profiles')
-      .select('id, display_name, rating, rating_count, is_verified')
-      .in('id', partyIds),
-    supabase.from('deal_holds').select('*').eq('deal_id', dealId),
-    supabase
-      .from('deal_events')
-      .select('*')
-      .eq('deal_id', dealId)
-      .order('created_at', { ascending: true }),
-    // Completed-sale counts come from an aggregate-only function, so neither
-    // party gains read access to the other's contracts (same source as the cash
-    // sale contract room).
-    Promise.all(
-      partyIds.map(async (id) => {
-        const { data } = await supabase.rpc('member_sale_stats', {
-          p_profile_id: id,
-        });
-        const row = (Array.isArray(data) ? data[0] : data) as
-          | { completed_sales: number | null; completed_purchases: number | null }
-          | null
-          | undefined;
-        return [
-          id,
-          {
-            completedSales: row?.completed_sales ?? 0,
-            completedPurchases: row?.completed_purchases ?? 0,
-          },
-        ] as const;
-      }),
-    ),
-  ]);
+  const [profilesRes, holdsRes, paymentsRes, eventsRes, statsResults] =
+    await Promise.all([
+      supabase
+        .from('public_profiles')
+        .select('id, display_name, rating, rating_count, is_verified')
+        .in('id', partyIds),
+      supabase.from('deal_holds').select('*').eq('deal_id', dealId),
+      supabase.from('deal_payments').select('*').eq('deal_id', dealId),
+      supabase
+        .from('deal_events')
+        .select('*')
+        .eq('deal_id', dealId)
+        .order('created_at', { ascending: true }),
+      // Completed-sale counts come from an aggregate-only function, so neither
+      // party gains read access to the other's contracts (same source as the cash
+      // sale contract room).
+      Promise.all(
+        partyIds.map(async (id) => {
+          const { data } = await supabase.rpc('member_sale_stats', {
+            p_profile_id: id,
+          });
+          const row = (Array.isArray(data) ? data[0] : data) as
+            | { completed_sales: number | null; completed_purchases: number | null }
+            | null
+            | undefined;
+          return [
+            id,
+            {
+              completedSales: row?.completed_sales ?? 0,
+              completedPurchases: row?.completed_purchases ?? 0,
+            },
+          ] as const;
+        }),
+      ),
+    ]);
 
   const profileById = new Map(
     (profilesRes.data ?? []).map((row) => [row.id as string, row]),
@@ -2136,8 +2355,8 @@ export async function getDeal(dealId: string): Promise<GetDealResult> {
     ? deal.counterparty_confirmed_at !== null
     : deal.creator_confirmed_at !== null;
 
-  // Identity or money: verified-to-verified deals hold nothing, otherwise both
-  // parties post the deal's stake when the binding contract engages.
+  // Identity or money (or opt-in escrow): verified-to-verified holds nothing
+  // unless the deal opted into DittoEscrow; otherwise both post the stake.
   const collateral = collateralForDeal(deal, {
     creator: creator.isVerified,
     counterparty: counterparty === null ? null : counterparty.isVerified,
@@ -2152,6 +2371,7 @@ export async function getDeal(dealId: string): Promise<GetDealResult> {
       shareToken: deal.share_token,
       awaitingJoin: deal.counterparty_id === null,
       holds: (holdsRes.data ?? []) as DealHoldRow[],
+      payments: (paymentsRes.data ?? []) as DealPaymentRow[],
       events,
       iAmCreator,
       myConfirmed,

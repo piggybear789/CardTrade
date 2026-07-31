@@ -41,7 +41,7 @@ import { DEAL_PHOTOS_MAX, DEAL_TEXT_MAX } from '@/lib/marketplace-constants';
 /** What a trader can put up. Choosing these decides what else this dialog asks. */
 const OFFER_OPTIONS: { value: DealOfferKind; label: string; hint: string }[] = [
   { value: 'CARDS', label: 'Cards', hint: 'Graded or raw' },
-  { value: 'CASH', label: 'Cash', hint: 'Amount on top' },
+  { value: 'CASH', label: 'Cash', hint: 'Via Pinch' },
   { value: 'ITEMS', label: 'Items', hint: 'Photos required' },
 ];
 
@@ -229,7 +229,7 @@ export function DealGoodsDialog({
           {showCash ? (
             <div className="space-y-2">
               <Label htmlFor="deal-cash">
-                Cash you put up
+                Cash you pay via Pinch
                 <span className="text-destructive" aria-hidden>
                   {' '}
                   *
@@ -263,6 +263,10 @@ export function DealGoodsDialog({
                   aria-describedby={cashError ? 'deal-cash-error' : undefined}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Charged through Pinch when you both confirm — not handed over in
+                person.
+              </p>
               {cashError ? (
                 <p id="deal-cash-error" role="alert" className="text-sm text-destructive">
                   {cashError}

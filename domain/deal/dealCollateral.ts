@@ -4,22 +4,27 @@
 // Policy (`domain/bond/bondPolicy.ts`). Same rule as a 2-way trade escrow:
 //
 //   Trust is either identity or money.
-//     * Both parties verified   -> no collateral. "Verified" means
+//     * Both parties verified, no opt-in -> no collateral. "Verified" means
 //       provider-approved Managed Merchant onboarding, not the standalone KYC
 //       payer check, so they are identifiable, bannable and pursuable, and the
 //       binding contract engages at zero cost.
 //     * Either party unverified -> BOTH post collateral, sized from the deal's
 //       own stake (its agreed collateral, else its cash component, else the flat
 //       default).
+//     * Both parties verified AND `optIn` -> BOTH post collateral anyway
+//       (optional DittoEscrow for high-value meetups). Holds still go through
+//       Pinch on confirm.
 //
 // This replaces the previous deal rule, where a deal could not be created or
 // confirmed unless BOTH parties were verified. A member may now skip merchant
-// onboarding and back the deal with money instead.
+// onboarding and back the deal with money instead — or keep verification and
+// still lock money when they choose to.
 //
 // SYMMETRY. Collateral protects the COUNTERPARTY, so a requirement on either
 // side applies to both: the honest unverified party is never the only one with
-// money at risk, and verified-to-verified deals stay frictionless (which is what
-// keeps verification worth doing).
+// money at risk, and verified-to-verified deals stay frictionless by default
+// (which is what keeps verification worth doing). Opt-in is also symmetric:
+// either party flipping it on requires both to post.
 //
 // Pure module: no I/O, no Supabase, no provider types. All amounts are integer
 // AUD cents.
@@ -63,10 +68,12 @@ export const DEFAULT_DEAL_COLLATERAL_POLICY: DealCollateralPolicy = {
 
 /** Why the resolved amount is what it is — drives the room's explanation. */
 export type DealCollateralReason =
-  /** Both parties are verified, so nothing is held. */
+  /** Both parties are verified and nobody opted into escrow. */
   | 'BOTH_VERIFIED'
   /** At least one party is unverified, so both post the stake. */
   | 'UNVERIFIED_PARTY'
+  /** Both verified, but the deal opted into DittoEscrow. */
+  | 'OPT_IN'
   /** Nobody has joined the share link yet; the creator alone needs nothing. */
   | 'AWAITING_JOIN';
 
@@ -99,21 +106,36 @@ export function dealStakeCents(
   return Math.min(Math.max(stake, limits.minCents), limits.maxCents);
 }
 
+/** Full stake bond for an unverified (or opt-in) party. */
+function stakeBondCents(
+  stakeCents: number,
+  policy?: Partial<DealCollateralPolicy>,
+): number {
+  return requiredBondCents({
+    verified: false,
+    fmvCents: stakeCents,
+    policy: policy?.bond,
+  });
+}
+
 /**
  * Resolve what each party must post before a deal can become binding.
  *
  * Pass `counterparty: null` for a deal nobody has joined yet: the answer then
  * describes the CREATOR's own requirement, and `stakeCents` is what both sides
- * would post if an unverified member takes the share link.
+ * would post if an unverified member takes the share link (or if opt-in is on).
  */
 export function resolveDealCollateral(params: {
   creator: boolean;
   counterparty: boolean | null;
   basis: DealCollateralBasis;
+  /** `deals.collateral_opt_in` — force escrow even when both are verified. */
+  optIn?: boolean;
   policy?: Partial<DealCollateralPolicy>;
 }): DealCollateralOutcome {
   const stakeCents = dealStakeCents(params.basis, params.policy);
   const bond = params.policy?.bond;
+  const optIn = Boolean(params.optIn);
 
   const creatorOwn = requiredBondCents({
     verified: params.creator,
@@ -123,11 +145,28 @@ export function resolveDealCollateral(params: {
 
   // Unjoined: only the creator's own status is known.
   if (params.counterparty === null) {
+    if (creatorOwn > 0) {
+      return {
+        stakeCents,
+        perPartyCents: creatorOwn,
+        required: true,
+        reason: 'UNVERIFIED_PARTY',
+      };
+    }
+    if (optIn) {
+      const perPartyCents = stakeBondCents(stakeCents, params.policy);
+      return {
+        stakeCents,
+        perPartyCents,
+        required: perPartyCents > 0,
+        reason: 'OPT_IN',
+      };
+    }
     return {
       stakeCents,
-      perPartyCents: creatorOwn,
-      required: creatorOwn > 0,
-      reason: creatorOwn > 0 ? 'UNVERIFIED_PARTY' : 'AWAITING_JOIN',
+      perPartyCents: 0,
+      required: false,
+      reason: 'AWAITING_JOIN',
     };
   }
 
@@ -138,15 +177,20 @@ export function resolveDealCollateral(params: {
   });
 
   if (creatorOwn === 0 && counterpartyOwn === 0) {
+    if (optIn) {
+      const perPartyCents = stakeBondCents(stakeCents, params.policy);
+      return {
+        stakeCents,
+        perPartyCents,
+        required: perPartyCents > 0,
+        reason: 'OPT_IN',
+      };
+    }
     return { stakeCents, perPartyCents: 0, required: false, reason: 'BOTH_VERIFIED' };
   }
 
   // Either side needs collateral -> both post the same stake (see SYMMETRY).
-  const perPartyCents = requiredBondCents({
-    verified: false,
-    fmvCents: stakeCents,
-    policy: bond,
-  });
+  const perPartyCents = stakeBondCents(stakeCents, params.policy);
 
   return {
     stakeCents,

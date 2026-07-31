@@ -160,8 +160,8 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
       short: 'Locked',
       label: collateralRequired ? 'Collateral locked' : 'Contract becomes binding',
       detail: collateralRequired
-        ? 'Both cards are authorised for the deal stake. Nothing is charged unless somebody fails to deliver.'
-        : 'You are both identity verified, so the deal binds on your identities with no card involved.',
+        ? 'Both sides post the deal stake via Pinch. Any deal cash is also charged from the payer via Pinch — handover is goods only.'
+        : 'You are both identity verified, so collateral is optional. Any deal cash is still charged from the payer via Pinch.',
       owner: 'platform',
       done: state === 'ESCROW_LOCKED' || state === 'COMPLETED' || state === 'DISPUTED',
       action: {
@@ -180,7 +180,8 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
       // and matches the label "Dispute under review".
       short: 'Review',
       label: 'Dispute under review',
-      detail: 'Collateral stays held on both sides while the case is reviewed.',
+      detail:
+        'Collateral and any Pinch deal cash stay locked while the case is reviewed.',
       owner: 'platform',
       done: false,
     });
@@ -193,12 +194,12 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
     label: 'Both mark the handover complete',
     detail:
       iMarkedComplete && theyMarkedComplete
-        ? 'Both parties marked it complete and the collateral was released.'
+        ? 'Both parties marked it complete; collateral released and Pinch cash settled.'
         : iMarkedComplete
           ? `You marked it complete. Waiting on ${them}.`
           : theyMarkedComplete
             ? `${them} marked it complete. Your turn.`
-            : 'Meet, swap, then you both mark it complete to release the collateral.',
+            : 'Hand over goods, then you both mark complete to release collateral and settle Pinch cash.',
     owner: iMarkedComplete ? 'them' : 'you',
     done: state === 'COMPLETED',
     action:

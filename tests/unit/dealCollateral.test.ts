@@ -1,7 +1,8 @@
 // tests/unit/dealCollateral.test.ts
 //
-// The deal collateral policy: identity or money. Verified-to-verified deals hold
-// nothing; if either party is unverified, BOTH post the deal's stake.
+// The deal collateral policy: identity or money (or opt-in escrow).
+// Verified-to-verified deals hold nothing by default; if either party is
+// unverified — or the deal opts into DittoEscrow — BOTH post the stake.
 
 import { describe, expect, it } from 'vitest';
 
@@ -53,6 +54,21 @@ describe('resolveDealCollateral', () => {
     });
   });
 
+  it('holds the stake on BOTH parties when opt-in is on, even if both verified', () => {
+    const outcome = resolveDealCollateral({
+      creator: true,
+      counterparty: true,
+      optIn: true,
+      basis,
+    });
+    expect(outcome).toMatchObject({
+      required: true,
+      perPartyCents: 50_000,
+      reason: 'OPT_IN',
+      stakeCents: 50_000,
+    });
+  });
+
   it('holds the stake on BOTH parties when the counterparty is unverified', () => {
     const outcome = resolveDealCollateral({
       creator: true,
@@ -84,6 +100,19 @@ describe('resolveDealCollateral', () => {
       perPartyCents: 50_000,
       required: true,
       reason: 'UNVERIFIED_PARTY',
+    });
+
+    expect(
+      resolveDealCollateral({
+        creator: true,
+        counterparty: null,
+        optIn: true,
+        basis,
+      }),
+    ).toMatchObject({
+      perPartyCents: 50_000,
+      required: true,
+      reason: 'OPT_IN',
     });
   });
 

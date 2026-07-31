@@ -145,9 +145,9 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             content cost a full row of vertical space for one small button. On
             phones the strip has no width to spare (the button would bury the
             tabs), so the action moves into the panel there instead. */}
-        <div className="flex shrink-0 items-center border-b">
+        <div className="flex min-h-10 shrink-0 items-stretch border-b">
           <div
-            className="flex min-w-0 flex-1 overflow-x-auto px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="tablist"
             aria-label="Contract details"
           >
@@ -160,10 +160,12 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                 className={cn(
                   // On phones the tabs share the strip evenly so all of them
                   // fit without horizontal scrolling; from `sm` they take
-                  // their natural width, left-aligned.
-                  'relative flex min-w-0 flex-1 items-center justify-center gap-0.5 sm:flex-none sm:justify-start',
+                  // their natural width, left-aligned. Labels must stay on one
+                  // line (`truncate` + `nowrap`) — wrapping grew the strip and
+                  // let text paint over adjacent tabs (e.g. Terms).
+                  'relative flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden sm:flex-none sm:justify-start sm:overflow-visible',
                   selected &&
-                    'after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-gold',
+                    'after:absolute after:inset-x-2 after:bottom-0 after:z-10 after:h-0.5 after:bg-gold',
                 )}
               >
                 <button
@@ -176,7 +178,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   onClick={() => selectTab(index)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
-                    'touch-manipulation py-2.5 text-xs font-medium transition-colors',
+                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-xs font-medium transition-colors',
                     explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
                     'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     selected ? 'text-foreground' : 'text-muted-foreground',
@@ -219,7 +221,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
           })}
           </div>
           {activeRow.props.action ? (
-            <div className="hidden shrink-0 py-1 pl-2 pr-3 sm:block">
+            <div className="hidden shrink-0 items-center self-center py-1 pl-2 pr-3 sm:flex">
               {activeRow.props.action}
             </div>
           ) : null}

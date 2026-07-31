@@ -76,13 +76,13 @@ const SECTION_COPY: Record<
   money: {
     title: 'Cash component',
     description:
-      'Optional cash that settles between you at the handover. Leave blank for goods only.',
+      'Optional cash paid through Pinch when you both confirm — not handed over at the meetup. Leave blank for goods only.',
     saveLabel: 'Save cash',
   },
   collateral: {
     title: 'Agreed trade value',
     description:
-      'The total worth of the exchange. When collateral is required, each hold is 100% of this.',
+      'The total worth of the exchange. When collateral is required — someone unverified, or DittoEscrow opted in — each hold is 100% of this via Pinch.',
     saveLabel: 'Save value',
   },
 };
@@ -218,6 +218,7 @@ export function EditTermsDialog({
   );
   const [cash, setCash] = useState(centsToDollars(deal.cash_amount_cents));
   const [collateral, setCollateral] = useState(centsToDollars(deal.collateral_cents));
+  const [collateralOptIn, setCollateralOptIn] = useState(Boolean(deal.collateral_opt_in));
   const [cashPayerId, setCashPayerId] = useState<string>(
     deal.cash_payer_id ?? deal.creator_id,
   );
@@ -234,6 +235,7 @@ export function EditTermsDialog({
     setDeliveryCost(centsToDollars(deal.delivery_cost_cents));
     setCash(centsToDollars(deal.cash_amount_cents));
     setCollateral(centsToDollars(deal.collateral_cents));
+    setCollateralOptIn(Boolean(deal.collateral_opt_in));
     setCashPayerId(deal.cash_payer_id ?? deal.creator_id);
   }, [open, deal, myItemInitial, myPhotosInitial]);
 
@@ -351,6 +353,7 @@ export function EditTermsDialog({
         input.cashPayerId = cash.trim() ? cashPayerId : null;
       } else {
         input.collateralCents = collateral.trim() ? collateralCents : null;
+        input.collateralOptIn = collateralOptIn;
       }
 
       const result = await updateTerms(deal.id, input);
@@ -630,8 +633,8 @@ export function EditTermsDialog({
                           id="terms-delivery-cost-hint"
                           className="text-xs text-muted-foreground"
                         >
-                          Charged on top of the cash component. Enter 0 for free
-                          delivery.
+                          Postage agreed between you (separate from Pinch deal
+                          cash). Enter 0 for free delivery.
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -678,49 +681,68 @@ export function EditTermsDialog({
                         <SelectValue placeholder="Choose who pays" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={myPartyId}>I bring the cash</SelectItem>
-                        <SelectItem value={theirPartyId}>They bring the cash</SelectItem>
+                        <SelectItem value={myPartyId}>I pay via Pinch</SelectItem>
+                        <SelectItem value={theirPartyId}>They pay via Pinch</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : cash.trim() && !theirPartyId ? (
                     <p className="text-xs text-muted-foreground">
-                      You&apos;ll be recorded as the payer for now. You can switch it
-                      once the other party joins.
+                      You&apos;ll be recorded as the Pinch payer for now. You can
+                      switch it once the other party joins.
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Leave blank for a goods-only trade.
+                      Leave blank for a goods-only trade. Cash is never exchanged
+                      in person — Pinch charges the payer when you both confirm.
                     </p>
                   )}
                 </div>
               ) : null}
 
               {section === 'collateral' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="terms-collateral">Agreed trade value (AUD)</Label>
-                  <div className="relative">
-                    <span
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                      aria-hidden
-                    >
-                      $
-                    </span>
-                    <Input
-                      id="terms-collateral"
-                      type="number"
-                      inputMode="decimal"
-                      min="1"
-                      step="0.01"
-                      placeholder="Automatic"
-                      value={collateral}
-                      onChange={(event) => setCollateral(event.target.value)}
-                      className="pl-7"
-                    />
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="terms-collateral">Agreed trade value (AUD)</Label>
+                    <div className="relative">
+                      <span
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                        aria-hidden
+                      >
+                        $
+                      </span>
+                      <Input
+                        id="terms-collateral"
+                        type="number"
+                        inputMode="decimal"
+                        min="1"
+                        step="0.01"
+                        placeholder="Automatic"
+                        value={collateral}
+                        onChange={(event) => setCollateral(event.target.value)}
+                        className="pl-7"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cards plus any cash. If left blank it falls back to the cash value
+                      only, which understates a trade that also includes cards.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Cards plus any cash. If left blank it falls back to the cash value
-                    only, which understates a trade that also includes cards.
-                  </p>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={collateralOptIn}
+                      onChange={(event) => setCollateralOptIn(event.target.checked)}
+                      className="mt-0.5 h-4 w-4"
+                      disabled={isPending}
+                    />
+                    <span>
+                      <span className="font-medium">Require DittoEscrow collateral</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Both sides post a Pinch hold on confirm even when you are both
+                        DittoShield verified. Changing this clears both confirmations.
+                      </span>
+                    </span>
+                  </label>
                 </div>
               ) : null}
 

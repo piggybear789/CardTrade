@@ -1115,6 +1115,11 @@ export type Database = {
           creator_confirmed_at: string | null;
           counterparty_confirmed_at: string | null;
           collateral_cents: number | null;
+          /**
+           * When true, both parties post collateral on confirm even if both are
+           * DittoShield verified (optional DittoEscrow).
+           */
+          collateral_opt_in: boolean;
           cancelled_by: string | null;
           cancel_reason: string | null;
           /** The deal's participant-only chat thread (0013). */
@@ -1154,6 +1159,7 @@ export type Database = {
           creator_confirmed_at?: string | null;
           counterparty_confirmed_at?: string | null;
           collateral_cents?: number | null;
+          collateral_opt_in?: boolean;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           conversation_id?: string | null;
@@ -1192,6 +1198,7 @@ export type Database = {
           creator_confirmed_at?: string | null;
           counterparty_confirmed_at?: string | null;
           collateral_cents?: number | null;
+          collateral_opt_in?: boolean;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           conversation_id?: string | null;
@@ -1264,6 +1271,50 @@ export type Database = {
           amount_cents?: number;
           captured_cents?: number;
           status?: Database['cardtrade']['Enums']['hold_status'];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /**
+       * Pinch cash escrow for private deals (0027). Separate from deal_holds
+       * (collateral). HELD when both parties confirm; SETTLED when both mark
+       * complete; left locked on dispute.
+       */
+      deal_payments: {
+        Row: {
+          id: string;
+          deal_id: string;
+          payer_id: string;
+          recipient_id: string;
+          amount_cents: number;
+          payment_ref: string | null;
+          transfer_ref: string | null;
+          status: Database['cardtrade']['Enums']['deal_payment_status'];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          deal_id: string;
+          payer_id: string;
+          recipient_id: string;
+          amount_cents: number;
+          payment_ref?: string | null;
+          transfer_ref?: string | null;
+          status?: Database['cardtrade']['Enums']['deal_payment_status'];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          deal_id?: string;
+          payer_id?: string;
+          recipient_id?: string;
+          amount_cents?: number;
+          payment_ref?: string | null;
+          transfer_ref?: string | null;
+          status?: Database['cardtrade']['Enums']['deal_payment_status'];
           created_at?: string;
           updated_at?: string;
         };
@@ -1594,6 +1645,8 @@ export type Database = {
         | 'FAILED'
         | 'REFUNDED';
       hold_status: 'ACTIVE' | 'VOIDED' | 'PARTIALLY_CAPTURED' | 'FULLY_CAPTURED' | 'FAILED';
+      /** Pinch cash escrow status for private deals (0027). */
+      deal_payment_status: 'HELD' | 'SETTLED' | 'REFUNDED' | 'FAILED';
       webhook_outcome: 'SUCCESS' | 'FAILURE' | 'NO_OP';
       offer_status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COUNTERED' | 'WITHDRAWN';
       notification_type: 'OFFER' | 'MESSAGE' | 'TRADE' | 'SALE' | 'SYSTEM';

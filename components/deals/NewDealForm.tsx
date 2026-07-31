@@ -188,8 +188,8 @@ const ROLE_OPTIONS: {
   hint: string;
   icon: typeof ShoppingCart;
 }[] = [
-  { value: 'BUYER', label: 'Buying', hint: 'I pay cash', icon: ShoppingCart },
-  { value: 'SELLER', label: 'Selling', hint: 'I get cash', icon: Tag },
+  { value: 'BUYER', label: 'Buying', hint: 'I pay via Pinch', icon: ShoppingCart },
+  { value: 'SELLER', label: 'Selling', hint: 'I get paid via Pinch', icon: Tag },
   { value: 'TRADER', label: 'Trading', hint: 'I put goods up', icon: Repeat },
 ];
 
@@ -203,13 +203,13 @@ const HANDOVER_OPTIONS: {
   {
     value: 'IN_PERSON',
     label: 'Face to face',
-    hint: 'Meet and swap',
+    hint: 'Goods & inspection',
     icon: MapPin,
   },
   {
     value: 'DELIVERY',
     label: 'Delivery',
-    hint: 'Post it',
+    hint: 'Ship the goods',
     icon: Truck,
   },
 ];
@@ -219,7 +219,8 @@ type CreatedDeal = { dealId: string; shareToken: string; title: string };
 export interface NewDealFormProps {
   /**
    * True when the creator is not identity verified, so collateral will be held
-   * on BOTH sides once the deal is confirmed. Presentation only — the amount is
+   * on BOTH sides once the deal is confirmed. When false (verified creator), the
+   * form offers optional DittoEscrow opt-in. Presentation only — the amount is
    * resolved server-side by `confirmDeal`.
    */
   collateralRequired?: boolean;
@@ -235,6 +236,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const [offerKinds, setOfferKinds] = useState<DealOfferKind[]>([]);
   const [cash, setCash] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
+  const [collateralOptIn, setCollateralOptIn] = useState(false);
   const [error, setError] = useState<FormError | null>(null);
   const [created, setCreated] = useState<CreatedDeal | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -261,7 +263,8 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
    */
   const putsGoodsUp = role === 'SELLER' || role === 'TRADER';
 
-  const cashLabel = role === 'BUYER' ? 'Cash you bring' : 'Cash you receive';
+  const cashLabel =
+    role === 'BUYER' ? 'Cash you pay (via Pinch)' : 'Cash you receive (via Pinch)';
 
   // What each side is held for while the creator stays unverified: the deal's own
   // cash value, or the flat default for a pure swap. The server resolves the real
@@ -417,6 +420,9 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
           cashAmountCents,
           offerKinds: role === 'TRADER' ? offerKinds : undefined,
           photos: showPhotos ? photoPaths : undefined,
+          // Unverified creators already force collateral; opt-in only matters when
+          // the creator is verified (and both parties end up verified).
+          collateralOptIn: collateralRequired ? undefined : collateralOptIn,
         });
 
         if (result.ok) {
@@ -486,6 +492,14 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                 and nothing is held.
               </span>
             </p>
+          ) : collateralOptIn ? (
+            <p className="flex items-start gap-2 rounded-lg border p-3 text-xs text-muted-foreground">
+              <ShieldAlert className="mt-px size-4 shrink-0" aria-hidden />
+              <span>
+                DittoEscrow is on — each side posts a Pinch hold once you both
+                confirm, even if you are both verified.
+              </span>
+            </p>
           ) : null}
         </CardContent>
         <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted/20 px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
@@ -539,7 +553,24 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                   and nothing is held.
                 </span>
               </p>
-            ) : null}
+            ) : (
+              <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={collateralOptIn}
+                  onChange={(event) => setCollateralOptIn(event.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                  disabled={isPending}
+                />
+                <span>
+                  <span className="font-medium">Require DittoEscrow collateral</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Optional. Both sides post about {formatAud(collateralStakeCents)}{' '}
+                    via Pinch on confirm, even if you are both DittoShield verified.
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="deal-title">
@@ -657,6 +688,10 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                     aria-describedby={cashError ? 'deal-cash-error' : undefined}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Settles through Pinch when you both confirm — not handed over at
+                  the meetup.
+                </p>
                 <FieldError id="deal-cash-error" message={cashError} />
               </div>
             ) : null}

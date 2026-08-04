@@ -29,19 +29,26 @@ const SEED_PREFIX = '00000000-0000-4000-8000-5eed';
  * Insert order is FK order. `auth.users` is handled separately because it lives in
  * another schema and only needs the shell columns.
  */
-const TABLES = [
-  'profiles',
-  'items',
-  'cash_sales',
-  'cash_sale_events',
-  'trades',
-  'pre_auth_holds',
-  'deals',
-  'deal_holds',
-  'deal_payments',
-  'deal_events',
-  'charge_disputes',
-] as const;
+interface SeedTable {
+  name: string;
+  /** Fixture UUID column. Most tables use id; protected delivery data uses its sale id. */
+  keyColumn: string;
+}
+
+const TABLES: readonly SeedTable[] = [
+  { name: 'profiles', keyColumn: 'id' },
+  { name: 'items', keyColumn: 'id' },
+  { name: 'cash_sales', keyColumn: 'id' },
+  { name: 'cash_sale_delivery_details', keyColumn: 'cash_sale_id' },
+  { name: 'cash_sale_events', keyColumn: 'id' },
+  { name: 'trades', keyColumn: 'id' },
+  { name: 'pre_auth_holds', keyColumn: 'id' },
+  { name: 'deals', keyColumn: 'id' },
+  { name: 'deal_holds', keyColumn: 'id' },
+  { name: 'deal_payments', keyColumn: 'id' },
+  { name: 'deal_events', keyColumn: 'id' },
+  { name: 'charge_disputes', keyColumn: 'id' },
+];
 
 /**
  * Columns Postgres computes itself. They come back from a read but cannot be written, so
@@ -72,15 +79,15 @@ function requireEnv(name: string): string {
  * authenticated reads, so the REST endpoint is both sufficient and one dependency
  * lighter.
  */
-async function selectSeedRows(table: string): Promise<Record<string, unknown>[]> {
-  const url = new URL(`${requireEnv('NEXT_PUBLIC_SUPABASE_URL')}/rest/v1/${table}`);
+async function selectSeedRows(table: SeedTable): Promise<Record<string, unknown>[]> {
+  const url = new URL(`${requireEnv('NEXT_PUBLIC_SUPABASE_URL')}/rest/v1/${table.name}`);
   url.searchParams.set('select', '*');
-  // A uuid column has no LIKE operator, so the marker is expressed as the uuid RANGE it
-  // describes. Byte-order comparison on uuid makes this exactly equivalent to the
-  // `id::text like '...5eed%'` predicate the generated SQL uses.
-  url.searchParams.append('id', `gte.${SEED_PREFIX}00000000`);
-  url.searchParams.append('id', `lte.${SEED_PREFIX}ffffffff`);
-  url.searchParams.set('order', 'id.asc');
+  // A UUID column has no LIKE operator, so the marker is expressed as the UUID range it
+  // describes. Byte-order comparison makes this exactly equivalent to the generated
+  // SQL's `<key>::text like '...5eed%'` predicate.
+  url.searchParams.append(table.keyColumn, `gte.${SEED_PREFIX}00000000`);
+  url.searchParams.append(table.keyColumn, `lte.${SEED_PREFIX}ffffffff`);
+  url.searchParams.set('order', `${table.keyColumn}.asc`);
 
   const key = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
   const response = await fetch(url, {
@@ -92,7 +99,7 @@ async function selectSeedRows(table: string): Promise<Record<string, unknown>[]>
   });
 
   if (!response.ok) {
-    throw new Error(`${table}: ${response.status} ${await response.text()}`);
+    throw new Error(`${table.name}: ${response.status} ${await response.text()}`);
   }
   return (await response.json()) as Record<string, unknown>[];
 }
@@ -104,11 +111,11 @@ async function main(): Promise<void> {
   for (const table of TABLES) {
     const rows = await selectSeedRows(table);
     if (rows.length === 0) {
-      sections.push(`-- ${table}: no fixture rows\n`);
+      sections.push(`-- ${table.name}: no fixture rows\n`);
       continue;
     }
 
-    const generated = new Set(GENERATED_COLUMNS[table] ?? []);
+    const generated = new Set(GENERATED_COLUMNS[table.name] ?? []);
     const columns = Object.keys(rows[0]).filter((name) => !generated.has(name));
     const columnList = columns.map((name) => `"${name}"`).join(', ');
 
@@ -117,16 +124,16 @@ async function main(): Promise<void> {
     const payload = JSON.stringify(rows).replace(/'/g, "''");
     sections.push(
       [
-        `-- ${table}: ${rows.length} row(s)`,
-        `insert into cardtrade.${table} (${columnList})`,
+        `-- ${table.name}: ${rows.length} row(s)`,
+        `insert into cardtrade.${table.name} (${columnList})`,
         `select ${columnList}`,
-        `from jsonb_populate_recordset(null::cardtrade.${table}, '${payload}'::jsonb);`,
+        `from jsonb_populate_recordset(null::cardtrade.${table.name}, '${payload}'::jsonb);`,
         '',
       ].join('\n'),
     );
   }
 
-  const emails = (await selectSeedRows('profiles')) as unknown as {
+  const emails = (await selectSeedRows(TABLES[0])) as unknown as {
     id: string;
     contact_email: string | null;
   }[];
@@ -194,6 +201,7 @@ delete from cardtrade.deals where id::text like '${SEED_PREFIX}%';
 delete from cardtrade.pre_auth_holds where id::text like '${SEED_PREFIX}%';
 delete from cardtrade.trades where id::text like '${SEED_PREFIX}%';
 delete from cardtrade.cash_sale_events where id::text like '${SEED_PREFIX}%';
+delete from cardtrade.cash_sale_delivery_details where cash_sale_id::text like '${SEED_PREFIX}%';
 delete from cardtrade.cash_sales where id::text like '${SEED_PREFIX}%';
 delete from cardtrade.items where id::text like '${SEED_PREFIX}%';
 delete from cardtrade.profiles where id::text like '${SEED_PREFIX}%';
@@ -224,10 +232,21 @@ declare
   col record;
 begin
   for target in
-    select unnest(array[
-      'profiles','items','cash_sales','cash_sale_events','trades','pre_auth_holds',
-      'deals','deal_holds','deal_payments','deal_events','charge_disputes'
-    ]) as tbl
+    select *
+    from (values
+      ('profiles', 'id'),
+      ('items', 'id'),
+      ('cash_sales', 'id'),
+      ('cash_sale_delivery_details', 'cash_sale_id'),
+      ('cash_sale_events', 'id'),
+      ('trades', 'id'),
+      ('pre_auth_holds', 'id'),
+      ('deals', 'id'),
+      ('deal_holds', 'id'),
+      ('deal_payments', 'id'),
+      ('deal_events', 'id'),
+      ('charge_disputes', 'id')
+    ) as seeded_tables(tbl, key_column)
   loop
     for col in
       select column_name
@@ -237,8 +256,8 @@ begin
         and data_type = 'timestamp with time zone'
     loop
       execute format(
-        'update cardtrade.%I set %I = %I + $1 where id::text like $2 and %I is not null',
-        target.tbl, col.column_name, col.column_name, col.column_name
+        'update cardtrade.%I set %I = %I + $1 where %I::text like $2 and %I is not null',
+        target.tbl, col.column_name, col.column_name, target.key_column, col.column_name
       ) using drift, '${SEED_PREFIX}%';
     end loop;
   end loop;

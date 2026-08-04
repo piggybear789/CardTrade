@@ -179,7 +179,10 @@ export default async function ListingsPage({
           <SectionLoadError label="marketplace" />
         </div>
       ) : (
-      <div aria-labelledby="catalog-heading" className="min-w-0">
+      /* `role="region"` is required for the label to survive: `aria-labelledby` on
+         a role-less <div> creates no landmark, so the accessible name was dropped
+         and screen reader users had no navigable handle on the results. */
+      <div role="region" aria-labelledby="catalog-heading" className="min-w-0">
           <header className="mb-3 border-b border-border/70 pb-3 sm:mb-4 sm:pb-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
               <div className="min-w-0">
@@ -189,9 +192,16 @@ export default async function ListingsPage({
                 >
                   {resultTitle}
                 </h2>
-                <p className="mt-0.5 text-[0.8125rem] text-muted-foreground" aria-live="polite">
+                {/* No `aria-live` here. Filtering is a URL-driven full server
+                    re-render, so this node is REPLACED rather than updated — and a
+                    live region has to be in the DOM before its content changes to
+                    announce anything. The attribute promised feedback it could never
+                    deliver. The count is still reachable as static text under the
+                    labelled region, and `app/listings/loading.tsx` covers the
+                    in-flight state. */}
+                <p className="mt-0.5 text-sm text-muted-foreground">
                   {COUNT_FORMATTER.format(total)}{' '}
-                  {total === 1 ? 'collectible' : 'collectibles'} available in Australia
+                  {total === 1 ? 'collectible' : 'collectibles'} available
                 </p>
               </div>
               <CatalogSortControl current={sort} />
@@ -238,7 +248,9 @@ export default async function ListingsPage({
                       </Link>
                     </Button>
                   )}
-                  <span className="text-sm font-medium tabular-nums text-muted-foreground" aria-live="polite">
+                  {/* Also not a live region — same reason as the result count above:
+                      paging is a navigation, so this element is rebuilt, not updated. */}
+                  <span className="text-sm font-medium tabular-nums text-muted-foreground">
                     Page {currentPage} of {totalPages}
                   </span>
                   {!hasMore ? (

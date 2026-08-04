@@ -58,7 +58,7 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     fulfillmentMethod: row.fulfillment_method,
     shippingCostCents: row.shipping_cost_cents,
     shippingNotes: row.shipping_notes,
-    deliveryAddress: row.delivery_address,
+    deliveryAddressConfigured: row.delivery_address_configured,
     meetingLocation: row.meeting_location,
     meetingLat: row.meeting_lat,
     meetingLng: row.meeting_lng,
@@ -255,31 +255,30 @@ export function createSupabaseCashSaleRepository(
     loadCashSale(cashSaleId: string) {
       return selectSale(client, cashSaleId);
     },
-    async updateTerms({ cashSaleId, expectedTermsVersion, terms }) {
-      const current = await selectSale(client, cashSaleId);
-      if (!current || current.status !== 'AGREEMENT') return null;
-      const amountCents =
-        current.agreedPriceCents + current.platformFeeCents + terms.shippingCostCents;
-      const { data } = await client
-        .from('cash_sales')
-        .update({
-          fulfillment_method: terms.fulfillmentMethod,
-          shipping_cost_cents: terms.shippingCostCents,
-          shipping_notes: terms.shippingNotes,
-          delivery_address: terms.deliveryAddress,
-          meeting_location: terms.meetingLocation,
-          meeting_lat: terms.meetingLat,
-          meeting_lng: terms.meetingLng,
-          meeting_place_id: terms.meetingPlaceId,
-          meeting_at: terms.meetingAt,
-          amount_cents: amountCents,
-        })
-        .eq('id', cashSaleId)
-        .eq('status', 'AGREEMENT')
-        .eq('terms_version', expectedTermsVersion)
-        .select('*')
-        .maybeSingle();
-      return data ? toCashSale(data as CashSaleRow) : null;
+    async updateTerms({ cashSaleId, actorId, expectedTermsVersion, terms }) {
+      const { data, error } = await client.rpc('update_cash_sale_terms', {
+        p_cash_sale_id: cashSaleId,
+        p_actor_id: actorId,
+        p_expected_terms_version: expectedTermsVersion,
+        p_fulfillment_method: terms.fulfillmentMethod,
+        p_shipping_cost_cents: terms.shippingCostCents,
+        p_shipping_notes: terms.shippingNotes,
+        p_meeting_location: terms.meetingLocation,
+        p_meeting_lat: terms.meetingLat,
+        p_meeting_lng: terms.meetingLng,
+        p_meeting_place_id: terms.meetingPlaceId,
+        p_meeting_at: terms.meetingAt,
+        p_delivery_address_label: terms.deliveryAddress?.label ?? null,
+        p_delivery_place_id: terms.deliveryAddress?.placeId ?? null,
+        p_delivery_country_code: terms.deliveryAddress?.countryCode ?? null,
+        p_delivery_lat: terms.deliveryAddress?.lat ?? null,
+        p_delivery_lng: terms.deliveryAddress?.lng ?? null,
+      });
+      if (error) return { ok: false as const, reason: 'UNAVAILABLE' as const };
+      const row = (data as CashSaleRow[] | null)?.[0];
+      return row
+        ? { ok: true as const, sale: toCashSale(row) }
+        : { ok: false as const, reason: 'STALE' as const };
     },
 
     async updateAgreedPrice({ cashSaleId, expectedTermsVersion, agreedPriceCents }) {

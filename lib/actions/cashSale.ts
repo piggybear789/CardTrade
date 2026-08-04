@@ -31,6 +31,7 @@ export type CashSaleActionError =
   | 'not-permitted'
   | 'invalid-terms'
   | 'stale-terms'
+  | 'terms-update-failed'
   | 'already-recorded'
   | 'not-supported'
   | 'invalid-state'
@@ -74,6 +75,7 @@ function mapError(error: CashSaleError): CashSaleActionError {
     NOT_PERMITTED: 'not-permitted',
     INVALID_TERMS: 'invalid-terms',
     STALE_TERMS: 'stale-terms',
+    TERMS_UPDATE_FAILED: 'terms-update-failed',
     ALREADY_RECORDED: 'already-recorded',
     NOT_SUPPORTED: 'not-supported',
     INVALID_STATE: 'invalid-state',

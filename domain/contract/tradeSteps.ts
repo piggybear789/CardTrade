@@ -63,8 +63,10 @@ function symmetricDetail(
  * Build the ordered action plan for a 2-way trade.
  *
  * A trade that ends in DISPUTED or FRAUD_RESOLVED collapses its remaining steps:
- * the outcome is decided off-platform (dispute review, evidence pack), so showing
- * unreachable shipping steps would be misleading.
+ * the outcome is decided off-platform, so showing unreachable shipping steps would
+ * be misleading. Unlike cancelled cash sales and deals, a trade has no cancellation
+ * state — fraud has different semantics and will get its own timeline design rather
+ * than being folded into the cancelled-contract behaviour.
  */
 export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   const { state, viewerRole, facts, counterpartyName } = input;
@@ -76,7 +78,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
         short: 'Fraud',
         label: 'Closed as fraud',
         detail:
-          "The other trader's collateral was captured and a Police Evidence Pack was generated.",
+          "The other trader's collateral was captured and the fraud outcome was recorded.",
         owner: 'platform',
         done: true,
       },

@@ -10,6 +10,7 @@ import type {
 } from '@supabase/supabase-js';
 import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
+import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import type { Tables } from '@/lib/supabase/database.types';
 
 export type CashSaleRow = Tables<'cash_sales'>;
@@ -36,7 +37,11 @@ export function useCashSaleRealtime(cashSaleId: string) {
     const client = clientRef.current;
     if (!client) return;
     const [saleResult, eventsResult] = await Promise.all([
-      client.from('cash_sales').select('*').eq('id', cashSaleId).maybeSingle(),
+      client
+        .from('cash_sales')
+        .select(CASH_SALE_PUBLIC_SELECT)
+        .eq('id', cashSaleId)
+        .maybeSingle(),
       client
         .from('cash_sale_events')
         .select('*')

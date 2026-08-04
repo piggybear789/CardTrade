@@ -10,8 +10,22 @@ export interface PlaceValue {
   placeId: string;
   lat: number;
   lng: number;
+  /**
+   * ISO 3166-1 alpha-2 country of the resolved place, uppercased. Null on the
+   * free-text fallback, which has no resolved country. Carried so the catalog can
+   * scope by country without re-geocoding a stored label.
+   */
+  countryCode?: string | null;
   precision: PlacePrecision;
 }
 
-/** Australia-ish default map centre (Melbourne CBD). */
-export const AU_DEFAULT_CENTER = { lat: -37.8136, lng: 144.9631 } as const;
+/**
+ * Fallback map centre (Melbourne CBD), used ONLY when a place has no resolved
+ * coordinates.
+ *
+ * This is not a statement about where the marketplace operates — the autocomplete
+ * is worldwide (see `searchPlaces`). It is a last-resort centre so a map has
+ * something to render. A place built on this centre must not be shown on a map as
+ * if it were the user's location: see the `text:` guard in `PlacePicker`.
+ */
+export const FALLBACK_MAP_CENTER = { lat: -37.8136, lng: 144.9631 } as const;

@@ -99,14 +99,19 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
         </div>
 
         <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col pt-2.5">
-          <h3 className="line-clamp-2 text-[0.8125rem] font-normal leading-snug text-foreground sm:text-sm">
+          {/* Sizes come off the scale (`text-sm` / `text-base` / `text-xs`) rather
+              than one-off bracket values. Metadata was 10px here, rising to 11px at
+              `sm` — under the ~12px floor where text stops being comfortable, on the
+              densest grid in the app, for the seller name and rating a buyer scans
+              before clicking. Contrast was never the problem; size was. */}
+          <h3 className="line-clamp-2 text-sm font-normal leading-snug text-foreground">
             {item.title}
           </h3>
-          <p className="mt-1 text-[0.9375rem] font-semibold leading-tight text-foreground sm:text-base">
+          <p className="mt-1 text-base font-semibold leading-tight text-foreground">
             {formatAud(item.fmv_cents)}
           </p>
           {item.location_label ? (
-            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[0.625rem] text-muted-foreground sm:text-[0.6875rem]">
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="size-3 shrink-0" aria-hidden="true" />
               <span className="truncate">{item.location_label}</span>
             </p>
@@ -118,7 +123,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                 href={`/sellers/${seller.id}`}
                 className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
               >
-                <span className="truncate text-[0.625rem] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-[0.6875rem]">
+                <span className="truncate text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                   {seller.displayName ?? 'Unknown seller'}
                 </span>
                 {/* ONE MARK, not two. This rendered a payee tick and an identity
@@ -138,12 +143,15 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                 {!seller.isVerified ? (
                   <BadgeX
                     className="size-3.5 shrink-0 text-destructive"
+                    // lucide renders a bare <svg>, which carries no role, so an
+                    // `aria-label` on it alone was not reliably announced.
+                    role="img"
                     aria-label="Unverified seller"
                   />
                 ) : null}
               </Link>
               {seller.rating != null ? (
-                <span className="flex shrink-0 items-center gap-0.5 text-[0.625rem] tabular-nums text-muted-foreground sm:text-[0.6875rem]">
+                <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">
                   <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
                   {seller.rating.toFixed(1)}
                 </span>
@@ -247,6 +255,8 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
               {!seller.isVerified ? (
                 <BadgeX
                   className="size-3.5 shrink-0 text-destructive"
+                  // See the note on the catalog variant: lucide's <svg> has no role.
+                  role="img"
                   aria-label="Unverified seller"
                 />
               ) : null}

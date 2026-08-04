@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BadgeCheck, Building2, Store } from 'lucide-react';
+import { Building2, ShieldCheck, Store } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { getReviewsFor } from '@/lib/actions/reviews';
@@ -22,7 +22,6 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
-import { VerifiedBadge } from '@/components/listings/VerifiedBadge';
 import type {
   CatalogItem,
   CatalogSeller,
@@ -132,11 +131,11 @@ export default async function SellerProfilePage({
               <h2 className="min-w-0 break-words text-3xl font-semibold tracking-[-0.025em]">
                 {displayName}
               </h2>
-              {seller.isVerified && <VerifiedBadge size={18} />}
-              {/* Two DIFFERENT gates, shown side by side deliberately:
-                  VerifiedBadge = payee onboarding ("can be paid"),
-                  IdentityBadge = provider identity check ("document + selfie
-                  matched"). Labelled here rather than icon-only because a
+              {/* ONE mark. This row used to also render a <VerifiedBadge/>, on the
+                  since-retired belief that payee onboarding and an identity check
+                  were separate gates. They are the same gate — both badges read
+                  `seller.isVerified` — so the page asserted the same fact twice in
+                  two different glyphs. Labelled rather than icon-only because a
                   profile page is where a buyer goes to decide about a person. */}
               <IdentityBadge
                 verified={seller.isVerified}
@@ -170,7 +169,8 @@ export default async function SellerProfilePage({
         {sellerIdentity ? (
           <div className="mt-3 rounded-lg border bg-muted/30 p-4">
             <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
-              <BadgeCheck className="h-4 w-4" aria-hidden />
+              {/* Same glyph as IdentityBadge: one fact, one icon vocabulary. */}
+              <ShieldCheck className="h-4 w-4" aria-hidden />
               DittoShield verified through Stripe
             </div>
             <dl className="grid gap-3 sm:grid-cols-2">

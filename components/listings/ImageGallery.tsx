@@ -47,9 +47,12 @@ const ZOOM_SCALE = 2.5;
 export function ImageGallery({
   images,
   title,
+  /** Override the listing page's viewport-tuned frame for embedded surfaces. */
+  frameClassName,
 }: {
   images: GalleryImage[];
   title: string;
+  frameClassName?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   // Track image URLs that fail to load so we can swap in a graceful placeholder
@@ -132,7 +135,7 @@ export function ImageGallery({
     return (
       <div
         className={cn(
-          FRAME_HEIGHT,
+          frameClassName ?? FRAME_HEIGHT,
           'flex w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground',
         )}
       >
@@ -154,7 +157,7 @@ export function ImageGallery({
     // below the fold.
     <div
       className={cn(
-        FRAME_HEIGHT,
+        frameClassName ?? FRAME_HEIGHT,
         'group relative w-full overflow-hidden rounded-lg border bg-muted',
         zoomPoint ? 'cursor-zoom-out' : 'cursor-zoom-in',
         // While zoomed, touch drags must pan the image, not scroll the page.

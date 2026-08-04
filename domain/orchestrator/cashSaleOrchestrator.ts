@@ -101,7 +101,8 @@ export interface CashSaleRecord {
   fulfillmentMethod: FulfillmentMethod | null;
   shippingCostCents: Cents;
   shippingNotes: string | null;
-  deliveryAddress: string | null;
+  /** Non-sensitive signal only; the residential address is never part of this aggregate. */
+  deliveryAddressConfigured: boolean;
   meetingLocation: string | null;
   meetingLat: number | null;
   meetingLng: number | null;
@@ -211,11 +212,19 @@ export type CashSaleError =
   /** A PARTIAL_REFUND amount was zero, negative, or the whole collected amount. */
   | 'INVALID_REFUND_AMOUNT'
   /** Resolution needs a refund but nothing was ever collected from the Buyer. */
-  | 'NOTHING_TO_REFUND';
+  | 'NOTHING_TO_REFUND'
+  /** The terms write failed operationally; it was not a concurrent edit. */
+  | 'TERMS_UPDATE_FAILED';
 
 export type CashSaleResult =
   | { ok: true; sale: CashSaleRecord }
   | { ok: false; error: CashSaleError; detail?: string };
+
+/** Distinguishes a stale terms version from an unavailable persistence write. */
+export type CashSaleTermsUpdateResult =
+  | { ok: true; sale: CashSaleRecord }
+  | { ok: false; reason: 'STALE' | 'UNAVAILABLE' };
+
 export interface CreateCashSaleParams {
   itemId: string;
   buyerId: string;
@@ -226,16 +235,39 @@ export interface CreateCashSaleParams {
   buyerSellerIdentityConfirmedAt: string;
 }
 
+/** A provider-resolved residential address supplied only by the Buyer. */
+export interface DeliveryAddressInput {
+  label: string;
+  placeId: string;
+  countryCode: string;
+  lat: number;
+  lng: number;
+}
+
 export interface CashSaleTermsInput {
   fulfillmentMethod: FulfillmentMethod;
   shippingCostCents?: Cents;
   shippingNotes?: string | null;
-  deliveryAddress?: string | null;
+  /** Omit to preserve the existing protected address; only the Buyer may provide it. */
+  deliveryAddress?: DeliveryAddressInput | null;
   meetingLocation?: string | null;
   meetingLat?: number | null;
   meetingLng?: number | null;
   meetingPlaceId?: string | null;
   meetingAt?: string | null;
+}
+
+/** Fully normalised public terms plus an optional protected address replacement. */
+export interface NormalizedCashSaleTerms {
+  fulfillmentMethod: FulfillmentMethod;
+  shippingCostCents: Cents;
+  shippingNotes: string | null;
+  deliveryAddress: DeliveryAddressInput | null;
+  meetingLocation: string | null;
+  meetingLat: number | null;
+  meetingLng: number | null;
+  meetingPlaceId: string | null;
+  meetingAt: string | null;
 }
 
 export interface ShipmentInput {
@@ -258,9 +290,10 @@ export interface CashSaleRepository {
   loadCashSale(cashSaleId: string): Promise<CashSaleRecord | null>;
   updateTerms(params: {
     cashSaleId: string;
+    actorId: string;
     expectedTermsVersion: number;
-    terms: Required<CashSaleTermsInput>;
-  }): Promise<CashSaleRecord | null>;
+    terms: NormalizedCashSaleTerms;
+  }): Promise<CashSaleTermsUpdateResult>;
   /**
    * Renegotiate the agreed item price. The database clears both acceptances and
    * bumps the terms version, exactly as a fulfillment change does.
@@ -475,18 +508,58 @@ function participantRole(
   return null;
 }
 
-function termsComplete(input: Required<CashSaleTermsInput>): boolean {
-  if (input.fulfillmentMethod === 'DELIVERY') {
-    return (
-      Boolean(input.deliveryAddress?.trim()) &&
-      Number.isInteger(input.shippingCostCents) &&
-      input.shippingCostCents >= 0
-    );
-  }
-  return Boolean(input.meetingLocation?.trim());
+function hasValidCoordinate(value: number | null, min: number, max: number): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 }
 
-function normalizeTerms(input: CashSaleTermsInput): Required<CashSaleTermsInput> {
+function isResolvedPlaceId(value: string | null): value is string {
+  return Boolean(
+    value &&
+      value.trim() &&
+      !value.startsWith('text:') &&
+      !value.startsWith('legacy:'),
+  );
+}
+
+function hasValidDeliveryAddress(
+  address: DeliveryAddressInput | null,
+): address is DeliveryAddressInput {
+  return Boolean(
+    address &&
+      address.label.trim().length > 0 &&
+      address.label.trim().length <= 1000 &&
+      isResolvedPlaceId(address.placeId) &&
+      address.placeId.trim().length <= 255 &&
+      /^[A-Z]{2}$/.test(address.countryCode) &&
+      hasValidCoordinate(address.lat, -90, 90) &&
+      hasValidCoordinate(address.lng, -180, 180),
+  );
+}
+
+function hasValidMeeting(terms: NormalizedCashSaleTerms, now: Date): boolean {
+  if (
+    !terms.meetingLocation?.trim() ||
+    terms.meetingLocation.trim().length > 500 ||
+    !isResolvedPlaceId(terms.meetingPlaceId) ||
+    !hasValidCoordinate(terms.meetingLat, -90, 90) ||
+    !hasValidCoordinate(terms.meetingLng, -180, 180) ||
+    !terms.meetingAt
+  ) {
+    return false;
+  }
+  const meetingAt = new Date(terms.meetingAt);
+  return Number.isFinite(meetingAt.getTime()) && meetingAt.getTime() > now.getTime();
+}
+
+function termsComplete(terms: NormalizedCashSaleTerms, now: Date): boolean {
+  if (terms.fulfillmentMethod === 'DELIVERY') {
+    return Number.isInteger(terms.shippingCostCents) && terms.shippingCostCents >= 0;
+  }
+  return hasValidMeeting(terms, now);
+}
+
+function normalizeTerms(input: CashSaleTermsInput): NormalizedCashSaleTerms {
+  const address = input.deliveryAddress;
   return {
     fulfillmentMethod: input.fulfillmentMethod,
     shippingCostCents:
@@ -498,29 +571,38 @@ function normalizeTerms(input: CashSaleTermsInput): Required<CashSaleTermsInput>
         ? input.shippingNotes?.trim() || null
         : null,
     deliveryAddress:
-      input.fulfillmentMethod === 'DELIVERY'
-        ? input.deliveryAddress?.trim() || null
+      input.fulfillmentMethod === 'DELIVERY' && address
+        ? {
+            label: address.label.trim(),
+            placeId: address.placeId.trim(),
+            countryCode: address.countryCode.trim().toUpperCase(),
+            lat: address.lat,
+            lng: address.lng,
+          }
         : null,
     meetingLocation:
       input.fulfillmentMethod === 'IN_PERSON'
         ? input.meetingLocation?.trim() || null
         : null,
     meetingLat:
-      input.fulfillmentMethod === 'IN_PERSON' ? normalizeCoord(input.meetingLat) : null,
+      input.fulfillmentMethod === 'IN_PERSON' ? normalizeCoord(input.meetingLat, -90, 90) : null,
     meetingLng:
-      input.fulfillmentMethod === 'IN_PERSON' ? normalizeCoord(input.meetingLng) : null,
+      input.fulfillmentMethod === 'IN_PERSON' ? normalizeCoord(input.meetingLng, -180, 180) : null,
     meetingPlaceId:
       input.fulfillmentMethod === 'IN_PERSON'
         ? input.meetingPlaceId?.trim() || null
         : null,
     meetingAt:
-      input.fulfillmentMethod === 'IN_PERSON' ? input.meetingAt ?? null : null,
+      input.fulfillmentMethod === 'IN_PERSON' ? input.meetingAt?.trim() || null : null,
   };
 }
 
-function normalizeCoord(value: number | null | undefined): number | null {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-  return value;
+function normalizeCoord(
+  value: number | null | undefined,
+  min: number,
+  max: number,
+): number | null {
+  return hasValidCoordinate(value ?? null, min, max) ? value : null;
 }
 
 /** Buy Now creates a reserved agreement; it does not submit payment. */
@@ -589,31 +671,60 @@ export async function updateCashSaleTerms(
   }
 
   const terms = normalizeTerms(params.terms);
-  if (!termsComplete(terms)) {
+  if (!termsComplete(terms, deps.now?.() ?? new Date())) {
     return { ok: false, error: 'INVALID_TERMS' };
   }
-  if ((terms.deliveryAddress?.length ?? 0) > 1000) {
-    return { ok: false, error: 'INVALID_TERMS', detail: 'Delivery address is too long.' };
+  if (terms.fulfillmentMethod === 'DELIVERY') {
+    if (terms.deliveryAddress && !hasValidDeliveryAddress(terms.deliveryAddress)) {
+      return {
+        ok: false,
+        error: 'INVALID_TERMS',
+        detail: 'Select a verified delivery address from the suggestions.',
+      };
+    }
+    if (params.actorId === sale.sellerId && terms.deliveryAddress) {
+      return { ok: false, error: 'NOT_PERMITTED' };
+    }
+    if (
+      params.actorId === sale.buyerId &&
+      !terms.deliveryAddress &&
+      !sale.deliveryAddressConfigured
+    ) {
+      return {
+        ok: false,
+        error: 'INVALID_TERMS',
+        detail: 'The buyer must select a delivery address.',
+      };
+    }
   }
 
   const updated = await deps.repository.updateTerms({
     cashSaleId: sale.id,
+    actorId: params.actorId,
     expectedTermsVersion: sale.termsVersion,
     terms,
   });
-  if (!updated) return { ok: false, error: 'STALE_TERMS' };
+  if (!updated.ok) {
+    return updated.reason === 'UNAVAILABLE'
+      ? {
+          ok: false,
+          error: 'TERMS_UPDATE_FAILED',
+          detail: 'Could not save the terms right now. Refresh and try again.',
+        }
+      : { ok: false, error: 'STALE_TERMS' };
+  }
   await deps.repository.logEvent({
     cashSaleId: sale.id,
     actorId: params.actorId,
     event: 'TERMS_UPDATED',
     fromStatus: sale.status,
-    toStatus: updated.status,
+    toStatus: updated.sale.status,
     detail:
       terms.fulfillmentMethod === 'DELIVERY'
         ? `shipping for ${formatCents(terms.shippingCostCents)}`
         : `meeting in person at ${terms.meetingLocation}`,
   });
-  return { ok: true, sale: updated };
+  return { ok: true, sale: updated.sale };
 }
 
 /** Bounds for a renegotiated price, in integer AUD cents. */
@@ -796,6 +907,13 @@ export async function acceptCashSaleTerms(
   if (!actor) return { ok: false, error: 'NOT_PARTICIPANT' };
   if (sale.status !== 'AGREEMENT') return { ok: false, error: 'INVALID_STATE' };
   if (!sale.fulfillmentMethod) return { ok: false, error: 'INVALID_TERMS' };
+  if (sale.fulfillmentMethod === 'DELIVERY' && !sale.deliveryAddressConfigured) {
+    return {
+      ok: false,
+      error: 'INVALID_TERMS',
+      detail: 'The buyer must confirm a delivery address before either party can accept.',
+    };
+  }
   if (sale.termsVersion !== params.termsVersion) {
     return { ok: false, error: 'STALE_TERMS' };
   }

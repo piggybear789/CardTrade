@@ -27,6 +27,7 @@ import {
 import { getItem, type ItemRow } from "@/lib/actions/listings";
 import { getWatchCount, isWatching } from "@/lib/actions/watchlist";
 import { createClient } from "@/lib/supabase/server";
+import { identityGateMessage, readIdentityGate } from "@/lib/identityGate";
 import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
 import type { SellerIdentityDisclosure } from "@/domain/orchestrator/merchantOnboarding";
 import {
@@ -46,7 +47,6 @@ import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { StarRating } from "@/components/listings/StarRating";
-import { VerifiedBadge } from "@/components/listings/VerifiedBadge";
 import { IdentityBadge } from "@/components/identity/IdentityBadge";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 import { PlaceMap } from "@/components/location";
@@ -115,30 +115,42 @@ export default async function ItemDetailPage({
   // public seller profile + identity can load together.
   const canProposeTrade = Boolean(user && !isOwner && isAvailable);
 
-  const [initialWatching, watchCount, sellerRowResult, sellerIdentity, ownItemsResult] =
-    await Promise.all([
-      user && !isOwner ? isWatching(item.id) : Promise.resolve(false),
-      getWatchCount(item.id),
-      supabase
-        .from("public_profiles")
-        .select(
-          "display_name, rating, rating_count, is_verified, identity_first_name",
-        )
-        .eq("id", item.owner_id)
-        .maybeSingle(),
-      loadSellerIdentityDisclosure(item.owner_id),
-      canProposeTrade
-        ? supabase
-            .from("items")
-            .select("*")
-            .eq("owner_id", user!.id)
-            .eq("status", "AVAILABLE")
-            .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [] as ItemRow[] }),
-    ]);
+  const [
+    initialWatching,
+    watchCount,
+    sellerRowResult,
+    sellerIdentity,
+    ownItemsResult,
+    viewerTradeGate,
+  ] = await Promise.all([
+    user && !isOwner ? isWatching(item.id) : Promise.resolve(false),
+    getWatchCount(item.id),
+    supabase
+      .from("public_profiles")
+      .select(
+        "display_name, rating, rating_count, is_verified, identity_first_name",
+      )
+      .eq("id", item.owner_id)
+      .maybeSingle(),
+    loadSellerIdentityDisclosure(item.owner_id),
+    canProposeTrade
+      ? supabase
+          .from("items")
+          .select("*")
+          .eq("owner_id", user!.id)
+          .eq("status", "AVAILABLE")
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as ItemRow[] }),
+    canProposeTrade ? readIdentityGate(user!.id) : Promise.resolve(null),
+  ]);
 
   const sellerRow = sellerRowResult.data;
   const ownItems = (ownItemsResult.data ?? []) as ItemRow[];
+  const canStartTrade = Boolean(viewerTradeGate?.satisfied);
+  const tradeGateMessage =
+    viewerTradeGate && !viewerTradeGate.satisfied
+      ? identityGateMessage('trade', viewerTradeGate.state)
+      : null;
   const sellerDisplayName =
     (sellerRow?.display_name as string | null)?.trim() || "The other trader";
 
@@ -270,12 +282,10 @@ export default async function ItemDetailPage({
                           {sellerRow?.display_name ?? "Unknown seller"}
                         </Link>
                       )}
-                      {sellerIdentity ? (
-                        <VerifiedBadge size={14} iconOnly className="shrink-0" />
-                      ) : null}
-                      {/* Separate gate from VerifiedBadge above: that one says
-                          "can be paid", this one says "a provider checked their
-                          government ID and matched a selfie". */}
+                      {/* ONE mark. A <VerifiedBadge/> used to sit here too, gated on
+                          `sellerIdentity`, which requires APPROVED + settlements —
+                          the same Identity_Gate `is_verified` reports. Two glyphs,
+                          one fact. */}
                       <IdentityBadge
                         verified={Boolean(sellerRow?.is_verified)}
                         firstName={
@@ -358,6 +368,8 @@ export default async function ItemDetailPage({
                 isOwner={isOwner}
                 isAuthenticated={Boolean(user)}
                 isAvailable={isAvailable}
+                canStartTrade={canStartTrade}
+                tradeGateMessage={tradeGateMessage}
                 sellerIdentity={sellerIdentity}
                 activeSaleId={activeSaleId}
                 activeTradeId={activeTradeId}
@@ -435,6 +447,8 @@ function ItemActions({
   isOwner,
   isAuthenticated,
   isAvailable,
+  canStartTrade,
+  tradeGateMessage,
   sellerIdentity,
   activeSaleId,
   activeTradeId,
@@ -450,6 +464,8 @@ function ItemActions({
   isOwner: boolean;
   isAuthenticated: boolean;
   isAvailable: boolean;
+  canStartTrade: boolean;
+  tradeGateMessage: string | null;
   sellerIdentity: SellerIdentityDisclosure | null;
   activeSaleId: string | null;
   activeTradeId: string | null;
@@ -473,6 +489,13 @@ function ItemActions({
       </>
     ) : null;
 
+  const canOpenTrade = canStartTrade && Boolean(sellerIdentity);
+  const disabledTradeReason = !canStartTrade
+    ? tradeGateMessage
+    : !sellerIdentity
+      ? 'This seller must finish payout setup before a trade can start.'
+      : null;
+
   const proposeTrade =
     isAuthenticated && !isOwner && isAvailable ? (
       <ProposeTradeDialog
@@ -485,7 +508,16 @@ function ItemActions({
         }}
         ownItems={ownItems}
         emphasize={!sellerIdentity}
+        disabled={!canOpenTrade}
+        disabledReason={disabledTradeReason}
       />
+    ) : null;
+
+  const tradeGateNotice =
+    !canOpenTrade && disabledTradeReason ? (
+      <p className="text-center text-xs leading-relaxed text-muted-foreground">
+        {disabledTradeReason}
+      </p>
     ) : null;
   // Owner controls: when the item is under contract, surface the active
   // contract link prominently instead of edit/delete (which aren't allowed on
@@ -573,10 +605,10 @@ function ItemActions({
     );
   }
 
-  // Cash buyers need a payment method, not merchant/KYC onboarding. Buying for
-  // cash needs the seller to have somewhere to be paid into and an identity the
-  // buyer can inspect first (Req 4.8). Trading needs neither, because no cash
-  // moves — so a seller without a payout account is trade-only, not unavailable.
+  // Cash buyers need a payment method, not payout onboarding: they are only
+  // refunded to their original card. Trade escrow is different — either member
+  // could receive fraud restitution, so both must pass the Identity_Gate before
+  // a proposal can become a trade.
   //
   // Buy / Trade / Offer / Save / Report are compact icon chips above the
   // description. "Message seller" stays lower in the details rail.
@@ -585,10 +617,11 @@ function ItemActions({
       {!sellerIdentity ? (
         <div className="space-y-3 rounded-lg border border-dashed px-4 py-4">
           <div>
-            <p className="text-base font-semibold">Open to Trades Only</p>
+            <p className="text-base font-semibold">Payout setup needed</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              This seller cannot accept a cash purchase yet. You can still
-              propose a trade — including one with cash — or message them.
+              This seller cannot accept a cash purchase or start trade escrow
+              until their payout setup is complete. You can message them in the
+              meantime.
             </p>
           </div>
           <div
@@ -621,6 +654,7 @@ function ItemActions({
           {watchReport}
         </div>
       )}
+      {tradeGateNotice}
     </div>
   );
 }

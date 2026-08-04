@@ -30,6 +30,10 @@ export interface ProposeTradeDialogProps {
   appearance?: 'icon' | 'button';
   /** Filled chip when this is the only transactional CTA (trades-only sellers). */
   emphasize?: boolean;
+  /** A blocked viewer cannot open a proposal form until payout setup is complete. */
+  disabled?: boolean;
+  /** Member-safe explanation displayed by the containing listing action area. */
+  disabledReason?: string | null;
 }
 
 export function ProposeTradeDialog({
@@ -37,6 +41,8 @@ export function ProposeTradeDialog({
   ownItems,
   appearance = 'icon',
   emphasize = false,
+  disabled = false,
+  disabledReason = null,
 }: ProposeTradeDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -48,16 +54,23 @@ export function ProposeTradeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => setOpen(disabled ? false : next)}>
       <DialogTrigger asChild>
         {appearance === 'icon' ? (
           <ListingActionIcon
             icon={ArrowLeftRight}
             label="Propose Trade"
             variant={emphasize ? 'default' : 'outline'}
+            disabled={disabled}
+            title={disabledReason ?? undefined}
           />
         ) : (
-          <Button type="button" variant={emphasize ? 'default' : 'outline'}>
+          <Button
+            type="button"
+            variant={emphasize ? 'default' : 'outline'}
+            disabled={disabled}
+            title={disabledReason ?? undefined}
+          >
             <ArrowLeftRight aria-hidden="true" />
             Propose Trade
           </Button>

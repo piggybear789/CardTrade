@@ -40,7 +40,13 @@ const CONFIRMED_PURCHASE = {
 const DELIVERY_TERMS = {
   fulfillmentMethod: 'DELIVERY' as const,
   shippingCostCents: 1_500,
-  deliveryAddress: '12 Example St, Melbourne VIC 3000',
+  deliveryAddress: {
+    label: '12 Example St, Melbourne VIC 3000',
+    placeId: 'geo:delivery-1',
+    countryCode: 'AU',
+    lat: -37.8136,
+    lng: 144.9631,
+  },
   shippingNotes: 'Signature on delivery',
 };
 
@@ -288,7 +294,11 @@ describe('cash sale — terms and dual acceptance', () => {
       actorId: ITEM.ownerId,
       cashSaleId: created.sale.id,
       expectedTermsVersion: v2.sale.termsVersion,
-      terms: { ...DELIVERY_TERMS, shippingCostCents: 2_500 },
+      terms: {
+        fulfillmentMethod: 'DELIVERY',
+        shippingCostCents: 2_500,
+        shippingNotes: DELIVERY_TERMS.shippingNotes,
+      },
     });
 
     expect(v3.ok).toBe(true);
@@ -431,7 +441,11 @@ describe('cash sale — fulfillment', () => {
     const { saleId, second } = await agreeAndPay(deps, {
       fulfillmentMethod: 'IN_PERSON',
       meetingLocation: 'Melbourne Central, main concourse',
-    } as unknown as typeof DELIVERY_TERMS);
+      meetingPlaceId: 'geo:meeting-1',
+      meetingLat: -37.8183,
+      meetingLng: 144.9671,
+      meetingAt: '2099-01-15T03:00:00.000Z',
+    });
 
     expect(second.ok).toBe(true);
     if (!second.ok) return;

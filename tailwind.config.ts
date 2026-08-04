@@ -93,6 +93,40 @@ const config: Config = {
           "monospace",
         ],
       },
+      // SPACING RHYTHM, named by intent rather than by size.
+      //
+      // The design system had colour and radius tokens but no spacing scale, so
+      // vertical rhythm was picked per component and ran mt-0.5 / 1 / 1.5 / 2 /
+      // 2.5 / 3 / 5 / 7 / 9 with no discernible step. Tailwind's numeric scale is
+      // still available and still fine for one-offs; these exist so that the four
+      // decisions that actually matter — inside a group, between groups, between
+      // sections, between regions — are made once and reused.
+      //
+      // Reach for these when the question is "how far apart do these belong?"
+      // rather than "how many pixels?".
+      spacing: {
+        tight: "0.25rem", // icon to its label
+        snug: "0.5rem", // within one component
+        group: "1rem", // between related components
+        section: "2rem", // between sections
+        region: "4rem", // between major page regions
+      },
+      // TYPE SCALE. Five levels with size AND weight/leading paired, so a component
+      // picks a level instead of inventing a size. Replaces one-off bracket values
+      // like text-[0.8125rem] / text-[0.9375rem] / text-[0.625rem], which had put
+      // four distinct undocumented sizes on a single card.
+      //
+      // `meta` is floored at 0.75rem on purpose: metadata was rendering at 10px in
+      // the catalog grid, which is under the size where text stays comfortable —
+      // and it was carrying the seller name and rating, the two things a buyer
+      // scans before clicking.
+      fontSize: {
+        meta: ["0.75rem", { lineHeight: "1.4", fontWeight: "400" }],
+        body: ["0.9375rem", { lineHeight: "1.6", fontWeight: "400" }],
+        subhead: ["1.125rem", { lineHeight: "1.4", fontWeight: "600" }],
+        head: ["1.5rem", { lineHeight: "1.25", fontWeight: "600" }],
+        display: ["2.5rem", { lineHeight: "1.08", fontWeight: "600" }],
+      },
       boxShadow: {
         market:
           "0 1px 2px hsl(var(--obsidian) / 0.08), 0 10px 30px hsl(var(--obsidian) / 0.06)",

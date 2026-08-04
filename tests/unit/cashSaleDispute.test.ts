@@ -52,7 +52,13 @@ const PURCHASE = {
 const DELIVERY_TERMS = {
   fulfillmentMethod: 'DELIVERY' as const,
   shippingCostCents: 1_500,
-  deliveryAddress: '12 Example St, Melbourne VIC 3000',
+  deliveryAddress: {
+    label: '12 Example St, Melbourne VIC 3000',
+    placeId: 'geo:delivery-1',
+    countryCode: 'AU',
+    lat: -37.8136,
+    lng: 144.9631,
+  },
 };
 
 function makeDeps(

@@ -4,7 +4,10 @@
 // profile. Each row shows the reviewer's display name, that review's star
 // rating, an optional comment, and a relative timestamp. Server-rendered.
 
+import { MessageSquare } from 'lucide-react';
+
 import { StarRating } from '@/components/listings/StarRating';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatAud, formatRelativeTime } from '@/lib/format';
 import type { ReviewWithReviewer } from '@/lib/actions/reviews';
 
@@ -24,13 +27,25 @@ export function ReviewList({
   revieweeName: string;
 }) {
   if (reviews.length === 0) {
+    // Was a bare line of muted text, which reads as a dead end and does not say
+    // whether reviews are unsupported or merely absent. `titleAs="h4"` because a
+    // seller profile nests h1 (shell) → h2 (section) → h3 (page section) before
+    // reaching this state.
     return (
-      <p className="text-sm text-muted-foreground">No reviews yet.</p>
+      <EmptyState
+        icon={<MessageSquare className="size-6" aria-hidden />}
+        title="No Reviews Yet"
+        description={`Reviews appear here once ${revieweeName} completes a sale, purchase, or trade.`}
+        titleAs="h4"
+        compact
+      />
     );
   }
 
   return (
-    <ul className="divide-y rounded-lg border bg-white">
+    // `bg-card`, not `bg-white`: the palette's surface is a warm off-white
+    // (`40 30% 99%`), so pure white read colder than every card around it.
+    <ul className="divide-y rounded-lg border bg-card">
       {reviews.map((review) => (
         <li key={review.id} className="space-y-1.5 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">

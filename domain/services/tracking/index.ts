@@ -9,4 +9,9 @@ export function getTrackingService(): TrackingService {
   return new ManualTrackingService();
 }
 
+/** Whether the configured provider can safely refresh a carrier status. */
+export function isTrackingStatusPollingAvailable(): boolean {
+  return typeof getTrackingService().fetchStatus === 'function';
+}
+
 export type { TrackingService, TrackingSnapshot, TrackingState } from './types';

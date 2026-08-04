@@ -1,6 +1,6 @@
 // Geoapify Address Autocomplete + Static Maps (browser-safe publishable key).
 
-import { AU_DEFAULT_CENTER, type PlacePrecision, type PlaceValue } from './types';
+import type { PlacePrecision, PlaceValue } from './types';
 
 export function readGeoapifyKey(): string | null {
   const key = process.env.NEXT_PUBLIC_GEOAPIFY_KEY?.trim();
@@ -17,6 +17,7 @@ interface GeoapifyProperties {
   state?: string;
   state_code?: string;
   country?: string;
+  country_code?: string;
   result_type?: string;
   lat: number;
   lon: number;
@@ -30,24 +31,45 @@ interface GeoapifyAutocompleteResponse {
   features?: GeoapifyFeature[];
 }
 
+/**
+ * Short region label. Geoapify returns ISO 3166-2 codes like `AU-VIC` or `US-CA`,
+ * so strip whatever country prefix is present rather than assuming `AU-` — the
+ * previous `/^AU-?/i` left `US-CA` intact for every non-Australian result.
+ */
 function stateShort(props: GeoapifyProperties): string | undefined {
-  const code = props.state_code?.replace(/^AU-?/i, '').toUpperCase();
+  const code = props.state_code?.replace(/^[A-Z]{2}-/i, '').toUpperCase();
   if (code) return code;
   return props.state || undefined;
 }
 
-function suburbLabel(props: GeoapifyProperties): string {
+/**
+ * Locality label. Includes the country when it is not the searcher's own, so
+ * "Richmond, VIC" and "Richmond, VA, United States" are distinguishable — the
+ * single most common way an international address picker misleads people.
+ */
+function suburbLabel(props: GeoapifyProperties, homeCountry?: string): string {
   const locality = props.suburb || props.city || props.name || props.address_line1;
   const state = stateShort(props);
-  if (locality && state) return `${locality}, ${state}`;
-  return locality || props.formatted || 'Unknown place';
+  const foreign =
+    props.country_code != null &&
+    homeCountry != null &&
+    props.country_code.toUpperCase() !== homeCountry.toUpperCase();
+  const parts = [locality, state, foreign ? props.country : null].filter(Boolean);
+  if (parts.length > 0) return parts.join(', ');
+  return props.formatted || 'Unknown place';
 }
 
-function exactLabel(props: GeoapifyProperties): string {
-  return props.formatted || props.address_line1 || props.name || suburbLabel(props);
+function exactLabel(props: GeoapifyProperties, homeCountry?: string): string {
+  return (
+    props.formatted || props.address_line1 || props.name || suburbLabel(props, homeCountry)
+  );
 }
 
-function toPlace(feature: GeoapifyFeature, precision: PlacePrecision): PlaceValue {
+function toPlace(
+  feature: GeoapifyFeature,
+  precision: PlacePrecision,
+  homeCountry?: string,
+): PlaceValue {
   const props = feature.properties;
   const placeId =
     props.place_id != null
@@ -55,10 +77,14 @@ function toPlace(feature: GeoapifyFeature, precision: PlacePrecision): PlaceValu
       : `geo:${props.lat},${props.lon}`;
 
   return {
-    label: precision === 'suburb' ? suburbLabel(props) : exactLabel(props),
+    label:
+      precision === 'suburb'
+        ? suburbLabel(props, homeCountry)
+        : exactLabel(props, homeCountry),
     placeId,
     lat: props.lat,
     lng: props.lon,
+    countryCode: props.country_code?.toUpperCase() ?? null,
     precision,
   };
 }
@@ -69,12 +95,27 @@ function typeFor(precision: PlacePrecision): string | undefined {
 }
 
 /**
- * Forward-autocomplete a query (AU-biased). Returns up to `limit` places.
+ * Forward-autocomplete a query. Worldwide by default.
+ *
+ * WAS HARD-FILTERED TO `countrycode:au`. Do not reinstate that. A valid overseas
+ * address returned an empty dropdown with no explanation, so the field looked
+ * broken rather than restricted — the worst of both outcomes. If the marketplace
+ * ever needs to constrain entry to specific countries, pass `countries` and say so
+ * in the UI; never answer an out-of-scope address with silence.
+ *
+ * @param options.countries Optional ISO 3166-1 alpha-2 allowlist. Omit for worldwide.
+ * @param options.biasCountry Ranks nearby results first WITHOUT excluding anything
+ *   else. Bias is a preference; `filter` is a wall.
  */
 export async function searchPlaces(
   query: string,
   precision: PlacePrecision,
-  options?: { limit?: number; signal?: AbortSignal },
+  options?: {
+    limit?: number;
+    signal?: AbortSignal;
+    countries?: string[];
+    biasCountry?: string | null;
+  },
 ): Promise<PlaceValue[]> {
   const apiKey = readGeoapifyKey();
   if (!apiKey || !query.trim()) return [];
@@ -84,9 +125,15 @@ export async function searchPlaces(
     apiKey,
     lang: 'en',
     limit: String(options?.limit ?? 5),
-    filter: 'countrycode:au',
-    bias: `proximity:${AU_DEFAULT_CENTER.lng},${AU_DEFAULT_CENTER.lat}`,
   });
+
+  const countries = options?.countries?.filter(Boolean) ?? [];
+  if (countries.length > 0) {
+    params.set('filter', `countrycode:${countries.join(',').toLowerCase()}`);
+  }
+
+  const bias = options?.biasCountry?.trim().toLowerCase();
+  if (bias) params.set('bias', `countrycode:${bias}`);
 
   const type = typeFor(precision);
   if (type) params.set('type', type);
@@ -95,7 +142,9 @@ export async function searchPlaces(
   const res = await fetch(url, { signal: options?.signal });
   if (!res.ok) return [];
   const body = (await res.json()) as GeoapifyAutocompleteResponse;
-  return (body.features ?? []).map((f) => toPlace(f, precision));
+  return (body.features ?? []).map((f) =>
+    toPlace(f, precision, options?.biasCountry ?? undefined),
+  );
 }
 
 /** Google Maps deep link for "Open in Maps". */

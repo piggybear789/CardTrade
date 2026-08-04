@@ -54,6 +54,7 @@ import {
   ContractConversationPanel,
   ContractDetailList,
   ContractDetailRow,
+  ContractPartyDetails,
   ContractExchangePanel,
   ContractFocusProvider,
   ContractHeader,
@@ -105,6 +106,28 @@ const ROLE_BADGE: Record<DealRole, string> = {
   SELLER: 'Seller',
   TRADER: 'Trader',
 };
+
+/**
+ * Where a cancelled deal stopped: the `from_status` of the event that closed it.
+ *
+ * Read from the audit trail rather than guessed, so the progress rail marks the real
+ * step. The events are already loaded for the History row, so this costs nothing extra.
+ * Returns null for a live deal, or when the trail lacks the transition — the derivation
+ * then falls back to a conservative default.
+ */
+function haltedAtFrom(
+  events: readonly { from_state: string | null; to_state: string | null }[],
+  state: DealState,
+): DealState | null {
+  if (state !== 'CANCELLED') return null;
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.to_state === state && event.from_state) {
+      return event.from_state as DealState;
+    }
+  }
+  return null;
+}
 
 /** How loudly the action card should read for each deal state. */
 const STATE_TONE: Partial<Record<DealState, ContractActionTone>> = {
@@ -345,6 +368,13 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
     collateralRequired,
     iMarkedComplete,
     theyMarkedComplete,
+    // A cancelled deal keeps its full timeline and marks the step it stopped at, so
+    // the plan needs to know where that was — `state` alone no longer says.
+    haltedAt: haltedAtFrom(view.events, deal.state),
+    // Tells a pre-binding cancellation apart from an arbitrated unwind. Both land in
+    // CANCELLED by design, and the halt copy must not claim "nothing was charged"
+    // after a SPLIT captured part of the cash.
+    disputeOutcome: deal.dispute_outcome ?? null,
   });
   const step = currentStep(steps);
 
@@ -479,18 +509,12 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
       <ContractLiveRow
         action={
           <ContractActionCard step={step} tone={STATE_TONE[deal.state]}>
-            {/* Commitment-point identity disclosure. Like a 2-way trade, a
-                private deal involves no connected account, so this is the only
-                place a party learns the verified legal name of whoever they are
-                about to lock collateral or cash with. Renders nothing until
-                someone has joined, and nothing if they are unverified. */}
-            {them ? (
-              <CounterpartyIdentity
-                counterpartyId={them.id}
-                displayName={nameOf(them)}
-                className="mb-3"
-              />
-            ) : null}
+            {/* The commitment-point identity disclosure used to lead this card. It
+                moved to the Parties row below: it is reference material that never
+                changes, and it was holding the top of the one region users come to
+                for "what do I do now" — at every state, including after the deal
+                closed. It is still IN the room, which Requirement 12 needs (see the
+                note on `DEAL_SECTIONS.parties`). */}
 
             {/* Terms were edited, so both confirmations were cleared. */}
             {termsChangedNotice ? (
@@ -841,6 +865,33 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
             footnote="Descriptions and photos become part of the deal record. Changing either side clears both confirmations."
           />
         </ContractDetailRow>
+
+        {/* WHO IS ON THE OTHER SIDE. Mirrors the cash sale room's Parties row. Holds
+            the commitment-point disclosure (moved out of the action card) alongside
+            trading history, so the tab answers the whole question rather than showing
+            one line. Only rendered once somebody has taken the seat — while the deal
+            is awaiting a joiner there is no counterparty to describe, and an empty
+            Parties tab would be a worse answer than no tab. */}
+        {them ? (
+          <ContractDetailRow
+            id={DEAL_SECTIONS.parties}
+            label="Parties"
+            summary={`Identity and trading history · ${nameOf(them)}`}
+            contentClassName="space-y-3"
+          >
+            {/* Fetched by the component itself, which re-checks server-side that the
+                viewer really is a party to this deal — never passed down as a prop.
+                Renders nothing if the counterparty is unverified. */}
+            <CounterpartyIdentity
+              counterpartyId={them.id}
+              displayName={nameOf(them)}
+            />
+            <ContractPartyDetails
+              me={toContractParty(me, collateralRequired, collateralStakeCents)}
+              them={toContractParty(them, collateralRequired, collateralStakeCents)}
+            />
+          </ContractDetailRow>
+        ) : null}
 
         <ContractDetailRow
           id={DEAL_SECTIONS.terms}

@@ -28,10 +28,17 @@ export const metadata = {
 // "Moonbreon" (Prismatic Evolutions SIR), Pikachu ex SIR (Ascended Heroes),
 // and the "bubble Mew" SIR from Paldean Fates (#232). Prefer `_hires` scans
 // from the Pokémon TCG CDN; Ascended Heroes is only on Scrydex's large size.
+//
+// ALT TEXT IS EMPTY ON ALL THREE, DELIBERATELY. The fan is one decorative
+// composition, not three informative images. Umbreon previously carried a full
+// description while the other two were `alt=""`, so a screen reader announced
+// exactly one card out of three — describing the picture inaccurately. The
+// adjacent hero copy already carries the message, so decorating out is correct.
+// Keep them empty, or describe the composition once on a container.
 const CARD_IMAGES = {
   umbreon: {
     src: 'https://images.pokemontcg.io/sv8pt5/161_hires.png',
-    alt: 'Umbreon ex Special Illustration Rare Pokémon trading card',
+    alt: '',
   },
   pikachu: {
     src: 'https://images.scrydex.com/pokemon/me2pt5-276/large',
@@ -164,7 +171,7 @@ export default async function HomePage() {
               {/* Below `sm` the rows stack and carry their own inline
                   "Elsewhere:"/"Us:" labels, so a column-header row has nothing
                   to line up with — hide it entirely. */}
-              <div className="hidden gap-x-6 border-b border-parchment/15 py-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-parchment/60 sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
+              <div className="market-label hidden gap-x-6 border-b border-parchment/15 py-3 text-parchment/60 sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
                 <span aria-hidden="true" />
                 <span className="text-center">Typical marketplace</span>
                 <span className="text-center text-gold">NoDitto</span>
@@ -316,7 +323,7 @@ function ComparisonRow({
       <p className="flex items-center gap-2 text-sm text-parchment/60">
         <X className="size-4 shrink-0 text-parchment/45" aria-hidden="true" />
         <span>
-          <span className="mr-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-parchment/50 sm:hidden">
+          <span className="market-label mr-1.5 text-parchment/50 sm:hidden">
             Elsewhere:
           </span>
           {typical}
@@ -325,9 +332,7 @@ function ComparisonRow({
       <p className="flex items-center gap-2 text-sm font-medium">
         <Check className="size-4 shrink-0 text-trust" aria-hidden="true" />
         <span>
-          <span className="mr-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-gold sm:hidden">
-            Us:
-          </span>
+          <span className="market-label mr-1.5 text-gold sm:hidden">Us:</span>
           {ours}
         </span>
       </p>

@@ -19,8 +19,17 @@
  * - `active`   — the live step. At most one per plan.
  * - `blocked`  — cannot start until an earlier step is finished.
  * - `upcoming` — later in the sequence.
+ * - `halted`   — the contract ENDED here without completing. At most one per
+ *                plan, and mutually exclusive with `active`: a closed contract
+ *                has no live step. This is where it stopped, not a failure of
+ *                the step itself.
  */
-export type ContractStepStatus = 'done' | 'active' | 'blocked' | 'upcoming';
+export type ContractStepStatus =
+  | 'done'
+  | 'active'
+  | 'blocked'
+  | 'upcoming'
+  | 'halted';
 
 /**
  * Whose move a step is.
@@ -137,9 +146,84 @@ export function sequenceSteps(drafts: ContractStepDraft[]): ContractStep[] {
   });
 }
 
-/** The live step, or `null` when the plan is finished (or entirely blocked). */
+/**
+ * Resolve drafts into a plan for a contract that ENDED without completing.
+ *
+ * Terminal contracts used to collapse to a single "Closed" step, which threw away
+ * the whole timeline: you could see that a sale was cancelled but not how far it
+ * had got, and the lone step was rendered with a success tick — a contract that
+ * was cancelled showing the same mark as one that completed.
+ *
+ * This keeps the full sequence instead. Finished steps stay `done`, the first
+ * unfinished step becomes `halted` (that is where it stopped), and everything
+ * after it is `upcoming` — never reached, and shown as such. No step is `active`,
+ * so `currentStep` returns null and the room offers no controls.
+ *
+ * @param drafts The same drafts the live plan would build. Their `done` flags must
+ *   be computed from facts that survive closure (recorded acceptances, tracking,
+ *   handover confirmations) rather than from the now-terminal status.
+ * @param outcome Copy for the halt point: what happened and what it means. Applied
+ *   to the halted step, so the timeline explains itself at the place it stopped.
+ */
+export function sequenceHaltedSteps(
+  drafts: ContractStepDraft[],
+  outcome: { label: string; detail?: string; short?: string },
+): ContractStep[] {
+  let haltAssigned = false;
+
+  const steps: ContractStep[] = drafts.map((draft) => {
+    const base = {
+      id: draft.id,
+      label: draft.label,
+      short: draft.short,
+      detail: draft.detail,
+      owner: draft.owner,
+      // A closed contract offers no controls, whatever the draft suggested.
+      action: undefined,
+    };
+
+    if (draft.done) return { ...base, status: 'done' as const };
+
+    if (!haltAssigned) {
+      haltAssigned = true;
+      return {
+        ...base,
+        label: outcome.label,
+        short: outcome.short ?? draft.short,
+        detail: outcome.detail,
+        owner: 'platform' as const,
+        status: 'halted' as const,
+      };
+    }
+
+    return { ...base, status: 'upcoming' as const };
+  });
+
+  // Every step finished yet the contract is terminal — a refund after acceptance,
+  // for instance. There is no unfinished step to mark, so the outcome needs its own
+  // position or it would not be stated anywhere.
+  if (!haltAssigned) {
+    steps.push({
+      id: 'halted',
+      label: outcome.label,
+      short: outcome.short ?? 'Closed',
+      detail: outcome.detail,
+      owner: 'platform',
+      status: 'halted',
+    });
+  }
+
+  return steps;
+}
+
+/** The live step, or `null` when the plan is finished, halted, or entirely blocked. */
 export function activeStep(steps: ContractStep[]): ContractStep | null {
   return steps.find((step) => step.status === 'active') ?? null;
+}
+
+/** The step a closed contract stopped at, or `null` while it is still running. */
+export function haltedStep(steps: ContractStep[]): ContractStep | null {
+  return steps.find((step) => step.status === 'halted') ?? null;
 }
 
 /**

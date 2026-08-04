@@ -12,6 +12,7 @@ import { listMyNotifications } from '@/lib/actions/notifications';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/layout/Logo';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
+import { PrimaryNav } from '@/components/layout/PrimaryNav';
 import { SiteMenu } from '@/components/layout/SiteMenu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
@@ -67,19 +68,9 @@ export async function SiteHeader() {
           >
             <Logo />
           </Link>
-          <nav aria-label="Primary" className="hidden items-center text-parchment lg:flex">
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/listings">Marketplace</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/listings/new">Sell</Link>
-            </Button>
-            {isAuthenticated ? (
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/deals">Deals</Link>
-              </Button>
-            ) : null}
-          </nav>
+          {/* Client island: needs `usePathname` to mark the current section, which
+              a Server Component cannot read. See PrimaryNav. */}
+          <PrimaryNav isAuthenticated={isAuthenticated} />
         </div>
 
         <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">

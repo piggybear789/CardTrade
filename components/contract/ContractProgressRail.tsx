@@ -15,7 +15,7 @@
 // card, so the two can never disagree.
 
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import type { ContractStep } from '@/domain/contract';
@@ -38,6 +38,10 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
         {steps.map((step, index) => {
           const done = step.status === 'done';
           const live = step.status === 'active';
+          // Where a closed contract stopped. Must never render as a tick: a
+          // cancelled contract showing the same success mark as a completed one was
+          // the bug this state exists to fix.
+          const halted = step.status === 'halted';
           const selected = openId === step.id;
           const first = index === 0;
           const last = index === steps.length - 1;
@@ -59,7 +63,13 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                   type="button"
                   onClick={() => setOpenId(selected ? null : step.id)}
                   aria-label={`${step.label}${
-                    done ? ' — complete' : live ? ' — current step' : ''
+                    done
+                      ? ' — complete'
+                      : live
+                        ? ' — current step'
+                        : halted
+                          ? ' — the contract ended here'
+                          : ''
                   }`}
                   aria-expanded={selected}
                   className={cn(
@@ -71,12 +81,16 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     done && 'cardtrade-success-chip',
                     live && 'border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
-                    !done && !live && 'border-border bg-card text-muted-foreground',
+                    halted &&
+                      'border-destructive/55 bg-destructive/10 text-destructive',
+                    !done && !live && !halted && 'border-border bg-card text-muted-foreground',
                     selected && 'ring-2 ring-ring ring-offset-1',
                   )}
                 >
                   {done ? (
                     <Check className="size-3" aria-hidden />
+                  ) : halted ? (
+                    <X className="size-3" aria-hidden />
                   ) : (
                     <span
                       className={cn(
@@ -105,9 +119,11 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                   'mt-1.5 max-w-full truncate px-1 text-xs',
                   live
                     ? 'font-semibold text-foreground'
-                    : done
-                      ? 'font-medium text-muted-foreground'
-                      : 'text-muted-foreground',
+                    : halted
+                      ? 'font-semibold text-destructive'
+                      : done
+                        ? 'font-medium text-muted-foreground'
+                        : 'text-muted-foreground',
                 )}
               >
                 {step.short ?? step.label}

@@ -82,11 +82,11 @@ export function ContractImageLightbox({
 
           <div className="grid min-w-0 flex-1 place-items-center overflow-hidden rounded-lg bg-muted">
             {src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <ContractThumbnailImage
                 src={src}
                 alt={`${label} — photo ${index + 1} of ${images.length}`}
                 className="max-h-[65dvh] w-auto object-contain"
+                fallbackClassName="h-64 w-full"
               />
             ) : (
               <div className="grid h-64 w-full place-items-center text-muted-foreground">
@@ -124,35 +124,162 @@ export interface ContractThumbnailsProps {
   max?: number;
   /** Tile size. `sm` for inline item rows, `md` for a section's own preview. */
   size?: 'sm' | 'md';
+  /**
+   * `strip` (default) is the equal-tile row used by item rows and evidence sets.
+   *
+   * `stacked` promotes the first photo to a full-width square with the rest as a
+   * small strip underneath — the listing-page treatment, for surfaces where the
+   * item is the subject of the panel rather than one row in a list. A 64px tile
+   * cannot show the condition of a collectible, which is the whole reason a buyer
+   * opens the Item tab.
+   */
+  layout?: 'strip' | 'stacked';
   className?: string;
 }
 
+/** Shows a deliberate unavailable state instead of the browser's broken-image glyph. */
+function ContractThumbnailImage({
+  src,
+  alt = '',
+  loading,
+  className,
+  fallbackClassName,
+}: {
+  src: string;
+  alt?: string;
+  loading?: 'eager' | 'lazy';
+  className?: string;
+  fallbackClassName?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => setFailed(false), [src]);
+
+  if (failed) {
+    return (
+      <span
+        role="img"
+        aria-label={alt || 'Image unavailable'}
+        className={cn(
+          'grid h-full w-full place-items-center text-muted-foreground',
+          fallbackClassName ?? className,
+        )}
+      >
+        <ImageOff className="size-7" aria-hidden />
+      </span>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      loading={loading}
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 /**
- * A fixed horizontal strip of clickable thumbnails — never a scroll container —
- * with the overflow collapsed into a `+N` tile that opens at the fifth photo.
+ * Clickable thumbnails that open a full-size lightbox. Never a scroll container;
+ * overflow collapses into a `+N` tile that opens at that photo.
  */
 export function ContractThumbnails({
   images,
   label,
   max = 4,
   size = 'md',
+  layout = 'strip',
   className,
 }: ContractThumbnailsProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const tile = size === 'sm' ? 'size-11' : 'size-16';
+  const stacked = layout === 'stacked';
 
   if (images.length === 0) {
     return (
       <div
         className={cn(
-          'grid shrink-0 place-items-center rounded-md border bg-muted text-muted-foreground',
-          tile,
+          'grid place-items-center text-muted-foreground',
+          stacked
+            ? 'aspect-square w-full'
+            : cn('shrink-0 rounded-md border bg-muted', tile),
           className,
         )}
       >
-        <ImageOff className="size-4" aria-hidden />
+        <ImageOff className={stacked ? 'size-8' : 'size-4'} aria-hidden />
         <span className="sr-only">No photos for {label}</span>
       </div>
+    );
+  }
+
+  if (stacked) {
+    const [primary, ...rest] = images;
+    const restShown = rest.slice(0, 3);
+    const restOverflow = rest.length - restShown.length;
+
+    return (
+      <>
+        <div className={cn('flex w-full min-w-0 flex-col gap-1.5', className)}>
+          <button
+            type="button"
+            onClick={() => setOpenIndex(0)}
+            aria-label={`Enlarge photo 1 of ${images.length} for ${label}`}
+            className="aspect-square w-full overflow-hidden rounded-lg transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <ContractThumbnailImage
+              src={primary}
+              className="h-full w-full object-contain"
+            />
+          </button>
+
+          {rest.length > 0 ? (
+            <ul className="flex items-center gap-1.5" aria-label={`${label} photos`}>
+              {restShown.map((src, index) => (
+                <li key={src}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenIndex(index + 1)}
+                    aria-label={`Enlarge photo ${index + 2} of ${images.length} for ${label}`}
+                    className={cn(
+                      'overflow-hidden rounded-md border bg-muted transition',
+                      'hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      'size-11',
+                    )}
+                  >
+                    <ContractThumbnailImage
+                      src={src}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                </li>
+              ))}
+              {restOverflow > 0 ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setOpenIndex(restShown.length + 1)}
+                    aria-label={`See all ${images.length} photos for ${label}`}
+                    className="size-11 rounded-md border bg-muted/60 text-xs font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    +{restOverflow}
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+        </div>
+
+        <ContractImageLightbox
+          images={images}
+          openIndex={openIndex}
+          onOpenChange={setOpenIndex}
+          label={label}
+        />
+      </>
     );
   }
 
@@ -174,10 +301,8 @@ export function ContractThumbnails({
                 tile,
               )}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <ContractThumbnailImage
                 src={src}
-                alt=""
                 loading="lazy"
                 className="h-full w-full object-cover"
               />

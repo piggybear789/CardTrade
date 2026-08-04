@@ -11,6 +11,8 @@ import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
 import { isPaymentDemoEnabled } from '@/domain/services';
+import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
+import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -39,7 +41,7 @@ export default async function CashSalePage({
   // authorization enforced twice.
   const { data } = await supabase
     .from('cash_sales')
-    .select('*')
+    .select(CASH_SALE_PUBLIC_SELECT)
     .eq('id', id)
     .maybeSingle();
 
@@ -51,13 +53,25 @@ export default async function CashSalePage({
   // Reputation for both parties. Ratings come from the catalog-safe view; the
   // completed-sale counts come from an aggregate-only function, so neither party
   // gains read access to the other's sale rows.
-  const [{ data: profiles }, buyerStats, sellerStats] = await Promise.all([
+  const [
+    { data: profiles },
+    buyerStats,
+    sellerStats,
+    { data: deliveryDetails },
+  ] = await Promise.all([
     supabase
       .from('public_profiles')
       .select('id, display_name, rating, rating_count, is_verified')
       .in('id', [sale.buyer_id, sale.seller_id]),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.buyer_id }),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.seller_id }),
+    // RLS returns this to the buyer throughout, and to the seller only after
+    // collection succeeds. It is intentionally not a Realtime subscription.
+    supabase
+      .from('cash_sale_delivery_details')
+      .select('address_label, place_id, country_code, latitude, longitude')
+      .eq('cash_sale_id', sale.id)
+      .maybeSingle(),
   ]);
 
   const profileById = new Map(
@@ -108,6 +122,16 @@ export default async function CashSalePage({
   const counterpartyId = sale.buyer_id === user.id ? sale.seller_id : sale.buyer_id;
   const counterparty = counterpartyId === buyer.id ? buyer : seller;
 
+  const deliveryAddress = deliveryDetails
+    ? {
+        label: deliveryDetails.address_label,
+        placeId: deliveryDetails.place_id,
+        countryCode: deliveryDetails.country_code,
+        lat: deliveryDetails.latitude,
+        lng: deliveryDetails.longitude,
+      }
+    : null;
+
   const existingReview =
     sale.status === 'COMPLETED' ? await myReviewFor('cash_sale', sale.id) : null;
 
@@ -123,6 +147,8 @@ export default async function CashSalePage({
         buyer={buyer}
         seller={seller}
         conversationId={sale.conversation_id}
+        deliveryAddress={deliveryAddress}
+        trackingRefreshAvailable={isTrackingStatusPollingAvailable()}
         paymentDemoEnabled={isPaymentDemoEnabled()}
       />
 

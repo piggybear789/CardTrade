@@ -9,7 +9,12 @@
 // SYMMETRIC and conditional: two verified parties are bound by identity and post
 // nothing, otherwise both post the deal's stake.
 
-import { sequenceSteps, type ContractStep, type ContractStepDraft } from './steps';
+import {
+  sequenceHaltedSteps,
+  sequenceSteps,
+  type ContractStep,
+  type ContractStepDraft,
+} from './steps';
 
 /** The `deal_state` values, mirrored here so the domain stays free of DB types. */
 export type DealStepState =
@@ -26,6 +31,20 @@ export type DealStepState =
 export const DEAL_SECTIONS = {
   summary: 'contract-summary',
   items: 'contract-items',
+  /**
+   * Who is on the other side: the commitment-point Identity_Disclosure and their
+   * trading history. Matches `CASH_SALE_SECTIONS.parties`.
+   *
+   * The disclosure used to sit in the action card, where it occupied the top of the
+   * "what do I do now" region for the whole life of the deal — including after
+   * completion — with a fact that never changes. It is reference material, so it
+   * belongs in the inspector. It must stay SOMEWHERE in the room: Requirement 12
+   * (`.kiro/specs/cardtrade/requirements.md`) requires the counterparty's legal name
+   * and verification date at a Commitment_Point, and a Deal is one. A private deal
+   * is invite-by-token with no connected account, so this room is the only place a
+   * joiner learns who they are locking money with.
+   */
+  parties: 'contract-parties',
   terms: 'contract-terms',
   money: 'contract-money',
   collateral: 'contract-collateral',
@@ -50,6 +69,22 @@ export interface DealStepFacts {
   /** Handover completion marks, once the contract is binding. */
   iMarkedComplete: boolean;
   theyMarkedComplete: boolean;
+  /**
+   * For a CANCELLED deal: the state it was in before it closed. Makes "cancelled
+   * at Locked" exact rather than guessed — once `state` is CANCELLED it no longer
+   * reports progress.
+   */
+  haltedAt?: DealStepState | null;
+  /**
+   * `deals.dispute_outcome`, when the deal was closed by arbitration.
+   *
+   * Load-bearing for the halt copy, not decoration. A pre-binding cancellation and
+   * an arbitrated unwind BOTH land in CANCELLED — that is deliberate, and there is
+   * no `RESOLVED` state to tell them apart (see `.kiro/steering/product.md`). So
+   * without this the room would tell a member "nothing was charged" after a SPLIT,
+   * which captured part of the cash. Collateral is released in every outcome.
+   */
+  disputeOutcome?: 'REFUND_PAYER' | 'SPLIT' | 'RELEASE_RECIPIENT' | null;
 }
 
 /** States where the contract is binding — collateral placed or identity-bound. */
@@ -63,7 +98,6 @@ const ENGAGED: ReadonlySet<DealStepState> = new Set<DealStepState>([
 /** Build the ordered action plan for a private deal. */
 export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
   const {
-    state,
     joined,
     counterpartyName,
     contributionsComplete,
@@ -77,18 +111,14 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
 
   const them = counterpartyName ?? 'the other party';
 
-  if (state === 'CANCELLED') {
-    return sequenceSteps([
-      {
-        id: 'closed',
-        short: 'Cancelled',
-        label: 'Deal cancelled',
-        detail: 'The share link no longer works and nothing was charged.',
-        owner: 'platform',
-        done: true,
-      },
-    ]);
-  }
+  const cancelled = facts.state === 'CANCELLED';
+
+  // Reason about PROGRESS with the halt point once the deal is closed: its own state
+  // stops reporting how far it got. Most deal steps key off surviving booleans, so
+  // only `engage` actually depends on this.
+  const state: DealStepState = cancelled
+    ? (facts.haltedAt ?? 'TERMS')
+    : facts.state;
 
   const drafts: ContractStepDraft[] = [
     {
@@ -173,7 +203,9 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
     },
   ];
 
-  if (state === 'DISPUTED') {
+  // `!cancelled`: a deal unwound BY arbitration has `haltedAt === 'DISPUTED'`, which
+  // would otherwise return a live plan for a deal that is over.
+  if (!cancelled && state === 'DISPUTED') {
     drafts.push({
       id: 'dispute',
       // 'Review' keeps the six-tick disputed rail under the truncation budget
@@ -208,5 +240,51 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
         : undefined,
   });
 
-  return sequenceSteps(drafts);
+  return cancelled
+    ? sequenceHaltedSteps(drafts, dealHaltOutcome(facts.disputeOutcome ?? null))
+    : sequenceSteps(drafts);
+}
+
+/**
+ * Halt copy for a cancelled deal.
+ *
+ * `dispute_outcome` is the ONLY thing distinguishing an arbitrated unwind from a
+ * plain pre-binding cancellation, since both land in CANCELLED. Every branch below
+ * states collateral was released, because a deal has no Friction_Tax and no fraud
+ * finding — capturing a party's collateral would impose a penalty they were never
+ * told about.
+ */
+function dealHaltOutcome(
+  outcome: 'REFUND_PAYER' | 'SPLIT' | 'RELEASE_RECIPIENT' | null,
+): { label: string; detail: string; short: string } {
+  switch (outcome) {
+    case 'REFUND_PAYER':
+      return {
+        label: 'Unwound here by support',
+        short: 'Unwound',
+        detail:
+          'A dispute was decided in the payer\u2019s favour at this step. The cash authorisation was released, so nobody was charged, and collateral was released on both sides.',
+      };
+    case 'SPLIT':
+      return {
+        label: 'Split here by support',
+        short: 'Split',
+        detail:
+          'A dispute was settled at this step on adjusted terms: the arbitrated share of the cash was captured and the remainder released. Collateral was released on both sides.',
+      };
+    case 'RELEASE_RECIPIENT':
+      return {
+        label: 'Decided here by support',
+        short: 'Decided',
+        detail:
+          'A dispute was not upheld at this step, so the cash was captured in full as agreed. Collateral was released on both sides.',
+      };
+    default:
+      return {
+        label: 'Cancelled here',
+        short: 'Cancelled',
+        detail:
+          'The deal ended at this step. The share link no longer works, nothing was charged, and any collateral was released.',
+      };
+  }
 }

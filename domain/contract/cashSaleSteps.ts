@@ -9,6 +9,7 @@
 
 import type { CashSaleStatus } from '@/domain/orchestrator/cashSaleOrchestrator';
 import {
+  sequenceHaltedSteps,
   sequenceSteps,
   type ContractStep,
   type ContractStepDraft,
@@ -50,6 +51,17 @@ export interface CashSaleStepFacts {
   theirHandoverConfirmed: boolean;
   /** Set while the sale is DISPUTED, for the dispute step's detail line. */
   disputeRaisedByMe?: boolean;
+  /**
+   * For a closed sale: the status it was in immediately before it went terminal,
+   * i.e. `from_status` on the event that closed it.
+   *
+   * Supplying this is what makes "cancelled at Escrow" exact rather than guessed.
+   * Once `status` is CANCELLED / FAILED / REFUNDED it no longer says how far the
+   * contract got, and every `done` predicate keyed on `status` collapses to false.
+   * Omit it and the plan falls back to {@link inferHaltStatus}, which is
+   * conservative and can under-report progress.
+   */
+  haltedAt?: CashSaleStatus | null;
 }
 
 /** Statuses where the contract is closed and no plan remains. */
@@ -84,15 +96,64 @@ function ownerFor(
 }
 
 /**
+ * Best guess at how far a closed sale got, when `haltedAt` was not supplied.
+ *
+ * Deliberately conservative: it may under-report progress but will not claim a
+ * step finished that might not have. A REFUNDED sale is the one certainty — money
+ * cannot be refunded without having been collected first.
+ */
+function inferHaltStatus(status: CashSaleStatus): CashSaleStatus {
+  if (status === 'REFUNDED') return 'ESCROW_HELD';
+  // FAILED means collection was attempted and did not clear; CANCELLED is most
+  // often pre-payment. Both land before escrow, and surviving facts (tracking,
+  // handover confirmations) still promote later steps on their own.
+  return 'AGREEMENT';
+}
+
+/** Outcome copy for the halt point of a closed sale. */
+function haltOutcome(status: CashSaleStatus): {
+  label: string;
+  detail: string;
+  short: string;
+} {
+  switch (status) {
+    case 'CANCELLED':
+      return {
+        label: 'Cancelled here',
+        short: 'Cancelled',
+        detail:
+          'The agreement ended at this step and the item returned to the catalog. Nothing further was charged.',
+      };
+    case 'FAILED':
+      return {
+        label: 'Payment failed here',
+        short: 'Failed',
+        detail:
+          'The payment could not be collected at this step, so the item returned to the catalog.',
+      };
+    default:
+      return {
+        label: 'Refunded here',
+        short: 'Refunded',
+        detail: 'The contract ended at this step and the buyer was refunded in full.',
+      };
+  }
+}
+
+/**
  * Build the ordered action plan for a cash sale.
  *
- * Terminal contracts (cancelled, failed, refunded) collapse to a single closed
- * step — there is no "next" to show. A disputed contract keeps its history and
- * ends on a platform-owned review step, because neither party can act.
+ * A CLOSED contract (cancelled, failed, refunded) keeps its full timeline and marks
+ * the step it stopped at, rather than collapsing to one "Closed" tick. Seeing that a
+ * sale died at Escrow rather than at Terms is most of what you want to know after the
+ * fact, and the collapsed version also rendered a success tick on a contract that had
+ * been cancelled.
+ *
+ * A disputed contract keeps its history and ends on a platform-owned review step,
+ * because neither party can act.
  */
 export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   const {
-    status,
     viewerRole,
     counterpartyName,
     termsSet,
@@ -104,28 +165,15 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     theirHandoverConfirmed,
   } = facts;
 
-  if (CLOSED.has(status)) {
-    return sequenceSteps([
-      {
-        id: 'closed',
-        short: 'Closed',
-        label:
-          status === 'CANCELLED'
-            ? 'Contract cancelled'
-            : status === 'FAILED'
-              ? 'Payment failed'
-              : 'Payment refunded',
-        detail:
-          status === 'CANCELLED'
-            ? 'The agreement ended and the item returned to the catalog.'
-            : status === 'FAILED'
-              ? 'The payment could not be collected, so the item returned to the catalog.'
-              : 'The buyer has been refunded in full.',
-        owner: 'platform',
-        done: true,
-      },
-    ]);
-  }
+  const closed = CLOSED.has(facts.status);
+
+  // The status to reason about PROGRESS with. Once a sale is terminal its own status
+  // says nothing about how far it got, so the halt point stands in — otherwise every
+  // `done` predicate below reads false and a sale cancelled at inspection would look
+  // identical to one cancelled at terms.
+  const status: CashSaleStatus = closed
+    ? (facts.haltedAt ?? inferHaltStatus(facts.status))
+    : facts.status;
 
   const drafts: ContractStepDraft[] = [];
 
@@ -197,7 +245,10 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // A dispute suspends the remaining fulfillment steps: neither party can act on
   // them while the case is open, so the plan ends here rather than showing steps
   // that are unreachable.
-  if (status === 'DISPUTED') {
+  // `!closed` guard: a sale refunded OUT of a dispute has `haltedAt === 'DISPUTED'`,
+  // which would otherwise take this branch and return a live plan for a contract that
+  // is over.
+  if (!closed && status === 'DISPUTED') {
     drafts.push({
       id: 'dispute',
       // 'Review' matches the deal and trade rails for the same state.
@@ -224,7 +275,9 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
           ? 'Add the carrier and tracking number once you have posted it.'
           : `${counterpartyName} adds tracking once the item is posted.`,
       owner: ownerFor('SELLER', viewerRole),
-      done: status === 'IN_TRANSIT' || WITH_BUYER.has(status),
+      // `hasTracking` counts on its own so a closed sale still shows this finished
+      // when the halt point is coarser than the facts.
+      done: hasTracking || status === 'IN_TRANSIT' || WITH_BUYER.has(status),
       action:
         viewerRole === 'SELLER' && status === 'ESCROW_HELD'
           ? { label: 'Add tracking', kind: 'focus', target: CASH_SALE_SECTIONS.actions }
@@ -294,5 +347,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
         : undefined,
   });
 
-  return sequenceSteps(drafts);
+  return closed
+    ? sequenceHaltedSteps(drafts, haltOutcome(facts.status))
+    : sequenceSteps(drafts);
 }

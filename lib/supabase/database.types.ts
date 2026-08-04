@@ -465,7 +465,8 @@ export type Database = {
           fulfillment_method: Database['cardtrade']['Enums']['handover_method'] | null;
           shipping_cost_cents: number;
           shipping_notes: string | null;
-          delivery_address: string | null;
+          /** Non-sensitive indicator; raw residential address is in the protected table. */
+          delivery_address_configured: boolean;
           meeting_location: string | null;
           meeting_lat: number | null;
           meeting_lng: number | null;
@@ -549,7 +550,7 @@ export type Database = {
           fulfillment_method?: Database['cardtrade']['Enums']['handover_method'] | null;
           shipping_cost_cents?: number;
           shipping_notes?: string | null;
-          delivery_address?: string | null;
+          delivery_address_configured?: boolean;
           meeting_location?: string | null;
           meeting_lat?: number | null;
           meeting_lng?: number | null;
@@ -629,7 +630,7 @@ export type Database = {
           fulfillment_method?: Database['cardtrade']['Enums']['handover_method'] | null;
           shipping_cost_cents?: number;
           shipping_notes?: string | null;
-          delivery_address?: string | null;
+          delivery_address_configured?: boolean;
           meeting_location?: string | null;
           meeting_lat?: number | null;
           meeting_lng?: number | null;
@@ -761,6 +762,57 @@ export type Database = {
           {
             foreignKeyName: 'cash_sale_events_actor_id_fkey';
             columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      cash_sale_delivery_details: {
+        Row: {
+          cash_sale_id: string;
+          buyer_id: string;
+          address_label: string;
+          place_id: string;
+          country_code: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          cash_sale_id: string;
+          buyer_id: string;
+          address_label: string;
+          place_id: string;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          cash_sale_id?: string;
+          buyer_id?: string;
+          address_label?: string;
+          place_id?: string;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cash_sale_delivery_details_cash_sale_id_fkey';
+            columns: ['cash_sale_id'];
+            isOneToOne: true;
+            referencedRelation: 'cash_sales';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_sale_delivery_details_buyer_id_fkey';
+            columns: ['buyer_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
@@ -1783,6 +1835,27 @@ export type Database = {
           p_seller_organisation_type: string | null;
           p_seller_identity_verified_at: string;
           p_buyer_identity_confirmed_at: string;
+        };
+        Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      update_cash_sale_terms: {
+        Args: {
+          p_cash_sale_id: string;
+          p_actor_id: string;
+          p_expected_terms_version: number;
+          p_fulfillment_method: Database['cardtrade']['Enums']['handover_method'];
+          p_shipping_cost_cents: number;
+          p_shipping_notes: string | null;
+          p_meeting_location: string | null;
+          p_meeting_lat: number | null;
+          p_meeting_lng: number | null;
+          p_meeting_place_id: string | null;
+          p_meeting_at: string | null;
+          p_delivery_address_label?: string | null;
+          p_delivery_place_id?: string | null;
+          p_delivery_country_code?: string | null;
+          p_delivery_lat?: number | null;
+          p_delivery_lng?: number | null;
         };
         Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
       };

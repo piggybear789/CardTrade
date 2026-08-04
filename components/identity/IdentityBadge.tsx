@@ -73,6 +73,11 @@ export function IdentityBadge({
     <span
       className={cn('text-trust inline-flex items-center gap-1 font-medium', className)}
       title="Identity verified by Stripe as part of payout onboarding"
+      // `role="img"` so the label is actually exposed. In `iconOnly` mode the
+      // ShieldCheck is `aria-hidden` and there is no visible text, so without a
+      // role this badge could be announced as nothing — silently dropping the
+      // one trust signal a buyer is looking for.
+      role="img"
       aria-label={
         name
           ? `Identity verified by the payment provider, given name ${name}`

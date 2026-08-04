@@ -43,6 +43,10 @@ const CONFIRMED_PURCHASE = {
 const IN_PERSON_TERMS = {
   fulfillmentMethod: 'IN_PERSON' as const,
   meetingLocation: 'Melbourne Central, main concourse',
+  meetingPlaceId: 'geo:meeting-1',
+  meetingLat: -37.8183,
+  meetingLng: 144.9671,
+  meetingAt: '2099-01-15T03:00:00.000Z',
 };
 
 /** Build a direct-payout orchestrator and drive it to both-accepted. */

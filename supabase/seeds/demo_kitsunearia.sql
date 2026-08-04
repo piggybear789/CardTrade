@@ -125,7 +125,7 @@ begin
     agreed_price_cents, platform_fee_cents, amount_cents,
     status, item_title, item_description, item_condition, item_image_paths,
     fulfillment_method, shipping_cost_cents,
-    delivery_address, tracking_carrier, tracking_number, tracking_status,
+    delivery_address_configured, tracking_carrier, tracking_number, tracking_status,
     transfer_id, payment_nonce, payment_requested_at, payment_settled_at,
     shipped_at, received_at, carrier_delivered_at, inspection_accepted_at,
     completed_at,
@@ -145,7 +145,7 @@ begin
     'COMPLETED', '1999 Charizard Holo (PSA 8)',
     'Base Set Charizard, PSA 8.', 'NEAR_MINT', array['demo/charizard.jpg'],
     'DELIVERY', 1200,
-    '12 Example St, Melbourne VIC 3000', 'AusPost', 'DEMO123456789', 'DELIVERED',
+    true, 'AusPost', 'DEMO123456789', 'DELIVERED',
     'pi_demo_charizard_collection', 'demo-nonce-charizard',
     now() - interval '9 days', now() - interval '9 days',
     now() - interval '8 days', now() - interval '5 days',
@@ -158,6 +158,12 @@ begin
     'FAILED', 'payout:demo-charizard', now() - interval '4 days',
     2, 'Provider rejected the seller payout'
   ) returning id into v_sale;
+
+  insert into cardtrade.cash_sale_delivery_details (
+    cash_sale_id, buyer_id, address_label, place_id
+  ) values (
+    v_sale, v_mika, '12 Example St, Melbourne VIC 3000', 'legacy:demo-kitsunearia'
+  );
 
   insert into cardtrade.cash_sale_events (cash_sale_id, actor_id, event, from_status, to_status, detail)
   values

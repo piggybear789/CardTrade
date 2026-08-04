@@ -23,7 +23,7 @@
 // terms, and the asymmetric seller bond (the buyer pays up front, so only an unverified
 // seller posts collateral).
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -34,9 +34,12 @@ import {
   Handshake,
   Loader2,
   PackageCheck,
+  Pencil,
   Truck,
 } from 'lucide-react';
 import { PlaceMap } from '@/components/location';
+import { ImageGallery } from '@/components/listings/ImageGallery';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
@@ -47,7 +50,6 @@ import {
   ContractConversationPanel,
   ContractDetailList,
   ContractDetailRow,
-  ContractExchangePanel,
   ContractFocusProvider,
   ContractHeader,
   ContractLiveRow,
@@ -76,8 +78,12 @@ import { requiredBondCents } from '@/domain/bond/bondPolicy';
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { useCashSaleRealtime } from '@/lib/realtime/useCashSaleRealtime';
+import {
+  useCashSaleRealtime,
+  type CashSaleEventRow,
+} from '@/lib/realtime/useCashSaleRealtime';
 import type { Tables } from '@/lib/supabase/database.types';
+import type { CashSaleDeliveryAddress } from './types';
 import {
   acceptCashSaleInspection,
   acceptCashSaleTerms,
@@ -120,6 +126,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-permitted': 'Only the other party can do that.',
   'invalid-terms': 'Complete the fulfillment terms first.',
   'stale-terms': 'The terms changed. Review the current version.',
+  'terms-update-failed': 'Could not save the terms right now. Refresh and try again.',
   'already-recorded': 'You already did that.',
   'invalid-state': 'This contract has moved on.',
   'transfer-failed': 'The payment could not be collected.',
@@ -127,6 +134,58 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 function messageFor(result: Extract<CashSaleActionResult, { ok: false }>): string {
   return result.message ?? ERROR_MESSAGES[result.error] ?? 'Something went wrong.';
+}
+
+/** Statuses where a sale is over. Mirrors `CLOSED` in `domain/contract/cashSaleSteps`. */
+const TERMINAL_STATUSES = new Set<CashSaleRow['status']>([
+  'CANCELLED',
+  'FAILED',
+  'REFUNDED',
+]);
+
+/** Delivery statuses in which the Seller is authorised to receive the address. */
+const FUNDED_DELIVERY_STATUSES = new Set<CashSaleRow['status']>([
+  'ESCROW_HELD',
+  'IN_TRANSIT',
+  'INSPECTION',
+  'COMPLETED',
+  'DISPUTED',
+  'REFUNDED',
+]);
+
+/** A map is only trustworthy when it came from a resolved place selection. */
+function hasResolvedMeetingMap(sale: CashSaleRow): boolean {
+  return Boolean(
+    sale.meeting_place_id &&
+      !sale.meeting_place_id.startsWith('text:') &&
+      typeof sale.meeting_lat === 'number' &&
+      typeof sale.meeting_lng === 'number' &&
+      Number.isFinite(sale.meeting_lat) &&
+      Number.isFinite(sale.meeting_lng),
+  );
+}
+
+/**
+ * Where a closed sale stopped: the `from_status` of the event that moved it into its
+ * terminal status.
+ *
+ * Read from the audit trail rather than guessed, so the progress rail marks the real
+ * step it died at. The events are already loaded for the History row, so this costs
+ * nothing extra. Returns null for a live sale, or when the trail does not contain the
+ * transition — the derivation then falls back to a conservative inference.
+ */
+function haltedAtFrom(
+  events: CashSaleEventRow[],
+  status: CashSaleRow['status'],
+): CashSaleRow['status'] | null {
+  if (!TERMINAL_STATUSES.has(status)) return null;
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.to_status === status && event.from_status) {
+      return event.from_status as CashSaleRow['status'];
+    }
+  }
+  return null;
 }
 
 /** How loudly the action card should read for each status. */
@@ -169,6 +228,75 @@ function toContractParty(party: SaleParty, bondCents: number): ContractParty {
   };
 }
 
+function CashSaleItemSnapshot({
+  title,
+  condition,
+  agreedPriceCents,
+  description,
+  images,
+  listingId,
+}: {
+  title: string;
+  condition: string | null;
+  agreedPriceCents: number;
+  description: string | null;
+  images: string[];
+  listingId: string;
+}) {
+  const galleryImages = images.map((src, index) => ({
+    src,
+    alt: `${title} — image ${index + 1}`,
+  }));
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col items-stretch gap-6 md:flex-row">
+        <div className="min-w-0 md:flex md:flex-1 md:flex-col md:justify-center">
+          <ImageGallery
+            images={galleryImages}
+            title={title}
+            frameClassName="h-full min-h-[18rem] max-h-[26rem] md:max-h-[calc(100%-1rem)]"
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-col overscroll-contain md:flex-1 md:overflow-y-auto md:pr-1">
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <h3 className="break-words text-xl font-semibold tracking-[-0.025em] sm:text-2xl">
+                {title}
+              </h3>
+              <div>
+                <p className="text-3xl font-semibold tabular-nums tracking-tight">
+                  {formatAud(agreedPriceCents)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Agreed item price</p>
+              </div>
+              {condition ? <Badge variant="outline">{condition}</Badge> : null}
+            </div>
+
+            <div className="border-t border-border/70 pt-4">
+              <h4 className="text-sm font-semibold">Description</h4>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
+                {description?.trim() || 'No description was saved with this item.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="shrink-0 border-t pt-3 text-xs text-muted-foreground">
+        Photos and description are the snapshot saved when this contract opened.{' '}
+        <Link
+          href={`/listings/${listingId}`}
+          className="font-medium underline-offset-4 hover:underline"
+        >
+          View the listing
+        </Link>
+      </p>
+    </div>
+  );
+}
+
 export interface CashSaleViewProps {
   /** Server snapshot; realtime replaces it once connected. */
   initialSale: CashSaleRow;
@@ -176,6 +304,10 @@ export interface CashSaleViewProps {
   buyer: SaleParty;
   seller: SaleParty;
   conversationId: string | null;
+  /** RLS-authorized address detail; null for an unfunded seller. */
+  deliveryAddress?: CashSaleDeliveryAddress | null;
+  /** A real carrier provider is configured to poll status. */
+  trackingRefreshAvailable?: boolean;
   /** When false, hide mock settle/fail webhook buttons (Stripe is live). */
   paymentDemoEnabled?: boolean;
 }
@@ -230,6 +362,8 @@ function CashSaleRoom({
   buyer,
   seller,
   conversationId,
+  deliveryAddress = null,
+  trackingRefreshAvailable = false,
   paymentDemoEnabled = false,
 }: CashSaleViewProps) {
   const router = useRouter();
@@ -275,6 +409,31 @@ function CashSaleRoom({
   const theyAccepted = theirAcceptedVersion === sale.terms_version;
   const editable = sale.status === 'AGREEMENT';
   const isDelivery = sale.fulfillment_method === 'DELIVERY';
+  const deliveryReady = !isDelivery || sale.delivery_address_configured;
+  const sellerCanReceiveDeliveryAddress =
+    iAmSeller && isDelivery && FUNDED_DELIVERY_STATUSES.has(sale.status);
+  const wasSellerAddressEligible = useRef(false);
+  const sellerAddressRefreshAttempted = useRef(false);
+
+  // Address details are deliberately not Realtime-published. When a webhook funds
+  // a delivery while the Seller is viewing this room, refresh once so their new
+  // server-authorized address snapshot arrives without subscribing to private data.
+  useEffect(() => {
+    const justBecameEligible =
+      sellerCanReceiveDeliveryAddress && !wasSellerAddressEligible.current;
+    wasSellerAddressEligible.current = sellerCanReceiveDeliveryAddress;
+
+    if (
+      justBecameEligible &&
+      !deliveryAddress &&
+      !sellerAddressRefreshAttempted.current
+    ) {
+      sellerAddressRefreshAttempted.current = true;
+      router.refresh();
+    }
+  }, [deliveryAddress, router, sellerCanReceiveDeliveryAddress]);
+
+  const showMeetingMap = !isDelivery && hasResolvedMeetingMap(sale);
 
   function run(
     key: string,
@@ -308,7 +467,7 @@ function CashSaleRoom({
     }
     const haveDetails =
       method === 'DELIVERY'
-        ? Boolean(sale.delivery_address?.trim())
+        ? sale.delivery_address_configured
         : Boolean(sale.meeting_location?.trim());
     if (!haveDetails) {
       setDetailsFor(method);
@@ -321,8 +480,10 @@ function CashSaleRoom({
           fulfillmentMethod: method,
           shippingCostCents: sale.shipping_cost_cents,
           shippingNotes: sale.shipping_notes,
-          deliveryAddress: sale.delivery_address,
           meetingLocation: sale.meeting_location,
+          meetingLat: sale.meeting_lat,
+          meetingLng: sale.meeting_lng,
+          meetingPlaceId: sale.meeting_place_id,
           meetingAt: sale.meeting_at,
         }),
       method === 'DELIVERY' ? 'Shipping selected.' : 'Face-to-face selected.',
@@ -378,6 +539,7 @@ function CashSaleRoom({
       iAmBuyer ? sale.seller_handover_confirmed_at : sale.buyer_handover_confirmed_at,
     ),
     disputeRaisedByMe: sale.disputed_by === myUserId,
+    haltedAt: haltedAtFrom(events, sale.status),
   });
   const step = currentStep(steps);
 
@@ -388,7 +550,7 @@ function CashSaleRoom({
   const termsSummary = !termsSet
     ? 'Not proposed yet'
     : isDelivery
-      ? `Ship to ${sale.delivery_address?.split('\n')[0] ?? 'the buyer'} · ${formatAud(
+      ? `Delivery ${sale.delivery_address_configured ? 'address confirmed' : 'address needed'} · ${formatAud(
           sale.shipping_cost_cents,
         )}`
       : `Meet at ${sale.meeting_location}`;
@@ -425,15 +587,11 @@ function CashSaleRoom({
                 : undefined
             }
           >
-            {/* Commitment-point identity disclosure. A cash sale already shows
-                the SELLER's payee-verified name via the buyer disclosure, but
-                that is one-directional: the seller learns nothing about who is
-                buying. This covers both sides. */}
-            <CounterpartyIdentity
-              counterpartyId={iAmBuyer ? sale.seller_id : sale.buyer_id}
-              displayName={them.name}
-              className="mb-3"
-            />
+            {/* Identity is reference information, not the next action. The screenshot
+                showed it filling the top of the action card before the Item / Parties
+                / Terms inspector; that forces every state to lead with a static fact
+                and buries the thing the user can do now. It now lives in Parties,
+                alongside the rest of the counterparty context. */}
 
             {isLegacy ? (
               <Button asChild variant="outline">
@@ -458,7 +616,7 @@ function CashSaleRoom({
                 ) : !iAccepted ? (
                   <Button
                     type="button"
-                    disabled={isPending}
+                    disabled={isPending || !deliveryReady}
                     aria-busy={busy('accept')}
                     onClick={() =>
                       run(
@@ -549,22 +707,24 @@ function CashSaleRoom({
                     {sale.tracking_status.toLowerCase().replace(/_/g, ' ')}
                   </span>
                 ) : null}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto px-1.5 py-0.5 text-xs"
-                  disabled={isPending}
-                  aria-busy={busy('track')}
-                  onClick={() =>
-                    run('track', () => syncCashSaleTracking(sale.id), 'Tracking refreshed.')
-                  }
-                >
-                  {busy('track') ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : null}
-                  Refresh
-                </Button>
+                {trackingRefreshAvailable ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto px-1.5 py-0.5 text-xs"
+                    disabled={isPending}
+                    aria-busy={busy('track')}
+                    onClick={() =>
+                      run('track', () => syncCashSaleTracking(sale.id), 'Tracking refreshed.')
+                    }
+                  >
+                    {busy('track') ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : null}
+                    Refresh
+                  </Button>
+                ) : null}
                 {sale.tracking_url ? (
                   <a
                     href={sale.tracking_url}
@@ -740,35 +900,13 @@ function CashSaleRoom({
           label="Item"
           summary={`${sale.item_title} · ${formatAud(itemTotal)}`}
         >
-          <ContractExchangePanel
-            sides={[
-              {
-                heading: iAmBuyer ? 'You receive' : 'You send',
-                partyName: seller.name,
-                items: [
-                  {
-                    id: sale.item_id,
-                    title: sale.item_title,
-                    subtitle: sale.item_condition,
-                    valueCents: itemTotal,
-                    images: itemImages,
-                  },
-                ],
-                note: sale.item_description,
-                isMine: iAmSeller,
-              },
-            ]}
-            footnote={
-              <>
-                Photos and description as they were when this contract opened.{' '}
-                <Link
-                  href={`/listings/${sale.item_id}`}
-                  className="font-medium underline-offset-4 hover:underline"
-                >
-                  View the listing
-                </Link>
-              </>
-            }
+          <CashSaleItemSnapshot
+            title={sale.item_title}
+            condition={sale.item_condition}
+            agreedPriceCents={itemTotal}
+            description={sale.item_description}
+            images={itemImages}
+            listingId={sale.item_id}
           />
         </ContractDetailRow>
 
@@ -776,7 +914,15 @@ function CashSaleRoom({
           id={CASH_SALE_SECTIONS.parties}
           label="Parties"
           summary={`Identity and trading history · ${them.name}`}
+          contentClassName="space-y-3"
         >
+          {/* The commitment-point disclosure belongs with the people involved, not
+              the action card. It is fetched by the component, which re-checks that
+              the viewer is a party before releasing the legal name. */}
+          <CounterpartyIdentity
+            counterpartyId={iAmBuyer ? sale.seller_id : sale.buyer_id}
+            displayName={them.name}
+          />
           <ContractPartyDetails
             me={toContractParty(me, sellerBondCents)}
             them={toContractParty(them, sellerBondCents)}
@@ -787,10 +933,25 @@ function CashSaleRoom({
           id={CASH_SALE_SECTIONS.terms}
           label="Terms"
           summary={termsSummary}
+          action={
+            editable && sale.fulfillment_method ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+                onClick={() => setDetailsFor(sale.fulfillment_method!)}
+              >
+                <Pencil aria-hidden />
+                Edit terms
+              </Button>
+            ) : null
+          }
         >
           {!termsSet ? (
             editable ? (
-              <div className="mx-auto w-full max-w-xl rounded-xl border bg-background p-5 text-center sm:p-6">
+              <div className="flex min-h-0 flex-1 items-center justify-center py-6 sm:py-8">
+                <div className="w-full max-w-xl rounded-xl border bg-background p-5 text-center sm:p-6">
                 <h3 className="text-lg font-semibold tracking-tight">
                   Propose handover terms
                 </h3>
@@ -830,6 +991,7 @@ function CashSaleRoom({
                   Either party can propose terms. Both parties must accept the saved
                   proposal before Stripe begins collection.
                 </p>
+                </div>
               </div>
             ) : (
               <p className="mx-auto max-w-lg text-center text-muted-foreground">
@@ -838,7 +1000,23 @@ function CashSaleRoom({
               </p>
             )
           ) : (
-            <div className="w-full space-y-3">
+            <div className="flex w-full min-h-0 flex-1 flex-col gap-3">
+              <div
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border bg-muted/30 px-3 py-2 text-xs"
+                aria-label={`Terms version ${sale.terms_version} acceptance status`}
+              >
+                <span className="font-semibold text-foreground">
+                  Version {sale.terms_version}
+                </span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+                  <span>
+                    You: <span className="font-medium text-foreground">{iAccepted ? 'accepted' : 'needs acceptance'}</span>
+                  </span>
+                  <span>
+                    {them.name}: <span className="font-medium text-foreground">{theyAccepted ? 'accepted' : 'waiting'}</span>
+                  </span>
+                </div>
+              </div>
               <ContractMoneyTable
                 ariaLabel="Proposed handover terms"
                 rows={
@@ -846,7 +1024,11 @@ function CashSaleRoom({
                     ? [
                         {
                           label: 'Delivery address',
-                          hint: sale.delivery_address,
+                          hint: deliveryAddress?.label ?? (
+                            sale.delivery_address_configured
+                              ? 'Confirmed. Shared with the seller once payment is collected.'
+                              : 'Buyer must select an address before either party can accept.'
+                          ),
                           value: formatAud(sale.shipping_cost_cents),
                         },
                         ...(sale.shipping_notes
@@ -864,19 +1046,25 @@ function CashSaleRoom({
                       ]
                 }
               />
-              {!isDelivery &&
-              (sale.meeting_lat != null || sale.meeting_location) ? (
-                <PlaceMap
-                  lat={sale.meeting_lat}
-                  lng={sale.meeting_lng}
-                  label={sale.meeting_location}
-                  heightClassName="h-40"
-                />
+              {!isDelivery ? (
+                showMeetingMap ? (
+                  <PlaceMap
+                    lat={sale.meeting_lat}
+                    lng={sale.meeting_lng}
+                    label={sale.meeting_location}
+                    heightClassName="h-52 sm:h-60"
+                  />
+                ) : (
+                  <div className="flex min-h-32 items-center rounded-md border border-dashed bg-muted/30 px-4 text-sm text-muted-foreground">
+                    This meeting location needs a confirmed map pin. Edit terms to
+                    select the agreed place from the suggestions.
+                  </div>
+                )
               ) : null}
               {editable ? (
                 <p className="text-xs text-muted-foreground">
-                  Both parties must accept version {sale.terms_version} before
-                  Stripe begins collection.
+                  Editing creates a new version and clears both acceptances. Stripe
+                  begins collection only after you both accept the current version.
                 </p>
               ) : null}
             </div>
@@ -998,6 +1186,8 @@ function CashSaleRoom({
       {/* Fulfillment details prompt, opened by the method selector. */}
       <CashSaleTermsDialog
         sale={sale}
+        deliveryAddress={deliveryAddress}
+        canEditDeliveryAddress={iAmBuyer}
         hideTrigger
         open={detailsFor !== null}
         onOpenChange={(next) => setDetailsFor(next ? detailsFor : null)}

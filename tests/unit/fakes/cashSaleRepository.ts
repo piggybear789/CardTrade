@@ -201,7 +201,7 @@ export function makeCashSaleRepository(options: {
         fulfillmentMethod: null,
         shippingCostCents: 0,
         shippingNotes: null,
-        deliveryAddress: null,
+        deliveryAddressConfigured: false,
         meetingLocation: null,
         meetingLat: null,
         meetingLng: null,
@@ -240,12 +240,21 @@ export function makeCashSaleRepository(options: {
     },
     async updateTerms({ expectedTermsVersion, terms }) {
       const sale = state.sale;
-      if (!sale || sale.status !== 'AGREEMENT') return null;
-      if (sale.termsVersion !== expectedTermsVersion) return null;
+      if (!sale || sale.status !== 'AGREEMENT') {
+        return { ok: false as const, reason: 'STALE' as const };
+      }
+      if (sale.termsVersion !== expectedTermsVersion) {
+        return { ok: false as const, reason: 'STALE' as const };
+      }
       // The database trigger bumps the version and clears both acceptances.
+      const { deliveryAddress, ...publicTerms } = terms;
       state.sale = {
         ...sale,
-        ...terms,
+        ...publicTerms,
+        deliveryAddressConfigured:
+          terms.fulfillmentMethod === 'DELIVERY'
+            ? Boolean(deliveryAddress) || sale.deliveryAddressConfigured
+            : false,
         amountCents:
           sale.agreedPriceCents + sale.platformFeeCents + terms.shippingCostCents,
         termsVersion: sale.termsVersion + 1,
@@ -255,7 +264,7 @@ export function makeCashSaleRepository(options: {
         buyerTermsAcceptedAt: null,
         sellerTermsAcceptedAt: null,
       };
-      return state.sale;
+      return { ok: true as const, sale: state.sale };
     },
     async updateAgreedPrice({ expectedTermsVersion, agreedPriceCents }) {
       const sale = state.sale;

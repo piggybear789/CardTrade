@@ -42,6 +42,11 @@ export function StarRating({
   return (
     <span
       className={cn('inline-flex items-center gap-1', className)}
+      // `role="img"` is load-bearing, not decoration. Every star below is
+      // `aria-hidden`, so this label is the ONLY accessible text for the rating —
+      // and `aria-label` on a role-less generic element is not required to be
+      // exposed, so screen readers were free to announce nothing at all.
+      role="img"
       aria-label={`Rated ${clamped.toFixed(1)} out of 5${
         count != null ? ` from ${count} reviews` : ''
       }`}

@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { BadgeCheck, BadgeX, ImageOff, Lock, MapPin, Star } from 'lucide-react';
+import { BadgeX, ImageOff, Lock, MapPin, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { WatchButton } from '@/components/listings/WatchButton';
+import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { CatalogItem } from '@/lib/actions/listings';
@@ -120,11 +121,26 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                 <span className="truncate text-[0.625rem] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-[0.6875rem]">
                   {seller.displayName ?? 'Unknown seller'}
                 </span>
-                {seller.isVerified ? (
-                  <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="DittoShield-verified seller" />
-                ) : (
-                  <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
-                )}
+                {/* ONE MARK, not two. This rendered a payee tick and an identity
+                    shield side by side on the claim that they meant different things
+                    — "can be paid" versus "a provider checked their ID". Since the
+                    payer gate was retired both read the same column, so the card was
+                    making the same statement twice in two glyphs. */}
+                <IdentityBadge
+                  verified={seller.isVerified}
+                  firstName={seller.identityFirstName}
+                  size={13}
+                  iconOnly
+                />
+                {/* An unverified owner cannot publish a listing, so this should never
+                    render on the catalog. Kept as a visible tell rather than nothing:
+                    if it ever appears, the Identity_Gate has been bypassed somewhere. */}
+                {!seller.isVerified ? (
+                  <BadgeX
+                    className="size-3.5 shrink-0 text-destructive"
+                    aria-label="Unverified seller"
+                  />
+                ) : null}
               </Link>
               {seller.rating != null ? (
                 <span className="flex shrink-0 items-center gap-0.5 text-[0.625rem] tabular-nums text-muted-foreground sm:text-[0.6875rem]">
@@ -221,11 +237,19 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
               <span className="truncate text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                 {seller.displayName ?? 'Unknown seller'}
               </span>
-              {seller.isVerified ? (
-                <BadgeCheck className="size-3.5 shrink-0 text-trust" aria-label="DittoShield-verified seller" />
-              ) : (
-                <BadgeX className="size-3.5 shrink-0 text-destructive" aria-label="Unverified seller" />
-              )}
+              {/* One mark — see the note on the compact layout above. */}
+              <IdentityBadge
+                verified={seller.isVerified}
+                firstName={seller.identityFirstName}
+                size={13}
+                iconOnly
+              />
+              {!seller.isVerified ? (
+                <BadgeX
+                  className="size-3.5 shrink-0 text-destructive"
+                  aria-label="Unverified seller"
+                />
+              ) : null}
             </Link>
             {seller.rating != null ? (
               <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">

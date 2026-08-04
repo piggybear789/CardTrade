@@ -71,6 +71,14 @@ export interface HoldRecordInput {
   holdRef: string;
   amountCents: number;
   status: PreAuthHold['status'];
+  /**
+   * When the provider authorisation lapses, from {@link PreAuthHold.expiresAt}.
+   *
+   * MUST be persisted. After this instant the provider releases the collateral
+   * itself, so a void or capture will fail and the escrow guarantee is gone.
+   * Absent for providers whose holds do not expire (the mock).
+   */
+  expiresAt?: string;
 }
 
 /** A persisted Pre_Auth_Hold row (as read back for cancellation). */
@@ -337,6 +345,7 @@ export async function proposeTrade(
       holdRef: hold.holdId,
       amountCents: placement.amountCents,
       status: hold.status,
+      expiresAt: hold.expiresAt,
     });
   }
 

@@ -2,22 +2,22 @@
 
 ## Overview
 
-CardTrade is a safety-first P2P clearinghouse for collectibles built as a **frontend-first hackathon MVP**. The full experience — registration, KYC, listings, cash sales, the 2-way trade escrow lifecycle, dispute/fraud resolution, and a real-time trade contract view — is delivered in the UI. All payment, KYC, and webhook behavior is provided by a **Mock_Service** that deterministically simulates the Pinch Payments REST API and Pinch Glassbox KYC.
+CardTrade is a safety-first P2P clearinghouse for collectibles built as a **frontend-first hackathon MVP**. The full experience — registration, KYC, listings, cash sales, the 2-way trade escrow lifecycle, dispute/fraud resolution, and a real-time trade contract view — is delivered in the UI. All payment, KYC, and webhook behavior is provided by a **Mock_Service** that deterministically simulates the Stripe REST API and Stripe Identity KYC.
 
 The central design goal is a **clean seam between three concerns**:
 
 1. **The Trade State Machine** — a pure, dependency-free module that owns all Trade_State transition rules. It has no knowledge of the database, the UI, or the payment provider. This makes it independently and exhaustively testable (including property-based testing).
-2. **The Payment/KYC Service Interface** — a single TypeScript contract (`PaymentService` + `KycService`) that both `MockService` (this phase) and a future `PinchService` (later phase) implement. The rest of the system depends only on the interface, never on the concrete implementation.
+2. **The Payment/KYC Service Interface** — a single TypeScript contract (`PaymentService` + `KycService`) that both `MockService` (this phase) and a future `StripeService` (later phase) implement. The rest of the system depends only on the interface, never on the concrete implementation.
 3. **The UI + Persistence layer** — Next.js App Router pages/components backed by Supabase (Postgres, Auth, Storage, Realtime), which orchestrate the state machine and the service interface and reflect state live.
 
-This separation is what lets the real Pinch integration "slot in later" with no changes to the state machine or UI: only the concrete service binding changes.
+This separation is what lets the real Stripe integration "slot in later" with no changes to the state machine or UI: only the concrete service binding changes.
 
 ### Key Design Decisions
 
 | Decision | Rationale |
 |----------|-----------|
 | Pure, side-effect-free state machine module | Enables exhaustive unit + property-based testing of transition integrity (Req 9) independent of UI/DB/mock. |
-| Single `PaymentService`/`KycService` interface with Mock + future Pinch impls | Satisfies "swap real Pinch in later" without touching orchestration, UI, or state machine (all MVP notes). |
+| Single `PaymentService`/`KycService` interface with Mock + future Stripe impls | Satisfies "swap real Stripe in later" without touching orchestration, UI, or state machine (all MVP notes). |
 | Supabase Realtime **Postgres Changes** on `trades` | Simplest path to the real-time contract view (Req 11) for a hackathon; noted upgrade path to Broadcast for scale. [Supabase docs](https://supabase.com/docs/guides/realtime/subscribing-to-database-changes) |
 | Row-Level Security (RLS) as the primary authorization mechanism | Enforces per-owner Profile/Item access and per-participant Trade access (Req 1.6, 3.7, 9.6-9.7) at the database, not just the UI. |
 | State transitions committed via a guarded DB write with optimistic concurrency (version column) | Guarantees exactly-one-wins concurrency (Req 9.3-9.4) and an append-only audit trail (Req 9.5). |
@@ -42,12 +42,12 @@ flowchart TB
 
     subgraph Server["Next.js Server (Route Handlers + Server Actions)"]
         SA[Server Actions<br/>listings, cash sale, trade ops]
-        WH[Webhook Route Handler<br/>/api/webhooks/pinch]
+        WH[Webhook Route Handler<br/>/api/webhooks/stripe]
         ORCH[Trade Orchestrator]
         SM[["Trade State Machine<br/>(pure module)"]]
         SVC{{"PaymentService / KycService<br/>(interface)"}}
         MOCK[MockService impl]
-        FUT[/"Future: PinchService impl"/]
+        FUT[/"Future: StripeService impl"/]
     end
 
     subgraph Supabase["Supabase"]
@@ -79,8 +79,8 @@ flowchart TB
 - **Presentation (Client + Server Components):** Renders catalog, listing forms, cash sale flow, trade proposal, and the real-time trade contract view. Derives *which actions to show* from the state machine's `availableActions(state, viewer)` helper so the UI never hard-codes transition rules (Req 11.3-11.4).
 - **Orchestration (Server Actions + Trade Orchestrator):** The only layer that combines the state machine, the service interface, and persistence. It (a) validates the requested action against the state machine, (b) calls the `PaymentService`/`KycService` as needed, and (c) commits the resulting state via a guarded write with an audit row.
 - **Domain (Trade State Machine):** Pure functions. No I/O. Owns the transition table, guards, and terminal-state rules.
-- **Integration (Service Interface + Mock):** `MockService` returns deterministic simulated results and can emit simulated webhooks (auto or UI-triggered). Swappable for `PinchService`.
-- **Data (Supabase):** Postgres tables + RLS, Storage for images and evidence packs, Realtime for live trade updates.
+- **Integration (Service Interface + Mock):** `MockService` returns deterministic simulated results and can emit simulated webhooks (auto or UI-triggered). Swappable for `StripeService`.
+- **Data (Supabase):** Postgres tables + RLS, Storage for images, Realtime for live trade updates.
 
 ### Request/Event Flows
 
@@ -93,7 +93,7 @@ Client → Server Action → Orchestrator → StateMachine.canTransition()
 
 **Simulated webhook (e.g., pre-auth confirmed):**
 ```
-MockService (auto or UI "Fire Webhook") → POST /api/webhooks/pinch 
+MockService (auto or UI "Fire Webhook") → POST /api/webhooks/stripe 
        → verify authenticity (stub) → idempotency check on event_id 
        → map event → StateMachine.transition() → guarded DB write (+ audit + webhook_log) 
        → Realtime → Client re-render
@@ -107,7 +107,7 @@ The app uses the App Router with Server Components by default and Client Compone
 
 ### 1. Payment/KYC Service Interface (the contract)
 
-This is the seam that lets the real Pinch integration replace the mock later. Both `MockService` and the future `PinchService` implement these interfaces. All amounts are integer **cents (AUD)** to avoid floating-point drift.
+This is the seam that lets the real Stripe integration replace the mock later. Both `MockService` and the future `StripeService` implement these interfaces. All amounts are integer **cents (AUD)** to avoid floating-point drift.
 
 ```typescript
 // domain/services/types.ts
@@ -145,16 +145,27 @@ export interface KycResult {
   reason?: string;
 }
 
-export interface VerifiedIdentity {
-  profileId: string;
-  legalName: string;
-  dateOfBirth: string;
-  documentType: string;
-  documentNumber: string;
+/**
+ * The MINIMUM identity the platform holds (Req 2.5). Narrower than what the
+ * provider returns: `dob`, `id_number` and `id_number_type` are deliberately
+ * never retrieved, because the only consumer of them was the withdrawn
+ * Police_Evidence_Pack. `isAdult` is derived from the verified date of birth at
+ * read time and the date itself is discarded.
+ */
+export interface VerifiedIdentitySummary {
+  legalName: string; // gated — Commitment_Point disclosure only
+  firstName: string; // public, shown with the verified badge
+  isAdult: boolean;
   verifiedAt: string;
 }
 
-/** Payment provider contract — implemented by MockService now, PinchService later. */
+/** Provider-hosted, asynchronous identity check (Req 2.2). */
+export interface IdentityCheckSession {
+  sessionId: string;
+  url: string;
+}
+
+/** Payment provider contract — implemented by MockService now, StripeService later. */
 export interface PaymentService {
   createPayer(profileId: string): Promise<Payer>;
   requestTransfer(params: { payerId: string; amount: Cents; ref: string }): Promise<TransferResult>;
@@ -164,11 +175,15 @@ export interface PaymentService {
   fullCapture(holdId: string): Promise<CaptureResult>;
 }
 
-/** KYC contract — implemented by MockService now, Pinch Glassbox later. */
+/** KYC contract — implemented by MockService now, Stripe Identity later. */
 export interface KycService {
   createPayer(profileId: string): Promise<Payer>;              // KYC begins with payer creation (Req 2.1)
   runVerification(payerId: string): Promise<KycResult>;        // simulated verify (Req 2.2, 2.3)
-  getVerifiedIdentity(profileId: string): Promise<VerifiedIdentity | null>; // for evidence pack (Req 2.5, 8.4)
+  // Narrow, name-only summary read once from the verification webhook (Req 2.5).
+  // Deliberately NOT the date of birth, document type, or document number.
+  getIdentitySummary?(sessionId: string): Promise<VerifiedIdentitySummary | null>;
+  // Opens the provider-hosted document + selfie check (Req 2.2).
+  beginIdentityCheck?(params: { profileId: string; payerId?: string; returnUrl: string }): Promise<IdentityCheckSession>;
 }
 
 /** Optional capability the Mock exposes for demo control; NOT part of the production contract. */
@@ -180,9 +195,9 @@ export interface WebhookEmitter {
 ### 2. MockService (this phase)
 
 - **Deterministic:** Given the same inputs it produces the same outputs. Outcomes (success/failure) are driven by explicit demo controls (e.g., a `scenario` flag or a per-trade "force failure" toggle in the UI) rather than randomness, so demos and tests are reproducible.
-- **UI-triggerable:** The trade contract view exposes demo controls (e.g., "Confirm Holds", "Fire pre_auth.settled webhook", "Simulate Fraud Full Capture"). These call the MockService, which in turn POSTs a `WebhookEvent` to `/api/webhooks/pinch`, exercising the exact same code path a real Pinch webhook would.
+- **UI-triggerable:** The trade contract view exposes demo controls (e.g., "Confirm Holds", "Fire pre_auth.settled webhook", "Simulate Fraud Full Capture"). These call the MockService, which in turn POSTs a `WebhookEvent` to `/api/webhooks/stripe`, exercising the exact same code path a real Stripe webhook would.
 - **Simulated webhook emission:** After a payment operation, the Mock enqueues the corresponding `WebhookEvent` (e.g., `hold.active`, `transfer.settled`, `capture.settled`). Emission may be automatic (short timer) or manual (UI button) to make the demo controllable.
-- **Signature stub:** The Mock signs webhook payloads with a shared secret using the same header contract the real Pinch integration will use, so the authenticity-verification code path is real even though the secret is local.
+- **Signature stub:** The Mock signs webhook payloads with a shared secret using the same header contract the real Stripe integration will use, so the authenticity-verification code path is real even though the secret is local.
 
 ```typescript
 // domain/services/mock/MockService.ts
@@ -197,8 +212,8 @@ A single factory decides which implementation is bound, so no caller references 
 ```typescript
 // domain/services/index.ts
 export function getPaymentService(): PaymentService & KycService {
-  return process.env.PAYMENTS_PROVIDER === 'pinch'
-    ? new PinchService(/* ... */)   // later phase
+  return process.env.PAYMENTS_PROVIDER === 'stripe'
+    ? new StripeService(/* ... */)   // later phase
     : new MockService(/* ... */);   // this phase
 }
 ```
@@ -300,7 +315,7 @@ async function applyEvent(tradeId: string, event: TradeEvent, actorId: string) {
 
 ### 5. Webhook Route Handler
 
-`app/api/webhooks/pinch/route.ts` — a POST Route Handler using the Supabase **admin** client (webhooks are unauthenticated by end users; authenticity is verified by signature).
+`app/api/webhooks/stripe/route.ts` — a POST Route Handler using the Supabase **admin** client (webhooks are unauthenticated by end users; authenticity is verified by signature).
 
 Processing pipeline (Req 10):
 1. **Verify authenticity** (stub): recompute HMAC over the raw body with the shared secret and compare to the signature header. On mismatch → `401`, no state change, no log write beyond an optional rejected-audit (Req 10.1, 10.2).
@@ -350,7 +365,7 @@ Marketplace/
 │   ├── trades/
 │   │   ├── new/page.tsx
 │   │   └── [id]/page.tsx           # real-time trade contract view
-│   ├── api/webhooks/pinch/route.ts # webhook handler
+│   ├── api/webhooks/stripe/route.ts # webhook handler
 │   └── layout.tsx
 ├── components/
 │   ├── ui/                         # shadcn/ui primitives
@@ -401,7 +416,7 @@ create table profiles (
   contact_email text not null,
   kyc_status    kyc_status not null default 'UNVERIFIED',
   kyc_reason    text,                      -- failure reason (Req 2.3)
-  payer_id      text,                      -- Pinch/Mock payer reference (Req 2.1)
+  payer_id      text,                      -- Stripe/Mock payer reference (Req 2.1)
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
@@ -439,8 +454,8 @@ create table trades (
   disputed_against      uuid references profiles(id),
   disputed_at           timestamptz,
   fraud_victim_id       uuid references profiles(id),
-  evidence_pack_path    text,           -- Storage path to Police_Evidence_Pack PDF
-  evidence_pack_complete boolean,
+  -- evidence_pack_path / evidence_pack_complete: DROPPED in 0030. The
+  -- Police_Evidence_Pack feature was withdrawn; see Requirement 8.4.
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
   check (initiator_id <> counterpart_id)
@@ -465,7 +480,7 @@ create table pre_auth_holds (
   id            uuid primary key default gen_random_uuid(),
   trade_id      uuid not null references trades(id) on delete cascade,
   trader_id     uuid not null references profiles(id),
-  hold_ref      text,                     -- Pinch/Mock hold id
+  hold_ref      text,                     -- Stripe/Mock hold id
   amount_cents  bigint not null,
   captured_cents bigint not null default 0,
   status        hold_status not null default 'ACTIVE',
@@ -699,7 +714,8 @@ Errors are modeled as typed results rather than thrown exceptions in the domain 
 | Concurrency | Optimistic version check; losing writers get `CONCURRENT_MODIFICATION` mapped to a user-facing "trade was updated by the other party" message (Req 9.3, 9.4). |
 | Payment/KYC service | Methods resolve with explicit `status: 'FAILED'` results rather than throwing; the orchestrator maps failures to compensating actions (void holds, restore item availability) per Req 4.4, 5.6, 7.6, 8.6. |
 | Fraud full-capture retries | Bounded retry (max 3) in the orchestrator; on exhaustion, flag `manual_reconciliation` and preserve the hold (Req 8.6). |
-| Evidence pack | If `getVerifiedIdentity` returns null, mark `evidence_pack_complete = false` and return an error indication (Req 8.7). |
+| Identity summary | If `getIdentitySummary` returns null (session unverified, or the provider errored), `kyc_status` still moves but no name is recorded — a partial identity is never stored (Req 2.5). |
+| Identity attribution | A verification decision that cannot be attributed to a Profile is logged as a `NO_OP` rather than applied to any Profile (Req 2.9). |
 | Webhook handler | Signature failure → 401 with no side effects (Req 10.2); unknown event → `NO_OP` (Req 10.7); state-machine rejection → `FAILURE` logged, state preserved (Req 10.8). |
 | Auth | Unauthenticated access to protected routes/resources → redirect to sign-in / 401 (Req 1.7). |
 | Realtime | Channel drop → show non-live indicator and auto-retry subscription with backoff (Req 11.5). |
@@ -729,7 +745,7 @@ PBT is **not** applied to: RLS policies (deterministic authorization — integra
 
 ### Test Independence
 
-The state machine module has **zero** dependencies on Supabase, React, or the service layer, so Properties 1–7 run with no test doubles at all. The orchestrator is tested with an **in-memory fake** implementing the `PaymentService`/`KycService` interface (the same interface the MockService and future PinchService implement), keeping payment-dependent properties (15, 18, 19, 21) fast and deterministic.
+The state machine module has **zero** dependencies on Supabase, React, or the service layer, so Properties 1–7 run with no test doubles at all. The orchestrator is tested with an **in-memory fake** implementing the `PaymentService`/`KycService` interface (the same interface the MockService and future StripeService implement), keeping payment-dependent properties (15, 18, 19, 21) fast and deterministic.
 
 ## Requirements Traceability
 
@@ -742,9 +758,10 @@ The state machine module has **zero** dependencies on Supabase, React, or the se
 | **5. Trade Initiation & Collateral** | `/trades/new`, `tradeOrchestrator`, `PaymentService.placeHold`, `trades` + `pre_auth_holds` | P17, P18, P1 (5.5) (+ edge test 5.6) |
 | **6. Shipping & Inspection** | Trade contract view actions, state machine transitions, `trades` lifecycle timestamps | P1, P2, P4 (+ example 6.7) |
 | **7. Condition Dispute** | Dispute action, state machine `DISPUTED`, `partialCapture`, `pre_auth_holds` | P1 (7.1), P19, P20 (+ edge 7.6, 7.7, example 7.5) |
-| **8. Objective Fraud** | Fraud action, `FRAUD_RESOLVED`, `fullCapture`, evidence pack (Storage), `KycService.getVerifiedIdentity` | P1 (8.1), P21 (+ edge 8.6, 8.7, examples 8.5, integration 8.4) |
+| **8. Objective Fraud** | Fraud action, `FRAUD_RESOLVED`, `fullCapture`, victim payout. 8.4/8.7 withdrawn — no evidence pack, no identity disclosure | P1 (8.1), P21 (+ edge 8.6, examples 8.5) |
+| **2. Identity Verification & Disclosure** | `/kyc`, `lib/actions/kyc.ts`, `beginIdentityCheck`, `getIdentitySummary`, `KYC_DECISION` webhook branch, `public_profiles` view, `CounterpartyIdentity` | `verifiedIdentityDisclosure.test.ts` (2.5, 2.8, 2.9, 2.10–2.15) |
 | **9. State Machine Integrity** | `domain/state-machine`, guarded orchestrator write (version lock), `trade_state_transitions` audit, trades RLS | P1, P3, P5, P6 (+ RLS integration 9.6, 9.7) |
-| **10. Webhook-Driven Transitions** | `/api/webhooks/pinch` route, signature stub, `webhook_logs` idempotency, orchestrator dispatch | P22, P23 (+ examples 10.1, 10.4, edge 10.2, 10.7, smoke 10.6) |
+| **10. Webhook-Driven Transitions** | `/api/webhooks/stripe` route, signature stub, `webhook_logs` idempotency, orchestrator dispatch | P22, P23 (+ examples 10.1, 10.4, edge 10.2, 10.7, smoke 10.6) |
 | **11. Real-Time Trade Contract View** | `/trades/[id]`, `useTradeRealtime` hook, `availableActions`, connection indicator | P7 (+ component tests 11.1, 11.5, integration 11.2) |
 
 Every requirement maps to at least one design component; every testable-as-property acceptance criterion maps to a numbered correctness property, and the remainder map to the example/edge/integration/smoke test layers described in the Testing Strategy.

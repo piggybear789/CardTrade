@@ -82,7 +82,7 @@ class FakeTradeProposalRepository implements TradeProposalRepository {
 /** A MockService with a no-op webhook transport (holds/voids never hit HTTP). */
 function makePayments(scenario?: ConstructorParameters<typeof MockService>[0]['scenario']) {
   return new MockService({
-    webhookUrl: 'http://localhost/api/webhooks/pinch',
+    webhookUrl: 'http://localhost/api/webhooks/stripe',
     secret: 'test-secret',
     scenario,
     fetchFn: async () => ({}),

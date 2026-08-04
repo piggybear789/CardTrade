@@ -27,9 +27,9 @@
 -- reachable during the demo, and the provider-approved merchant identity is
 -- filled in so the seller-disclosure panel has something to show.
 
+-- Verification is the Identity_Gate (merchant_status + settlements), set below.
+-- The kyc_status / kyc_reason columns were dropped in migration 0043.
 update cardtrade.profiles set
-  kyc_status = 'VERIFIED',
-  kyc_reason = null,
   payer_id = coalesce(payer_id, 'payer_demo_kitsunearia'),
   payment_token = coalesce(payment_token, 'tok_demo_kitsunearia'),
   payment_token_type = coalesce(payment_token_type, 'bank-account'),

@@ -27,6 +27,8 @@ export type WebhookAction =
   | { kind: 'CASH_SALE_SETTLE' }
   | { kind: 'CASH_SALE_FAIL' }
   | { kind: 'MERCHANT_COMPLIANCE' }
+  | { kind: 'CASH_SALE_REFUND_FAILED' }
+  | { kind: 'CHARGE_DISPUTE'; phase: 'OPENED' | 'CLOSED' }
   | { kind: 'NO_OP' };
 
 /**
@@ -63,18 +65,40 @@ export function mapEventToAction(event: WebhookEvent): WebhookAction {
     case 'transfer.failed':
       return event.payload.cashSaleId ? { kind: 'CASH_SALE_FAIL' } : { kind: 'NO_OP' };
 
-    // Identity verification outcomes: the standalone KYC payer check is
-    // retired (verification is now provider-approved Managed Merchant
-    // onboarding, handled via `merchant.compliance.updated` below), so these
-    // event types are acknowledged and logged without a further transition.
-    case 'kyc.verified':
-    case 'kyc.rejected':
-      return { kind: 'NO_OP' };
+    // A dispute refund failed after being accepted. Routed so the sale stops
+    // claiming to be refunded while the money is still on the platform. Needs a
+    // Cash_Sale to attribute to; without one it is unroutable rather than applied
+    // to a guess.
+    case 'refund.failed':
+      return event.payload.cashSaleId
+        ? { kind: 'CASH_SALE_REFUND_FAILED' }
+        : { kind: 'NO_OP' };
+
+    // `kyc.verified` / `kyc.rejected` used to be routed here to a KYC_DECISION.
+    // The separate payer gate is retired: there is one verification signal now,
+    // and it arrives on `merchant.compliance.updated` below. That event is
+    // therefore no longer only about being PAID — it is also where the
+    // provider-verified legal name and the verified state come from.
 
     // A sub-merchant compliance decision: routed to the merchant onboarding
     // orchestrator, which decides APPROVED/REJECTED/PENDING from the flags.
     case 'merchant.compliance.updated':
       return event.payload.merchantRef ? { kind: 'MERCHANT_COMPLIANCE' } : { kind: 'NO_OP' };
+
+    // A chargeback. NOT a Trade_State transition: a dispute is a banking event
+    // between the payer and their card issuer, and it can land at any point in a
+    // Trade's life — including after COMPLETED. Forcing a state change would
+    // corrupt the machine. It is routed so the loss is recorded and escalated
+    // while there is still time to submit evidence.
+    //
+    // Deliberately routed even without a resolvable trade or sale: an
+    // unattributable chargeback is still real money leaving, so it must be
+    // recorded rather than dropped as a NO_OP the way an unroutable KYC decision
+    // is.
+    case 'charge.disputed':
+      return { kind: 'CHARGE_DISPUTE', phase: 'OPENED' };
+    case 'charge.dispute.closed':
+      return { kind: 'CHARGE_DISPUTE', phase: 'CLOSED' };
 
     // Dispute/fraud follow-ups: no webhook-driven Trade_State transition (Req 10.7).
     case 'hold.voided':

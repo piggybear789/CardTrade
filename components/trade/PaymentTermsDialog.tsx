@@ -92,7 +92,7 @@ export function PaymentTermsDialog({
         <DialogHeader className="space-y-1">
           <DialogTitle>Payment Terms</DialogTitle>
           <DialogDescription>
-            Cash adjustments are handled by Pinch Payments. Valuation and a note
+            Cash adjustments are handled by Stripe. Valuation and a note
             are optional.
           </DialogDescription>
         </DialogHeader>
@@ -106,12 +106,12 @@ export function PaymentTermsDialog({
                   [
                     'PROPOSER_PAYS',
                     'I add cash',
-                    `You pay ${counterpartName} through Pinch Payments.`,
+                    `You pay ${counterpartName} through Stripe.`,
                   ],
                   [
                     'COUNTERPART_PAYS',
                     'I request cash',
-                    `${counterpartName} pays you through Pinch Payments.`,
+                    `${counterpartName} pays you through Stripe.`,
                   ],
                 ] as const
               ).map(([value, label, hint]) => (

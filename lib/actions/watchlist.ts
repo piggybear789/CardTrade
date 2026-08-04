@@ -229,7 +229,9 @@ export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
   const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
   const { data: sellersData } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified')
+    .select(
+      'id, display_name, rating, rating_count, is_verified, identity_first_name',
+    )
     .in('id', ownerIds);
 
   const sellerById = new Map<string, CatalogSeller>(
@@ -241,6 +243,7 @@ export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
       },
     ]),
   );

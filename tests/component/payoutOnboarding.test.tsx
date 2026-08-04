@@ -1,196 +1,186 @@
 // tests/component/payoutOnboarding.test.tsx
 //
-// Seller payout onboarding UI (Req 3.9, 4.8-4.12). The important guarantees are
-// behavioural, not cosmetic:
-//   * the disclosure consent is genuinely required before anything is submitted;
-//   * an approved seller sees exactly the identity buyers see;
-//   * the test-mode simulator only appears when the SERVER says it may.
+// Seller payout onboarding (Req 3.9, 4.8-4.12).
+//
+// The guarantees worth pinning down after moving to provider-hosted onboarding:
+//   * the consent gate still blocks submission (Req 4.8);
+//   * no bank, registration, date-of-birth or address field is collected here at
+//     all — the provider owns those, so they must not exist in our DOM;
+//   * returning from the provider does NOT display "verified" on its own; the
+//     authoritative status is re-read;
+//   * the approved view shows the provider-VERIFIED legal name and nothing
+//     private.
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const submitMerchantOnboarding = vi.fn();
-const simulateMerchantCompliance = vi.fn();
+const createPayoutOnboardingLink = vi.fn();
+const refreshPayoutStatus = vi.fn();
 
 vi.mock('@/lib/actions/merchant', () => ({
   submitMerchantOnboarding: (...args: unknown[]) => submitMerchantOnboarding(...args),
-  simulateMerchantCompliance: (...args: unknown[]) => simulateMerchantCompliance(...args),
+  createPayoutOnboardingLink: (...args: unknown[]) => createPayoutOnboardingLink(...args),
+  refreshPayoutStatus: (...args: unknown[]) => refreshPayoutStatus(...args),
 }));
 
+const refresh = vi.fn();
+let searchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ refresh }),
+  useSearchParams: () => searchParams,
 }));
 
-vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { PayoutOnboarding } from '@/components/profile/PayoutOnboarding';
 import type { PayoutSetupContext } from '@/lib/actions/merchant';
 
-function context(overrides: Partial<PayoutSetupContext> = {}): PayoutSetupContext {
+function makeContext(overrides: Partial<PayoutSetupContext['state']> = {}): PayoutSetupContext {
   return {
+    hostedOnboarding: true,
     state: {
       merchantStatus: 'NONE',
       merchantRef: null,
       settlementsEnabled: false,
+      complianceStatus: null,
+      legalEntityName: null,
+      tradingName: null,
+      registrationNumber: null,
+      identityVerifiedAt: null,
+      ...overrides,
     },
-    canSimulateCompliance: false,
-    providerIsPinch: true,
-    ...overrides,
   };
 }
 
-/**
- * The onboarding form lives in a modal, so it has to be opened before any field
- * exists in the document.
- */
-async function openForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /verify my identity|fix and resubmit/i }));
-  await screen.findByLabelText(/legal name or registered entity/i);
-}
+/** window.location.assign is how the component leaves for the provider. */
+const assign = vi.fn();
 
-/**
- * Fill the required fields across the two steps, ending on the last one where
- * consent and submit live. Values from earlier steps must survive the walk —
- * that is the behaviour worth pinning, not the step chrome itself.
- */
-async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/legal name or registered entity/i), 'Jane Collector');
-  await user.type(screen.getByLabelText(/abn or acn/i), '12345678901');
-  await user.type(screen.getByLabelText(/business email/i), 'jane@example.com');
-  await user.click(screen.getByRole('button', { name: /^next$/i }));
+beforeEach(() => {
+  submitMerchantOnboarding.mockReset();
+  createPayoutOnboardingLink.mockReset();
+  refreshPayoutStatus.mockReset();
+  refresh.mockReset();
+  assign.mockReset();
+  searchParams = new URLSearchParams();
 
-  await user.type(screen.getByLabelText(/account name/i), 'Jane Collector');
-  await user.type(screen.getByLabelText(/^bsb$/i), '012001');
-  await user.type(screen.getByLabelText(/account number/i), '12345678');
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { assign, href: 'http://localhost/profile' },
+  });
 
-  await screen.findByRole('button', { name: /submit for verification/i });
-}
+  submitMerchantOnboarding.mockResolvedValue({
+    ok: true,
+    data: { ...makeContext().state, merchantStatus: 'PENDING', merchantRef: 'acct_1' },
+  });
+  createPayoutOnboardingLink.mockResolvedValue({
+    ok: true,
+    data: { url: 'https://connect.stripe.com/setup/s/abc123' },
+  });
+});
 
 describe('PayoutOnboarding', () => {
-  beforeEach(() => {
-    submitMerchantOnboarding.mockReset();
-    simulateMerchantCompliance.mockReset();
-  });
-
   it('refuses to submit until the buyer disclosure is consented to', async () => {
     const user = userEvent.setup();
-    render(<PayoutOnboarding context={context()} />);
+    render(<PayoutOnboarding context={makeContext()} />);
 
-    await openForm(user);
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /submit for verification/i }));
+    await user.click(screen.getByRole('button', { name: /verify my identity/i }));
 
-    // No provider call, and the reason is surfaced to the seller.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/see who they are paying/i);
     expect(submitMerchantOnboarding).not.toHaveBeenCalled();
-    expect(await screen.findByRole('alert')).toHaveTextContent(/buyers must be able to see/i);
   });
 
-  it('submits with consent and passes the identity through', async () => {
-    submitMerchantOnboarding.mockResolvedValue({
-      ok: true,
-      data: {
-        merchantStatus: 'PENDING',
-        merchantRef: 'mch_1',
-        settlementsEnabled: false,
-        legalEntityName: 'Jane Collector',
-      },
-    });
+  it('collects no bank, registration, date-of-birth or address fields', () => {
+    render(<PayoutOnboarding context={makeContext()} />);
+
+    // The provider owns all of these now; if any reappear here, sensitive data
+    // has started flowing through our server again.
+    for (const label of [/bsb/i, /account number/i, /abn|acn|registration/i, /date of birth/i, /address/i, /postcode/i]) {
+      expect(screen.queryByLabelText(label)).toBeNull();
+    }
+  });
+
+  it('submits with consent, then redirects into the provider-hosted flow', async () => {
     const user = userEvent.setup();
-    render(<PayoutOnboarding context={context()} />);
+    render(<PayoutOnboarding context={makeContext()} />);
 
-    await openForm(user);
-    await fillRequiredFields(user);
+    await user.type(screen.getByLabelText(/store name/i), 'Harbour City Cards');
     await user.click(screen.getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: /submit for verification/i }));
+    await user.click(screen.getByRole('button', { name: /verify my identity/i }));
 
-    expect(submitMerchantOnboarding).toHaveBeenCalledTimes(1);
-    expect(submitMerchantOnboarding.mock.calls[0][0]).toMatchObject({
-      legalEntityName: 'Jane Collector',
-      businessRegistrationNumber: '12345678901',
-      bankAccountBsb: '012001',
+    await waitFor(() => expect(submitMerchantOnboarding).toHaveBeenCalledTimes(1));
+    expect(submitMerchantOnboarding).toHaveBeenCalledWith({
+      tradingName: 'Harbour City Cards',
       buyerDisclosureConsent: true,
     });
-    // The card moves to the awaiting-review state.
-    expect(await screen.findByText(/checking your bank details/i)).toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/s/abc123'),
+    );
   });
 
-  it('surfaces a field error returned by the server', async () => {
+  it('surfaces a server error without redirecting', async () => {
     submitMerchantOnboarding.mockResolvedValue({
       ok: false,
-      error: 'validation-error',
-      message: 'Enter a 9-digit ACN or 11-digit ABN.',
-      field: 'businessRegistrationNumber',
+      error: 'submission-failed',
+      message: 'Payout setup could not be submitted. Please try again.',
     });
-    const user = userEvent.setup();
-    render(<PayoutOnboarding context={context()} />);
 
-    await openForm(user);
-    await fillRequiredFields(user);
+    const user = userEvent.setup();
+    render(<PayoutOnboarding context={makeContext()} />);
     await user.click(screen.getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: /submit for verification/i }));
+    await user.click(screen.getByRole('button', { name: /verify my identity/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/9-digit ACN or 11-digit ABN/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be submitted/i);
+    expect(assign).not.toHaveBeenCalled();
   });
 
-  it('shows an approved seller the identity buyers see, and no form', () => {
-    render(
-      <PayoutOnboarding
-        context={context({
-          state: {
-            merchantStatus: 'APPROVED',
-            merchantRef: 'mch_1',
-            settlementsEnabled: true,
-            legalEntityName: 'Jane Collector Pty Ltd',
-            tradingName: 'Jane Cards',
-            registrationNumber: '12345678901',
-            identityVerifiedAt: '2026-07-25T00:00:00.000Z',
-          },
-        })}
-      />,
-    );
-
-    expect(screen.getByText(/what buyers see/i)).toBeInTheDocument();
-    expect(screen.getByText('Jane Collector Pty Ltd')).toBeInTheDocument();
-    expect(screen.getByText('Jane Cards')).toBeInTheDocument();
-    // ABN rendered in readable groups without altering the stored digits.
-    expect(screen.getByText('12 345 678 901')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /submit for verification/i }),
-    ).not.toBeInTheDocument();
-  });
-
-  it('hides the test-mode simulator unless the server allows it', () => {
-    render(<PayoutOnboarding context={context({ state: { merchantStatus: 'PENDING', merchantRef: 'mch_1', settlementsEnabled: false } })} />);
-    expect(screen.queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument();
-  });
-
-  it('delivers a simulated provider decision when allowed', async () => {
-    simulateMerchantCompliance.mockResolvedValue({
+  it('re-reads status on return from the provider rather than assuming success', async () => {
+    searchParams = new URLSearchParams('payouts=complete');
+    refreshPayoutStatus.mockResolvedValue({
       ok: true,
-      data: {
-        merchantStatus: 'APPROVED',
-        merchantRef: 'mch_1',
-        settlementsEnabled: true,
-        legalEntityName: 'Jane Collector Pty Ltd',
-        registrationNumber: '12345678901',
-      },
+      data: { ...makeContext().state, merchantStatus: 'PENDING', merchantRef: 'acct_1' },
     });
-    const user = userEvent.setup();
+
+    render(<PayoutOnboarding context={makeContext({ merchantStatus: 'PENDING', merchantRef: 'acct_1' })} />);
+
+    await waitFor(() => expect(refreshPayoutStatus).toHaveBeenCalledTimes(1));
+    // Still verifying, so the card must not claim the seller can be paid.
+    expect(screen.getByText(/verifying/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Verified name$/i)).toBeNull();
+  });
+
+  it('explains an expired setup link and offers to restart it', async () => {
+    searchParams = new URLSearchParams('payouts=refresh');
+    refreshPayoutStatus.mockResolvedValue({
+      ok: true,
+      data: { ...makeContext().state, merchantStatus: 'PENDING', merchantRef: 'acct_1' },
+    });
+
+    render(<PayoutOnboarding context={makeContext({ merchantStatus: 'PENDING', merchantRef: 'acct_1' })} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/expired/i);
+    expect(screen.getByRole('button', { name: /finish payout setup/i })).toBeInTheDocument();
+  });
+
+  it('shows the provider-verified name once approved, and nothing private', () => {
     render(
       <PayoutOnboarding
-        context={context({
-          state: { merchantStatus: 'PENDING', merchantRef: 'mch_1', settlementsEnabled: false },
-          canSimulateCompliance: true,
+        context={makeContext({
+          merchantStatus: 'APPROVED',
+          merchantRef: 'acct_1',
+          settlementsEnabled: true,
+          legalEntityName: 'Jane Collector',
+          tradingName: 'Harbour City Cards',
+          identityVerifiedAt: '2026-08-01T00:00:00.000Z',
         })}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /^approve$/i }));
-
-    expect(simulateMerchantCompliance).toHaveBeenCalledWith('approved');
-    expect(await screen.findByText(/what buyers see/i)).toBeInTheDocument();
+    expect(screen.getByText('Jane Collector')).toBeInTheDocument();
+    expect(screen.getByText('Harbour City Cards')).toBeInTheDocument();
+    // The merchant reference is a provider credential, never surfaced.
+    expect(screen.queryByText(/acct_1/)).toBeNull();
   });
 });

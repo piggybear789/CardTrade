@@ -15,8 +15,8 @@ import { BadgeCheck, Building2, Store } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getReviewsFor } from '@/lib/actions/reviews';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
-import { formatRegistrationNumber } from '@/lib/format';
 import { ItemCard } from '@/components/listings/ItemCard';
+import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { ReviewList } from '@/components/reviews/ReviewList';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -59,7 +59,9 @@ export default async function SellerProfilePage({
   // Public, catalog-safe seller identity.
   const { data: sellerRow } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified')
+    .select(
+      'id, display_name, rating, rating_count, is_verified, identity_first_name',
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -80,6 +82,7 @@ export default async function SellerProfilePage({
     rating: (sellerRow.rating as number | null) ?? null,
     ratingCount: (sellerRow.rating_count as number | null) ?? 0,
     isVerified: Boolean(sellerRow.is_verified),
+    identityFirstName: (sellerRow.identity_first_name as string | null) ?? null,
   };
 
   // Narrow, buyer-safe merchant identity — only populated once provider
@@ -130,6 +133,16 @@ export default async function SellerProfilePage({
                 {displayName}
               </h2>
               {seller.isVerified && <VerifiedBadge size={18} />}
+              {/* Two DIFFERENT gates, shown side by side deliberately:
+                  VerifiedBadge = payee onboarding ("can be paid"),
+                  IdentityBadge = provider identity check ("document + selfie
+                  matched"). Labelled here rather than icon-only because a
+                  profile page is where a buyer goes to decide about a person. */}
+              <IdentityBadge
+                verified={seller.isVerified}
+                firstName={seller.identityFirstName}
+                size={16}
+              />
             </div>
             {reviews.length > 0 ? (
               <Link
@@ -158,7 +171,7 @@ export default async function SellerProfilePage({
           <div className="mt-3 rounded-lg border bg-muted/30 p-4">
             <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
               <BadgeCheck className="h-4 w-4" aria-hidden />
-              DittoShield verified through Pinch Payments
+              DittoShield verified through Stripe
             </div>
             <dl className="grid gap-3 sm:grid-cols-2">
               {sellerIdentity.tradingName ? (
@@ -175,20 +188,14 @@ export default async function SellerProfilePage({
               <div className="min-w-0">
                 <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Building2 className="h-3.5 w-3.5" aria-hidden />
-                  Legal seller
+                  Verified name
                 </dt>
                 <dd className="break-words text-sm font-medium">
                   {sellerIdentity.legalEntityName}
                 </dd>
               </div>
-              <div className="min-w-0">
-                <dt className="text-xs text-muted-foreground">Registration</dt>
-                <dd className="break-words text-sm font-medium">
-                  {formatRegistrationNumber(sellerIdentity.registrationNumber)}
-                </dd>
-              </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Approved</dt>
+                <dt className="text-xs text-muted-foreground">Verified</dt>
                 <dd className="text-sm">
                   {new Date(sellerIdentity.verifiedAt).toLocaleDateString('en-AU')}
                 </dd>

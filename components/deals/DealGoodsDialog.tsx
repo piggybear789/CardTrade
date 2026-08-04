@@ -41,7 +41,7 @@ import { DEAL_PHOTOS_MAX, DEAL_TEXT_MAX } from '@/lib/marketplace-constants';
 /** What a trader can put up. Choosing these decides what else this dialog asks. */
 const OFFER_OPTIONS: { value: DealOfferKind; label: string; hint: string }[] = [
   { value: 'CARDS', label: 'Cards', hint: 'Graded or raw' },
-  { value: 'CASH', label: 'Cash', hint: 'Via Pinch' },
+  { value: 'CASH', label: 'Cash', hint: 'Via Stripe' },
   { value: 'ITEMS', label: 'Items', hint: 'Photos required' },
 ];
 
@@ -229,7 +229,7 @@ export function DealGoodsDialog({
           {showCash ? (
             <div className="space-y-2">
               <Label htmlFor="deal-cash">
-                Cash you pay via Pinch
+                Cash you pay via Stripe
                 <span className="text-destructive" aria-hidden>
                   {' '}
                   *
@@ -264,7 +264,7 @@ export function DealGoodsDialog({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Charged through Pinch when you both confirm — not handed over in
+                Charged through Stripe when you both confirm — not handed over in
                 person.
               </p>
               {cashError ? (

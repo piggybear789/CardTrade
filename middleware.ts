@@ -9,6 +9,7 @@ import { createServerClient } from "@supabase/ssr";
 // send them back. The protected-path list is intentionally minimal; add paths
 // here (and to `config.matcher`) as those pages are built.
 const PROTECTED_PREFIXES = [
+  // Covers /profile/payouts too, so the Payouts dashboard needs no entry of its own.
   "/profile",
   "/listings/new",
   "/listings/mine",
@@ -18,6 +19,11 @@ const PROTECTED_PREFIXES = [
   "/offers",
   "/saved",
   "/account",
+  // Covers /admin/arbitration too. Middleware only proves there IS a session — the
+  // capability check is the page's own `is_admin` read and `requireStaff`, and every
+  // staff action re-checks. This entry exists so an anonymous visitor is sent to
+  // sign-in instead of being served a "Not authorized" page they cannot act on.
+  "/admin",
 ];
 
 function isProtected(pathname: string): boolean {
@@ -88,5 +94,8 @@ export const config = {
     "/offers/:path*",
     "/saved/:path*",
     "/account/:path*",
+    // `:path*` matches the bare prefix as well as its children, so this covers /admin
+    // and /admin/arbitration/... alike.
+    "/admin/:path*",
   ],
 };

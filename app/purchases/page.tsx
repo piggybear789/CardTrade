@@ -61,7 +61,7 @@ export default async function PurchasesPage({
     <MarketplaceShell title="Purchases" primaryAction={primaryAction}>
       <SectionHeader
         title="Purchases"
-        description="Items you are buying. Open a contract to agree terms, pay through Pinch Payments, and confirm handover."
+        description="Items you are buying. Open a contract to agree terms, pay through Stripe, and confirm handover."
         mobileAction={primaryAction}
       />
       <SectionFilter

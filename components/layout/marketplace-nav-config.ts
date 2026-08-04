@@ -10,6 +10,8 @@ import {
   MessageCircle,
   Package,
   Repeat2,
+  Scale,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Tag,
@@ -27,6 +29,46 @@ export type MarketplaceNavGroup = {
   label: string;
   links: readonly MarketplaceNavLink[];
 };
+
+/**
+ * The staff group, appended to the rail only for a caller who may arbitrate.
+ *
+ * Kept separate from {@link MARKETPLACE_NAV_GROUPS} rather than merged into it, because
+ * every consumer of that constant renders it unconditionally — the mobile hubs read
+ * groups by index (`MARKETPLACE_NAV_GROUPS[1]`, `[2]`), so inserting a conditional
+ * member would silently repoint the Contracts and Sell sheets.
+ *
+ * WHY THE RAIL NEEDS THIS AT ALL. Arbitration was the only workspace surface absent
+ * from the rail, so a support worker looking at a dispute saw member navigation with no
+ * item active, and had no way to their own queue except the browser's back button.
+ * Moderation has the same problem and gets the same fix.
+ */
+// "Cases" and "Operations", not "Arbitration" and "Moderation". The old pair told you
+// nothing about which one you wanted — both sound like "deal with a problem" — and the
+// two surfaces genuinely split on a different axis: Cases is where someone is waiting on
+// your JUDGEMENT and money is frozen; Operations is where the system is waiting on your
+// ATTENTION. `arbitration` remains the data-model term (arbitration_assignments,
+// arbitration_case_kind) and the route; this is the label a human reads.
+export const STAFF_NAV_GROUP = {
+  label: 'Staff',
+  links: [
+    { href: '/admin/arbitration', label: 'Cases', icon: Scale },
+    { href: '/admin', label: 'Operations', icon: ShieldCheck },
+  ],
+} as const satisfies MarketplaceNavGroup;
+
+/** The staff links a given capability may see. Admins get both; support gets one. */
+export function staffNavLinksFor(capability: {
+  isStaff: boolean;
+  isAdmin: boolean;
+}): readonly MarketplaceNavLink[] {
+  if (!capability.isStaff && !capability.isAdmin) return [];
+  // Moderation is admin-only, and a link a support worker cannot use would be a dead
+  // end dressed as navigation.
+  return capability.isAdmin
+    ? STAFF_NAV_GROUP.links
+    : STAFF_NAV_GROUP.links.filter((link) => link.href === '/admin/arbitration');
+}
 
 /** Rail sections — same order and glossary as the desktop workspace. */
 export const MARKETPLACE_NAV_GROUPS = [
@@ -79,6 +121,12 @@ export function isMarketplaceSectionActive(
       return false;
     }
     return pathname === '/listings' || pathname.startsWith('/listings/');
+  }
+  if (href === '/admin') {
+    // Moderation owns /admin itself, not the arbitration workspace beneath it.
+    // Without this both staff links light up together on every case page, the same
+    // way Browse would light up on My Listings.
+    return pathname === '/admin';
   }
   if (href === '/listings/mine') {
     // Create + edit listing flows belong to Selling (My Listings), not Browse.

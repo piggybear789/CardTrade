@@ -31,7 +31,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { formatAud, formatRegistrationNumber } from '@/lib/format';
+import { formatAud } from '@/lib/format';
 import { makeOffer, type MakeOfferResult } from '@/lib/actions/offers';
 import { OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -154,7 +154,7 @@ export function MakeOfferDialog({
             <DialogTitle>Make an offer</DialogTitle>
             <DialogDescription>
               Propose a price for this item. The seller can accept, decline, or
-              counter your offer. Accepted offers are paid through Pinch Payments.
+              counter your offer. Accepted offers are paid through Stripe.
             </DialogDescription>
           </DialogHeader>
 
@@ -165,8 +165,7 @@ export function MakeOfferDialog({
                 <p className="break-words">{sellerIdentity.tradingName}</p>
               ) : null}
               <p className="break-words text-muted-foreground">
-                {sellerIdentity.legalEntityName} ·{' '}
-                {formatRegistrationNumber(sellerIdentity.registrationNumber)}
+                {sellerIdentity.legalEntityName}
               </p>
             </div>
 
@@ -179,7 +178,7 @@ export function MakeOfferDialog({
                 disabled={isPending}
               />
               <span>
-                I confirm this is the seller I intend to pay through Pinch Payments
+                I confirm this is the seller I intend to pay through Stripe
                 if the offer is accepted.
               </span>
             </label>

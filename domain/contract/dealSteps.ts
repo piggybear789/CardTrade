@@ -160,8 +160,8 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
       short: 'Locked',
       label: collateralRequired ? 'Collateral locked' : 'Contract becomes binding',
       detail: collateralRequired
-        ? 'Both sides post the deal stake via Pinch. Any deal cash is also charged from the payer via Pinch — handover is goods only.'
-        : 'You are both identity verified, so collateral is optional. Any deal cash is still charged from the payer via Pinch.',
+        ? 'Both sides post the deal stake via Stripe. Any deal cash is also charged from the payer via Stripe — handover is goods only.'
+        : 'You are both identity verified, so collateral is optional. Any deal cash is still charged from the payer via Stripe.',
       owner: 'platform',
       done: state === 'ESCROW_LOCKED' || state === 'COMPLETED' || state === 'DISPUTED',
       action: {
@@ -181,7 +181,7 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
       short: 'Review',
       label: 'Dispute under review',
       detail:
-        'Collateral and any Pinch deal cash stay locked while the case is reviewed.',
+        'Collateral and any Stripe deal cash stay locked while the case is reviewed.',
       owner: 'platform',
       done: false,
     });
@@ -194,12 +194,12 @@ export function deriveDealSteps(facts: DealStepFacts): ContractStep[] {
     label: 'Both mark the handover complete',
     detail:
       iMarkedComplete && theyMarkedComplete
-        ? 'Both parties marked it complete; collateral released and Pinch cash settled.'
+        ? 'Both parties marked it complete; collateral released and Stripe cash settled.'
         : iMarkedComplete
           ? `You marked it complete. Waiting on ${them}.`
           : theyMarkedComplete
             ? `${them} marked it complete. Your turn.`
-            : 'Hand over goods, then you both mark complete to release collateral and settle Pinch cash.',
+            : 'Hand over goods, then you both mark complete to release collateral and settle Stripe cash.',
     owner: iMarkedComplete ? 'them' : 'you',
     done: state === 'COMPLETED',
     action:

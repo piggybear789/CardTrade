@@ -10,7 +10,7 @@ Collectors buying, selling, and swapping high-value trading cards, coins, stamps
 
 ## Product Purpose
 
-NoDitto.app is a safety-first peer-to-peer marketplace and clearinghouse for collectibles. It reduces impersonation and transaction risk through DittoShield identity checks, collateral-backed contracts, transparent deal states, and payments handled by Pinch Payments. Success means collectors can confidently complete cash sales, swaps, and private deals while understanding who is verified, what is protected, and what happens next.
+NoDitto.app is a safety-first peer-to-peer marketplace and clearinghouse for collectibles. It reduces impersonation and transaction risk through DittoShield identity checks, collateral-backed contracts, transparent deal states, and payments handled by Stripe. Success means collectors can confidently complete cash sales, swaps, and private deals while understanding who is verified, what is protected, and what happens next.
 
 ## Brand Personality
 
@@ -26,11 +26,11 @@ Playful, protective, and expert. NoDitto uses light Ditto-inspired language to m
 
 ## Design Principles
 
-1. **Trust is visible and specific.** Show what DittoShield verified, what collateral protects, and what Pinch Payments handles.
+1. **Trust is visible and specific.** Show what DittoShield verified, what collateral protects, and what Stripe handles.
 2. **Play at the edges, precision at the core.** Use Ditto personality in welcome moments, guidance, and empty states; use plain language for contracts, payments, disputes, and errors.
 3. **Collector credibility comes first.** Preserve the premium auction-ledger foundation while adding restrained Ditto-purple character moments.
 4. **Every deal explains itself.** Users should always know the current state, responsible party, next action, and consequence.
-5. **Provider transparency is part of safety.** Whenever users pay, clearly name Pinch Payments rather than obscuring the payment provider.
+5. **Provider transparency is part of safety.** Whenever users pay, clearly name Stripe rather than obscuring the payment provider.
 
 ## Accessibility & Inclusion
 

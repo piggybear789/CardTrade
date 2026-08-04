@@ -70,7 +70,7 @@ export default async function DealsPage({
     <MarketplaceShell title="Deals" primaryAction={primaryAction}>
       <SectionHeader
         title="Private Deals"
-        description="Escrow-backed handover between two members."
+        description="Collateral-backed handover between two members."
         mobileAction={primaryAction}
       />
 

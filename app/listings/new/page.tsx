@@ -1,18 +1,25 @@
 // app/listings/new/page.tsx
 //
-// Create-listing page (Req 3.1, 3.2, 3.3, 3.7).
+// Create-listing page (Req 3.1, 3.2, 3.3, 3.7, 14.1, 14.7).
 //
-// Listing has no verification gate (Req 3.1/3.1a): any authenticated user can
-// list, regardless of Managed Merchant approval. That check applies later: it
-// decides whether a Trade requires a Bond, and gates receiving cash in a
-// Cash_Sale — never listing itself, and never whether a trade offer (including
-// cash terms) can be sent.
+// GATED ON THE IDENTITY_GATE. Publishing a listing is an offer to sell for cash and
+// the Seller receives the proceeds, so Connect onboarding must exist first.
+//
+// The gate is checked HERE as well as in `createItem`, and the reason is the whole
+// point of Req 14.7: `createItem` refuses on submit, which means a blocked member
+// otherwise photographs an item, writes a description, picks a price, and only then
+// learns they cannot list. Checking on render turns that into a single sentence and
+// a link, before any work is wasted. The action-level guard stays because it is the
+// one that is actually authoritative — this is presentation.
 
 import { redirect } from 'next/navigation';
+import { ShieldAlert } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
+import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { ItemForm } from '@/components/listings/ItemForm';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // Reads the authenticated user's session, so render dynamically.
 export const dynamic = 'force-dynamic';
@@ -30,6 +37,22 @@ export default async function NewListingPage() {
   } = await supabase.auth.getUser();
   if (!user) {
     redirect('/sign-in?redirectTo=/listings/new');
+  }
+
+  const gate = await readIdentityGate(user.id);
+  if (!gate.satisfied) {
+    return (
+      <MarketplaceShell title="Sell an Item" center>
+        <EmptyState
+          icon={<ShieldAlert className="size-6" aria-hidden />}
+          title="Set Up Payouts First"
+          titleAs="h3"
+          description={identityGateMessage('list', gate.state)}
+          action={{ label: 'Set up payouts', href: '/profile#payouts' }}
+          className="border-none"
+        />
+      </MarketplaceShell>
+    );
   }
 
   return (

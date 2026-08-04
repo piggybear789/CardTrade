@@ -2,31 +2,31 @@
 
 ## Introduction
 
-CardTrade is a safety-first, peer-to-peer (P2P) clearinghouse and marketplace for collectibles such as trading cards, coins, stamps, comics, and memorabilia. CardTrade replaces scam-prone marketplaces with a trustless escrow engine designed to run on Pinch Payments.
+CardTrade is a safety-first, peer-to-peer (P2P) clearinghouse and marketplace for collectibles such as trading cards, coins, stamps, comics, and memorabilia. CardTrade replaces scam-prone marketplaces with a trustless escrow engine designed to run on Stripe.
 
-**Hackathon MVP scope — frontend-first.** This document specifies a hackathon Minimum Viable Product that is FRONTEND-FIRST. The full user experience is built out in the user interface: registration, the KYC flow, collectible item listings, the cash sale flow, the complete 2-way trade escrow lifecycle, the dispute and fraud flows, and the real-time trade contract view. For this phase, all payment, KYC, and webhook operations are handled by DUMMY / MOCK backend actions — a simulated service layer (the Mock_Service) that returns deterministic results — rather than live Pinch Payments API calls. The real Pinch Payments backend (Payers, Pre-Auths, Captures, Voids, and Webhooks) and live Pinch Glassbox KYC are the target integrations for a later phase and are not called in this MVP.
+**Hackathon MVP scope — frontend-first.** This document specifies a hackathon Minimum Viable Product that is FRONTEND-FIRST. The full user experience is built out in the user interface: registration, the KYC flow, collectible item listings, the cash sale flow, the complete 2-way trade escrow lifecycle, the dispute and fraud flows, and the real-time trade contract view. For this phase, all payment, KYC, and webhook operations are handled by DUMMY / MOCK backend actions — a simulated service layer (the Mock_Service) that returns deterministic results — rather than live Stripe API calls. The real Stripe backend (Payers, Pre-Auths, Captures, Voids, and Webhooks) and live Stripe Identity KYC are the target integrations for a later phase and are not called in this MVP.
 
 The platform supports three core transaction models, each demonstrated end-to-end in the UI against the Mock_Service:
 
-1. **Cash Sales** — Direct bank-to-bank transfers (in production, via Pinch BECS Direct Debit / PayTo) at a flat platform fee, bypassing percentage-based merchant fees. In this MVP the transfer is simulated by the Mock_Service.
+1. **Cash Sales** — Direct bank-to-bank transfers (in production, via Stripe BECS Direct Debit / PayTo) at a flat platform fee, bypassing percentage-based merchant fees. In this MVP the transfer is simulated by the Mock_Service.
 2. **2-Way Trade Escrow** — Users swap equal-value goods with $0 cash. Collateral is posted as a Bond, sized by identity: a KYC-verified trader posts nothing, while an unverified trader posts a 100% Fair Market Value credit pre-authorization hold (simulated by the Mock_Service in this MVP). Holds are voided when both parties receive and accept their items.
-3. **Dispute & Fraud Resolution** — A state machine that handles condition disputes (partial capture / friction tax) and objective fraud (full capture of collateral, plus generation of a Police Evidence Pack from verified identity data). In this MVP the captures, voids, and identity data are produced by the Mock_Service.
+3. **Dispute & Fraud Resolution** — A state machine that handles condition disputes (partial capture / friction tax) and objective fraud (full capture of collateral, paid out to the victim). Generation of a "Police Evidence Pack" from verified identity data was part of this scope and has been **withdrawn**; see Requirement 8.4.
 
-The MVP is realized with a Next.js App Router frontend and a Supabase backend (PostgreSQL, Auth, Storage, Realtime). Payment, KYC, and webhook behavior is provided by the Mock_Service, a simulated service layer that mimics the Pinch Payments REST API (v2020.1) and Pinch Glassbox KYC deterministically so that state transitions can be triggered from the UI without real payment processing. The real Pinch_Service and KYC_Service integrations remain the target for a later phase.
+The system is realized with a Next.js App Router frontend and a Supabase backend (PostgreSQL, Auth, Storage, Realtime). Payment, identity and webhook behavior is provided by **Stripe**: PaymentIntents with manual capture for collateral, separate charges and transfers with Connect for payouts, Payment Element for card capture, and Stripe Identity for document-and-selfie verification. The Mock_Service remains available behind the same `PaymentService` / `KycService` interfaces (`PAYMENTS_PROVIDER=mock`) for local demos without credentials.
 
 This requirements document focuses on the core framework as a frontend-first MVP: user profiles and the KYC flow, collectible item listings, cash sales, the 2-way trade escrow lifecycle, the dispute and fraud state machine, and webhook-driven state transitions — all backed by the Mock_Service. The real-time listing and trade user interface (see Requirement 11 and the listing and trade flows) is the primary deliverable for the hackathon.
 
 ## Glossary
 
 - **CardTrade_System**: The overall platform, comprising the frontend, backend, and payment integration.
-- **Mock_Service**: A stand-in simulated service layer (also referred to as the Simulated_Backend) that deterministically mimics the responses of the Pinch_Service and the KYC_Service for demo purposes during the hackathon MVP. The Mock_Service allows Trade_State transitions, hold placement, capture, void, KYC verification, and webhook events to be triggered from the UI without real payment processing. For the MVP, every requirement in this document that names the Pinch_Service or the KYC_Service is satisfied by the Mock_Service producing simulated results. The Mock_Service maps directly to the real Pinch_Service and KYC_Service integrations planned for a later phase.
+- **Mock_Service**: A stand-in simulated service layer (also referred to as the Simulated_Backend) that deterministically mimics the responses of the Stripe_Service and the KYC_Service for demo purposes during the hackathon MVP. The Mock_Service allows Trade_State transitions, hold placement, capture, void, KYC verification, and webhook events to be triggered from the UI without real payment processing. For the MVP, every requirement in this document that names the Stripe_Service or the KYC_Service is satisfied by the Mock_Service producing simulated results. The Mock_Service maps directly to the real Stripe_Service and KYC_Service integrations planned for a later phase.
 - **User**: A registered account holder who can buy, sell, or trade goods.
 - **Buyer**: A User purchasing an Item in a Cash Sale.
 - **Seller**: A User listing an Item for a Cash Sale.
 - **Trader**: A User participating in a 2-Way Trade as either the initiator or the counterpart.
 - **Counterpart**: The other Trader in a 2-Way Trade relative to a given Trader.
 - **Profile**: A persisted record of a User's account data, including display name, contact details, and KYC status.
-- **KYC_Service**: The identity verification capability provided by Pinch Glassbox KYC, which performs all Know Your Customer (KYC) checks and supplies verified identity data to the CardTrade_System. For the hackathon MVP, the KYC_Service is realized by the Mock_Service, which returns simulated verification results and simulated verified identity data; the real Pinch Glassbox KYC integration is the target for a later phase.
+- **KYC_Service**: The identity verification capability provided by Stripe Identity KYC, which performs all Know Your Customer (KYC) checks and supplies verified identity data to the CardTrade_System. For the hackathon MVP, the KYC_Service is realized by the Mock_Service, which returns simulated verification results and simulated verified identity data; the real Stripe Identity KYC integration is the target for a later phase.
 - **KYC_Status**: The verification state of a Profile, one of UNVERIFIED, PENDING, VERIFIED, or REJECTED.
 - **Item**: A listing record describing a collectible (such as a trading card, coin, stamp, comic, or piece of memorabilia), including title, description, category, Fair Market Value, condition, images, and availability status.
 - **Fair_Market_Value**: The declared monetary value of an Item, denominated in Australian dollars (AUD), used to size collateral holds.
@@ -34,8 +34,8 @@ This requirements document focuses on the core framework as a frontend-first MVP
 - **Trade**: A 2-Way Trade record pairing two Items of equal Fair_Market_Value between two Traders.
 - **Trade_State**: The lifecycle state of a Trade, one of COLLATERAL_PENDING, COLLATERAL_LOCKED, IN_TRANSIT, INSPECTION, COMPLETED, DISPUTED, or FRAUD_RESOLVED.
 - **State_Machine**: The component that governs valid transitions between Trade_State values.
-- **Pinch_Service**: The integration module that communicates with the Pinch Payments REST API. For the hackathon MVP, the Pinch_Service is realized by the Mock_Service, which returns simulated payer, pre-authorization, capture, and void results; the real Pinch Payments REST API integration is the target for a later phase.
-- **Payer**: A Pinch Payments entity representing a User's payment instrument and identity.
+- **Stripe_Service**: The integration module that communicates with the Stripe REST API. For the hackathon MVP, the Stripe_Service is realized by the Mock_Service, which returns simulated payer, pre-authorization, capture, and void results; the real Stripe REST API integration is the target for a later phase.
+- **Payer**: A Stripe entity representing a User's payment instrument and identity.
 - **Pre_Auth_Hold**: A credit pre-authorization hold placed on a Trader's payment instrument for that Trader's Bond.
 - **Bond**: The collateral a Trader must post to enter a Trade, sized by the Bond_Policy. Trust is either identity or money: where both Traders' KYC_Status is VERIFIED, neither posts a Bond; where either Trader is not VERIFIED, both post 100% of their own paired Item's Fair_Market_Value, so no Trade ever leaves one side as the only party with money at risk.
 - **Bond_Policy**: The rule that derives both Traders' Bonds from their KYC_Status values and their Items' Fair_Market_Value.
@@ -45,8 +45,11 @@ This requirements document focuses on the core framework as a frontend-first MVP
 - **Friction_Tax**: A fixed $20 Partial_Capture applied on a Condition Dispute, comprising $10 return shipping to the Counterpart and $10 platform fee.
 - **Condition_Dispute**: A dispute where a received Item does not match its described condition.
 - **Objective_Fraud**: A confirmed fraud event such as an empty box or a fake Item.
-- **Police_Evidence_Pack**: An official PDF document generated on Objective_Fraud resolution, containing verified identity data supplied by the KYC_Service (Pinch Glassbox KYC).
-- **Webhook_Event**: An HTTP notification reporting a payment lifecycle change. In production this is sent by Pinch Payments to the CardTrade_System; for the hackathon MVP, Webhook_Events are emitted by the Mock_Service and may be triggered manually from the UI or generated by the simulated backend.
+- **Police_Evidence_Pack**: **WITHDRAWN — see Requirement 8.** Formerly a PDF generated on Objective_Fraud resolution containing the accused Trader's legal name, date of birth and government document number, downloadable by the other party to the trade. Removed because the platform has no basis to disclose a person's identity documents to a private individual on the strength of an in-app fraud determination. The term is also not a real one: there is no law-enforcement artifact by that name, and the Australian equivalents are a Suspicious Matter Report to AUSTRAC or a police report filed by the complainant.
+- **Verified_Identity**: The narrow identity set the CardTrade_System holds after an identity check: a full legal name, a given name, a derived adult flag, and a verification timestamp. The KYC_Service also returns a date of birth, document type and document number; the CardTrade_System does not retrieve them.
+- **Identity_Disclosure**: The staged release of Verified_Identity. The given name and a verified badge are public; the full legal name is released only to a Counterparty at a Commitment_Point; the date of birth and document details are never released.
+- **Commitment_Point**: A moment at which a User is about to pay, lock collateral, or accept a Trade or Deal. The only context in which a Counterparty's full legal name is disclosed.
+- **Webhook_Event**: An HTTP notification reporting a payment lifecycle change. In production this is sent by Stripe to the CardTrade_System; for the hackathon MVP, Webhook_Events are emitted by the Mock_Service and may be triggered manually from the UI or generated by the simulated backend.
 - **Webhook_Handler**: The API route that receives, validates, and processes Webhook_Events.
 - **Webhook_Log**: A persisted record of each received Webhook_Event and its processing outcome.
 - **Platform_Fee**: A flat fee charged by the CardTrade_System per Cash_Sale.
@@ -54,7 +57,7 @@ This requirements document focuses on the core framework as a frontend-first MVP
 
 ## Requirements
 
-> **Hackathon MVP scope note:** For this phase, wherever an acceptance criterion names the Pinch_Service or the KYC_Service, that behavior is satisfied by the Mock_Service producing deterministic simulated results (simulated hold placement, simulated capture and void, simulated KYC verification, and simulated or UI-triggered Webhook_Events). The Trade_State names, transition logic, and all UI behavior remain intact and are fully testable against the Mock_Service. These payment, KYC, and webhook requirements are retained as written and map directly to the real Pinch Payments and Pinch Glassbox KYC integrations in a later phase.
+> **Hackathon MVP scope note:** For this phase, wherever an acceptance criterion names the Stripe_Service or the KYC_Service, that behavior is satisfied by the Mock_Service producing deterministic simulated results (simulated hold placement, simulated capture and void, simulated KYC verification, and simulated or UI-triggered Webhook_Events). The Trade_State names, transition logic, and all UI behavior remain intact and are fully testable against the Mock_Service. These payment, KYC, and webhook requirements are retained as written and map directly to the real Stripe and Stripe Identity KYC integrations in a later phase.
 
 ### Requirement 1: User Registration and Profile Management
 
@@ -74,17 +77,30 @@ This requirements document focuses on the core framework as a frontend-first MVP
 
 **User Story:** As a user, I want to complete identity verification through the KYC flow, so that I can be trusted to place collateral and receive fraud protection.
 
-> **MVP note:** In this phase the KYC_Service is the Mock_Service. Payer creation, verification success/failure, and verified identity data are simulated deterministically and may be triggered from the UI. The KYC flow UI (initiate, pending, verified, rejected states) is a primary MVP deliverable.
+> **Implementation note:** Identity verification is a real Stripe Identity document-and-selfie check, PROVIDER-HOSTED and ASYNCHRONOUS. The User is redirected out to capture their document; the decision arrives on an `identity.verification_session.*` webhook, which is the only thing that may set KYC_Status to VERIFIED or REJECTED. Returning from the flow proves only that the User finished the capture step. `STRIPE_KYC_MODE=mock` keeps a deterministic simulation available for local demos.
 
 #### Acceptance Criteria
 
-1. WHEN a User whose Profile KYC_Status is UNVERIFIED or REJECTED initiates identity verification, THE KYC_Service (Pinch Glassbox KYC) SHALL create a Payer record in Pinch Payments and set that Profile KYC_Status to PENDING.
-2. WHEN the KYC_Service reports a successful verification for a Profile, THE CardTrade_System SHALL set that Profile KYC_Status to VERIFIED.
-3. IF the KYC_Service reports a failed verification for a Profile, THEN THE CardTrade_System SHALL set that Profile KYC_Status to REJECTED and record the failure reason with that Profile for later review by the User.
+1. WHEN a User whose Profile KYC_Status is UNVERIFIED or REJECTED initiates identity verification, THE KYC_Service SHALL create a Payer record if the Profile has none, open a provider-hosted verification session, and set that Profile KYC_Status to PENDING.
+2. WHEN the KYC_Service reports a successful verification for a Profile, THE CardTrade_System SHALL set that Profile KYC_Status to VERIFIED and record the Verified_Identity.
+3. IF the KYC_Service reports a failed verification for a Profile, THEN THE CardTrade_System SHALL set that Profile KYC_Status to REJECTED, record the failure reason with that Profile for later review by the User, and clear any previously recorded Verified_Identity.
 4. WHILE a Profile KYC_Status is not VERIFIED, THE CardTrade_System SHALL allow that User to initiate a Trade only when that User has a Payer with a payment instrument against which the Bond required by Requirement 5.4 can be placed, and SHALL otherwise reject the request and return an error indicating that either identity verification or a payment method is required.
-5. THE KYC_Service (Pinch Glassbox KYC) SHALL store verified identity data for use in generating a Police_Evidence_Pack.
+5. THE CardTrade_System SHALL record from a successful verification ONLY the full legal name, the given name, a derived adult flag, and the verification timestamp. THE CardTrade_System SHALL NOT retrieve or store the verified date of birth, document type, or document number.
 6. IF the KYC_Service cannot create a Payer record when a User initiates identity verification, THEN THE CardTrade_System SHALL leave that Profile KYC_Status unchanged and return an error indicating that verification could not be started.
-7. IF a User whose Profile KYC_Status is PENDING or VERIFIED initiates identity verification, THEN THE CardTrade_System SHALL reject the request and return an error indicating that verification is already in progress or already complete.
+7. IF a User whose Profile KYC_Status is VERIFIED initiates identity verification, THEN THE CardTrade_System SHALL reject the request and return an error indicating that verification is already complete.
+8. THE CardTrade_System SHALL set a Profile KYC_Status to VERIFIED or REJECTED only in response to a signature-verified Webhook_Event from the KYC_Service, and SHALL NOT do so in response to a User returning from the provider-hosted flow.
+9. IF a verification decision cannot be attributed to a Profile, THEN THE CardTrade_System SHALL record the Webhook_Event as a no-op and SHALL NOT apply the decision to any Profile.
+
+**Identity_Disclosure.** Verified_Identity is released in stages rather than published. A globally readable verified name does not publish a name so much as a LINK between a pseudonymous handle and a government-verified identity; combined with the public Item values and the meetup locations this system stores, that would let anyone assemble "real person, this area, this much inventory".
+
+10. THE CardTrade_System SHALL expose a Profile's given name and a verified badge to any visitor, including unauthenticated visitors.
+11. THE CardTrade_System SHALL disclose a Profile's full legal name to another User only WHEN that other User is a Counterparty to an existing Trade, Cash_Sale, or Deal with that Profile.
+12. WHEN a User is at a Commitment_Point, THE CardTrade_System SHALL display the Counterparty's full legal name and the date it was verified.
+13. THE CardTrade_System SHALL NOT display a Counterparty's full legal name on an Item listing page, a public Profile page, or any surface reachable without an existing transactional relationship.
+14. IF a Profile KYC_Status is not VERIFIED, THEN THE CardTrade_System SHALL disclose no legal name for that Profile and SHALL NOT indicate that the Profile failed verification.
+15. THE CardTrade_System SHALL verify the transactional relationship server-side on each disclosure request.
+16. WHERE the CardTrade_System offers a browsing filter restricted to verified Sellers, THE CardTrade_System SHALL filter on KYC_Status VERIFIED and SHALL NOT filter on Seller payout eligibility, and SHALL label the filter as an identity filter.
+17. THE CardTrade_System SHALL present a Profile's identity verification and its Seller payout eligibility as two distinct indicators, and SHALL NOT render either one in place of the other.
 
 ### Requirement 3: Item Listing Management
 
@@ -109,7 +125,7 @@ This requirements document focuses on the core framework as a frontend-first MVP
 
 **User Story:** As a buyer or seller, I want to agree on fulfillment terms before payment and keep the payment protected until fulfillment is confirmed, so that neither party must act before the other party's commitment is secured.
 
-> **MVP note:** In this phase the Pinch_Service is the Mock_Service. Agreement, payment, payment-protection, shipping, handover, inspection, cancellation, refund, and dispute transitions are simulated deterministically and may be triggered from the UI. `ESCROW_HELD` is CardTrade's internal name for a payment-protection lifecycle state; CardTrade SHALL NOT describe or represent Pinch payment protection as regulated escrow, a trust account, or a custodial escrow service.
+> **MVP note:** In this phase the Stripe_Service is the Mock_Service. Agreement, payment, payment-protection, shipping, handover, inspection, cancellation, refund, and dispute transitions are simulated deterministically and may be triggered from the UI. `ESCROW_HELD` is CardTrade's internal name for a payment-protection lifecycle state; CardTrade SHALL NOT describe or represent Stripe payment protection as regulated escrow, a trust account, or a custodial escrow service.
 
 #### Acceptance Criteria
 
@@ -121,7 +137,7 @@ This requirements document focuses on the core framework as a frontend-first MVP
 6. THE CardTrade_System SHALL begin payment only after the Buyer and Seller have accepted the same current terms version; it SHALL then transition the Cash_Sale to PAYMENT_PENDING and request one bank-to-bank payment for the Item price plus agreed shipping cost plus the flat Platform_Fee via BECS Direct Debit or PayTo.
 7. WHILE a Cash_Sale remains in AGREEMENT and funding has not begun, either participant MAY cancel it at no cost; the CardTrade_System SHALL transition it to CANCELLED, move no money, and restore the Item to AVAILABLE. No later lifecycle state SHALL offer unilateral free cancellation after funding has begun.
 8. IF the payment request fails before funds are secured, THEN THE CardTrade_System SHALL mark the Cash_Sale FAILED, restore the Item to AVAILABLE, preserve an audit event, and report the failure to both participants without representing any funds as protected.
-9. WHEN the Pinch_Service confirms that the Buyer's funds are secured under the applicable payment-protection arrangement, THE CardTrade_System SHALL transition the Cash_Sale to ESCROW_HELD; `ESCROW_HELD` SHALL be treated and presented only as an internal payment-protection state and not as regulated escrow, a trust account, or custody by CardTrade.
+9. WHEN the Stripe_Service confirms that the Buyer's funds are secured under the applicable payment-protection arrangement, THE CardTrade_System SHALL transition the Cash_Sale to ESCROW_HELD; `ESCROW_HELD` SHALL be treated and presented only as an internal payment-protection state and not as regulated escrow, a trust account, or custody by CardTrade.
 10. THE CardTrade_System SHALL prevent the Seller from recording shipment, exposing a delivery address, or completing a face-to-face handover before the Cash_Sale reaches ESCROW_HELD.
 11. FOR SHIPPING terms, THE Buyer SHALL provide a private delivery address and the participants SHALL agree on the shipping cost and shipping details in the same accepted terms version; the Buyer may always read that address, while the Seller may read it only from ESCROW_HELD onward, and no other end user may read it.
 12. WHILE a SHIPPING Cash_Sale is ESCROW_HELD, THE Seller SHALL record the carrier and tracking number before or when recording shipment, after which the CardTrade_System SHALL timestamp shipment and transition the Cash_Sale to IN_TRANSIT.
@@ -145,18 +161,18 @@ This requirements document focuses on the core framework as a frontend-first MVP
 
 **User Story:** As a trader, I want to swap an equal-value item with another user using collateral holds instead of cash, so that neither party risks money in the exchange.
 
-> **MVP note:** In this phase the Pinch_Service is the Mock_Service. Pre_Auth_Hold placement, confirmation, failure, and Hold_Void are simulated deterministically and may be triggered from the UI. The COLLATERAL_PENDING and COLLATERAL_LOCKED states and their transitions remain intact and fully testable against the Mock_Service.
+> **MVP note:** In this phase the Stripe_Service is the Mock_Service. Pre_Auth_Hold placement, confirmation, failure, and Hold_Void are simulated deterministically and may be triggered from the UI. The COLLATERAL_PENDING and COLLATERAL_LOCKED states and their transitions remain intact and fully testable against the Mock_Service.
 
 #### Acceptance Criteria
 
 1. WHEN a Counterpart accepts a PENDING Trade_Proposal whose paired Items both have availability status AVAILABLE and whose Fair_Market_Value amounts are equal in AUD to the cent, THE CardTrade_System SHALL create a Trade with Trade_State set to COLLATERAL_PENDING and set both paired Items availability status to RESERVED.
 2. THE CardTrade_System SHALL NOT require the two sides of a Trade to be equal in value, and SHALL NOT appraise goods; the Counterpart's acceptance of a Trade_Proposal is what agrees its valuation. WHERE the proposing Trader states a declared value for their side, THE CardTrade_System SHALL record it, present it to the Counterpart before they decide, and SHALL NOT use it to size any Bond.
 3. IF a Trader proposes a Trade pairing an Item whose availability status is not AVAILABLE, THEN THE CardTrade_System SHALL reject the proposal, return an item-unavailable error message, and leave both Items availability status unchanged.
-4. WHEN a Trade enters Trade_State COLLATERAL_PENDING, THE Pinch_Service SHALL request a Pre_Auth_Hold for the Bond required of each Trader, where the Bond is $0.00 for both Traders when both Profiles' KYC_Status is VERIFIED and otherwise 100% of the Fair_Market_Value of the goods that Trader RECEIVES for BOTH Traders, and SHALL request no Pre_Auth_Hold for a Trader whose Bond is $0.00. Sizing on what is received, never on what a Trader declares their own side to be worth, is what prevents a Trader from reducing their own exposure by understating their goods.
+4. WHEN a Trade enters Trade_State COLLATERAL_PENDING, THE Stripe_Service SHALL request a Pre_Auth_Hold for the Bond required of each Trader, where the Bond is $0.00 for both Traders when both Profiles' KYC_Status is VERIFIED and otherwise 100% of the Fair_Market_Value of the goods that Trader RECEIVES for BOTH Traders, and SHALL request no Pre_Auth_Hold for a Trader whose Bond is $0.00. Sizing on what is received, never on what a Trader declares their own side to be worth, is what prevents a Trader from reducing their own exposure by understating their goods.
 4a. WHERE the payment provider offers no funds-reservation primitive, THE CardTrade_System MAY realise a Pre_Auth_Hold as a recorded authorisation to charge the Trader up to the Bond amount rather than as reserved funds; in that case it SHALL take no money unless a Partial_Capture or Full_Capture becomes due, SHALL disclose to the Trader that their instrument may be charged up to that amount, and SHALL treat a failed capture as a real outcome requiring resolution.
 4b. WHERE a Trade includes a cash component, THE CardTrade_System SHALL require the receiving Trader to hold a provider-approved payout account before the offer may be made, SHALL permit the proposing Trader either to add cash or request cash from the Counterpart, SHALL record which participant pays, and SHALL settle the cash component from that recorded payer to the recorded receiver when the Trade completes.
-5. WHEN the Pinch_Service confirms every requested Pre_Auth_Hold for a Trade is active within 300 seconds of the Trade entering COLLATERAL_PENDING, OR no Pre_Auth_Hold was required for that Trade, THE State_Machine SHALL transition the Trade from COLLATERAL_PENDING to COLLATERAL_LOCKED.
-6. IF the Pinch_Service reports that either Pre_Auth_Hold has failed, OR both Pre_Auth_Holds are not confirmed active within 300 seconds of the Trade entering COLLATERAL_PENDING, THEN THE State_Machine SHALL cancel the Trade, request a Hold_Void for any active Pre_Auth_Hold associated with that Trade, and restore both paired Items availability status to AVAILABLE.
+5. WHEN the Stripe_Service confirms every requested Pre_Auth_Hold for a Trade is active within 300 seconds of the Trade entering COLLATERAL_PENDING, OR no Pre_Auth_Hold was required for that Trade, THE State_Machine SHALL transition the Trade from COLLATERAL_PENDING to COLLATERAL_LOCKED.
+6. IF the Stripe_Service reports that either Pre_Auth_Hold has failed, OR both Pre_Auth_Holds are not confirmed active within 300 seconds of the Trade entering COLLATERAL_PENDING, THEN THE State_Machine SHALL cancel the Trade, request a Hold_Void for any active Pre_Auth_Hold associated with that Trade, and restore both paired Items availability status to AVAILABLE.
 7. WHEN a Trader offers a Trade pairing an owned Item (or bundle of owned Items, plus optional cash per 5.4b) with availability status AVAILABLE against another Trader's publicly listed Item with availability status AVAILABLE, THE CardTrade_System SHALL create a Trade_Proposal with status PENDING, SHALL NOT create a Trade, SHALL NOT change either Item availability status, and SHALL NOT request any Pre_Auth_Hold. Per 5.2, the two sides need not be equal in value; KYC_Status VERIFIED is not a precondition for proposing.
 8. THE CardTrade_System SHALL permit only the Counterpart to accept or decline a PENDING Trade_Proposal, and SHALL permit only the proposing Trader to withdraw it.
 9. WHEN a Counterpart declines a PENDING Trade_Proposal, OR the proposing Trader withdraws it, THE CardTrade_System SHALL record the terminal Trade_Proposal status, create no Trade, move no money, and leave both Items availability status unchanged.
@@ -177,40 +193,40 @@ This requirements document focuses on the core framework as a frontend-first MVP
 4. WHEN both Traders have recorded receipt of the Counterpart's Item, THE State_Machine SHALL transition the Trade from IN_TRANSIT to INSPECTION.
 5. WHILE a Trade is in Trade_State INSPECTION, THE CardTrade_System SHALL allow each Trader to record acceptance of the Counterpart's Item exactly once and store the acceptance timestamp.
 6. WHEN both Traders have recorded acceptance of the Counterpart's Item during Trade_State INSPECTION, THE State_Machine SHALL transition the Trade from INSPECTION to COMPLETED.
-7. WHEN a Trade transitions to COMPLETED, THE Pinch_Service SHALL request a Hold_Void for each Pre_Auth_Hold associated with that Trade at $0 cost.
+7. WHEN a Trade transitions to COMPLETED, THE Stripe_Service SHALL request a Hold_Void for each Pre_Auth_Hold associated with that Trade at $0 cost.
 8. IF a Trader attempts to record shipment, receipt, or acceptance when the Trade is not in the Trade_State that permits that action, or when that Trader has already recorded that same action, THEN THE CardTrade_System SHALL reject the request, return an error message indicating the action is not permitted, and preserve all existing shipment, receipt, and acceptance records.
 
 ### Requirement 7: Condition Dispute Resolution
 
 **User Story:** As a trader, I want to raise a condition dispute when an item does not match its description, so that I am compensated for return shipping without losing my full collateral.
 
-> **MVP note:** In this phase the Pinch_Service is the Mock_Service. The Friction_Tax Partial_Capture, its settlement, and Hold_Void are simulated deterministically and may be triggered from the UI. The DISPUTED state and its transitions remain intact and fully testable against the Mock_Service.
+> **MVP note:** In this phase the Stripe_Service is the Mock_Service. The Friction_Tax Partial_Capture, its settlement, and Hold_Void are simulated deterministically and may be triggered from the UI. The DISPUTED state and its transitions remain intact and fully testable against the Mock_Service.
 
 #### Acceptance Criteria
 
 1. WHEN a Trader who has recorded receipt of the Counterpart's Item raises a Condition_Dispute during Trade_State INSPECTION, THE State_Machine SHALL transition the Trade to DISPUTED and record the raising Trader and the disputed-against Trader, where the disputed-against Trader is the Counterpart of the raising Trader.
-2. WHEN a Trade enters Trade_State DISPUTED due to a Condition_Dispute, THE Pinch_Service SHALL request a $20.00 Partial_Capture from the Pre_Auth_Hold of the disputed-against Trader as the Friction_Tax.
+2. WHEN a Trade enters Trade_State DISPUTED due to a Condition_Dispute, THE Stripe_Service SHALL request a $20.00 Partial_Capture from the Pre_Auth_Hold of the disputed-against Trader as the Friction_Tax.
 3. WHEN the Friction_Tax Partial_Capture settles, THE CardTrade_System SHALL allocate $10.00 to the Counterpart for return shipping and $10.00 to the Platform_Fee.
 4. WHILE a Trade is in Trade_State DISPUTED for a Condition_Dispute and the disputed Item has not yet been recorded as returned, THE CardTrade_System SHALL keep the remaining Pre_Auth_Hold amount of the disputed-against Trader and the full Pre_Auth_Hold of the raising Trader locked.
-5. WHEN the disputed Item is recorded as returned within 14 calendar days of the transition to DISPUTED, THE Pinch_Service SHALL request a Hold_Void for the remaining Pre_Auth_Hold amount of the disputed-against Trader and for the Pre_Auth_Hold of the raising Trader.
+5. WHEN the disputed Item is recorded as returned within 14 calendar days of the transition to DISPUTED, THE Stripe_Service SHALL request a Hold_Void for the remaining Pre_Auth_Hold amount of the disputed-against Trader and for the Pre_Auth_Hold of the raising Trader.
 6. IF the Friction_Tax Partial_Capture fails to settle, THEN THE CardTrade_System SHALL retain the Trade in Trade_State DISPUTED, keep all Pre_Auth_Holds associated with that Trade locked, and record a Partial_Capture failure indication.
 7. IF the disputed Item is not recorded as returned within 14 calendar days of the transition to DISPUTED, THEN THE CardTrade_System SHALL keep the remaining Pre_Auth_Hold amounts locked and record a return-overdue indication.
 
 ### Requirement 8: Objective Fraud Resolution
 
-**User Story:** As a victim of fraud, I want the scammer's full collateral captured and an evidence pack generated, so that I am made whole and can pursue legal action.
+**User Story:** As a victim of fraud, I want the scammer's full collateral captured and paid to me, so that I am made whole.
 
-> **MVP note:** In this phase the Pinch_Service and KYC_Service are the Mock_Service. Full_Capture, fund transfer, Hold_Void, and the verified identity data used for the Police_Evidence_Pack are simulated deterministically and may be triggered from the UI. The FRAUD_RESOLVED state and its transitions remain intact and fully testable against the Mock_Service.
+> **Withdrawn scope:** this Requirement previously also generated a Police_Evidence_Pack. See 8.4 and 8.7 below.
 
 #### Acceptance Criteria
 
 1. WHEN a Trader reports Objective_Fraud while the Trade is in Trade_State INSPECTION or DISPUTED and the CardTrade_System confirms the fraud, THE State_Machine SHALL transition the Trade to FRAUD_RESOLVED.
-2. WHEN a Trade enters Trade_State FRAUD_RESOLVED, THE Pinch_Service SHALL request a Full_Capture of 100% of the offending Trader's Pre_Auth_Hold within 10 seconds of the transition.
+2. WHEN a Trade enters Trade_State FRAUD_RESOLVED, THE Stripe_Service SHALL request a Full_Capture of 100% of the offending Trader's Pre_Auth_Hold within 10 seconds of the transition.
 3. WHEN the Full_Capture settles, THE CardTrade_System SHALL transfer the captured funds to the victim Trader within 10 seconds of receiving the settlement confirmation.
-4. WHEN a Trade enters Trade_State FRAUD_RESOLVED, THE CardTrade_System SHALL generate a Police_Evidence_Pack as a PDF using verified identity data from the KYC_Service within 60 seconds of the transition.
-5. WHEN a Trade enters Trade_State FRAUD_RESOLVED, THE Pinch_Service SHALL request a Hold_Void for the victim Trader's Pre_Auth_Hold within 10 seconds of the transition.
-6. IF the Pinch_Service reports that the Full_Capture has failed, THEN THE CardTrade_System SHALL retry the Full_Capture up to 3 times, and upon exhausting all retries SHALL preserve the offending Trader's Pre_Auth_Hold, flag the Trade for manual reconciliation, and return an error indication identifying the failed Full_Capture.
-7. IF the KYC_Service does not return verified identity data for the offending Trader while generating the Police_Evidence_Pack, THEN THE CardTrade_System SHALL mark the Police_Evidence_Pack as incomplete and return an error indication identifying the missing identity data.
+4. ~~WHEN a Trade enters Trade_State FRAUD_RESOLVED, THE CardTrade_System SHALL generate a Police_Evidence_Pack as a PDF using verified identity data from the KYC_Service within 60 seconds of the transition.~~ **WITHDRAWN.** The generated document carried the accused Trader's legal name, date of birth and government document number, and was downloadable by any participant in the Trade — meaning a victim could obtain the accused's identity documents on the strength of an in-app fraud determination, with no court order, no police involvement and no appeal. THE CardTrade_System SHALL NOT generate or expose such a document. If a lawful request for identity data is received, it SHALL be served by a person out of band from the KYC_Service's own records.
+5. WHEN a Trade enters Trade_State FRAUD_RESOLVED, THE Stripe_Service SHALL request a Hold_Void for the victim Trader's Pre_Auth_Hold within 10 seconds of the transition.
+6. IF the Stripe_Service reports that the Full_Capture has failed, THEN THE CardTrade_System SHALL retry the Full_Capture up to 3 times, and upon exhausting all retries SHALL preserve the offending Trader's Pre_Auth_Hold, flag the Trade for manual reconciliation, and return an error indication identifying the failed Full_Capture.
+7. ~~IF the KYC_Service does not return verified identity data for the offending Trader while generating the Police_Evidence_Pack, THEN THE CardTrade_System SHALL mark the Police_Evidence_Pack as incomplete and return an error indication identifying the missing identity data.~~ **WITHDRAWN** with 8.4. There is no identity data to be missing: the CardTrade_System does not retrieve document details at all (see Requirement 2.5).
 
 ### Requirement 9: Trade State Machine Integrity
 
@@ -230,7 +246,7 @@ This requirements document focuses on the core framework as a frontend-first MVP
 
 **User Story:** As the platform, I want to process payment webhooks reliably, so that trade and sale states reflect payment events.
 
-> **MVP note:** In this phase Webhook_Events are emitted by the Mock_Service and may be triggered manually from the UI or generated by the simulated backend. Authenticity verification, logging, idempotency, and State_Machine dispatch remain intact and fully testable against these simulated events. The Webhook_Handler contract maps directly to the real Pinch Payments webhooks in a later phase.
+> **MVP note:** In this phase Webhook_Events are emitted by the Mock_Service and may be triggered manually from the UI or generated by the simulated backend. Authenticity verification, logging, idempotency, and State_Machine dispatch remain intact and fully testable against these simulated events. The Webhook_Handler contract maps directly to the real Stripe webhooks in a later phase.
 
 #### Acceptance Criteria
 

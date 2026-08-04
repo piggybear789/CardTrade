@@ -2,10 +2,10 @@
 
 // lib/actions/demo.ts
 //
-// Demo-only Server Actions that fire SIMULATED Pinch Webhook_Events into the
-// real Webhook_Handler (`app/api/webhooks/pinch/route.ts`). These back the
+// Demo-only Server Actions that fire SIMULATED Stripe Webhook_Events into the
+// real Webhook_Handler (`app/api/webhooks/stripe/route.ts`). These back the
 // Trade Contract "Demo" panel (task 15.3), letting a demo operator drive the
-// payment/collateral webhooks that would otherwise arrive from Pinch — chiefly
+// payment/collateral webhooks that would otherwise arrive from Stripe — chiefly
 // the pre-auth hold confirmation that advances a Trade
 // COLLATERAL_PENDING -> COLLATERAL_LOCKED (Req 5.5), plus a hold-failure control
 // (Req 5.6).
@@ -14,7 +14,7 @@
 // with the server-side shared secret (HMAC-SHA256), and the secret must never
 // reach the browser (Req 10.1). So the browser calls this action, and the
 // action signs + POSTs on the server — exercising the exact same authenticated
-// code path a real Pinch webhook would (Req 10.1). We reuse the MockService's
+// code path a real Stripe webhook would (Req 10.1). We reuse the MockService's
 // `buildEnvelope` to produce the signed body + header contract, then POST it
 // ourselves so we can read the handler's outcome and return a typed result.
 //
@@ -27,8 +27,8 @@ import { createClient } from '@/lib/supabase/server';
 import { isPaymentDemoEnabled } from '@/domain/services';
 import { MockService } from '@/domain/services/mock/MockService';
 import {
-  PINCH_EVENT_ID_HEADER,
-  PINCH_SIGNATURE_HEADER,
+  MOCK_EVENT_ID_HEADER,
+  MOCK_SIGNATURE_HEADER,
 } from '@/domain/services/mock/MockService';
 import type {
   WebhookEvent,
@@ -42,7 +42,7 @@ import type {
 /**
  * The set of simulated webhooks the Demo panel can fire. Deliberately narrow:
  * shipping/receipt/acceptance/dispute/fraud are real user actions in the
- * ActionBar, so the panel only simulates the PAYMENT/COLLATERAL webhooks Pinch
+ * ActionBar, so the panel only simulates the PAYMENT/COLLATERAL webhooks Stripe
  * would otherwise send.
  *   - `confirm-holds` -> `hold.active`  -> HOLDS_CONFIRMED (Req 5.5)
  *   - `fail-holds`    -> `hold.failed`  -> HOLDS_FAILED    (Req 5.6)
@@ -81,7 +81,7 @@ const EVENT_TYPE_BY_KIND: Record<DemoWebhookKind, WebhookEventType> = {
 function readWebhookConfig(): { webhookUrl: string; secret: string } {
   return {
     webhookUrl:
-      process.env.WEBHOOK_URL ?? 'http://localhost:3000/api/webhooks/pinch',
+      process.env.WEBHOOK_URL ?? 'http://localhost:3000/api/webhooks/stripe',
     secret: process.env.WEBHOOK_SECRET ?? 'dev-mock-webhook-secret',
   };
 }
@@ -119,7 +119,7 @@ async function requireParticipant(
 // ---------------------------------------------------------------------------
 
 /**
- * Fire a simulated Pinch Webhook_Event for a Trade into the real
+ * Fire a simulated Stripe Webhook_Event for a Trade into the real
  * Webhook_Handler (Req 10.1), signing the body server-side.
  *
  * Steps:
@@ -142,7 +142,7 @@ export async function fireTradeWebhook(
     return {
       ok: false,
       error: 'demo-disabled',
-      detail: 'Mock payment demos are disabled while Pinch is live.',
+      detail: 'Mock payment demos are disabled while Stripe is live.',
     };
   }
 
@@ -174,8 +174,8 @@ export async function fireTradeWebhook(
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        [PINCH_SIGNATURE_HEADER]: envelope.signature,
-        [PINCH_EVENT_ID_HEADER]: envelope.event.eventId,
+        [MOCK_SIGNATURE_HEADER]: envelope.signature,
+        [MOCK_EVENT_ID_HEADER]: envelope.event.eventId,
       },
       body: envelope.rawBody,
       cache: 'no-store',
@@ -269,7 +269,7 @@ async function requireCashSaleParticipant(
 }
 
 /**
- * Fire a simulated Pinch `transfer.settled` or `transfer.failed` webhook for a
+ * Fire a simulated Stripe `transfer.settled` or `transfer.failed` webhook for a
  * Cash_Sale, advancing PAYMENT_PENDING -> ESCROW_HELD (or FAILED).
  *
  * Follows the same pattern as `fireTradeWebhook`: authenticate, build event,
@@ -283,7 +283,7 @@ export async function fireCashSaleWebhook(
     return {
       ok: false,
       error: 'demo-disabled',
-      detail: 'Mock payment demos are disabled while Pinch is live.',
+      detail: 'Mock payment demos are disabled while Stripe is live.',
     };
   }
 
@@ -313,8 +313,8 @@ export async function fireCashSaleWebhook(
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        [PINCH_SIGNATURE_HEADER]: envelope.signature,
-        [PINCH_EVENT_ID_HEADER]: envelope.event.eventId,
+        [MOCK_SIGNATURE_HEADER]: envelope.signature,
+        [MOCK_EVENT_ID_HEADER]: envelope.event.eventId,
       },
       body: envelope.rawBody,
       cache: 'no-store',

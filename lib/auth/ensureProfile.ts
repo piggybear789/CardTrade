@@ -7,8 +7,7 @@ import 'server-only';
 // Password sign-up creates the `profiles` row inline (see lib/actions/auth.ts),
 // but an OAuth user first appears at the callback Route Handler, so the row has
 // to be created there instead. Both paths funnel through this helper so a
-// Profile always exists with KYC_Status UNVERIFIED before the User reaches a
-// protected page.
+// Profile always exists before the User reaches a protected page.
 //
 // Client choice: the admin client. Immediately after an OAuth exchange the
 // cookie-bound session may not yet be visible to a fresh client, and the RLS
@@ -72,7 +71,9 @@ export async function ensureProfile(
     id: userId,
     display_name: defaultDisplayName(email, providerName),
     contact_email: email,
-    kyc_status: 'UNVERIFIED',
+    // No verification column is initialised. A new Profile is simply not verified
+    // yet, which the Identity_Gate reports from `merchant_status` defaulting to
+    // NONE — there is no separate flag to seed.
   });
 
   if (insertError) {

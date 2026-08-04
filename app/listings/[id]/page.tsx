@@ -31,7 +31,6 @@ import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
 import type { SellerIdentityDisclosure } from "@/domain/orchestrator/merchantOnboarding";
 import {
   formatAud,
-  formatRegistrationNumber,
   itemImageUrl,
 } from "@/lib/format";
 import { BuyButton } from "@/components/listings/BuyButton";
@@ -48,6 +47,7 @@ import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { StarRating } from "@/components/listings/StarRating";
 import { VerifiedBadge } from "@/components/listings/VerifiedBadge";
+import { IdentityBadge } from "@/components/identity/IdentityBadge";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 import { PlaceMap } from "@/components/location";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -121,7 +121,9 @@ export default async function ItemDetailPage({
       getWatchCount(item.id),
       supabase
         .from("public_profiles")
-        .select("display_name, rating, rating_count")
+        .select(
+          "display_name, rating, rating_count, is_verified, identity_first_name",
+        )
         .eq("id", item.owner_id)
         .maybeSingle(),
       loadSellerIdentityDisclosure(item.owner_id),
@@ -271,6 +273,18 @@ export default async function ItemDetailPage({
                       {sellerIdentity ? (
                         <VerifiedBadge size={14} iconOnly className="shrink-0" />
                       ) : null}
+                      {/* Separate gate from VerifiedBadge above: that one says
+                          "can be paid", this one says "a provider checked their
+                          government ID and matched a selfie". */}
+                      <IdentityBadge
+                        verified={Boolean(sellerRow?.is_verified)}
+                        firstName={
+                          (sellerRow?.identity_first_name as string | null) ?? null
+                        }
+                        size={14}
+                        iconOnly
+                        className="shrink-0"
+                      />
                     </div>
                     {isOwner ? (
                       <StarRating
@@ -316,14 +330,6 @@ export default async function ItemDetailPage({
                         </div>
                       ) : null}
                       <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5">
-                        <div className="flex min-w-0 gap-1.5">
-                          <dt className="shrink-0 text-muted-foreground">Reg</dt>
-                          <dd className="min-w-0 break-words font-medium">
-                            {formatRegistrationNumber(
-                              sellerIdentity.registrationNumber,
-                            )}
-                          </dd>
-                        </div>
                         {sellerIdentity.organisationType ? (
                           <div className="flex min-w-0 gap-1.5">
                             <dt className="shrink-0 text-muted-foreground">
@@ -424,7 +430,6 @@ function ItemActions({
   itemId,
   itemTitle,
   itemImagePath,
-  sellerId,
   sellerDisplayName,
   fmvCents,
   isOwner,

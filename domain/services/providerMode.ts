@@ -1,30 +1,63 @@
 // domain/services/providerMode.ts
 //
-// Resolves whether money movement goes through real Pinch (test or live) or the
-// deterministic MockService. KYC stays on the mock delegate either way — Pinch
-// Glassbox has no public REST KYC contract.
+// Resolves whether money movement goes through real Stripe or the deterministic
+// MockService.
+//
+// There is no separate KYC selection any more. `STRIPE_KYC_MODE` chose between a
+// deterministic verification simulation and Stripe Identity; both are gone.
+// Identity verification is the Identity_Gate — Connect onboarding APPROVED with
+// settlements enabled — which arrives on `account.updated` alongside payability,
+// so the provider binding is the only thing left to resolve here.
 
-import { isPinchConfigured, type EnvLike } from './pinch/config';
+import { isStripeConfigured, type EnvLike } from './stripe/config';
+
+export type { EnvLike };
+
+/** Which binding a set of credentials selects. */
+export type PaymentProvider = 'mock' | 'stripe';
 
 /**
- * True when payment operations should call the real Pinch API.
+ * Resolve the active payment provider.
  *
- * - `PAYMENTS_PROVIDER=mock` → always false (local UI demos without credentials)
- * - `PAYMENTS_PROVIDER=pinch` → true only when credentials are present
- * - unset → true when Pinch credentials exist (hackathon default: go live when
- *   keys are configured), otherwise mock
+ * - `PAYMENTS_PROVIDER=mock` → mock (local UI demos without credentials)
+ * - `PAYMENTS_PROVIDER=stripe` → Stripe, and it must be configured; the factory
+ *   fails closed rather than faking money movement
+ * - unset → Stripe when configured, else mock
  */
-export function isLivePaymentsProvider(env: EnvLike = process.env): boolean {
+export function resolvePaymentProvider(env: EnvLike = process.env): PaymentProvider {
   const explicit = env.PAYMENTS_PROVIDER?.trim().toLowerCase();
-  if (explicit === 'mock') return false;
-  if (explicit === 'pinch') return isPinchConfigured(env);
-  return isPinchConfigured(env);
+
+  if (explicit === 'mock') return 'mock';
+  if (explicit === 'stripe') return 'stripe';
+
+  return isStripeConfigured(env) ? 'stripe' : 'mock';
 }
 
 /**
- * True when the fake webhook demo panels / fire* actions may run. Never when
- * live Pinch is active — those buttons inject mock-signed events that skip the
- * real charge path.
+ * True when payment operations should call the real Stripe API.
+ *
+ * Note that "live" here means "a real provider", not "real money": Stripe test
+ * keys are real API calls that place real authorisations but move no real funds.
+ * Use {@link isRealMoneyProvider} for the money question.
+ */
+export function isLivePaymentsProvider(env: EnvLike = process.env): boolean {
+  return resolvePaymentProvider(env) === 'stripe' && isStripeConfigured(env);
+}
+
+/**
+ * True when the active configuration can move real money — a `sk_live_` key.
+ * Guard anything destructive or demo-flavoured on this rather than on
+ * {@link isLivePaymentsProvider}.
+ */
+export function isRealMoneyProvider(env: EnvLike = process.env): boolean {
+  if (resolvePaymentProvider(env) !== 'stripe') return false;
+  return env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') === true;
+}
+
+/**
+ * True when the fake webhook demo panels / fire* actions may run. Never when a
+ * real provider is active — those buttons inject mock-signed events that skip
+ * the real charge path entirely.
  */
 export function isPaymentDemoEnabled(env: EnvLike = process.env): boolean {
   if (isLivePaymentsProvider(env)) return false;

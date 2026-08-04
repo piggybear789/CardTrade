@@ -279,7 +279,7 @@ export function EditTradeOfferDialog({
                   id="edit-cash-you"
                   name="edit-cash-direction"
                   type="radio"
-                  label="You pay via Pinch Payments"
+                  label="You pay via Stripe"
                   hint="Added to your side"
                   checked={cashDirection === 'PROPOSER_PAYS'}
                   onChange={() => setCashDirection('PROPOSER_PAYS')}
@@ -288,7 +288,7 @@ export function EditTradeOfferDialog({
                   id="edit-cash-them"
                   name="edit-cash-direction"
                   type="radio"
-                  label="They pay via Pinch Payments"
+                  label="They pay via Stripe"
                   hint="Added to theirs"
                   checked={cashDirection === 'COUNTERPART_PAYS'}
                   onChange={() => setCashDirection('COUNTERPART_PAYS')}

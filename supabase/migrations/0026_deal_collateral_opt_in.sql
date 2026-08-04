@@ -1,4 +1,4 @@
--- Optional DittoEscrow on private deals.
+-- Optional DittoBond on private deals.
 --
 -- Default rule stays "identity or money": verified-to-verified holds nothing.
 -- Parties can still opt into collateral for high-value meetups even when both

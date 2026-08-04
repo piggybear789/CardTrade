@@ -3,8 +3,8 @@
 // components/trade/DemoPanel.tsx
 //
 // The Trade Contract "Demo" panel (task 15.3). A clearly-labelled, collapsible
-// panel that fires SIMULATED Pinch webhooks into the real Webhook_Handler,
-// exercising the exact code path a live Pinch webhook would (Req 10.1).
+// panel that fires SIMULATED Stripe webhooks into the real Webhook_Handler,
+// exercising the exact code path a live Stripe webhook would (Req 10.1).
 //
 // Collapsed by default and labelled as hackathon / test mode so judges never
 // mistake these buttons for production payment steps.
@@ -25,7 +25,7 @@ const ERROR_MESSAGES: Record<FireTradeWebhookError, string> = {
   unauthenticated: 'Please sign in to use the demo controls.',
   'not-participant': 'Only participants in this trade can use the demo controls.',
   'delivery-failed': 'The simulated webhook could not be delivered.',
-  'demo-disabled': 'Mock payment demos are disabled while Pinch is live.',
+  'demo-disabled': 'Mock payment demos are disabled while Stripe is live.',
   rejected: 'This trade cannot accept that event in its current state.',
 };
 
@@ -89,7 +89,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
               Hackathon · Test Mode
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Simulated payments — not live Pinch
+              Simulated payments — not live Stripe
             </span>
           </span>
         </span>
@@ -104,7 +104,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
         <div id="demo-panel-body" className="space-y-4 px-4 pb-4">
           <p className="text-sm text-muted-foreground">
             Payments are simulated in this build. These controls fire the
-            collateral webhooks Pinch would otherwise deliver, exercising the
+            collateral webhooks Stripe would otherwise deliver, exercising the
             real webhook code path. Shipping, receipt, acceptance, disputes, and
             fraud are handled by your actions above.
           </p>

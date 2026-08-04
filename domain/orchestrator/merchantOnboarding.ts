@@ -2,18 +2,21 @@
 //
 // The Managed Merchant (sub-merchant) onboarding core.
 //
-// WHY IT EXISTS. Pinch settles funds only into a merchant's own bank account, so
+// WHY IT EXISTS. Stripe settles funds only into a merchant's own bank account, so
 // a User who RECEIVES money — a Cash_Sale seller (Req 4.2) or a fraud victim
 // being paid captured collateral (Req 8.3) — must exist as a sub-merchant under
 // the platform's parent merchant. Provider identity verification happens as part
 // of that onboarding.
 //
-// `merchant_status` is now the sole verification signal in the app
-// (`domain/bond/bondPolicy.ts` reads it via `public_profiles.is_verified` to
-// decide Bond exemption). The standalone KYC payer check that used to gate
-// paying/listing/trading separately has been retired — it never ran a real
-// provider compliance decision, whereas this onboarding flow does.
-// A trade-only User never needs the second one.
+// `merchant_status` together with `merchant_settlements_enabled` IS the
+// Identity_Gate — the sole verification signal in the app. See
+// `domain/identity/identityGate.ts`, which is the one place that evaluates it;
+// `public_profiles.is_verified` is the same expression in SQL.
+//
+// The standalone payer check that used to gate paying/listing/trading separately
+// has been retired. Note that a trade-only User DOES now need this onboarding: an
+// Objective_Fraud resolution pays captured collateral to whichever trader was the
+// victim, so either side of a trade can receive money.
 //
 // Pure and injectable like the other orchestrators: it depends on a repository
 // interface plus the payment-service seam, never on `server-only`/Supabase, so
@@ -49,42 +52,74 @@ export interface MerchantRecord {
   identityVerifiedAt?: string | null;
 }
 
-/** The narrow provider-approved seller identity that may be shown to buyers. */
+/**
+ * The narrow provider-approved seller identity that may be shown to buyers.
+ *
+ * Carries no government registration number. That was a former-provider
+ * requirement: Stripe does not return tax IDs, sellers here are individuals, and
+ * `0028_stripe_migration.sql` records `merchant_registration_number` as
+ * deprecated and null for every Stripe-onboarded seller.
+ */
 export interface SellerIdentityDisclosure {
   sellerId: string;
   version: string;
   legalEntityName: string;
   tradingName: string | null;
-  registrationNumber: string;
   organisationType: string | null;
   verifiedAt: string;
 }
 
-/** Return a buyer-safe disclosure only when provider compliance approved it. */
+/**
+ * Return a buyer-safe disclosure only when provider compliance approved it.
+ *
+ * The gate is the Identity_Gate plus a provider-verified legal name and the
+ * timestamp it was verified at. It deliberately does NOT require a registration
+ * number: that condition made this function return `null` for every
+ * Stripe-onboarded seller, which in turn made `agreeCashSale` fail with
+ * `SELLER_IDENTITY_UNVERIFIED` and blocked buying and offers outright. Only
+ * seeded demo sellers, which hardcode a fake ABN, ever passed it.
+ *
+ * `settlementsEnabled` is required as well as APPROVED, because a seller who
+ * cannot receive funds has nothing to disclose an identity for.
+ */
 export function sellerIdentityDisclosure(
   merchant: MerchantRecord | null,
 ): SellerIdentityDisclosure | null {
   if (
     !merchant ||
     merchant.merchantStatus !== 'APPROVED' ||
+    !merchant.settlementsEnabled ||
     !merchant.identityDisclosureConsentedAt ||
     !merchant.identityVerifiedAt ||
-    !merchant.identityVersion ||
-    !merchant.legalEntityName ||
-    !merchant.registrationNumber
+    !merchant.legalEntityName
   ) {
     return null;
   }
 
   return {
     sellerId: merchant.profileId,
-    version: merchant.identityVersion,
+    // Derived when absent rather than required. The version is OUR bookkeeping —
+    // `agreeCashSale` compares it to the snapshot on the sale to detect the
+    // seller's identity changing mid-contract — not a provider fact, so a missing
+    // value must not withhold a disclosure the provider has already verified.
+    // Deriving it from the account reference and the verification timestamp keeps
+    // it stable per verification and changes it if the provider re-verifies.
+    version: identityVersionFor(merchant),
     legalEntityName: merchant.legalEntityName,
     tradingName: merchant.tradingName ?? null,
-    registrationNumber: merchant.registrationNumber,
     organisationType: merchant.organisationType ?? null,
     verifiedAt: merchant.identityVerifiedAt,
   };
+}
+
+/**
+ * The disclosure version for a merchant, using the stored value when present and
+ * otherwise deriving a stable one from the provider account reference and the
+ * verification timestamp.
+ */
+function identityVersionFor(merchant: MerchantRecord): string {
+  if (merchant.identityVersion) return merchant.identityVersion;
+  return `${merchant.merchantRef ?? merchant.profileId}:${merchant.identityVerifiedAt ?? ''}`;
 }
 
 /** Fields persisted by an onboarding/compliance update. */
@@ -244,11 +279,21 @@ export async function submitMerchantOnboarding(
   const merchantStatus = deriveMerchantStatus(merchant);
   const submittedAt = now().toISOString();
   const identityVersion = `${merchant.merchantRef}:${submittedAt}`;
+  // The buyer-safe disclosure snapshot. At submission time the provider has
+  // verified nothing yet, so `legalEntityName` holds only what the Seller stated
+  // (or the verified name, if the provider returned one immediately) and
+  // `registrationNumber` is null.
+  //
+  // Under Stripe this snapshot was populated from a form the Seller filled in,
+  // including a government registration number. With provider-hosted onboarding
+  // the authoritative payee name arrives later, on the compliance webhook, as a
+  // name checked against a government document — so the disclosure is written
+  // once verification actually completes rather than trusted up front.
   const identity = {
-    legalEntityName: params.details.legalEntityName,
+    legalEntityName: merchant.legalName ?? params.details.legalEntityName ?? null,
     tradingName: params.details.tradingName ?? null,
-    registrationNumber: params.details.businessRegistrationNumber,
-    organisationType: params.details.organisationType ?? null,
+    registrationNumber: null,
+    organisationType: 'individual',
     identityVersion,
     identityDisclosureConsentedAt: submittedAt,
   };
@@ -302,6 +347,13 @@ export async function applyComplianceUpdate(
     /** Provider `MerchantStatus === 'active'` from the compliance event. */
     merchantActive?: boolean;
     notes?: string;
+    /**
+     * The payee's provider-verified legal name, once identity verification has
+     * completed. This is the buyer-safe disclosure (Req 4.8-4.12) and is written
+     * only from the provider's own report — never from Seller-supplied input.
+     * Absent means "unchanged", so a later event cannot blank an existing name.
+     */
+    legalName?: string;
   },
 ): Promise<MerchantOnboardingResult> {
   const { repository } = deps;
@@ -335,6 +387,10 @@ export async function applyComplianceUpdate(
       ? existing.identityVerifiedAt ?? decisionAt
       : existing.identityVerifiedAt ?? null;
 
+  // The verified legal name only ever moves from absent to present: a provider
+  // report without it must not erase a name already disclosed to Buyers.
+  const legalEntityName = params.legalName ?? existing.legalEntityName ?? null;
+
   await repository.updateMerchant({
     profileId,
     merchantStatus,
@@ -344,6 +400,7 @@ export async function applyComplianceUpdate(
     settlementsEnabled,
     notes: params.notes ?? existing.notes ?? null,
     identityVerifiedAt,
+    legalEntityName,
     ...(decisionAt ? { decisionAt } : {}),
   });
 
@@ -357,6 +414,7 @@ export async function applyComplianceUpdate(
       transactionsEnabled,
       settlementsEnabled,
       identityVerifiedAt,
+      legalEntityName,
     },
   };
 }
@@ -376,6 +434,8 @@ export interface MerchantOnboardingOrchestrator {
     settlementsEnabled?: boolean;
     merchantActive?: boolean;
     notes?: string;
+    /** Provider-verified payee legal name; see the core function's docs. */
+    legalName?: string;
   }): Promise<MerchantOnboardingResult>;
 }
 

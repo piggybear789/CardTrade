@@ -24,6 +24,7 @@ import {
 } from '@/lib/actions/deals';
 import { JoinDealButton } from '@/components/deals/JoinDealButton';
 import { VerifiedBadge } from '@/components/listings/VerifiedBadge';
+import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -131,6 +132,13 @@ export default async function JoinDealPage({
           <CardDescription className="flex flex-wrap items-center gap-1.5">
             <span>Created by {creatorName}</span>
             {preview.creatorVerified ? <VerifiedBadge /> : null}
+            {/* The joiner is about to commit to a binding deal with someone
+                they may not know, so the identity gate is labelled here rather
+                than icon-only. */}
+            <IdentityBadge
+              verified={preview.creatorVerified}
+              firstName={preview.creatorIdentityFirstName}
+            />
           </CardDescription>
         </CardHeader>
 

@@ -122,6 +122,9 @@ export function createSupabaseTradeProposalRepository(
         hold_ref: hold.holdRef,
         amount_cents: hold.amountCents,
         status: hold.status,
+        // Persisted so the expiry reconciler can find holds the provider is
+        // about to release. Null only for non-expiring providers.
+        expires_at: hold.expiresAt ?? null,
       });
     },
 

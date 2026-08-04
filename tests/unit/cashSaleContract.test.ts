@@ -259,7 +259,7 @@ describe('cash sale — terms and dual acceptance', () => {
 
     expect(second.ok).toBe(true);
     if (!second.ok) return;
-    // Successful realtime transfers settle synchronously (Pinch + mock), so the
+    // Successful realtime transfers settle synchronously (Stripe + mock), so the
     // sale advances past PAYMENT_PENDING without a separate webhook.
     expect(second.sale.status).toBe('ESCROW_HELD');
     expect(calls.transfers).toHaveLength(1);

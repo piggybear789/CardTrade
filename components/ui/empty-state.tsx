@@ -24,8 +24,15 @@ export function EmptyState({
   action?: { label: string; href: string; variant?: 'default' | 'outline' };
   className?: string;
   compact?: boolean;
-  /** Match the state title to its surrounding document outline. */
-  titleAs?: 'h1' | 'h2' | 'h3';
+  /**
+   * Match the state title to its surrounding document outline.
+   *
+   * `h4` exists because the workspace nests three levels before a section's content:
+   * MarketplaceShell owns the `h1`, SectionHeader the `h2`, and a page's own sections
+   * are `h3` — so an empty state inside one of those sections is a `h4`. Without it,
+   * pages were forced to either mislabel the section or repeat `h3`.
+   */
+  titleAs?: 'h1' | 'h2' | 'h3' | 'h4';
 }) {
   return (
     <div

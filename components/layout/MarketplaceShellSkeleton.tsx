@@ -11,7 +11,14 @@ import type { ReactNode } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 
-/** Link-row counts per rail group, mirroring `MarketplaceNav`'s `GROUPS`. */
+/**
+ * Link-row counts per rail group, mirroring `MARKETPLACE_NAV_GROUPS`.
+ *
+ * Members only, deliberately. Staff additionally see a Staff group, but that depends on
+ * a profile read this skeleton must not perform — a placeholder that queries the
+ * database is no longer a placeholder. The result is a small one-group settle on the
+ * rail for staff, and none for everyone else.
+ */
 const NAV_GROUPS = [2, 4, 2, 3];
 
 function NavGroupSkeleton() {

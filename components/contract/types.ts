@@ -111,7 +111,14 @@ export type ContractHoldStatus =
   | 'VOIDED'
   | 'PARTIALLY_CAPTURED'
   | 'FULLY_CAPTURED'
-  | 'FAILED';
+  | 'FAILED'
+  /**
+   * The provider's authorisation lapsed and it released the collateral itself.
+   * Shown distinctly from VOIDED: a release is escrow working, an expiry means
+   * the protection is GONE and the parties need to know before handing anything
+   * over.
+   */
+  | 'EXPIRED';
 
 /** One entry in a contract's audit trail. */
 export interface ContractEvent {

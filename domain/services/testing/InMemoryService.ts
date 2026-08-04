@@ -2,7 +2,7 @@
 //
 // A fast, deterministic in-memory fake implementing the same
 // `PaymentService` / `KycService` (and `WebhookEmitter`) contracts as the
-// MockService and the future PinchService. It exists purely for orchestrator
+// MockService and the future StripeService. It exists purely for orchestrator
 // unit/property tests (tasks 7.2, 7.5, 7.6, ...): the design's "Test
 // Independence" note calls for testing the orchestrator against an in-memory
 // fake so payment-dependent properties (15, 18, 19, 21) stay fast and
@@ -22,14 +22,14 @@
 import type {
   CaptureResult,
   Cents,
-  KycResult,
-  KycService,
   Payer,
+  PayerService,
   PayerDetails,
   PaymentService,
+  PlatformBalance,
   PreAuthHold,
+  RefundResult,
   TransferResult,
-  VerifiedIdentity,
   WebhookEmitter,
   WebhookEvent,
 } from '../types';
@@ -73,24 +73,55 @@ export interface InMemoryTransfer {
 }
 
 /**
- * In-memory fake payment + KYC + webhook service for orchestrator tests. Holds
+ * An immutable record of a seller payout out of the platform balance, retained
+ * for test assertions. Kept separate from {@link InMemoryTransfer} because a
+ * payout must never involve a payer.
+ */
+export interface InMemoryPayout {
+  transferId: string;
+  merchantRef: string;
+  amount: Cents;
+  ref: string;
+  status: 'SETTLED' | 'FAILED';
+}
+
+/**
+ * An immutable record of funds returned to a payer, retained for test assertions.
+ *
+ * `nonce` is kept because it is the idempotency contract: a test asserting a
+ * dispute resolution is safe to retry checks that a second call with the same
+ * nonce adds no second entry here.
+ */
+export interface InMemoryRefund {
+  refundId: string;
+  paymentRef: string;
+  amount: Cents;
+  nonce: string;
+  ref: string;
+  status: 'SETTLED' | 'FAILED';
+}
+
+/**
+ * In-memory fake payment + webhook service for orchestrator tests. Holds
  * all simulated provider state in plain collections so a test can both drive
  * behavior (via `InMemoryServiceOptions`) and inspect the resulting side
  * effects (via the public `*By*` maps / arrays).
  */
-export class InMemoryService implements PaymentService, KycService, WebhookEmitter {
+export class InMemoryService implements PaymentService, PayerService, WebhookEmitter {
   /** Provider payer keyed by owning profile id. */
   readonly payersByProfile = new Map<string, Payer>();
   /** Reverse lookup: profile id keyed by payer id. */
   readonly profileByPayer = new Map<string, string>();
-  /** Stored verified identity data, populated on a VERIFIED run (Req 2.5, 8.4). */
-  readonly identities = new Map<string, VerifiedIdentity>();
   /** Simulated hold ledger keyed by hold id. */
   readonly holds = new Map<string, PreAuthHold>();
   /** Every capture requested, in order (settled and failed). */
   readonly captures: InMemoryCapture[] = [];
   /** Every transfer requested, in order (settled and failed). */
   readonly transfers: InMemoryTransfer[] = [];
+  /** Every seller payout requested, in order (settled and failed). */
+  readonly payouts: InMemoryPayout[] = [];
+  /** Every refund requested, in order. Deduplicated by nonce. */
+  readonly refunds: InMemoryRefund[] = [];
   /** Every event handed to `emit`, in order. */
   readonly emittedEvents: WebhookEvent[] = [];
 
@@ -100,12 +131,12 @@ export class InMemoryService implements PaymentService, KycService, WebhookEmitt
   constructor(private readonly opts: InMemoryServiceOptions = {}) {}
 
   // -------------------------------------------------------------------------
-  // KycService
+  // PayerService
   // -------------------------------------------------------------------------
 
   /**
    * Create (or return the existing) provider payer for a Profile (Req 2.1).
-   * `_details` exists for contract parity with the real Pinch binding and is
+   * `_details` exists for contract parity with the real Stripe binding and is
    * ignored here.
    */
   async createPayer(profileId: string, _details?: PayerDetails): Promise<Payer> {
@@ -117,27 +148,10 @@ export class InMemoryService implements PaymentService, KycService, WebhookEmitt
     return payer;
   }
 
-  /** Run identity verification, resolving VERIFIED or REJECTED per options (Req 2.2, 2.3). */
-  async runVerification(payerId: string): Promise<KycResult> {
-    const outcome = this.opts.kycOutcome ?? 'VERIFIED';
-    const profileId = this.profileByPayer.get(payerId);
+  // `runVerification` used to live here. Removed with the payer gate: identity is
+  // the Identity_Gate now, which is Connect onboarding state rather than a
+  // provider call, so a fake has nothing to stand in for.
 
-    if (outcome === 'VERIFIED') {
-      if (profileId) this.identities.set(profileId, this.buildIdentity(profileId));
-      return { payerId, outcome: 'VERIFIED' };
-    }
-
-    return {
-      payerId,
-      outcome: 'REJECTED',
-      reason: this.opts.kycReason ?? 'Identity could not be verified',
-    };
-  }
-
-  /** Retrieve stored verified identity data for a Police_Evidence_Pack (Req 2.5, 8.4). */
-  async getVerifiedIdentity(profileId: string): Promise<VerifiedIdentity | null> {
-    return this.identities.get(profileId) ?? null;
-  }
 
   // -------------------------------------------------------------------------
   // PaymentService
@@ -161,6 +175,96 @@ export class InMemoryService implements PaymentService, KycService, WebhookEmitt
       payerId: params.payerId,
       amount: params.amount,
       ref: params.ref,
+      status: result.status,
+    });
+    return result;
+  }
+
+  /**
+   * Release escrowed funds to a Seller's connected account (Req 4.3).
+   *
+   * Recorded in `payouts` rather than `transfers` so a test can assert that
+   * releasing money did NOT charge the Buyer again — the two are different
+   * events and conflating them would hide a double-charge.
+   */
+  async payoutToMerchant(params: {
+    merchantRef: string;
+    amount: Cents;
+    ref: string;
+    nonce: string;
+    sourcePaymentRef?: string;
+  }): Promise<TransferResult> {
+    const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
+    const result: TransferResult = {
+      transferId: `payout_${this.nextId()}`,
+      amount: params.amount,
+      status: ok ? 'SETTLED' : 'FAILED',
+    };
+    this.payouts.push({
+      transferId: result.transferId,
+      merchantRef: params.merchantRef,
+      amount: params.amount,
+      ref: params.ref,
+      status: result.status,
+    });
+    return result;
+  }
+
+  /**
+   * Report a platform balance a test can control.
+   *
+   * Settable so a test can drive the reconciliation verdict deliberately — including
+   * the SHORTFALL case, which is the one that matters and which a real provider will
+   * not produce on demand. Defaults to UNAVAILABLE so a test that never sets a balance
+   * asserts against "unknown" rather than an invented figure.
+   */
+  platformBalance: PlatformBalance = {
+    availableCents: 0,
+    pendingCents: 0,
+    currency: 'aud',
+    status: 'UNAVAILABLE',
+    reason: 'No balance configured on the in-memory service',
+  };
+
+  async getPlatformBalance(): Promise<PlatformBalance> {
+    return this.platformBalance;
+  }
+
+  /**
+   * Return collected funds to the Buyer (Req 4.15).
+   *
+   * Recorded in {@link refunds} so a test can assert both the amount returned AND
+   * that it was returned exactly once — double-refunding is the failure mode worth
+   * catching, since it spends the platform's own money.
+   */
+  async refundPayment(params: {
+    paymentRef: string;
+    amount?: Cents;
+    nonce: string;
+    ref?: string;
+  }): Promise<RefundResult> {
+    const label = params.ref ?? params.paymentRef;
+    const ok = this.resolveOutcome(label) === 'SUCCESS';
+
+    // Idempotent on nonce, mirroring the provider contract: a retry returns the
+    // first result instead of refunding again.
+    const seen = this.refunds.find((r) => r.nonce === params.nonce);
+    if (seen) {
+      return { refundId: seen.refundId, amount: seen.amount, status: seen.status };
+    }
+
+    const result: RefundResult = {
+      refundId: ok ? `re_${this.nextId()}` : '',
+      amount: params.amount ?? 0,
+      status: ok ? 'SETTLED' : 'FAILED',
+      ...(ok ? {} : { reason: 'Refund failed to settle' }),
+    };
+    this.refunds.push({
+      refundId: result.refundId,
+      paymentRef: params.paymentRef,
+      amount: result.amount,
+      nonce: params.nonce,
+      ref: label,
       status: result.status,
     });
     return result;
@@ -246,17 +350,6 @@ export class InMemoryService implements PaymentService, KycService, WebhookEmitt
     if (existing) this.holds.set(holdId, { ...existing, status });
   }
 
-  /** Deterministic verified-identity data derived from the profile id (Req 2.5). */
-  private buildIdentity(profileId: string): VerifiedIdentity {
-    return {
-      profileId,
-      legalName: `Test User ${profileId}`,
-      dateOfBirth: '1990-01-01',
-      documentType: 'DRIVERS_LICENSE',
-      documentNumber: `DL-${profileId}`,
-      verifiedAt: '2025-01-01T00:00:00.000Z',
-    };
-  }
 
   /** Monotonic, deterministic id fragment. */
   private nextId(): string {

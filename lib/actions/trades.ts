@@ -28,7 +28,6 @@ import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTr
 import { proposeTradeWithSupabase } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import {
   createDefaultDisputeResolutionOrchestrator,
-  EVIDENCE_PACK_BUCKET,
 } from '@/domain/orchestrator/supabaseDisputeResolutionRepository';
 import type {
   DisputeResolutionError,
@@ -39,6 +38,7 @@ import type { OrchestratorError } from '@/domain/orchestrator/tradeOrchestrator'
 import type { ProposeTradeError } from '@/domain/orchestrator/tradeProposal';
 import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
 import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
+import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import {
@@ -217,6 +217,35 @@ export async function proposeTrade(
 
   const initiatorId = options?.onBehalfOfUserId ?? user.id;
 
+  // Req 14.2. Entering trade escrow requires the Identity_Gate, because an
+  // Objective_Fraud resolution pays captured collateral to whichever trader was
+  // the victim — either side can RECEIVE money here. A Member with no payout
+  // account could be awarded restitution the platform has no way to deliver, so
+  // the trade must not start.
+  //
+  // BOTH parties are checked, not just the caller. This function is reached from
+  // `acceptTradeProposal`, where the caller is the accepting Counterpart but the
+  // Trade is created on the PROPOSER's behalf via `onBehalfOfUserId`. Gating only
+  // the caller would let an ungated proposer into escrow.
+  for (const [partyId, isCaller] of [
+    [user.id, true],
+    [initiatorId, initiatorId !== user.id],
+  ] as const) {
+    if (!isCaller) continue;
+    const gate = await readIdentityGate(partyId);
+    if (!gate.satisfied) {
+      // This module's ActionFailure carries `detail`, not `message`.
+      return {
+        ok: false,
+        error: 'not-verified',
+        detail:
+          partyId === user.id
+            ? identityGateMessage('trade', gate.state)
+            : 'The other trader has not finished payout setup, so this trade cannot start yet.',
+      };
+    }
+  }
+
   const result = await proposeTradeWithSupabase(getPaymentService(), {
     proposerId: initiatorId,
     initiatorItemId,
@@ -235,20 +264,20 @@ export async function proposeTrade(
       actorId: initiatorId,
     });
   } else if (isLivePaymentsProvider()) {
-    // Pinch realtime charges return synchronously. Advance the trade from the
+    // Stripe realtime charges return synchronously. Advance the trade from the
     // hold rows instead of waiting for a webhook (or the mock DemoPanel).
-    await syncTradeHoldsFromPinch(result.trade.id, initiatorId);
+    await syncTradeHoldsFromStripe(result.trade.id, initiatorId);
   }
 
   return { ok: true, tradeId: result.trade.id };
 }
 
 /**
- * After Pinch `POST /payments/realtime`, hold rows already reflect ACTIVE/FAILED.
+ * After Stripe `POST /payments/realtime`, hold rows already reflect ACTIVE/FAILED.
  * Drive HOLDS_CONFIRMED / HOLDS_FAILED from that truth so trades leave
  * COLLATERAL_PENDING without a fake webhook button.
  */
-async function syncTradeHoldsFromPinch(tradeId: string, actorId: string): Promise<void> {
+async function syncTradeHoldsFromStripe(tradeId: string, actorId: string): Promise<void> {
   const admin = createAdminClient();
   const repository = createSupabaseTradeProposalRepository(admin);
   const holds = await repository.getHolds(tradeId);
@@ -375,7 +404,7 @@ async function recordLifecycle(
   // Trade at $0 cost. This mirrors the dispute/fraud paths' hold-void step,
   // which was already implemented — the plain successful-completion path was
   // the one place Req 6.7 had never been wired up. With real collateral now a
-  // genuine charge (see PinchService), skipping this would leave completed
+  // genuine charge (see StripeService), skipping this would leave completed
   // trades' collateral charged and never refunded.
   if (event === 'BOTH_ACCEPTED') {
     await voidTradeHolds(tradeId);
@@ -571,7 +600,6 @@ function buildDisputeOrchestrator() {
   return createDefaultDisputeResolutionOrchestrator({
     orchestrator,
     payments: service,
-    kyc: service,
   });
 }
 
@@ -610,26 +638,18 @@ export async function raiseDispute(tradeId: string): Promise<RaiseDisputeActionR
   };
 }
 
-/** Result of {@link resolveDispute}. */
-export type ResolveDisputeActionResult =
-  | { ok: true; state: TradeState; voidedHoldRefs: string[] }
-  | ActionFailure<DisputeActionError>;
-
-/**
- * Resolve a Condition_Dispute when the disputed Item has been returned (Req 7.5):
- * transitions DISPUTED -> COMPLETED and voids the remaining locked holds.
- */
-export async function resolveDispute(tradeId: string): Promise<ResolveDisputeActionResult> {
-  const guard = await requireParticipant(tradeId);
-  if (!guard.ok) return guard;
-
-  const result = await buildDisputeOrchestrator().resolveConditionDispute({
-    tradeId,
-    actorId: guard.ctx.userId,
-  });
-  if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
-  return { ok: true, state: result.trade.state, voidedHoldRefs: result.voidedHoldRefs };
-}
+// `resolveDispute` was removed from the participant surface, and its result type with
+// it — a type describing the shape of a call nobody can make is only a hint that the
+// call should come back.
+//
+// It was gated on `requireParticipant` and captured the $20 Friction_Tax from the
+// OTHER trader, so either party could trigger a capture against the other. Nothing
+// in the UI called it, but an exported Server Action is reachable by anyone who
+// knows its id, so an unused one is still an attack surface rather than dead code.
+//
+// Resolution is now `resolveTradeConditionDispute` in `lib/actions/admin.ts`,
+// admin-gated. Participants raise a dispute (`raiseDispute`) or claim fraud
+// (`reportFraud`); an operator decides.
 
 // ---------------------------------------------------------------------------
 // Objective fraud (Req 8.1)
@@ -640,61 +660,65 @@ export type ReportFraudActionResult =
   | { ok: true; state: TradeState; outcome: FraudResolutionOutcome }
   | ActionFailure<DisputeActionError>;
 
+/** Result of {@link reportFraud}. */
+export type ClaimFraudActionResult =
+  | { ok: true; state: TradeState }
+  | ActionFailure<DisputeActionError>;
+
 /**
- * Report Objective_Fraud for the Trade from INSPECTION or DISPUTED (Req 8.1).
- * The caller is the victim; the offending Trader is their Counterpart. The
- * FRAUD_RESOLVED transition, full capture, victim payout/void, and evidence-pack
- * generation are handled by the dispute/fraud orchestrator.
+ * CLAIM Objective_Fraud on a Trade from INSPECTION or DISPUTED (Req 8.1, revised).
+ *
+ * Records an allegation and moves the Trade to DISPUTED. It deliberately captures
+ * NOTHING and pays NOTHING.
+ *
+ * This function used to do the whole thing: it treated its caller as the victim,
+ * transitioned straight to the terminal FRAUD_RESOLVED, full-captured the
+ * counterparty's 100%-of-FMV collateral, transferred it to the caller, and voided
+ * the caller's own hold. Gated only on being a participant, that meant either
+ * trader could take the other's money by clicking first — no evidence, no review,
+ * no chance for the accused to answer.
+ *
+ * Determining fraud and moving collateral is now
+ * {@link resolveTradeFraud} in `lib/actions/admin.ts`, which is admin-gated and
+ * requires the operator to name the victim explicitly.
  */
-export async function reportFraud(tradeId: string): Promise<ReportFraudActionResult> {
+export async function reportFraud(tradeId: string): Promise<ClaimFraudActionResult> {
   const guard = await requireParticipant(tradeId);
   if (!guard.ok) return guard;
 
-  const result = await buildDisputeOrchestrator().reportObjectiveFraud({
+  // Move to DISPUTED first, so the Trade is visibly frozen and an operator can see
+  // it. Already-disputed trades are fine: `raiseConditionDispute` is a no-op
+  // transition from DISPUTED, and the claim below records regardless.
+  const raised = await buildDisputeOrchestrator().raiseConditionDispute({
     tradeId,
     actorId: guard.ctx.userId,
   });
-  if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
-  return { ok: true, state: result.outcome.trade.state, outcome: result.outcome };
-}
-
-// ---------------------------------------------------------------------------
-// Evidence pack download (Req 8.4)
-// ---------------------------------------------------------------------------
-
-/** Result of {@link downloadEvidencePack}. */
-export type DownloadEvidencePackActionResult =
-  | { ok: true; storagePath: string; signedUrl: string | null; complete: boolean }
-  | ActionFailure<AuthError | 'no-evidence-pack'>;
-
-/**
- * Return the Police_Evidence_Pack storage path and a short-lived signed download
- * URL for a participating Trader (Req 8.4). The signed URL is minted with the
- * service-role client because the evidence-pack bucket is not publicly readable.
- */
-export async function downloadEvidencePack(
-  tradeId: string,
-): Promise<DownloadEvidencePackActionResult> {
-  const guard = await requireParticipant(tradeId);
-  if (!guard.ok) return guard;
-
-  const { trade } = guard.ctx;
-  if (!trade.evidence_pack_path) {
-    return { ok: false, error: 'no-evidence-pack' };
-  }
 
   const admin = createAdminClient();
-  const { data } = await admin.storage
-    .from(EVIDENCE_PACK_BUCKET)
-    .createSignedUrl(trade.evidence_pack_path, 60 * 60);
+  const { data: recorded } = await admin.rpc('record_trade_fraud_claim', {
+    p_trade_id: tradeId,
+    p_claimant_id: guard.ctx.userId,
+    // The claimant's own words. Stored as an allegation, never as fact.
+    p_reason: 'Objective fraud reported by a trader',
+  });
 
-  return {
-    ok: true,
-    storagePath: trade.evidence_pack_path,
-    signedUrl: data?.signedUrl ?? null,
-    complete: trade.evidence_pack_complete === true,
-  };
+  // Only a genuine failure if BOTH the transition and the claim were rejected. An
+  // already-DISPUTED trade legitimately fails the transition while the claim records.
+  if (!recorded && !raised.ok) {
+    return { ok: false, error: raised.error, detail: raised.detail };
+  }
+
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true, state: raised.ok ? raised.trade.state : 'DISPUTED' };
 }
+
+// NOTE: `downloadEvidencePack` has been removed.
+//
+// It minted a signed URL to a PDF containing the OTHER party's legal name, date
+// of birth and government document number, gated only on being a participant in
+// the trade. A victim could therefore obtain the accused's identity documents on
+// the strength of an in-app fraud determination, with no court order and no
+// appeal. The platform no longer reads verified identity fields at all.
 
 // ---------------------------------------------------------------------------
 // updateTradeHandoverTerms — edit face-to-face / postage until first ship

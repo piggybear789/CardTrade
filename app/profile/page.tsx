@@ -3,11 +3,12 @@
 // Profile page (Req 1.4–1.6). A Server Component that loads the authenticated
 // caller's own Profile via the cookie-bound server client — RLS
 // (`profiles_owner_select`) guarantees a User can only read their own row, so
-// only the owner can view/edit (Req 1.6). It renders the editable ProfileForm
-// (client) and the payout/verification card (`PayoutOnboarding`), which is the
-// single verification surface: "verified" is provider-approved Managed
-// Merchant onboarding (`merchant_status = APPROVED` with settlements enabled),
-// not a separate KYC step.
+// only the owner can view/edit (Req 1.6).
+//
+// `PayoutOnboarding` is now genuinely the single verification surface, which this
+// comment previously claimed while the page still rendered a separate identity
+// card beside it. "Verified" means Connect onboarding APPROVED with settlements
+// enabled — one gate, the provider's, with no separate payer check.
 
 import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
@@ -15,6 +16,7 @@ import { CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getPayoutSetupContext } from "@/lib/actions/merchant";
 import { getPaymentMethodStatus } from "@/lib/actions/payments";
+import { AccountTabs } from "@/components/account/AccountTabs";
 import { EditProfileDialog } from "@/components/profile/EditProfileDialog";
 import { PayoutOnboarding } from "@/components/profile/PayoutOnboarding";
 import { AddPaymentMethodDialog } from "@/components/payments/AddPaymentMethodDialog";
@@ -77,13 +79,19 @@ export default async function ProfilePage() {
     <MarketplaceShell title="Account">
       <SectionHeader
         title="Account Settings"
-        description="Manage your public identity, DittoShield status, and Pinch Payments payout details."
+        description="Manage your public identity, DittoShield status, and Stripe payout details."
       />
+      <AccountTabs />
 
       <div className="space-y-6">
-        {/* Identity verification leads the page: it's the one thing that fully
-            blocks listing, so it should be the first thing seen, not the last.
-            Addressable so "Verify identity" links from other flows land here. */}
+        {/* Payout setup leads the page and is the ONLY verification surface. There
+            used to be a separate "Identity verification" card above this one
+            pointing at /kyc, which made the account page assert two different
+            definitions of verified — the rail said one thing, this page another.
+            There is one gate now: Connect onboarding approved with settlements
+            enabled. `#identity` is kept as an alias so older links still land here. */}
+        <div id="identity" className="scroll-mt-24" />
+
         <div id="payouts" className="scroll-mt-24">
           {payoutContext.ok ? <PayoutOnboarding context={payoutContext.data} /> : null}
         </div>
@@ -123,10 +131,10 @@ export default async function ProfilePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">How you pay with Pinch Payments</CardTitle>
+            <CardTitle className="text-xl">How you pay with Stripe</CardTitle>
             <CardDescription>
               The card you buy with, and the one your collateral is held against.
-              Card details go straight to Pinch Payments and never touch our servers.
+              Card details go straight to Stripe and never touch our servers.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -140,13 +148,13 @@ export default async function ProfilePage() {
                     {paymentMethod.label ?? "Card saved"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Saved with Pinch Payments for purchases and collateral.
+                    Saved with Stripe for purchases and collateral.
                   </p>
                 </div>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No Pinch Payments method saved.
+                No Stripe method saved.
               </p>
             )}
 

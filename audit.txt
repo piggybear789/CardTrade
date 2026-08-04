@@ -1,0 +1,18 @@
+﻿config.ts:73: /** Presentment currency. AUD everywhere; integer cents end to end. */
+config.ts:74: currency: string;
+config.ts:88: const DEFAULT_CURRENCY = 'aud';
+config.ts:154: currency: env.STRIPE_CURRENCY?.trim().toLowerCase() || DEFAULT_CURRENCY,
+StripeService.ts:57: * BECS Direct Debit (`au_becs_debit`) does not support manual capture at all, so
+StripeService.ts:247: currency: this.opts.config.currency,
+StripeService.ts:406: currency: this.opts.config.currency,
+StripeService.ts:437: currency: this.opts.config.currency,
+StripeService.ts:482: currency: this.opts.config.currency,
+StripeService.ts:605: currency: this.opts.config.currency,
+StripeService.ts:613: identity: { country: 'au', entity_type: 'individual' },
+format.ts:10: * Format an integer number of AUD cents as a localized AUD currency string.
+format.ts:21: return new Intl.NumberFormat('en-AU', {
+format.ts:22: style: 'currency',
+format.ts:23: currency: 'AUD',
+format.ts:24: currencyDisplay: 'symbol',
+format.ts:87: return then.toLocaleDateString('en-AU', {
+format.ts:112: : date.toLocaleString('en-AU', {

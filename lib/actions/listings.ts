@@ -6,11 +6,15 @@
 // and catalog reads. These are THIN wrappers that combine authentication +
 // Storage image upload + the pure validation/orchestration core.
 //
-// Listing has no verification gate (Req 3.1/3.1a): creating an Item requires
-// only an authenticated owner. Verification is checked later: Managed Merchant
-// approval (`merchant_status`) decides whether joining a Trade requires a Bond
-// (`domain/orchestrator/tradeProposal.ts`), and also gates receiving cash in a
-// Cash_Sale. Trade offers with cash terms are not blocked on payout setup.
+// Listing IS gated (Req 14.1): `createItem` requires the Identity_Gate — Connect
+// onboarding APPROVED with settlements enabled. A published listing is an offer to
+// sell for cash and the Seller receives the proceeds, so payout onboarding must
+// exist before the listing does. Previously there was no gate here at all, which
+// let a Seller list, sell, ship, and only then discover at release time that they
+// could not be paid.
+//
+// The gate also decides whether joining a Trade requires a Bond
+// (`domain/orchestrator/tradeProposal.ts`).
 //
 // - Owner authorization is enforced twice over: RLS on the cookie-bound client
 //   (owner_id = auth.uid()) AND the item orchestrator's owner guard.
@@ -36,7 +40,7 @@ import {
   type ImageInput,
   type ImageUpload,
 } from '@/lib/storage/itemImages';
-import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
+import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import type { Tables } from '@/lib/supabase/database.types';
 
 /** A persisted item row as returned to callers. */
@@ -191,13 +195,19 @@ async function getUserId(
 }
 
 /**
- * Create an Item (Req 3.1, 3.2, 3.3).
+ * Create an Item (Req 3.1, 3.2, 3.3, 14.1).
  *
- * Requires only an authenticated owner — listing has no verification gate
- * (Req 3.1/3.1a). Validates the submission (uploading images first, then
- * validating the resulting object paths), inserts the Item with
- * `owner_id = caller` and status AVAILABLE via the cookie-bound client (RLS
- * re-checks ownership). Returns field-level validation errors.
+ * GATED ON THE IDENTITY_GATE. A published listing is an offer to sell for cash,
+ * and the Seller receives the proceeds, so payout onboarding must exist before
+ * the listing does. Previously there was no gate here at all, which meant a
+ * Seller could list, agree a sale, ship the goods, and only discover at release
+ * time that `canReceiveFunds` failed — the money sitting in the platform balance
+ * with nothing in the UI explaining why. Refusing up front converts that silent
+ * late failure into an actionable early one.
+ *
+ * Otherwise: validates the submission (uploading images first, then validating
+ * the resulting object paths), inserts the Item with `owner_id = caller` and
+ * status AVAILABLE via the cookie-bound client (RLS re-checks ownership).
  */
 export async function createItem(
   input: CreateItemInput,
@@ -207,6 +217,17 @@ export async function createItem(
   const userId = await getUserId(supabase);
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
+  }
+
+  // Checked before any upload work so a blocked seller does not push images into
+  // Storage that will never be attached to an Item.
+  const gate = await readIdentityGate(userId);
+  if (!gate.satisfied) {
+    return {
+      ok: false,
+      error: 'not-verified',
+      message: identityGateMessage('list', gate.state),
+    };
   }
 
   // Guard the image count before any upload work (Req 3.3) so we never upload
@@ -692,8 +713,22 @@ export interface CatalogSeller {
   displayName: string | null;
   rating: number | null;
   ratingCount: number;
-  /** Whether the seller's KYC status is VERIFIED (drives the Verified badge). */
+  /**
+   * The Identity_Gate: Connect onboarding APPROVED with settlements enabled, which
+   * is both "we know who this is" and "this seller can actually be paid".
+   *
+   * ONE FIELD, not two. This carried a second `identityVerified` alongside it,
+   * reading `public_profiles.identity_verified` — a column that was the identical
+   * SQL expression. Two fields for one fact is how the kyc_status/merchant_status
+   * bug happened, and the second name additionally invited copy about a document
+   * and selfie check that Connect does not prove. Both duplicates went in 0049.
+   */
   isVerified: boolean;
+  /**
+   * Provider-verified GIVEN name, public by design. The full legal name is
+   * released only at a commitment point via `getCounterpartyIdentity`.
+   */
+  identityFirstName: string | null;
 }
 
 /** An AVAILABLE item plus its seller's public profile for the marketplace grid. */
@@ -729,7 +764,7 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
   const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
   const { data: sellersData } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified')
+    .select('id, display_name, rating, rating_count, is_verified, identity_first_name')
     .in('id', ownerIds);
 
   const sellerById = new Map<string, CatalogSeller>(
@@ -741,6 +776,7 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
       },
     ]),
   );
@@ -774,8 +810,11 @@ export interface SearchCatalogParams {
   minCents?: number;
   /** Maximum fair market value, in integer AUD cents (inclusive). */
   maxCents?: number;
-  /** When true, restrict results to items whose seller is KYC VERIFIED. */
-  verifiedOnly?: boolean;
+  // `identityVerifiedOnly` used to live here. Removed: publishing a listing now
+  // requires the Identity_Gate (Req 14.1), so every item in the catalog is owned by
+  // a verified seller and the filter matched everything. A control that never
+  // changes the result set is worse than no control — it implies the unfiltered
+  // catalog contains unverified sellers.
   /** Include sold items in addition to available. */
   includeSold?: boolean;
   /** Result ordering (defaults to `newest`). */
@@ -836,7 +875,7 @@ async function enrichWithSellers(
   const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
   const { data: sellersData } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified')
+    .select('id, display_name, rating, rating_count, is_verified, identity_first_name')
     .in('id', ownerIds);
 
   const sellerById = new Map<string, CatalogSeller>(
@@ -848,6 +887,7 @@ async function enrichWithSellers(
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
       },
     ]),
   );
@@ -939,13 +979,12 @@ export async function searchCatalog(
     query = query.lte('fmv_cents', Math.trunc(params.maxCents));
   }
 
-  // Verified-seller-only. Backed by the denormalized `seller_verified` column
-  // (kept in sync with the owner's kyc_status by DB triggers, mirroring
-  // seller_rating) so this is pushed into the query rather than filtered after
-  // the page is fetched, which would break `total`/`hasMore`.
-  if (params.verifiedOnly) {
-    query = query.eq('seller_verified', true);
-  }
+  // No verified-seller filter. Publishing requires the Identity_Gate, so every
+  // catalog item already has a verified owner and the predicate was a tautology.
+  // `items.seller_identity_verified` is still maintained by the 0041 triggers as the
+  // denormalised gate, ready for a query that needs it; it is simply not a filter, and
+  // the per-card badge reads the seller join rather than the item column. The duplicate
+  // `items.seller_verified` was dropped in 0049.
 
   // Sorting. `rating` orders by the denormalized `seller_rating` column (kept in
   // sync with each seller's profile rating by DB triggers), so the ordering is

@@ -2,7 +2,7 @@
 //
 // The deal collateral policy: identity or money (or opt-in escrow).
 // Verified-to-verified deals hold nothing by default; if either party is
-// unverified — or the deal opts into DittoEscrow — BOTH post the stake.
+// unverified — or the deal opts into DittoBond — BOTH post the stake.
 
 import { describe, expect, it } from 'vitest';
 

@@ -2112,7 +2112,7 @@ Reference: [https://docs.expo.dev/versions/latest/sdk/image/](https://docs.expo.
 
 For image galleries with lightbox (tap to fullscreen), use `@nandorojo/galeria`.
 
-It provides native shared element transitions with pinch-to-zoom, double-tap
+It provides native shared element transitions with stripe-to-zoom, double-tap
 
 zoom, and pan-to-close. Works with any image component including `expo-image`.
 

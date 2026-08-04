@@ -52,12 +52,10 @@ export const APPROVED_SELLER: MerchantRecord = {
 
 export const BUYER: BuyerRecord = {
   profileId: 'buyer-1',
-  kycStatus: 'VERIFIED',
   payerId: 'payer_platform',
   paymentSourceId: 'src_saved',
   displayName: 'Buyer One',
   contactEmail: 'buyer@example.com',
-  paymentToken: 'tkn_reusable',
   paymentTokenType: 'credit-card',
 };
 
@@ -88,6 +86,81 @@ export function makeCashSaleRepository(options: {
     async loadBuyer() {
       return buyer;
     },
+
+    // --- Dispute resolution (0044) -----------------------------------------
+    // Mirrors the SQL guards: only a DISPUTED sale with a NOT_DUE refund gets a
+    // nonce, so a test can assert a retried resolution does not refund twice.
+    async markRefundDue({ amountCents }) {
+      if (!state.sale) return null;
+      if (state.sale.status !== 'DISPUTED') return state.sale;
+      if (state.sale.refundStatus !== 'NOT_DUE') return state.sale;
+      state.sale = {
+        ...state.sale,
+        refundStatus: 'PENDING',
+        refundCents: amountCents,
+        refundNonce: state.sale.refundNonce ?? `refund:${state.sale.id}`,
+      };
+      return state.sale;
+    },
+
+    async recordRefundResult({ status, refundId, error }) {
+      if (!state.sale) return null;
+      state.sale = {
+        ...state.sale,
+        refundStatus: status,
+        refundRef: refundId ?? state.sale.refundRef,
+        refundAttempts: state.sale.refundAttempts + 1,
+        ...(status === 'FAILED' && error ? {} : {}),
+      };
+      return state.sale;
+    },
+
+    async recordDisputeResolution({ outcome, resolvedBy, resolvedAt, status }) {
+      if (!state.sale) return null;
+      // Conditional on DISPUTED, matching the repository's `.eq('status', ...)`.
+      if (state.sale.status !== 'DISPUTED') return null;
+      state.sale = {
+        ...state.sale,
+        disputeResolution: outcome,
+        disputeResolvedAt: resolvedAt,
+        status,
+        ...(status === 'COMPLETED' ? { completedAt: resolvedAt } : {}),
+      };
+      void resolvedBy;
+      return state.sale;
+    },
+    async listDuePayouts({ maxAttempts }) {
+      const sale = state.sale;
+      if (!sale) return [];
+      const owed =
+        sale.status === 'COMPLETED' &&
+        (sale.sellerPayoutStatus === 'PENDING' || sale.sellerPayoutStatus === 'FAILED') &&
+        sale.sellerPayoutAttempts < maxAttempts;
+      return owed ? [sale.id] : [];
+    },
+    async markPayoutDue() {
+      if (!state.sale) return null;
+      if (state.sale.status !== 'COMPLETED') return state.sale;
+      if (state.sale.sellerPayoutStatus !== 'NOT_DUE') return state.sale;
+      // Mirrors the SQL: the nonce is assigned once and then never changes, so a
+      // retry reuses it and the provider deduplicates.
+      state.sale = {
+        ...state.sale,
+        sellerPayoutStatus: 'PENDING',
+        sellerPayoutNonce: state.sale.sellerPayoutNonce ?? `payout:${state.sale.id}`,
+      };
+      return state.sale;
+    },
+    async recordPayoutResult({ status, transferId, error: _error }) {
+      if (!state.sale) return null;
+      state.sale = {
+        ...state.sale,
+        sellerPayoutStatus: status,
+        sellerPayoutRef: transferId ?? state.sale.sellerPayoutRef,
+        sellerPayoutAttempts: state.sale.sellerPayoutAttempts + 1,
+      };
+      return state.sale;
+    },
     async loadSellerPayee() {
       return payee;
     },
@@ -106,6 +179,14 @@ export function makeCashSaleRepository(options: {
       state.sale = {
         id: 'sale-1',
         itemId: params.itemId,
+        itemTitle: state.item.title ?? 'Test item',
+        disputeResolution: null,
+        disputeResolvedAt: null,
+        refundCents: 0,
+        refundStatus: 'NOT_DUE',
+        refundRef: null,
+        refundNonce: null,
+        refundAttempts: 0,
         buyerId: params.buyerId,
         sellerId: params.sellerId,
         agreedPriceCents: params.agreedPriceCents,
@@ -147,6 +228,10 @@ export function makeCashSaleRepository(options: {
         conversationId: 'conversation-1',
         sellerIdentity: { sellerId: params.sellerId, ...IDENTITY },
         buyerSellerIdentityConfirmedAt: params.buyerSellerIdentityConfirmedAt,
+        sellerPayoutStatus: 'NOT_DUE',
+        sellerPayoutRef: null,
+        sellerPayoutNonce: null,
+        sellerPayoutAttempts: 0,
       };
       return state.sale;
     },
@@ -351,9 +436,26 @@ export function makeCashSaleRepository(options: {
 }
 
 /** Payment service double recording transfer calls and their nonces. */
-export function makePayments(options: { transferStatus?: 'SETTLED' | 'FAILED' } = {}) {
+export function makePayments(
+  options: {
+    transferStatus?: 'SETTLED' | 'FAILED';
+    payoutStatus?: 'SETTLED' | 'FAILED';
+    refundStatus?: 'SETTLED' | 'FAILED';
+  } = {},
+) {
   const calls = {
-    createPayer: [] as { merchantRef?: string; token?: string }[],
+    createPayer: [] as { profileId: string; email?: string }[],
+    /**
+     * Refunds back to the Buyer, recorded separately again: a refund spends money
+     * the platform is holding, so a test needs to assert both the amount AND that
+     * it happened exactly once.
+     */
+    refunds: [] as {
+      paymentRef: string;
+      amount?: number;
+      nonce: string;
+      ref?: string;
+    }[],
     transfers: [] as {
       payerId: string;
       nonce: string;
@@ -361,15 +463,24 @@ export function makePayments(options: { transferStatus?: 'SETTLED' | 'FAILED' } 
       applicationFee?: number;
       amount: number;
     }[],
+    /**
+     * Seller releases out of the platform balance, recorded SEPARATELY from
+     * `transfers` on purpose: a release must never charge a payer, so a test that
+     * conflated the two could not catch the Buyer being double-charged.
+     */
+    payouts: [] as {
+      merchantRef: string;
+      nonce: string;
+      amount: number;
+      sourcePaymentRef?: string;
+    }[],
   };
   const payments = {
-    async createPayer(
-      profileId: string,
-      _details?: unknown,
-      opts?: { merchantRef?: string; source?: { token: string } },
-    ) {
-      calls.createPayer.push({ merchantRef: opts?.merchantRef, token: opts?.source?.token });
-      return { payerId: `payer_on_${opts?.merchantRef ?? 'platform'}`, profileId };
+    // A payer is platform-scoped: no sub-merchant targeting and no card token,
+    // both of which the previous provider required to pay a new sub-merchant.
+    async createPayer(profileId: string, details?: { email?: string }) {
+      calls.createPayer.push({ profileId, email: details?.email });
+      return { payerId: 'payer_platform_new', profileId };
     },
     async requestTransfer(params: {
       payerId: string;
@@ -390,6 +501,45 @@ export function makePayments(options: { transferStatus?: 'SETTLED' | 'FAILED' } 
         transferId: 'transfer-1',
         amount: params.amount,
         status: options.transferStatus ?? 'SETTLED',
+      };
+    },
+    async refundPayment(params: {
+      paymentRef: string;
+      amount?: number;
+      nonce: string;
+      ref?: string;
+    }) {
+      calls.refunds.push({
+        paymentRef: params.paymentRef,
+        amount: params.amount,
+        nonce: params.nonce,
+        ref: params.ref,
+      });
+      const ok = (options.refundStatus ?? 'SETTLED') === 'SETTLED';
+      return {
+        refundId: ok ? 'refund-1' : '',
+        amount: params.amount ?? 0,
+        status: ok ? ('SETTLED' as const) : ('FAILED' as const),
+        ...(ok ? {} : { reason: 'Refund failed to settle' }),
+      };
+    },
+    async payoutToMerchant(params: {
+      merchantRef: string;
+      amount: number;
+      ref: string;
+      nonce: string;
+      sourcePaymentRef?: string;
+    }) {
+      calls.payouts.push({
+        merchantRef: params.merchantRef,
+        nonce: params.nonce,
+        amount: params.amount,
+        sourcePaymentRef: params.sourcePaymentRef,
+      });
+      return {
+        transferId: 'payout-1',
+        amount: params.amount,
+        status: options.payoutStatus ?? 'SETTLED',
       };
     },
   };

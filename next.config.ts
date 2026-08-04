@@ -2,6 +2,13 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Lets a production build run without fighting a `next dev` server for `.next`.
+  // On Windows the dev server holds `.next/trace` open, so `next build` dies with
+  // EPERM before it compiles anything — which reads like a code failure and is not
+  // one. Set NEXT_BUILD_DIR to build into a scratch directory instead:
+  //   $env:NEXT_BUILD_DIR='.next-build'; npm run build
+  // Unset (the normal case, including on Vercel) it is the default `.next`.
+  distDir: process.env.NEXT_BUILD_DIR || '.next',
   async redirects() {
     return [
       {

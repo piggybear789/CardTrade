@@ -104,7 +104,6 @@ export default async function ListingsPage({
   const categories = parseCategories(raw.category);
   const minDollars = firstString(raw.min).trim();
   const maxDollars = firstString(raw.max).trim();
-  const verifiedOnly = firstString(raw.verified).trim() === '1';
   const includeSold = firstString(raw.sold).trim() === '1';
   const sortRaw = firstString(raw.sort) as CatalogSort;
   const sort: CatalogSort = SORT_KEYS.includes(sortRaw) ? sortRaw : 'newest';
@@ -119,7 +118,6 @@ export default async function ListingsPage({
       categories,
       minCents,
       maxCents,
-      verifiedOnly,
       includeSold,
       sort,
       page,
@@ -144,7 +142,6 @@ export default async function ListingsPage({
     categories,
     min: minDollars,
     max: maxDollars,
-    verifiedOnly,
     includeSold,
   };
   const hasAnyFilter =
@@ -152,7 +149,6 @@ export default async function ListingsPage({
     categories.length > 0 ||
     minDollars !== '' ||
     maxDollars !== '' ||
-    verifiedOnly ||
     includeSold;
   const resultTitle = q
     ? `Results for “${q}”`
@@ -165,7 +161,6 @@ export default async function ListingsPage({
     categories.join('\0'),
     minDollars,
     maxDollars,
-    verifiedOnly ? '1' : '0',
     includeSold ? '1' : '0',
     sort,
     String(currentPage),
@@ -220,7 +215,6 @@ export default async function ListingsPage({
                   categories,
                   minCents,
                   maxCents,
-                  verifiedOnly,
                   includeSold,
                   sort,
                 }}

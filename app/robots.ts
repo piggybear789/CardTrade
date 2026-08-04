@@ -16,7 +16,6 @@ export default function robots(): MetadataRoute.Robots {
         '/admin',
         '/api/',
         '/deals',
-        '/kyc',
         '/messages',
         '/notifications',
         '/offers',

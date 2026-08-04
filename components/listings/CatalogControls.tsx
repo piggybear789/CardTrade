@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  BadgeCheck,
   Check,
   ChevronRight,
   Plus,
@@ -73,8 +72,6 @@ export interface CatalogFilterState {
   /** Dollar strings suitable for filter inputs; empty when unset. */
   min: string;
   max: string;
-  /** Restrict to items whose seller has a VERIFIED KYC_Status. */
-  verifiedOnly: boolean;
   /** Include sold items in results. */
   includeSold: boolean;
 }
@@ -159,14 +156,12 @@ export function CatalogFilters({
     current.categories.length > 0 ||
     current.min !== '' ||
     current.max !== '' ||
-    current.verifiedOnly ||
     current.includeSold;
 
   // Search has its own field on mobile — the Filters badge counts refine-only.
   const refineCount =
     current.categories.length +
     Number(Boolean(current.min || current.max)) +
-    Number(current.verifiedOnly) +
     Number(current.includeSold);
 
   function toggleCategory(category: string) {
@@ -188,10 +183,6 @@ export function CatalogFilters({
   function clearFilters() {
     setPriceStops([0, topStop]);
     reset();
-  }
-
-  function toggleVerifiedOnly() {
-    pushWith({ verified: current.verifiedOnly ? null : '1' });
   }
 
   return (
@@ -334,33 +325,12 @@ export function CatalogFilters({
           </div>
         </div>
 
-        <div className="border-t border-border/70 pt-5">
-          <p className="market-label mb-2 text-muted-foreground">Seller</p>
-          <button
-            type="button"
-            onClick={toggleVerifiedOnly}
-            disabled={isPending}
-            aria-pressed={current.verifiedOnly}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
-              current.verifiedOnly
-                ? 'bg-gold/10 font-semibold text-foreground'
-                : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
-            )}
-          >
-            <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-              {current.verifiedOnly ? (
-                <Check className="size-4 text-gold" />
-              ) : (
-                <span className="size-1.5 rounded-full bg-muted-foreground/50" />
-              )}
-            </span>
-            <span className="flex min-w-0 flex-1 items-center gap-1.5">
-              DittoShield sellers only
-              <BadgeCheck className="size-3.5 text-gold" aria-hidden="true" />
-            </span>
-          </button>
-        </div>
+        {/* The "ID-verified sellers only" toggle used to sit here. Removed because
+            publishing a listing now requires the Identity_Gate, so every item in
+            the catalog has a verified seller and the filter matched all of them.
+            Offering it implied the unfiltered catalog contained unverified
+            sellers, which is the opposite of what is true. Per-card badges still
+            show each seller's verified given name. */}
 
         <div className="border-t border-border/70 pt-5">
           <p className="market-label mb-2 text-muted-foreground">Availability</p>
@@ -400,7 +370,6 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
     current.categories.length > 0 ||
     Boolean(current.min) ||
     Boolean(current.max) ||
-    current.verifiedOnly ||
     current.includeSold;
 
   if (!hasFilters) return null;
@@ -430,13 +399,6 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
         <FilterChip
           label={priceLabel}
           onRemove={() => pushWith({ min: null, max: null })}
-          disabled={isPending}
-        />
-      ) : null}
-      {current.verifiedOnly ? (
-        <FilterChip
-          label="DittoShield sellers only"
-          onRemove={() => pushWith({ verified: null })}
           disabled={isPending}
         />
       ) : null}

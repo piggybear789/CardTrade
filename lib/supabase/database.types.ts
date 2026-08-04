@@ -45,10 +45,13 @@ export type Database = {
           id: string;
           display_name: string;
           contact_email: string;
-          kyc_status: Database['cardtrade']['Enums']['kyc_status'];
-          kyc_reason: string | null;
+          // The retired payer gate lived here: `kyc_status`, `kyc_reason`,
+          // `identity_session_id` and the `identity_verified_*` columns. All were
+          // dropped by migration 0043. Verification is the Identity_Gate —
+          // `merchant_status` with `merchant_settlements_enabled` — and the only
+          // identity held is `merchant_legal_entity_name`.
+          /** Stripe Customer id (`cus_...`), platform-scoped. */
           payer_id: string | null;
-          payment_token: string | null;
           payment_token_type: 'credit-card' | 'bank-account' | null;
           payment_method_label: string | null;
           payment_source_id: string | null;
@@ -71,6 +74,8 @@ export type Database = {
           rating: number | null;
           rating_count: number;
           is_admin: boolean;
+          /** Staff capability: may arbitrate disputes (0047). Not member-writable. */
+          is_support: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -78,10 +83,7 @@ export type Database = {
           id: string;
           display_name: string;
           contact_email: string;
-          kyc_status?: Database['cardtrade']['Enums']['kyc_status'];
-          kyc_reason?: string | null;
           payer_id?: string | null;
-          payment_token?: string | null;
           payment_token_type?: 'credit-card' | 'bank-account' | null;
           payment_method_label?: string | null;
           payment_source_id?: string | null;
@@ -104,6 +106,7 @@ export type Database = {
           rating?: number | null;
           rating_count?: number;
           is_admin?: boolean;
+          is_support?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -111,10 +114,7 @@ export type Database = {
           id?: string;
           display_name?: string;
           contact_email?: string;
-          kyc_status?: Database['cardtrade']['Enums']['kyc_status'];
-          kyc_reason?: string | null;
           payer_id?: string | null;
-          payment_token?: string | null;
           payment_token_type?: 'credit-card' | 'bank-account' | null;
           payment_method_label?: string | null;
           payment_source_id?: string | null;
@@ -137,6 +137,7 @@ export type Database = {
           rating?: number | null;
           rating_count?: number;
           is_admin?: boolean;
+          is_support?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -146,39 +147,6 @@ export type Database = {
             columns: ['id'];
             isOneToOne: true;
             referencedRelation: 'users';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      payer_refs: {
-        Row: {
-          id: string;
-          profile_id: string;
-          /** `''` denotes the platform (parent) merchant. */
-          merchant_ref: string;
-          payer_id: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          profile_id: string;
-          merchant_ref?: string;
-          payer_id: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          profile_id?: string;
-          merchant_ref?: string;
-          payer_id?: string;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'payer_refs_profile_id_fkey';
-            columns: ['profile_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
             referencedColumns: ['id'];
           },
         ];
@@ -196,7 +164,12 @@ export type Database = {
           image_paths: string[];
           hidden: boolean;
           seller_rating: number | null;
-          seller_verified: boolean;
+          /**
+           * Denormalised Identity_Gate for the owner, kept fresh by triggers (0041).
+           * The only verification flag on items: the duplicate `seller_verified`
+           * column was dropped in 0049.
+           */
+          seller_identity_verified: boolean;
           location_label: string | null;
           location_place_id: string | null;
           location_lat: number | null;
@@ -217,7 +190,7 @@ export type Database = {
           image_paths: string[];
           hidden?: boolean;
           seller_rating?: number | null;
-          seller_verified?: boolean;
+          seller_identity_verified?: boolean;
           location_label?: string | null;
           location_place_id?: string | null;
           location_lat?: number | null;
@@ -238,7 +211,7 @@ export type Database = {
           image_paths?: string[];
           hidden?: boolean;
           seller_rating?: number | null;
-          seller_verified?: boolean;
+          seller_identity_verified?: boolean;
           location_label?: string | null;
           location_place_id?: string | null;
           location_lat?: number | null;
@@ -268,6 +241,15 @@ export type Database = {
           version: number;
           initiator_shipped_at: string | null;
           counterpart_shipped_at: string | null;
+          /**
+           * Dispatch deadline for DELIVERY trades (0039). Null for IN_PERSON,
+           * which is inspected on the spot and never races the ~7-day card
+           * authorisation window.
+           */
+          shipping_deadline_at: string | null;
+          shipping_warned_at: string | null;
+          /** Deadline breached. Advisory — the trade is not cancelled. */
+          shipping_overdue_at: string | null;
           initiator_tracking_carrier: string | null;
           initiator_tracking_number: string | null;
           initiator_tracking_url: string | null;
@@ -282,8 +264,11 @@ export type Database = {
           disputed_against: string | null;
           disputed_at: string | null;
           fraud_victim_id: string | null;
-          evidence_pack_path: string | null;
-          evidence_pack_complete: boolean | null;
+          /** Fraud ALLEGED by a trader (0046). Not a finding: see fraud_victim_id. */
+          fraud_claimed_by: string | null;
+          fraud_claimed_against: string | null;
+          fraud_claim_reason: string | null;
+          fraud_claimed_at: string | null;
           cash_amount_cents: number;
           cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
           handover_method: Database['cardtrade']['Enums']['handover_method'] | null;
@@ -314,6 +299,9 @@ export type Database = {
           version?: number;
           initiator_shipped_at?: string | null;
           counterpart_shipped_at?: string | null;
+          shipping_deadline_at?: string | null;
+          shipping_warned_at?: string | null;
+          shipping_overdue_at?: string | null;
           initiator_tracking_carrier?: string | null;
           initiator_tracking_number?: string | null;
           initiator_tracking_url?: string | null;
@@ -328,8 +316,10 @@ export type Database = {
           disputed_against?: string | null;
           disputed_at?: string | null;
           fraud_victim_id?: string | null;
-          evidence_pack_path?: string | null;
-          evidence_pack_complete?: boolean | null;
+          fraud_claimed_by?: string | null;
+          fraud_claimed_against?: string | null;
+          fraud_claim_reason?: string | null;
+          fraud_claimed_at?: string | null;
           cash_amount_cents?: number;
           cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
           handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
@@ -370,6 +360,9 @@ export type Database = {
           version?: number;
           initiator_shipped_at?: string | null;
           counterpart_shipped_at?: string | null;
+          shipping_deadline_at?: string | null;
+          shipping_warned_at?: string | null;
+          shipping_overdue_at?: string | null;
           initiator_tracking_carrier?: string | null;
           initiator_tracking_number?: string | null;
           initiator_tracking_url?: string | null;
@@ -385,8 +378,10 @@ export type Database = {
           disputed_at?: string | null;
           conversation_id?: string | null;
           fraud_victim_id?: string | null;
-          evidence_pack_path?: string | null;
-          evidence_pack_complete?: boolean | null;
+          fraud_claimed_by?: string | null;
+          fraud_claimed_against?: string | null;
+          fraud_claim_reason?: string | null;
+          fraud_claimed_at?: string | null;
           friction_tax_return_cents?: number | null;
           friction_tax_platform_cents?: number | null;
           partial_capture_failed?: boolean;
@@ -510,6 +505,26 @@ export type Database = {
           seller_organisation_type: string | null;
           seller_identity_verified_at: string | null;
           buyer_seller_identity_confirmed_at: string | null;
+          /** Release leg of escrow (0038). FAILED = platform holds seller funds. */
+          seller_payout_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          seller_payout_ref: string | null;
+          /** Stable idempotency key; never regenerated on retry. */
+          seller_payout_nonce: string | null;
+          seller_payout_due_at: string | null;
+          seller_payout_at: string | null;
+          seller_payout_attempts: number;
+          seller_payout_error: string | null;
+          /** Dispute resolution (0044). Null until an operator decides. */
+          dispute_resolution: 'REFUND_BUYER' | 'PARTIAL_REFUND' | 'RELEASE_SELLER' | null;
+          dispute_resolved_at: string | null;
+          dispute_resolved_by: string | null;
+          /** Returned to the buyer, in cents. Subtracted from the seller release. */
+          refund_cents: number;
+          refund_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          refund_ref: string | null;
+          refund_nonce: string | null;
+          refund_error: string | null;
+          refund_attempts: number;
           created_at: string;
           updated_at: string;
         };
@@ -574,6 +589,22 @@ export type Database = {
           seller_organisation_type?: string | null;
           seller_identity_verified_at?: string | null;
           buyer_seller_identity_confirmed_at?: string | null;
+          seller_payout_status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          seller_payout_ref?: string | null;
+          seller_payout_nonce?: string | null;
+          seller_payout_due_at?: string | null;
+          seller_payout_at?: string | null;
+          seller_payout_attempts?: number;
+          seller_payout_error?: string | null;
+          dispute_resolution?: 'REFUND_BUYER' | 'PARTIAL_REFUND' | 'RELEASE_SELLER' | null;
+          dispute_resolved_at?: string | null;
+          dispute_resolved_by?: string | null;
+          refund_cents?: number;
+          refund_status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          refund_ref?: string | null;
+          refund_nonce?: string | null;
+          refund_error?: string | null;
+          refund_attempts?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -638,6 +669,22 @@ export type Database = {
           seller_organisation_type?: string | null;
           seller_identity_verified_at?: string | null;
           buyer_seller_identity_confirmed_at?: string | null;
+          seller_payout_status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          seller_payout_ref?: string | null;
+          seller_payout_nonce?: string | null;
+          seller_payout_due_at?: string | null;
+          seller_payout_at?: string | null;
+          seller_payout_attempts?: number;
+          seller_payout_error?: string | null;
+          dispute_resolution?: 'REFUND_BUYER' | 'PARTIAL_REFUND' | 'RELEASE_SELLER' | null;
+          dispute_resolved_at?: string | null;
+          dispute_resolved_by?: string | null;
+          refund_cents?: number;
+          refund_status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          refund_ref?: string | null;
+          refund_nonce?: string | null;
+          refund_error?: string | null;
+          refund_attempts?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -725,10 +772,20 @@ export type Database = {
           id: string;
           trade_id: string;
           trader_id: string;
+          /** Stripe PaymentIntent id (`pi_...`). */
           hold_ref: string | null;
           amount_cents: number;
           captured_cents: number;
           status: Database['cardtrade']['Enums']['hold_status'];
+          /**
+           * When the provider authorisation lapses (Stripe `capture_before`).
+           * Null for providers whose holds do not expire. After this instant the
+           * provider releases the funds itself and the hold cannot be voided or
+           * captured.
+           */
+          expires_at: string | null;
+          /** When the pre-expiry warning was sent (0035). Null until warned. */
+          expiry_warned_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -740,6 +797,8 @@ export type Database = {
           amount_cents: number;
           captured_cents?: number;
           status?: Database['cardtrade']['Enums']['hold_status'];
+          expires_at?: string | null;
+          expiry_warned_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -751,6 +810,8 @@ export type Database = {
           amount_cents?: number;
           captured_cents?: number;
           status?: Database['cardtrade']['Enums']['hold_status'];
+          expires_at?: string | null;
+          expiry_warned_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -993,6 +1054,68 @@ export type Database = {
           },
         ];
       };
+      /**
+       * Chargebacks reported by the provider (0036). The platform is merchant of
+       * record and absorbs these, so a dispute is recorded even when it cannot be
+       * attributed to a Trade or Cash_Sale. Admin-read-only under RLS; writes come
+       * from the webhook pipeline on the service-role client.
+       */
+      charge_disputes: {
+        Row: {
+          id: string;
+          dispute_ref: string;
+          charge_ref: string;
+          trade_id: string | null;
+          cash_sale_id: string | null;
+          profile_id: string | null;
+          amount_cents: number;
+          reason: string | null;
+          status: string;
+          /** `lost` is the only outcome that means funds were absorbed. */
+          outcome: 'won' | 'lost' | 'warning_closed' | 'other' | null;
+          /** Hard provider deadline; missing it forfeits automatically. */
+          evidence_due_by: string | null;
+          opened_at: string;
+          closed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          dispute_ref: string;
+          charge_ref: string;
+          trade_id?: string | null;
+          cash_sale_id?: string | null;
+          profile_id?: string | null;
+          amount_cents: number;
+          reason?: string | null;
+          status: string;
+          outcome?: 'won' | 'lost' | 'warning_closed' | 'other' | null;
+          evidence_due_by?: string | null;
+          opened_at?: string;
+          closed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          dispute_ref?: string;
+          charge_ref?: string;
+          trade_id?: string | null;
+          cash_sale_id?: string | null;
+          profile_id?: string | null;
+          amount_cents?: number;
+          reason?: string | null;
+          status?: string;
+          outcome?: 'won' | 'lost' | 'warning_closed' | 'other' | null;
+          evidence_due_by?: string | null;
+          opened_at?: string;
+          closed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       webhook_logs: {
         Row: {
           id: string;
@@ -1117,11 +1240,24 @@ export type Database = {
           collateral_cents: number | null;
           /**
            * When true, both parties post collateral on confirm even if both are
-           * DittoShield verified (optional DittoEscrow).
+           * DittoShield verified (optional DittoBond).
            */
           collateral_opt_in: boolean;
           cancelled_by: string | null;
           cancel_reason: string | null;
+          /** When a party raised a dispute (0048). Drives arbitration triage. */
+          disputed_at: string | null;
+          dispute_raised_by: string | null;
+          /** The claimant's own words — an allegation, not a finding. */
+          dispute_reason: string | null;
+          /**
+           * Non-null only once an arbitrator decided (0048). Distinguishes an
+           * arbitrated unwind from a pre-binding cancellation; both land in CANCELLED.
+           */
+          dispute_outcome: Database['cardtrade']['Enums']['deal_dispute_outcome'] | null;
+          dispute_resolved_by: string | null;
+          dispute_resolved_at: string | null;
+          dispute_resolution_note: string | null;
           /** The deal's participant-only chat thread (0013). */
           conversation_id: string | null;
           created_at: string;
@@ -1162,6 +1298,15 @@ export type Database = {
           collateral_opt_in?: boolean;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
+          disputed_at?: string | null;
+          dispute_raised_by?: string | null;
+          dispute_reason?: string | null;
+          dispute_outcome?:
+            | Database['cardtrade']['Enums']['deal_dispute_outcome']
+            | null;
+          dispute_resolved_by?: string | null;
+          dispute_resolved_at?: string | null;
+          dispute_resolution_note?: string | null;
           conversation_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -1201,6 +1346,15 @@ export type Database = {
           collateral_opt_in?: boolean;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
+          disputed_at?: string | null;
+          dispute_raised_by?: string | null;
+          dispute_reason?: string | null;
+          dispute_outcome?:
+            | Database['cardtrade']['Enums']['deal_dispute_outcome']
+            | null;
+          dispute_resolved_by?: string | null;
+          dispute_resolved_at?: string | null;
+          dispute_resolution_note?: string | null;
           conversation_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -1277,7 +1431,7 @@ export type Database = {
         Relationships: [];
       };
       /**
-       * Pinch cash escrow for private deals (0027). Separate from deal_holds
+       * Stripe cash escrow for private deals (0027). Separate from deal_holds
        * (collateral). HELD when both parties confirm; SETTLED when both mark
        * complete; left locked on dispute.
        */
@@ -1291,6 +1445,15 @@ export type Database = {
           payment_ref: string | null;
           transfer_ref: string | null;
           status: Database['cardtrade']['Enums']['deal_payment_status'];
+          /**
+           * How much was actually taken from the payer (0048). Zero while HELD: a
+           * hold is an authorisation, not a collection.
+           */
+          captured_cents: number;
+          /** How much of the authorisation was released back to the payer (0048). */
+          refund_cents: number;
+          /** Why the provider refused, set alongside status FAILED (0048). */
+          refund_error: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1303,6 +1466,9 @@ export type Database = {
           payment_ref?: string | null;
           transfer_ref?: string | null;
           status?: Database['cardtrade']['Enums']['deal_payment_status'];
+          captured_cents?: number;
+          refund_cents?: number;
+          refund_error?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1315,6 +1481,9 @@ export type Database = {
           payment_ref?: string | null;
           transfer_ref?: string | null;
           status?: Database['cardtrade']['Enums']['deal_payment_status'];
+          captured_cents?: number;
+          refund_cents?: number;
+          refund_error?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1513,6 +1682,67 @@ export type Database = {
         };
         Relationships: [];
       };
+      /**
+       * Which staff member is working an arbitration case (0047). Keyed by
+       * (kind, ref) because a case is a view over a cash sale, trade or chargeback
+       * rather than a row of its own.
+       */
+      arbitration_assignments: {
+        Row: {
+          case_kind: Database['cardtrade']['Enums']['arbitration_case_kind'];
+          case_ref: string;
+          assignee_id: string;
+          assigned_by: string | null;
+          assigned_at: string;
+        };
+        Insert: {
+          case_kind: Database['cardtrade']['Enums']['arbitration_case_kind'];
+          case_ref: string;
+          assignee_id: string;
+          assigned_by?: string | null;
+          assigned_at?: string;
+        };
+        Update: {
+          case_kind?: Database['cardtrade']['Enums']['arbitration_case_kind'];
+          case_ref?: string;
+          assignee_id?: string;
+          assigned_by?: string | null;
+          assigned_at?: string;
+        };
+        Relationships: [];
+      };
+      /**
+       * Internal staff notes on an arbitration case (0047). Append-only and NOT
+       * visible to the parties — there is no member read policy and one must not be
+       * added.
+       */
+      arbitration_notes: {
+        Row: {
+          id: string;
+          case_kind: Database['cardtrade']['Enums']['arbitration_case_kind'];
+          case_ref: string;
+          author_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          case_kind: Database['cardtrade']['Enums']['arbitration_case_kind'];
+          case_ref: string;
+          author_id: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          case_kind?: Database['cardtrade']['Enums']['arbitration_case_kind'];
+          case_ref?: string;
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       public_profiles: {
@@ -1521,7 +1751,20 @@ export type Database = {
           display_name: string;
           rating: number | null;
           rating_count: number;
+          /**
+           * The Identity_Gate, and the only verification signal in the view:
+           * Connect onboarding APPROVED with settlements enabled.
+           *
+           * The former `identity_verified` column was the same expression under a
+           * name that implied a document-and-selfie check Connect does not prove.
+           * Removed in 0049.
+           */
           is_verified: boolean;
+          /**
+           * Provider-verified GIVEN name, public by design. The full legal name
+           * is never exposed through this view.
+           */
+          identity_first_name: string | null;
         };
         Relationships: [];
       };
@@ -1601,6 +1844,58 @@ export type Database = {
         };
         Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
       };
+      /** Queues the Seller release for a COMPLETED Cash_Sale (0038). */
+      mark_cash_sale_payout_due: {
+        Args: { p_cash_sale_id: string };
+        Returns: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+      };
+      /** Queues a dispute refund on a DISPUTED Cash_Sale, assigning a nonce (0044). */
+      mark_cash_sale_refund_due: {
+        Args: { p_cash_sale_id: string; p_amount_cents: number };
+        Returns: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+      };
+      /**
+       * Records a dispute refund that failed after acceptance (0045). Reopens a
+       * fully-refunded sale to DISPUTED; only flags a partial one.
+       */
+      record_cash_sale_refund_failure: {
+        Args: { p_cash_sale_id: string; p_reason?: string | null };
+        Returns: Database['cardtrade']['Enums']['cash_sale_status'];
+      };
+      /**
+       * Records a participant's allegation of objective fraud on a trade (0046).
+       * Records the claim only — capturing collateral is an operator decision.
+       */
+      record_trade_fraud_claim: {
+        Args: { p_trade_id: string; p_claimant_id: string; p_reason: string };
+        Returns: boolean;
+      };
+      /** Upserts a provider chargeback and alerts admins once (0036). */
+      record_charge_dispute: {
+        Args: {
+          p_dispute_ref: string;
+          p_charge_ref: string;
+          p_amount_cents: number;
+          p_status: string;
+          p_reason?: string | null;
+          p_trade_id?: string | null;
+          p_cash_sale_id?: string | null;
+          p_profile_id?: string | null;
+          p_evidence_due_by?: string | null;
+          p_outcome?: string | null;
+        };
+        Returns: string;
+      };
+      /** Marks lapsed collateral holds EXPIRED and notifies both traders (0035). */
+      expire_lapsed_holds: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      /** Warns traders before a collateral authorisation lapses (0035). */
+      warn_expiring_holds: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
       auto_complete_due_cash_sales: {
         Args: Record<string, never>;
         Returns: number;
@@ -1614,7 +1909,6 @@ export type Database = {
       };
     };
     Enums: {
-      kyc_status: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
       merchant_status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
       item_status: 'AVAILABLE' | 'RESERVED' | 'SOLD';
       trade_proposal_status:
@@ -1644,8 +1938,21 @@ export type Database = {
         | 'CANCELLED'
         | 'FAILED'
         | 'REFUNDED';
-      hold_status: 'ACTIVE' | 'VOIDED' | 'PARTIALLY_CAPTURED' | 'FULLY_CAPTURED' | 'FAILED';
-      /** Pinch cash escrow status for private deals (0027). */
+      /**
+       * EXPIRED (0034) is distinct from VOIDED: the provider released the
+       * collateral because the authorisation window lapsed, so the escrow
+       * guarantee was LOST rather than deliberately honoured at $0.
+       */
+      /** Release leg of Cash_Sale escrow (0038). */
+      cash_sale_payout_status: 'NOT_DUE' | 'PENDING' | 'SETTLED' | 'FAILED';
+      hold_status:
+        | 'ACTIVE'
+        | 'VOIDED'
+        | 'PARTIALLY_CAPTURED'
+        | 'FULLY_CAPTURED'
+        | 'FAILED'
+        | 'EXPIRED';
+      /** Stripe cash escrow status for private deals (0027). */
       deal_payment_status: 'HELD' | 'SETTLED' | 'REFUNDED' | 'FAILED';
       webhook_outcome: 'SUCCESS' | 'FAILURE' | 'NO_OP';
       offer_status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COUNTERED' | 'WITHDRAWN';
@@ -1662,6 +1969,14 @@ export type Database = {
         | 'DISPUTED';
       handover_method: 'IN_PERSON' | 'DELIVERY';
       deal_role: 'BUYER' | 'SELLER' | 'TRADER';
+      /**
+       * How an arbitrator resolved a deal dispute (0048). The cash leg is an
+       * uncaptured authorisation at dispute time, so these are capture decisions
+       * rather than refunds.
+       */
+      deal_dispute_outcome: 'REFUND_PAYER' | 'SPLIT' | 'RELEASE_RECIPIENT';
+      /** What kind of record an arbitration case is a view over (0047, 0048). */
+      arbitration_case_kind: 'CASH_SALE' | 'TRADE' | 'CHARGEBACK' | 'DEAL';
     };
     CompositeTypes: {
       [_ in never]: never;

@@ -108,6 +108,30 @@ export async function MarketplaceShell({
   } = await supabase.auth.getUser();
   const showMobileNav = Boolean(user);
 
+  // Staff capability for the rail's Staff group. Read through the cookie-bound client,
+  // so RLS scopes it to the caller's own row and a member cannot ask about anyone else.
+  //
+  // TWO BOOLEANS, not the resolved links. `MarketplaceNav` is a Client Component and a
+  // nav link carries a Lucide `icon` — a component, not data — so handing it the
+  // resolved array threw "Only plain objects can be passed to Client Components from
+  // Server Components" on every page mounting the shell. The nav resolves its own icons.
+  //
+  // One indexed primary-key lookup, and navigation only: `requireStaff` and
+  // `requireAdmin` re-check on every staff surface and action, because hiding a link is
+  // not authorization.
+  let staff: { isStaff: boolean; isAdmin: boolean } | undefined;
+  if (user) {
+    const { data: capability } = await supabase
+      .from('profiles')
+      .select('is_admin, is_support')
+      .eq('id', user.id)
+      .maybeSingle();
+    staff = {
+      isAdmin: Boolean(capability?.is_admin),
+      isStaff: Boolean(capability?.is_support),
+    };
+  }
+
   return (
     <PageShell className="min-h-0 flex-1 self-stretch px-0 py-0 sm:px-0 sm:py-0 lg:px-0 lg:py-0">
       {/* Below `lg` the rail is gone, so the <h1> has no visible home — and it
@@ -148,7 +172,10 @@ export async function MarketplaceShell({
 
             {/* Filters sit under Marketplace on desktop; below `lg` they render
                 in the content column instead (see MobileOnly below). */}
-            <MarketplaceNav primaryExtras={<DesktopOnly>{filters}</DesktopOnly>} />
+            <MarketplaceNav
+              primaryExtras={<DesktopOnly>{filters}</DesktopOnly>}
+              staff={staff}
+            />
 
             <div className="hidden lg:mt-auto lg:block">
               <KycRailStatus />

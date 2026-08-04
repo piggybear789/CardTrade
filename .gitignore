@@ -5,6 +5,9 @@
 
 # next.js
 /.next/
+# Scratch build/dev output, for running `next build` or a second `next dev` while
+# another dev server holds `.next`. See the `distDir` note in next.config.ts.
+/.next-*/
 /out/
 
 # production
@@ -22,6 +25,9 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
+
+# local MCP config (holds provider secret keys)
+.kiro/settings/mcp.json
 
 # typescript
 *.tsbuildinfo

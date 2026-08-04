@@ -2,98 +2,145 @@
 
 // lib/actions/payments.ts
 //
-// Payment-instrument Server Actions. These exist because real Pinch charges
-// (collateral holds, cash-sale transfers) need a vaulted payment source on the
-// Payer: a realtime payment against a payer with no source is rejected by the
-// provider.
+// Payment-instrument Server Actions. These exist because collateral holds and
+// cash-sale collections happen off-session, long after the cardholder has left,
+// so the Payer needs a vaulted instrument to draw on: a charge against a payer
+// with no saved method is rejected by the provider.
 //
-// PCI SCOPE. Card details are tokenised in the browser by Pinch CaptureJS; only
-// the resulting short-lived token reaches this module. No card number, CVC,
-// expiry, BSB or account number is ever accepted, validated, logged, or stored
-// here — see `.kiro/steering/pinch-payments.md`.
+// PCI SCOPE. Card fields are rendered by the PROVIDER inside its own iframe
+// (Stripe Payment Element), so no card number, CVC, expiry, BSB or account number
+// is ever accepted, validated, logged, or stored — not by this module, and not by
+// any component. This is a narrower surface than the previous CaptureJS
+// arrangement, which rendered our own card inputs and validated them before
+// tokenising.
 //
-// The publishable key is the only Pinch value that may reach the client. It is
-// returned by an action rather than inlined as a `NEXT_PUBLIC_` env var so the
-// server stays the single place that resolves test-vs-live configuration.
+// The publishable key is returned by an action rather than read from a
+// `NEXT_PUBLIC_` env var in the client, so the server stays the single place that
+// resolves provider configuration.
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
-import { readPinchPublishableKey } from '@/domain/services/pinch';
 import { type ActionResult, fail, ok } from './result';
 
-/** Typed failure codes for {@link attachPaymentSource}. */
-export type AttachSourceError =
+/** Typed failure codes for {@link beginCardSetup} and {@link completeCardSetup}. */
+export type CardSetupError =
   | 'NOT_AUTHENTICATED'
   | 'PROFILE_NOT_FOUND'
-  | 'NOT_SUPPORTED' // the active provider does not vault instruments
-  | 'PAYER_UNAVAILABLE' // the provider payer could not be created
+  | 'NOT_SUPPORTED' // the active provider has no hosted capture flow
+  | 'PAYER_UNAVAILABLE'
   | 'PROVIDER_ERROR';
 
-/** Typed failure codes for {@link getTokenisationConfig}. */
-export type TokenisationConfigError = 'NOT_CONFIGURED';
-
-/** What the browser needs to run CaptureJS. */
-export interface TokenisationConfig {
+/** What the browser needs to mount the provider's own card fields. */
+export interface CardSetupSession {
+  setupId: string;
+  /** Scoped to this one setup attempt; cannot move money. */
+  clientSecret: string;
   publishableKey: string;
-  /** `test` or `live`, so the UI can badge non-production flows. */
-  environment: string;
 }
 
 /**
- * Return the CaptureJS publishable key for the active environment. Safe to hand
- * to the browser: it can only create tokens, never move money.
+ * Open a provider-hosted card capture session for the signed-in User, creating
+ * their Payer on demand (Req 2.1).
+ *
+ * The returned secret lets the browser talk to the provider's card fields
+ * directly. Nothing here accepts card data, and the provider — not the client —
+ * is the source of truth for what gets vaulted.
  */
-export async function getTokenisationConfig(): Promise<
-  ActionResult<TokenisationConfig, TokenisationConfigError>
-> {
-  const publishableKey = readPinchPublishableKey();
-  if (!publishableKey) {
+export async function beginCardSetup(): Promise<ActionResult<CardSetupSession, CardSetupError>> {
+  const authed = await requirePayer();
+  if (!authed.ok) return authed;
+
+  const { payments, payerId } = authed.data;
+  if (!payments.beginInstrumentSetup) {
+    return fail('NOT_SUPPORTED', 'The active payment provider cannot store payment methods.');
+  }
+
+  try {
+    const setup = await payments.beginInstrumentSetup({ payerId });
+    return ok({
+      setupId: setup.setupId,
+      clientSecret: setup.clientSecret,
+      publishableKey: setup.publishableKey,
+    });
+  } catch (err) {
     return fail(
-      'NOT_CONFIGURED',
-      'Card capture is not configured for this environment.',
+      'PROVIDER_ERROR',
+      err instanceof Error ? err.message : 'Could not start card entry.',
     );
   }
-  return ok({
-    publishableKey,
-    environment: process.env.PINCH_ENV?.toLowerCase() === 'live' ? 'live' : 'test',
-  });
 }
 
 /**
- * Vault a CaptureJS token against the signed-in User's provider Payer, creating
- * the Payer on demand (Req 2.1).
+ * Confirm a completed card setup and persist the saved-method reference.
+ *
+ * The brand/last4 label is read back from the provider rather than accepted from
+ * the client, so it cannot be spoofed, and ownership of the setup is verified
+ * against this User's Payer inside the service.
+ */
+export async function completeCardSetup(
+  setupId: string,
+): Promise<ActionResult<{ sourceId: string; label: string }, CardSetupError>> {
+  const authed = await requirePayer();
+  if (!authed.ok) return authed;
+
+  const { payments, payerId, userId } = authed.data;
+  if (!payments.completeInstrumentSetup) {
+    return fail('NOT_SUPPORTED', 'The active payment provider cannot store payment methods.');
+  }
+  if (!setupId?.trim()) {
+    return fail('PROVIDER_ERROR', 'No card setup reference was supplied.');
+  }
+
+  try {
+    const instrument = await payments.completeInstrumentSetup({
+      payerId,
+      setupId: setupId.trim(),
+    });
+
+    const label = buildPaymentMethodLabel('credit-card', {
+      brand: instrument.brand ? titleCase(instrument.brand) : undefined,
+      last4: instrument.last4,
+    });
+
+    const admin = createAdminClient();
+    await admin
+      .from('profiles')
+      .update({
+        payment_source_id: instrument.sourceId,
+        payment_token_type: 'credit-card',
+        payment_method_label: label,
+      })
+      .eq('id', userId);
+
+    return ok({ sourceId: instrument.sourceId, label });
+  } catch (err) {
+    return fail(
+      'PROVIDER_ERROR',
+      err instanceof Error ? err.message : 'The payment method could not be saved.',
+    );
+  }
+}
+
+/**
+ * Resolve the signed-in User's provider Payer, creating it on first use.
  *
  * The Payer id is read/written with the service-role client because `profiles`
  * RLS is owner-only for writes of provider references; only `payer_id` is
- * touched. The returned source id is provider-side and carries no card data.
- *
- * `cardLast4` and `cardBrand` are display metadata derived by the caller from
- * the card entry UI — the server never sees the full card number. They are
- * persisted as a label so the buyer can identify their saved method later.
+ * touched.
  */
-export async function attachPaymentSource(
-  token: string,
-  sourceType: 'credit-card' | 'bank-account' = 'credit-card',
-  displayMeta?: { last4?: string; brand?: string },
-): Promise<ActionResult<{ sourceId: string }, AttachSourceError>> {
+async function requirePayer(): Promise<
+  ActionResult<
+    { payments: ReturnType<typeof getPaymentService>; payerId: string; userId: string },
+    CardSetupError
+  >
+> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
     return fail('NOT_AUTHENTICATED', 'You must be signed in to add a payment method.');
-  }
-  if (!token?.trim()) {
-    return fail('PROVIDER_ERROR', 'No payment token was supplied.');
-  }
-
-  const payments = getPaymentService();
-  if (!payments.attachPaymentSource) {
-    return fail(
-      'NOT_SUPPORTED',
-      'The active payment provider does not store payment methods.',
-    );
   }
 
   const admin = createAdminClient();
@@ -107,7 +154,9 @@ export async function attachPaymentSource(
     return fail('PROFILE_NOT_FOUND', 'No profile was found for your account.');
   }
 
+  const payments = getPaymentService();
   let payerId = (profile.payer_id as string | null) ?? null;
+
   if (!payerId) {
     try {
       const payer = await payments.createPayer(user.id, {
@@ -124,35 +173,12 @@ export async function attachPaymentSource(
     }
   }
 
-  try {
-    const result = await payments.attachPaymentSource({
-      payerId,
-      token: token.trim(),
-      sourceType,
-    });
+  return ok({ payments, payerId, userId: user.id });
+}
 
-    // Persist the provider-vaulted source reference as the authoritative proof
-    // that this payer can be charged later. The label is display-only.
-    // `payment_token` remains server-only for the separately ticketed
-    // cross-merchant payer flow; it is never used as the saved-source signal.
-    const label = buildPaymentMethodLabel(sourceType, displayMeta);
-    await admin
-      .from('profiles')
-      .update({
-        payment_source_id: result.sourceId,
-        payment_token: token.trim(),
-        payment_token_type: sourceType,
-        payment_method_label: label,
-      })
-      .eq('id', user.id);
-
-    return ok({ sourceId: result.sourceId });
-  } catch (err) {
-    return fail(
-      'PROVIDER_ERROR',
-      err instanceof Error ? err.message : 'The payment method could not be saved.',
-    );
-  }
+/** `visa` -> `Visa`, for display in a saved-method label. */
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 /** Derive a human-readable label like "Visa •••• 4242" from display metadata. */

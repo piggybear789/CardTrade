@@ -9,29 +9,25 @@
 // platform's parent merchant. This is separate from Req 2 KYC, which gates
 // paying/listing/trading — a trade-only User never comes here.
 //
-// The action layer exists (rather than a pure domain call) because the provider
-// requires the real `ipAddress` and `userAgent` of the person completing
-// onboarding for AML purposes; both are read from the incoming request headers
-// and never accepted from the client payload.
+// ONBOARDING IS PROVIDER-HOSTED. We create the account shell, then redirect the
+// Seller to the provider to supply and verify everything sensitive: legal name,
+// date of birth, address, identity document, and the disbursement bank account.
+// None of it passes through this module. That is why the submission payload is
+// now just a consent flag, where it previously carried BSB, account number,
+// ABN/ACN, date of birth and residential address — Stripe had no tokenised
+// equivalent for a settlement account and demanded all of it in the request body.
 //
 // Provider-controlled columns (`merchant_*`) are written only by the service-role
 // repository — 0005_merchant_onboarding.sql revokes column UPDATE on them from
 // `authenticated`, so a User cannot mark themselves settlement-enabled.
 
-import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
-import {
-  isPinchConfigured,
-  readPinchConfig,
-  simulateComplianceDecision,
-} from '@/domain/services/pinch';
 import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { MerchantStatus } from '@/domain/orchestrator/merchantOnboarding';
-import { handlePinchDelivery } from '@/lib/webhook/pinchPipeline';
 import { type ActionResult, fail, ok } from './result';
 
 /** Typed failure codes for {@link submitMerchantOnboarding}. */
@@ -63,68 +59,31 @@ export interface MerchantStateData {
 /** Payout setup context for the profile UI. */
 export interface PayoutSetupContext {
   state: MerchantStateData;
-  /** True when the test-mode compliance simulator can be invoked. */
-  canSimulateCompliance: boolean;
-  /** True when real Pinch is the active provider. */
-  providerIsPinch: boolean;
+  /**
+   * True when the provider offers a hosted onboarding flow to redirect into.
+   * False on the MockService, where the UI shows a simulated approval instead.
+   */
+  hostedOnboarding: boolean;
 }
 
 /**
  * Payout onboarding submission. The legal payee identity and government
- * registration are submitted to Pinch and, after approval, disclosed to buyers
+ * registration are submitted to Stripe and, after approval, disclosed to buyers
  * at checkout with the seller's explicit consent (Req 4.8-4.12).
  */
 const onboardingSchema = z.object({
-  legalEntityName: z.string().trim().min(1).max(255),
+  /**
+   * Optional public shop name. Display only — the authoritative payee identity is
+   * the provider-verified legal name, not anything typed here.
+   */
   tradingName: z.string().trim().min(1).max(255).optional(),
-  businessEmail: z.string().trim().email(),
-  bankAccountBsb: z
-    .string()
-    .trim()
-    .transform((value) => value.replace(/[\s-]/g, ''))
-    .refine((value) => /^\d{6}$/.test(value), 'BSB must be 6 digits.'),
-  bankAccountNumber: z
-    .string()
-    .trim()
-    .transform((value) => value.replace(/[\s-]/g, ''))
-    .refine((value) => /^\d{3,9}$/.test(value), 'Account number must be 3-9 digits.'),
-  bankAccountName: z.string().trim().min(1).max(255),
-  businessRegistrationNumber: z
-    .string()
-    .trim()
-    .transform((value) => value.replace(/[\s-]/g, ''))
-    .refine(
-      (value) => /^\d{9}$|^\d{11}$/.test(value),
-      'Enter a 9-digit ACN or 11-digit ABN.',
-    ),
-  organisationType: z.enum(['individual', 'company']).default('individual'),
   buyerDisclosureConsent: z.literal(true, {
     error: 'You must consent to showing your verified seller identity to buyers.',
   }),
-  contactFirstName: z.string().trim().max(100).optional(),
-  contactLastName: z.string().trim().max(100).optional(),
-  contactPhone: z.string().trim().max(20).optional(),
-  /** ISO `yyyy-mm-dd`; required by the provider's identity checks in practice. */
-  dateOfBirth: z
-    .string()
-    .trim()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be yyyy-mm-dd.')
-    .optional(),
-  streetAddress: z.string().trim().max(255).optional(),
-  suburb: z.string().trim().max(120).optional(),
-  state: z.string().trim().max(10).optional(),
-  postcode: z.string().trim().max(10).optional(),
 });
 
 /** The shape the UI submits. */
 export type MerchantOnboardingInput = z.input<typeof onboardingSchema>;
-
-/** Best-effort client IP from proxy headers, falling back to a placeholder. */
-function clientIp(headerList: Headers): string {
-  const forwarded = headerList.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  return headerList.get('x-real-ip') ?? '0.0.0.0';
-}
 
 /**
  * Read the caller's current sub-merchant state for the payout UI.
@@ -163,9 +122,7 @@ export async function getMerchantState(): Promise<
 }
 
 /**
- * Read the payout setup context for the profile UI: current state plus whether
- * the test-mode compliance simulator is available. The simulator flag is derived
- * on the server so the client never inspects provider env vars.
+ * Read the payout setup context for the profile UI.
  */
 export async function getPayoutSetupContext(): Promise<
   ActionResult<PayoutSetupContext, 'not-authenticated' | 'profile-not-found'>
@@ -173,27 +130,108 @@ export async function getPayoutSetupContext(): Promise<
   const state = await getMerchantState();
   if (!state.ok) return state;
 
-  const providerIsPinch = process.env.PAYMENTS_PROVIDER === 'pinch' && isPinchConfigured();
-  let canSimulateCompliance = false;
-  if (providerIsPinch) {
-    const config = readPinchConfig();
-    canSimulateCompliance =
-      config.environment === 'test' &&
-      config.simulateCompliance &&
-      Boolean(config.webhookSecret) &&
-      Boolean(state.data.merchantRef);
-  }
-
-  return ok({ state: state.data, canSimulateCompliance, providerIsPinch });
+  const payments = getPaymentService();
+  return ok({
+    state: state.data,
+    hostedOnboarding: Boolean(payments.createMerchantOnboardingLink),
+  });
 }
 
 /**
- * Submit sub-merchant onboarding for the signed-in User so they can be paid.
+ * Create a fresh provider-hosted onboarding link for the signed-in Seller.
  *
- * The provider creates the account immediately but enables nothing: compliance
- * review happens afterwards and the decision arrives via the
- * `compliance-updated` webhook, which moves `merchant_status` to APPROVED or
- * REJECTED. Until then the User stays PENDING and cannot receive funds.
+ * Links are single-use and short-lived, so this is called every time the Seller
+ * starts or resumes onboarding rather than being cached. Returning from the flow
+ * does NOT mean the Seller can be paid: approval arrives asynchronously on the
+ * provider's account webhook, so the UI must keep gating on `settlementsEnabled`.
+ */
+export async function createPayoutOnboardingLink(): Promise<
+  ActionResult<{ url: string }, MerchantOnboardingActionError>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('not-authenticated', 'You must be signed in to set up payouts.');
+
+  const state = await getMerchantState();
+  if (!state.ok) return fail('profile-not-found', 'No profile was found for your account.');
+  if (!state.data.merchantRef) {
+    return fail('submission-failed', 'Start payout setup before opening the onboarding form.');
+  }
+
+  const payments = getPaymentService();
+  if (!payments.createMerchantOnboardingLink) {
+    return fail('not-supported', 'The active payment provider does not support payout accounts.');
+  }
+
+  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  try {
+    const link = await payments.createMerchantOnboardingLink({
+      merchantRef: state.data.merchantRef,
+      returnUrl: `${origin}/profile?payouts=complete`,
+      // The provider sends the Seller here if the link expired mid-flow; the page
+      // requests a new link rather than reusing a dead one.
+      refreshUrl: `${origin}/profile?payouts=refresh`,
+    });
+    return ok({ url: link.url });
+  } catch (err) {
+    return fail(
+      'submission-failed',
+      err instanceof Error ? err.message : 'Could not open the payout onboarding form.',
+    );
+  }
+}
+
+/**
+ * Re-read the Seller's payout state from the provider and persist it.
+ *
+ * Used when the Seller returns from hosted onboarding: it makes the UI correct
+ * immediately instead of waiting on webhook delivery. The provider remains the
+ * source of truth — this never writes a status the provider did not report.
+ */
+export async function refreshPayoutStatus(): Promise<
+  ActionResult<MerchantStateData, MerchantOnboardingActionError>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('not-authenticated', 'You must be signed in.');
+
+  const state = await getMerchantState();
+  if (!state.ok) return fail('profile-not-found', 'No profile was found for your account.');
+  if (!state.data.merchantRef) return ok(state.data);
+
+  const payments = getPaymentService();
+  if (!payments.getManagedMerchant) return ok(state.data);
+
+  const merchant = await payments.getManagedMerchant(state.data.merchantRef);
+  if (!merchant) return ok(state.data);
+
+  const orchestrator = createDefaultMerchantOnboardingOrchestrator({ payments });
+  const applied = await orchestrator.applyComplianceUpdate({
+    merchantRef: merchant.merchantRef,
+    complianceStatus: merchant.complianceStatus,
+    liveEnabled: merchant.liveEnabled,
+    transactionsEnabled: merchant.transactionsEnabled,
+    settlementsEnabled: merchant.settlementsEnabled,
+    notes: merchant.notes,
+    legalName: merchant.legalName ?? undefined,
+  });
+
+  if (!applied.ok) return getMerchantState();
+  return getMerchantState();
+}
+
+/**
+ * Start sub-merchant onboarding for the signed-in User so they can be paid.
+ *
+ * Creates the provider account shell only. Everything sensitive is collected by
+ * the provider afterwards via {@link createPayoutOnboardingLink}, and approval
+ * arrives asynchronously on the provider's account webhook, which moves
+ * `merchant_status` to APPROVED or REJECTED. Until then the User stays PENDING
+ * and cannot receive funds.
  */
 export async function submitMerchantOnboarding(
   input: MerchantOnboardingInput,
@@ -215,8 +253,18 @@ export async function submitMerchantOnboarding(
   }
   const details = parsed.data;
 
-  // AML-required request provenance, taken from the request rather than the client.
-  const headerList = await headers();
+  // The signed-in User's own account email is used as the provider contact,
+  // rather than a value from the client payload.
+  const { data: profile } = await createAdminClient()
+    .from('profiles')
+    .select('display_name, contact_email')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const businessEmail = (profile?.contact_email as string | null) ?? user.email;
+  if (!businessEmail) {
+    return fail('validation-error', 'Add a contact email to your profile before setting up payouts.');
+  }
 
   const orchestrator = createDefaultMerchantOnboardingOrchestrator({
     payments: getPaymentService(),
@@ -226,28 +274,9 @@ export async function submitMerchantOnboarding(
     profileId: user.id,
     buyerDisclosureConsent: details.buyerDisclosureConsent,
     details: {
-      legalEntityName: details.legalEntityName,
+      businessEmail,
       tradingName: details.tradingName,
-      businessEmail: details.businessEmail,
-      bankAccountBsb: details.bankAccountBsb,
-      bankAccountNumber: details.bankAccountNumber,
-      bankAccountName: details.bankAccountName,
-      businessRegistrationNumber: details.businessRegistrationNumber,
-      organisationType: details.organisationType,
-      contact: {
-        firstName: details.contactFirstName,
-        lastName: details.contactLastName,
-        email: details.businessEmail,
-        phone: details.contactPhone,
-        dateOfBirth: details.dateOfBirth,
-        streetAddress: details.streetAddress,
-        suburb: details.suburb,
-        state: details.state,
-        postcode: details.postcode,
-        country: 'AU',
-      },
-      ipAddress: clientIp(headerList),
-      userAgent: headerList.get('user-agent') ?? 'unknown',
+      legalEntityName: (profile?.display_name as string | null) ?? undefined,
     },
   });
 
@@ -286,107 +315,4 @@ export async function submitMerchantOnboarding(
     registrationNumber: result.merchant.registrationNumber ?? null,
     identityVerifiedAt: result.merchant.identityVerifiedAt ?? null,
   });
-}
-
-/** Outcomes the test-mode compliance simulator can deliver. */
-export type SimulateComplianceInput = 'approved' | 'rejected' | 'in-review';
-
-/**
- * TEST-MODE ONLY: drive a Pinch compliance decision for the caller's own
- * sub-merchant (Req 4.8 demo path).
- *
- * Pinch's test environment simulates payments, settlement timing and dishonours,
- * but compliance approval is a human step delivered as a `compliance-updated`
- * webhook. This action does NOT write `merchant_status` directly. It asks the
- * Pinch integration to deliver a correctly signed `compliance-updated` event to
- * our own Webhook_Handler, so the real verification -> translation -> orchestrator
- * path decides the outcome.
- *
- * Guards: authenticated caller, they must own the `mch_...` being decided, real
- * Pinch must be the active provider, and the environment must be `test`.
- */
-export async function simulateMerchantCompliance(
-  outcome: SimulateComplianceInput = 'approved',
-): Promise<
-  ActionResult<
-    MerchantStateData,
-    | 'not-authenticated'
-    | 'profile-not-found'
-    | 'not-onboarded'
-    | 'not-supported'
-    | 'simulation-failed'
-  >
-> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail('not-authenticated', 'You must be signed in.');
-
-  if (process.env.PAYMENTS_PROVIDER !== 'pinch' || !isPinchConfigured()) {
-    return fail(
-      'not-supported',
-      'Compliance simulation requires the real Pinch integration (PAYMENTS_PROVIDER=pinch).',
-    );
-  }
-
-  const config = readPinchConfig();
-  if (config.environment !== 'test' || !config.simulateCompliance) {
-    return fail('not-supported', 'Compliance simulation is only available in Pinch test mode.');
-  }
-  if (!config.webhookSecret) {
-    return fail(
-      'not-supported',
-      'Set PINCH_WEBHOOK_SECRET so the simulated webhook can be signed and verified.',
-    );
-  }
-
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from('profiles')
-    .select('merchant_ref')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (!data) return fail('profile-not-found', 'No profile was found for your account.');
-
-  // Ownership guard: a caller may only decide their OWN merchant, so this cannot
-  // be used to approve or reject another seller.
-  const merchantRef = (data.merchant_ref as string | null) ?? null;
-  if (!merchantRef) {
-    return fail('not-onboarded', 'Submit payout onboarding before simulating a decision.');
-  }
-
-  // Deliver the signed envelope straight into the shared Webhook_Handler
-  // pipeline instead of POSTing to our own public URL. A serverless function
-  // fetching its own deployment is unreliable ("fetch failed"); processing
-  // in-process runs the identical verify -> translate -> dedupe -> dispatch ->
-  // log path (signature verification included) with no network hop.
-  const deliverInProcess: typeof fetch = async (_input, init) => {
-    const request = new Request('https://cardtrade.internal/api/webhooks/pinch', init);
-    const body = await request.text();
-    return handlePinchDelivery(body, request.headers);
-  };
-
-  const result = await simulateComplianceDecision({
-    config,
-    merchantRef,
-    outcome,
-    // Only needs to be a non-empty absolute URL; delivery is handled in-process
-    // by `deliverInProcess`, which ignores it.
-    webhookUrl: 'https://cardtrade.internal/api/webhooks/pinch',
-    webhookSecret: config.webhookSecret,
-    fetchFn: deliverInProcess,
-  });
-  if (!result.ok) {
-    return fail(
-      'simulation-failed',
-      result.error === 'DELIVERY_FAILED'
-        ? `The simulated webhook could not be delivered: ${result.detail ?? 'unknown error'}`
-        : 'Compliance simulation is not available in this configuration.',
-    );
-  }
-
-  // Read the state back through the same projection the UI uses, so the response
-  // reflects what the webhook pipeline actually persisted.
-  return getMerchantState();
 }

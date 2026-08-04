@@ -129,7 +129,7 @@ export function CashSaleTermsDialog({
         toast.success(
           sale.fulfillment_method
             ? 'Handover terms updated. Both parties must accept the new version.'
-            : 'Handover terms proposed. Both parties must accept before Pinch Payments collects payment.',
+            : 'Handover terms proposed. Both parties must accept before Stripe collects payment.',
         );
         setOpen(false);
       } else {
@@ -160,7 +160,7 @@ export function CashSaleTermsDialog({
             </DialogTitle>
             <DialogDescription>
               Add the details both parties will review. Saving creates a proposal that
-              both parties must accept before payment begins through Pinch Payments.
+              both parties must accept before payment begins through Stripe.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-5">

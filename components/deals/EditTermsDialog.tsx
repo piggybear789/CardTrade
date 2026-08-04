@@ -76,13 +76,13 @@ const SECTION_COPY: Record<
   money: {
     title: 'Cash component',
     description:
-      'Optional cash paid through Pinch when you both confirm — not handed over at the meetup. Leave blank for goods only.',
+      'Optional cash paid through Stripe when you both confirm — not handed over at the meetup. Leave blank for goods only.',
     saveLabel: 'Save cash',
   },
   collateral: {
     title: 'Agreed trade value',
     description:
-      'The total worth of the exchange. When collateral is required — someone unverified, or DittoEscrow opted in — each hold is 100% of this via Pinch.',
+      'The total worth of the exchange. When collateral is required — someone unverified, or DittoBond opted in — each hold is 100% of this via Stripe.',
     saveLabel: 'Save value',
   },
 };
@@ -633,7 +633,7 @@ export function EditTermsDialog({
                           id="terms-delivery-cost-hint"
                           className="text-xs text-muted-foreground"
                         >
-                          Postage agreed between you (separate from Pinch deal
+                          Postage agreed between you (separate from Stripe deal
                           cash). Enter 0 for free delivery.
                         </p>
                       </div>
@@ -681,19 +681,19 @@ export function EditTermsDialog({
                         <SelectValue placeholder="Choose who pays" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={myPartyId}>I pay via Pinch</SelectItem>
-                        <SelectItem value={theirPartyId}>They pay via Pinch</SelectItem>
+                        <SelectItem value={myPartyId}>I pay via Stripe</SelectItem>
+                        <SelectItem value={theirPartyId}>They pay via Stripe</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : cash.trim() && !theirPartyId ? (
                     <p className="text-xs text-muted-foreground">
-                      You&apos;ll be recorded as the Pinch payer for now. You can
+                      You&apos;ll be recorded as the Stripe payer for now. You can
                       switch it once the other party joins.
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
                       Leave blank for a goods-only trade. Cash is never exchanged
-                      in person — Pinch charges the payer when you both confirm.
+                      in person — Stripe charges the payer when you both confirm.
                     </p>
                   )}
                 </div>
@@ -736,9 +736,9 @@ export function EditTermsDialog({
                       disabled={isPending}
                     />
                     <span>
-                      <span className="font-medium">Require DittoEscrow collateral</span>
+                      <span className="font-medium">Require DittoBond collateral</span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
-                        Both sides post a Pinch hold on confirm even when you are both
+                        Both sides post a Stripe hold on confirm even when you are both
                         DittoShield verified. Changing this clears both confirmations.
                       </span>
                     </span>

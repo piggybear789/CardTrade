@@ -4,8 +4,9 @@
 //
 // Dialog for reporting a failed handover or delivery issue. Opens a modal
 // where the user describes the problem and optionally attaches proof images,
-// then raises a dispute via the `disputeCashSale` server action. This triggers
-// the DISPUTED status, which in a cash sale leads to the buyer being refunded.
+// then raises a dispute via the `disputeCashSale` server action. That moves the sale
+// to DISPUTED, which freezes the funds until an operator resolves it from the admin
+// console — a full refund, a partial refund, or a release to the seller (Req 4.15).
 
 import { useState, useRef, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -114,10 +115,15 @@ export function HandoverFailedDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Report handover failed</DialogTitle>
+            {/* States what actually happens, not what we hope happens. This
+                previously promised "the buyer is refunded", which was untrue in two
+                ways: nothing refunded automatically, and a refund is only one of
+                three possible outcomes. */}
             <DialogDescription>
-              Describe what went wrong. This will raise a dispute — for a cash
-              sale the buyer is refunded; for a trade, collateral resolution
-              begins.
+              Describe what went wrong. This raises a dispute and freezes the money
+              — nothing is released to either side until a CardTrade operator
+              reviews it. They can refund you in full, refund part of it, or decide
+              the sale stands. You will be notified of the outcome.
             </DialogDescription>
           </DialogHeader>
 

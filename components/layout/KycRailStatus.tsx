@@ -1,12 +1,19 @@
 // components/layout/KycRailStatus.tsx
 //
-// Persistent identity-verification state for the workspace rail (Req 1.4, 2.x).
-// Verification is provider-approved Managed Merchant onboarding
-// (`merchant_status = APPROVED` with settlements enabled), not the standalone
-// KYC payer check — it gates Bond relief on trades and private deals, so the
-// rail carries it on every signed-in surface with a route into payout setup
-// (`/profile#payouts`). Renders nothing for signed-out visitors, who have no
-// status to report.
+// Persistent verification state for the workspace rail (Req 13.3, 18.4).
+//
+// Reports the Identity_Gate — Connect onboarding APPROVED with settlements
+// enabled — which is now the app's ONLY verification signal. This file used to
+// assert that while `app/profile/page.tsx` rendered a separate identity card
+// beside the payout card, so the rail and the account page could disagree about
+// whether the same Member was verified. That second gate is gone, and the state
+// shown here is derived from `verificationState` in `domain/identity/identityGate.ts`
+// so the rail cannot drift from the predicate every other surface uses.
+//
+// The gate decides Bond relief on trades and private deals and whether a Member
+// may list, sell or trade, so the rail carries it on every signed-in surface with
+// a route into payout setup (`/profile#payouts`). Renders nothing for signed-out
+// visitors, who have no status to report.
 
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
@@ -14,27 +21,32 @@ import { ShieldCheck } from 'lucide-react';
 import { DittoShieldMark } from '@/components/brand/DittoShieldMark';
 import { createClient } from '@/lib/supabase/server';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
-import type { Enums } from '@/lib/supabase/database.types';
-
-type MerchantStatus = Enums<'merchant_status'>;
+import {
+  verificationState,
+  type MerchantStatus,
+  type VerificationState,
+} from '@/domain/identity/identityGate';
 
 /**
- * Rail presentation per `merchant_status`: a badge plus the action that moves
- * the user forward. APPROVED-with-settlements is terminal, so it offers no
- * action.
+ * Rail presentation per Identity_Gate state: a badge plus the action that moves
+ * the Member forward. VERIFIED is terminal, so it offers no action.
+ *
+ * Keyed on `VerificationState` rather than on `merchant_status` directly, so the
+ * "approved but settlements not enabled is not verified" rule lives in one place
+ * instead of being re-derived here.
  */
 const VERIFICATION_RAIL: Record<
-  MerchantStatus,
+  VerificationState,
   {
     label: string;
     variant: NonNullable<BadgeProps['variant']>;
     action: string | null;
   }
 > = {
-  APPROVED: { label: 'Verified', variant: 'default', action: null },
-  PENDING: { label: 'Pending', variant: 'secondary', action: 'Check DittoShield progress' },
-  REJECTED: { label: 'Rejected', variant: 'destructive', action: 'Retry DittoShield' },
-  NONE: { label: 'Unverified', variant: 'outline', action: 'Start DittoShield' },
+  VERIFIED: { label: 'Verified', variant: 'default', action: null },
+  IN_PROGRESS: { label: 'Pending', variant: 'secondary', action: 'Check DittoShield progress' },
+  NOT_APPROVED: { label: 'Rejected', variant: 'destructive', action: 'Retry DittoShield' },
+  NOT_STARTED: { label: 'Unverified', variant: 'outline', action: 'Start DittoShield' },
 };
 
 /** The rail's identity block, read from the caller's own RLS-scoped profile. */
@@ -52,14 +64,11 @@ export async function KycRailStatus() {
     .maybeSingle();
   if (!profile) return null;
 
-  const merchantStatus = profile.merchant_status as MerchantStatus;
-  // APPROVED without settlements enabled is not yet actually verified; show it
-  // the same as PENDING rather than a false "Verified" badge.
-  const effectiveStatus: MerchantStatus =
-    merchantStatus === 'APPROVED' && !profile.merchant_settlements_enabled
-      ? 'PENDING'
-      : merchantStatus;
-  const status = VERIFICATION_RAIL[effectiveStatus] ?? VERIFICATION_RAIL.NONE;
+  const state = verificationState({
+    merchantStatus: (profile.merchant_status ?? 'NONE') as MerchantStatus,
+    settlementsEnabled: Boolean(profile.merchant_settlements_enabled),
+  });
+  const status = VERIFICATION_RAIL[state] ?? VERIFICATION_RAIL.NOT_STARTED;
 
   return (
     <section

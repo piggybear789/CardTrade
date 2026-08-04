@@ -6,11 +6,15 @@
 // Like the other orchestration modules, this is a pure/injectable coordination
 // layer: it depends only on *interfaces* — a bound `TradeOrchestrator` (for the
 // guarded state-machine transition), a `DisputeResolutionRepository` (for the
-// dispute/fraud-specific reads/writes), the `PaymentService` (captures/voids/
-// transfers), the `KycService` (verified identity for the evidence pack), and an
-// `EvidencePackGenerator` (the PDF seam). The concrete Supabase admin binding
-// lives in `supabaseDisputeResolutionRepository.ts`, which is the only file that
-// pulls in `server-only`.
+// dispute/fraud-specific reads/writes) and the `PaymentService` (captures/voids/
+// transfers). The concrete Supabase admin binding lives in
+// `supabaseDisputeResolutionRepository.ts`, which is the only file that pulls in
+// `server-only`.
+//
+// This module deliberately takes NO KYC dependency. It previously read verified
+// identity data to build a "Police_Evidence_Pack" PDF; that has been removed
+// (see the note in `resolveObjectiveFraud`), so identity verification is now
+// pass/fail only and no verified identity field is ever read.
 //
 // Why a coordinator (functions) rather than a pre-commit `RunSideEffects` hook:
 // neither a Condition_Dispute nor an Objective_Fraud is *gated* by its payment
@@ -22,9 +26,8 @@
 //
 // All monetary amounts are integer AUD cents.
 
-import type { Cents, KycService, PaymentService, PreAuthHold } from '../services/types';
+import type { Cents, PaymentService, PreAuthHold } from '../services/types';
 import type { OrchestratorError, TradeOrchestrator, TradeRecord } from './tradeOrchestrator';
-import type { EvidencePackGenerator } from './evidencePack';
 
 // ---------------------------------------------------------------------------
 // Constants (Req 7.2, 7.3, 8.6)
@@ -129,13 +132,6 @@ export interface DisputeResolutionRepository {
    * offending hold and flag the Trade for manual reconciliation.
    */
   flagManualReconciliation(params: { tradeId: string }): Promise<void>;
-
-  /** Req 8.4/8.7: record the evidence-pack Storage path and completeness. */
-  recordEvidencePack(params: {
-    tradeId: string;
-    storagePath: string | null;
-    complete: boolean;
-  }): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,10 +145,6 @@ export interface DisputeResolutionDeps {
   repository: DisputeResolutionRepository;
   /** Payment provider for captures, voids, and the victim transfer. */
   payments: PaymentService;
-  /** KYC provider supplying verified identity for the evidence pack (Req 8.4). */
-  kyc: KycService;
-  /** The Police_Evidence_Pack PDF generator seam (Req 8.4). */
-  evidencePack: EvidencePackGenerator;
   /** Clock seam for deterministic timestamps in tests; defaults to `Date`. */
   now?: () => Date;
   /** Override the bounded Full_Capture attempt count (Req 8.6). */
@@ -358,7 +350,14 @@ export async function markDisputeReturnOverdue(
 // ---------------------------------------------------------------------------
 
 /** An error indication surfaced by fraud resolution (Req 8.6, 8.7). */
-export type FraudIndication = 'FULL_CAPTURE_FAILED' | 'MISSING_IDENTITY_DATA';
+/**
+ * Error indications surfaced from a fraud resolution without rolling the
+ * transition back (Req 8.6).
+ *
+ * `MISSING_IDENTITY_DATA` is gone along with the identity-disclosure step it
+ * described — there is no longer any identity data to be missing.
+ */
+export type FraudIndication = 'FULL_CAPTURE_FAILED';
 
 /** The aggregate outcome of resolving Objective_Fraud (Req 8.2-8.7). */
 export interface FraudResolutionOutcome {
@@ -375,10 +374,6 @@ export interface FraudResolutionOutcome {
   transferSettled: boolean;
   /** Whether the victim's hold was voided (Req 8.5). */
   victimHoldVoided: boolean;
-  /** Whether the evidence pack is complete (false when identity data is missing, Req 8.7). */
-  evidencePackComplete: boolean;
-  /** Storage path of the generated evidence pack, or `null` when incomplete (Req 8.4, 8.7). */
-  evidencePackPath: string | null;
   /** Whether the Trade was flagged for manual reconciliation (Req 8.6). */
   manualReconciliation: boolean;
   /** Error indications to surface to the caller (Req 8.6, 8.7). */
@@ -403,17 +398,34 @@ export type ReportFraudResult =
  *   for manual reconciliation, and surface `FULL_CAPTURE_FAILED`.
  * - On a settled capture, transfer the captured funds to the victim (Req 8.3).
  * - Void the victim's hold at $0 (Req 8.5).
- * - Generate a Police_Evidence_Pack PDF from the offending Trader's verified
- *   identity (Req 8.4). If the KYC_Service returns no identity, mark the pack
- *   incomplete and surface `MISSING_IDENTITY_DATA` (Req 8.7).
+ *
+ * Req 8.4/8.7 (generate a Police_Evidence_Pack from the offending Trader's
+ * verified identity) is NOT implemented and has been deliberately withdrawn — see
+ * the note at the former step 5. The requirement itself needs amending.
  */
 export async function reportObjectiveFraud(
   deps: DisputeResolutionDeps,
-  params: { tradeId: string; actorId: string },
+  params: {
+    tradeId: string;
+    /** The OPERATOR making the determination. Recorded for audit only. */
+    actorId: string;
+    /**
+     * The trader the operator determined was defrauded. Their counterpart's
+     * collateral is captured and paid to them.
+     *
+     * REQUIRED, and deliberately not derived from `actorId`. This function used to
+     * treat its caller as the victim, and the caller was any participant — so a
+     * trader could name themselves the victim and take the other side's collateral
+     * with no review. The victim is now an operator's finding, and `actorId` is the
+     * operator, who is not a party to the trade at all.
+     */
+    victimId: string;
+  },
 ): Promise<ReportFraudResult> {
-  const { orchestrator, repository, payments, kyc, evidencePack } = deps;
+  const { orchestrator, repository, payments } = deps;
   const maxAttempts = deps.maxFullCaptureAttempts ?? MAX_FULL_CAPTURE_ATTEMPTS;
-  const now = deps.now ?? (() => new Date());
+  // No clock seam here: fraud resolution records no timestamp of its own. Every
+  // instant it cares about is written by the repository or the state machine.
 
   // 1. Commit the transition to FRAUD_RESOLVED (Req 8.1).
   const transitioned = await orchestrator.applyEvent({
@@ -426,11 +438,14 @@ export async function reportObjectiveFraud(
   }
   const trade = transitioned.trade;
 
-  const offendingTraderId = counterpartOf(trade, params.actorId);
+  // The victim must be a party to the trade; the offender is whoever they are not.
+  // Validated against the trade rather than assumed, so an operator cannot name an
+  // unrelated account as the beneficiary of a capture.
+  const offendingTraderId = counterpartOf(trade, params.victimId);
   if (!offendingTraderId) {
     return { ok: false, error: 'NOT_PARTICIPANT' };
   }
-  const victimTraderId = params.actorId;
+  const victimTraderId = params.victimId;
 
   await repository.recordFraudParticipants({
     tradeId: trade.id,
@@ -493,33 +508,20 @@ export async function reportObjectiveFraud(
     victimHoldVoided = true;
   }
 
-  // 5. Generate the Police_Evidence_Pack from verified identity data (Req 8.4).
-  const identity = await kyc.getVerifiedIdentity(offendingTraderId);
-  let evidencePackComplete = false;
-  let evidencePackPath: string | null = null;
-  if (!identity) {
-    // Missing identity data -> incomplete pack + error indication (Req 8.7).
-    indications.push('MISSING_IDENTITY_DATA');
-    await repository.recordEvidencePack({
-      tradeId: trade.id,
-      storagePath: null,
-      complete: false,
-    });
-  } else {
-    const doc = await evidencePack.generate({
-      tradeId: trade.id,
-      offendingIdentity: identity,
-      victimTraderId,
-      generatedAt: now().toISOString(),
-    });
-    evidencePackComplete = true;
-    evidencePackPath = doc.storagePath;
-    await repository.recordEvidencePack({
-      tradeId: trade.id,
-      storagePath: doc.storagePath,
-      complete: true,
-    });
-  }
+  // NOTE: there is deliberately no identity-disclosure step here.
+  //
+  // This flow previously generated a "Police_Evidence_Pack" — a PDF carrying the
+  // accused Trader's legal name, date of birth and government document number —
+  // and `downloadEvidencePack` exposed it to any trade PARTICIPANT. That meant a
+  // victim could obtain the accused's identity documents on the strength of an
+  // in-app fraud determination, with no court order and no appeal. Harmless while
+  // the identity data was simulated; a real disclosure problem once provider
+  // identity verification made it genuine.
+  //
+  // Removed rather than restricted, so the platform never reads verified identity
+  // fields at all: identity verification is now pass/fail only. If a lawful
+  // request for identity data arrives, it should be served by a human out of band,
+  // not by a download button.
 
   return {
     ok: true,
@@ -531,8 +533,6 @@ export async function reportObjectiveFraud(
       fullCaptureAttempts: attempts,
       transferSettled,
       victimHoldVoided,
-      evidencePackComplete,
-      evidencePackPath,
       manualReconciliation,
       indications,
     },
@@ -556,7 +556,10 @@ export interface DisputeResolutionOrchestrator {
   markDisputeReturnOverdue(params: { tradeId: string }): Promise<{ ok: true }>;
   reportObjectiveFraud(params: {
     tradeId: string;
+    /** The operator making the determination. */
     actorId: string;
+    /** The trader the operator found was defrauded. Never inferred from the caller. */
+    victimId: string;
   }): Promise<ReportFraudResult>;
 }
 

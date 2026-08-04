@@ -30,7 +30,7 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   '/sign-up',
   '/deals/join/[token]', // opened from an externally shared invite link
   '/auth/callback', // OAuth provider redirect target
-  '/api/webhooks/pinch', // server-to-server webhook, never navigated
+  '/api/webhooks/stripe', // server-to-server webhook, never navigated
 ]);
 
 /** Recursively collect files under `dir` whose extension is in `exts`. */
@@ -91,8 +91,20 @@ interface FoundLink {
 
 // Anchors a string/template literal that starts with "/" to a navigation site:
 // a Link href (attribute or object property), a redirect(), or router push/replace.
-const LINK_RE =
-  /(?:href\s*=\s*\{?|href\s*:\s*|redirect\(\s*|(?:router|Router)\.(?:push|replace)\(\s*)(['"`])(\/[^'"`]*)\1/g;
+const NAV_PREFIX =
+  '(?:href\\s*=\\s*\\{?|href\\s*:\\s*|redirect\\(\\s*|(?:router|Router)\\.(?:push|replace)\\(\\s*)';
+
+// Two patterns rather than one, because the delimiter decides what may appear
+// INSIDE the target.
+//
+// A single regex with `(['"`])(\/[^'"`]*)\1` looks tidier but silently misses any
+// template literal containing a quote — and interpolations routinely do, e.g.
+//   href={`/trades/new?counterpartItemId=${x?.id ?? ''}&counter=${y}`}
+// The class stops at that `'`, the closing backtick then fails to match, and the
+// link vanishes from the graph. That made `/trades/new` look like an orphan route
+// when the trade proposal inbox links to it directly.
+const QUOTED_LINK_RE = new RegExp(`${NAV_PREFIX}(['"])(\\/[^'"]*)\\1`, 'g');
+const TEMPLATE_LINK_RE = new RegExp(`${NAV_PREFIX}\`(\\/[^\`]*)\``, 'g');
 
 /** Normalize a raw target: strip query/hash and collapse `${...}` into a wildcard. */
 function normalizeTarget(raw: string): string {
@@ -107,13 +119,20 @@ function collectLinks(): FoundLink[] {
     for (const file of walk(dir, ['.ts', '.tsx'])) {
       if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue;
       const source = readFileSync(file, 'utf8');
-      for (const match of source.matchAll(LINK_RE)) {
-        const raw = match[2];
-        links.push({
-          target: normalizeTarget(raw),
-          raw,
-          file: path.relative(repoRoot, file),
-        });
+      // Quoted targets capture the path in group 2 (group 1 is the quote char);
+      // template targets capture it in group 1, since the delimiter is fixed.
+      for (const [re, group] of [
+        [QUOTED_LINK_RE, 2],
+        [TEMPLATE_LINK_RE, 1],
+      ] as const) {
+        for (const match of source.matchAll(re)) {
+          const raw = match[group];
+          links.push({
+            target: normalizeTarget(raw),
+            raw,
+            file: path.relative(repoRoot, file),
+          });
+        }
       }
     }
   }

@@ -53,23 +53,6 @@ export function itemImageUrl(path: string | null | undefined): string | null {
 }
 
 /**
- * Format an Australian business registration number for display: an 11-digit
- * number reads as an ABN (`XX XXX XXX XXX`), a 9-digit number as an ACN
- * (`XXX XXX XXX`). Anything else (e.g. a non-AU registration) is returned
- * unchanged. Used wherever a provider-approved seller identity is disclosed
- * (buy confirmation, offer confirmation, seller profile).
- */
-export function formatRegistrationNumber(value: string): string {
-  if (/^\d{11}$/.test(value)) {
-    return `ABN ${value.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4')}`;
-  }
-  if (/^\d{9}$/.test(value)) {
-    return `ACN ${value.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}`;
-  }
-  return value;
-}
-
-/**
  * Format an ISO timestamp as a short, human-readable relative time such as
  * `"just now"`, `"5m ago"`, `"3h ago"`, `"2d ago"`, or an absolute date for
  * anything older than a week. Used by the messaging UI for message and

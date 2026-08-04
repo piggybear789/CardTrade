@@ -12,7 +12,7 @@ This workstream makes the hackathon demo trustworthy and easy to operate. It is 
   - [ ] 1.1 Inventory every cash, collateral, and dispute phrase shown in contract, offer, and profile surfaces; replace a claim only when it matches the configured service behavior. (Not audited beyond the specific fixes below.)
   - [x] 1.2 Trade cash leg now settles for real on completion via `requestTransfer` (`settleTradeCash` in `lib/actions/trades.ts`), gated on the counterpart holding a payout account; a failed/unavailable settlement flags `manual_reconciliation` rather than silently completing.
   - [x] 1.3 `finalize_trade_acceptance` (migration `0017_atomic_trade_acceptance.sql`, applied via MCP) makes bundle rows + cash + proposal status one Postgres transaction; `acceptTradeProposal` compensates (voids holds, restores items) if it fails after the Trade already exists.
-  - [x] 1.4 **Real bug found and fixed**: `PinchService.placeHold/voidHold/partialCapture/fullCapture` were calling no Pinch endpoint at all (a fabricated "mandate" string) despite `PAYMENTS_PROVIDER=pinch` being set. Rewrote them to the documented charge-and-refund calls (`POST /payments/realtime`, `POST /refunds`) and verified the full charge→refund round trip live against the real Pinch test API (see chat log: payer created, `pmt_...` charged status `approved`, refund `requested`).
+  - [x] 1.4 **Real bug found and fixed**: `StripeService.placeHold/voidHold/partialCapture/fullCapture` were calling no Stripe endpoint at all (a fabricated "mandate" string) despite `PAYMENTS_PROVIDER=stripe` being set. Rewrote them to the documented charge-and-refund calls (`POST /payments/realtime`, `POST /refunds`) and verified the full charge→refund round trip live against the real Stripe test API (see chat log: payer created, `pmt_...` charged status `approved`, refund `requested`).
   - [x] 1.4a **Real bug found and fixed**: `createCollateralSideEffects` (HOLDS_FAILED hold-void/item-restore) was defined but never wired into any live orchestrator call. Wired into the webhook route, the only place HOLDS_FAILED is dispatched.
   - [x] 1.4b **Real bug found and fixed**: Req 6.7 (void holds on BOTH_ACCEPTED→COMPLETED) had zero implementation — a successfully completed trade never released collateral. Added `voidTradeHolds` in `recordLifecycle`.
   - [x] 1.4c **Real bug found and fixed**: `domain/orchestrator/tradeProposal.ts` still hard-rejected any accepted trade whose two primary items weren't exactly equal in value, contradicting the already-shipped bundle/declared-value model. Every cash/bundle trade would have failed at acceptance. Removed the guard, updated its test, and reconciled `.kiro/specs/cardtrade/requirements.md` 5.7/5.10 which still described the old equal-value rule.
@@ -72,7 +72,7 @@ This workstream makes the hackathon demo trustworthy and easy to operate. It is 
 
 ## Deferred unless explicitly reprioritized
 
-- Real Pinch pre-approval/mandate API integration and production settlement configuration.
+- Real Stripe pre-approval/mandate API integration and production settlement configuration.
 - Provider-side multi-use token configuration beyond the already discussed merchant enablement.
 - Parcel-level tracking for every individual Item in an X:Y trade; this MVP tracks fulfilment per participant side.
 - Replacing the entire contract state machine or reworking the core RLS model.

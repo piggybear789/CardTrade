@@ -1,8 +1,8 @@
 // domain/services/types.ts
 //
-// The Payment/KYC Service contract — the single seam that lets the real Pinch
+// The Payment/KYC Service contract — the single seam that lets the real Stripe
 // integration replace the MockService later. Both `MockService` (this phase)
-// and a future `PinchService` implement these interfaces, so the rest of the
+// and a future `StripeService` implement these interfaces, so the rest of the
 // system depends only on the interface, never on a concrete implementation.
 //
 // This module is PURE types/interfaces with no runtime dependencies (no
@@ -23,7 +23,7 @@ export interface Payer {
 
 /**
  * Contact details a real provider needs to create a Payer record. The Mock
- * ignores them (its payer ids are derived from the profile id), while the Pinch
+ * ignores them (its payer ids are derived from the profile id), while the Stripe
  * integration requires at least a name and an email address per
  * `POST /payers`. Callers source these from the owning Profile.
  */
@@ -46,7 +46,7 @@ export interface PayerCreateOptions {
 export interface PayerDetails {
   /** The Profile's display name; split into first/last for the provider. */
   displayName?: string;
-  /** The Profile's contact email — required by Pinch. */
+  /** The Profile's contact email — required by Stripe. */
   email?: string;
   /** Optional Australian mobile number (10 digits, no country code). */
   mobile?: string;
@@ -61,7 +61,35 @@ export interface PreAuthHold {
   holdId: string;
   payerId: string;
   amount: Cents;
-  status: 'ACTIVE' | 'VOIDED' | 'PARTIALLY_CAPTURED' | 'FULLY_CAPTURED' | 'FAILED';
+  /**
+   * `EXPIRED` is reached without any call from us, when {@link PreAuthHold.expiresAt}
+   * passes and the provider releases the collateral itself. It is deliberately
+   * distinct from `VOIDED`: a void is escrow succeeding at $0 cost (Req 6.7),
+   * an expiry is escrow having FAILED to resolve in time.
+   */
+  status:
+    | 'ACTIVE'
+    | 'VOIDED'
+    | 'PARTIALLY_CAPTURED'
+    | 'FULLY_CAPTURED'
+    | 'FAILED'
+    | 'EXPIRED';
+  /**
+   * ISO-8601 instant after which the authorisation lapses and the provider
+   * releases the funds on its own, moving the hold to a terminal state without
+   * any call from us.
+   *
+   * Set by providers that place a genuine authorisation: card authorisations for
+   * online payments are typically valid for ~7 days, so a Trade must reach
+   * INSPECTION and resolve inside that window, or the collateral must be
+   * re-authorised before this instant. Absent when the provider's holds do not
+   * expire (e.g. a charge-and-refund strategy, where funds have already moved,
+   * or the deterministic MockService).
+   *
+   * Callers must treat this as advisory-but-real: after it passes, `voidHold`
+   * and `partialCapture` will fail because there is nothing left to act on.
+   */
+  expiresAt?: string;
 }
 
 /**
@@ -87,6 +115,49 @@ export interface TransferResult {
 }
 
 /**
+ * What the platform actually holds with the provider right now.
+ *
+ * WHY THIS IS ON THE SEAM. Every other figure in this system is a statement about our
+ * OWN database: what we believe we owe. None of them can tell us whether the money to
+ * pay it is there. Cash_Sale proceeds sit in the platform balance commingled with fee
+ * revenue, so three things can drain it without touching a single row — a chargeback
+ * (the platform is `losses_collector`), a provider fee, or an automatic payout sweeping
+ * the balance to the platform's own bank account. Reconciliation needs one number the
+ * provider owns.
+ *
+ * `pending` is included deliberately: card funds clear over days, so available alone
+ * would report a shortfall on every healthy platform that took a payment this morning.
+ *
+ * Reports failure as `UNAVAILABLE` rather than throwing. A reconciliation panel that
+ * cannot read the balance must say "unknown" — never imply solvency it did not verify.
+ */
+export interface PlatformBalance {
+  availableCents: Cents;
+  pendingCents: Cents;
+  /** Lower-cased ISO currency the figures are denominated in. */
+  currency: string;
+  status: 'READ' | 'UNAVAILABLE';
+  /** Provider-side detail when the read failed. Operator-facing only. */
+  reason?: string;
+}
+
+/**
+ * The result of returning collected funds to the payer.
+ *
+ * Reports failure through `status` rather than throwing, matching every other
+ * money-moving primitive here, so the caller's compensating logic still runs and a
+ * disputed sale is never left looking resolved when the money did not move.
+ */
+export interface RefundResult {
+  refundId: string;
+  /** Amount actually returned, in integer cents. */
+  amount: Cents;
+  status: 'SETTLED' | 'FAILED';
+  /** Provider-side detail on failure. Never shown to a member verbatim. */
+  reason?: string;
+}
+
+/**
  * A sub-merchant account under the platform's own merchant, created so a User
  * can RECEIVE money (a Cash_Sale seller, or a fraud victim paid captured
  * collateral). Distinct from a {@link Payer}, which only ever pays.
@@ -104,81 +175,97 @@ export interface ManagedMerchant {
   settlementsEnabled: boolean;
   /** Provider/compliance notes, when supplied. */
   notes?: string;
+  /**
+   * The payee's verified legal name, as held by the provider after identity
+   * verification. Populated once onboarding completes; `null` before that.
+   *
+   * This is the buyer-safe disclosure for a Cash_Sale (Req 4.8-4.12): it is a
+   * name the provider actually checked against a government document, not
+   * something the Seller typed into our form. It is the ONE identity field worth
+   * surfacing — contact details, address, date of birth, document numbers, and
+   * bank details are all deliberately excluded and must never be exposed.
+   */
+  legalName?: string | null;
 }
 
 /**
- * The details a provider needs to open a sub-merchant. Modelled on Pinch's
- * `POST /merchants/managed`. `legalEntityName` and the registration number are
- * persisted only as a buyer-safe disclosure after the seller explicitly
- * consents; bank/contact/document data stays private. Current Pinch compliance
- * guidance requires business-registration evidence for live approval.
+ * The details needed to open a sub-merchant — deliberately almost nothing.
  *
- * `ipAddress` and `userAgent` are required by the provider for AML purposes and
- * must come from the actual request that initiated onboarding, which is why this
- * cannot be built inside a pure domain function.
+ * This used to carry the payee's BSB, account number, government registration
+ * number, date of birth, residential address, and the request IP/user-agent,
+ * because Stripe's `POST /merchants/managed` demanded all of it in the request
+ * body and offered no tokenised alternative for a settlement account.
+ *
+ * With provider-hosted onboarding (see
+ * {@link PaymentService.createMerchantOnboardingLink}) the provider collects and
+ * verifies every one of those fields on its own pages. None of it reaches our
+ * server, so none of it belongs on this interface.
  */
 export interface ManagedMerchantDetails {
-  /** Legal person or registered entity that will receive the sale proceeds. */
-  legalEntityName: string;
-  /** Public shop/trading name, when different from the legal entity. */
-  tradingName?: string;
+  /** Contact email for the account. The one field a provider always needs. */
   businessEmail: string;
-  /** Disbursement account BSB, 6 digits, no spaces or dashes. */
-  bankAccountBsb: string;
-  /** Disbursement account number, 3–9 digits. */
-  bankAccountNumber: string;
-  bankAccountName?: string;
-  /** ABN/ACN or equivalent government business registration. */
-  businessRegistrationNumber: string;
-  /** Free-text descriptor, e.g. `individual` or `company`. */
-  organisationType?: string;
-  natureOfBusiness?: string;
-  contact: {
-    firstName?: string;
-    lastName?: string;
-    email: string;
-    phone?: string;
-    /** ISO `yyyy-mm-dd`. */
-    dateOfBirth?: string;
-    streetAddress?: string;
-    suburb?: string;
-    state?: string;
-    postcode?: string;
-    country?: string;
-  };
-  /** External IP of the user completing onboarding. */
-  ipAddress: string;
-  /** User agent of the user completing onboarding. */
-  userAgent: string;
+  /**
+   * Public shop/trading name, when the Seller wants one. Display only — the
+   * authoritative payee name is {@link ManagedMerchant.legalName}, which the
+   * provider verifies against a government document.
+   */
+  tradingName?: string;
+  /**
+   * The Seller's own stated name, used only as a display fallback before
+   * onboarding completes. NOT the verified identity: never present this to a
+   * Buyer as though the provider had checked it.
+   */
+  legalEntityName?: string;
 }
 
 /**
- * The outcome of an identity verification run (Req 2.2, 2.3). On `REJECTED`, the
- * `reason` carries the failure detail recorded against the Profile for review.
+ * A provider-hosted handshake for capturing and vaulting a payment instrument.
+ *
+ * Exists so the tokenisation UI stays behind the seam. The browser needs a
+ * provider-issued secret to talk to the provider's own card fields directly, and
+ * the alternative — importing a provider SDK into `lib/` or `components/` — would
+ * leak the concrete provider into callers.
  */
-export interface KycResult {
-  payerId: string;
-  outcome: 'VERIFIED' | 'REJECTED';
-  reason?: string;
+export interface InstrumentSetup {
+  /** Opaque id for this setup attempt, handed back to complete it. */
+  setupId: string;
+  /**
+   * Short-lived secret the browser needs to complete the flow. Scoped to this
+   * one setup attempt and useless for moving money, but still never logged.
+   */
+  clientSecret: string;
+  /** Publishable/browser-safe key for initialising the provider's client SDK. */
+  publishableKey: string;
 }
 
 /**
- * Verified identity data supplied by the KYC_Service, stored for later use in
- * generating a Police_Evidence_Pack on Objective_Fraud (Req 2.5, 8.4).
+ * A vaulted instrument, reported after a {@link InstrumentSetup} completes.
+ *
+ * `brand`/`last4` are display-only, read back FROM the provider rather than
+ * supplied by the client, so the label cannot be spoofed and no card data has to
+ * pass through our forms.
  */
-export interface VerifiedIdentity {
-  profileId: string;
-  legalName: string;
-  dateOfBirth: string;
-  documentType: string;
-  documentNumber: string;
-  verifiedAt: string;
+export interface VaultedInstrument {
+  sourceId: string;
+  /** e.g. `visa`, `mastercard`. Display only. */
+  brand?: string;
+  /** Last four digits. Display only. */
+  last4?: string;
 }
 
+// The retired payer-gate types lived here: `KycResult`, `IdentityCheckSession`
+// and `VerifiedIdentitySummary`. All three are gone along with the separate
+// verification gate. Identity is now the Identity_Gate — Connect onboarding
+// APPROVED with settlements enabled — and the only identity the platform holds is
+// the provider-verified legal name Connect reports, persisted by
+// `applyComplianceUpdate` as `merchant_legal_entity_name`. There is no synchronous
+// verification call, no hosted identity session to open, and no summary to read
+// back, so no seam member is needed for any of it.
+
 /**
- * The set of payment/KYC lifecycle changes reported via Webhook_Events. These
+ * The set of payment lifecycle changes reported via Webhook_Events. These
  * map to `TradeEvent`s / Cash_Sale updates in the Webhook_Handler (Req 10.4).
- * The MockService enqueues these after each payment operation; the real Pinch
+ * The MockService enqueues these after each payment operation; the real Stripe
  * integration produces the equivalent set.
  */
 export type WebhookEventType =
@@ -190,16 +277,33 @@ export type WebhookEventType =
   | 'capture.failed' // a capture failed to settle (Req 7.6, 8.6)
   | 'transfer.settled' // cash-sale / victim payout cleared (Req 4.3, 8.3)
   | 'transfer.failed' // cash-sale transfer failed (Req 4.4)
-  | 'kyc.verified' // identity verification succeeded (Req 2.2)
-  | 'kyc.rejected' // identity verification failed (Req 2.3)
-  | 'merchant.compliance.updated'; // a sub-merchant's compliance decision changed
+  // A dispute refund that cleared as `pending` and then failed at the bank
+  // (Req 4.15). MUST be observed: `refundPayment` treats `pending` as settled,
+  // because card refunds normally settle asynchronously and calling that a failure
+  // would make a resolution retry a refund already in flight. The cost of that
+  // choice is this event — without it, a failed refund leaves a sale marked
+  // REFUNDED while the money is still sitting on the platform.
+  | 'refund.failed'
+  // `kyc.verified` / `kyc.rejected` were removed with the payer gate. Identity now
+  // arrives on `merchant.compliance.updated`, which is the same event that decides
+  // payability — one signal, one event.
+  | 'merchant.compliance.updated' // a sub-merchant's compliance decision changed
+  // A payer disputed a charge with their bank (a chargeback).
+  //
+  // This MUST be observed. The platform is merchant of record and accepted
+  // `losses_collector: application`, so it absorbs the loss directly — a
+  // chargeback that nobody notices is money leaving with no record and no
+  // opportunity to contest before the provider's evidence deadline.
+  | 'charge.disputed'
+  // The dispute reached a terminal outcome (won or lost).
+  | 'charge.dispute.closed';
 
 /**
  * The data carried by a Webhook_Event. Every field is optional because the
  * meaningful subset depends on the `type`: a `hold.*` event carries `holdId`
  * (and `tradeId`), a `transfer.*` event carries `transferId`, a `capture.*`
- * event carries `captureId`/`holdId`, and `kyc.*` events carry `payerId`/
- * `profileId`. The Webhook_Handler reads these to locate the target Trade or
+ * event carries `captureId`/`holdId`, and `merchant.compliance.updated` carries
+ * `merchantRef`. The Webhook_Handler reads these to locate the target Trade or
  * Cash_Sale and derive the state transition.
  */
 export interface WebhookEventPayload {
@@ -213,10 +317,22 @@ export interface WebhookEventPayload {
   amount?: Cents;
   /** Provider-side status string (e.g. the hold/capture/transfer status). */
   status?: string;
-  /** Failure detail for `*.failed`/`kyc.rejected` events. */
+  /** Failure detail for `*.failed` events. */
   reason?: string;
   /** Sub-merchant reference for `merchant.compliance.updated` events. */
   merchantRef?: string;
+  /** Provider dispute reference for `charge.disputed` / `charge.dispute.closed`. */
+  disputeId?: string;
+  /**
+   * Terminal dispute outcome on `charge.dispute.closed`. `lost` means the funds
+   * are gone and the platform has absorbed them.
+   */
+  disputeOutcome?: 'won' | 'lost' | 'warning_closed' | 'other';
+  /**
+   * Instant by which evidence must be submitted to contest a dispute. Missing it
+   * forfeits the dispute automatically, so it is a hard deadline, not advisory.
+   */
+  evidenceDueBy?: string;
   /** Compliance enable flags carried by `merchant.compliance.updated`. */
   liveEnabled?: boolean;
   transactionsEnabled?: boolean;
@@ -249,7 +365,7 @@ export interface WebhookEvent {
  * an HMAC over the exact `rawBody` bytes using the shared secret and compares it
  * to `signature` before applying any state change (Req 10.1, 10.2). Keeping the
  * raw body alongside the parsed event lets the authenticity check run against
- * the bytes that were actually signed, matching the real Pinch header contract.
+ * the bytes that were actually signed, matching the real Stripe header contract.
  */
 export interface SignedWebhookEnvelope {
   event: WebhookEvent;
@@ -260,7 +376,7 @@ export interface SignedWebhookEnvelope {
 }
 
 /**
- * Payment provider contract — implemented by MockService now, PinchService
+ * Payment provider contract — implemented by MockService now, StripeService
  * later. Methods resolve with explicit `status`-bearing results rather than
  * throwing, so the orchestrator can branch on failures and run compensating
  * actions (void holds, restore item availability) per Req 4.4, 5.6, 7.6, 8.6.
@@ -294,6 +410,62 @@ export interface PaymentService {
     merchantRef?: string;
     applicationFee?: Cents;
   }): Promise<TransferResult>;
+
+  /**
+   * Pay OUT of the platform balance to a Seller's connected account (Req 4.3).
+   *
+   * Distinct from {@link PaymentService.requestTransfer}, which charges a payer
+   * and optionally forwards in one step. This method moves money that the
+   * platform ALREADY holds and never touches a payer, so it is the only safe way
+   * to release escrowed funds — calling `requestTransfer` at release time would
+   * charge the Buyer a second time.
+   *
+   * `amount` is the NET the Seller receives; the caller subtracts the
+   * Platform_Fee before calling, because `application_fee_amount` is not
+   * compatible with separate charges and transfers.
+   */
+  payoutToMerchant(params: {
+    /** Destination connected account. */
+    merchantRef: string;
+    /** Net amount to land in the Seller's account, in integer cents. */
+    amount: Cents;
+    ref: string;
+    /** Persisted idempotency key; retries MUST reuse this exact value. */
+    nonce: string;
+    /**
+     * The original collection payment reference, when known. Lets the provider
+     * tie the payout to the incoming charge so it succeeds even before those
+     * funds have settled into the platform's available balance.
+     */
+    sourcePaymentRef?: string;
+  }): Promise<TransferResult>;
+
+  /**
+   * Return collected funds to the payer, in whole or in part (Req 4.15).
+   *
+   * The counterpart to {@link PaymentService.payoutToMerchant}: both spend money the
+   * platform already holds, one towards the Seller and one back to the Buyer. A
+   * Cash_Sale dispute resolves to one, the other, or a split of the two.
+   *
+   * `paymentRef` is the ORIGINAL collection reference (`cash_sales.transfer_id`),
+   * not a hold. A Cash_Sale is collected up front, so there is no authorisation to
+   * void and the money has to be actively sent back.
+   *
+   * Omit `amount` to return everything still refundable; pass it to refund part and
+   * leave the remainder releasable to the Seller.
+   *
+   * MUST be idempotent on `nonce`. A resolution can be retried after an ambiguous
+   * provider timeout, and refunding a Buyer twice spends the platform's own money.
+   */
+  refundPayment(params: {
+    paymentRef: string;
+    amount?: Cents;
+    /** Stable idempotency key, persisted by the caller and reused verbatim. */
+    nonce: string;
+    /** Correlation label for provider-side records. */
+    ref?: string;
+  }): Promise<RefundResult>;
+
   /**
    * Commit `amount` of a payer's collateral (Req 5.4).
    *
@@ -310,10 +482,18 @@ export interface PaymentService {
   /** Capture the entire hold amount on Objective_Fraud (Req 8.2). */
   fullCapture(holdId: string): Promise<CaptureResult>;
   /**
+   * Read what the platform currently holds with the provider.
+   *
+   * The only figure in the system the provider owns rather than we do, and therefore
+   * the only way to check that money believed to be held actually is. See
+   * {@link PlatformBalance}.
+   */
+  getPlatformBalance(): Promise<PlatformBalance>;
+  /**
    * Vault a tokenised payment instrument against a payer so later charges
    * (collateral holds, cash-sale transfers) have a source to draw on.
    *
-   * `token` comes from client-side tokenisation (Pinch CaptureJS) — raw card or
+   * `token` comes from client-side tokenisation (Stripe CaptureJS) — raw card or
    * bank details must never reach the server. Optional on the contract because
    * the Mock has no instruments to store.
    */
@@ -324,6 +504,26 @@ export interface PaymentService {
     ipAddress?: string;
   }): Promise<{ sourceId: string }>;
   /**
+   * Open a provider-hosted instrument capture flow for a payer.
+   *
+   * Preferred over {@link attachPaymentSource} where available: the provider
+   * renders its own card fields, so no card number, CVC, or expiry ever enters
+   * our DOM, our forms, or our validation code. The caller passes the returned
+   * secret to the browser and nothing else.
+   */
+  beginInstrumentSetup?(params: { payerId: string }): Promise<InstrumentSetup>;
+  /**
+   * Confirm a completed {@link beginInstrumentSetup} and report the vaulted
+   * instrument.
+   *
+   * Implementations MUST verify the setup belongs to `payerId` before returning,
+   * so a client cannot claim someone else's instrument by guessing an id.
+   */
+  completeInstrumentSetup?(params: {
+    payerId: string;
+    setupId: string;
+  }): Promise<VaultedInstrument>;
+  /**
    * Open a sub-merchant so a User can be paid (Cash_Sale seller, fraud victim).
    * Optional on the contract: a provider without a platform/marketplace model
    * simply does not offer it.
@@ -331,30 +531,56 @@ export interface PaymentService {
   createManagedMerchant?(details: ManagedMerchantDetails): Promise<ManagedMerchant>;
   /** Re-read a sub-merchant's compliance state (polling fallback for webhooks). */
   getManagedMerchant?(merchantRef: string): Promise<ManagedMerchant | null>;
+  /**
+   * Start a provider-hosted onboarding session for a sub-merchant.
+   *
+   * The provider collects everything it needs to pay this User — legal entity,
+   * government registration, date of birth, address, and the disbursement bank
+   * account — on its own pages. That is why {@link ManagedMerchantDetails} no
+   * longer needs to carry bank details: they never reach our server at all.
+   *
+   * Returns a single-use URL to redirect the User to. Links are short-lived; if
+   * one expires the caller requests another rather than reusing it.
+   */
+  createMerchantOnboardingLink?(params: {
+    merchantRef: string;
+    /** Where the provider returns the User once they finish. */
+    returnUrl: string;
+    /** Where the provider sends the User if the link expired mid-flow. */
+    refreshUrl: string;
+  }): Promise<{ url: string; expiresAt?: string }>;
 }
 
 /**
- * KYC contract — implemented by MockService now, Pinch Glassbox later.
+ * Payer creation — the provider Customer a Member pays and posts collateral
+ * against.
+ *
+ * This used to sit on a separate `KycService` interface alongside
+ * `runVerification`, `beginIdentityCheck` and `getIdentitySummary`. That whole
+ * interface is gone: identity verification is now the single Identity_Gate, which
+ * is Connect onboarding state (`merchant_status` with settlements enabled) and
+ * needs no provider call of its own. Creating a payer was never a verification
+ * step — it is a payment prerequisite — so it moved here rather than being
+ * removed.
+ *
+ * Kept as its own interface, and intersected into {@link PaymentKycService}, so
+ * the many existing `PaymentService`-only implementations in tests do not have to
+ * grow a method they never use.
  */
-export interface KycService {
-  /** KYC begins with payer creation (Req 2.1). See {@link PayerDetails}. */
+export interface PayerService {
+  /** Create (or return) the provider payer for a Profile. See {@link PayerDetails}. */
   createPayer(
     profileId: string,
     details?: PayerDetails,
     options?: PayerCreateOptions,
   ): Promise<Payer>;
-  /** Run identity verification; resolves VERIFIED or REJECTED (Req 2.2, 2.3). */
-  runVerification(payerId: string): Promise<KycResult>;
-  /** Retrieve stored verified identity data for a Police_Evidence_Pack (Req 2.5, 8.4). Null when none. */
-  getVerifiedIdentity(profileId: string): Promise<VerifiedIdentity | null>;
 }
 
 /**
  * Optional capability the MockService exposes for demo control: emit a
  * Webhook_Event into the Webhook_Handler, exercising the exact code path a real
- * Pinch webhook would (Req 10). NOT part of the production PaymentService/
- * KycService contract — the real Pinch integration receives webhooks rather
- * than emitting them.
+ * Stripe webhook would (Req 10). NOT part of the production contract — the real
+ * Stripe integration receives webhooks rather than emitting them.
  */
 export interface WebhookEmitter {
   emit(event: WebhookEvent): Promise<void>;

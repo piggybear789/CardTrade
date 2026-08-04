@@ -28,17 +28,24 @@ export async function SiteHeader() {
     ? (await listMyNotifications())
     : null;
 
-  // Surface the Admin link only to admins. RLS scopes this read to the caller's
-  // own profile, so a non-admin can never learn about (or reach) the console.
+  // Surface the staff links only to staff. RLS scopes this read to the caller's own
+  // profile, so a member can never learn about (or reach) either surface.
+  //
+  // Two capabilities, read separately: `is_support` may arbitrate, `is_admin` may also
+  // moderate. An admin sees both links; a support worker sees only Arbitration. This is
+  // navigation only — `requireStaff` / `requireAdmin` re-check on every action, because
+  // hiding a link is not authorization.
   let isAdmin = false;
+  let isStaff = false;
   let displayName: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_admin, display_name')
+      .select('is_admin, is_support, display_name')
       .eq('id', user.id)
       .maybeSingle();
     isAdmin = Boolean(profile?.is_admin);
+    isStaff = isAdmin || Boolean(profile?.is_support);
     displayName = profile?.display_name?.trim() || null;
   }
 
@@ -113,7 +120,7 @@ export async function SiteHeader() {
             </nav>
           )}
 
-          <SiteMenu isAuthenticated={isAuthenticated} isAdmin={isAdmin} />
+          <SiteMenu isAuthenticated={isAuthenticated} isAdmin={isAdmin} isStaff={isStaff} />
         </div>
       </div>
     </header>

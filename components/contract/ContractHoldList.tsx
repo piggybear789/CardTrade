@@ -20,6 +20,9 @@ const HOLD_STATUS: Record<
   PARTIALLY_CAPTURED: { label: 'Partially captured', tone: 'destructive' },
   FULLY_CAPTURED: { label: 'Fully captured', tone: 'destructive' },
   FAILED: { label: 'Failed', tone: 'destructive' },
+  // Destructive, not secondary: "Released" reads as a good outcome, and this is
+  // the opposite — the escrow window ran out and the collateral is gone.
+  EXPIRED: { label: 'Expired — no longer protected', tone: 'destructive' },
 };
 
 export interface ContractHoldListProps {

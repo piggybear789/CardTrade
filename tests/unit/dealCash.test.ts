@@ -1,6 +1,6 @@
 // tests/unit/dealCash.test.ts
 //
-// Private-deal cash settles through Pinch — never as physical cash at handover.
+// Private-deal cash settles through Stripe — never as physical cash at handover.
 
 import { describe, expect, it } from 'vitest';
 

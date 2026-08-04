@@ -17,11 +17,11 @@
 //
 // IDENTITY OR MONEY: verification is not a gate. Two verified parties make the deal
 // binding with nothing held by default; if either is unverified — or the deal opts into
-// DittoEscrow (`collateral_opt_in`) — BOTH are held for the deal's stake
+// DittoBond (`collateral_opt_in`) — BOTH are held for the deal's stake
 // (`domain/deal/dealCollateral.ts`).
 //
-// CASH VIA PINCH: meetup/delivery is goods and inspection only. Any cash component
-// is charged on confirm and settled through Pinch when both mark complete — never
+// CASH VIA STRIPE: meetup/delivery is goods and inspection only. Any cash component
+// is charged on confirm and settled through Stripe when both mark complete — never
 // handed over as physical cash.
 //
 // CRITICAL RULE surfaced here: if either party edits a substantive term (including
@@ -70,6 +70,7 @@ import {
   type ContractHold,
   type ContractParty,
 } from '@/components/contract';
+import { CounterpartyIdentity } from '@/components/identity/CounterpartyIdentity';
 import { DEAL_SECTIONS, currentStep, deriveDealSteps } from '@/domain/contract';
 import { DealStateBadge, type DealState } from '@/components/deals/DealStateBadge';
 import { EditTermsDialog } from '@/components/deals/EditTermsDialog';
@@ -123,7 +124,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-joined': 'Nobody has joined this deal yet — share the link first.',
   'terms-incomplete': 'Set the handover terms before confirming.',
   'escrow-failed':
-    'Escrow could not engage (collateral and/or deal cash via Pinch). Both confirmations were cleared — add a payment method, agree who pays, or verify your identity, and try again.',
+    'The collateral and any deal cash could not be held via Stripe. Both confirmations were cleared — add a payment method, agree who pays, or verify your identity, and try again.',
   'already-recorded': 'You have already marked this deal complete.',
   'invalid-reason': 'Add a short reason.',
   'persistence-error': 'Something went wrong. Please try again.',
@@ -228,7 +229,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
     (iAmCreator ? deal.counterparty_confirmed_at : deal.creator_confirmed_at) !== null;
 
   // Identity or money (or opt-in). Match server `collateralForDeal` so the room
-  // reflects verified-to-verified, unverified, and DittoEscrow opt-in the same way.
+  // reflects verified-to-verified, unverified, and DittoBond opt-in the same way.
   const collateralOutcome = resolveDealCollateral({
     creator: view.creator.isVerified,
     counterparty:
@@ -379,13 +380,13 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
     cashCents == null
       ? 'No cash — goods for goods'
       : deal.cash_payer_id === myUserId
-        ? `You pay ${formatAud(cashCents)} via Pinch`
+        ? `You pay ${formatAud(cashCents)} via Stripe`
         : deal.cash_payer_id
-          ? `${nameOf(them)} pays ${formatAud(cashCents)} via Pinch`
+          ? `${nameOf(them)} pays ${formatAud(cashCents)} via Stripe`
           : `${formatAud(cashCents)} · payer not agreed`;
   const collateralSummary = collateralRequired
     ? collateralOutcome.reason === 'OPT_IN'
-      ? `DittoEscrow · both sides post ${formatAud(collateralStakeCents)}`
+      ? `DittoBond · both sides post ${formatAud(collateralStakeCents)}`
       : `Both sides post ${formatAud(collateralStakeCents)}`
     : 'None required — both parties verified';
 
@@ -461,7 +462,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
       <ContractHeader
         title={deal.title}
         money={
-          cashCents == null ? 'Goods only' : `${formatAud(cashCents)} via Pinch`
+          cashCents == null ? 'Goods only' : `${formatAud(cashCents)} via Stripe`
         }
         parties={
           <ContractPartyLine
@@ -478,6 +479,19 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
       <ContractLiveRow
         action={
           <ContractActionCard step={step} tone={STATE_TONE[deal.state]}>
+            {/* Commitment-point identity disclosure. Like a 2-way trade, a
+                private deal involves no connected account, so this is the only
+                place a party learns the verified legal name of whoever they are
+                about to lock collateral or cash with. Renders nothing until
+                someone has joined, and nothing if they are unverified. */}
+            {them ? (
+              <CounterpartyIdentity
+                counterpartyId={them.id}
+                displayName={nameOf(them)}
+                className="mb-3"
+              />
+            ) : null}
+
             {/* Terms were edited, so both confirmations were cleared. */}
             {termsChangedNotice ? (
               <p
@@ -634,7 +648,11 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 </Button>
                 <ReasonDialog
                   title="Raise a dispute?"
-                  description="Collateral stays held while the dispute is reviewed. Tell us what went wrong."
+                  // Says who decides and what they can do. The previous copy —
+                  // "collateral stays held while the dispute is reviewed" — described
+                  // a review that did not exist: nothing read the DISPUTED state, so
+                  // the holds sat until the card authorisations lapsed on their own.
+                  description="CardTrade support reviews the deal and decides: unwind it, complete it as agreed, or complete it at an adjusted price. Nothing is charged while it is open, and your collateral comes back either way. Tell us what went wrong."
                   confirmLabel="Raise dispute"
                   triggerLabel="Raise dispute"
                   triggerVariant="destructive"
@@ -651,7 +669,48 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
               </div>
             ) : null}
 
-            {deal.state === 'CANCELLED' ? (
+            {/* A disputed deal room used to offer the participant nothing at all — no
+                status, no next step, no indication anyone was looking. Say where it is
+                and what the possible outcomes are, so waiting is informed rather than
+                just silence. */}
+            {deal.state === 'DISPUTED' ? (
+              <div className="space-y-2 text-xs">
+                <p className="font-medium text-foreground">
+                  With CardTrade support for a decision.
+                </p>
+                {deal.dispute_reason ? (
+                  <p className="whitespace-pre-line break-words rounded-md border bg-muted/40 p-2 text-muted-foreground">
+                    {deal.dispute_reason}
+                  </p>
+                ) : null}
+                <p className="text-muted-foreground">
+                  Nothing has been charged. Support will either unwind the deal, complete
+                  it as agreed, or complete it at an adjusted price — and your collateral
+                  is released whichever way it goes.
+                </p>
+              </div>
+            ) : null}
+
+            {/* Once decided, the outcome and the arbitrator's note belong in the room
+                rather than only in a notification the party may have dismissed. */}
+            {deal.dispute_outcome ? (
+              <div className="space-y-1 text-xs">
+                <p className="font-medium text-foreground">
+                  {deal.dispute_outcome === 'REFUND_PAYER'
+                    ? 'Support unwound this deal. Nobody was charged.'
+                    : deal.dispute_outcome === 'SPLIT'
+                      ? 'Support completed this deal at an adjusted price.'
+                      : 'Support upheld this deal on the agreed terms.'}
+                </p>
+                {deal.dispute_resolution_note ? (
+                  <p className="whitespace-pre-line break-words text-muted-foreground">
+                    {deal.dispute_resolution_note}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {deal.state === 'CANCELLED' && !deal.dispute_outcome ? (
               <p className="text-xs text-muted-foreground">
                 {deal.cancel_reason ?? 'No reason was given.'}
               </p>
@@ -894,9 +953,9 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 {
                   label:
                     deal.cash_payer_id === myUserId
-                      ? 'You pay (via Pinch)'
+                      ? 'You pay (via Stripe)'
                       : deal.cash_payer_id
-                        ? `${nameOf(them)} pays (via Pinch)`
+                        ? `${nameOf(them)} pays (via Stripe)`
                         : 'Payer not agreed',
                   value: formatAud(cashCents),
                   total: true,
@@ -915,15 +974,20 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                 ...(cashPayment
                   ? [
                       {
-                        label: 'Pinch status',
+                        label: 'Stripe status',
+                        // Every enum value now has a label. REFUNDED and FAILED were
+                        // both unreachable before dispute resolution existed, and
+                        // FAILED fell through to printing the raw enum name at the user.
                         value:
                           cashPayment.status === 'HELD'
-                            ? 'Held on confirm'
+                            ? 'Authorised, not yet charged'
                             : cashPayment.status === 'SETTLED'
-                              ? 'Settled'
+                              ? cashPayment.refund_cents > 0
+                                ? `Settled at ${formatAud(cashPayment.captured_cents)} (${formatAud(cashPayment.refund_cents)} released)`
+                                : 'Settled'
                               : cashPayment.status === 'REFUNDED'
-                                ? 'Refunded'
-                                : cashPayment.status,
+                                ? 'Released — nothing charged'
+                                : 'Needs attention from support',
                       },
                     ]
                   : deal.state === 'CONFIRMATION' ||
@@ -931,7 +995,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                       deal.state === 'INVITED'
                     ? [
                         {
-                          label: 'Pinch status',
+                          label: 'Stripe status',
                           value: 'Charges when you both confirm',
                           muted: true,
                         },
@@ -942,11 +1006,11 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
           )}
           <p className="text-xs text-muted-foreground">
             {deal.handover_method === 'IN_PERSON'
-              ? 'Meetup is for goods and inspection only. Deal cash settles through Pinch when the deal locks — not handed over in person.'
+              ? 'Meetup is for goods and inspection only. Deal cash settles through Stripe when the deal locks — not handed over in person.'
               : deal.handover_method === 'DELIVERY'
-                ? 'Delivery hands over goods only. Deal cash settles through Pinch when the deal locks — not paid to a courier.'
-                : 'Deal cash settles through Pinch when you both confirm. Handover is for goods only.'}{' '}
-            Collateral, when required, is a separate Pinch hold.
+                ? 'Delivery hands over goods only. Deal cash settles through Stripe when the deal locks — not paid to a courier.'
+                : 'Deal cash settles through Stripe when you both confirm. Handover is for goods only.'}{' '}
+            Collateral, when required, is a separate Stripe hold.
           </p>
         </ContractDetailRow>
 
@@ -1003,16 +1067,16 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
           {!collateralRequired ? (
             <p className="text-muted-foreground">
               {them
-                ? 'You are both DittoShield verified, so this deal is binding on your identities alone. You can still opt into DittoEscrow from Edit value.'
-                : 'You are DittoShield verified. If an unverified member joins, both sides post collateral. You can also require DittoEscrow from Edit value.'}
+                ? 'You are both DittoShield verified, so this deal is binding on your identities alone. You can still opt into DittoBond from Edit value.'
+                : 'You are DittoShield verified. If an unverified member joins, both sides post collateral. You can also require DittoBond from Edit value.'}
             </p>
           ) : (
             <>
               <p className="text-muted-foreground">
                 {collateralOutcome.reason === 'OPT_IN'
                   ? them === null
-                    ? 'DittoEscrow is on, so both sides will post collateral once the deal is confirmed — even if the other party is verified.'
-                    : 'DittoEscrow is on, so both sides post collateral even though you are both DittoShield verified.'
+                    ? 'DittoBond is on, so both sides will post collateral once the deal is confirmed — even if the other party is verified.'
+                    : 'DittoBond is on, so both sides post collateral even though you are both DittoShield verified.'
                   : them === null
                     ? 'You are not DittoShield verified, so both sides will post collateral once the deal is confirmed.'
                     : !me.isVerified && !them.isVerified
@@ -1020,7 +1084,7 @@ function DealRoomBody({ view, myUserId }: DealRoomProps) {
                       : !me.isVerified
                         ? 'You are not DittoShield verified, so both sides post collateral.'
                         : `${nameOf(them)} is not DittoShield verified, so both sides post collateral.`}{' '}
-                Held via Pinch when you both confirm, released as soon as you both mark
+                Held via Stripe when you both confirm, released as soon as you both mark
                 the deal complete.
               </p>
               <ContractMoneyTable

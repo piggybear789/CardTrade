@@ -131,7 +131,7 @@ The top-level stage is the answer to “what happens now?”; history is the ans
 
 The current code proves only part of what the UI indicates:
 
-- `PinchService.placeHold` currently returns a locally encoded mandate reference and does not call a provider pre-approval endpoint.
+- `StripeService.placeHold` currently returns a locally encoded mandate reference and does not call a provider pre-approval endpoint.
 - `MockService.placeHold` emits `hold.active`/`hold.failed` events, but it must be reconciled with the later-charge language and capture outcomes.
 - A cash trade leg is stored on proposal/trade rows but has no charge, settlement, or failure lifecycle.
 - `acceptTradeProposal` creates the Trade, then writes bundle rows/cash and marks the proposal in separate operations. A mid-flow failure can leave inconsistent data.

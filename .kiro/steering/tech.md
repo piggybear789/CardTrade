@@ -17,11 +17,18 @@ npm run dev         :: next dev
 npm run build       :: next build (production build)
 npm run start       :: next start
 npm run typecheck   :: tsc --noEmit
-npm run lint        :: next lint
+npm run lint        :: eslint . (flat config, not `next lint`)
 npm run test        :: vitest --run (single pass, no watch)
 ```
 
 Never start `npm run dev` from an agent turn; it blocks.
+
+ESLint is a flat config (`eslint.config.mjs`) wired to `@next/eslint-plugin-next`,
+`eslint-plugin-react-hooks` and `@typescript-eslint` **directly**. Do not reintroduce
+`eslint-config-next`: its root entry is still eslintrc-style and loads
+`@rushstack/eslint-patch`, which throws under ESLint 9. `next build` swallowed that throw
+and silently skipped linting, so the build passed while nothing checked unused imports or
+hook rules. `next lint` itself is deprecated and removed in Next 16.
 
 Do **not** run `npm run build` or `npm run typecheck` as a routine verification step — they are slow and the user runs them on their own cadence. Validate changes with `npm run test` (or a targeted Vitest project/file) and rely on editor diagnostics for type errors. Only run a build or typecheck when the user explicitly asks for one.
 
@@ -64,13 +71,17 @@ Copy `.env.local.example` to `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — browser-safe
 - `NEXT_PUBLIC_GEOAPIFY_KEY` — browser-safe Geoapify key for address autocomplete + static maps (restrict by HTTP referrer in the Geoapify dashboard)
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only, RLS-bypassing
-- `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `pinch` (real Pinch Payments API)
+- `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `stripe` (real Stripe API)
 - `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks
-- `PINCH_ENV` (`test` | `live`), `PINCH_DEV_ID`/`PINCH_DEV_SECRET`, `PINCH_LIVE_ID`/`PINCH_LIVE_SECRET`, `PINCH_WEBHOOK_SECRET`, `PINCH_KYC_MODE`, `PINCH_MERCHANT_ID` — server-only Pinch config; only the `pk_*` publishable keys may reach the browser
+- `STRIPE_SECRET_KEY` — server-only. The prefix alone selects the mode (`sk_test_` vs `sk_live_`), so there is no separate environment variable to fall out of sync
+- `STRIPE_WEBHOOK_SECRET` — `whsec_...`, verifies the `stripe-signature` header. Get one from `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — the only Stripe value that may reach the browser
 - `PAYOUT_MODE` — `platform` (default) or `direct` (settle Cash_Sales into the seller's sub-merchant)
 
 Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret values back in output.
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/` (`0001_schema.sql`, `0002_rls.sql`, `0003_realtime.sql`, `0004_dispute_fraud.sql`, `0005_merchant_onboarding.sql`). Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0049_collapse_duplicate_verification.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+
+Note the base DDL for `deals` / `deal_holds` / `deal_events` is **not** in `supabase/migrations/` — those tables predate the numbered sequence. Alter them with `add column if not exists` rather than assuming a prior migration defines them.

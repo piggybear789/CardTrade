@@ -2,7 +2,7 @@
 
 // components/sales/CashSaleDemoControls.tsx
 //
-// Demo-only controls for simulating the Pinch payment settlement webhook that
+// Demo-only controls for simulating the Stripe payment settlement webhook that
 // advances a Cash_Sale from PAYMENT_PENDING to ESCROW_HELD (or FAILED). Collapsed
 // by default and labelled as hackathon / test mode so they never read as
 // production payment steps.
@@ -22,12 +22,12 @@ const ERROR_MESSAGES: Record<FireCashSaleWebhookError, string> = {
   unauthenticated: 'Please sign in to use the demo controls.',
   'not-participant': 'Only participants in this sale can use the demo controls.',
   'delivery-failed': 'The simulated webhook could not be delivered.',
-  'demo-disabled': 'Mock payment demos are disabled while Pinch is live.',
+  'demo-disabled': 'Mock payment demos are disabled while Stripe is live.',
   rejected: 'This sale cannot accept that event in its current state.',
 };
 
 const SUCCESS_MESSAGES: Record<DemoCashSaleWebhookKind, string> = {
-  'settle-payment': 'Payment settled — funds are now held in escrow.',
+  'settle-payment': 'Payment settled — NoDitto is now holding the funds.',
   'fail-payment': 'Payment failure delivered — the sale has been cancelled.',
 };
 
@@ -75,7 +75,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               Hackathon · Test Mode
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Simulated payments — not live Pinch Payments
+              Simulated payments — not live Stripe
             </span>
           </span>
         </span>
@@ -89,7 +89,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
       {open ? (
         <div id="cash-sale-demo-body" className="space-y-3 px-4 pb-4">
           <p className="text-xs text-muted-foreground">
-            In production, Pinch Payments delivers a webhook when the payment clears. Simulate
+            In production, Stripe delivers a webhook when the payment clears. Simulate
             that here to advance the sale.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -114,7 +114,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               {busy('fail-payment') ? (
                 <Loader2 className="animate-spin" aria-hidden />
               ) : null}
-              Simulate Pinch Payments failure
+              Simulate Stripe failure
             </Button>
           </div>
         </div>

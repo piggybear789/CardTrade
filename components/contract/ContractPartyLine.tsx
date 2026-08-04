@@ -124,9 +124,6 @@ export function ContractPartyStats({
       {party.legalEntityName ? (
         <p className="truncate text-[11px] text-muted-foreground">
           <span className="font-medium text-foreground">{party.legalEntityName}</span>
-          {party.registrationNumber ? (
-            <span> · {party.registrationNumber}</span>
-          ) : null}
         </p>
       ) : null}
     </div>

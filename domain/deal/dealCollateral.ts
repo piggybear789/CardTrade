@@ -12,8 +12,8 @@
 //       own stake (its agreed collateral, else its cash component, else the flat
 //       default).
 //     * Both parties verified AND `optIn` -> BOTH post collateral anyway
-//       (optional DittoEscrow for high-value meetups). Holds still go through
-//       Pinch on confirm.
+//       (optional DittoBond for high-value meetups). Holds still go through
+//       Stripe on confirm.
 //
 // This replaces the previous deal rule, where a deal could not be created or
 // confirmed unless BOTH parties were verified. A member may now skip merchant
@@ -72,7 +72,7 @@ export type DealCollateralReason =
   | 'BOTH_VERIFIED'
   /** At least one party is unverified, so both post the stake. */
   | 'UNVERIFIED_PARTY'
-  /** Both verified, but the deal opted into DittoEscrow. */
+  /** Both verified, but the deal opted into DittoBond. */
   | 'OPT_IN'
   /** Nobody has joined the share link yet; the creator alone needs nothing. */
   | 'AWAITING_JOIN';

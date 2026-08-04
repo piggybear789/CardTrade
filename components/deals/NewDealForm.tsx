@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // components/deals/NewDealForm.tsx
 //
@@ -60,7 +60,7 @@ import {
 } from '@/lib/marketplace-constants';
 import { formatAud } from '@/lib/format';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
-import { cn } from '@/lib/utils';
+
 
 /** Form fields that can own an inline validation message. */
 type ErrorField =
@@ -188,8 +188,8 @@ const ROLE_OPTIONS: {
   hint: string;
   icon: typeof ShoppingCart;
 }[] = [
-  { value: 'BUYER', label: 'Buying', hint: 'I pay via Pinch', icon: ShoppingCart },
-  { value: 'SELLER', label: 'Selling', hint: 'I get paid via Pinch', icon: Tag },
+  { value: 'BUYER', label: 'Buying', hint: 'I pay via Stripe', icon: ShoppingCart },
+  { value: 'SELLER', label: 'Selling', hint: 'I get paid via Stripe', icon: Tag },
   { value: 'TRADER', label: 'Trading', hint: 'I put goods up', icon: Repeat },
 ];
 
@@ -220,7 +220,7 @@ export interface NewDealFormProps {
   /**
    * True when the creator is not identity verified, so collateral will be held
    * on BOTH sides once the deal is confirmed. When false (verified creator), the
-   * form offers optional DittoEscrow opt-in. Presentation only — the amount is
+   * form offers optional DittoBond opt-in. Presentation only — the amount is
    * resolved server-side by `confirmDeal`.
    */
   collateralRequired?: boolean;
@@ -264,7 +264,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
   const putsGoodsUp = role === 'SELLER' || role === 'TRADER';
 
   const cashLabel =
-    role === 'BUYER' ? 'Cash you pay (via Pinch)' : 'Cash you receive (via Pinch)';
+    role === 'BUYER' ? 'Cash you pay (via Stripe)' : 'Cash you receive (via Stripe)';
 
   // What each side is held for while the creator stays unverified: the deal's own
   // cash value, or the flat default for a pure swap. The server resolves the real
@@ -398,7 +398,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
 
     startTransition(async () => {
       try {
-        // Photos go browser → Storage first, and only their object paths travel
+        // Photos go browser ? Storage first, and only their object paths travel
         // in the action call: bytes in a Server Action body hit Next's size cap,
         // and these photos are the arbitration evidence base, so the original
         // file and its EXIF are worth preserving intact.
@@ -496,7 +496,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
             <p className="flex items-start gap-2 rounded-lg border p-3 text-xs text-muted-foreground">
               <ShieldAlert className="mt-px size-4 shrink-0" aria-hidden />
               <span>
-                DittoEscrow is on — each side posts a Pinch hold once you both
+                DittoBond is on — each side posts a Stripe hold once you both
                 confirm, even if you are both verified.
               </span>
             </p>
@@ -563,10 +563,10 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                   disabled={isPending}
                 />
                 <span>
-                  <span className="font-medium">Require DittoEscrow collateral</span>
+                  <span className="font-medium">Require DittoBond collateral</span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
                     Optional. Both sides post about {formatAud(collateralStakeCents)}{' '}
-                    via Pinch on confirm, even if you are both DittoShield verified.
+                    via Stripe on confirm, even if you are both DittoShield verified.
                   </span>
                 </span>
               </label>
@@ -689,7 +689,7 @@ export function NewDealForm({ collateralRequired = false }: NewDealFormProps) {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Settles through Pinch when you both confirm — not handed over at
+                  Settles through Stripe when you both confirm — not handed over at
                   the meetup.
                 </p>
                 <FieldError id="deal-cash-error" message={cashError} />

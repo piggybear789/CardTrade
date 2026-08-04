@@ -17,7 +17,6 @@ import { CreditCard, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
-import { formatRegistrationNumber } from '@/lib/format';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { AddPaymentMethodForm } from '@/components/payments/AddPaymentMethodForm';
 import { Button } from '@/components/ui/button';
@@ -168,7 +167,7 @@ export function BuyButton({
               <DialogTitle>Add a payment method</DialogTitle>
               <DialogDescription>
                 A card is required to buy. Details are encrypted in your browser
-                by Pinch Payments — we never store the full card number.
+                by Stripe — we never store the full card number.
               </DialogDescription>
             </DialogHeader>
             <AddPaymentMethodForm
@@ -193,7 +192,7 @@ export function BuyButton({
               <DialogTitle>Start a purchase contract</DialogTitle>
               <DialogDescription>
                 This reserves the item and opens a private contract with the seller.
-                You pay through Pinch Payments only after you both agree how the item
+                You pay through Stripe only after you both agree how the item
                 changes hands.
               </DialogDescription>
             </DialogHeader>
@@ -203,7 +202,7 @@ export function BuyButton({
               <div className="rounded-lg border bg-muted/30 p-4">
                 <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
                   <ShieldCheck className="h-4 w-4" aria-hidden />
-                  DittoShield verified via Pinch Payments
+                  DittoShield verified via Stripe
                 </div>
                 <dl className="grid gap-2 text-sm">
                   {sellerIdentity.tradingName ? (
@@ -215,19 +214,13 @@ export function BuyButton({
                     </div>
                   ) : null}
                   <div className="min-w-0">
-                    <dt className="text-muted-foreground">Legal seller</dt>
+                    <dt className="text-muted-foreground">Verified name</dt>
                     <dd className="break-words font-medium">
                       {sellerIdentity.legalEntityName}
                     </dd>
                   </div>
-                  <div className="min-w-0">
-                    <dt className="text-muted-foreground">Registration</dt>
-                    <dd className="break-words font-medium">
-                      {formatRegistrationNumber(sellerIdentity.registrationNumber)}
-                    </dd>
-                  </div>
                   <div>
-                    <dt className="text-muted-foreground">Approved</dt>
+                    <dt className="text-muted-foreground">Verified</dt>
                     <dd>{new Date(sellerIdentity.verifiedAt).toLocaleDateString('en-AU')}</dd>
                   </div>
                 </dl>
@@ -241,7 +234,7 @@ export function BuyButton({
                     {paymentLabel ?? 'Card on file'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Pinch Payments method
+                    Stripe method
                   </p>
                 </div>
                 <Button

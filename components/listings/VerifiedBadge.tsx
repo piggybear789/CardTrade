@@ -28,7 +28,7 @@ export function VerifiedBadge({
         'text-trust inline-flex items-center gap-1 font-medium',
         className,
       )}
-      title="DittoShield verified through Pinch Payments"
+      title="DittoShield verified through Stripe"
       aria-label="DittoShield-verified seller"
     >
       <BadgeCheck

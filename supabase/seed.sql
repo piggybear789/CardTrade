@@ -43,7 +43,7 @@ on conflict (id) do nothing;
 -- =============================================================================
 
 insert into profiles (
-  id, display_name, contact_email, kyc_status, payer_id,
+  id, display_name, contact_email, payer_id,
   merchant_ref, merchant_status, merchant_compliance_status,
   merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled,
   merchant_legal_entity_name, merchant_trading_name, merchant_registration_number,
@@ -51,11 +51,11 @@ insert into profiles (
   merchant_identity_disclosure_consented_at, merchant_identity_verified_at
 )
 values
-  ('11111111-1111-1111-1111-111111111111', 'Alice Nguyen', 'alice@example.com', 'VERIFIED', 'payer_alice', 'mch_seed_alice', 'APPROVED', 'approved', true, true, true, 'Alice Nguyen Collectibles Pty Ltd', 'Alice Cards', '00000000001', 'company', 'seed-identity-alice-v1', now(), now()),
-  ('22222222-2222-2222-2222-222222222222', 'Bob Carter',   'bob@example.com',   'VERIFIED', 'payer_bob',   'mch_seed_bob',   'APPROVED', 'approved', true, true, true, 'Bob Carter Collectibles Pty Ltd', 'Carter Cards', '00000000002', 'company', 'seed-identity-bob-v1', now(), now()),
-  ('33333333-3333-3333-3333-333333333333', 'Carol Diaz',   'carol@example.com', 'VERIFIED', 'payer_carol', 'mch_seed_carol', 'APPROVED', 'approved', true, true, true, 'Carol Diaz Collectibles Pty Ltd', 'Diaz Collectibles', '00000000003', 'company', 'seed-identity-carol-v1', now(), now()),
-  ('44444444-4444-4444-4444-444444444444', 'Dave Ellis',   'dave@example.com',  'VERIFIED', 'payer_dave',  'mch_seed_dave',  'APPROVED', 'approved', true, true, true, 'Dave Ellis Collectibles Pty Ltd', 'Ellis Comics', '00000000004', 'company', 'seed-identity-dave-v1', now(), now()),
-  ('55555555-5555-5555-5555-555555555555', 'Erin Frost',   'erin@example.com',  'VERIFIED', 'payer_erin',  'mch_seed_erin',  'APPROVED', 'approved', true, true, true, 'Erin Frost Collectibles Pty Ltd', 'Frost Coins', '00000000005', 'company', 'seed-identity-erin-v1', now(), now())
+  ('11111111-1111-1111-1111-111111111111', 'Alice Nguyen', 'alice@example.com', 'payer_alice', 'mch_seed_alice', 'APPROVED', 'approved', true, true, true, 'Alice Nguyen Collectibles Pty Ltd', 'Alice Cards', '00000000001', 'company', 'seed-identity-alice-v1', now(), now()),
+  ('22222222-2222-2222-2222-222222222222', 'Bob Carter',   'bob@example.com',   'payer_bob',   'mch_seed_bob',   'APPROVED', 'approved', true, true, true, 'Bob Carter Collectibles Pty Ltd', 'Carter Cards', '00000000002', 'company', 'seed-identity-bob-v1', now(), now()),
+  ('33333333-3333-3333-3333-333333333333', 'Carol Diaz',   'carol@example.com', 'payer_carol', 'mch_seed_carol', 'APPROVED', 'approved', true, true, true, 'Carol Diaz Collectibles Pty Ltd', 'Diaz Collectibles', '00000000003', 'company', 'seed-identity-carol-v1', now(), now()),
+  ('44444444-4444-4444-4444-444444444444', 'Dave Ellis',   'dave@example.com',  'payer_dave',  'mch_seed_dave',  'APPROVED', 'approved', true, true, true, 'Dave Ellis Collectibles Pty Ltd', 'Ellis Comics', '00000000004', 'company', 'seed-identity-dave-v1', now(), now()),
+  ('55555555-5555-5555-5555-555555555555', 'Erin Frost',   'erin@example.com',  'payer_erin',  'mch_seed_erin',  'APPROVED', 'approved', true, true, true, 'Erin Frost Collectibles Pty Ltd', 'Frost Coins', '00000000005', 'company', 'seed-identity-erin-v1', now(), now())
 on conflict (id) do nothing;
 
 -- =============================================================================

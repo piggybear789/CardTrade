@@ -12,12 +12,16 @@ import { usePathname } from 'next/navigation';
 
 import {
   MARKETPLACE_NAV_GROUPS,
+  STAFF_NAV_GROUP,
   isMarketplaceSectionActive,
+  staffNavLinksFor,
+  type MarketplaceNavGroup,
 } from '@/components/layout/marketplace-nav-config';
 import { cn } from '@/lib/utils';
 
 export function MarketplaceNav({
   primaryExtras,
+  staff,
 }: {
   /**
    * Controls belonging to the Marketplace group — the catalog filters. Rendered
@@ -25,12 +29,32 @@ export function MarketplaceNav({
    * together. Visible on mobile even when the section links are not.
    */
   primaryExtras?: ReactNode;
+  /**
+   * The caller's staff capability, as two BOOLEANS.
+   *
+   * WHY NOT THE RESOLVED LINKS. This is a Client Component, so anything the server
+   * hands it has to survive serialization — and a nav link carries `icon`, which is a
+   * Lucide component (`{$$typeof, render}`), not data. Passing the array threw
+   * "Only plain objects can be passed to Client Components from Server Components" on
+   * every page that mounts the shell. Booleans cross the boundary; the icons are
+   * resolved here from this module's own import, which never leaves the client bundle.
+   *
+   * Navigation only. A capability decided in the browser is a suggestion, not a gate —
+   * every staff surface re-checks `requireStaff` server-side.
+   */
+  staff?: { isStaff: boolean; isAdmin: boolean };
 } = {}) {
   const pathname = usePathname();
 
+  const staffLinks = staff ? staffNavLinksFor(staff) : [];
+  const groups: readonly MarketplaceNavGroup[] =
+    staffLinks.length > 0
+      ? [...MARKETPLACE_NAV_GROUPS, { ...STAFF_NAV_GROUP, links: staffLinks }]
+      : MARKETPLACE_NAV_GROUPS;
+
   return (
     <nav aria-label="Marketplace sections" className="flex flex-col gap-5">
-      {MARKETPLACE_NAV_GROUPS.map((group) => {
+      {groups.map((group) => {
         const isMarketplace = group.label === 'Marketplace';
         return (
           // Non-Marketplace groups are desktop-only. Keeping empty wrappers in

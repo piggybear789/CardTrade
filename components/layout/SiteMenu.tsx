@@ -19,10 +19,19 @@ import { cn } from '@/lib/utils';
 
 export interface SiteMenuProps {
   isAuthenticated: boolean;
+  /** May moderate: shows the Admin console link. */
   isAdmin: boolean;
+  /**
+   * May arbitrate: shows the Arbitration link. True for admins too.
+   *
+   * Separate from `isAdmin` because a support worker has the first capability and not
+   * the second, and deriving one from the other is how the two questions would drift
+   * into one wrong answer.
+   */
+  isStaff?: boolean;
 }
 
-export function SiteMenu({ isAuthenticated, isAdmin }: SiteMenuProps) {
+export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenuProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -117,10 +126,21 @@ export function SiteMenu({ isAuthenticated, isAdmin }: SiteMenuProps) {
                 <Button asChild variant="ghost" className="justify-start">
                   <Link href="/notifications">Notifications</Link>
                 </Button>
-                {isAdmin ? (
-                  <Button asChild variant="ghost" className="justify-start">
-                    <Link href="/admin">Admin</Link>
-                  </Button>
+                {isStaff || isAdmin ? (
+                  <>
+                    <div className="my-1 border-t" />
+                    <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
+                      Staff
+                    </p>
+                    <Button asChild variant="ghost" className="justify-start">
+                      <Link href="/admin/arbitration">Cases</Link>
+                    </Button>
+                    {isAdmin ? (
+                      <Button asChild variant="ghost" className="justify-start">
+                        <Link href="/admin">Operations</Link>
+                      </Button>
+                    ) : null}
+                  </>
                 ) : null}
                 <div className="my-1 border-t" />
                 <SignOutButton className="w-full justify-start" />

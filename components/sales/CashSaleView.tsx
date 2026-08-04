@@ -62,6 +62,7 @@ import {
   type ContractParty,
   type ContractPartyStat,
 } from '@/components/contract';
+import { CounterpartyIdentity } from '@/components/identity/CounterpartyIdentity';
 import {
   CASH_SALE_SECTIONS,
   currentStep,
@@ -175,8 +176,41 @@ export interface CashSaleViewProps {
   buyer: SaleParty;
   seller: SaleParty;
   conversationId: string | null;
-  /** When false, hide mock settle/fail webhook buttons (Pinch is live). */
+  /** When false, hide mock settle/fail webhook buttons (Stripe is live). */
   paymentDemoEnabled?: boolean;
+}
+
+/**
+ * Where the seller's money is up to, shown inside the Stripe row.
+ *
+ * Deliberately narrow: it states the release state and points at the Payouts
+ * dashboard for the full picture. It shows no provider transfer reference, no
+ * stored provider error and no retry count — the dashboard owns the member-safe
+ * explanation, and duplicating it here would be two places to keep honest.
+ */
+function SellerReleaseStatus({ sale }: { sale: CashSaleRow }) {
+  const status = sale.seller_payout_status ?? 'NOT_DUE';
+  if (sale.status !== 'COMPLETED' && status === 'NOT_DUE') return null;
+
+  const COPY: Record<string, string> = {
+    NOT_DUE: 'Released to you once the buyer accepts the item, or the inspection window closes.',
+    PENDING: 'Queued for release to your payout account.',
+    SETTLED:
+      'Sent to your payout account. It can take up to four business days to appear.',
+    FAILED: 'Not sent yet. See Payouts for what is holding it up.',
+  };
+
+  return (
+    <p className="mt-3 text-xs text-muted-foreground">
+      {COPY[status] ?? COPY.NOT_DUE}{' '}
+      <Link
+        href="/profile/payouts"
+        className="font-medium underline underline-offset-2 hover:text-foreground"
+      >
+        View payouts
+      </Link>
+    </p>
+  );
 }
 
 /** The bilateral cash-sale contract room. */
@@ -297,6 +331,11 @@ function CashSaleRoom({
 
   const itemTotal = sale.agreed_price_cents;
 
+  // What the seller actually receives: everything except the Platform_Fee.
+  // Shipping is a pass-through to the carrier and belongs to the seller, and the
+  // fee is already computed on the item price alone.
+  const sellerNetCents = Math.max(sale.amount_cents - sale.platform_fee_cents, 0);
+
   // Countdown to automatic completion, rendered from the stored deadline so both
   // parties see the same instant regardless of clock skew.
   const autoCompleteLabel = (() => {
@@ -386,6 +425,16 @@ function CashSaleRoom({
                 : undefined
             }
           >
+            {/* Commitment-point identity disclosure. A cash sale already shows
+                the SELLER's payee-verified name via the buyer disclosure, but
+                that is one-directional: the seller learns nothing about who is
+                buying. This covers both sides. */}
+            <CounterpartyIdentity
+              counterpartyId={iAmBuyer ? sale.seller_id : sale.buyer_id}
+              displayName={them.name}
+              className="mb-3"
+            />
+
             {isLegacy ? (
               <Button asChild variant="outline">
                 <Link href={`/listings/${sale.item_id}`}>Go to the listing</Link>
@@ -425,7 +474,7 @@ function CashSaleRoom({
                       <Check aria-hidden />
                     )}
                     {iAmBuyer
-                      ? `Accept & pay ${formatAud(sale.amount_cents)} with Pinch Payments`
+                      ? `Accept & pay ${formatAud(sale.amount_cents)} with Stripe`
                       : 'Accept terms'}
                   </Button>
                 ) : null}
@@ -443,7 +492,7 @@ function CashSaleRoom({
               </>
             ) : null}
 
-            {/* Mock-only: fire transfer.settled by hand. Hidden when Pinch is live. */}
+            {/* Mock-only: fire transfer.settled by hand. Hidden when Stripe is live. */}
             {paymentDemoEnabled && sale.status === 'PAYMENT_PENDING' ? (
               <CashSaleDemoControls cashSaleId={sale.id} />
             ) : null}
@@ -779,7 +828,7 @@ function CashSaleRoom({
 
                 <p className="mx-auto mt-4 max-w-md text-xs leading-4 text-muted-foreground">
                   Either party can propose terms. Both parties must accept the saved
-                  proposal before Pinch Payments begins collection.
+                  proposal before Stripe begins collection.
                 </p>
               </div>
             ) : (
@@ -827,7 +876,7 @@ function CashSaleRoom({
               {editable ? (
                 <p className="text-xs text-muted-foreground">
                   Both parties must accept version {sale.terms_version} before
-                  Pinch Payments begins collection.
+                  Stripe begins collection.
                 </p>
               ) : null}
             </div>
@@ -836,12 +885,12 @@ function CashSaleRoom({
 
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.payment}
-          label="Pinch Payments"
-          summary={`${formatAud(sale.amount_cents)} · buyer pays via Pinch Payments`}
+          label="Stripe"
+          summary={`${formatAud(sale.amount_cents)} · buyer pays via Stripe`}
         >
           <>
             <ContractMoneyTable
-              ariaLabel="Pinch Payments breakdown"
+              ariaLabel="Stripe breakdown"
               rows={[
                 { label: 'Agreed item price', value: formatAud(itemTotal) },
                 {
@@ -853,12 +902,25 @@ function CashSaleRoom({
                   value: formatAud(sale.platform_fee_cents),
                 },
                 {
-                  label: 'Buyer pays via Pinch Payments',
+                  label: 'Buyer pays via Stripe',
                   value: formatAud(sale.amount_cents),
                   total: true,
                 },
+                // The seller's own number. The rows above are all the BUYER's
+                // outgoing total, so before this the seller could see everything
+                // about the money except the part that reaches them.
+                ...(iAmSeller
+                  ? [
+                      {
+                        label: 'You receive',
+                        value: formatAud(sellerNetCents),
+                        total: true,
+                      },
+                    ]
+                  : []),
               ]}
             />
+            {iAmSeller ? <SellerReleaseStatus sale={sale} /> : null}
             {editable ? (
               <div className="mt-3 flex justify-end">
                 <CashSalePriceDialog
@@ -883,14 +945,14 @@ function CashSaleRoom({
         >
           {sellerBondCents === 0 ? (
             <p className="w-full rounded-lg border bg-background p-4 text-muted-foreground">
-              The seller is DittoShield verified, and the buyer pays through Pinch
+              The seller is DittoShield verified, and the buyer pays through Stripe
               Payments before anything ships, so neither side posts a bond.
             </p>
           ) : (
             <>
               <p className="text-muted-foreground">
                 The seller is not DittoShield verified, so they post a bond. The buyer
-                posts none — Pinch Payments collects their payment up front. The bond is
+                posts none — Stripe collects their payment up front. The bond is
                 released when the contract completes.
               </p>
               <ContractMoneyTable
@@ -964,7 +1026,11 @@ function CashSaleRoom({
         open={confirming === 'dispute'}
         onOpenChange={(next) => setConfirming(next ? 'dispute' : null)}
         title="Raise a dispute?"
-        description="Funds stay locked in escrow while the case is reviewed, and the seller is notified immediately. You cannot undo this."
+        // "locked in escrow" replaced with what actually happens: NoDitto is holding
+        // the funds and stops releasing them. Escrow has a specific legal meaning that
+        // implies a segregated arrangement, and these funds sit in the platform's own
+        // balance — so the plainer description is both accurate and less of a claim.
+        description="NoDitto keeps holding your payment while the case is reviewed, and the seller is notified immediately. You cannot undo this."
         confirmLabel="Raise dispute"
         confirmVariant="destructive"
         pending={busy('dispute')}

@@ -7,6 +7,7 @@ import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Tables, TablesUpdate } from '@/lib/supabase/database.types';
+import { createPayoutNotifier } from '@/lib/notifications/payoutNotifier';
 import { getTrackingService } from '@/domain/services/tracking';
 import {
   createCashSaleOrchestrator,
@@ -14,6 +15,8 @@ import {
   type BuyerRecord,
   type CashSaleOrchestrator,
   type CashSaleOrchestratorDeps,
+  type CashSaleDisputeOutcome,
+  type CashSalePayoutStatus,
   type CashSaleRecord,
   type CashSaleRepository,
   type CreateCashSaleParams,
@@ -28,12 +31,10 @@ type CashSaleRow = Tables<'cash_sales'>;
 type ProfileRow = Pick<
   Tables<'profiles'>,
   | 'id'
-  | 'kyc_status'
   | 'payer_id'
   | 'payment_source_id'
   | 'display_name'
   | 'contact_email'
-  | 'payment_token'
   | 'payment_token_type'
 >;
 
@@ -42,6 +43,7 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
   return {
     id: row.id,
     itemId: row.item_id,
+    itemTitle: row.item_title ?? 'your item',
     buyerId: row.buyer_id,
     sellerId: row.seller_id,
     amountCents: row.amount_cents,
@@ -86,11 +88,21 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
       version: row.seller_identity_version ?? '',
       legalEntityName: row.seller_legal_entity_name ?? '',
       tradingName: row.seller_trading_name,
-      registrationNumber: row.seller_registration_number ?? '',
       organisationType: row.seller_organisation_type,
       verifiedAt: row.seller_identity_verified_at ?? '',
     },
     buyerSellerIdentityConfirmedAt: row.buyer_seller_identity_confirmed_at ?? '',
+    sellerPayoutStatus: row.seller_payout_status ?? 'NOT_DUE',
+    sellerPayoutRef: row.seller_payout_ref ?? null,
+    sellerPayoutNonce: row.seller_payout_nonce ?? null,
+    sellerPayoutAttempts: Number(row.seller_payout_attempts ?? 0),
+    disputeResolution: (row.dispute_resolution ?? null) as CashSaleRecord['disputeResolution'],
+    disputeResolvedAt: row.dispute_resolved_at ?? null,
+    refundCents: Number(row.refund_cents ?? 0),
+    refundStatus: (row.refund_status ?? 'NOT_DUE') as CashSalePayoutStatus,
+    refundRef: row.refund_ref ?? null,
+    refundNonce: row.refund_nonce ?? null,
+    refundAttempts: Number(row.refund_attempts ?? 0),
   };
 }
 
@@ -131,7 +143,7 @@ export function createSupabaseCashSaleRepository(
       const { data } = await client
         .from('profiles')
         .select(
-          'id, kyc_status, payer_id, payment_source_id, display_name, contact_email, payment_token, payment_token_type',
+          'id, payer_id, payment_source_id, display_name, contact_email, payment_token_type',
         )
         .eq('id', buyerId)
         .maybeSingle();
@@ -139,12 +151,10 @@ export function createSupabaseCashSaleRepository(
       return row
         ? {
             profileId: row.id,
-            kycStatus: row.kyc_status,
             payerId: row.payer_id,
             paymentSourceId: row.payment_source_id,
             displayName: row.display_name,
             contactEmail: row.contact_email,
-            paymentToken: row.payment_token,
             paymentTokenType: row.payment_token_type,
           }
         : null;
@@ -176,25 +186,26 @@ export function createSupabaseCashSaleRepository(
       };
     },
 
-    async findPayerRef({ profileId, merchantRef }) {
+    // A Stripe Customer belongs to the PLATFORM and can pay any connected
+    // account, so a single `profiles.payer_id` serves every payee. The former
+    // provider scoped payers to the merchant they were created under, which is
+    // why these two methods used to consult a (profile, merchant) mapping table.
+    // The table is gone (migration 0028); the buyer's own payer id is the answer
+    // regardless of which seller is being paid.
+    async findPayerRef({ profileId }) {
       const { data } = await client
-        .from('payer_refs')
+        .from('profiles')
         .select('payer_id')
-        .eq('profile_id', profileId)
-        .eq('merchant_ref', merchantRef)
+        .eq('id', profileId)
         .maybeSingle();
       return data?.payer_id ?? null;
     },
 
     async savePayerRef(params) {
-      await client.from('payer_refs').upsert(
-        {
-          profile_id: params.profileId,
-          merchant_ref: params.merchantRef,
-          payer_id: params.payerId,
-        },
-        { onConflict: 'profile_id,merchant_ref' },
-      );
+      await client
+        .from('profiles')
+        .update({ payer_id: params.payerId })
+        .eq('id', params.profileId);
     },
 
     async loadItem(itemId: string): Promise<ItemRecord | null> {
@@ -226,7 +237,9 @@ export function createSupabaseCashSaleRepository(
         p_seller_identity_version: params.sellerIdentity.version,
         p_seller_legal_entity_name: params.sellerIdentity.legalEntityName,
         p_seller_trading_name: params.sellerIdentity.tradingName,
-        p_seller_registration_number: params.sellerIdentity.registrationNumber,
+        // Retired vocabulary, kept only to satisfy the applied RPC signature from
+        // 0008. Stripe returns no tax ID, so there is nothing to record.
+        p_seller_registration_number: '',
         p_seller_organisation_type: params.sellerIdentity.organisationType,
         p_seller_identity_verified_at: params.sellerIdentity.verifiedAt,
         p_buyer_identity_confirmed_at: params.buyerSellerIdentityConfirmedAt,
@@ -474,6 +487,111 @@ export function createSupabaseCashSaleRepository(
       return selectSale(client, cashSaleId);
     },
 
+    async listDuePayouts({ limit, maxAttempts }: { limit: number; maxAttempts: number }) {
+      const { data } = await client
+        .from('cash_sales')
+        .select('id')
+        .eq('status', 'COMPLETED')
+        .in('seller_payout_status', ['PENDING', 'FAILED'])
+        .lt('seller_payout_attempts', maxAttempts)
+        // Oldest owed first, so nobody is starved by a steady stream of new sales.
+        .order('seller_payout_due_at', { ascending: true, nullsFirst: true })
+        .limit(limit);
+      return ((data ?? []) as { id: string }[]).map((row) => row.id);
+    },
+
+    async markPayoutDue(cashSaleId: string) {
+      // Delegated to SQL so the nonce is assigned atomically and the same
+      // function serves the auto-complete cron, which cannot call this code.
+      await client.rpc('mark_cash_sale_payout_due', { p_cash_sale_id: cashSaleId });
+      return selectSale(client, cashSaleId);
+    },
+
+    async recordPayoutResult(params: {
+      cashSaleId: string;
+      status: CashSalePayoutStatus;
+      transferId?: string;
+      error?: string;
+    }) {
+      const current = await selectSale(client, params.cashSaleId);
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          seller_payout_status: params.status,
+          ...(params.transferId ? { seller_payout_ref: params.transferId } : {}),
+          ...(params.status === 'SETTLED'
+            ? { seller_payout_at: new Date().toISOString(), seller_payout_error: null }
+            : {}),
+          ...(params.error ? { seller_payout_error: params.error } : {}),
+          // Counts attempts, so a release that keeps failing is visible rather
+          // than silently retrying forever.
+          seller_payout_attempts: (current?.sellerPayoutAttempts ?? 0) + 1,
+        })
+        .eq('id', params.cashSaleId)
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async markRefundDue(params: { cashSaleId: string; amountCents: number }) {
+      // Delegated to SQL for the same reason as the payout nonce: the assignment
+      // and the state guard have to be one atomic step, or two concurrent
+      // resolutions could each mint a nonce and refund the Buyer twice.
+      await client.rpc('mark_cash_sale_refund_due', {
+        p_cash_sale_id: params.cashSaleId,
+        p_amount_cents: params.amountCents,
+      });
+      return selectSale(client, params.cashSaleId);
+    },
+
+    async recordRefundResult(params: {
+      cashSaleId: string;
+      status: CashSalePayoutStatus;
+      refundId?: string;
+      error?: string;
+    }) {
+      const current = await selectSale(client, params.cashSaleId);
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          refund_status: params.status,
+          ...(params.refundId ? { refund_ref: params.refundId } : {}),
+          ...(params.status === 'SETTLED' ? { refund_error: null } : {}),
+          ...(params.error ? { refund_error: params.error } : {}),
+          refund_attempts: (current?.refundAttempts ?? 0) + 1,
+        })
+        .eq('id', params.cashSaleId)
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async recordDisputeResolution(params: {
+      cashSaleId: string;
+      outcome: CashSaleDisputeOutcome;
+      resolvedBy: string;
+      resolvedAt: string;
+      status: 'COMPLETED' | 'REFUNDED';
+    }) {
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          dispute_resolution: params.outcome,
+          dispute_resolved_by: params.resolvedBy,
+          dispute_resolved_at: params.resolvedAt,
+          status: params.status,
+          ...(params.status === 'COMPLETED' ? { completed_at: params.resolvedAt } : {}),
+        })
+        .eq('id', params.cashSaleId)
+        // Conditional on the expected state, so two operators resolving the same
+        // dispute concurrently means the second update matches nothing rather than
+        // overwriting the first decision.
+        .eq('status', 'DISPUTED')
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
     async setItemStatus({ itemId, status }: { itemId: string; status: ItemStatus }) {
       await client.from('items').update({ status }).eq('id', itemId);
     },
@@ -491,10 +609,20 @@ export function createSupabaseCashSaleRepository(
   };
 }
 
-/** Production wiring with provider-independent payment and tracking seams. */
+/**
+ * Production wiring with provider-independent payment and tracking seams.
+ *
+ * The payout notifier is defaulted here rather than at each call site because a
+ * release is triggered from five places — the contract actions, the offer accept
+ * path, the admin retry, the webhook pipeline and the hourly drain job — and a
+ * Seller must be told their money moved regardless of which one ran it. Passing
+ * `notifier` explicitly overrides this; passing `null` disables it.
+ */
 export function createDefaultCashSaleOrchestrator(
   deps: Pick<CashSaleOrchestratorDeps, 'payments'> &
-    Partial<Omit<CashSaleOrchestratorDeps, 'payments'>>,
+    Partial<Omit<CashSaleOrchestratorDeps, 'payments'>> & {
+      notifier?: CashSaleOrchestratorDeps['notifier'] | null;
+    },
 ): CashSaleOrchestrator {
   return createCashSaleOrchestrator({
     repository: deps.repository ?? createSupabaseCashSaleRepository(),
@@ -505,5 +633,7 @@ export function createDefaultCashSaleOrchestrator(
     createNonce: deps.createNonce,
     payoutMode:
       deps.payoutMode ?? (process.env.PAYOUT_MODE === 'direct' ? 'direct' : 'platform'),
+    notifier:
+      deps.notifier === null ? undefined : (deps.notifier ?? createPayoutNotifier()),
   });
 }

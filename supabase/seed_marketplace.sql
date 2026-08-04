@@ -100,7 +100,7 @@ on conflict (id) do nothing;
 --   UNVERIFIED + NONE    -> Nathan: the account that keeps getting reported
 
 insert into cardtrade.profiles (
-  id, display_name, contact_email, kyc_status, kyc_reason, payer_id,
+  id, display_name, contact_email, payer_id,
   payment_token, payment_token_type, payment_method_label,
   merchant_ref, merchant_status, merchant_compliance_status,
   merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled,
@@ -111,7 +111,7 @@ insert into cardtrade.profiles (
   created_at, updated_at
 )
 select
-  v.id::uuid, v.display_name, v.email, v.kyc::cardtrade.kyc_status, v.kyc_reason, v.payer_id,
+  v.id::uuid, v.display_name, v.email, v.payer_id,
   v.token, v.token_type, v.token_label,
   v.merchant_ref, v.merchant_status::cardtrade.merchant_status, v.compliance,
   v.enabled, v.enabled, v.enabled,
@@ -187,7 +187,7 @@ on conflict (id) do nothing;
 
 -- Community members: verified buyers with a payment method, no storefront.
 insert into cardtrade.profiles (
-  id, display_name, contact_email, kyc_status, payer_id,
+  id, display_name, contact_email, payer_id,
   payment_token, payment_token_type, payment_method_label,
   merchant_ref, merchant_status, merchant_compliance_status,
   merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled,
@@ -197,7 +197,7 @@ insert into cardtrade.profiles (
   merchant_identity_verified_at, created_at, updated_at
 )
 select
-  u.id, coalesce(u.raw_user_meta_data->>'display_name', 'Member'), u.email, 'VERIFIED',
+  u.id, coalesce(u.raw_user_meta_data->>'display_name', 'Member'), u.email,
   'payer_seed_' || substr(u.id::text, 1, 8),
   'tok_seed_' || substr(u.id::text, 1, 8), 'bank-account',
   'BSB 062-000 acct ••••' || lpad((('x0' || substr(md5(u.id::text), 1, 7))::bit(32)::int % 10000)::text, 4, '0'),

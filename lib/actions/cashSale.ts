@@ -33,7 +33,10 @@ export type CashSaleActionError =
   | 'stale-terms'
   | 'already-recorded'
   | 'not-supported'
-  | 'invalid-state';
+  | 'invalid-state'
+  | 'refund-failed'
+  | 'invalid-refund-amount'
+  | 'nothing-to-refund';
 
 export type CashSaleActionResult =
   | { ok: true; sale: CashSaleRecord }
@@ -74,6 +77,16 @@ function mapError(error: CashSaleError): CashSaleActionError {
     ALREADY_RECORDED: 'already-recorded',
     NOT_SUPPORTED: 'not-supported',
     INVALID_STATE: 'invalid-state',
+    // Reuses the transfer-failed surface: from a participant's point of view the
+    // distinction between "collection failed" and "release failed" is not
+    // actionable. The queued retry and the operator alert carry the detail.
+    PAYOUT_FAILED: 'transfer-failed',
+    // Dispute resolution (0044). These are surfaced distinctly because, unlike a
+    // release failure, an operator resolving a dispute CAN act on each one: retry,
+    // correct the amount, or check that funds were ever collected.
+    REFUND_FAILED: 'refund-failed',
+    INVALID_REFUND_AMOUNT: 'invalid-refund-amount',
+    NOTHING_TO_REFUND: 'nothing-to-refund',
   };
   return errors[error];
 }

@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ActionBar } from '@/components/trade/ActionBar';
 import { HoldStatus } from '@/components/trade/HoldStatus';
+import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
 import { StateBadge } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
 import { PlaceMap } from '@/components/location';
@@ -58,6 +59,7 @@ import {
   type ContractExchangeItem,
   type ContractParty,
 } from '@/components/contract';
+import { CounterpartyIdentity } from '@/components/identity/CounterpartyIdentity';
 import { TRADE_SECTIONS, currentStep, deriveTradeSteps } from '@/domain/contract';
 import { ensureTradeConversation } from '@/lib/actions/trades';
 import { availableActions } from '@/domain/state-machine/actions';
@@ -240,8 +242,8 @@ function TradeCashSettlementNotice({
           </p>
           <p className="mt-1 text-muted-foreground">
             {iReceive
-              ? 'Finish DittoShield so Pinch Payments can pay the cash into your account, then retry.'
-              : 'They need to finish payout setup before Pinch Payments can move the cash. You can retry once they have.'}
+              ? 'Finish DittoShield so Stripe can pay the cash into your account, then retry.'
+              : 'They need to finish payout setup before Stripe can move the cash. You can retry once they have.'}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {iReceive ? (
@@ -283,7 +285,7 @@ function TradeCashSettlementNotice({
               : `Cash of ${amount} settles after they finish payout setup`}
           </p>
           <p className="mt-1 text-muted-foreground">
-            You can keep trading — collateral covers the goods. Pinch Payments
+            You can keep trading — collateral covers the goods. Stripe
             moves the cash once the receiver can take payouts.
           </p>
           {iReceive ? (
@@ -594,6 +596,18 @@ export function TradeContract({
             <ContractLiveRow
               action={
                 <ContractActionCard step={step} tone={STATE_TONE[trade.state]}>
+                  {/* Commitment-point identity disclosure. A 2-way trade involves
+                      no connected account, so the payee-side verified name shown
+                      on a cash sale does not exist here — this is the only place
+                      a trader learns who they are actually swapping with. Fetched
+                      by the component itself, which re-checks server-side that
+                      the viewer really is a party to this trade. */}
+                  <CounterpartyIdentity
+                    counterpartyId={viewerRole === 'INITIATOR' ? counterpartId : initiatorId}
+                    displayName={them?.name}
+                    className="mb-3"
+                  />
+
                   {viewer && permittedActionCount > 0 ? (
                     <ActionBar
                       tradeId={tradeId}
@@ -649,7 +663,7 @@ export function TradeContract({
                           goods.cashDirection === 'outgoing'
                             ? goods.cashAmountCents
                             : null,
-                        cashLabel: `You also pay ${formatAud(goods.cashAmountCents)} through Pinch Payments`,
+                        cashLabel: `You also pay ${formatAud(goods.cashAmountCents)} through Stripe`,
                         emptyLabel: 'You are putting up no goods.',
                       },
                       {
@@ -672,6 +686,27 @@ export function TradeContract({
                 </ContractDetailRow>
               ) : null}
 
+              {/* Dispatch clock for posted trades. Renders nothing for
+                  IN_PERSON, which has no deadline and never races the ~7-day
+                  collateral authorisation window. */}
+              {trade ? (
+                <ShippingDeadline
+                  deadlineAt={trade.shipping_deadline_at}
+                  overdueAt={trade.shipping_overdue_at}
+                  viewerShipped={Boolean(
+                    viewerRole === 'INITIATOR'
+                      ? trade.initiator_shipped_at
+                      : trade.counterpart_shipped_at,
+                  )}
+                  counterpartShipped={Boolean(
+                    viewerRole === 'INITIATOR'
+                      ? trade.counterpart_shipped_at
+                      : trade.initiator_shipped_at,
+                  )}
+                  className="mb-3"
+                />
+              ) : null}
+
               {trade ? (
                 <TradeTermsRow trade={trade} viewerRole={viewerRole} />
               ) : null}
@@ -681,7 +716,7 @@ export function TradeContract({
               {goods ? (
                 <ContractDetailRow
                   id={TRADE_SECTIONS.money}
-                  label="Pinch Payments"
+                  label="Stripe"
                   summary={
                     goods.cashAmountCents > 0
                       ? `${formatAud(goods.cashAmountCents)} cash ${
@@ -702,8 +737,8 @@ export function TradeContract({
                         {
                           label:
                             goods.cashDirection === 'outgoing'
-                              ? 'You pay via Pinch Payments'
-                              : `${theirName} pays you via Pinch Payments`,
+                              ? 'You pay via Stripe'
+                              : `${theirName} pays you via Stripe`,
                           value: formatAud(goods.cashAmountCents),
                           total: true,
                         },
@@ -715,7 +750,7 @@ export function TradeContract({
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    The cash was fixed when the proposal was accepted. Pinch Payments
+                    The cash was fixed when the proposal was accepted. Stripe
                     settles it once the trade completes, so the receiver needs payout
                     details on file.
                   </p>
@@ -766,7 +801,7 @@ export function TradeContract({
               </ContractDetailRow>
 
               {demoPanel ? (
-                <ContractDetailRow label="Demo" summary="Fire simulated Pinch webhooks">
+                <ContractDetailRow label="Demo" summary="Fire simulated Stripe webhooks">
                   {demoPanel}
                 </ContractDetailRow>
               ) : null}

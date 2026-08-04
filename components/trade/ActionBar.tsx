@@ -73,25 +73,30 @@ const ACTION_CONFIG: Record<TradeAction, ActionConfig> = {
     successMessage: 'Acceptance recorded.',
     variant: 'default',
   },
+  // Both of these describe what RAISING does, not what resolving does. Neither
+  // moves money any more: a participant freezes the trade and states their case, and
+  // a CardTrade operator decides the outcome. The previous copy promised the caller
+  // the other trader's deposit, which was both a promise the caller could not be
+  // entitled to make and an accurate description of a hole that has since been shut.
   RAISE_DISPUTE: {
     label: 'Raise dispute',
-    successMessage: 'Condition dispute raised.',
+    successMessage: 'Dispute raised. A CardTrade operator will review it.',
     variant: 'outline',
     confirm: {
       title: 'Raise a condition dispute?',
       description:
-        'Use this when the item is not in the condition described. We take $20.00 from the other trader towards return postage. You cannot undo this.',
+        'Use this when the item is not in the condition described. Both deposits stay frozen while a CardTrade operator reviews it. If the dispute is upheld, $20.00 goes from the other trader towards return postage.',
       confirmLabel: 'Raise dispute',
     },
   },
   REPORT_FRAUD: {
     label: 'Report fraud',
-    successMessage: 'Fraud reported.',
+    successMessage: 'Fraud reported. A CardTrade operator will review it.',
     variant: 'destructive',
     confirm: {
       title: 'Report fraud?',
       description:
-        'Use this for an empty box or a fake item. We take the other trader\u2019s full deposit and pay it to you. You cannot undo this.',
+        'Use this for an empty box or a fake item. This freezes both deposits and sends the trade to a CardTrade operator, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged.',
       confirmLabel: 'Report fraud',
     },
   },

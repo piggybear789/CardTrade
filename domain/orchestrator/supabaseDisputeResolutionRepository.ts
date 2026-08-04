@@ -14,13 +14,6 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { PreAuthHold } from '../services/types';
 import {
-  buildEvidencePackPdf,
-  evidencePackStoragePath,
-  type EvidencePackDocument,
-  type EvidencePackGenerator,
-  type EvidencePackInput,
-} from './evidencePack';
-import {
   createDisputeResolutionOrchestrator,
   type DisputeHold,
   type DisputeResolutionDeps,
@@ -30,9 +23,6 @@ import {
 
 /** The Supabase admin client type (service-role, RLS-bypassing). */
 type AdminClient = ReturnType<typeof createAdminClient>;
-
-/** Supabase Storage bucket holding generated Police_Evidence_Pack PDFs. */
-export const EVIDENCE_PACK_BUCKET = 'evidence-packs';
 
 /**
  * Build a {@link DisputeResolutionRepository} backed by the Supabase admin
@@ -154,49 +144,22 @@ export function createSupabaseDisputeResolutionRepository(
         .eq('id', params.tradeId);
     },
 
-    async recordEvidencePack(params): Promise<void> {
-      await client
-        .from('trades')
-        .update({
-          evidence_pack_path: params.storagePath,
-          evidence_pack_complete: params.complete,
-        })
-        .eq('id', params.tradeId);
-    },
-  };
-}
-
-/**
- * Build a Storage-backed {@link EvidencePackGenerator}: it reuses the pure
- * {@link buildEvidencePackPdf} builder and uploads the resulting bytes to the
- * `evidence-packs` Supabase Storage bucket, returning the stored path (Req 8.4).
- */
-export function createSupabaseEvidencePackGenerator(
-  client: AdminClient = createAdminClient(),
-): EvidencePackGenerator {
-  return {
-    async generate(input: EvidencePackInput): Promise<EvidencePackDocument> {
-      const bytes = buildEvidencePackPdf(input);
-      const storagePath = evidencePackStoragePath(input.tradeId);
-      await client.storage.from(EVIDENCE_PACK_BUCKET).upload(storagePath, bytes, {
-        contentType: 'application/pdf',
-        upsert: true,
-      });
-      return { storagePath, bytes, byteLength: bytes.byteLength };
-    },
   };
 }
 
 /**
  * Default production dispute/fraud resolution orchestrator: a Supabase-backed
- * repository + Storage-backed evidence-pack generator, with the caller supplying
- * the bound Trade Orchestrator, the payment service, and the KYC service.
+ * repository, with the caller supplying the bound Trade Orchestrator and the
+ * payment service.
+ *
+ * Takes no KYC dependency: the identity-disclosure step this flow used to perform
+ * has been removed, so no verified identity field is read.
  *
  * Callers may override any dependency (e.g. inject a fake repository in an
  * integration test).
  */
 export function createDefaultDisputeResolutionOrchestrator(
-  deps: Pick<DisputeResolutionDeps, 'orchestrator' | 'payments' | 'kyc'> &
+  deps: Pick<DisputeResolutionDeps, 'orchestrator' | 'payments'> &
     Partial<DisputeResolutionDeps>,
 ): DisputeResolutionOrchestrator {
   const client = createAdminClient();
@@ -204,8 +167,6 @@ export function createDefaultDisputeResolutionOrchestrator(
     orchestrator: deps.orchestrator,
     repository: deps.repository ?? createSupabaseDisputeResolutionRepository(client),
     payments: deps.payments,
-    kyc: deps.kyc,
-    evidencePack: deps.evidencePack ?? createSupabaseEvidencePackGenerator(client),
     now: deps.now,
     maxFullCaptureAttempts: deps.maxFullCaptureAttempts,
   });

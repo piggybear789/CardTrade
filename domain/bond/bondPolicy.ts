@@ -4,16 +4,18 @@
 // verification status.
 //
 // THE RULE (revises Req 2.4 + 5.4). Trust is either identity or money:
-//   * Verified   -> no bond. A Trader is "verified" when Managed Merchant
-//     onboarding is APPROVED (`merchant_status`), so they are identifiable and
-//     pursuable and trade with zero friction and zero cost.
+//   * Verified   -> no bond. A Trader is "verified" when the Identity_Gate is
+//     satisfied — Connect onboarding APPROVED with settlements enabled (see
+//     `domain/identity/identityGate.ts`) — so they are identifiable and pursuable
+//     and trade with zero friction and zero cost.
 //   * Anything else -> a bond sized from the Item's Fair_Market_Value. An
 //     unverified Trader is anonymous, so the only remedy that works on the day
 //     is money already in hand.
 //
-// Trades (including cash terms) are never blocked on verification — only the
-// bond requirement changes. Cash_Sale purchase still needs an approved seller
-// identity so the buyer can pay them; that is a separate gate.
+// NOTE: entering a Trade IS now gated on the Identity_Gate (Req 14.2), because a
+// fraud resolution can pay captured collateral to either trader. This module still
+// only decides the BOND SIZE; it does not gate anything itself. An unverified
+// Trader reaching here means a caller skipped that gate.
 //
 // This replaces the previous model where EVERY Trader posted 100% of FMV and
 // only verified Traders could trade at all. The change matters because holds are

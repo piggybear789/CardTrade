@@ -1,17 +1,24 @@
 // tests/unit/cashSaleDirectPayout.test.ts
 //
 // `direct` payout mode on a Cash_Sale contract (Req 4.8, 4.9): once both parties
-// accept the terms, funds are collected into the Seller's sub-merchant with the
-// flat Platform_Fee retained as the application fee, the Buyer's stored token
-// materialises a payer on that sub-merchant, and an unpayable Seller never gets
-// a payment submitted.
+// accept the terms, funds are collected and routed to the Seller's connected
+// account with the flat Platform_Fee retained, an existing payer is reused rather
+// than duplicated, and an unpayable Seller never gets a payment submitted.
+//
+// The Buyer's payer is PLATFORM-SCOPED. The previous provider scoped payers to the
+// merchant they were created under, so paying a newly-onboarded Seller meant
+// minting a second payer on that sub-merchant from a stored, reusable card token.
+// A Stripe Customer can pay any connected account, so no such token is kept.
 
 import { describe, expect, it } from 'vitest';
 
 import {
   acceptCashSaleTerms,
+  confirmCashSaleHandover,
   initiateCashSale,
+  MAX_PAYOUT_ATTEMPTS,
   platformFeeCentsFor,
+  processDueCashSalePayouts,
   updateCashSaleTerms,
   type CashSaleOrchestratorDeps,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
@@ -43,13 +50,14 @@ async function runToPayment(options: {
   payee?: MerchantRecord | null;
   buyer?: typeof BUYER;
   existingPayerRef?: string | null;
+  payoutStatus?: 'SETTLED' | 'FAILED';
 }) {
   const { repository, state } = makeCashSaleRepository({
     payee: options.payee,
     buyer: options.buyer,
     existingPayerRef: options.existingPayerRef,
   });
-  const { payments, calls } = makePayments();
+  const { payments, calls } = makePayments({ payoutStatus: options.payoutStatus });
   const deps: CashSaleOrchestratorDeps = {
     repository,
     payments: payments as unknown as PaymentService,
@@ -58,7 +66,7 @@ async function runToPayment(options: {
   };
 
   const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
-  if (!created.ok) return { created, state, calls, result: created };
+  if (!created.ok) return { deps, created, state, calls, result: created };
 
   const terms = await updateCashSaleTerms(deps, {
     actorId: BUYER.profileId,
@@ -79,27 +87,122 @@ async function runToPayment(options: {
     termsVersion: terms.sale.termsVersion,
   });
 
-  return { created, state, calls, result };
+  return { deps, created, state, calls, result };
 }
 
 describe('cash sale — direct payout mode', () => {
-  it('reuses the stored token to create a payer on the seller sub-merchant and passes the platform fee as the application fee', async () => {
+  it('collects into the platform balance and does NOT pay the seller at agreement', async () => {
     const { state, calls, result } = await runToPayment({});
 
     expect(result.ok).toBe(true);
+
+    // One platform-scoped payer, created with no sub-merchant target and no card
+    // token — the provider needs neither to pay a connected account.
     expect(calls.createPayer).toEqual([
-      { merchantRef: 'mch_seller', token: 'tkn_reusable' },
+      { profileId: BUYER.profileId, email: BUYER.contactEmail },
     ]);
-    expect(state.payerRefs).toEqual({ mch_seller: 'payer_on_mch_seller' });
+    expect(state.payerRefs).toEqual({ mch_seller: 'payer_platform_new' });
+
+    // Collection carries NO merchantRef even in `direct` mode. Passing one made
+    // the provider forward to the Seller at agreement time — before shipping and
+    // before the Buyer could inspect — which meant the money was already gone
+    // when a dispute could first arise. That is not escrow.
     expect(calls.transfers).toEqual([
       {
-        payerId: 'payer_on_mch_seller',
+        payerId: 'payer_platform_new',
         nonce: expect.any(String),
-        merchantRef: 'mch_seller',
-        applicationFee: platformFeeCentsFor(ITEM.fmvCents),
+        merchantRef: undefined,
+        applicationFee: undefined,
         amount: ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents),
       },
     ]);
+
+    // And critically: the Seller has not been paid yet.
+    expect(calls.payouts).toHaveLength(0);
+  });
+
+  it('releases the net to the seller once both parties confirm handover', async () => {
+    const { deps, created, calls, result } = await runToPayment({});
+    expect(result.ok).toBe(true);
+    if (!created.ok) throw new Error('setup failed');
+    const cashSaleId = created.sale.id;
+
+    // Both handover confirmations complete the sale, which is what makes the
+    // Seller's money owed (Req 4.3).
+    await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
+    const completed = await confirmCashSaleHandover(deps, {
+      actorId: ITEM.ownerId,
+      cashSaleId,
+    });
+
+    expect(completed.ok).toBe(true);
+    expect(completed.ok && completed.sale.status).toBe('COMPLETED');
+
+    // Exactly one release, for the agreed price — the Platform_Fee stays behind
+    // in the platform balance because `application_fee_amount` is incompatible
+    // with separate charges and transfers.
+    const fee = platformFeeCentsFor(ITEM.fmvCents);
+    expect(calls.payouts).toEqual([
+      {
+        merchantRef: 'mch_seller',
+        nonce: `payout:${cashSaleId}`,
+        amount: ITEM.fmvCents + fee - fee,
+        sourcePaymentRef: 'transfer-1',
+      },
+    ]);
+
+    // The Buyer was charged exactly once across the whole lifecycle. This is the
+    // assertion that would catch a release implemented with `requestTransfer`.
+    expect(calls.transfers).toHaveLength(1);
+    expect(completed.ok && completed.sale.sellerPayoutStatus).toBe('SETTLED');
+  });
+
+  it('leaves the release owed and retryable when the provider rejects it', async () => {
+    const { deps, created, calls } = await runToPayment({ payoutStatus: 'FAILED' });
+    if (!created.ok) throw new Error('setup failed');
+    const cashSaleId = created.sale.id;
+
+    await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
+    const completed = await confirmCashSaleHandover(deps, {
+      actorId: ITEM.ownerId,
+      cashSaleId,
+    });
+
+    // The sale still completed for the participants — a failed release is an
+    // operator problem, not something to block the Buyer's purchase on.
+    expect(completed.ok).toBe(true);
+    expect(completed.ok && completed.sale.status).toBe('COMPLETED');
+    // But it is recorded as owed, so it can be retried rather than lost.
+    expect(completed.ok && completed.sale.sellerPayoutStatus).toBe('FAILED');
+    expect(calls.payouts).toHaveLength(1);
+  });
+
+  it('recovers a stuck release on a later drain pass', async () => {
+    // First attempt fails, mirroring a seller who had not finished payout
+    // onboarding or a provider blip.
+    const { deps, created, calls } = await runToPayment({ payoutStatus: 'FAILED' });
+    if (!created.ok) throw new Error('setup failed');
+    const cashSaleId = created.sale.id;
+
+    await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
+    await confirmCashSaleHandover(deps, { actorId: ITEM.ownerId, cashSaleId });
+    expect(calls.payouts).toHaveLength(1);
+
+    // The queue still lists it, so the money is not stranded.
+    const stillOwed = await deps.repository.listDuePayouts({
+      limit: 10,
+      maxAttempts: MAX_PAYOUT_ATTEMPTS,
+    });
+    expect(stillOwed).toEqual([cashSaleId]);
+
+    // Now the provider accepts. The retry reuses the SAME nonce, which is what
+    // makes re-running the drain safe if an earlier attempt actually succeeded
+    // but the response was lost.
+    const drained = await processDueCashSalePayouts(
+      { ...deps, payments: makePayments({}).payments as unknown as PaymentService },
+      { limit: 10 },
+    );
+    expect(drained).toMatchObject({ considered: 1, settled: 1, stillOwed: 0 });
   });
 
   it('reuses an existing payer reference instead of creating another', async () => {

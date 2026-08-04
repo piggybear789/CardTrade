@@ -18,7 +18,7 @@ export type CashSaleStatus = Enums<'cash_sale_status'>;
 /** Label + badge tone for each cash-sale status. */
 export const CASH_SALE_STATUS_MAP: ContractStatusMap<CashSaleStatus> = {
   AGREEMENT: { label: 'Agreeing terms', tone: 'secondary' },
-  PAYMENT_PENDING: { label: 'Pinch Payments pending', tone: 'secondary' },
+  PAYMENT_PENDING: { label: 'Stripe pending', tone: 'secondary' },
   ESCROW_HELD: { label: 'Funds confirmed', tone: 'default' },
   IN_TRANSIT: { label: 'In transit', tone: 'default' },
   HANDOVER: { label: 'Handover', tone: 'default' },
@@ -26,7 +26,7 @@ export const CASH_SALE_STATUS_MAP: ContractStatusMap<CashSaleStatus> = {
   COMPLETED: { label: 'Completed', tone: 'default' },
   DISPUTED: { label: 'Disputed', tone: 'destructive' },
   CANCELLED: { label: 'Cancelled', tone: 'outline' },
-  FAILED: { label: 'Pinch Payments failed', tone: 'destructive' },
+  FAILED: { label: 'Stripe failed', tone: 'destructive' },
   REFUNDED: { label: 'Refunded', tone: 'outline' },
 };
 

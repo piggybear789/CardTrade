@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   applyComplianceUpdate,
   canReceiveFunds,
+  sellerIdentityDisclosure,
   deriveMerchantStatus,
   submitMerchantOnboarding,
   type MerchantRecord,
@@ -17,16 +18,13 @@ import {
 } from '@/domain/orchestrator/merchantOnboarding';
 import type { ManagedMerchant, ManagedMerchantDetails, PaymentService } from '@/domain/services/types';
 
+// Deliberately tiny: with provider-hosted onboarding the provider collects and
+// verifies the bank account, government registration, date of birth and address
+// on its own pages, so none of it is submitted from here.
 const DETAILS: ManagedMerchantDetails = {
-  legalEntityName: 'Jane Collector Pty Ltd',
-  tradingName: 'Jane Collector',
   businessEmail: 'jane@example.com',
-  businessRegistrationNumber: '12345678901',
-  bankAccountBsb: '012001',
-  bankAccountNumber: '12345678',
-  contact: { email: 'jane@example.com' },
-  ipAddress: '203.0.113.10',
-  userAgent: 'test-agent',
+  tradingName: 'Jane Collector',
+  legalEntityName: 'Jane Collector',
 };
 
 /** In-memory repository capturing the last update for assertions. */
@@ -117,6 +115,96 @@ describe('deriveMerchantStatus', () => {
       'PENDING',
     );
     expect(deriveMerchantStatus({ settlementsEnabled: false })).toBe('PENDING');
+  });
+});
+
+describe('sellerIdentityDisclosure', () => {
+  /** An approved, payable Stripe-onboarded seller. */
+  function approved(overrides: Partial<MerchantRecord> = {}): MerchantRecord {
+    return baseRecord({
+      merchantRef: 'acct_1',
+      merchantStatus: 'APPROVED',
+      settlementsEnabled: true,
+      legalEntityName: 'Jane Collector',
+      identityVersion: 'acct_1:2026-07-25T00:00:00.000Z',
+      identityDisclosureConsentedAt: '2026-07-25T00:00:00.000Z',
+      identityVerifiedAt: '2026-07-26T00:00:00.000Z',
+      ...overrides,
+    });
+  }
+
+  // REGRESSION. The guard used to require `registrationNumber`, which
+  // `0028_stripe_migration.sql` records as deprecated and null for every
+  // Stripe-onboarded seller and which `submitMerchantOnboarding` hardcodes to
+  // null. The disclosure was therefore always null in production, so
+  // `agreeCashSale` failed with SELLER_IDENTITY_UNVERIFIED and buying and offers
+  // were blocked for every real seller. Only seeded demo sellers, which hardcode
+  // a fake ABN, ever passed.
+  it('discloses a Stripe-onboarded seller who has no registration number', () => {
+    const disclosure = sellerIdentityDisclosure(approved({ registrationNumber: null }));
+
+    expect(disclosure).not.toBeNull();
+    expect(disclosure?.legalEntityName).toBe('Jane Collector');
+    expect(disclosure?.sellerId).toBe('profile-1');
+  });
+
+  it('carries no registration number in the disclosed shape', () => {
+    const disclosure = sellerIdentityDisclosure(approved());
+
+    expect(disclosure).not.toBeNull();
+    expect(disclosure).not.toHaveProperty('registrationNumber');
+  });
+
+  it('withholds a disclosure when settlements are not enabled', () => {
+    // APPROVED without settlements is not payable, so there is nothing to
+    // disclose an identity for.
+    expect(sellerIdentityDisclosure(approved({ settlementsEnabled: false }))).toBeNull();
+  });
+
+  it('withholds a disclosure without a provider-verified legal name', () => {
+    expect(sellerIdentityDisclosure(approved({ legalEntityName: null }))).toBeNull();
+  });
+
+  // REGRESSION. Every APPROVED seller in the live database has a null
+  // `merchant_identity_version`, because the column is only written by
+  // `submitMerchantOnboarding` and `0031_reset_provider_state.sql` nulls it.
+  // Requiring it withheld the disclosure and blocked buying just as the
+  // registration-number condition did. The version is internal bookkeeping, so it
+  // is derived when absent.
+  it('derives a stable version when none is stored', () => {
+    const disclosure = sellerIdentityDisclosure(approved({ identityVersion: null }));
+
+    expect(disclosure).not.toBeNull();
+    expect(disclosure?.version).toBe('acct_1:2026-07-26T00:00:00.000Z');
+  });
+
+  it('prefers a stored version over the derived one', () => {
+    const disclosure = sellerIdentityDisclosure(approved({ identityVersion: 'stored-v2' }));
+
+    expect(disclosure?.version).toBe('stored-v2');
+  });
+
+  it('changes the derived version when the provider re-verifies', () => {
+    const before = sellerIdentityDisclosure(approved({ identityVersion: null }));
+    const after = sellerIdentityDisclosure(
+      approved({ identityVersion: null, identityVerifiedAt: '2026-08-01T00:00:00.000Z' }),
+    );
+
+    expect(before?.version).not.toBe(after?.version);
+  });
+
+  it('withholds a disclosure before the provider has verified identity', () => {
+    expect(sellerIdentityDisclosure(approved({ identityVerifiedAt: null }))).toBeNull();
+  });
+
+  it('withholds a disclosure without buyer-disclosure consent', () => {
+    expect(
+      sellerIdentityDisclosure(approved({ identityDisclosureConsentedAt: null })),
+    ).toBeNull();
+  });
+
+  it('withholds a disclosure for a null merchant', () => {
+    expect(sellerIdentityDisclosure(null)).toBeNull();
   });
 });
 
@@ -223,6 +311,65 @@ describe('applyComplianceUpdate', () => {
       settlementsEnabled: true,
       decisionAt: '2026-07-25T01:00:00.000Z',
     });
+  });
+
+  // Req 17.3 / 21.4. The verified legal name is the buyer-facing disclosure. A
+  // later provider report that omits it must not blank a name already shown to a
+  // Buyer, so the write is monotonic: absent to present only.
+  it('never blanks a stored legal name when a later report omits it', async () => {
+    const repository = makeRepository(
+      baseRecord({
+        merchantRef: 'mch_1',
+        merchantStatus: 'APPROVED',
+        settlementsEnabled: true,
+        legalEntityName: 'Jane Collector',
+        identityVerifiedAt: '2026-07-25T00:00:00.000Z',
+      }),
+    );
+
+    await applyComplianceUpdate(
+      { repository, payments: {} as PaymentService, now: () => new Date('2026-07-26T00:00:00Z') },
+      { merchantRef: 'mch_1', complianceStatus: 'approved', settlementsEnabled: true },
+    );
+
+    expect(repository.updates[0].legalEntityName).toBe('Jane Collector');
+  });
+
+  it('records a legal name that arrives for the first time', async () => {
+    const repository = makeRepository(
+      baseRecord({ merchantRef: 'mch_1', merchantStatus: 'PENDING' }),
+    );
+
+    await applyComplianceUpdate(
+      { repository, payments: {} as PaymentService, now: () => new Date('2026-07-26T00:00:00Z') },
+      {
+        merchantRef: 'mch_1',
+        complianceStatus: 'approved',
+        settlementsEnabled: true,
+        legalName: 'Jane Collector',
+      },
+    );
+
+    expect(repository.updates[0].legalEntityName).toBe('Jane Collector');
+  });
+
+  it('preserves the first verification timestamp across later reports', async () => {
+    const repository = makeRepository(
+      baseRecord({
+        merchantRef: 'mch_1',
+        merchantStatus: 'APPROVED',
+        settlementsEnabled: true,
+        legalEntityName: 'Jane Collector',
+        identityVerifiedAt: '2026-07-25T00:00:00.000Z',
+      }),
+    );
+
+    await applyComplianceUpdate(
+      { repository, payments: {} as PaymentService, now: () => new Date('2026-08-01T00:00:00Z') },
+      { merchantRef: 'mch_1', complianceStatus: 'approved', settlementsEnabled: true },
+    );
+
+    expect(repository.updates[0].identityVerifiedAt).toBe('2026-07-25T00:00:00.000Z');
   });
 
   it('treats absent flags as unchanged rather than false', async () => {

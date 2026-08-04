@@ -2,7 +2,7 @@
 //
 // The deterministic Mock_Service for the hackathon MVP. It implements the
 // PaymentService, KycService, and WebhookEmitter contracts from
-// `domain/services/types.ts`, simulating the Pinch Payments REST API and Pinch
+// `domain/services/types.ts`, simulating the Stripe REST API and Stripe
 // Glassbox KYC without any real payment processing.
 //
 // Design goals (see design.md — "MockService (this phase)"):
@@ -16,10 +16,10 @@
 //     corresponding WebhookEvent and either emits it immediately (auto mode) or
 //     enqueues it for the caller/UI to fire manually (the default). Emission
 //     POSTs a signed envelope to the configured `webhookUrl`, exercising the
-//     exact code path a real Pinch webhook would.
+//     exact code path a real Stripe webhook would.
 //   * SIGNATURE-STUBBED — webhook payloads are signed with a shared secret using
 //     HMAC-SHA256 over the raw body, producing the same header contract the real
-//     Pinch integration will verify (Req 10.1, 10.2).
+//     Stripe integration will verify (Req 10.1, 10.2).
 //
 // This module is server-side only (it uses `node:crypto` and `fetch`); it is
 // intentionally kept out of the pure state-machine/validation core.
@@ -29,18 +29,20 @@ import { createHash, createHmac } from 'node:crypto';
 import type {
   CaptureResult,
   Cents,
-  KycResult,
-  KycService,
+  InstrumentSetup,
   ManagedMerchant,
   ManagedMerchantDetails,
   Payer,
+  PayerService,
   PayerCreateOptions,
   PayerDetails,
   PaymentService,
+  PlatformBalance,
   PreAuthHold,
+  RefundResult,
   SignedWebhookEnvelope,
   TransferResult,
-  VerifiedIdentity,
+  VaultedInstrument,
   WebhookEmitter,
   WebhookEvent,
   WebhookEventPayload,
@@ -55,13 +57,13 @@ import type {
  * The HTTP header carrying the HMAC signature of the webhook body. The
  * Webhook_Handler recomputes the HMAC over the raw body and compares it to this
  * header before applying any state change (Req 10.1, 10.2). Kept as a shared
- * constant so both the emitter (Mock now / Pinch later) and the handler agree
+ * constant so both the emitter (Mock now / Stripe later) and the handler agree
  * on the contract.
  */
-export const PINCH_SIGNATURE_HEADER = 'x-pinch-signature';
+export const MOCK_SIGNATURE_HEADER = 'x-mock-signature';
 
 /** The HTTP header carrying the idempotency key (the Webhook_Event id, Req 10.5). */
-export const PINCH_EVENT_ID_HEADER = 'x-pinch-event-id';
+export const MOCK_EVENT_ID_HEADER = 'x-stripe-event-id';
 
 /**
  * Compute the webhook signature: an HMAC-SHA256 (hex) over the exact raw body
@@ -149,15 +151,13 @@ const DEFAULT_CLOCK_BASE_MS = Date.parse('2025-01-01T00:00:00.000Z');
  * contracts. A single instance holds the simulated provider state (payers,
  * holds, verified identities) and a queue of pending Webhook_Events.
  */
-export class MockService implements PaymentService, KycService, WebhookEmitter {
+export class MockService implements PaymentService, PayerService, WebhookEmitter {
   private readonly transport: WebhookTransport;
 
   /** Provider payer keyed by owning profile id. */
   private readonly payersByProfile = new Map<string, Payer>();
   /** Reverse lookup: profile id keyed by payer id (for KYC + webhook payloads). */
   private readonly profileByPayer = new Map<string, string>();
-  /** Stored verified identity data, populated on a VERIFIED run (Req 2.5, 8.4). */
-  private readonly identities = new Map<string, VerifiedIdentity>();
   /** Simulated hold ledger keyed by hold id. */
   private readonly holds = new Map<string, PreAuthHold>();
   /** Events awaiting manual emission (when `scenario.autoEmit` is false). */
@@ -177,7 +177,7 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
   /**
    * Create a provider payer for a Profile (Req 2.1). Deterministic id, no
    * webhook. `_details` (name/email) is accepted for contract parity with the
-   * real Pinch binding and deliberately ignored: the Mock derives ids from the
+   * real Stripe binding and deliberately ignored: the Mock derives ids from the
    * profile id alone so results stay reproducible.
    */
   async createPayer(
@@ -213,34 +213,11 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
     };
   }
 
-  /** Run identity verification, resolving VERIFIED or REJECTED per the scenario (Req 2.2, 2.3). */
-  async runVerification(payerId: string): Promise<KycResult> {
-    const outcome = this.opts.scenario?.kycOutcome ?? 'VERIFIED';
-    const profileId = this.profileByPayer.get(payerId);
+  // `runVerification` used to live here, resolving VERIFIED or REJECTED from a
+  // scenario flag and emitting `kyc.verified` / `kyc.rejected`. It is gone: this
+  // was the simulation that stood in for a real provider check, and identity is
+  // now the Identity_Gate, which is Connect onboarding state rather than a call.
 
-    if (outcome === 'VERIFIED') {
-      if (profileId) {
-        this.identities.set(profileId, this.buildIdentity(profileId));
-      }
-      const result: KycResult = { payerId, outcome: 'VERIFIED' };
-      await this.dispatch(
-        this.makeEvent('kyc.verified', `kyc:${payerId}:verified`, { payerId, profileId }),
-      );
-      return result;
-    }
-
-    const reason = this.opts.scenario?.kycReason ?? 'Identity could not be verified';
-    const result: KycResult = { payerId, outcome: 'REJECTED', reason };
-    await this.dispatch(
-      this.makeEvent('kyc.rejected', `kyc:${payerId}:rejected`, { payerId, profileId, reason }),
-    );
-    return result;
-  }
-
-  /** Retrieve stored verified identity data for a Police_Evidence_Pack (Req 2.5, 8.4). */
-  async getVerifiedIdentity(profileId: string): Promise<VerifiedIdentity | null> {
-    return this.identities.get(profileId) ?? null;
-  }
 
   // -------------------------------------------------------------------------
   // PaymentService
@@ -277,6 +254,78 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
     return result;
   }
 
+  /**
+   * Release escrowed funds from the simulated platform balance to a Seller
+   * (Req 4.3). Charges no payer, mirroring the real binding — the Buyer was
+   * already debited when the sale was agreed.
+   */
+  async payoutToMerchant(params: {
+    merchantRef: string;
+    amount: Cents;
+    ref: string;
+    nonce: string;
+    sourcePaymentRef?: string;
+  }): Promise<TransferResult> {
+    const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
+    const result: TransferResult = {
+      transferId: `payout_${shortHash(params.ref)}`,
+      amount: params.amount,
+      status: ok ? 'SETTLED' : 'FAILED',
+    };
+    await this.dispatch(
+      this.makeEvent(ok ? 'transfer.settled' : 'transfer.failed', `payout:${params.ref}`, {
+        transferId: result.transferId,
+        amount: result.amount,
+        status: result.status,
+        ...(ok ? {} : { reason: 'Seller payout failed to settle' }),
+      }),
+    );
+    return result;
+  }
+
+  /**
+   * Report a simulated platform balance.
+   *
+   * Deliberately reports UNAVAILABLE rather than inventing a figure. A number here
+   * would make the reconciliation panel render a confident green "solvent" in mock
+   * mode, which is precisely the reassurance nobody should get from simulated money.
+   * "Unknown" is the honest answer when there is no real balance to read.
+   */
+  async getPlatformBalance(): Promise<PlatformBalance> {
+    return {
+      availableCents: 0,
+      pendingCents: 0,
+      currency: 'aud',
+      status: 'UNAVAILABLE',
+      reason: 'Mock provider holds no real balance',
+    };
+  }
+
+  /**
+   * Return collected funds to the Buyer (Req 4.15).
+   *
+   * Deterministic like every other Mock primitive: the outcome is derived from the
+   * `ref` so a scenario can force a refund failure and exercise the compensating
+   * path. Emits no Webhook_Event, matching the real binding — Stripe's refund
+   * events are not translated, so a mock event here would teach callers to expect
+   * a message production never sends.
+   */
+  async refundPayment(params: {
+    paymentRef: string;
+    amount?: Cents;
+    nonce: string;
+    ref?: string;
+  }): Promise<RefundResult> {
+    const label = params.ref ?? params.paymentRef;
+    const ok = this.resolveOutcome(label) === 'SUCCESS';
+    return {
+      refundId: ok ? `re_${shortHash(label)}` : '',
+      amount: params.amount ?? 0,
+      status: ok ? 'SETTLED' : 'FAILED',
+      ...(ok ? {} : { reason: 'Refund failed to settle' }),
+    };
+  }
+
   /** Place a 100%-FMV pre-auth hold on a payer's instrument (Req 5.4). */
   async placeHold(params: { payerId: string; amount: Cents; ref: string }): Promise<PreAuthHold> {
     const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
@@ -301,7 +350,7 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
   /**
    * Vault a tokenised instrument against a payer. The Mock has no instruments to
    * store, so it just returns a deterministic source id derived from the inputs,
-   * keeping the demo flow identical to the real Pinch path.
+   * keeping the demo flow identical to the real Stripe path.
    */
   async attachPaymentSource(params: {
     payerId: string;
@@ -309,6 +358,38 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
     sourceType: 'credit-card' | 'bank-account';
   }): Promise<{ sourceId: string }> {
     return { sourceId: `src_${shortHash(`${params.payerId}:${params.sourceType}:${params.token}`)}` };
+  }
+
+  // `getIdentitySummary` used to live here, returning a fixed "Demo Collector"
+  // name. Removed with the payer gate: the only identity the platform holds now is
+  // the provider-verified legal name Connect reports for a connected account.
+
+  /**
+   * Deterministic stand-in for a provider-hosted instrument capture flow. The
+   * `clientSecret` is inert — no real SDK will accept it — so the mock UI shows
+   * a simulated card entry step instead of mounting a provider iframe.
+   */
+  async beginInstrumentSetup(params: { payerId: string }): Promise<InstrumentSetup> {
+    const setupId = `seti_${shortHash(`setup:${params.payerId}`)}`;
+    return {
+      setupId,
+      clientSecret: `${setupId}_secret_mock`,
+      // Recognisably fake, so a component that mounts a real SDK with this key
+      // fails loudly in development rather than half-working.
+      publishableKey: 'pk_test_mock',
+    };
+  }
+
+  /** Complete the simulated setup, returning a stable fake card. */
+  async completeInstrumentSetup(params: {
+    payerId: string;
+    setupId: string;
+  }): Promise<VaultedInstrument> {
+    return {
+      sourceId: `src_${shortHash(`${params.payerId}:${params.setupId}`)}`,
+      brand: 'visa',
+      last4: '4242',
+    };
   }
 
   /** Release a hold at $0 cost (Req 6.7, 7.5, 8.5). Voids always succeed. */
@@ -387,8 +468,8 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        [PINCH_SIGNATURE_HEADER]: envelope.signature,
-        [PINCH_EVENT_ID_HEADER]: envelope.event.eventId,
+        [MOCK_SIGNATURE_HEADER]: envelope.signature,
+        [MOCK_EVENT_ID_HEADER]: envelope.event.eventId,
       },
       body: envelope.rawBody,
     });
@@ -458,18 +539,6 @@ export class MockService implements PaymentService, KycService, WebhookEmitter {
     };
   }
 
-  /** Deterministic verified-identity data derived from the profile id (Req 2.5). */
-  private buildIdentity(profileId: string): VerifiedIdentity {
-    const suffix = shortHash(profileId).toUpperCase();
-    return {
-      profileId,
-      legalName: `Mock User ${suffix.slice(0, 6)}`,
-      dateOfBirth: '1990-01-01',
-      documentType: 'DRIVERS_LICENSE',
-      documentNumber: `DL-${suffix}`,
-      verifiedAt: this.now().toISOString(),
-    };
-  }
 
   /** The current time from the injected clock, or a deterministic counter clock. */
   private now(): Date {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan builds the CardTrade frontend-first MVP incrementally, starting from an empty workspace. It scaffolds the Next.js App Router project, provisions the Supabase schema, then builds the **pure domain core first** (state machine + validators, both property-tested) before any layer that depends on it. The service interface + deterministic MockService follow, then the orchestrators (tested against an in-memory fake), the webhook handler, thin server-action wrappers, and finally the UI — prioritizing the flagship listings catalog and real-time Trade Contract view. Payment/KYC/webhook behavior is entirely provided by the MockService; real Pinch integration is deferred.
+This plan builds the CardTrade frontend-first MVP incrementally, starting from an empty workspace. It scaffolds the Next.js App Router project, provisions the Supabase schema, then builds the **pure domain core first** (state machine + validators, both property-tested) before any layer that depends on it. The service interface + deterministic MockService follow, then the orchestrators (tested against an in-memory fake), the webhook handler, thin server-action wrappers, and finally the UI — prioritizing the flagship listings catalog and real-time Trade Contract view. Payment/KYC/webhook behavior is entirely provided by the MockService; real Stripe integration is deferred.
 
 Ordering rule honored throughout: the pure state machine and zod validators (with their property tests) are implemented and green before the orchestrators, server actions, webhook handler, or UI consume them.
 
@@ -101,7 +101,7 @@ Ordering rule honored throughout: the pure state machine and zod validators (wit
 
 - [x] 6. Service layer — interface, MockService, factory
   - [x] 6.1 Define the PaymentService/KycService interface and types
-    - Create `domain/services/types.ts` with `Cents`, `Payer`, `PreAuthHold`, `CaptureResult`, `TransferResult`, `KycResult`, `VerifiedIdentity`, `WebhookEvent`, `PaymentService`, `KycService`, and `WebhookEmitter`
+    - Create `domain/services/types.ts` with `Cents`, `Payer`, `PreAuthHold`, `CaptureResult`, `TransferResult`, `KycResult`, `VerifiedIdentitySummary`, `IdentityCheckSession`, `WebhookEvent`, `PaymentService`, `KycService`, and `WebhookEmitter`
     - _Requirements: 2.1, 2.2, 2.5, 4.2, 5.4, 7.2, 8.2, 8.4_
 
   - [x] 6.2 Implement the deterministic MockService
@@ -113,7 +113,7 @@ Ordering rule honored throughout: the pure state machine and zod validators (wit
     - _Requirements: 2.2, 2.3, 4.4, 5.6, 8.2, 10.1_
 
   - [x] 6.4 Implement the service factory and an in-memory fake
-    - Create `domain/services/index.ts` with `getPaymentService()` selecting Mock vs future Pinch by `PAYMENTS_PROVIDER`, and add `domain/services/testing/InMemoryService.ts` implementing the same interface for fast orchestrator tests
+    - Create `domain/services/index.ts` with `getPaymentService()` selecting Mock vs future Stripe by `PAYMENTS_PROVIDER`, and add `domain/services/testing/InMemoryService.ts` implementing the same interface for fast orchestrator tests
     - _Requirements: 2.1, 4.2, 5.4_
 
 - [x] 7. Orchestrators
@@ -147,7 +147,7 @@ Ordering rule honored throughout: the pure state machine and zod validators (wit
     - **Validates: Requirements 2.4**
 
   - [x] 7.8 Implement dispute and fraud resolution in the orchestrator
-    - Add condition-dispute handling ($20.00 friction-tax partial capture, $10/$10 allocation, holds remain locked until return, DISPUTE_RESOLVED void), objective-fraud handling (full capture 100%, transfer to victim, victim hold void, evidence-pack generation via `getVerifiedIdentity`), bounded full-capture retry (max 3) with manual-reconciliation flag, and incomplete-evidence handling
+    - Add condition-dispute handling ($20.00 friction-tax partial capture, $10/$10 allocation, holds remain locked until return, DISPUTE_RESOLVED void), objective-fraud handling (full capture 100%, transfer to victim, victim hold void), and bounded full-capture retry (max 3) with manual-reconciliation flag. NOTE: evidence-pack generation is WITHDRAWN (Req 8.4) — the fraud flow performs no identity disclosure
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
   - [ ]* 7.9 Write property test for friction tax allocation
@@ -191,7 +191,7 @@ Ordering rule honored throughout: the pure state machine and zod validators (wit
 
 - [x] 9. Webhook route handler
   - [x] 9.1 Implement the webhook Route Handler pipeline
-    - Create `app/api/webhooks/pinch/route.ts` (POST, admin client): recompute HMAC over the raw body and compare to the signature header (401 on mismatch, no side effect), idempotency lookup on `event_id`, map event → `TradeEvent`/cash-sale update, dispatch through the orchestrator, and record `SUCCESS`/`FAILURE`/`NO_OP` in `webhook_logs`
+    - Create `app/api/webhooks/stripe/route.ts` (POST, admin client): recompute HMAC over the raw body and compare to the signature header (401 on mismatch, no side effect), idempotency lookup on `event_id`, map event → `TradeEvent`/cash-sale update, dispatch through the orchestrator, and record `SUCCESS`/`FAILURE`/`NO_OP` in `webhook_logs`
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.7, 10.8_
 
   - [ ]* 9.2 Write property test for webhook idempotency
@@ -216,7 +216,7 @@ Ordering rule honored throughout: the pure state machine and zod validators (wit
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 4.1, 4.5, 4.6_
 
   - [x] 10.3 Implement trade server actions
-    - Wrappers for trade proposal, record shipment/receipt/acceptance, raise dispute, report fraud, and download evidence pack — each delegating to `tradeOrchestrator` and returning typed results
+    - Wrappers for trade proposal, record shipment/receipt/acceptance, raise dispute, and report fraud — each delegating to `tradeOrchestrator` and returning typed results. `downloadEvidencePack` is WITHDRAWN (Req 8.4)
     - _Requirements: 5.1, 5.2, 5.3, 6.1, 6.3, 6.5, 6.8, 7.1, 8.1_
 
   - [ ]* 10.4 Write property test for catalog availability filtering
@@ -281,7 +281,7 @@ Ordering rule honored throughout: the pure state machine and zod validators (wit
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 6.1, 6.3, 6.5, 7.1, 8.1_
 
   - [x] 15.3 Build the Demo panel for mock webhooks
-    - Create `components/trade/DemoPanel.tsx` (collapsible) with controls that call the MockService to fire simulated webhooks (confirm holds, settle, dispute, fraud) into `/api/webhooks/pinch`
+    - Create `components/trade/DemoPanel.tsx` (collapsible) with controls that call the MockService to fire simulated webhooks (confirm holds, settle, dispute, fraud) into `/api/webhooks/stripe`
     - _Requirements: 5.5, 6.2, 6.4, 6.6, 7.1, 8.1, 10.1_
 
   - [ ]* 15.4 Write component test for action controls matching permitted actions
@@ -298,7 +298,7 @@ Ordering rule honored throughout: the pure state machine and zod validators (wit
     - _Requirements: 1.6, 1.7, 3.7, 9.6, 9.7_
 
   - [ ]* 16.2 Write realtime and KYC-storage integration tests
-    - Assert trade/hold changes propagate to a subscriber within the budget (11.2) and that verified identity data is stored for evidence-pack use (2.5)
+    - Assert trade/hold changes propagate to a subscriber within the budget (11.2) and that a successful verification records ONLY a legal name, given name, adult flag and timestamp — never a date of birth or document number (2.5)
     - _Requirements: 2.5, 11.2_
 
   - [ ]* 16.3 Write webhook latency smoke test

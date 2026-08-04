@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'NoDitto',
   description:
-    'Buy, sell, and swap high-value collectibles with DittoShield anti-impostor verification, live contracts, collateral protection, and Pinch Payments.',
+    'Buy, sell, and swap high-value collectibles. Sellers are identity-verified through Stripe, swaps are backed by collateral from both traders, and payments are held until the buyer accepts.',
 };
 
 // Iconic chase cards so the example trade reads as a serious, high-value swap:
@@ -71,10 +71,23 @@ export default async function HomePage() {
                 A marketplace without{' '}
                 <span className="text-parchment/55">imposters.</span>
               </h1>
+              {/* CLAIMS HERE MUST BE TRUE OF THE CODE. This paragraph previously said
+                  "every trader is ID-checked, and every transaction is backed by
+                  collateral. Buy, sell, and trade with no risk." All three were
+                  contradicted by the product:
+                    * Buyers are deliberately unverified — a buy-only member holds no
+                      verified identity, by design (see product.md).
+                    * Cash sales carry no collateral at all, and a deal between two
+                      verified parties skips it too.
+                    * Nothing is "no risk": collateral is a card authorisation, and
+                      those lapse in about seven days (see 0035_hold_expiry_reconciler).
+                  Each sentence below is now something the code actually does. Keep it
+                  that way — an overstated protection claim is a consumer-law problem,
+                  not a copy preference. */}
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
-                Transparency is crucial for a safe deal. With NoDitto, every trader is
-                ID-checked, and every transaction is backed by collateral. Buy, sell,
-                and trade with no risk.
+                Transparency is crucial for a safe deal. Every seller on NoDitto is
+                identity-verified through Stripe, your payment is held until you accept
+                the goods, and swaps are backed by collateral from both traders.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
@@ -142,7 +155,7 @@ export default async function HomePage() {
                 Know who you&apos;re dealing with.
               </h2>
               <p className="mt-5 text-pretty leading-7 text-parchment/60">
-                DittoShield verifies identity through Pinch Payments. Contracts show the
+                DittoShield verifies identity through Stripe. Contracts show the
                 terms, collateral, and next action before anything moves.
               </p>
             </header>
@@ -166,15 +179,19 @@ export default async function HomePage() {
                 typical="Anonymous accounts"
                 ours="DittoShield identity status"
               />
+              {/* Was "Contract-backed collateral protection", which is not what happens
+                  when a CASH SALE goes wrong — those carry no collateral. What actually
+                  happens on every contract type is that funds stop moving and a person
+                  decides, which is a stronger claim and a true one. */}
               <ComparisonRow
                 aspect="If a deal goes wrong"
                 typical="“Sort it out yourselves”"
-                ours="Contract-backed collateral protection"
+                ours="Funds frozen, reviewed by support"
               />
               <ComparisonRow
                 aspect="Mixing cash and cards"
                 typical="Meetups and PayPal F&F"
-                ours="One contract with Pinch Payments"
+                ours="One contract with Stripe"
               />
             </div>
           </div>
@@ -224,7 +241,7 @@ export default async function HomePage() {
             </a>
             . Pokémon names and artwork belong to their respective owners. NoDitto is not
             affiliated with or endorsed by The Pokémon Company. Payments are processed by
-            Pinch Payments.
+            Stripe.
           </p>
         </div>
       </footer>
@@ -264,15 +281,19 @@ function ProtectedTradePreview() {
           priority
           className="absolute left-1/2 top-[16%] z-10 w-[42%] -translate-x-1/2 rounded-[4%] drop-shadow-[0_22px_28px_rgba(0,0,0,0.65)]"
         />
-        {/* Two guarantees, side by side — the pitch in the fewest possible words. */}
+        {/* Two claims, side by side — the pitch in the fewest possible words.
+            "All Parties ID Verified" was the previous wording and it was not true:
+            buyers are deliberately unverified, so a checkmark against "all parties"
+            asserted something the platform does not do. Narrowed to sellers, which is
+            both accurate and the fact a buyer actually cares about. */}
         <ul className="ledger-strip absolute inset-x-0 bottom-0 z-20 grid grid-cols-2 gap-x-4 border-t border-gold/30 px-5 py-4 text-xs font-semibold text-obsidian sm:px-6 sm:text-sm">
           <li className="flex items-center gap-1.5">
             <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-            All Parties ID Verified
+            Sellers ID Verified
           </li>
           <li className="flex items-center justify-end gap-1.5">
             <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-            Powered by Pinch Payments
+            Powered by Stripe
           </li>
         </ul>
       </div>

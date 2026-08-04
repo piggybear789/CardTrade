@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   // double-suffixing those existing titles.
   title: 'NoDitto — Know who is on the other side',
   description:
-    'Buy, sell, and swap high-value collectibles with DittoShield anti-impostor verification, collateral-backed contracts, and Pinch Payments.',
+    'Buy, sell, and swap high-value collectibles with DittoShield anti-impostor verification, collateral-backed contracts, and payments by Stripe.',
   applicationName: 'NoDitto',
   alternates: { canonical: '/' },
   keywords: [
@@ -32,21 +32,21 @@ export const metadata: Metadata = {
     'anti-impostor verification',
     'marketplace',
     'card trading',
-    'Pinch Payments',
+    'Stripe',
   ],
   openGraph: {
     type: 'website',
     siteName: 'NoDitto',
     title: 'NoDitto — Know who is on the other side',
     description:
-      'DittoShield verification, collateral-backed contracts, and Pinch Payments for high-value collectibles.',
+      'DittoShield verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
     url: siteUrl,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'NoDitto — Know who is on the other side',
     description:
-      'DittoShield verification, collateral-backed contracts, and Pinch Payments for high-value collectibles.',
+      'DittoShield verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
   },
   robots: { index: true, follow: true },
 };

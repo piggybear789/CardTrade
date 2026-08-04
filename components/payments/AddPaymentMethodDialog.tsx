@@ -47,7 +47,7 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
         <DialogHeader>
           <DialogTitle>Add a payment method</DialogTitle>
           <DialogDescription>
-            Encrypted in your browser and sent to Pinch Payments — we never
+            Encrypted in your browser and sent to Stripe — we never
             store your full card number.
           </DialogDescription>
         </DialogHeader>
@@ -57,7 +57,7 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
             // The card is stored server-side, so confirm it and re-render the
             // page that shows it. Without this the dialog just closed and the
             // save looked like it had not happened.
-            toast.success('Payment method saved with Pinch Payments.');
+            toast.success('Payment method saved with Stripe.');
             router.refresh();
             onAttached?.();
           }}

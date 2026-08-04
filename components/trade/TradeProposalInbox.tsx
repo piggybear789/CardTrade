@@ -198,7 +198,7 @@ export function TradeProposalInbox({
                         <p className="flex items-center gap-2 pl-[3.75rem] text-sm font-semibold">
                           <Coins className="size-4 shrink-0 text-gold" aria-hidden="true" />
                           {viewerPaysCash ? 'You pay' : 'They pay'}{' '}
-                          {formatAud(proposal.cashAmountCents)} via Pinch Payments
+                          {formatAud(proposal.cashAmountCents)} via Stripe
                         </p>
                       ) : null}
                       {proposal.declaredValueCents ? (

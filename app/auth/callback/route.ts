@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 //
 // Google redirects here with a one-time `code`. We exchange it for a session on
 // the cookie-bound client (which also consumes the PKCE verifier cookie written
-// by `signInWithGoogle`), make sure a Profile exists with KYC_Status UNVERIFIED,
+// by `signInWithGoogle`), make sure a Profile exists,
 // then send the User on to their destination. Failures never surface a stack
 // trace: they redirect back to /sign-in with a readable `authError` message.
 

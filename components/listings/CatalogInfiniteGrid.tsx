@@ -27,7 +27,6 @@ export interface CatalogInfiniteGridProps {
     categories: string[];
     minCents?: number;
     maxCents?: number;
-    verifiedOnly: boolean;
     includeSold: boolean;
     sort: CatalogSort;
   };
@@ -82,7 +81,6 @@ export function CatalogInfiniteGrid({
       categories: q.categories,
       minCents: q.minCents,
       maxCents: q.maxCents,
-      verifiedOnly: q.verifiedOnly || undefined,
       includeSold: q.includeSold || undefined,
       sort: q.sort,
       page: nextPage,

@@ -26,7 +26,7 @@ type ListingActionIconProps = SharedProps &
 
 function chipClass(variant: 'default' | 'outline') {
   return cn(
-    'flex size-12 items-center justify-center rounded-full border transition-colors',
+    'flex size-12 items-center justify-center rounded-full border transition-[colors,transform] group-active:scale-95',
     variant === 'default'
       ? 'border-primary bg-primary text-primary-foreground group-hover:bg-primary/90'
       : 'border-input bg-card text-foreground shadow-sm group-hover:border-gold/50 group-hover:bg-accent group-hover:text-accent-foreground',
@@ -53,7 +53,7 @@ export const ListingActionIcon = forwardRef<
   const body: ReactNode = (
     <>
       {chip}
-      <span className="w-full text-center text-[0.6875rem] font-semibold leading-tight tracking-[0.01em] sm:text-xs">
+      <span className="w-full text-center text-xs font-semibold leading-tight tracking-[0.01em]">
         {label}
       </span>
     </>

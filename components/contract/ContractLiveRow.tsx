@@ -5,11 +5,15 @@
 // The active contract area in reading order: current action and lifecycle first,
 // then details beside chat on desktop. Below `lg`, Details / Chat are tabs so
 // the room is not a 48rem stacked scroll of two fixed panes.
+//
+// Children and conversation mount ONCE (F36). The Breakpoint utility selects
+// the layout so DOM ids stay unique and realtime subscriptions aren't doubled.
 
 import { useState, type ReactNode } from 'react';
 import { MessageCircle, ScrollText } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
+import { MobileOnly, DesktopOnly } from '@/components/layout/Breakpoint';
 import { cn } from '@/lib/utils';
 
 export interface ContractLiveRowProps {
@@ -45,84 +49,88 @@ export function ContractLiveRow({
       </Card>
 
       {/* Mobile: one pane at a time, thumb-friendly tab switch. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:hidden">
-        <div
-          role="tablist"
-          aria-label="Contract workspace"
-          className="grid grid-cols-2 gap-1 rounded-lg border border-border/80 bg-muted/40 p-1"
-        >
-          <button
-            type="button"
-            role="tab"
-            id="contract-tab-details"
-            aria-controls="contract-panel-details"
-            aria-selected={pane === 'details'}
-            onClick={() => setPane('details')}
+      <MobileOnly>
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div
+            role="tablist"
+            aria-label="Contract workspace"
+            className="grid grid-cols-2 gap-1 rounded-lg border border-border/80 bg-muted/40 p-1"
+          >
+            <button
+              type="button"
+              role="tab"
+              id="contract-tab-details"
+              aria-controls="contract-panel-details"
+              aria-selected={pane === 'details'}
+              onClick={() => setPane('details')}
+              className={cn(
+                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                pane === 'details'
+                  ? 'bg-card font-semibold text-foreground shadow-sm'
+                  : 'font-medium text-muted-foreground',
+              )}
+            >
+              <ScrollText className="size-4 shrink-0" aria-hidden="true" />
+              Details
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="contract-tab-chat"
+              aria-controls="contract-panel-chat"
+              aria-selected={pane === 'chat'}
+              onClick={() => setPane('chat')}
+              className={cn(
+                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                pane === 'chat'
+                  ? 'bg-card font-semibold text-foreground shadow-sm'
+                  : 'font-medium text-muted-foreground',
+              )}
+            >
+              <MessageCircle className="size-4 shrink-0" aria-hidden="true" />
+              Chat
+            </button>
+          </div>
+
+          <div
+            id="contract-panel-details"
+            role="tabpanel"
+            aria-labelledby="contract-tab-details"
+            hidden={pane !== 'details'}
             className={cn(
-              'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              pane === 'details'
-                ? 'bg-card font-semibold text-foreground shadow-sm'
-                : 'font-medium text-muted-foreground',
+              'min-w-0',
+              pane === 'details' ? 'block' : 'hidden',
             )}
           >
-            <ScrollText className="size-4 shrink-0" aria-hidden="true" />
-            Details
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="contract-tab-chat"
-            aria-controls="contract-panel-chat"
-            aria-selected={pane === 'chat'}
-            onClick={() => setPane('chat')}
+            {children}
+          </div>
+          <div
+            id="contract-panel-chat"
+            role="tabpanel"
+            aria-labelledby="contract-tab-chat"
+            hidden={pane !== 'chat'}
             className={cn(
-              'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              pane === 'chat'
-                ? 'bg-card font-semibold text-foreground shadow-sm'
-                : 'font-medium text-muted-foreground',
+              'min-h-[min(28rem,60dvh)] min-w-0 flex-col [&>*]:h-full',
+              pane === 'chat' ? 'flex' : 'hidden',
             )}
           >
-            <MessageCircle className="size-4 shrink-0" aria-hidden="true" />
-            Chat
-          </button>
+            {conversation}
+          </div>
         </div>
+      </MobileOnly>
 
-        {/* `hidden` alone cannot hide these: preflight's `[hidden]{display:none}`
-            and a `flex`/`block` utility have equal specificity, and the utility
-            wins on order. The display class has to be conditional too. */}
-        <div
-          id="contract-panel-details"
-          role="tabpanel"
-          aria-labelledby="contract-tab-details"
-          hidden={pane !== 'details'}
-          className={cn(
-            'min-h-[min(28rem,60dvh)] min-w-0 [&>*]:h-full',
-            pane === 'details' ? 'block' : 'hidden',
-          )}
-        >
-          {children}
+      {/* Desktop: persistent split inspector + conversation. The declared
+          height bounds the panes so they scroll internally rather than growing
+          the page (F37). The expression mirrors the listing detail page: header
+          (4rem) + gap (3.5rem) + safe-area + 1px border. */}
+      <DesktopOnly>
+        <div className="h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))] flex-1 gap-4 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
+          <div className="min-h-0 min-w-0 overflow-y-auto [&>*]:h-full">{children}</div>
+          <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto [&>*]:h-full">
+            {conversation}
+          </div>
         </div>
-        <div
-          id="contract-panel-chat"
-          role="tabpanel"
-          aria-labelledby="contract-tab-chat"
-          hidden={pane !== 'chat'}
-          className={cn(
-            'min-h-[min(28rem,60dvh)] min-w-0 flex-col [&>*]:h-full',
-            pane === 'chat' ? 'flex' : 'hidden',
-          )}
-        >
-          {conversation}
-        </div>
-      </div>
-
-      {/* Desktop: persistent split inspector + conversation. */}
-      <div className="hidden min-h-[28rem] gap-4 lg:grid lg:flex-1 lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
-        <div className="min-h-0 min-w-0 [&>*]:h-full">{children}</div>
-        <div className="flex min-h-0 min-w-0 flex-col [&>*]:h-full">
-          {conversation}
-        </div>
-      </div>
+      </DesktopOnly>
     </div>
   );
 }

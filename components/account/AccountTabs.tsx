@@ -45,7 +45,7 @@ export function AccountTabs() {
                 href={tab.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                  'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors active:opacity-70',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   active
                     ? 'bg-foreground text-background'

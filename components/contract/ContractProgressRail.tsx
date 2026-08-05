@@ -76,7 +76,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     'grid size-5 shrink-0 touch-manipulation place-items-center rounded-full border transition-colors',
                     // The tick stays 20px visually, but an invisible overlay
                     // stretches the hit area to ~44px for touch guidelines.
-                    "relative before:absolute before:-inset-3 before:content-['']",
+                    "relative before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']",
                     'hover:border-foreground/40 hover:text-foreground',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     done && 'cardtrade-success-chip',

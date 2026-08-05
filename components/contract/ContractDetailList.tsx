@@ -14,6 +14,7 @@ import {
   isValidElement,
   useEffect,
   useId,
+  useRef,
   useState,
   type KeyboardEvent,
   type ReactElement,
@@ -23,11 +24,10 @@ import { CircleHelp, ScrollText } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useContractFocus } from './ContractFocus';
 
@@ -80,6 +80,20 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
   const storedIndex = rows.findIndex((row, index) => rowKey(row, index) === activeKey);
   const activeIndex = focusedIndex >= 0 ? focusedIndex : Math.max(storedIndex, 0);
   const activeRow = rows[activeIndex] ?? null;
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // RESET THE SCROLL WHEN THE TAB CHANGES. The panel body is one persistent
+  // element that swaps its children, so React reuses the DOM node across tab
+  // changes — and `scrollTop` lives on the node, not in state. Reading History
+  // half way down and then tapping Money opened Money already scrolled, landing
+  // mid-content or in whitespace with no indication anything was above.
+  //
+  // Keyed off `activeIndex` rather than a `key` on the element so a heavy panel
+  // (the Item tab and its images) is not torn down and remounted just to move a
+  // scroll offset.
+  useEffect(() => {
+    panelRef.current?.scrollTo({ top: 0 });
+  }, [activeIndex]);
 
   useEffect(() => {
     if (focusedIndex >= 0) setActiveKey(rowKey(rows[focusedIndex], focusedIndex));
@@ -114,7 +128,6 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
   if (!activeRow) return null;
 
   return (
-    <TooltipProvider delayDuration={200}>
       <Card
         className={cn(
           'flex h-full min-h-0 flex-col overflow-hidden border-border/90 shadow-sm',
@@ -147,7 +160,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             tabs), so the action moves into the panel there instead. */}
         <div className="flex min-h-10 shrink-0 items-stretch border-b">
           <div
-            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] sm:[mask-image:none]"
             role="tablist"
             aria-label="Contract details"
           >
@@ -187,12 +200,12 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   {row.props.label}
                 </button>
                 {explainer ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <button
                         type="button"
                         className={cn(
-                          'mr-1.5 grid size-5 place-items-center rounded-full transition-colors',
+                          'mr-0.5 grid size-8 place-items-center rounded-full transition-colors',
                           'text-muted-foreground hover:text-foreground',
                           'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           selected ? 'text-foreground/70' : null,
@@ -206,15 +219,15 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                       >
                         <CircleHelp className="size-3.5" aria-hidden />
                       </button>
-                    </TooltipTrigger>
-                    <TooltipContent
+                    </PopoverTrigger>
+                    <PopoverContent
                       side="bottom"
                       align="start"
-                      className="max-w-[16rem] text-pretty leading-relaxed"
+                      className="max-w-[16rem] text-pretty text-sm leading-relaxed"
                     >
                       {explainer}
-                    </TooltipContent>
-                  </Tooltip>
+                    </PopoverContent>
+                  </Popover>
                 ) : null}
               </div>
             );
@@ -232,14 +245,21 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
           role="tabpanel"
           aria-labelledby={`${tabsId}-tab-${activeIndex}`}
           className={cn(
-            'flex min-h-0 flex-1 scroll-mt-20 flex-col transition-colors duration-300',
+            'flex min-h-0 flex-1 scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] flex-col transition-colors duration-300',
             focusedId === activeRow.props.id && 'bg-gold/10',
             activeRow.props.className,
           )}
         >
           <div
+            ref={panelRef}
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-card p-4 text-sm',
+              // `overscroll-contain` only from `lg`, where this panel sits in a
+              // bounded split and the page behind it does not scroll. Below `lg`
+              // the room stacks and the PAGE is the scroller, so containment
+              // dead-ended the gesture: a swipe that reached the bottom of the
+              // panel stopped there instead of carrying on down the page, and the
+              // reader had to lift and re-swipe outside the panel to continue.
+              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-4 text-sm lg:overscroll-contain',
               activeRow.props.contentClassName,
             )}
           >
@@ -255,7 +275,6 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
           </div>
         </section>
       </Card>
-    </TooltipProvider>
   );
 }
 

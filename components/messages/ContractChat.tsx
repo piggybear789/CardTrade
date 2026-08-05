@@ -215,10 +215,16 @@ export function ContractChat({
             id={`contract-chat-${conversationId}`}
             name="message"
             autoComplete="off"
+            enterKeyHint="send"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
+              // Only submit on Enter from pointer devices; touch needs Enter for newlines.
+              if (
+                event.key === 'Enter' &&
+                !event.shiftKey &&
+                window.matchMedia('(hover: hover)').matches
+              ) {
                 event.preventDefault();
                 if (draft.trim() && !isPending) {
                   submit(event as unknown as FormEvent);
@@ -229,7 +235,7 @@ export function ContractChat({
             maxLength={MESSAGE_BODY_MAX}
             rows={1}
             className="max-h-24 min-h-10 resize-none"
-            disabled={isPending}
+            readOnly={isPending}
           />
           <Button
             type="submit"

@@ -86,7 +86,7 @@ export function MobileBottomNav() {
             const active = hub.isActive(pathname);
             const Icon = hub.icon;
             const className = cn(
-              'flex h-full min-h-14 w-full touch-manipulation flex-col items-center justify-center gap-0.5 px-1 text-[0.6875rem] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+              'flex h-full min-h-14 w-full touch-manipulation flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
               active
                 ? 'font-semibold text-foreground'
                 : 'font-medium text-muted-foreground',
@@ -118,7 +118,6 @@ export function MobileBottomNav() {
                 <button
                   type="button"
                   aria-expanded={openHub === hub.id}
-                  aria-controls={`mobile-hub-${hub.id}`}
                   onClick={() =>
                     setOpenHub((current) =>
                       current === hub.id ? null : hub.id,

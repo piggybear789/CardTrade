@@ -59,6 +59,9 @@ export const viewport: Viewport = {
   // Draw under notches/home indicators so the sticky header can pad itself
   // with safe-area insets instead of leaving a hardware-coloured gap.
   viewportFit: 'cover',
+  // When the virtual keyboard opens, shrink the layout viewport so fixed/sticky
+  // elements reposition instead of being hidden behind the keyboard.
+  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({

@@ -105,9 +105,13 @@ export function ChatThread({
     });
   }
 
-  // Enter sends; Shift+Enter inserts a newline.
+  // Enter sends on pointer devices; touch needs Enter for newlines.
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      window.matchMedia('(hover: hover)').matches
+    ) {
       event.preventDefault();
       handleSubmit();
     }
@@ -244,6 +248,7 @@ export function ChatThread({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
+            enterKeyHint="send"
             placeholder="Write a messageâ€¦"
             rows={2}
             maxLength={MESSAGE_BODY_MAX}

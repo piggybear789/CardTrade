@@ -161,14 +161,18 @@ export function ImageGallery({
         'group relative w-full overflow-hidden rounded-lg border bg-muted',
         zoomPoint ? 'cursor-zoom-out' : 'cursor-zoom-in',
         // While zoomed, touch drags must pan the image, not scroll the page.
-        zoomPoint && 'touch-action-none',
+        zoomPoint && 'touch-none',
       )}
       onClick={handleClick}
       onPointerDown={() => {
         draggedRef.current = false;
       }}
       onPointerMove={handlePointerMove}
-      onPointerLeave={resetZoom}
+      onPointerLeave={(event) => {
+        // Only reset on mouse leave; touch dispatches pointerleave on pointerup
+        // which would immediately cancel the zoom the tap just engaged.
+        if (event.pointerType === 'mouse') resetZoom();
+      }}
       onPointerCancel={resetZoom}
     >
       {activeFailed ? (
@@ -238,13 +242,13 @@ export function ImageGallery({
 
       {images.length > 1 && (
         <nav
-          className="absolute right-3 top-3 flex items-center gap-0.5 rounded-full border border-white/20 bg-black/65 px-1 py-0.5 shadow-sm backdrop-blur"
+          className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-white/20 bg-black/65 px-1 py-0.5 shadow-sm backdrop-blur"
           aria-label="Image navigation"
         >
           <button
             type="button"
             onClick={prev}
-            className="flex size-9 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Previous image"
           >
             <ChevronLeft className="size-4" aria-hidden />
@@ -259,7 +263,7 @@ export function ImageGallery({
           <button
             type="button"
             onClick={next}
-            className="flex size-9 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Next image"
           >
             <ChevronRight className="size-4" aria-hidden />

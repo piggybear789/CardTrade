@@ -320,7 +320,7 @@ export default async function ItemDetailPage({
                         rating={sellerRow?.rating ?? null}
                         count={sellerRow?.rating_count ?? undefined}
                         size={12}
-                        className="text-[0.6875rem]"
+                        className="text-xs"
                       />
                     ) : (
                       <Link
@@ -332,7 +332,7 @@ export default async function ItemDetailPage({
                           rating={sellerRow?.rating ?? null}
                           count={sellerRow?.rating_count ?? undefined}
                           size={12}
-                          className="text-[0.6875rem]"
+                          className="text-xs"
                         />
                       </Link>
                     )}
@@ -341,7 +341,7 @@ export default async function ItemDetailPage({
                   {/* Inline identity disclosure — visible to buyers so they know
                   who they're transacting with (Req 4.8). */}
                   {sellerIdentity && !isOwner ? (
-                    <dl className="mt-1.5 space-y-0.5 border-t border-border/70 pt-1.5 text-[0.6875rem] leading-snug">
+                    <dl className="mt-1.5 space-y-0.5 border-t border-border/70 pt-1.5 text-xs leading-snug">
                       <div className="flex min-w-0 gap-1.5">
                         <dt className="shrink-0 text-muted-foreground">Legal</dt>
                         <dd className="min-w-0 break-words font-medium">
@@ -425,7 +425,7 @@ export default async function ItemDetailPage({
                     precision={
                       (item.location_precision as PlacePrecision | null) ?? 'suburb'
                     }
-                    heightClassName="h-40"
+                    heightClassName="h-56"
                   />
                 </section>
               ) : null}
@@ -656,24 +656,34 @@ function ItemActions({
           </div>
         </div>
       ) : (
-        <div
-          className="grid grid-cols-5 justify-items-center gap-1 sm:gap-2"
-          role="group"
-          aria-label="Listing actions"
-        >
+        <div className="space-y-3">
           <BuyButton
             itemId={itemId}
             sellerIdentity={sellerIdentity}
-            appearance="icon"
+            appearance="button"
           />
-          {proposeTrade}
-          <MakeOfferDialog
-            itemId={itemId}
-            fmvCents={fmvCents}
-            sellerIdentity={sellerIdentity}
-            appearance="icon"
-          />
-          {watchReport}
+          <div
+            className="grid grid-cols-2 gap-2"
+            role="group"
+            aria-label="Trade and offer"
+          >
+            {proposeTrade}
+            <MakeOfferDialog
+              itemId={itemId}
+              fmvCents={fmvCents}
+              sellerIdentity={sellerIdentity}
+              appearance="icon"
+            />
+          </div>
+          {watchReport ? (
+            <div
+              className="flex items-center justify-center gap-4 pt-1"
+              role="group"
+              aria-label="Save and report"
+            >
+              {watchReport}
+            </div>
+          ) : null}
         </div>
       )}
       {tradeGateNotice}

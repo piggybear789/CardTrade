@@ -38,12 +38,19 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
    * - `center` — floating card (lightbox / media viewers)
    */
   mobile?: "sheet" | "center";
+  /** Hide the close affordance for required, non-dismissable wizard steps. */
+  showClose?: boolean;
+  /**
+   * `default` preserves the existing sheet/zoom motion. `fade` uses opacity only,
+   * suitable for focused overlays where directional motion feels distracting.
+   */
+  animation?: "default" | "fade";
 };
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, mobile = "sheet", ...props }, ref) => (
+>(({ className, children, mobile = "sheet", showClose = true, animation = "default", ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -54,31 +61,27 @@ const DialogContent = React.forwardRef<
         mobile === "sheet" && [
           // Phone: bottom sheet
           "inset-x-0 bottom-0 top-auto max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
-          "max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=open]:slide-in-from-bottom",
+          animation === "default" && "max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=open]:slide-in-from-bottom",
           // sm+: centred on the viewport (not the content column beside the rail)
           "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-4 sm:rounded-lg sm:border sm:border-border sm:p-6 sm:pb-6",
-          "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+          animation === "default" && "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
         ],
         mobile === "center" && [
           "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-xl p-4",
-          "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          animation === "default" && "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           "sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:p-6",
         ],
         className,
       )}
       {...props}
     >
-      {mobile === "sheet" ? (
-        <div
-          className="mx-auto mt-2.5 mb-1 h-1 w-10 shrink-0 rounded-full bg-border sm:hidden"
-          aria-hidden="true"
-        />
-      ) : null}
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-muted/80 opacity-90 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none sm:size-8 sm:rounded-sm sm:bg-transparent sm:opacity-70">
-        <X className="size-4" aria-hidden="true" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
+      {showClose ? (
+        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-muted/80 opacity-90 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none sm:size-8 sm:rounded-sm sm:bg-transparent sm:opacity-70">
+          <X className="size-4" aria-hidden="true" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      ) : null}
     </DialogPrimitive.Content>
   </DialogPortal>
 ));

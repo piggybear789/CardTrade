@@ -53,7 +53,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           <span className="sr-only">View {item.title}</span>
         </Link>
 
-        <div className="auction-stage pointer-events-none relative aspect-[5/6] overflow-hidden rounded-xl border border-white/10 p-[7%] shadow-market transition-shadow duration-150 group-hover:shadow-auction">
+        <div className="auction-stage pointer-events-none relative aspect-[5/6] overflow-hidden rounded-xl border border-white/10 p-[7%] shadow-market transition-[shadow,transform] duration-150 group-hover:shadow-auction group-active:scale-[0.98]">
           <div
             className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.09),transparent_52%)]"
             aria-hidden="true"

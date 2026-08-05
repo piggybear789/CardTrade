@@ -42,7 +42,8 @@
   }
 
   html {
-    scroll-padding-top: 5rem;
+    scroll-padding-top: calc(4rem + 1px + env(safe-area-inset-top));
+    scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
     /* Focus rings already communicate the tap; the grey flash just looks
        broken next to them on Android/iOS. */
     -webkit-tap-highlight-color: transparent;

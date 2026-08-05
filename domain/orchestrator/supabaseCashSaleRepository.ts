@@ -276,9 +276,22 @@ export function createSupabaseCashSaleRepository(
       });
       if (error) return { ok: false as const, reason: 'UNAVAILABLE' as const };
       const row = (data as CashSaleRow[] | null)?.[0];
-      return row
-        ? { ok: true as const, sale: toCashSale(row) }
-        : { ok: false as const, reason: 'STALE' as const };
+      if (row) return { ok: true as const, sale: toCashSale(row) };
+
+      // `update_cash_sale_terms` returns an EMPTY SET for every guard it has:
+      // missing sale, wrong status, wrong version, a seller touching the buyer's
+      // address, an unresolved place, a meeting time already past. An empty
+      // result therefore does not mean "someone else edited this". Re-read the
+      // contract and only call it stale when the contract really did move.
+      const current = await selectSale(client, cashSaleId);
+      const moved =
+        !current ||
+        current.status !== 'AGREEMENT' ||
+        current.termsVersion !== expectedTermsVersion;
+      return {
+        ok: false as const,
+        reason: moved ? ('STALE' as const) : ('REJECTED' as const),
+      };
     },
 
     async updateAgreedPrice({ cashSaleId, expectedTermsVersion, agreedPriceCents }) {

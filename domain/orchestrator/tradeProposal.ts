@@ -1,24 +1,24 @@
-// domain/orchestrator/tradeProposal.ts
+﻿// domain/orchestrator/tradeProposal.ts
 //
 // Trade proposal + collateral logic for the 2-Way Trade escrow (Req 5 + the
 // bond-exemption gate of Req 2.4). Like `tradeOrchestrator.ts`, this module is
 // the coordination layer that combines validation, persistence, and payment
-// side effects — but it depends only on *interfaces* (a
+// side effects â€” but it depends only on *interfaces* (a
 // `TradeProposalRepository` for data access and the `PaymentService` for
 // holds/voids) so it stays exhaustively testable against an in-memory fake. The
 // concrete Supabase admin binding lives in `supabaseTradeProposalRepository.ts`,
 // which is the only file that pulls in `server-only`.
 //
 // Responsibilities (task 7.4):
-//   * proposeTrade — guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
+//   * proposeTrade â€” guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
 //     on success create a Trade in COLLATERAL_PENDING, set both Items to
 //     RESERVED (Req 5.1), and place a bond for each Trader who requires one per
 //     the Bond Policy (`domain/bond/bondPolicy.ts`): a Trader with APPROVED
 //     Managed Merchant identity (`merchant_status`) is exempt, everyone else
 //     bonds against their own paired Item's FMV (revised Req 2.4, 5.4). Trading
-//     itself (including cash terms) is never blocked by verification — only the
+//     itself (including cash terms) is never blocked by verification â€” only the
 //     bond requirement changes.
-//   * createCollateralSideEffects — a `RunSideEffects` hook for the guarded
+//   * createCollateralSideEffects â€” a `RunSideEffects` hook for the guarded
 //     transition core: on HOLDS_FAILED it cancels the Trade by voiding any
 //     active holds and restoring both Items to AVAILABLE (Req 5.6). The
 //     HOLDS_CONFIRMED -> COLLATERAL_LOCKED transition itself is performed by the
@@ -123,14 +123,14 @@ export interface TradeProposalRepository {
 /**
  * Typed failure codes for {@link proposeTrade}. None of these leave the system
  * mutated: every guard runs before any Trade creation / item reservation.
- * - `profile-not-found`  — the proposing Trader has no Profile.
- * - `not-verified`       — reserved; a Trader may propose while unverified as
+ * - `profile-not-found`  â€” the proposing Trader has no Profile.
+ * - `not-verified`       â€” reserved; a Trader may propose while unverified as
  *   long as they can post a Bond (Req 2.4). Kept in the union for exhaustive
  *   error mapping at the action boundary.
- * - `item-not-found`     — one of the paired Items does not exist.
- * - `not-owner`          — the proposer does not own the Item they offered.
- * - `item-unavailable`   — a paired Item's status is not AVAILABLE (Req 5.3).
- * - `payer-not-found`    — a Trader has no payer reference to place a hold against.
+ * - `item-not-found`     â€” one of the paired Items does not exist.
+ * - `not-owner`          â€” the proposer does not own the Item they offered.
+ * - `item-unavailable`   â€” a paired Item's status is not AVAILABLE (Req 5.3).
+ * - `payer-not-found`    â€” a Trader has no payer reference to place a hold against.
  *
  * NOTE: there is deliberately no `unequal-value` guard here. Trades may be
  * bundles plus cash with a self-declared value; the Counterpart's acceptance is
@@ -164,11 +164,6 @@ export interface TradeProposalDeps {
   payments: PaymentService;
   /** Bond sizing overrides; defaults to {@link DEFAULT_BOND_POLICY}. */
   bondPolicy?: Partial<BondPolicy>;
-  /**
-   * When true (the default), a bond requirement on either Trader applies to both.
-   * Set false for per-Trader bonds sized only by their own verification status.
-   */
-  symmetricBonds?: boolean;
 }
 
 /** Inputs identifying the proposer and the two paired Items. */
@@ -251,7 +246,7 @@ export async function proposeTrade(
   //    Policy: a Trader with APPROVED merchant identity is exempt, everyone else
   //    bonds against the value of what they RECEIVE. An unverified Trader with
   //    no payment instrument has neither identity nor money behind the trade, so
-  //    the proposal is refused — but trading itself is never blocked outright.
+  //    the proposal is refused â€” but trading itself is never blocked outright.
   const counterpartId = counterpartItem.ownerId;
   const counterpartProfile = await repository.getProfile(counterpartId);
   if (!counterpartProfile) {
@@ -265,7 +260,7 @@ export async function proposeTrade(
   // Each side is sized on the TOTAL VALUE that Trader RECEIVES, not what they
   // give. The deposit has to cover every item now in that Trader's hands, and a
   // Trader must never be able to shrink their own exposure by understating their
-  // own side — which matters now that a side can be a bundle with a self-declared
+  // own side â€” which matters now that a side can be a bundle with a self-declared
   // value.
   const extraItemIds = (params.initiatorExtraItemIds ?? []).filter(
     (id) => id && id !== params.initiatorItemId,
@@ -294,7 +289,6 @@ export async function proposeTrade(
       initiator: { verified: proposer.verified, fmvCents: counterpartSideCents },
       counterpart: { verified: counterpartProfile.verified, fmvCents: initiatorSideCents },
       policy: deps.bondPolicy,
-      symmetric: deps.symmetricBonds,
     });
 
   if ((proposerBond > 0 && !proposer.payerId) || (counterpartBond > 0 && !counterpartProfile.payerId)) {
@@ -315,7 +309,7 @@ export async function proposeTrade(
   ]);
 
   // Place a bond for each Trader who requires one, sized from that Trader's OWN
-  // paired Item FMV. A verified Trader's bond is 0 and no hold is placed — their
+  // paired Item FMV. A verified Trader's bond is 0 and no hold is placed â€” their
   // verified identity is the guarantee instead.
   const holdPlacements = [
     {
@@ -355,7 +349,109 @@ export async function proposeTrade(
 }
 
 // ---------------------------------------------------------------------------
-// Collateral side effects — HOLDS_FAILED cancellation (Req 5.6)
+// Bonds for an already-agreed Trade (negotiation flow)
+// ---------------------------------------------------------------------------
+
+/** Which bundle each Trader is giving up, by Item id. */
+export interface AgreedTradeBundles {
+  tradeId: string;
+  initiatorId: string;
+  counterpartId: string;
+  /** Items the COUNTERPART receives, so they size the counterpart's bond. */
+  initiatorItemIds: string[];
+  /** Items the INITIATOR receives, so they size the initiator's bond. */
+  counterpartItemIds: string[];
+}
+
+export type PlaceAgreedBondsResult =
+  | { ok: true; bondsRequired: number }
+  | { ok: false; error: 'profile-not-found' | 'item-not-found' | 'payer-not-found' };
+
+/**
+ * Size and place both Traders' bonds on a Trade that ALREADY EXISTS and whose
+ * terms both sides have accepted.
+ *
+ * Split out of {@link proposeTrade} rather than copied: that function creates the
+ * Trade, reserves the Items and places the bonds in one step, which suits an
+ * offer that is accepted in a single click. In the negotiated flow the Trade and
+ * the reservation are done by `begin_trade_collateral` in SQL, so only the money
+ * half is wanted here. Duplicating bond sizing would be duplicating the Bond
+ * Policy, which is exactly the kind of second answer that produced the
+ * trade/deal divergence in the first place.
+ *
+ * Bond sizing is unchanged: each Trader bonds against the FMV of what they
+ * RECEIVE, and the Bond Policy decides who is exempt.
+ */
+export async function placeBondsForAgreedTrade(
+  deps: TradeProposalDeps,
+  params: AgreedTradeBundles,
+): Promise<PlaceAgreedBondsResult> {
+  const { repository, payments } = deps;
+
+  const [initiator, counterpart] = await Promise.all([
+    repository.getProfile(params.initiatorId),
+    repository.getProfile(params.counterpartId),
+  ]);
+  if (!initiator || !counterpart) return { ok: false, error: 'profile-not-found' };
+
+  const sumFmv = async (itemIds: string[]): Promise<number | null> => {
+    const items = await Promise.all(itemIds.map((id) => repository.getItem(id)));
+    if (items.some((item) => item === null)) return null;
+    return items.reduce((sum, item) => sum + (item?.fmvCents ?? 0), 0);
+  };
+
+  const [initiatorSideCents, counterpartSideCents] = await Promise.all([
+    sumFmv(params.initiatorItemIds),
+    sumFmv(params.counterpartItemIds),
+  ]);
+  if (initiatorSideCents === null || counterpartSideCents === null) {
+    return { ok: false, error: 'item-not-found' };
+  }
+
+  const { initiatorBondCents, counterpartBondCents } = resolveTradeBonds({
+    initiator: { verified: initiator.verified, fmvCents: counterpartSideCents },
+    counterpart: { verified: counterpart.verified, fmvCents: initiatorSideCents },
+    policy: deps.bondPolicy,
+  });
+
+  if (
+    (initiatorBondCents > 0 && !initiator.payerId) ||
+    (counterpartBondCents > 0 && !counterpart.payerId)
+  ) {
+    return { ok: false, error: 'payer-not-found' };
+  }
+
+  const placements = [
+    { traderId: params.initiatorId, payerId: initiator.payerId, amountCents: initiatorBondCents },
+    { traderId: params.counterpartId, payerId: counterpart.payerId, amountCents: counterpartBondCents },
+  ].filter(
+    (p): p is { traderId: string; payerId: string; amountCents: number } =>
+      p.amountCents > 0 && Boolean(p.payerId),
+  );
+
+  for (const placement of placements) {
+    const hold = await payments.placeHold({
+      payerId: placement.payerId,
+      amount: placement.amountCents,
+      // Same deterministic key as the single-click path, so a retry cannot
+      // double-authorise the same trader's collateral on the same trade.
+      ref: holdRef(params.tradeId, placement.traderId),
+    });
+    await repository.recordHold({
+      tradeId: params.tradeId,
+      traderId: placement.traderId,
+      holdRef: hold.holdId,
+      amountCents: placement.amountCents,
+      status: hold.status,
+      expiresAt: hold.expiresAt,
+    });
+  }
+
+  return { ok: true, bondsRequired: placements.length };
+}
+
+// ---------------------------------------------------------------------------
+// Collateral side effects â€” HOLDS_FAILED cancellation (Req 5.6)
 // ---------------------------------------------------------------------------
 
 /** The repository subset the collateral cancellation hook needs. */
@@ -371,9 +467,9 @@ export type CollateralRepository = Pick<
  * On a HOLDS_FAILED event (a hold failed or the 300s confirmation window
  * elapsed) it cancels the Trade per Req 5.6: it requests a Hold_Void for every
  * still-active Pre_Auth_Hold on the Trade, marks those holds VOIDED, and
- * restores both paired Items' availability to AVAILABLE. All other events —
+ * restores both paired Items' availability to AVAILABLE. All other events â€”
  * notably HOLDS_CONFIRMED, whose only effect is the COLLATERAL_PENDING ->
- * COLLATERAL_LOCKED transition performed by the core — need no payment side
+ * COLLATERAL_LOCKED transition performed by the core â€” need no payment side
  * effect and succeed as a no-op.
  *
  * Void operations always succeed in the provider contract, so this hook returns

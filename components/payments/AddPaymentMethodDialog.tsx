@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -44,12 +43,11 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
         )}
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
+        {/* Negative margin cancels DialogContent's flex gap: with the
+            description gone there is nothing to separate the title from
+            Stripe's own bordered card. */}
+        <DialogHeader className="-mb-3 sm:-mb-4">
           <DialogTitle>Add a payment method</DialogTitle>
-          <DialogDescription>
-            Encrypted in your browser and sent to Stripe — we never
-            store your full card number.
-          </DialogDescription>
         </DialogHeader>
         <AddPaymentMethodForm
           onAttached={() => {

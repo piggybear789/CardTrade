@@ -145,9 +145,9 @@ export async function getPayoutSetupContext(): Promise<
  * does NOT mean the Seller can be paid: approval arrives asynchronously on the
  * provider's account webhook, so the UI must keep gating on `settlementsEnabled`.
  */
-export async function createPayoutOnboardingLink(): Promise<
-  ActionResult<{ url: string }, MerchantOnboardingActionError>
-> {
+export async function createPayoutOnboardingLink(
+  returnPath?: string,
+): Promise<ActionResult<{ url: string }, MerchantOnboardingActionError>> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -166,13 +166,14 @@ export async function createPayoutOnboardingLink(): Promise<
   }
 
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const base = safeReturnPath(returnPath);
   try {
     const link = await payments.createMerchantOnboardingLink({
       merchantRef: state.data.merchantRef,
-      returnUrl: `${origin}/profile?payouts=complete`,
+      returnUrl: `${origin}${base}payouts=complete`,
       // The provider sends the Seller here if the link expired mid-flow; the page
       // requests a new link rather than reusing a dead one.
-      refreshUrl: `${origin}/profile?payouts=refresh`,
+      refreshUrl: `${origin}${base}payouts=refresh`,
     });
     return ok({ url: link.url });
   } catch (err) {
@@ -181,6 +182,29 @@ export async function createPayoutOnboardingLink(): Promise<
       err instanceof Error ? err.message : 'Could not open the payout onboarding form.',
     );
   }
+}
+
+/**
+ * Normalise a caller-supplied return path into a same-origin prefix ending in
+ * `?` or `&`, ready for the `payouts=` marker to be appended.
+ *
+ * The path reaches the provider as an absolute URL it will redirect a browser to,
+ * so it is an open-redirect surface: anything that is not an unambiguous
+ * same-origin path is discarded in favour of `/profile`. `//evil.example` is a
+ * protocol-relative URL and a backslash is normalised to `/` by browsers, so both
+ * are rejected alongside absolute URLs.
+ */
+function safeReturnPath(path: string | undefined): string {
+  const candidate = path?.trim();
+  const usable =
+    candidate &&
+    candidate.startsWith('/') &&
+    !candidate.startsWith('//') &&
+    !candidate.includes('\\')
+      ? candidate
+      : '/profile';
+  const [pathname, query] = usable.split('#')[0].split('?');
+  return query ? `${pathname}?${query}&` : `${pathname}?`;
 }
 
 /**

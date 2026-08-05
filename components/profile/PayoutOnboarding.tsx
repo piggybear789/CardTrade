@@ -6,8 +6,16 @@
 //
 //   NONE / REJECTED -> a consent gate, then a redirect into the provider's own
 //     hosted onboarding flow.
-//   PENDING         -> "finish setup" (a fresh link) plus a status re-check.
+//   PENDING         -> "finish verification" (a fresh link) plus a status re-check.
 //   APPROVED        -> the exact identity buyers see at checkout.
+//
+// NAMED FOR WHAT IT GATES, NOT FOR ONE OF ITS CONSEQUENCES. This card used to be
+// titled "Getting paid" with a "Finish payout setup" button, which reads as
+// optional plumbing a Member can defer until they have a sale. It is the
+// Identity_Gate: unverified, you cannot list, sell, enter trade escrow, or run a
+// cash-bearing deal either. Member-facing, that gate is DittoShield — the same
+// name the workspace rail uses — so the copy here says verification and lets
+// payout be one outcome of it.
 //
 // WHAT WE NO LONGER ASK FOR. This used to be a three-step, fifteen-field form
 // collecting BSB, account number, ABN/ACN, date of birth and residential
@@ -23,7 +31,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { BadgeCheck, ExternalLink, Loader2, RefreshCw, ShieldAlert, Wallet } from 'lucide-react';
+import { BadgeCheck, ExternalLink, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 
 import { DittoShieldMark } from '@/components/brand/DittoShieldMark';
 import {
@@ -49,7 +57,7 @@ const STATUS_BADGE: Record<
   MerchantStateData['merchantStatus'],
   { label: string; variant: BadgeProps['variant'] }
 > = {
-  NONE: { label: 'Not set up', variant: 'secondary' },
+  NONE: { label: 'Not verified', variant: 'secondary' },
   PENDING: { label: 'Verifying', variant: 'secondary' },
   APPROVED: { label: 'Verified', variant: 'default' },
   REJECTED: { label: 'Action needed', variant: 'destructive' },
@@ -120,7 +128,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
       router.refresh();
 
       if (!context.hostedOnboarding) {
-        toast.success('Payout setup submitted.');
+        toast.success('Verification submitted.');
         return;
       }
       openHostedOnboarding();
@@ -137,7 +145,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
       setState(result.data);
       toast.success(
         result.data.merchantStatus === 'APPROVED'
-          ? 'Payouts are ready.'
+          ? 'Verified. You can list, sell, trade, and be paid.'
           : 'Still verifying — we will update this automatically.',
       );
       router.refresh();
@@ -150,12 +158,15 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-2">
-              <Wallet className="size-4" aria-hidden />
-              Getting paid
+              {/* ShieldCheck, not the photo mark: the emblem is an <Image> and
+                  turns to mush at 16px. The rail's DittoShield links use this
+                  same glyph. */}
+              <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+              DittoShield verification
             </CardTitle>
             <CardDescription>
-              Verify who you are so buyers know who they are paying, and so cash
-              can reach your bank account.
+              Verify who you are to list, sell, trade, and receive cash. Buyers
+              see your verified name before they pay you.
             </CardDescription>
           </div>
           <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -209,7 +220,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
                 {isPending ? <Loader2 className="animate-spin" aria-hidden /> : (
                   <ExternalLink className="size-3.5" aria-hidden />
                 )}
-                Finish payout setup
+                Finish verification
               </Button>
               <Button variant="outline" onClick={handleRecheck} disabled={isPending}>
                 <RefreshCw className="size-3.5" aria-hidden />
@@ -268,7 +279,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : (
                 <BadgeCheck className="size-3.5" aria-hidden />
               )}
-              {context.hostedOnboarding ? 'Verify my identity' : 'Submit payout setup'}
+              {context.hostedOnboarding ? 'Verify my identity' : 'Submit verification'}
             </Button>
 
             <p className="text-xs text-muted-foreground">

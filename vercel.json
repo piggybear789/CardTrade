@@ -3,6 +3,10 @@
     {
       "path": "/api/jobs/cash-sale-payouts",
       "schedule": "47 * * * *"
+    },
+    {
+      "path": "/api/jobs/trade-inspections",
+      "schedule": "17 * * * *"
     }
   ]
 }

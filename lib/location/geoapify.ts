@@ -154,27 +154,73 @@ export function mapsExternalUrl(lat: number, lng: number, label?: string): strin
 }
 
 /**
+ * Zoom to use for each precision.
+ *
+ * Derived from ground resolution rather than taste. At 640 px wide, the frame
+ * covers `640 * 156543 * cos(lat) / 2^zoom` metres, so in Sydney:
+ *
+ *   z11 -> 40 km   (metropolitan; two adjacent suburbs are ~17 px apart)
+ *   z13 -> 10 km   (the suburb plus its neighbours)
+ *   z15 -> 2.5 km  (streets around a single address)
+ *
+ * So 13 is already the right frame for a `suburb` centroid — it is NOT street
+ * level — and 15 is the right frame for an `exact` meeting point, which 13 draws
+ * too wide to be useful for finding a door.
+ *
+ * WHAT THIS CANNOT FIX. Locality size varies by two orders of magnitude: a Sydney
+ * suburb is ~2 km across and Croydon Shire, QLD is ~170 km, needing about z8 to
+ * frame. A single zoom per precision therefore renders remote localities as near
+ * empty land. Measured on the real API, Croydon Shire is byte-identical at z10,
+ * z12, z13 and z15 (96% flat land colour), while Burwood at z13 is 95% drawn
+ * content. That is an accurate map of an empty place, not a broken request — the
+ * principled fix is framing the geocoder's `bbox` for the place (Geoapify's `area=
+ * rect:` parameter) instead of a centroid plus a guessed zoom, which needs the
+ * bbox persisted alongside the coordinates.
+ */
+const ZOOM_BY_PRECISION: Record<PlacePrecision, number> = {
+  suburb: 13,
+  exact: 15,
+};
+
+/** Zoom for callers that specify neither `zoom` nor `precision`. */
+const DEFAULT_ZOOM = 13;
+
+/**
  * Geoapify Static Maps image URL (no JS map library).
  * Returns null when the publishable key is missing.
  */
 export function staticMapUrl(
   lat: number,
   lng: number,
-  options?: { width?: number; height?: number; zoom?: number },
+  options?: {
+    width?: number;
+    height?: number;
+    /** Explicit zoom. Wins over `precision`. */
+    zoom?: number;
+    /** Derives an appropriate zoom — see {@link ZOOM_BY_PRECISION}. */
+    precision?: PlacePrecision | null;
+  },
 ): string | null {
   const apiKey = readGeoapifyKey();
   if (!apiKey) return null;
 
   const width = options?.width ?? 640;
   const height = options?.height ?? 360;
-  const zoom = options?.zoom ?? 13;
+  const zoom =
+    options?.zoom ??
+    (options?.precision ? ZOOM_BY_PRECISION[options.precision] : DEFAULT_ZOOM);
   const params = new URLSearchParams({
     style: 'osm-bright',
     width: String(width),
     height: String(height),
     center: `lonlat:${lng},${lat}`,
     zoom: String(zoom),
-    marker: `lonlat:${lng},${lat};color:%230f172a;size:medium`,
+    // Pass the colour as a RAW `#`. URLSearchParams percent-encodes the value
+    // itself, so a pre-encoded `%23` became `%25 23` and Geoapify rejected the
+    // whole request with 400 ("marker[0][1] does not match any of the allowed
+    // types") — which surfaced as PlaceMap's onError fallback, i.e. every
+    // location rendered as a bare "Open in Maps" link instead of a map.
+    marker: `lonlat:${lng},${lat};color:#0f172a;size:medium`,
     apiKey,
   });
 

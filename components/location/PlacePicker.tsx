@@ -175,6 +175,7 @@ export function PlacePicker({
           lat={value.lat}
           lng={value.lng}
           label={value.label}
+          precision={value.precision}
           heightClassName="h-40"
         />
       ) : null}

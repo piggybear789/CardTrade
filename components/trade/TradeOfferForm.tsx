@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // components/trade/TradeOfferForm.tsx
 //
@@ -47,14 +47,11 @@ import {
 } from '@/components/trade/UnlistedItemDialog';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
-import {
-  counterTradeProposal,
-  createTradeProposal,
-} from '@/lib/actions/tradeProposals';
+import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
 import type { ItemRow } from '@/lib/actions/listings';
 import type { HandoverMethod } from '@/lib/handover/terms';
 
-/** How the goods change hands — details are agreed later in the trade room. */
+/** How the goods change hands â€” details are agreed later in the trade room. */
 const HANDOVER_OPTIONS: {
   value: HandoverMethod;
   label: string;
@@ -115,8 +112,8 @@ export interface TradeOfferFormProps {
   /** Set when answering an existing offer, which supersedes it on submit. */
   counterOfProposalId?: string | null;
   /**
-   * `page` — centred Card on `/trades/new`.
-   * `dialog` — chrome-less body for ProposeTradeDialog.
+   * `page` â€” centred Card on `/trades/new`.
+   * `dialog` â€” chrome-less body for ProposeTradeDialog.
    */
   layout?: 'page' | 'dialog';
   /** Called after a successful send when embedded (close dialog + refresh). */
@@ -150,7 +147,7 @@ export function TradeOfferForm({
   const [terms, setTerms] = useState<PaymentTerms>(EMPTY_PAYMENT_TERMS);
   const [termsDialogOpen, setTermsDialogOpen] = useState(false);
 
-  /** Face to face or postage — details (place, cost, tracking) are set in the room. */
+  /** Face to face or postage â€” details (place, cost, tracking) are set in the room. */
   const [handover, setHandover] = useState<HandoverMethod | null>(null);
 
   const { cashDirection, message } = terms;
@@ -195,7 +192,7 @@ export function TradeOfferForm({
     }
     if (declaredValueCents > 0) parts.push(`valued ${formatAud(declaredValueCents)}`);
     if (message.trim() !== '') parts.push('note added');
-    return parts.join(' · ');
+    return parts.join(' Â· ');
   }, [cashAmountCents, cashDirection, declaredValueCents, message]);
 
   function handleSubmit() {
@@ -204,11 +201,10 @@ export function TradeOfferForm({
       setError(ERROR_MESSAGES['invalid-handover']);
       return;
     }
-    const handoverInput = { method: handover };
     const [primaryItemId, ...extraItemIds] = selectedItemIds;
 
     startTransition(async () => {
-      // Photos go browser → Storage first, and only their object paths travel in
+      // Photos go browser â†’ Storage first, and only their object paths travel in
       // the action call. Sending the files themselves would put them in the
       // Server Action body, which Next caps, and re-encoding them to fit would
       // strip the EXIF that makes a photo worth having in a dispute.
@@ -223,48 +219,28 @@ export function TradeOfferForm({
         imagePaths = uploaded.paths;
       }
 
-      // Countering needs an item of your own to put up, so it does not support
-      // describing an unlisted item inline.
-      if (counterOfProposalId) {
-        const countered = await counterTradeProposal({
-          proposalId: counterOfProposalId,
-          wantedItemId: requested.id,
-          offeredItemId: primaryItemId,
-          extraItemIds,
+      // Countering is no longer a separate submission from here: a counter is a
+      // terms revision inside the trade room (`TradeNegotiationPanel`), against a
+      // Trade that already exists. This form only ever OPENS a negotiation.
+
+      // Opens the Trade at NEGOTIATING and drops the trader straight into its
+      // room, which is where the rest of the negotiation now happens. The old
+      // path created a `trade_proposal` and sent them to a list.
+      const result = await openTradeNegotiation({
+        counterpartItemId: requested.id,
+        // An unlisted item takes the primary slot, so every ticked listing rides
+        // along as part of the bundle.
+        initiatorExtraItemIds: unlisted ? selectedItemIds : extraItemIds,
+        // The opening offer names the handover METHOD only. Where and when to
+        // meet, and what postage costs, are settled in the room â€” which is the
+        // point of opening one.
+        terms: {
           cashAmountCents,
           cashDirection,
           declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
+          handoverMethod: handover,
           message,
-          handover: handoverInput,
-        });
-        if (countered.ok) {
-          toast.success('Counter offer sent.');
-          if (onSuccess) {
-            onSuccess();
-          } else {
-            router.push('/trades');
-          }
-          return;
-        }
-        const copy =
-          countered.message ??
-          ERROR_MESSAGES[countered.error] ??
-          'Your counter could not be sent.';
-        setError(copy);
-        toast.error(copy);
-        return;
-      }
-
-      const result = await createTradeProposal({
-        counterpartItemId: requested.id,
-        message,
-        // An unlisted item takes the primary slot, so every ticked listing rides
-        // along as part of the bundle.
-        extraItemIds: unlisted ? selectedItemIds : extraItemIds,
-        cashAmountCents,
-        cashDirection,
-        declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
-        handover: handoverInput,
+        },
         offer: unlisted
           ? {
               kind: 'private',
@@ -281,12 +257,9 @@ export function TradeOfferForm({
       });
 
       if (result.ok) {
-        toast.success('Offer sent. Nothing happens until they accept.');
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          router.push('/trades');
-        }
+        toast.success('Offer opened. Discuss and agree the terms in the trade room.');
+        onSuccess?.();
+        router.push(`/trades/${result.tradeId}`);
         return;
       }
       const copy =
@@ -374,7 +347,7 @@ export function TradeOfferForm({
           </div>
         ) : null}
 
-        {/* Selected listings only — full inventory is searched in the picker. */}
+        {/* Selected listings only â€” full inventory is searched in the picker. */}
         {selectedItemIds.length > 0 ? (
           <ul className="min-w-0 space-y-1">
             {selectedItemIds.map((id) => {
@@ -464,7 +437,7 @@ export function TradeOfferForm({
         onClick={() => setTermsDialogOpen(true)}
       />
 
-      {/* Running total. Sides do not have to match — this just shows where the
+      {/* Running total. Sides do not have to match â€” this just shows where the
           offer stands so nobody has to do the arithmetic themselves. */}
       <div
         className="rounded-lg border bg-muted/20 p-3 text-sm"
@@ -524,7 +497,7 @@ export function TradeOfferForm({
         aria-busy={isPending}
         className="w-full sm:w-auto"
       >
-        {isPending ? 'Sending Offer…' : 'Send Offer'}
+        {isPending ? 'Sending Offerâ€¦' : 'Send Offer'}
       </Button>
     </>
   );

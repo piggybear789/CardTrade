@@ -72,9 +72,11 @@ import {
 } from '@/domain/contract';
 import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
+import { cashSaleErrorMessage } from './errorCopy';
 import { CashSaleDemoControls } from './CashSaleDemoControls';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
 import { requiredBondCents } from '@/domain/bond/bondPolicy';
+
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -83,6 +85,7 @@ import {
   type CashSaleEventRow,
 } from '@/lib/realtime/useCashSaleRealtime';
 import type { Tables } from '@/lib/supabase/database.types';
+import { InspectionCountdown } from '@/components/fulfilment';
 import type { CashSaleDeliveryAddress } from './types';
 import {
   acceptCashSaleInspection,
@@ -117,23 +120,8 @@ export interface SaleParty {
   identityVerifiedAt?: string | null;
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'not-authenticated': 'Please sign in again.',
-  'no-payment-method': 'Add a payment method before terms can be accepted.',
-  'seller-identity-changed': 'The seller identity changed. Review it before continuing.',
-  'seller-not-payable': 'The seller cannot receive payment right now.',
-  'not-participant': 'You are not part of this contract.',
-  'not-permitted': 'Only the other party can do that.',
-  'invalid-terms': 'Complete the fulfillment terms first.',
-  'stale-terms': 'The terms changed. Review the current version.',
-  'terms-update-failed': 'Could not save the terms right now. Refresh and try again.',
-  'already-recorded': 'You already did that.',
-  'invalid-state': 'This contract has moved on.',
-  'transfer-failed': 'The payment could not be collected.',
-};
-
 function messageFor(result: Extract<CashSaleActionResult, { ok: false }>): string {
-  return result.message ?? ERROR_MESSAGES[result.error] ?? 'Something went wrong.';
+  return cashSaleErrorMessage(result);
 }
 
 /** Statuses where a sale is over. Mirrors `CLOSED` in `domain/contract/cashSaleSteps`. */
@@ -497,21 +485,9 @@ function CashSaleRoom({
   // fee is already computed on the item price alone.
   const sellerNetCents = Math.max(sale.amount_cents - sale.platform_fee_cents, 0);
 
-  // Countdown to automatic completion, rendered from the stored deadline so both
-  // parties see the same instant regardless of clock skew.
-  const autoCompleteLabel = (() => {
-    if (!sale.inspection_deadline_at) return null;
-    const msLeft = new Date(sale.inspection_deadline_at).getTime() - Date.now();
-    if (Number.isNaN(msLeft)) return null;
-    if (msLeft <= 0) return 'Completing automatically now';
-    const days = Math.floor(msLeft / 86_400_000);
-    const hours = Math.floor((msLeft % 86_400_000) / 3_600_000);
-    const remaining =
-      days > 0
-        ? `${days} day${days === 1 ? '' : 's'}`
-        : `${hours} hour${hours === 1 ? '' : 's'}`;
-    return `Completes automatically in ${remaining}`;
-  })();
+  // The countdown to automatic completion now comes from the shared
+  // `InspectionCountdown`, which both this room and the trade room render from the
+  // stored deadline — so both parties see the same instant regardless of clock skew.
 
   // Collateral on a Cash_Sale is ASYMMETRIC, unlike a 2-way trade. The buyer's whole
   // payment is collected before the seller ships, so the buyer is already committed and
@@ -802,13 +778,23 @@ function CashSaleRoom({
             {/* Inspect and finish (buyer). */}
             {sale.status === 'INSPECTION' ? (
               <>
-                {sale.inspection_deadline_at ? (
+                {/* The same inspection banner the trade room shows. It replaced a
+                    single muted line of text that was easy to miss on a contract
+                    about to settle itself. */}
+                <InspectionCountdown
+                  deadlineAt={sale.inspection_deadline_at}
+                  viewerMustAct={iAmBuyer && !sale.inspection_accepted_at}
+                  expiryConsequence={
+                    iAmBuyer
+                      ? 'If you do nothing, the sale completes on its own and the seller is paid.'
+                      : 'If the buyer does nothing, the sale completes on its own and you are paid.'
+                  }
+                />
+                {formatContractDateTime(sale.carrier_delivered_at) ? (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Clock className="size-3.5 shrink-0" aria-hidden />
-                    {autoCompleteLabel}
-                    {formatContractDateTime(sale.carrier_delivered_at)
-                      ? ` · delivered ${formatContractDateTime(sale.carrier_delivered_at)}`
-                      : ''}
+                    Carrier confirmed delivery{' '}
+                    {formatContractDateTime(sale.carrier_delivered_at)}
                   </p>
                 ) : null}
 

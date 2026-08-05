@@ -8,11 +8,22 @@
 // Requirement mapping:
 // - Show each permitted action for the current state          -> Req 11.3
 // - Show no action controls when none are permitted            -> Req 11.4
+// - Propose/accept/decline terms while NEGOTIATING             -> negotiation in room
 // - Shipment/receipt/acceptance are once-only per trader       -> Req 6.1, 6.3, 6.5, 6.8
 // - Raise dispute during INSPECTION                            -> Req 7.1
 // - Report fraud during INSPECTION or DISPUTED                 -> Req 8.1
+//
+// COLLATERAL_LOCKED offers different controls per fulfilment method: a posted trade
+// records a shipment, a face-to-face one confirms the handover. Both may report that
+// the exchange failed.
 
-import { hasAccepted, hasReceived, hasShipped } from './guards';
+import {
+  hasAccepted,
+  hasAcceptedTerms,
+  hasConfirmedHandover,
+  hasReceived,
+  hasShipped,
+} from './guards';
 import type { TradeAction, TradeState, TradeViewerContext } from './types';
 
 /**
@@ -36,11 +47,35 @@ export function availableActions(
   const actions: TradeAction[] = [];
 
   switch (state) {
+    case 'NEGOTIATING':
+      // Either side may revise the terms or walk away, and may tick their
+      // acceptance of the current version exactly once. PROPOSE_TERMS is offered
+      // to BOTH sides on purpose: a counter-offer is a terms revision by whoever
+      // is answering, which is what lets the negotiation happen in the room
+      // instead of as a chain of replacement rows.
+      if (!hasAcceptedTerms(facts, role)) {
+        actions.push('ACCEPT_TERMS');
+      }
+      actions.push('PROPOSE_TERMS');
+      actions.push('DECLINE_OFFER');
+      break;
+
     case 'COLLATERAL_LOCKED':
-      // Each Trader may record shipment of their own Item exactly once (Req 6.1).
-      if (!hasShipped(facts, role)) {
+      // The control depends on how the goods were agreed to change hands. Asking
+      // two people who are meeting in person to "record shipment" was the visible
+      // half of the trade room having a delivery method it did not act on.
+      if (facts.fulfilmentMethod === 'IN_PERSON') {
+        if (!hasConfirmedHandover(facts, role)) {
+          actions.push('CONFIRM_HANDOVER');
+        }
+      } else if (!hasShipped(facts, role)) {
+        // Each Trader may record shipment of their own Item exactly once (Req 6.1).
         actions.push('RECORD_SHIPMENT');
       }
+      // Either way, either trader may report that the exchange did not happen — a
+      // no-show, a refusal at the meeting point, or an exchange under duress. This
+      // freezes the trade for review and captures nothing.
+      actions.push('REPORT_HANDOVER_FAILED');
       break;
 
     case 'IN_TRANSIT':
@@ -48,6 +83,9 @@ export function availableActions(
       if (!hasReceived(facts, role)) {
         actions.push('RECORD_RECEIPT');
       }
+      // A parcel that never arrives previously had no exit: the trade sat in
+      // IN_TRANSIT until the collateral authorisation lapsed.
+      actions.push('REPORT_HANDOVER_FAILED');
       break;
 
     case 'INSPECTION':
@@ -66,7 +104,7 @@ export function availableActions(
       break;
 
     // COLLATERAL_PENDING (awaiting hold confirmation) and the terminal states
-    // COMPLETED / FRAUD_RESOLVED expose no trader controls (Req 11.4).
+    // COMPLETED / FRAUD_RESOLVED / CANCELLED expose no trader controls (Req 11.4).
     default:
       break;
   }

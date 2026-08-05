@@ -30,6 +30,15 @@ export function bothShipped(facts: TradeFacts): boolean {
   return facts.shipped.initiator && facts.shipped.counterpart;
 }
 
+/**
+ * True iff both traders have confirmed a face-to-face handover.
+ *
+ * Only meaningful for an IN_PERSON trade; a DELIVERY trade never sets these legs.
+ */
+export function bothHandoverConfirmed(facts: TradeFacts): boolean {
+  return facts.handoverConfirmed.initiator && facts.handoverConfirmed.counterpart;
+}
+
 /** True iff both traders have recorded receipt of the Counterpart's Item (Req 6.4). */
 export function bothReceived(facts: TradeFacts): boolean {
   return facts.received.initiator && facts.received.counterpart;
@@ -43,6 +52,17 @@ export function bothAccepted(facts: TradeFacts): boolean {
 /** True iff both traders' Pre_Auth_Holds are active (Req 5.5). */
 export function bothHoldsActive(facts: TradeFacts): boolean {
   return facts.holdsActive.initiator && facts.holdsActive.counterpart;
+}
+
+/**
+ * True iff both traders have accepted the CURRENT terms version.
+ *
+ * See {@link TradeFacts.termsAccepted}: the snapshot must be version-aware, so a
+ * counter-offer cannot be carried into escrow on an acceptance of the terms it
+ * replaced.
+ */
+export function bothTermsAccepted(facts: TradeFacts): boolean {
+  return facts.termsAccepted.initiator && facts.termsAccepted.counterpart;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,9 +85,22 @@ export function hasAccepted(facts: TradeFacts, role: TradeViewerRole): boolean {
   return facts.accepted[roleKey(role)];
 }
 
+/** True iff the given trader has already confirmed the face-to-face handover. */
+export function hasConfirmedHandover(
+  facts: TradeFacts,
+  role: TradeViewerRole,
+): boolean {
+  return facts.handoverConfirmed[roleKey(role)];
+}
+
 /** True iff the given trader's Pre_Auth_Hold is currently active. */
 export function holdActive(facts: TradeFacts, role: TradeViewerRole): boolean {
   return facts.holdsActive[roleKey(role)];
+}
+
+/** True iff the given trader has accepted the current terms version. */
+export function hasAcceptedTerms(facts: TradeFacts, role: TradeViewerRole): boolean {
+  return facts.termsAccepted[roleKey(role)];
 }
 
 // ---------------------------------------------------------------------------
@@ -82,24 +115,38 @@ export function holdActive(facts: TradeFacts, role: TradeViewerRole): boolean {
  * transition from that state.
  *
  * Only the fact-driven, automatic transitions are derived here:
+ * - NEGOTIATING        + both accepted current terms -> TERMS_AGREED
  * - COLLATERAL_PENDING + both holds active -> HOLDS_CONFIRMED (Req 5.5)
- * - COLLATERAL_LOCKED  + both shipped       -> BOTH_SHIPPED   (Req 6.2)
- * - IN_TRANSIT         + both received      -> BOTH_RECEIVED  (Req 6.4)
- * - INSPECTION         + both accepted      -> BOTH_ACCEPTED  (Req 6.6)
+ * - COLLATERAL_LOCKED  + both shipped      -> BOTH_SHIPPED             (DELIVERY)
+ * - COLLATERAL_LOCKED  + both confirmed    -> BOTH_HANDOVER_CONFIRMED  (IN_PERSON)
+ * - IN_TRANSIT         + both received     -> BOTH_RECEIVED
+ * - INSPECTION         + both accepted     -> BOTH_ACCEPTED
+ *
+ * COLLATERAL_LOCKED branches on the agreed fulfilment method, because the two
+ * methods reach INSPECTION by different legs. An IN_PERSON trade reads the handover
+ * confirmations; anything else reads the shipment legs. A trade whose method is
+ * still `null` is treated as a posted one, which is the pre-0057 behaviour and
+ * cannot advance anyway — neither leg gets written until a method is agreed.
  *
  * Events that are the result of an explicit human decision rather than an
- * aggregate fact — CONDITION_DISPUTE, DISPUTE_RESOLVED, FRAUD_CONFIRMED,
- * HOLDS_FAILED — are intentionally NOT derived from the facts snapshot and are
- * dispatched by the orchestrator/webhook layer instead. Terminal states derive
- * nothing.
+ * aggregate fact — OFFER_DECLINED, HANDOVER_FAILED, CONDITION_DISPUTE,
+ * DISPUTE_RESOLVED, FRAUD_CONFIRMED, HOLDS_FAILED — and INSPECTION_EXPIRED, which
+ * is driven by a clock rather than by either trader, are intentionally NOT derived
+ * from the facts snapshot. They are dispatched by the orchestrator, the scheduled
+ * sweep, or the webhook layer. Terminal states derive nothing.
  *
  * This function is pure and never mutates its inputs.
  */
 export function deriveEvent(state: TradeState, facts: TradeFacts): TradeEvent | null {
   switch (state) {
+    case 'NEGOTIATING':
+      return bothTermsAccepted(facts) ? 'TERMS_AGREED' : null;
     case 'COLLATERAL_PENDING':
       return bothHoldsActive(facts) ? 'HOLDS_CONFIRMED' : null;
     case 'COLLATERAL_LOCKED':
+      if (facts.fulfilmentMethod === 'IN_PERSON') {
+        return bothHandoverConfirmed(facts) ? 'BOTH_HANDOVER_CONFIRMED' : null;
+      }
       return bothShipped(facts) ? 'BOTH_SHIPPED' : null;
     case 'IN_TRANSIT':
       return bothReceived(facts) ? 'BOTH_RECEIVED' : null;

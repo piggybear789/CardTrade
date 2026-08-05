@@ -1,4 +1,4 @@
-// app/messages/page.tsx
+﻿// app/messages/page.tsx
 //
 // The Messages inbox (Phase 2). A Server Component that requires an
 // authenticated user and lists their conversations (newest activity first) via
@@ -26,7 +26,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Messages · NoDitto',
+  title: 'Messages Â· NoDitto',
   description: 'Your buyer and seller conversations.',
 };
 
@@ -55,7 +55,7 @@ export default async function MessagesPage() {
               {conversations.length === 1
                 ? '1 conversation'
                 : `${conversations.length} conversations`}
-              {unreadTotal > 0 ? ` · ${unreadTotal} unread` : ''}
+              {unreadTotal > 0 ? ` Â· ${unreadTotal} unread` : ''}
             </>
           }
         />
@@ -109,7 +109,7 @@ export default async function MessagesPage() {
                     >
                       {c.dispute ? (
                         <AlertTriangle className="size-5" />
-                      ) : c.deal || c.trade ? (
+                      ) : c.trade ? (
                         <Handshake className="size-5" />
                       ) : (
                         <MessageSquare className="size-5" />
@@ -128,11 +128,7 @@ export default async function MessagesPage() {
                       <p className="truncate text-xs font-medium text-destructive">
                         Dispute: {c.dispute.itemTitle}
                       </p>
-                    ) : c.deal ? (
-                      <p className="truncate text-xs text-muted-foreground">
-                        Private deal: {c.deal.title}
-                      </p>
-                    ) : c.trade ? (
+                                        ) : c.trade ? (
                       <p className="truncate text-xs text-muted-foreground">
                         Trade
                       </p>

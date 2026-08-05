@@ -1,4 +1,4 @@
-// CardTrade — Supabase database types
+﻿// CardTrade â€” Supabase database types
 //
 // HAND-AUTHORED to faithfully mirror the SQL migrations in
 // `supabase/migrations/` (0001_schema.sql, 0002_rls.sql, 0003_realtime.sql).
@@ -8,7 +8,7 @@
 // below intentionally matches the output that
 //   supabase gen types typescript --local > lib/supabase/database.types.ts
 // (or `--project-id <ref>`) produces, so it can be regenerated later to match
-// once a Supabase instance is linked — with no changes required at call sites.
+// once a Supabase instance is linked â€” with no changes required at call sites.
 //
 // Type mapping used (Postgres -> TypeScript):
 //   uuid          -> string
@@ -47,8 +47,8 @@ export type Database = {
           contact_email: string;
           // The retired payer gate lived here: `kyc_status`, `kyc_reason`,
           // `identity_session_id` and the `identity_verified_*` columns. All were
-          // dropped by migration 0043. Verification is the Identity_Gate —
-          // `merchant_status` with `merchant_settlements_enabled` — and the only
+          // dropped by migration 0043. Verification is the Identity_Gate â€”
+          // `merchant_status` with `merchant_settlements_enabled` â€” and the only
           // identity held is `merchant_legal_entity_name`.
           /** Stripe Customer id (`cus_...`), platform-scoped. */
           payer_id: string | null;
@@ -248,7 +248,7 @@ export type Database = {
            */
           shipping_deadline_at: string | null;
           shipping_warned_at: string | null;
-          /** Deadline breached. Advisory — the trade is not cancelled. */
+          /** Deadline breached. Advisory â€” the trade is not cancelled. */
           shipping_overdue_at: string | null;
           initiator_tracking_carrier: string | null;
           initiator_tracking_number: string | null;
@@ -256,10 +256,38 @@ export type Database = {
           counterpart_tracking_carrier: string | null;
           counterpart_tracking_number: string | null;
           counterpart_tracking_url: string | null;
+          /**
+           * Carrier state per outbound parcel (0057). Normalised by the tracking
+           * seam, so a delivery is the carrier's word and not the sender's.
+           */
+          initiator_tracking_status: string | null;
+          counterpart_tracking_status: string | null;
+          initiator_carrier_delivered_at: string | null;
+          counterpart_carrier_delivered_at: string | null;
           initiator_received_at: string | null;
           counterpart_received_at: string | null;
           initiator_accepted_at: string | null;
           counterpart_accepted_at: string | null;
+          /**
+           * Face-to-face handover confirmations (0057). Both move the trade to
+           * INSPECTION, never straight to COMPLETED: confirming says "we met and
+           * swapped", not "I am satisfied".
+           */
+          initiator_handover_confirmed_at: string | null;
+          counterpart_handover_confirmed_at: string | null;
+          /**
+           * Presence of a protected postal address (0057). Booleans only — the
+           * address itself lives in `trade_delivery_details`, because this table IS
+           * Realtime-published.
+           */
+          initiator_delivery_address_configured: boolean;
+          counterpart_delivery_address_configured: boolean;
+          /** 72h inspection window (0057). Shorter than a Cash_Sale's 7 days
+           *  because collateral is a ~7-day card authorisation. */
+          inspection_deadline_at: string | null;
+          inspection_warned_at: string | null;
+          /** Completed by the inspection timeout rather than by both traders. */
+          auto_completed: boolean;
           dispute_raised_by: string | null;
           disputed_against: string | null;
           disputed_at: string | null;
@@ -288,6 +316,24 @@ export type Database = {
           created_at: string;
           updated_at: string;
           conversation_id: string | null;
+          /**
+           * Negotiated terms (0052). A Trade now exists from the first offer, so
+           * these carry the negotiation that `trade_proposals` used to hold.
+           */
+          terms_version: number;
+          terms_updated_at: string | null;
+          /** Equal to `terms_version` means this trader accepts the current terms. */
+          initiator_terms_accepted_version: number | null;
+          counterpart_terms_accepted_version: number | null;
+          initiator_terms_accepted_at: string | null;
+          counterpart_terms_accepted_at: string | null;
+          /** The opening note, and each counter's note. */
+          offer_message: string | null;
+          /** Agreed value basis for bond sizing. */
+          declared_value_cents: number | null;
+          cancelled_by: string | null;
+          cancel_reason: string | null;
+          cancelled_at: string | null;
         };
         Insert: {
           id?: string;
@@ -297,6 +343,17 @@ export type Database = {
           counterpart_item_id: string;
           state?: Database['cardtrade']['Enums']['trade_state'];
           version?: number;
+          terms_version?: number;
+          terms_updated_at?: string | null;
+          initiator_terms_accepted_version?: number | null;
+          counterpart_terms_accepted_version?: number | null;
+          initiator_terms_accepted_at?: string | null;
+          counterpart_terms_accepted_at?: string | null;
+          offer_message?: string | null;
+          declared_value_cents?: number | null;
+          cancelled_by?: string | null;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
           initiator_shipped_at?: string | null;
           counterpart_shipped_at?: string | null;
           shipping_deadline_at?: string | null;
@@ -308,10 +365,21 @@ export type Database = {
           counterpart_tracking_carrier?: string | null;
           counterpart_tracking_number?: string | null;
           counterpart_tracking_url?: string | null;
+          initiator_tracking_status?: string | null;
+          counterpart_tracking_status?: string | null;
+          initiator_carrier_delivered_at?: string | null;
+          counterpart_carrier_delivered_at?: string | null;
           initiator_received_at?: string | null;
           counterpart_received_at?: string | null;
           initiator_accepted_at?: string | null;
           counterpart_accepted_at?: string | null;
+          initiator_handover_confirmed_at?: string | null;
+          counterpart_handover_confirmed_at?: string | null;
+          initiator_delivery_address_configured?: boolean;
+          counterpart_delivery_address_configured?: boolean;
+          inspection_deadline_at?: string | null;
+          inspection_warned_at?: string | null;
+          auto_completed?: boolean;
           dispute_raised_by?: string | null;
           disputed_against?: string | null;
           disputed_at?: string | null;
@@ -358,6 +426,17 @@ export type Database = {
           delivery_cost_cents?: number | null;
           state?: Database['cardtrade']['Enums']['trade_state'];
           version?: number;
+          terms_version?: number;
+          terms_updated_at?: string | null;
+          initiator_terms_accepted_version?: number | null;
+          counterpart_terms_accepted_version?: number | null;
+          initiator_terms_accepted_at?: string | null;
+          counterpart_terms_accepted_at?: string | null;
+          offer_message?: string | null;
+          declared_value_cents?: number | null;
+          cancelled_by?: string | null;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
           initiator_shipped_at?: string | null;
           counterpart_shipped_at?: string | null;
           shipping_deadline_at?: string | null;
@@ -369,10 +448,21 @@ export type Database = {
           counterpart_tracking_carrier?: string | null;
           counterpart_tracking_number?: string | null;
           counterpart_tracking_url?: string | null;
+          initiator_tracking_status?: string | null;
+          counterpart_tracking_status?: string | null;
+          initiator_carrier_delivered_at?: string | null;
+          counterpart_carrier_delivered_at?: string | null;
           initiator_received_at?: string | null;
           counterpart_received_at?: string | null;
           initiator_accepted_at?: string | null;
           counterpart_accepted_at?: string | null;
+          initiator_handover_confirmed_at?: string | null;
+          counterpart_handover_confirmed_at?: string | null;
+          initiator_delivery_address_configured?: boolean;
+          counterpart_delivery_address_configured?: boolean;
+          inspection_deadline_at?: string | null;
+          inspection_warned_at?: string | null;
+          auto_completed?: boolean;
           dispute_raised_by?: string | null;
           disputed_against?: string | null;
           disputed_at?: string | null;
@@ -819,6 +909,66 @@ export type Database = {
           },
         ];
       };
+      /**
+       * Protected postal addresses for a posted trade (0057).
+       *
+       * TWO rows per trade, keyed `(trade_id, trader_id)`, because a swap posts in
+       * both directions and each trader needs to read the OTHER's address. The
+       * Cash_Sale equivalent has one row: only the Buyer receives goods there.
+       *
+       * Deliberately NOT in the Realtime publication.
+       */
+      trade_delivery_details: {
+        Row: {
+          trade_id: string;
+          trader_id: string;
+          address_label: string;
+          place_id: string;
+          country_code: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          trade_id: string;
+          trader_id: string;
+          address_label: string;
+          place_id: string;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          trade_id?: string;
+          trader_id?: string;
+          address_label?: string;
+          place_id?: string;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'trade_delivery_details_trade_id_fkey';
+            columns: ['trade_id'];
+            isOneToOne: false;
+            referencedRelation: 'trades';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trade_delivery_details_trader_id_fkey';
+            columns: ['trader_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       pre_auth_holds: {
         Row: {
           id: string;
@@ -920,140 +1070,51 @@ export type Database = {
           },
         ];
       };
-      trade_proposal_items: {
+      trade_fees: {
         Row: {
-          proposal_id: string;
-          item_id: string;
+          trade_id: string;
+          trader_id: string;
+          amount_cents: number;
+          status: Database['cardtrade']['Enums']['trade_fee_status'];
+          charge_ref: string | null;
+          refund_ref: string | null;
+          nonce: string;
+          error: string | null;
+          attempts: number;
+          settled_at: string | null;
+          refunded_at: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
-          proposal_id: string;
-          item_id: string;
+          trade_id: string;
+          trader_id: string;
+          amount_cents: number;
+          status?: Database['cardtrade']['Enums']['trade_fee_status'];
+          charge_ref?: string | null;
+          refund_ref?: string | null;
+          nonce: string;
+          error?: string | null;
+          attempts?: number;
+          settled_at?: string | null;
+          refunded_at?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
-          proposal_id?: string;
-          item_id?: string;
-          created_at?: string;
+          amount_cents?: number;
+          status?: Database['cardtrade']['Enums']['trade_fee_status'];
+          charge_ref?: string | null;
+          refund_ref?: string | null;
+          error?: string | null;
+          attempts?: number;
+          settled_at?: string | null;
+          refunded_at?: string | null;
+          updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: 'trade_proposal_items_proposal_id_fkey';
-            columns: ['proposal_id'];
-            isOneToOne: false;
-            referencedRelation: 'trade_proposals';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'trade_proposal_items_item_id_fkey';
-            columns: ['item_id'];
-            isOneToOne: false;
-            referencedRelation: 'items';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      trade_proposals: {
-        Row: {
-          id: string;
-          proposer_id: string;
-          counterpart_id: string;
-          proposer_item_id: string;
-          counterpart_item_id: string;
-          status: Database['cardtrade']['Enums']['trade_proposal_status'];
-          message: string | null;
-          trade_id: string | null;
-          cash_amount_cents: number;
-          cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
-          declared_value_cents: number | null;
-          handover_method: Database['cardtrade']['Enums']['handover_method'] | null;
-          meeting_location: string | null;
-          meeting_lat: number | null;
-          meeting_lng: number | null;
-          meeting_place_id: string | null;
-          meeting_at: string | null;
-          delivery_details: string | null;
-          delivery_cost_cents: number | null;
-          created_at: string;
-          responded_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          proposer_id: string;
-          counterpart_id: string;
-          proposer_item_id: string;
-          counterpart_item_id: string;
-          status?: Database['cardtrade']['Enums']['trade_proposal_status'];
-          message?: string | null;
-          trade_id?: string | null;
-          cash_amount_cents?: number;
-          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
-          declared_value_cents?: number | null;
-          handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
-          meeting_location?: string | null;
-          meeting_lat?: number | null;
-          meeting_lng?: number | null;
-          meeting_place_id?: string | null;
-          meeting_at?: string | null;
-          delivery_details?: string | null;
-          delivery_cost_cents?: number | null;
-          created_at?: string;
-          responded_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          proposer_id?: string;
-          counterpart_id?: string;
-          proposer_item_id?: string;
-          counterpart_item_id?: string;
-          status?: Database['cardtrade']['Enums']['trade_proposal_status'];
-          message?: string | null;
-          trade_id?: string | null;
-          cash_amount_cents?: number;
-          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
-          declared_value_cents?: number | null;
-          handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
-          meeting_location?: string | null;
-          meeting_lat?: number | null;
-          meeting_lng?: number | null;
-          meeting_place_id?: string | null;
-          meeting_at?: string | null;
-          delivery_details?: string | null;
-          delivery_cost_cents?: number | null;
-          created_at?: string;
-          responded_at?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'trade_proposals_proposer_id_fkey';
-            columns: ['proposer_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'trade_proposals_counterpart_id_fkey';
-            columns: ['counterpart_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'trade_proposals_proposer_item_id_fkey';
-            columns: ['proposer_item_id'];
-            isOneToOne: false;
-            referencedRelation: 'items';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'trade_proposals_counterpart_item_id_fkey';
-            columns: ['counterpart_item_id'];
-            isOneToOne: false;
-            referencedRelation: 'items';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'trade_proposals_trade_id_fkey';
+            foreignKeyName: 'trade_fees_trade_id_fkey';
             columns: ['trade_id'];
             isOneToOne: false;
             referencedRelation: 'trades';
@@ -1257,290 +1318,11 @@ export type Database = {
         };
         Relationships: [];
       };
-      deals: {
-        Row: {
-          id: string;
-          creator_id: string;
-          counterparty_id: string | null;
-          share_token: string;
-          joined_at: string | null;
-          state: Database['cardtrade']['Enums']['deal_state'];
-          version: number;
-          title: string;
-          description: string | null;
-          creator_role: Database['cardtrade']['Enums']['deal_role'] | null;
-          creator_offer_kinds: string[];
-          creator_photo_paths: string[];
-          counterparty_photo_paths: string[];
-          creator_item_id: string | null;
-          counterparty_item_id: string | null;
-          creator_item_text: string | null;
-          counterparty_item_text: string | null;
-          cash_amount_cents: number | null;
-          cash_payer_id: string | null;
-          handover_method: Database['cardtrade']['Enums']['handover_method'] | null;
-          meeting_location: string | null;
-          meeting_lat: number | null;
-          meeting_lng: number | null;
-          meeting_place_id: string | null;
-          meeting_at: string | null;
-          delivery_details: string | null;
-          delivery_cost_cents: number | null;
-          terms_updated_at: string | null;
-          creator_confirmed_at: string | null;
-          counterparty_confirmed_at: string | null;
-          collateral_cents: number | null;
-          /**
-           * When true, both parties post collateral on confirm even if both are
-           * DittoShield verified (optional DittoBond).
-           */
-          collateral_opt_in: boolean;
-          cancelled_by: string | null;
-          cancel_reason: string | null;
-          /** When a party raised a dispute (0048). Drives arbitration triage. */
-          disputed_at: string | null;
-          dispute_raised_by: string | null;
-          /** The claimant's own words — an allegation, not a finding. */
-          dispute_reason: string | null;
-          /**
-           * Non-null only once an arbitrator decided (0048). Distinguishes an
-           * arbitrated unwind from a pre-binding cancellation; both land in CANCELLED.
-           */
-          dispute_outcome: Database['cardtrade']['Enums']['deal_dispute_outcome'] | null;
-          dispute_resolved_by: string | null;
-          dispute_resolved_at: string | null;
-          dispute_resolution_note: string | null;
-          /** The deal's participant-only chat thread (0013). */
-          conversation_id: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          creator_id: string;
-          counterparty_id?: string | null;
-          share_token?: string;
-          joined_at?: string | null;
-          state?: Database['cardtrade']['Enums']['deal_state'];
-          version?: number;
-          title: string;
-          description?: string | null;
-          creator_role?: Database['cardtrade']['Enums']['deal_role'] | null;
-          creator_offer_kinds?: string[];
-          creator_photo_paths?: string[];
-          counterparty_photo_paths?: string[];
-          creator_item_id?: string | null;
-          counterparty_item_id?: string | null;
-          creator_item_text?: string | null;
-          counterparty_item_text?: string | null;
-          cash_amount_cents?: number | null;
-          cash_payer_id?: string | null;
-          handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
-          meeting_location?: string | null;
-          meeting_lat?: number | null;
-          meeting_lng?: number | null;
-          meeting_place_id?: string | null;
-          meeting_at?: string | null;
-          delivery_details?: string | null;
-          delivery_cost_cents?: number | null;
-          terms_updated_at?: string | null;
-          creator_confirmed_at?: string | null;
-          counterparty_confirmed_at?: string | null;
-          collateral_cents?: number | null;
-          collateral_opt_in?: boolean;
-          cancelled_by?: string | null;
-          cancel_reason?: string | null;
-          disputed_at?: string | null;
-          dispute_raised_by?: string | null;
-          dispute_reason?: string | null;
-          dispute_outcome?:
-            | Database['cardtrade']['Enums']['deal_dispute_outcome']
-            | null;
-          dispute_resolved_by?: string | null;
-          dispute_resolved_at?: string | null;
-          dispute_resolution_note?: string | null;
-          conversation_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          creator_id?: string;
-          counterparty_id?: string | null;
-          share_token?: string;
-          joined_at?: string | null;
-          state?: Database['cardtrade']['Enums']['deal_state'];
-          version?: number;
-          title?: string;
-          description?: string | null;
-          creator_role?: Database['cardtrade']['Enums']['deal_role'] | null;
-          creator_offer_kinds?: string[];
-          creator_photo_paths?: string[];
-          counterparty_photo_paths?: string[];
-          creator_item_id?: string | null;
-          counterparty_item_id?: string | null;
-          creator_item_text?: string | null;
-          counterparty_item_text?: string | null;
-          cash_amount_cents?: number | null;
-          cash_payer_id?: string | null;
-          handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
-          meeting_location?: string | null;
-          meeting_lat?: number | null;
-          meeting_lng?: number | null;
-          meeting_place_id?: string | null;
-          meeting_at?: string | null;
-          delivery_details?: string | null;
-          delivery_cost_cents?: number | null;
-          terms_updated_at?: string | null;
-          creator_confirmed_at?: string | null;
-          counterparty_confirmed_at?: string | null;
-          collateral_cents?: number | null;
-          collateral_opt_in?: boolean;
-          cancelled_by?: string | null;
-          cancel_reason?: string | null;
-          disputed_at?: string | null;
-          dispute_raised_by?: string | null;
-          dispute_reason?: string | null;
-          dispute_outcome?:
-            | Database['cardtrade']['Enums']['deal_dispute_outcome']
-            | null;
-          dispute_resolved_by?: string | null;
-          dispute_resolved_at?: string | null;
-          dispute_resolution_note?: string | null;
-          conversation_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      deal_events: {
-        Row: {
-          id: string;
-          deal_id: string;
-          actor_id: string | null;
-          event: string;
-          from_state: Database['cardtrade']['Enums']['deal_state'] | null;
-          to_state: Database['cardtrade']['Enums']['deal_state'] | null;
-          detail: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          deal_id: string;
-          actor_id?: string | null;
-          event: string;
-          from_state?: Database['cardtrade']['Enums']['deal_state'] | null;
-          to_state?: Database['cardtrade']['Enums']['deal_state'] | null;
-          detail?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          deal_id?: string;
-          actor_id?: string | null;
-          event?: string;
-          from_state?: Database['cardtrade']['Enums']['deal_state'] | null;
-          to_state?: Database['cardtrade']['Enums']['deal_state'] | null;
-          detail?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      deal_holds: {
-        Row: {
-          id: string;
-          deal_id: string;
-          party_id: string;
-          hold_ref: string | null;
-          amount_cents: number;
-          captured_cents: number;
-          status: Database['cardtrade']['Enums']['hold_status'];
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          deal_id: string;
-          party_id: string;
-          hold_ref?: string | null;
-          amount_cents: number;
-          captured_cents?: number;
-          status?: Database['cardtrade']['Enums']['hold_status'];
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          deal_id?: string;
-          party_id?: string;
-          hold_ref?: string | null;
-          amount_cents?: number;
-          captured_cents?: number;
-          status?: Database['cardtrade']['Enums']['hold_status'];
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
       /**
        * Stripe cash escrow for private deals (0027). Separate from deal_holds
        * (collateral). HELD when both parties confirm; SETTLED when both mark
        * complete; left locked on dispute.
        */
-      deal_payments: {
-        Row: {
-          id: string;
-          deal_id: string;
-          payer_id: string;
-          recipient_id: string;
-          amount_cents: number;
-          payment_ref: string | null;
-          transfer_ref: string | null;
-          status: Database['cardtrade']['Enums']['deal_payment_status'];
-          /**
-           * How much was actually taken from the payer (0048). Zero while HELD: a
-           * hold is an authorisation, not a collection.
-           */
-          captured_cents: number;
-          /** How much of the authorisation was released back to the payer (0048). */
-          refund_cents: number;
-          /** Why the provider refused, set alongside status FAILED (0048). */
-          refund_error: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          deal_id: string;
-          payer_id: string;
-          recipient_id: string;
-          amount_cents: number;
-          payment_ref?: string | null;
-          transfer_ref?: string | null;
-          status?: Database['cardtrade']['Enums']['deal_payment_status'];
-          captured_cents?: number;
-          refund_cents?: number;
-          refund_error?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          deal_id?: string;
-          payer_id?: string;
-          recipient_id?: string;
-          amount_cents?: number;
-          payment_ref?: string | null;
-          transfer_ref?: string | null;
-          status?: Database['cardtrade']['Enums']['deal_payment_status'];
-          captured_cents?: number;
-          refund_cents?: number;
-          refund_error?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
       reports: {
         Row: {
           id: string;
@@ -1666,7 +1448,6 @@ export type Database = {
           id: string;
           item_id: string | null;
           /** Set when this thread belongs to a private deal (0013). */
-          deal_id: string | null;
           /** Set when this thread belongs to a 2-way trade (0016). */
           trade_id: string | null;
           /** Set when this thread is the arbitration chat for a dispute (0019). */
@@ -1679,7 +1460,6 @@ export type Database = {
         Insert: {
           id?: string;
           item_id?: string | null;
-          deal_id?: string | null;
           trade_id?: string | null;
           cash_sale_id?: string | null;
           participant_a: string;
@@ -1690,7 +1470,6 @@ export type Database = {
         Update: {
           id?: string;
           item_id?: string | null;
-          deal_id?: string | null;
           trade_id?: string | null;
           cash_sale_id?: string | null;
           participant_a?: string;
@@ -1765,7 +1544,7 @@ export type Database = {
       };
       /**
        * Internal staff notes on an arbitration case (0047). Append-only and NOT
-       * visible to the parties — there is no member read policy and one must not be
+       * visible to the parties â€” there is no member read policy and one must not be
        * added.
        */
       arbitration_notes: {
@@ -1887,17 +1666,18 @@ export type Database = {
         };
         Returns: string | null;
       };
-      finalize_trade_acceptance: {
+      /** Negotiated trades (0053). A Trade now opens at NEGOTIATING. */
+      open_trade_negotiation: {
         Args: {
-          p_proposal_id: string;
-          p_trade_id: string;
-          p_actor_id: string;
           p_initiator_id: string;
+          p_counterpart_id: string;
           p_initiator_item_id: string;
-          p_initiator_extra_item_ids: string[];
           p_counterpart_item_id: string;
-          p_cash_amount_cents: number;
-          p_cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
+          p_initiator_extra_item_ids?: string[] | null;
+          p_counterpart_extra_item_ids?: string[] | null;
+          p_cash_amount_cents?: number;
+          p_cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
+          p_declared_value_cents?: number | null;
           p_handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
           p_meeting_location?: string | null;
           p_meeting_lat?: number | null;
@@ -1906,8 +1686,52 @@ export type Database = {
           p_meeting_at?: string | null;
           p_delivery_details?: string | null;
           p_delivery_cost_cents?: number | null;
+          p_offer_message?: string | null;
         };
-        Returns: Database['cardtrade']['Tables']['trade_proposals']['Row'];
+        Returns: Database['cardtrade']['Tables']['trades']['Row'];
+      };
+      update_trade_terms: {
+        Args: {
+          p_trade_id: string;
+          p_actor_id: string;
+          p_expected_terms_version: number;
+          p_cash_amount_cents: number;
+          p_cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
+          p_declared_value_cents?: number | null;
+          p_handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
+          p_meeting_location?: string | null;
+          p_meeting_lat?: number | null;
+          p_meeting_lng?: number | null;
+          p_meeting_place_id?: string | null;
+          p_meeting_at?: string | null;
+          p_delivery_details?: string | null;
+          p_delivery_cost_cents?: number | null;
+          p_offer_message?: string | null;
+        };
+        Returns: Database['cardtrade']['Tables']['trades']['Row'][];
+      };
+      accept_trade_terms: {
+        Args: {
+          p_trade_id: string;
+          p_actor_id: string;
+          p_terms_version: number;
+        };
+        Returns: Database['cardtrade']['Tables']['trades']['Row'][];
+      };
+      begin_trade_collateral: {
+        Args: {
+          p_trade_id: string;
+          p_actor_id: string;
+        };
+        Returns: Database['cardtrade']['Tables']['trades']['Row'][];
+      };
+      decline_trade_negotiation: {
+        Args: {
+          p_trade_id: string;
+          p_actor_id: string;
+          p_reason?: string | null;
+        };
+        Returns: Database['cardtrade']['Tables']['trades']['Row'][];
       };
       apply_cash_sale_tracking: {
         Args: {
@@ -1916,6 +1740,35 @@ export type Database = {
           p_delivered_at?: string;
         };
         Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      /**
+       * Records a carrier update for ONE trader's outbound parcel (0057).
+       *
+       * Unlike the cash sale equivalent, a DELIVERED status does not advance the
+       * state by itself: a trade needs both parcels to land, and the orchestrator
+       * derives BOTH_RECEIVED from the columns instead.
+       */
+      apply_trade_tracking: {
+        Args: {
+          p_trade_id: string;
+          p_trader_id: string;
+          p_tracking_status: string;
+          p_delivered_at?: string;
+        };
+        Returns: Database['cardtrade']['Tables']['trades']['Row'][];
+      };
+      /** Upserts one trader's protected postal address and flags it (0057). */
+      set_trade_delivery_address: {
+        Args: {
+          p_trade_id: string;
+          p_trader_id: string;
+          p_address_label: string;
+          p_place_id: string;
+          p_country_code?: string | null;
+          p_latitude?: number | null;
+          p_longitude?: number | null;
+        };
+        Returns: Database['cardtrade']['Tables']['trades']['Row'][];
       };
       /** Queues the Seller release for a COMPLETED Cash_Sale (0038). */
       mark_cash_sale_payout_due: {
@@ -1937,7 +1790,7 @@ export type Database = {
       };
       /**
        * Records a participant's allegation of objective fraud on a trade (0046).
-       * Records the claim only — capturing collateral is an operator decision.
+       * Records the claim only â€” capturing collateral is an operator decision.
        */
       record_trade_fraud_claim: {
         Args: { p_trade_id: string; p_claimant_id: string; p_reason: string };
@@ -1991,14 +1844,19 @@ export type Database = {
         | 'WITHDRAWN'
         | 'SUPERSEDED';
       trade_cash_direction: 'PROPOSER_PAYS' | 'COUNTERPART_PAYS';
+      /** Lifecycle of one trader's Trade_Fee collection (0056). */
+      trade_fee_status: 'PENDING' | 'SETTLED' | 'FAILED' | 'REFUNDED';
       trade_state:
+        // Order matches the enum's sort order, which matches the lifecycle (0051).
+        | 'NEGOTIATING'
         | 'COLLATERAL_PENDING'
         | 'COLLATERAL_LOCKED'
         | 'IN_TRANSIT'
         | 'INSPECTION'
         | 'COMPLETED'
         | 'DISPUTED'
-        | 'FRAUD_RESOLVED';
+        | 'FRAUD_RESOLVED'
+        | 'CANCELLED';
       cash_sale_status:
         | 'AGREEMENT'
         | 'PAYMENT_PENDING'

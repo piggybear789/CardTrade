@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 // lib/actions/messages.ts
 //
@@ -92,15 +92,17 @@ export async function getOrCreateConversation(
 
   // Look for an existing conversation for this exact (item_id, a, b) triple.
   // `item_id` is nullable, so match it with `.is(null)` when unscoped.
-  // A deal's thread is scoped by `deal_id` and is never a general DM, so it is
-  // excluded here — otherwise an unscoped lookup between two members who also
-  // have a deal together would match two rows.
+  //
+  // This used to exclude deal-scoped threads via `.is('deal_id', null)`, because a
+  // deal room's chat is never a general DM and would otherwise make an unscoped
+  // lookup between two members match two rows. Deals are withdrawn, so the column
+  // and the exclusion are both gone. Trade rooms do not need the same treatment:
+  // they are resolved by `ensure_trade_conversation`, never by this lookup.
   let existingQuery = supabase
     .from('conversations')
     .select('id')
     .eq('participant_a', a)
-    .eq('participant_b', b)
-    .is('deal_id', null);
+    .eq('participant_b', b);
   existingQuery = itemId
     ? existingQuery.eq('item_id', itemId)
     : existingQuery.is('item_id', null);
@@ -148,12 +150,6 @@ export interface ConversationItemSummary {
   imagePath: string | null;
 }
 
-/** A compact summary of the private deal a conversation belongs to (if any). */
-export interface ConversationDealSummary {
-  id: string;
-  title: string;
-}
-
 /** A compact summary of the trade a conversation belongs to (if any). */
 export interface ConversationTradeSummary {
   id: string;
@@ -172,8 +168,6 @@ export interface ConversationListEntry {
   lastMessageAt: string;
   other: OtherParticipant;
   item: ConversationItemSummary | null;
-  /** Set when this thread is a private deal room's chat. */
-  deal: ConversationDealSummary | null;
   /** Set when this thread is a 2-way trade's chat. */
   trade: ConversationTradeSummary | null;
   /** Set when this thread is a dispute arbitration chat. */
@@ -235,13 +229,6 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
         .filter((id): id is string => Boolean(id)),
     ),
   );
-  const dealIds = Array.from(
-    new Set(
-      conversations
-        .map((c) => c.deal_id)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
   const cashSaleIds = Array.from(
     new Set(
       conversations
@@ -252,7 +239,7 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
   const conversationIds = conversations.map((c) => c.id);
 
   // Batch the enrichment lookups. Each tolerates missing rows (null).
-  const [profilesRes, itemsRes, dealsRes, cashSalesRes, messagesRes] = await Promise.all([
+  const [profilesRes, itemsRes, cashSalesRes, messagesRes] = await Promise.all([
     supabase
       .from('public_profiles')
       .select('id, display_name')
@@ -260,9 +247,6 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
     itemIds.length > 0
       ? supabase.from('items').select('id, title, image_paths').in('id', itemIds)
       : Promise.resolve({ data: [] as { id: string; title: string; image_paths: string[] }[] }),
-    dealIds.length > 0
-      ? supabase.from('deals').select('id, title').in('id', dealIds)
-      : Promise.resolve({ data: [] as { id: string; title: string }[] }),
     cashSaleIds.length > 0
       ? supabase.from('cash_sales').select('id, item_title').in('id', cashSaleIds)
       : Promise.resolve({ data: [] as { id: string; item_title: string }[] }),
@@ -291,12 +275,6 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
     ]),
   );
 
-  const dealById = new Map<string, ConversationDealSummary>(
-    (dealsRes.data ?? []).map((d) => [
-      d.id as string,
-      { id: d.id as string, title: d.title as string },
-    ]),
-  );
 
   const disputeById = new Map<string, ConversationDisputeSummary>(
     (cashSalesRes.data ?? []).map((s) => [
@@ -333,7 +311,6 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       lastMessageAt: c.last_message_at,
       other: { id: otherId, displayName: nameById.get(otherId) ?? null },
       item: c.item_id ? (itemById.get(c.item_id) ?? null) : null,
-      deal: c.deal_id ? (dealById.get(c.deal_id) ?? null) : null,
       trade: c.trade_id ? { id: c.trade_id } : null,
       dispute: (c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id
         ? (disputeById.get((c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id!) ?? null)
@@ -361,8 +338,6 @@ export interface ConversationDetail {
   conversation: ConversationRow;
   other: OtherParticipant;
   item: ConversationItemSummary | null;
-  /** Set when this thread is a private deal room's chat. */
-  deal: ConversationDealSummary | null;
   /** Set when this thread is a 2-way trade's chat. */
   trade: ConversationTradeSummary | null;
   messages: MessageRow[];
@@ -405,7 +380,7 @@ export async function getConversation(
 
   const otherId = conv.participant_a === me ? conv.participant_b : conv.participant_a;
 
-  const [profileRes, itemRes, dealRes, messagesRes] = await Promise.all([
+  const [profileRes, itemRes, messagesRes] = await Promise.all([
     supabase
       .from('public_profiles')
       .select('id, display_name')
@@ -417,9 +392,6 @@ export async function getConversation(
           .select('id, title, image_paths')
           .eq('id', conv.item_id)
           .maybeSingle()
-      : Promise.resolve({ data: null }),
-    conv.deal_id
-      ? supabase.from('deals').select('id, title').eq('id', conv.deal_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
       .from('messages')
@@ -445,12 +417,6 @@ export async function getConversation(
         displayName: (profileRes.data?.display_name as string | null) ?? null,
       },
       item,
-      deal: dealRes.data
-        ? {
-            id: dealRes.data.id as string,
-            title: dealRes.data.title as string,
-          }
-        : null,
       trade: conv.trade_id ? { id: conv.trade_id } : null,
       messages: (messagesRes.data ?? []) as MessageRow[],
     },
@@ -543,7 +509,7 @@ export async function sendMessage(
     userId: recipientId,
     type: 'MESSAGE',
     title: 'New message',
-    body: trimmed.length > 120 ? `${trimmed.slice(0, 117)}…` : trimmed,
+    body: trimmed.length > 120 ? `${trimmed.slice(0, 117)}â€¦` : trimmed,
     link: `/messages/${conversationId}`,
   });
 

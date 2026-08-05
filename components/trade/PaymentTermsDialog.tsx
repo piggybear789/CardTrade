@@ -31,7 +31,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { TRADE_PROPOSAL_MESSAGE_MAX } from '@/lib/marketplace-constants';
-import type { TradeCashDirection } from '@/domain/orchestrator/tradeProposalRequest';
+/**
+ * Who pays the cash leg of a trade. Declared here rather than imported now that
+ * the proposal module is gone; the database enum is `trade_cash_direction`.
+ */
+export type TradeCashDirection = 'PROPOSER_PAYS' | 'COUNTERPART_PAYS';
 
 /** The optional side of an offer, as typed. */
 export interface PaymentTerms {

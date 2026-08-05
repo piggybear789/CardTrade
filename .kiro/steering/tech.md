@@ -77,11 +77,12 @@ Copy `.env.local.example` to `.env.local`:
 - `STRIPE_WEBHOOK_SECRET` — `whsec_...`, verifies the `stripe-signature` header. Get one from `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — the only Stripe value that may reach the browser
 - `PAYOUT_MODE` — `platform` (default) or `direct` (settle Cash_Sales into the seller's sub-merchant)
+- `JOBS_SECRET` — server-only bearer secret for the scheduled money-moving routes (`/api/jobs/cash-sale-payouts`, `/api/jobs/trade-inspections`). Both **fail closed** without it. Set `CRON_SECRET` to the same value, because Vercel Cron sends it as a bearer token on a GET.
 
 Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret values back in output.
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/`, currently through `0049_collapse_duplicate_verification.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0057_trade_fulfilment_parity.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
 
 Note the base DDL for `deals` / `deal_holds` / `deal_events` is **not** in `supabase/migrations/` — those tables predate the numbered sequence. Alter them with `add column if not exists` rather than assuming a prior migration defines them.

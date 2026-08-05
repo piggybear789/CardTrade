@@ -1,18 +1,18 @@
-'use client';
+﻿'use client';
 
 // components/trade/TradeContract.tsx
 //
 // The flagship real-time Trade Contract view (Req 11), on the same three pieces as the
 // cash sale and deal rooms:
 //
-//   header        2-way swap · value each side · You ⇄ Ada ✓ · Trade_State
-//   ┌ your move ─────────────────────┬ chat ──────┐
-//   └────────────────────────────────┴────────────┘
-//   ●──●──○──○──○   Collateral Send Receive Accept Released
-//   Swap · Collateral · Demo                          (collapsed rows)
+//   header        2-way swap Â· value each side Â· You â‡„ Ada âœ“ Â· Trade_State
+//   â”Œ your move â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬ chat â”€â”€â”€â”€â”€â”€â”
+//   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//   â—â”€â”€â—â”€â”€â—‹â”€â”€â—‹â”€â”€â—‹   Collateral Send Receive Accept Released
+//   Swap Â· Collateral Â· Demo                          (collapsed rows)
 //
 // The action card holds `ActionBar`, which remains the single place trade actions are
-// wired — the state machine decides what appears, not this component (Req 11.3, 11.4).
+// wired â€” the state machine decides what appears, not this component (Req 11.3, 11.4).
 // The rail is `deriveTradeSteps`, which reads the same TradeFacts the state machine
 // consumes, so the two can never disagree.
 //
@@ -20,7 +20,7 @@
 // render without a reload (Req 11.2), including the connection indicator (Req 11.5,
 // shown only while degraded) and the fraud outcome (Req 8.4).
 
-import { useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,12 +30,26 @@ import {
   deliveryNotesFromDetails,
   summarizeHandover,
 } from '@/lib/handover/terms';
-import { retrySettleTradeCash } from '@/lib/actions/trades';
+import {
+  getTradeDeliveryAddresses,
+  retrySettleTradeCash,
+  saveTradeDeliveryAddress,
+  syncTradeTracking,
+  type TradeAddressView,
+} from '@/lib/actions/trades';
+import {
+  DeliveryAddressPanel,
+  InspectionCountdown,
+} from '@/components/fulfilment';
+import { inspectionHoldRisk } from '@/domain/fulfilment';
+import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ActionBar } from '@/components/trade/ActionBar';
+import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import { HoldStatus } from '@/components/trade/HoldStatus';
+import { TRADE_FEE_BPS, tradeFeeCentsFor } from '@/domain/trade/tradeFee';
 import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
 import { StateBadge } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
@@ -80,7 +94,12 @@ import type { ReactNode } from 'react';
  * Derive the aggregate TradeFacts snapshot the state machine needs from the live trade
  * row + holds. Mirrors the server-side derivation (which lives in a server-only module)
  * so it can run in the browser. Shipment/receipt/acceptance legs come from the
- * per-trader timestamps; hold activity from the live holds.
+ * per-trader timestamps; hold activity from the live holds; the terms legs from each
+ * side's accepted version against the current one, so a counter-offer clears both.
+ *
+ * Keep this in step with `factsFromTrade` in `lib/actions/tradeLifecycleStore.ts`. The
+ * duplication exists because that module is `server-only`, not because the two are
+ * allowed to disagree.
  */
 function deriveFacts(
   trade: TradeRow,
@@ -89,6 +108,10 @@ function deriveFacts(
   const holdActive = (traderId: string) =>
     holds.some((h) => h.trader_id === traderId && h.status === 'ACTIVE');
   return {
+    termsAccepted: {
+      initiator: trade.initiator_terms_accepted_version === trade.terms_version,
+      counterpart: trade.counterpart_terms_accepted_version === trade.terms_version,
+    },
     shipped: {
       initiator: trade.initiator_shipped_at != null,
       counterpart: trade.counterpart_shipped_at != null,
@@ -101,6 +124,11 @@ function deriveFacts(
       initiator: trade.initiator_accepted_at != null,
       counterpart: trade.counterpart_accepted_at != null,
     },
+    handoverConfirmed: {
+      initiator: trade.initiator_handover_confirmed_at != null,
+      counterpart: trade.counterpart_handover_confirmed_at != null,
+    },
+    fulfilmentMethod: trade.handover_method,
     holdsActive: {
       initiator: holdActive(trade.initiator_id),
       counterpart: holdActive(trade.counterpart_id),
@@ -163,17 +191,17 @@ export interface TradeParty {
  * Map a trader into the shared contract party shape. A trade is symmetric, so both sides
  * carry the same role label and the same kind of exposure.
  */
-function toContractParty(party: TradeParty, stakeCents: number): ContractParty {
+function toContractParty(party: TradeParty): ContractParty {
   return {
     name: party.name,
     roleLabel: 'Trader',
     verified: party.verified,
     rating: party.rating,
     ratingCount: party.ratingCount,
-    stats:
-      stakeCents > 0
-        ? [{ label: 'Item value', value: formatAud(stakeCents) }]
-        : undefined,
+    // No value stat. Each side's value was appearing three times over: in the
+    // header's `money` line, in this chip, and again on every item row beneath it.
+    // The item rows are the authoritative place â€” they attribute value to the thing
+    // that has it â€” so the trust line carries trust only.
   };
 }
 
@@ -219,8 +247,8 @@ function TradeCashSettlementNotice({
 
   const pendingAfterComplete =
     trade.state === 'COMPLETED' && trade.manual_reconciliation;
-  // Trades have no CANCELLED state — a failed hold simply never reaches
-  // COLLATERAL_LOCKED — so only the two terminal states end the reminder.
+  // Trades have no CANCELLED state â€” a failed hold simply never reaches
+  // COLLATERAL_LOCKED â€” so only the two terminal states end the reminder.
   const waitingBeforeComplete =
     trade.state !== 'COMPLETED' &&
     trade.state !== 'FRAUD_RESOLVED' &&
@@ -273,7 +301,7 @@ function TradeCashSettlementNotice({
                 });
               }}
             >
-              {isPending ? 'Settling…' : 'Retry cash settlement'}
+              {isPending ? 'Settlingâ€¦' : 'Retry cash settlement'}
             </Button>
           </div>
         </>
@@ -285,7 +313,7 @@ function TradeCashSettlementNotice({
               : `Cash of ${amount} settles after they finish payout setup`}
           </p>
           <p className="mt-1 text-muted-foreground">
-            You can keep trading — collateral covers the goods. Stripe
+            You can keep trading â€” collateral covers the goods. Stripe
             moves the cash once the receiver can take payouts.
           </p>
           {iReceive ? (
@@ -319,18 +347,56 @@ function areHandoverDetailsFilled(trade: TradeRow): boolean {
   return false;
 }
 
+/**
+ * Ask the carrier where both parcels are.
+ *
+ * Only rendered when the configured tracking binding can actually poll. The manual
+ * provider cannot, by design, so this is invisible today and lights up for both the
+ * trade room and the cash sale room the moment a real carrier integration lands.
+ */
+function TradeTrackingRefresh({ tradeId }: { tradeId: string }) {
+  const [isPending, startTransition] = useTransition();
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={isPending}
+      aria-busy={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          const result = await syncTradeTracking(tradeId);
+          if (!result.ok) {
+            toast.error(
+              result.detail ?? 'Tracking could not be refreshed right now.',
+            );
+            return;
+          }
+          toast.success(
+            result.delivered
+              ? 'Carrier confirmed a delivery.'
+              : 'Tracking refreshed.',
+          );
+        });
+      }}
+    >
+      {isPending ? 'Checking…' : 'Refresh tracking'}
+    </Button>
+  );
+}
+
 function trackingLabel(
   carrier: string | null | undefined,
   number: string | null | undefined,
 ): string {
   if (!carrier?.trim() || !number?.trim()) return 'Not shipped yet';
-  return `${carrier.trim()} · ${number.trim()}`;
+  return `${carrier.trim()} Â· ${number.trim()}`;
 }
 
 /**
  * DELIVERY terms as postage + free-text notes. Putting the whole
  * `delivery_details` blob under a bare "Delivery" label left the panel looking
- * empty when notes were blank — cash sales show cost as the value instead.
+ * empty when notes were blank â€” cash sales show cost as the value instead.
  */
 function deliveryTermsRows(trade: TradeRow) {
   const cost = trade.delivery_cost_cents;
@@ -355,7 +421,7 @@ function toContractEvents(
   return transitions.map((row) => ({
     id: row.id,
     event: row.event,
-    detail: `${row.from_state.replace(/_/g, ' ').toLowerCase()} → ${row.to_state
+    detail: `${row.from_state.replace(/_/g, ' ').toLowerCase()} â†’ ${row.to_state
       .replace(/_/g, ' ')
       .toLowerCase()}`,
     created_at: row.created_at,
@@ -363,13 +429,18 @@ function toContractEvents(
   }));
 }
 
-/** Terms row — meeting / delivery, editable until first ship. */
+/** Terms row â€” meeting / delivery, editable until first ship. */
 function TradeTermsRow({
   trade,
   viewerRole,
+  addresses,
+  counterpartName,
 }: {
   trade: TradeRow;
   viewerRole: TradeViewerRole;
+  /** Postal addresses the viewer is entitled to see. Posted trades only. */
+  addresses: TradeAddressView;
+  counterpartName: string;
 }) {
   const editable = canEditHandoverTerms(trade);
   const summary = trade.handover_method
@@ -415,14 +486,14 @@ function TradeTermsRow({
     >
       {trade.handover_method === null ? (
         <p className="text-muted-foreground">
-          Not agreed yet — choose face to face or delivery, then fill in the
+          Not agreed yet â€” choose face to face or delivery, then fill in the
           details.
         </p>
       ) : !areHandoverDetailsFilled(trade) ? (
         <p className="text-muted-foreground">
           {trade.handover_method === 'IN_PERSON'
-            ? 'Face to face — add a meeting place when you both know where to meet.'
-            : 'Delivery — agree postage and notes here; add tracking when you ship.'}
+            ? 'Face to face â€” add a meeting place when you both know where to meet.'
+            : 'Delivery â€” agree postage and notes here; add tracking when you ship.'}
         </p>
       ) : (
         <>
@@ -455,6 +526,47 @@ function TradeTermsRow({
               label={trade.meeting_location}
               heightClassName="h-40"
             />
+          ) : null}
+          {/* Where each parcel is actually going. A posted trade previously had no
+              address of record at all, so traders swapped them in the chat thread —
+              outside the contract and outside RLS. Two panels, because a swap posts
+              in both directions. */}
+          {trade.handover_method === 'DELIVERY' ? (
+            <DeliveryAddressPanel
+              mine={addresses.mine}
+              theirs={addresses.theirs}
+              theirsPending={
+                addresses.theirs
+                  ? null
+                  : trade.state === 'NEGOTIATING' ||
+                      trade.state === 'COLLATERAL_PENDING'
+                    ? 'Shared with you once collateral is locked on both sides.'
+                    : 'Not added yet. They need to add an address before you can post.'
+              }
+              counterpartName={counterpartName}
+              editable={editable}
+              onSave={async (address) => {
+                const result = await saveTradeDeliveryAddress(trade.id, address);
+                return result.ok
+                  ? { ok: true as const }
+                  : {
+                      ok: false as const,
+                      message:
+                        result.detail ??
+                        'Could not save the address. Please try again.',
+                    };
+              }}
+            />
+          ) : null}
+          {/* Refresh both parcels from the carrier. A carrier-confirmed delivery is
+              the only thing that starts the inspection clock — a trader's own word
+              records receipt but never starts a clock that can end in a payout
+              against them. Renders nothing until a carrier binding that can poll is
+              configured; the manual provider deliberately cannot. */}
+          {trade.handover_method === 'DELIVERY' &&
+          trade.state === 'IN_TRANSIT' &&
+          isTrackingStatusPollingAvailable() ? (
+            <TradeTrackingRefresh tradeId={trade.id} />
           ) : null}
           {trade.handover_method === 'DELIVERY' ? (
             <ContractMoneyTable
@@ -509,7 +621,32 @@ export function TradeContract({
     return { role: viewerRole, facts: deriveFacts(trade, holds) };
   }, [trade, holds, viewerRole]);
 
-  // How many actions the state machine permits the viewer right now — drives the
+  // Postal addresses are NOT on the trade row — that row is Realtime-published, and
+  // an address has no business being broadcast. They are read through the
+  // cookie-bound client so RLS decides disclosure, which means re-reading when the
+  // state changes: the counterpart's address becomes visible at COLLATERAL_LOCKED,
+  // and a realtime state change alone would not fetch it.
+  const [addresses, setAddresses] = useState<TradeAddressView>({
+    mine: null,
+    theirs: null,
+  });
+  const isDeliveryTrade = trade?.handover_method === 'DELIVERY';
+  const tradeState = trade?.state;
+
+  const refreshAddresses = useCallback(async () => {
+    if (!tradeId) return;
+    const next = await getTradeDeliveryAddresses(tradeId);
+    setAddresses(next);
+  }, [tradeId]);
+
+  useEffect(() => {
+    if (!isDeliveryTrade) return;
+    void refreshAddresses();
+    // `tradeState` is a dependency on purpose: entering COLLATERAL_LOCKED is what
+    // unlocks the counterpart's address.
+  }, [isDeliveryTrade, tradeState, refreshAddresses]);
+
+  // How many actions the state machine permits the viewer right now â€” drives the
   // "no actions available" helper text (Req 11.4).
   const permittedActionCount =
     trade && viewer ? availableActions(trade.state, viewer).length : 0;
@@ -534,7 +671,27 @@ export function TradeContract({
 
   const yoursValueCents = sideValueCents(goods?.yours ?? []);
   const theirsValueCents = sideValueCents(goods?.theirs ?? []);
+
+  // Each trader's fee is 5% of what THEY receive, so the viewer's own fee is sized
+  // from the other side's bundle plus any cash coming to them. Derived here rather
+  // than read from `trade_fees`, because the fee has to be disclosed BEFORE it is
+  // charged — the row does not exist until both sides have accepted.
+  const cashCents = goods?.cashAmountCents ?? 0;
+  const cashToMe = goods?.cashDirection === 'incoming' ? cashCents : 0;
+  const cashToThem = goods?.cashDirection === 'outgoing' ? cashCents : 0;
+  const myFeeCents = tradeFeeCentsFor(theirsValueCents + cashToMe);
+  const theirFeeCents = tradeFeeCentsFor(yoursValueCents + cashToThem);
   const heldCents = holds.reduce((sum, hold) => sum + hold.amount_cents, 0);
+
+  // The soonest authorisation to lapse across both traders' collateral. If it falls
+  // before the inspection deadline, the window outlives the thing backing it and the
+  // room says so — silently shortening the window would remove a stated right, and
+  // extending it would promise a guarantee the provider has already released.
+  const earliestHoldExpiry = holds.reduce<string | null>((soonest, hold) => {
+    if (hold.status !== 'ACTIVE' || !hold.expires_at) return soonest;
+    if (!soonest) return hold.expires_at;
+    return hold.expires_at < soonest ? hold.expires_at : soonest;
+  }, null);
   const history = toContractEvents(transitions);
   const latestEvent = history.length > 0 ? history[history.length - 1] : null;
 
@@ -545,6 +702,19 @@ export function TradeContract({
           viewerRole,
           facts: viewer.facts,
           counterpartyName: theirName,
+          addresses:
+            trade.handover_method === 'DELIVERY'
+              ? {
+                  mine:
+                    viewerRole === 'INITIATOR'
+                      ? trade.initiator_delivery_address_configured
+                      : trade.counterpart_delivery_address_configured,
+                  theirs:
+                    viewerRole === 'INITIATOR'
+                      ? trade.counterpart_delivery_address_configured
+                      : trade.initiator_delivery_address_configured,
+                }
+              : undefined,
         })
       : [];
   const step = currentStep(steps);
@@ -556,7 +726,7 @@ export function TradeContract({
           title="2-way trade"
           money={
             goods
-              ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}${
+              ? `${formatAud(yoursValueCents)} â‡„ ${formatAud(theirsValueCents)}${
                   goods.cashAmountCents > 0
                     ? ` + ${formatAud(goods.cashAmountCents)} cash`
                     : ''
@@ -566,8 +736,8 @@ export function TradeContract({
           parties={
             me && them ? (
               <ContractPartyLine
-                me={toContractParty(me, yoursValueCents)}
-                them={toContractParty(them, theirsValueCents)}
+                me={toContractParty(me)}
+                them={toContractParty(them)}
               />
             ) : null
           }
@@ -579,7 +749,7 @@ export function TradeContract({
           <Card>
             <CardContent className="flex items-center gap-3 py-10 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" aria-hidden />
-              Loading trade…
+              Loading tradeâ€¦
             </CardContent>
           </Card>
         ) : (
@@ -593,12 +763,33 @@ export function TradeContract({
               />
             ) : null}
 
+            {/* The inspection clock. A deadline that exists but is never shown is a
+                trap, and until 0057 a trade had no deadline at all: an unresponsive
+                counterpart parked both traders' collateral until the card
+                authorisation lapsed, which removes the guarantee rather than
+                resolving anything. */}
+            {trade.state === 'INSPECTION' ? (
+              <InspectionCountdown
+                deadlineAt={trade.inspection_deadline_at}
+                viewerMustAct={
+                  !(viewerRole === 'INITIATOR'
+                    ? trade.initiator_accepted_at
+                    : trade.counterpart_accepted_at)
+                }
+                holdRisk={inspectionHoldRisk(
+                  trade.inspection_deadline_at,
+                  earliestHoldExpiry,
+                )}
+                expiryConsequence="If neither of you acts, the trade completes on its own and both collateral holds are released."
+              />
+            ) : null}
+
             <ContractLiveRow
               action={
                 <ContractActionCard step={step} tone={STATE_TONE[trade.state]}>
                   {/* Commitment-point identity disclosure. A 2-way trade involves
                       no connected account, so the payee-side verified name shown
-                      on a cash sale does not exist here — this is the only place
+                      on a cash sale does not exist here â€” this is the only place
                       a trader learns who they are actually swapping with. Fetched
                       by the component itself, which re-checks server-side that
                       the viewer really is a party to this trade. */}
@@ -608,12 +799,43 @@ export function TradeContract({
                     className="mb-3"
                   />
 
-                  {viewer && permittedActionCount > 0 ? (
+                  {/* Negotiation lives here rather than in ActionBar because
+                      countering needs a terms form. Both read the same
+                      `availableActions`, so neither invents permissions. */}
+                  {viewer && trade.state === 'NEGOTIATING' ? (
+                    <TradeNegotiationPanel
+                      tradeId={tradeId}
+                      viewer={viewer}
+                      termsVersion={trade.terms_version}
+                      terms={{
+                        cashAmountCents: trade.cash_amount_cents,
+                        cashDirection: trade.cash_direction,
+                        handoverMethod: trade.handover_method,
+                        meetingLocation: trade.meeting_location,
+                        meetingLat: trade.meeting_lat,
+                        meetingLng: trade.meeting_lng,
+                        meetingPlaceId: trade.meeting_place_id,
+                        meetingAt: trade.meeting_at,
+                        deliveryDetails: trade.delivery_details,
+                        deliveryCostCents: trade.delivery_cost_cents,
+                        offerMessage: trade.offer_message,
+                      }}
+                    />
+                  ) : null}
+
+                  {viewer && trade.state !== 'NEGOTIATING' && permittedActionCount > 0 ? (
                     <ActionBar
                       tradeId={tradeId}
                       state={trade.state}
                       viewer={viewer}
                       handoverMethod={trade.handover_method}
+                      counterpartName={them?.name}
+                      // Nobody should be posting a card to an address they do not
+                      // have. The shipment dialog says so rather than failing later.
+                      recipientAddressKnown={
+                        trade.handover_method !== 'DELIVERY' ||
+                        addresses.theirs !== null
+                      }
                     />
                   ) : null}
 
@@ -630,7 +852,7 @@ export function TradeContract({
                   currentUserId={myUserId}
                   counterpartyName={theirName}
                   title="Chat"
-                  placeholder="Message about the trade…"
+                  placeholder="Message about the tradeâ€¦"
                   emptyHint="Use chat to coordinate shipping and receipt."
                   failed={chat.failed}
                   onRetry={chat.retry}
@@ -655,7 +877,7 @@ export function TradeContract({
                         heading: 'You give',
                         partyName: me?.name,
                         party: me
-                          ? toContractParty(me, yoursValueCents)
+                          ? toContractParty(me)
                           : null,
                         items: toExchangeItems(goods.yours),
                         isMine: true,
@@ -663,25 +885,42 @@ export function TradeContract({
                           goods.cashDirection === 'outgoing'
                             ? goods.cashAmountCents
                             : null,
-                        cashLabel: `You also pay ${formatAud(goods.cashAmountCents)} through Stripe`,
+                        // Description only: the amount is the ledger row's right
+                        // column, so repeating it in the label would print it twice
+                        // on one line.
+                        cashLabel: 'Cash you pay via Stripe',
+                        // Disclosed on the side that PAYS it, sized on what that
+                        // trader receives — so it appears against your column while
+                        // being derived from theirs.
+                        feeCents: myFeeCents,
+                        feeLabel: `NoDitto fee (${TRADE_FEE_BPS / 100}%)`,
                         emptyLabel: 'You are putting up no goods.',
                       },
                       {
                         heading: 'You receive',
                         partyName: them?.name,
                         party: them
-                          ? toContractParty(them, theirsValueCents)
+                          ? toContractParty(them)
                           : null,
                         items: toExchangeItems(goods.theirs),
                         cashCents:
                           goods.cashDirection === 'incoming'
                             ? goods.cashAmountCents
                             : null,
-                        cashLabel: `You also receive ${formatAud(goods.cashAmountCents)} in cash`,
+                        // This column is what THEY give, so it reads from their side
+                        // even though the heading is relational. Framing it as "you
+                        // receive" would put a credit in a column of debits.
+                        cashLabel: 'Cash they pay via Stripe',
+                        feeCents: theirFeeCents,
+                        feeLabel: `NoDitto fee (${TRADE_FEE_BPS / 100}%)`,
                         emptyLabel: 'They are putting up no goods.',
                       },
                     ]}
-                    footnote="The bundle and cash were fixed when the trade proposal was accepted, so neither side can change them here."
+                    footnote={
+                      trade.state === 'NEGOTIATING'
+                        ? 'Either of you can still counter these terms. Nothing is held until you both accept the same version.'
+                        : 'The bundle and cash were fixed when both of you accepted the terms, so neither side can change them now.'
+                    }
                   />
                 </ContractDetailRow>
               ) : null}
@@ -708,7 +947,12 @@ export function TradeContract({
               ) : null}
 
               {trade ? (
-                <TradeTermsRow trade={trade} viewerRole={viewerRole} />
+                <TradeTermsRow
+                  trade={trade}
+                  viewerRole={viewerRole}
+                  addresses={addresses}
+                  counterpartName={theirName}
+                />
               ) : null}
 
               {/* Same section set and order as the deal room: Exchange, Terms,
@@ -722,7 +966,7 @@ export function TradeContract({
                       ? `${formatAud(goods.cashAmountCents)} cash ${
                           goods.cashDirection === 'outgoing' ? 'from you' : 'to you'
                         }`
-                      : 'No cash — goods for goods'
+                      : 'No cash â€” goods for goods'
                   }
                   contentClassName="space-y-3"
                 >
@@ -746,7 +990,7 @@ export function TradeContract({
                     />
                   ) : (
                     <p className="text-muted-foreground">
-                      No cash component — this trade is goods for goods.
+                      No cash component â€” this trade is goods for goods.
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">
@@ -770,10 +1014,13 @@ export function TradeContract({
                 }
                 contentClassName="gap-3"
               >
+                {/* Both traders bond now — the verified exemption is gone, because it
+                    left every trade with no collateral and made a dispute or fraud
+                    finding unpayable. See `domain/bond/bondPolicy.ts`. */}
                 <p className="text-muted-foreground">
-                  Unverified traders post collateral against the value of what they
-                  receive. Verified traders skip that hold. Nothing is charged unless
-                  the trade goes wrong.
+                  Both traders hold a DittoBond against the value of what they
+                  receive. It is an authorisation, not a payment: no money moves, and
+                  nothing is charged unless the trade goes wrong.
                 </p>
                 <HoldStatus
                   holds={holds}
@@ -787,7 +1034,7 @@ export function TradeContract({
                 label="History"
                 summary={
                   latestEvent
-                    ? `${history.length} events · ${latestEvent.event
+                    ? `${history.length} events Â· ${latestEvent.event
                         .toLowerCase()
                         .replace(/_/g, ' ')}`
                     : 'Nothing has happened yet'

@@ -57,10 +57,10 @@ const FAILURE_COPY: Record<
   { summary: string; action: string; href?: string; actionLabel?: string }
 > = {
   NOT_PAYABLE: {
-    summary: 'Your payout setup is not finished, so we have nowhere to send this yet.',
-    action: 'Finish payout setup and we will release it automatically.',
+    summary: 'Your account is not verified yet, so we have nowhere to send this.',
+    action: 'Finish verification and we will release it automatically.',
     href: '/profile#payouts',
-    actionLabel: 'Finish payout setup',
+    actionLabel: 'Finish verification',
   },
   PROVIDER_REJECTED: {
     summary: 'Our payment provider rejected this release.',

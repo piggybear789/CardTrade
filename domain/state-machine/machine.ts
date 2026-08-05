@@ -25,33 +25,62 @@ export interface TransitionResult {
  *
  * Each entry maps a source Trade_State to the set of events permitted from that
  * state and the resulting target state. States with an empty map are terminal
- * (COMPLETED, FRAUD_RESOLVED) and admit no transitions (Req 9.1).
+ * (COMPLETED, FRAUD_RESOLVED, CANCELLED) and admit no transitions (Req 9.1).
  *
- * Requirement mapping:
- * - HOLDS_CONFIRMED / HOLDS_FAILED  -> Req 5.5 / 5.6
- * - BOTH_SHIPPED                    -> Req 6.2
- * - BOTH_RECEIVED                   -> Req 6.4
- * - BOTH_ACCEPTED                   -> Req 6.6
- * - CONDITION_DISPUTE               -> Req 7.1
- * - DISPUTE_RESOLVED                -> Req 7.5
- * - FRAUD_CONFIRMED                 -> Req 8.1
+ * There are TWO routes from COLLATERAL_LOCKED to INSPECTION, one per fulfilment
+ * method, and they converge deliberately. Whichever way the goods moved, the
+ * receiving trader gets the same inspection window and the same remedies.
  */
 export const TRANSITIONS: Record<
   TradeState,
   Partial<Record<TradeEvent, TradeState>>
 > = {
+  NEGOTIATING: {
+    // Both sides accepted the same terms version, so collateral may be sought.
+    // This is the point the old flow called "accept proposal": it now happens
+    // inside the room, on a Trade that already exists.
+    TERMS_AGREED: 'COLLATERAL_PENDING',
+    // Either side ending it before terms are agreed. One event, not two: a
+    // decline by the recipient and a withdrawal by the proposer are the same
+    // fact — this offer will not become an exchange — and giving them separate
+    // events would mean two ways to reach one state with no behavioural
+    // difference. Who ended it is recorded on the row, not in the event.
+    OFFER_DECLINED: 'CANCELLED',
+  },
   COLLATERAL_PENDING: {
     HOLDS_CONFIRMED: 'COLLATERAL_LOCKED',
-    HOLDS_FAILED: 'COLLATERAL_PENDING', // -> cancellation (holds voided, items restored)
+    // Deliberately still a self-loop rather than -> CANCELLED. The compensating
+    // path in Req 5.6 voids holds and restores items while the Trade stays put
+    // so collateral can be re-sought; repointing it at the new terminal state
+    // would change that behaviour, which is a separate decision from adding
+    // negotiation. See the orchestrator's HOLDS_FAILED handling.
+    HOLDS_FAILED: 'COLLATERAL_PENDING',
   },
   COLLATERAL_LOCKED: {
+    // DELIVERY: both parcels posted.
     BOTH_SHIPPED: 'IN_TRANSIT',
+    // IN_PERSON: both traders confirmed the meeting happened. Note the target is
+    // INSPECTION, not COMPLETED — see BOTH_HANDOVER_CONFIRMED in types.ts.
+    BOTH_HANDOVER_CONFIRMED: 'INSPECTION',
+    // The exchange did not happen: a no-show, a refusal at the meeting point, or
+    // goods handed over under duress. Freezes the trade for review and captures
+    // NOTHING, which is why it is not CONDITION_DISPUTE — that settles a
+    // Friction_Tax against the other trader, and at this point neither side has
+    // necessarily done anything wrong.
+    HANDOVER_FAILED: 'DISPUTED',
   },
   IN_TRANSIT: {
     BOTH_RECEIVED: 'INSPECTION',
+    // A parcel that never arrives. Without this an IN_TRANSIT trade had NO exit at
+    // all: both traders' collateral sat until the card authorisation lapsed, which
+    // removes the guarantee rather than resolving anything.
+    HANDOVER_FAILED: 'DISPUTED',
   },
   INSPECTION: {
     BOTH_ACCEPTED: 'COMPLETED',
+    // The window closed with neither trader accepting or disputing. Dispatched by
+    // the scheduled sweep, never by a participant.
+    INSPECTION_EXPIRED: 'COMPLETED',
     CONDITION_DISPUTE: 'DISPUTED',
     FRAUD_CONFIRMED: 'FRAUD_RESOLVED',
   },
@@ -61,6 +90,7 @@ export const TRANSITIONS: Record<
   },
   COMPLETED: {}, // terminal
   FRAUD_RESOLVED: {}, // terminal
+  CANCELLED: {}, // terminal — declined or withdrawn before terms were agreed
 };
 
 /**

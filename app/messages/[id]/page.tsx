@@ -46,7 +46,7 @@ export default async function ConversationPage({
     notFound();
   }
 
-  const { conversation, other, item, deal, trade } = result.data;
+  const { conversation, other, item, trade } = result.data;
 
   return (
     <MarketplaceShell title="Messages">
@@ -55,7 +55,6 @@ export default async function ConversationPage({
         currentUserId={user.id}
         otherName={other.displayName}
         item={item}
-        deal={deal}
         trade={trade}
       />
     </MarketplaceShell>

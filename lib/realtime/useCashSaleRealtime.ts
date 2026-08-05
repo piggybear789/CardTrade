@@ -48,7 +48,9 @@ export function useCashSaleRealtime(cashSaleId: string) {
         .eq('cash_sale_id', cashSaleId)
         .order('created_at'),
     ]);
-    if (saleResult.data) setSale(saleResult.data as CashSaleRow);
+    // Through `unknown`: the explicit column list means PostgREST's inferred type
+    // does not structurally overlap the full row, so a direct cast is rejected.
+    if (saleResult.data) setSale(saleResult.data as unknown as CashSaleRow);
     if (eventsResult.data) setEvents(eventsResult.data as CashSaleEventRow[]);
   }, [cashSaleId]);
   useEffect(() => {

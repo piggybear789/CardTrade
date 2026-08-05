@@ -1,13 +1,13 @@
-// tests/unit/navigationGraph.test.ts
+﻿// tests/unit/navigationGraph.test.ts
 //
 // Navigation integrity guard. A fast, browser-free audit that builds the app's
 // link graph from source and asserts two properties that keep the product free
 // of dead ends and 404s:
 //
-//   1. Link resolution — every internal navigation target (Link href, redirect,
+//   1. Link resolution â€” every internal navigation target (Link href, redirect,
 //      router.push/replace) resolves to a real App Router route. Catches typos
 //      and links to routes that were renamed or removed.
-//   2. Reachability — every navigable route is linked from somewhere, so no page
+//   2. Reachability â€” every navigable route is linked from somewhere, so no page
 //      becomes an orphan reachable only by typing the URL. A small allowlist
 //      covers legitimate entry points (home, auth, share-link, OAuth, webhook).
 //
@@ -28,7 +28,6 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   '/', // home / marketing entry
   '/sign-in', // auth entry (also linked, but guaranteed reachable)
   '/sign-up',
-  '/deals/join/[token]', // opened from an externally shared invite link
   '/auth/callback', // OAuth provider redirect target
   '/api/webhooks/stripe', // server-to-server webhook, never navigated
 ]);
@@ -75,7 +74,7 @@ function routeToRegex(route: string): RegExp {
   return new RegExp(`^/${body}$`);
 }
 
-/** Number of static (non-dynamic) segments — used to pick the most specific route. */
+/** Number of static (non-dynamic) segments â€” used to pick the most specific route. */
 function specificity(route: string): number {
   return route
     .split('/')
@@ -98,7 +97,7 @@ const NAV_PREFIX =
 // INSIDE the target.
 //
 // A single regex with `(['"`])(\/[^'"`]*)\1` looks tidier but silently misses any
-// template literal containing a quote — and interpolations routinely do, e.g.
+// template literal containing a quote â€” and interpolations routinely do, e.g.
 //   href={`/trades/new?counterpartItemId=${x?.id ?? ''}&counter=${y}`}
 // The class stops at that `'`, the closing backtick then fails to match, and the
 // link vanishes from the graph. That made `/trades/new` look like an orphan route

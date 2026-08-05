@@ -7,13 +7,19 @@
 // The set of controls is derived solely from `availableActions(state, viewer)`
 // so transition/permission rules are never hard-coded here.
 //
-// Each control is wired to its corresponding trade server action (Req 6.1/6.3/
-// 6.5, 7.1, 8.1):
-//   RECORD_SHIPMENT   -> recordShipment (carrier + tracking when Delivery)
-//   RECORD_RECEIPT    -> recordReceipt
-//   RECORD_ACCEPTANCE -> recordAcceptance
-//   RAISE_DISPUTE     -> raiseDispute
-//   REPORT_FRAUD      -> reportFraud
+// Each control is wired to its corresponding trade server action:
+//   RECORD_SHIPMENT         -> recordShipment (carrier + tracking, posted trades)
+//   CONFIRM_HANDOVER        -> confirmTradeHandover (face-to-face trades)
+//   REPORT_HANDOVER_FAILED  -> reportTradeHandoverFailed (freezes, captures nothing)
+//   RECORD_RECEIPT          -> recordReceipt
+//   RECORD_ACCEPTANCE       -> recordAcceptance
+//   RAISE_DISPUTE           -> raiseDispute
+//   REPORT_FRAUD            -> reportFraud
+//
+// COLLATERAL_LOCKED now offers a DIFFERENT control per fulfilment method. Before
+// 0057 it always offered "Record shipment", so two people meeting in a car park were
+// asked to record a shipment each — the visible half of a trade room that had a
+// delivery method it never acted on.
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -27,21 +33,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+  HandoverFailedDialog,
+  RecordShipmentDialog,
+  type ShipmentInput,
+} from '@/components/fulfilment';
 import { availableActions } from '@/domain/state-machine/actions';
 import type {
   TradeAction,
   TradeState,
   TradeViewerContext,
 } from '@/domain/state-machine/types';
-import type { HandoverMethod } from '@/lib/handover/terms';
+import type { FulfilmentMethod } from '@/domain/fulfilment';
 import {
+  confirmTradeHandover,
   raiseDispute,
   recordAcceptance,
   recordReceipt,
   recordShipment,
   reportFraud,
+  reportTradeHandoverFailed,
 } from '@/lib/actions/trades';
 
 /** A minimal shape common to every trade action result. */
@@ -57,11 +68,55 @@ interface ActionConfig {
   confirm?: { title: string; description: string; confirmLabel: string };
 }
 
-const ACTION_CONFIG: Record<TradeAction, ActionConfig> = {
+/**
+ * The actions this bar owns as plain buttons.
+ *
+ * `availableActions` also returns the negotiation controls (PROPOSE_TERMS /
+ * ACCEPT_TERMS / DECLINE_OFFER) while a Trade is NEGOTIATING. They are rendered
+ * by the room's terms panel instead, because proposing terms needs a form — cash
+ * amount, direction, handover, meeting place — not a single button. Filtering
+ * here rather than narrowing the domain keeps `availableActions` the one honest
+ * answer to "what may this viewer do now".
+ *
+ * REPORT_HANDOVER_FAILED is also permitted by the domain but is not in this list: it
+ * needs a reason and evidence, so it renders as its own dialog below.
+ */
+const BAR_ACTIONS = [
+  'RECORD_SHIPMENT',
+  'CONFIRM_HANDOVER',
+  'RECORD_RECEIPT',
+  'RECORD_ACCEPTANCE',
+  'RAISE_DISPUTE',
+  'REPORT_FRAUD',
+] as const satisfies readonly TradeAction[];
+
+type BarAction = (typeof BAR_ACTIONS)[number];
+
+function isBarAction(action: TradeAction): action is BarAction {
+  return (BAR_ACTIONS as readonly TradeAction[]).includes(action);
+}
+
+const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   RECORD_SHIPMENT: {
     label: 'Record shipment',
     successMessage: 'Shipment recorded.',
     variant: 'default',
+  },
+  CONFIRM_HANDOVER: {
+    label: 'Confirm handover',
+    successMessage: 'Handover confirmed.',
+    variant: 'default',
+    // Worth a confirmation step, but note what it does and does not say. Confirming
+    // means "we met and swapped", and the trade moves to INSPECTION — it does NOT
+    // release the collateral, which is what accepting the item does afterwards.
+    // A trader who has just been robbed or handed a fake must not sign the trade off
+    // at the meeting point, which is why this does not complete the trade.
+    confirm: {
+      title: 'Confirm the handover happened?',
+      description:
+        'Only confirm if you met and the goods actually changed hands. This does not release either deposit — you still get 72 hours from the meeting time to check what you received and accept it or raise a dispute.',
+      confirmLabel: 'We met and swapped',
+    },
   },
   RECORD_RECEIPT: {
     label: 'Record receipt',
@@ -108,6 +163,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-participant': 'You are not a participant in this trade.',
   'not-permitted': 'That action is not permitted in the current state.',
   'already-recorded': 'You have already recorded that action.',
+  'invalid-reason': 'Describe what happened in at least a sentence.',
   INVALID_TRANSITION: 'That action is no longer valid for this trade.',
   CONCURRENT_MODIFICATION:
     'The trade was just updated by someone else. Please try again.',
@@ -126,13 +182,15 @@ function errorMessage(result: ActionResult): string {
 }
 
 async function runAction(
-  action: TradeAction,
+  action: BarAction,
   tradeId: string,
-  shipment?: { carrier: string; trackingNumber: string },
+  shipment?: ShipmentInput,
 ): Promise<ActionResult> {
   switch (action) {
     case 'RECORD_SHIPMENT':
       return recordShipment(tradeId, shipment);
+    case 'CONFIRM_HANDOVER':
+      return confirmTradeHandover(tradeId);
     case 'RECORD_RECEIPT':
       return recordReceipt(tradeId);
     case 'RECORD_ACCEPTANCE':
@@ -148,8 +206,12 @@ export interface ActionBarProps {
   tradeId: string;
   state: TradeState;
   viewer: TradeViewerContext;
-  /** When Delivery, recording shipment requires carrier + tracking. */
-  handoverMethod?: HandoverMethod | null;
+  /** Decides whether the viewer records a shipment or confirms a handover. */
+  handoverMethod?: FulfilmentMethod | null;
+  /** The other trader's name, for shipment copy. */
+  counterpartName?: string | null;
+  /** Whether the sender has the recipient's postal address yet. */
+  recipientAddressKnown?: boolean;
 }
 
 /**
@@ -161,39 +223,35 @@ export function ActionBar({
   state,
   viewer,
   handoverMethod = null,
+  counterpartName,
+  recipientAddressKnown = true,
 }: ActionBarProps) {
   const [isPending, startTransition] = useTransition();
-  const [pendingConfirm, setPendingConfirm] = useState<TradeAction | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<BarAction | null>(null);
   const [shipOpen, setShipOpen] = useState(false);
-  const [carrier, setCarrier] = useState('');
-  const [trackingNumber, setTrackingNumber] = useState('');
 
-  const actions = availableActions(state, viewer);
-  const deliveryShip = handoverMethod === 'DELIVERY';
+  const permitted = availableActions(state, viewer);
+  const actions = permitted.filter(isBarAction);
+  const canReportFailure = permitted.includes('REPORT_HANDOVER_FAILED');
 
-  if (actions.length === 0) {
+  if (actions.length === 0 && !canReportFailure) {
     return null;
   }
 
-  function invoke(
-    action: TradeAction,
-    shipment?: { carrier: string; trackingNumber: string },
-  ) {
+  function invoke(action: BarAction, shipment?: ShipmentInput) {
     const config = ACTION_CONFIG[action];
     startTransition(async () => {
       const result = await runAction(action, tradeId, shipment);
       if (result.ok) {
         toast.success(config.successMessage);
         setShipOpen(false);
-        setCarrier('');
-        setTrackingNumber('');
       } else {
         toast.error(errorMessage(result));
       }
     });
   }
 
-  function handleClick(action: TradeAction) {
+  function handleClick(action: BarAction) {
     const config = ACTION_CONFIG[action];
     if (action === 'RECORD_SHIPMENT') {
       setShipOpen(true);
@@ -207,9 +265,6 @@ export function ActionBar({
   }
 
   const confirmConfig = pendingConfirm ? ACTION_CONFIG[pendingConfirm] : null;
-  const canSubmitShip =
-    !deliveryShip ||
-    (carrier.trim() !== '' && trackingNumber.trim().length >= 2);
 
   return (
     <>
@@ -228,84 +283,51 @@ export function ActionBar({
             </Button>
           );
         })}
+
+        {/* The exchange did not happen: a no-show, a refusal at the meeting point,
+            an exchange under duress, or a parcel that never arrived. Freezes the
+            trade for review and captures nothing — which is why it is separate from
+            RAISE_DISPUTE, whose Friction_Tax would settle $20 against a trader who
+            may have done nothing wrong. */}
+        {canReportFailure ? (
+          <HandoverFailedDialog
+            triggerLabel={
+              handoverMethod === 'IN_PERSON' ? 'Handover failed' : 'Item never arrived'
+            }
+            title={
+              handoverMethod === 'IN_PERSON'
+                ? 'Report a failed handover'
+                : 'Report an item that never arrived'
+            }
+            outcomeDescription={
+              handoverMethod === 'IN_PERSON'
+                ? 'Use this if the other trader did not show up, refused to hand over, or the exchange went wrong. The trade freezes for review and NOTHING is charged to either of you — a CardTrade operator decides what happens next.'
+                : 'Use this if the parcel has not arrived or arrived empty. The trade freezes for review and NOTHING is charged to either of you — a lost parcel is nobody’s fault, so no deposit is taken while an operator looks at it.'
+            }
+            successMessage="Reported. The trade is frozen and an operator will review it."
+            reasonPlaceholder={
+              handoverMethod === 'IN_PERSON'
+                ? 'e.g. they did not turn up at the agreed time and have not replied…'
+                : 'e.g. tracking says delivered but nothing arrived; the box was empty…'
+            }
+            onSubmit={async (reason) => {
+              const result = await reportTradeHandoverFailed(tradeId, reason);
+              return result.ok
+                ? { ok: true }
+                : { ok: false, message: errorMessage(result) };
+            }}
+          />
+        ) : null}
       </div>
 
-      <Dialog
+      <RecordShipmentDialog
         open={shipOpen}
-        onOpenChange={(open) => {
-          if (!open) setShipOpen(false);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Record shipment</DialogTitle>
-            <DialogDescription>
-              {deliveryShip
-                ? 'Add the carrier and tracking number for what you are sending.'
-                : 'Confirm you have handed over your goods. Tracking is optional for face-to-face swaps.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="trade-ship-carrier">
-                Carrier
-                {deliveryShip ? (
-                  <span className="text-destructive" aria-hidden>
-                    {' '}
-                    *
-                  </span>
-                ) : null}
-              </Label>
-              <Input
-                id="trade-ship-carrier"
-                value={carrier}
-                onChange={(event) => setCarrier(event.target.value)}
-                placeholder="e.g. Australia Post"
-                autoComplete="off"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="trade-ship-tracking">
-                Tracking number
-                {deliveryShip ? (
-                  <span className="text-destructive" aria-hidden>
-                    {' '}
-                    *
-                  </span>
-                ) : null}
-              </Label>
-              <Input
-                id="trade-ship-tracking"
-                value={trackingNumber}
-                onChange={(event) => setTrackingNumber(event.target.value)}
-                placeholder="Tracking number"
-                autoComplete="off"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => setShipOpen(false)}
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={isPending || !canSubmitShip}
-              aria-busy={isPending}
-              onClick={() =>
-                invoke('RECORD_SHIPMENT', {
-                  carrier: carrier.trim(),
-                  trackingNumber: trackingNumber.trim(),
-                })
-              }
-            >
-              {isPending ? 'Saving…' : 'Record shipment'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setShipOpen}
+        pending={isPending}
+        recipientName={counterpartName}
+        recipientAddressKnown={recipientAddressKnown}
+        onSubmit={(shipment) => invoke('RECORD_SHIPMENT', shipment)}
+      />
 
       <Dialog
         open={pendingConfirm !== null}

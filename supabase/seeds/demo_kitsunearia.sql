@@ -1,4 +1,4 @@
--- supabase/seeds/demo_kitsunearia.sql
+﻿-- supabase/seeds/demo_kitsunearia.sql
 --
 -- Demo fixtures for kitsunearia@gmail.com: one completed Cash_Sale with a Seller
 -- release still owed, and one live Deal room.
@@ -11,7 +11,7 @@
 --
 -- PROVIDER REFS ARE FAKE. Nothing here touches Stripe. `pi_demo_*` / `mch_demo_*`
 -- are placeholders so the rows render, which means:
---   * "Retry release" WILL fail against the real API — that is honest behaviour
+--   * "Retry release" WILL fail against the real API â€” that is honest behaviour
 --     for a fake reference, and it exercises the error path.
 --   * Do not use these fixtures to conclude anything about live payment behaviour.
 --     scripts/smoke-stripe-test.ts is the tool for that.
@@ -28,7 +28,6 @@ declare
   v_item_phil uuid;
   v_item_mika uuid;
   v_sale uuid;
-  v_deal uuid;
 begin
   select id into v_phil from auth.users where email = 'kitsunearia@gmail.com';
   if v_phil is null then
@@ -174,45 +173,14 @@ begin
     (v_sale, v_mika, 'INSPECTION_ACCEPTED', 'INSPECTION', 'COMPLETED', 'Buyer accepted the item.'),
     (v_sale, null, 'SELLER_PAYOUT_FAILED', 'COMPLETED', 'COMPLETED', 'Release to the seller was rejected by the provider.');
 
-  -- ---------------------------------------------------------------------
-  -- Deal room: Phil created it, Mika joined. Terms agreed, awaiting confirmation.
-  -- ---------------------------------------------------------------------
-  delete from cardtrade.deals where title = 'Blastoise for Venusaur + cash';
-
-  insert into cardtrade.deals (
-    creator_id, counterparty_id, state, title, description,
-    creator_role, creator_offer_kinds, creator_item_text, counterparty_item_text,
-    cash_amount_cents, cash_payer_id,
-    handover_method, meeting_location, meeting_at,
-    collateral_opt_in, collateral_cents,
-    joined_at, terms_updated_at, share_token
-  )
-  values (
-    v_phil, v_mika, 'CONFIRMATION', 'Blastoise for Venusaur + cash',
-    'Straight swap plus $150 my way to even out condition. Meeting at Melbourne Central.',
-    'TRADER', array['CARDS'],
-    'Venusaur Base Set, raw, light play wear',
-    'Blastoise Base Set Shadowless',
-    15000, v_mika,
-    'IN_PERSON', 'Melbourne Central, main concourse', now() + interval '3 days',
-    true, 90000,
-    now() - interval '2 days', now() - interval '1 day', 'demo-deal-token-kitsunearia'
-  ) returning id into v_deal;
-
-  insert into cardtrade.deal_events (deal_id, actor_id, event, detail)
-  values
-    (v_deal, v_phil, 'CREATED', 'Deal room opened and link shared.'),
-    (v_deal, v_mika, 'JOINED', 'Mika joined via the share link.'),
-    (v_deal, v_phil, 'TERMS_UPDATED', 'Cash adjusted to $150 and meeting place set.');
-
-  raise notice 'Seeded cash sale % and deal % for %', v_sale, v_deal, v_phil;
+  raise notice 'Seeded cash sale % for %', v_sale, v_phil;
 end
 $$;
 
 -- ---------------------------------------------------------------------------
 -- Teardown, if you want the demo data gone:
 --
---   delete from cardtrade.deals where title = 'Blastoise for Venusaur + cash';
+--   (the private-deal fixture was removed with the deals feature itself)
 --   delete from cardtrade.cash_sales where item_title = '1999 Charizard Holo (PSA 8)';
 --   delete from cardtrade.items where title in
 --     ('1999 Charizard Holo (PSA 8)', 'Blastoise Base Set Shadowless');

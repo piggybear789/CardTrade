@@ -12,17 +12,17 @@
 //     unverified Trader is anonymous, so the only remedy that works on the day
 //     is money already in hand.
 //
-// NOTE: entering a Trade IS now gated on the Identity_Gate (Req 14.2), because a
-// fraud resolution can pay captured collateral to either trader. This module still
-// only decides the BOND SIZE; it does not gate anything itself. An unverified
-// Trader reaching here means a caller skipped that gate.
+// SCOPE OF THE EXEMPTION. `requiredBondCents` exempts a verified party; that is
+// correct for the Cash_Sale seller bond, where the Buyer's money is already
+// collected and a verified Seller has nothing left to guarantee.
 //
-// This replaces the previous model where EVERY Trader posted 100% of FMV and
-// only verified Traders could trade at all. The change matters because holds are
-// implemented as charge-and-refund on the current provider (no authorisation
-// primitive), so a bond moves real money and costs real processing fees. Exempting
-// verified Traders removes that cost from the overwhelming majority of honest
-// trades, and makes verification something users want rather than endure.
+// It is NOT correct for a Trade, and `resolveTradeBonds` therefore does not apply
+// it — see the note on that function. Briefly: entering trade escrow requires the
+// Identity_Gate of both parties, and satisfying that Gate is what "verified" means,
+// so an exemption meant every legal trade posted zero collateral and the dispute
+// and fraud branches of the state machine could never fire. The justification for
+// the exemption was the previous provider's charge-and-refund holds, which cost
+// real money; Stripe authorisations move no funds and cost nothing to void.
 //
 // Pure module: no I/O, no provider types. All amounts are integer AUD cents.
 
@@ -94,33 +94,39 @@ export interface BondParty {
 /**
  * Resolve both Traders' bonds for a Trade.
  *
- * SYMMETRY. A bond protects the COUNTERPARTY, so sizing it purely from a
- * Trader's own status leaves the honest unverified Trader exposed to a verified
- * one who defects. With `symmetric` (the default), a bond requirement on either
- * side applies to both: verified-to-verified trades stay frictionless — which
- * preserves the incentive to verify — while no trade ever has one side carrying
- * all the risk.
+ * NO VERIFICATION EXEMPTION ON A TRADE. Both Traders always bond, each sized from
+ * the FMV of what they are receiving. This is the resolution of a recorded
+ * contradiction, and it turns on a premise that has since changed:
  *
- * Set `symmetric: false` for per-Trader bonds sized only by their own status.
+ *   * The exemption existed because holds used to be charge-and-refund on the
+ *     previous provider. A bond genuinely took money out of a trader's account and
+ *     cost processing fees, so exempting the honest majority was worth a lot.
+ *   * Stripe exposes real authorize/void primitives. `placeHold` moves NO funds and
+ *     `voidHold` costs nothing — see `domain/services/stripe/StripeService.ts`. The
+ *     cost the exemption was buying off no longer exists.
+ *   * Meanwhile the exemption had made the safety machinery unreachable. Entering
+ *     trade escrow requires the Identity_Gate of BOTH parties, and the Gate is
+ *     exactly what "verified" means here — so every trade that could legally start
+ *     had two verified traders and therefore zero collateral. A Condition_Dispute
+ *     had no $20 to partial-capture (Req 7.3) and an Objective_Fraud finding paid
+ *     the victim nothing (Req 8.3). Both branches of the state machine were dead.
+ *
+ * The remaining cost to a trader is reduced available credit for the life of the
+ * authorisation, which is the thing the bond is supposed to represent.
+ *
+ * `requiredBondCents` KEEPS its exemption, because its other caller is the
+ * Cash_Sale seller bond — and there the Buyer's money is already collected, so a
+ * verified Seller genuinely has nothing left to guarantee.
  */
 export function resolveTradeBonds(params: {
   initiator: BondParty;
   counterpart: BondParty;
   policy?: Partial<BondPolicy>;
-  symmetric?: boolean;
 }): { initiatorBondCents: number; counterpartBondCents: number } {
   const { initiator, counterpart, policy } = params;
-  const symmetric = params.symmetric ?? true;
 
-  const initiatorOwn = requiredBondCents({ ...initiator, policy });
-  const counterpartOwn = requiredBondCents({ ...counterpart, policy });
-
-  if (!symmetric || (initiatorOwn === 0 && counterpartOwn === 0)) {
-    return { initiatorBondCents: initiatorOwn, counterpartBondCents: counterpartOwn };
-  }
-
-  // Either side needs a bond -> both post one, each sized from their OWN item's
-  // FMV (the equal-value guard means these match, but sizing stays per-item).
+  // `verified: false` for both, deliberately: on a trade the bond is not a
+  // substitute for identity, it is what makes a dispute or fraud finding payable.
   return {
     initiatorBondCents: requiredBondCents({
       verified: false,

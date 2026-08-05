@@ -37,11 +37,10 @@ import type {
 import type { OrchestratorError } from '@/domain/orchestrator/tradeOrchestrator';
 import type { ProposeTradeError } from '@/domain/orchestrator/tradeProposal';
 import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
-import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
-import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import {
+  LIFECYCLE_SPECS,
   factsFromTrade,
   hasRecorded,
   recordLifecycleTimestamp,
@@ -49,11 +48,14 @@ import {
   type LifecycleAction,
   type TradeRow,
 } from './tradeLifecycleStore';
+import { toHandoverColumns, type HandoverMethod } from '@/lib/handover/terms';
 import {
-  areHandoverTermsComplete,
-  toHandoverColumns,
-  type HandoverMethod,
-} from '@/lib/handover/terms';
+  validateFulfilmentTerms,
+  type DeliveryAddress,
+  type FulfilmentTermsError,
+} from '@/domain/fulfilment';
+import { getTrackingService } from '@/domain/services/tracking';
+import { finalizeCompletedTrade, settleTradeCash } from '@/lib/trades/completion';
 import { DEAL_DELIVERY_COST_MAX } from '@/lib/marketplace-constants';
 import type { TablesUpdate } from '@/lib/supabase/database.types';
 import { revalidatePath } from 'next/cache';
@@ -327,57 +329,52 @@ async function recordLifecycle(
   if (!guard.ok) return guard;
   const { userId, trade, role } = guard.ctx;
 
-  const requiredStateByAction: Record<LifecycleAction, TradeState> = {
-    shipment: 'COLLATERAL_LOCKED',
-    receipt: 'IN_TRANSIT',
-    acceptance: 'INSPECTION',
-  };
-
-  // Action must be permitted in the current state (Req 6.8).
-  if (trade.state !== requiredStateByAction[action]) {
+  // Action must be permitted in the current state (Req 6.8). Read from the same
+  // table the guarded write uses, so there is one answer to "when may this happen".
+  if (trade.state !== LIFECYCLE_SPECS[action].requiredState) {
     return { ok: false, error: 'not-permitted' };
   }
+
+  // ...and must match the agreed fulfilment method. `shipment` and `handover` are
+  // the two ways goods leave your hands, recorded in the same state; offering both
+  // is what let a face-to-face trade be walked through a shipping lifecycle.
+  const inPerson = trade.handover_method === 'IN_PERSON';
+  if (action === 'shipment' && inPerson) {
+    return {
+      ok: false,
+      error: 'not-permitted',
+      detail: 'This trade is face to face. Confirm the handover instead of recording a shipment.',
+    };
+  }
+  if (action === 'handover' && !inPerson) {
+    return {
+      ok: false,
+      error: 'not-permitted',
+      detail: 'This trade is posted. Record a shipment instead of confirming a handover.',
+    };
+  }
+
   // Once-only per trader (Req 6.1/6.3/6.5, 6.8).
   if (hasRecorded(trade, action, role)) {
     return { ok: false, error: 'already-recorded' };
   }
 
   let extra: TablesUpdate<'trades'> | undefined;
-  if (action === 'shipment' && trade.handover_method === 'DELIVERY') {
-    const carrier = shipment?.carrier.trim() ?? '';
-    const trackingNumber = shipment?.trackingNumber.trim() ?? '';
+  if (action === 'shipment') {
+    const carrier = shipment?.carrier?.trim() ?? '';
+    const trackingNumber = shipment?.trackingNumber?.trim() ?? '';
     if (!carrier || trackingNumber.length < 2) {
-      return { ok: false, error: 'not-permitted', detail: 'Carrier and tracking number are required for delivery.' };
+      return {
+        ok: false,
+        error: 'not-permitted',
+        detail: 'Carrier and tracking number are required for a posted trade.',
+      };
     }
-    extra =
-      role === 'INITIATOR'
-        ? {
-            initiator_tracking_carrier: carrier,
-            initiator_tracking_number: trackingNumber,
-            initiator_tracking_url: shipment?.trackingUrl?.trim() || null,
-          }
-        : {
-            counterpart_tracking_carrier: carrier,
-            counterpart_tracking_number: trackingNumber,
-            counterpart_tracking_url: shipment?.trackingUrl?.trim() || null,
-          };
-  } else if (action === 'shipment' && shipment) {
-    const carrier = shipment.carrier.trim();
-    const trackingNumber = shipment.trackingNumber.trim();
-    if (carrier && trackingNumber.length >= 2) {
-      extra =
-        role === 'INITIATOR'
-          ? {
-              initiator_tracking_carrier: carrier,
-              initiator_tracking_number: trackingNumber,
-              initiator_tracking_url: shipment.trackingUrl?.trim() || null,
-            }
-          : {
-              counterpart_tracking_carrier: carrier,
-              counterpart_tracking_number: trackingNumber,
-              counterpart_tracking_url: shipment.trackingUrl?.trim() || null,
-            };
-    }
+    extra = trackingColumnsFor(role, {
+      carrier,
+      trackingNumber,
+      trackingUrl: shipment?.trackingUrl?.trim() || null,
+    });
   }
 
   // Persist the caller's own timestamp; the guarded write also enforces
@@ -387,10 +384,21 @@ async function recordLifecycle(
     return { ok: false, error: 'already-recorded' };
   }
 
+  // A posted trade registers each parcel with the tracking provider as it is
+  // recorded, so a later carrier confirmation has something to update. Failure is
+  // tolerated: the shipment is already recorded and the trade must not stall on a
+  // carrier lookup.
+  if (action === 'shipment' && shipment) {
+    await registerTradeShipment(tradeId, role, shipment).catch((err) => {
+      console.warn(`[trades] tracking registration failed for ${tradeId}:`, err);
+    });
+  }
+
   // Derive the aggregate event from the freshly updated row. When only one side
   // has acted, there is no transition yet — the recording itself is the result.
   const event = deriveEvent(write.trade.state, factsFromTrade(write.trade));
   if (!event) {
+    revalidatePath(`/trades/${tradeId}`);
     return { ok: true, state: write.trade.state, transitioned: false };
   }
 
@@ -400,126 +408,30 @@ async function recordLifecycle(
     return { ok: false, error: result.error, detail: result.detail };
   }
 
-  // Req 6.7: on BOTH_ACCEPTED -> COMPLETED, release every Pre_Auth_Hold on this
-  // Trade at $0 cost. This mirrors the dispute/fraud paths' hold-void step,
-  // which was already implemented — the plain successful-completion path was
-  // the one place Req 6.7 had never been wired up. With real collateral now a
-  // genuine charge (see StripeService), skipping this would leave completed
-  // trades' collateral charged and never refunded.
   if (event === 'BOTH_ACCEPTED') {
-    await voidTradeHolds(tradeId);
-    // A trade including a cash component settles it now that both sides have
-    // accepted: the cash leg is a real transfer, not merely a persisted number.
-    if ((write.trade.cash_amount_cents ?? 0) > 0) {
-      await settleTradeCash(write.trade);
-    }
+    await finalizeCompletedTrade(write.trade);
   }
 
+  revalidatePath(`/trades/${tradeId}`);
   return { ok: true, state: result.trade.state, transitioned: true };
 }
 
-/**
- * Void every ACTIVE Pre_Auth_Hold on a completed Trade (Req 6.7). Best-effort:
- * a void failure here does not roll back COMPLETED (the goods have already
- * changed hands per both Traders' own acceptance) but is logged so it can be
- * investigated — the same tolerance the dispute/fraud paths already apply to
- * their own void calls.
- */
-async function voidTradeHolds(tradeId: string): Promise<void> {
-  const admin = createAdminClient();
-  const { data: holds } = await admin
-    .from('pre_auth_holds')
-    .select('hold_ref, status')
-    .eq('trade_id', tradeId);
-  const payments = getPaymentService();
-  for (const hold of holds ?? []) {
-    if (hold.status !== 'ACTIVE') continue;
-    try {
-      const voided = await payments.voidHold(hold.hold_ref as string);
-      await admin
-        .from('pre_auth_holds')
-        .update({ status: voided.status })
-        .eq('hold_ref', hold.hold_ref as string);
-    } catch (err) {
-      console.warn(`[trades] failed to void hold ${hold.hold_ref} on completion:`, err);
-    }
-  }
-}
-
-/** Outcome of attempting to settle a trade's cash leg. */
-type SettleTradeCashResult =
-  | { ok: true }
-  | {
-      ok: false;
-      error: 'not-ready' | 'transfer-failed';
-      detail?: string;
-    };
-
-/**
- * Settle a completed Trade's cash leg (Req 5.4b). `cash_direction` identifies
- * the participant who pays. Cash terms may be agreed before the receiver has
- * finished payout setup — settlement then waits and flags the trade for
- * reconciliation until they can take funds (or a participant retries).
- *
- * Failure does not block COMPLETED: the goods have already changed hands on
- * both Traders' acceptance.
- */
-async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashResult> {
-  const admin = createAdminClient();
-  const payerProfileId =
-    trade.cash_direction === 'COUNTERPART_PAYS'
-      ? trade.counterpart_id
-      : trade.initiator_id;
-  const receiverProfileId =
-    trade.cash_direction === 'COUNTERPART_PAYS'
-      ? trade.initiator_id
-      : trade.counterpart_id;
-
-  const [{ data: payer }, receiver] = await Promise.all([
-    admin.from('profiles').select('id, payer_id').eq('id', payerProfileId).maybeSingle(),
-    createSupabaseMerchantRepository(admin).loadMerchant(receiverProfileId),
-  ]);
-
-  const payerId = payer?.payer_id as string | null;
-  const merchantRef = receiver?.merchantRef ?? null;
-
-  if (!payerId || !canReceiveFunds(receiver) || !merchantRef) {
-    await admin
-      .from('trades')
-      .update({ manual_reconciliation: true })
-      .eq('id', trade.id);
-    console.warn(
-      `[trades] cash settlement for trade ${trade.id} could not be started: ` +
-        'payer or payout account missing.',
-    );
-    return { ok: false, error: 'not-ready' };
-  }
-
-  const payments = getPaymentService();
-  try {
-    const transfer = await payments.requestTransfer({
-      payerId,
-      amount: trade.cash_amount_cents,
-      ref: `trade-cash:${trade.id}`,
-      nonce: `trade-cash:${trade.id}`,
-      merchantRef,
-    });
-    if (transfer.status !== 'SETTLED') {
-      await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);
-      console.warn(`[trades] cash settlement for trade ${trade.id} failed to settle.`);
-      return { ok: false, error: 'transfer-failed' };
-    }
-    await admin.from('trades').update({ manual_reconciliation: false }).eq('id', trade.id);
-    return { ok: true };
-  } catch (err) {
-    await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);
-    console.warn(`[trades] cash settlement for trade ${trade.id} threw:`, err);
-    return {
-      ok: false,
-      error: 'transfer-failed',
-      detail: err instanceof Error ? err.message : undefined,
-    };
-  }
+/** Per-role tracking columns for one trader's outbound parcel. */
+function trackingColumnsFor(
+  role: TradeViewerRole,
+  shipment: { carrier: string; trackingNumber: string; trackingUrl: string | null },
+): TablesUpdate<'trades'> {
+  return role === 'INITIATOR'
+    ? {
+        initiator_tracking_carrier: shipment.carrier,
+        initiator_tracking_number: shipment.trackingNumber,
+        initiator_tracking_url: shipment.trackingUrl,
+      }
+    : {
+        counterpart_tracking_carrier: shipment.carrier,
+        counterpart_tracking_number: shipment.trackingNumber,
+        counterpart_tracking_url: shipment.trackingUrl,
+      };
 }
 
 /**
@@ -730,6 +642,7 @@ export type UpdateTradeHandoverTermsError =
   | 'invalid-handover'
   | 'invalid-delivery-cost'
   | 'missing-meeting-location'
+  | 'missing-meeting-time'
   | 'persistence-error';
 
 export type UpdateTradeHandoverTermsResult =
@@ -768,26 +681,41 @@ export async function updateTradeHandoverTerms(
     return { ok: false, error: 'invalid-state' };
   }
 
-  if (input.method !== 'IN_PERSON' && input.method !== 'DELIVERY') {
-    return { ok: false, error: 'invalid-handover' };
-  }
-
-  if (input.method === 'IN_PERSON') {
-    if (!input.meetingLocation?.trim()) {
-      return { ok: false, error: 'missing-meeting-location' };
-    }
-  } else {
-    const cost = Math.trunc(input.deliveryCostCents ?? NaN);
-    if (!Number.isFinite(cost) || cost < 0 || cost > DEAL_DELIVERY_COST_MAX) {
-      return { ok: false, error: 'invalid-delivery-cost' };
-    }
-  }
-
   const meetingAtRaw = input.meetingAt?.trim() || null;
   const meetingAt =
     meetingAtRaw && !meetingAtRaw.includes('Z') && !meetingAtRaw.includes('+')
       ? new Date(meetingAtRaw).toISOString()
       : meetingAtRaw;
+
+  // One validator, shared with the Cash_Sale and with the negotiation counter. A
+  // meeting TIME is now required where it used to be optional: the inspection
+  // window of a face-to-face trade is measured from the meeting instant, so an
+  // absent one leaves the trade with no clock and its collateral racing the card
+  // authorisation with nothing to stop it.
+  const validation = validateFulfilmentTerms(
+    {
+      method: input.method,
+      meeting: {
+        place: input.meetingLocation?.trim()
+          ? {
+              label: input.meetingLocation.trim(),
+              placeId: input.meetingPlaceId ?? '',
+              lat: input.meetingLat ?? Number.NaN,
+              lng: input.meetingLng ?? Number.NaN,
+            }
+          : null,
+        at: meetingAt,
+      },
+      delivery: {
+        costCents: input.deliveryCostCents ?? null,
+        notes: input.deliveryNotes ?? null,
+      },
+    },
+    { maxDeliveryCostCents: DEAL_DELIVERY_COST_MAX },
+  );
+  if (!validation.ok) {
+    return { ok: false, error: termsErrorFor(validation.error) };
+  }
 
   const columns = toHandoverColumns({
     handoverMethod: input.method,
@@ -799,10 +727,6 @@ export async function updateTradeHandoverTerms(
     deliveryCostCents: input.deliveryCostCents,
     deliveryNotes: input.deliveryNotes,
   });
-
-  if (!areHandoverTermsComplete(columns)) {
-    return { ok: false, error: 'invalid-handover' };
-  }
 
   // Participant confirmed above; writes on `trades` go through service-role
   // because end-user UPDATE is not granted (same pattern as lifecycle actions).
@@ -821,3 +745,374 @@ export async function updateTradeHandoverTerms(
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true };
 }
+
+/** Map a shared fulfilment validation failure onto this module's error surface. */
+function termsErrorFor(
+  error: FulfilmentTermsError,
+): UpdateTradeHandoverTermsError {
+  switch (error) {
+    case 'meeting-place-required':
+    case 'meeting-place-unresolved':
+      return 'missing-meeting-location';
+    case 'meeting-time-required':
+    case 'meeting-time-past':
+      return 'missing-meeting-time';
+    case 'delivery-cost-required':
+    case 'delivery-cost-invalid':
+      return 'invalid-delivery-cost';
+    default:
+      return 'invalid-handover';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Face-to-face handover (0057)
+// ---------------------------------------------------------------------------
+
+/**
+ * Confirm that the face-to-face exchange happened.
+ *
+ * Recorded once per trader in COLLATERAL_LOCKED. The second confirmation moves the
+ * trade to INSPECTION — NOT to COMPLETED, which is where this deliberately differs
+ * from the Cash_Sale's in-person path. A trader who has just been robbed, coerced,
+ * or handed a convincing fake at a meeting point must not be able to sign the trade
+ * off on the spot. Confirming a handover says "we met and swapped"; accepting the
+ * item afterwards says "I am satisfied", and only that releases the collateral.
+ */
+export async function confirmTradeHandover(
+  tradeId: string,
+): Promise<LifecycleActionResult> {
+  return recordLifecycle(tradeId, 'handover');
+}
+
+/** Errors surfaced by {@link reportTradeHandoverFailed}. */
+export type HandoverFailedError =
+  | AuthError
+  | 'not-permitted'
+  | 'invalid-reason'
+  | OrchestratorError;
+
+/** Result of {@link reportTradeHandoverFailed}. */
+export type HandoverFailedResult =
+  | { ok: true; state: TradeState }
+  | ActionFailure<HandoverFailedError>;
+
+/**
+ * Report that the exchange did not happen, and freeze the trade for review.
+ *
+ * Reachable from COLLATERAL_LOCKED (a no-show, a refusal at the meeting point, an
+ * exchange under duress) and from IN_TRANSIT (a parcel that never arrived). Before
+ * this existed, an IN_TRANSIT trade had NO exit at all: both traders' collateral sat
+ * there until the card authorisation lapsed, which removes the guarantee rather than
+ * resolving anything.
+ *
+ * Captures NOTHING. This is why it is not `raiseDispute`, which settles a $20
+ * Friction_Tax against the other trader — at this point neither side has necessarily
+ * done anything wrong, and a lost parcel is nobody's fault.
+ */
+export async function reportTradeHandoverFailed(
+  tradeId: string,
+  reason: string,
+): Promise<HandoverFailedResult> {
+  const guard = await requireParticipant(tradeId);
+  if (!guard.ok) return guard;
+  const { userId, trade } = guard.ctx;
+
+  const trimmed = reason?.trim() ?? '';
+  if (trimmed.length < 10 || trimmed.length > 2000) {
+    return {
+      ok: false,
+      error: 'invalid-reason',
+      detail: 'Describe what happened in at least a sentence.',
+    };
+  }
+  if (trade.state !== 'COLLATERAL_LOCKED' && trade.state !== 'IN_TRANSIT') {
+    return { ok: false, error: 'not-permitted' };
+  }
+
+  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  const result = await orchestrator.applyEvent({
+    tradeId,
+    event: 'HANDOVER_FAILED',
+    actorId: userId,
+  });
+  if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
+
+  // Record who froze it and why, so an operator opens the case with the account.
+  // Deliberately not `disputed_against`: nobody has been accused of anything.
+  const admin = createAdminClient();
+  await admin
+    .from('trades')
+    .update({
+      dispute_raised_by: userId,
+      disputed_at: new Date().toISOString(),
+      cancel_reason: trimmed,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', tradeId);
+
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true, state: result.trade.state };
+}
+
+// ---------------------------------------------------------------------------
+// Postal addresses (0057)
+// ---------------------------------------------------------------------------
+
+/** Errors surfaced by {@link saveTradeDeliveryAddress}. */
+export type TradeAddressError =
+  | AuthError
+  | 'invalid-state'
+  | 'invalid-address'
+  | 'persistence-error';
+
+/** Result of {@link saveTradeDeliveryAddress}. */
+export type TradeAddressResult = { ok: true } | ActionFailure<TradeAddressError>;
+
+/**
+ * Save the caller's own postal address for a posted trade.
+ *
+ * A trade posts in BOTH directions, so each trader supplies their own and reads the
+ * other's — the Cash_Sale has one address because only the Buyer receives goods.
+ * The address is written to `trade_delivery_details`, which is NOT in the Realtime
+ * publication, and the counterpart can only read it from COLLATERAL_LOCKED onward.
+ * Before this, traders exchanged postal addresses in the chat thread.
+ *
+ * Only provider-resolved addresses are accepted. A typed string cannot be posted to
+ * with any confidence and cannot be checked against what the other party thought
+ * they agreed.
+ */
+export async function saveTradeDeliveryAddress(
+  tradeId: string,
+  address: DeliveryAddress,
+): Promise<TradeAddressResult> {
+  const guard = await requireParticipant(tradeId);
+  if (!guard.ok) return guard;
+  const { userId, trade } = guard.ctx;
+
+  if (
+    trade.state !== 'NEGOTIATING' &&
+    trade.state !== 'COLLATERAL_PENDING' &&
+    trade.state !== 'COLLATERAL_LOCKED'
+  ) {
+    return { ok: false, error: 'invalid-state' };
+  }
+
+  const validation = validateFulfilmentTerms(
+    {
+      method: 'DELIVERY',
+      meeting: { place: null, at: null },
+      // Cost is not being changed here; borrow a valid one so the shared validator
+      // only judges the address.
+      delivery: { costCents: trade.delivery_cost_cents ?? 0, notes: null },
+    },
+    { requireDeliveryAddress: true, deliveryAddress: address },
+  );
+  if (!validation.ok) {
+    return {
+      ok: false,
+      error: 'invalid-address',
+      detail: 'Choose an address from the suggestions.',
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc('set_trade_delivery_address', {
+    p_trade_id: tradeId,
+    p_trader_id: userId,
+    p_address_label: address.label.trim(),
+    p_place_id: address.placeId,
+    p_country_code: address.countryCode || null,
+    p_latitude: address.lat,
+    p_longitude: address.lng,
+  });
+  if (error) {
+    return { ok: false, error: 'persistence-error', detail: error.message };
+  }
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    return { ok: false, error: 'invalid-state' };
+  }
+
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true };
+}
+
+/** One trader's address as the room needs to render it. */
+export interface TradeAddressView {
+  /** `'mine'` is always readable; `'theirs'` only from COLLATERAL_LOCKED. */
+  mine: DeliveryAddress | null;
+  theirs: DeliveryAddress | null;
+}
+
+/**
+ * Read the addresses the caller is entitled to see.
+ *
+ * Deliberately goes through the COOKIE-BOUND client so RLS decides what comes back,
+ * rather than the service role plus a hand-written check. The policy in 0057 is the
+ * authority on disclosure, and a second implementation here could only disagree
+ * with it.
+ */
+export async function getTradeDeliveryAddresses(
+  tradeId: string,
+): Promise<TradeAddressView> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { mine: null, theirs: null };
+
+  const { data } = await supabase
+    .from('trade_delivery_details')
+    .select('trader_id, address_label, place_id, country_code, latitude, longitude')
+    .eq('trade_id', tradeId);
+
+  const view: TradeAddressView = { mine: null, theirs: null };
+  for (const row of data ?? []) {
+    const address: DeliveryAddress = {
+      label: row.address_label,
+      placeId: row.place_id,
+      countryCode: row.country_code,
+      lat: row.latitude,
+      lng: row.longitude,
+    };
+    if (row.trader_id === user.id) view.mine = address;
+    else view.theirs = address;
+  }
+  return view;
+}
+
+// ---------------------------------------------------------------------------
+// Carrier tracking (0057)
+// ---------------------------------------------------------------------------
+
+/**
+ * Register one trader's parcel with the tracking provider.
+ *
+ * Best-effort and fire-and-forget from the caller's point of view: a shipment is
+ * already recorded by the time this runs, and the trade must not stall on a carrier
+ * lookup. The manual provider simply normalises the number.
+ */
+async function registerTradeShipment(
+  tradeId: string,
+  role: TradeViewerRole,
+  shipment: { carrier: string; trackingNumber: string },
+): Promise<void> {
+  const tracking = getTrackingService();
+  const snapshot = await tracking.registerShipment({
+    carrier: shipment.carrier.trim(),
+    trackingNumber: shipment.trackingNumber.trim(),
+  });
+  const admin = createAdminClient();
+  await admin
+    .from('trades')
+    .update(
+      role === 'INITIATOR'
+        ? {
+            initiator_tracking_status: snapshot.status,
+            initiator_tracking_url: snapshot.trackingUrl,
+          }
+        : {
+            counterpart_tracking_status: snapshot.status,
+            counterpart_tracking_url: snapshot.trackingUrl,
+          },
+    )
+    .eq('id', tradeId);
+}
+
+/** Result of {@link syncTradeTracking}. */
+export type SyncTradeTrackingResult =
+  | { ok: true; delivered: boolean; state: TradeState }
+  | ActionFailure<AuthError | 'not-permitted' | 'not-supported' | OrchestratorError>;
+
+/**
+ * Refresh both parcels from the carrier.
+ *
+ * A carrier-confirmed delivery is the ONLY thing that sets
+ * `*_carrier_delivered_at`, which is in turn what the inspection deadline is
+ * measured from. A trader's own assertion that a parcel arrived records receipt but
+ * never starts the clock — the same rule the Cash_Sale applies, and for the same
+ * reason: the clock can end in a payout, so its start must not be self-reported.
+ *
+ * Once BOTH parcels are confirmed delivered the trade advances to INSPECTION on the
+ * carrier's word alone, so an unresponsive trader cannot hold the exchange open by
+ * simply never pressing "received".
+ */
+export async function syncTradeTracking(
+  tradeId: string,
+): Promise<SyncTradeTrackingResult> {
+  const guard = await requireParticipant(tradeId);
+  if (!guard.ok) return guard;
+  const { userId, trade } = guard.ctx;
+
+  if (trade.handover_method !== 'DELIVERY') {
+    return { ok: false, error: 'not-permitted' };
+  }
+  const tracking = getTrackingService();
+  if (!tracking.fetchStatus) {
+    return {
+      ok: false,
+      error: 'not-supported',
+      detail: 'Automated tracking is not configured for this carrier.',
+    };
+  }
+
+  const admin = createAdminClient();
+  const parcels = [
+    {
+      traderId: trade.initiator_id,
+      carrier: trade.initiator_tracking_carrier,
+      number: trade.initiator_tracking_number,
+    },
+    {
+      traderId: trade.counterpart_id,
+      carrier: trade.counterpart_tracking_carrier,
+      number: trade.counterpart_tracking_number,
+    },
+  ];
+
+  let delivered = false;
+  let latest: TradeRow = trade;
+  for (const parcel of parcels) {
+    if (!parcel.carrier?.trim() || !parcel.number?.trim()) continue;
+    const snapshot = await tracking.fetchStatus({
+      carrier: parcel.carrier,
+      trackingNumber: parcel.number,
+    });
+    if (!snapshot) continue;
+    const { data } = await admin.rpc('apply_trade_tracking', {
+      p_trade_id: tradeId,
+      p_trader_id: parcel.traderId,
+      p_tracking_status: snapshot.status,
+      p_delivered_at: snapshot.deliveredAt ?? undefined,
+    });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row) latest = row as TradeRow;
+    if (snapshot.status === 'DELIVERED') delivered = true;
+  }
+
+  // Both parcels confirmed by the carrier is a complete exchange, whether or not
+  // either trader pressed anything.
+  if (
+    latest.state === 'IN_TRANSIT' &&
+    latest.initiator_carrier_delivered_at &&
+    latest.counterpart_carrier_delivered_at
+  ) {
+    const orchestrator = createDefaultTradeOrchestrator({
+      payments: getPaymentService(),
+    });
+    const result = await orchestrator.applyEvent({
+      tradeId,
+      event: 'BOTH_RECEIVED',
+      actorId: userId,
+    });
+    if (result.ok) {
+      revalidatePath(`/trades/${tradeId}`);
+      return { ok: true, delivered, state: result.trade.state };
+    }
+  }
+
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true, delivered, state: latest.state };
+}
+
+

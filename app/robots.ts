@@ -1,4 +1,4 @@
-// app/robots.ts
+﻿// app/robots.ts
 //
 // Robots policy. Public marketplace and marketing pages are indexable; the
 // signed-in transactional surfaces (money, identity, private deals) are not.
@@ -15,7 +15,6 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         '/admin',
         '/api/',
-        '/deals',
         '/messages',
         '/notifications',
         '/offers',

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // components/messages/ChatThread.tsx
 //
@@ -45,8 +45,6 @@ export interface ChatThreadProps {
   otherName: string | null;
   /** Optional item context this conversation is about. */
   item: { id: string; title: string; imagePath: string | null } | null;
-  /** Set when this thread belongs to a private deal room. */
-  deal?: { id: string; title: string } | null;
   /** Set when this thread belongs to a 2-way trade's contract room. */
   trade?: { id: string } | null;
 }
@@ -56,7 +54,6 @@ export function ChatThread({
   currentUserId,
   otherName,
   item,
-  deal = null,
   trade = null,
 }: ChatThreadProps) {
   const router = useRouter();
@@ -146,14 +143,7 @@ export function ChatThread({
             <h2 className="truncate text-lg font-semibold tracking-tight">
               {displayName}
             </h2>
-            {deal ? (
-              <Link
-                href={`/deals/${deal.id}`}
-                className="block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
-              >
-                Private deal: {deal.title}
-              </Link>
-            ) : trade ? (
+            {trade ? (
               <Link
                 href={`/trades/${trade.id}`}
                 className="block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -233,7 +223,7 @@ export function ChatThread({
                     )}
                   >
                     {formatRelativeTime(message.created_at)}
-                    {isMine && message.read_at ? ' · Read' : ''}
+                    {isMine && message.read_at ? ' Â· Read' : ''}
                   </time>
                 </div>
               </div>
@@ -254,7 +244,7 @@ export function ChatThread({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Write a message…"
+            placeholder="Write a messageâ€¦"
             rows={2}
             maxLength={MESSAGE_BODY_MAX}
             className="min-h-[44px] resize-none"

@@ -84,15 +84,19 @@ export default async function ProfilePage() {
       <AccountTabs />
 
       <div className="space-y-6">
-        {/* Payout setup leads the page and is the ONLY verification surface. There
+        {/* Verification leads the page and is the ONLY verification surface. There
             used to be a separate "Identity verification" card above this one
             pointing at /kyc, which made the account page assert two different
             definitions of verified — the rail said one thing, this page another.
             There is one gate now: Connect onboarding approved with settlements
-            enabled. `#identity` is kept as an alias so older links still land here. */}
-        <div id="identity" className="scroll-mt-24" />
+            enabled.
 
+            The `#identity` alias nests INSIDE this wrapper rather than sitting
+            beside it as an empty sibling: as a sibling it collected a
+            `space-y-6` margin of its own, which opened a double gap between the
+            tab strip and the first card for a node that renders nothing. */}
         <div id="payouts" className="scroll-mt-24">
+          <div id="identity" className="scroll-mt-24" />
           {payoutContext.ok ? <PayoutOnboarding context={payoutContext.data} /> : null}
         </div>
 

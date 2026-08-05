@@ -220,10 +220,25 @@ export type CashSaleResult =
   | { ok: true; sale: CashSaleRecord }
   | { ok: false; error: CashSaleError; detail?: string };
 
-/** Distinguishes a stale terms version from an unavailable persistence write. */
+/**
+ * Why a terms write did not persist.
+ *
+ * Three outcomes, not two, because the SQL side returns an empty set for about
+ * eight different guards — missing sale, wrong status, wrong version, seller
+ * touching the buyer's address, malformed place, past meeting time. Collapsing
+ * all of them into `STALE` told the member their counterparty had just edited
+ * the contract when nothing of the kind had happened.
+ *
+ * - `STALE`       — the contract genuinely moved on: gone, no longer in
+ *   AGREEMENT, or already at a newer terms version.
+ * - `REJECTED`    — the contract is exactly as expected, so the persistence
+ *   layer refused the PAYLOAD. Re-submitting the same values will fail again.
+ * - `UNAVAILABLE` — the write itself errored (missing function, transport,
+ *   permission). Retrying is the right advice.
+ */
 export type CashSaleTermsUpdateResult =
   | { ok: true; sale: CashSaleRecord }
-  | { ok: false; reason: 'STALE' | 'UNAVAILABLE' };
+  | { ok: false; reason: 'STALE' | 'REJECTED' | 'UNAVAILABLE' };
 
 export interface CreateCashSaleParams {
   itemId: string;
@@ -602,7 +617,9 @@ function normalizeCoord(
   min: number,
   max: number,
 ): number | null {
-  return hasValidCoordinate(value ?? null, min, max) ? value : null;
+  // `?? null` on the return as well as the guard: `hasValidCoordinate` narrows the
+  // ARGUMENT it is given, not `value` itself, so `value` stays possibly-undefined.
+  return hasValidCoordinate(value ?? null, min, max) ? (value ?? null) : null;
 }
 
 /** Buy Now creates a reserved agreement; it does not submit payment. */
@@ -665,14 +682,31 @@ export async function updateCashSaleTerms(
   if (!participantRole(sale, params.actorId)) {
     return { ok: false, error: 'NOT_PARTICIPANT' };
   }
-  if (sale.status !== 'AGREEMENT') return { ok: false, error: 'INVALID_STATE' };
+  if (sale.status !== 'AGREEMENT') {
+    return {
+      ok: false,
+      error: 'INVALID_STATE',
+      detail: 'Terms are locked once payment has started.',
+    };
+  }
   if (sale.termsVersion !== params.expectedTermsVersion) {
-    return { ok: false, error: 'STALE_TERMS' };
+    return {
+      ok: false,
+      error: 'STALE_TERMS',
+      detail: 'The contract changed while you were editing. Review the current version.',
+    };
   }
 
   const terms = normalizeTerms(params.terms);
   if (!termsComplete(terms, deps.now?.() ?? new Date())) {
-    return { ok: false, error: 'INVALID_TERMS' };
+    return {
+      ok: false,
+      error: 'INVALID_TERMS',
+      detail:
+        terms.fulfillmentMethod === 'DELIVERY'
+          ? 'Enter a valid shipping cost.'
+          : 'Choose a suggested meeting point and a future meeting time.',
+    };
   }
   if (terms.fulfillmentMethod === 'DELIVERY') {
     if (terms.deliveryAddress && !hasValidDeliveryAddress(terms.deliveryAddress)) {
@@ -683,7 +717,11 @@ export async function updateCashSaleTerms(
       };
     }
     if (params.actorId === sale.sellerId && terms.deliveryAddress) {
-      return { ok: false, error: 'NOT_PERMITTED' };
+      return {
+        ok: false,
+        error: 'NOT_PERMITTED',
+        detail: 'Only the buyer can set the delivery address.',
+      };
     }
     if (
       params.actorId === sale.buyerId &&
@@ -705,13 +743,31 @@ export async function updateCashSaleTerms(
     terms,
   });
   if (!updated.ok) {
-    return updated.reason === 'UNAVAILABLE'
-      ? {
-          ok: false,
-          error: 'TERMS_UPDATE_FAILED',
-          detail: 'Could not save the terms right now. Refresh and try again.',
-        }
-      : { ok: false, error: 'STALE_TERMS' };
+    if (updated.reason === 'UNAVAILABLE') {
+      return {
+        ok: false,
+        error: 'TERMS_UPDATE_FAILED',
+        detail: 'Could not save the terms right now. Refresh and try again.',
+      };
+    }
+    if (updated.reason === 'REJECTED') {
+      // The contract is untouched, so this is the payload, not a race. Say so:
+      // telling the member the terms changed would send them to re-read an
+      // unchanged contract and try the same rejected values again.
+      return {
+        ok: false,
+        error: 'INVALID_TERMS',
+        detail:
+          terms.fulfillmentMethod === 'DELIVERY'
+            ? 'These delivery details were rejected. Re-select the address from the suggestions and try again.'
+            : 'These meeting details were rejected. Re-select the location from the suggestions and pick a future time.',
+      };
+    }
+    return {
+      ok: false,
+      error: 'STALE_TERMS',
+      detail: 'The contract changed while you were editing. Review the current version.',
+    };
   }
   await deps.repository.logEvent({
     cashSaleId: sale.id,

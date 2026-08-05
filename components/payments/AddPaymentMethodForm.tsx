@@ -83,24 +83,18 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
   if (configError) {
     return (
-      <div className="space-y-4">
-        <TrustMark />
-        <p role="alert" className="text-sm text-destructive">
-          {configError}
-        </p>
-      </div>
+      <p role="alert" className="text-sm text-destructive">
+        {configError}
+      </p>
     );
   }
 
   if (!session) {
     return (
-      <div className="space-y-4">
-        <TrustMark />
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-          Loading secure card entry…
-        </p>
-      </div>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+        Loading secure card entry…
+      </p>
     );
   }
 
@@ -171,8 +165,6 @@ function CardSetupFields({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <TrustMark />
-
       <PaymentElement
         onReady={() => setReady(true)}
         options={{ layout: 'tabs', fields: { billingDetails: { name: 'auto' } } }}
@@ -228,7 +220,7 @@ function SimulatedCardSetup({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-2">
       <div className="rounded-lg border border-dashed px-3 py-2.5 text-sm" role="note">
         <p className="font-medium text-foreground">Simulated card entry</p>
         <p className="text-muted-foreground">
@@ -248,20 +240,6 @@ function SimulatedCardSetup({
         {isPending ? 'Saving…' : 'Save demo card'}
       </Button>
     </form>
-  );
-}
-
-function TrustMark() {
-  return (
-    <div className="flex gap-3 rounded-lg border px-3 py-2.5 cardtrade-trust-mark" role="note">
-      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
-      <div className="min-w-0 space-y-0.5 text-sm leading-snug">
-        <p className="font-medium text-foreground">Encrypted card entry — secured by Stripe</p>
-        <p className="text-muted-foreground">
-          Your card details go straight to Stripe and are never seen by NoDitto.
-        </p>
-      </div>
-    </div>
   );
 }
 

@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 // components/contract/ContractPartyLine.tsx
 //
-// The two parties as one line inside the header: `You ⇄ Ada Lovelace ✓ 4.8`.
+// The two parties as one line inside the header: `You â‡„ Ada Lovelace âœ“ 4.8`.
 //
 // Header stays as a compact name line. Reputation figures live inside each exchange
 // side card (`ContractPartyStats`). Optional `showDetails` still expands full cards
@@ -52,16 +52,13 @@ function shortStatNoun(label: ReactNode): string {
   return lower.replace(/\s+completed$/i, '').trim();
 }
 
-/** Compact trust line — verified · rating · sales · buys — for exchange side cards. */
+/** Compact trust line â€” verified Â· rating Â· sales Â· buys â€” for exchange side cards. */
 export function ContractPartyStats({
   party,
   className,
-  /** Soft bordered chip beside a party name. */
-  framed = false,
 }: {
   party: ContractParty;
   className?: string;
-  framed?: boolean;
 }) {
   const bits: ReactNode[] = [
     <span
@@ -103,8 +100,6 @@ export function ContractPartyStats({
     <div
       className={cn(
         'space-y-1',
-        framed &&
-          'rounded-lg border border-border/70 bg-muted/35 px-2.5 py-1.5 shadow-sm',
         className,
       )}
     >
@@ -112,7 +107,6 @@ export function ContractPartyStats({
         aria-label="Reputation summary"
         className={cn(
           'flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-snug',
-          framed && 'justify-end sm:max-w-[14rem]',
         )}
       >
         {bits.map((bit, idx) => (
@@ -197,7 +191,7 @@ export function ContractPartyLine({
   me,
   them,
   showDetails = false,
-  separator = '⇄',
+  separator = 'â‡„',
   className,
 }: ContractPartyLineProps) {
   const [expanded, setExpanded] = useState(false);

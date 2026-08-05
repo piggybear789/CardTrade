@@ -18,27 +18,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { PlacePicker } from '@/components/location';
+  FULFILMENT_FIELD_ERRORS,
+  FulfilmentMethodChoice,
+  FulfilmentTermsFields,
+} from '@/components/fulfilment';
 import { FALLBACK_MAP_CENTER, type PlaceValue } from '@/lib/location/types';
 import { updateCashSaleTerms } from '@/lib/actions/cashSale';
 import type { Tables } from '@/lib/supabase/database.types';
+import { cashSaleErrorMessage } from './errorCopy';
 import type { CashSaleDeliveryAddress } from './types';
 
-function hasCoordinates(lat: number | null, lng: number | null): lat is number {
-  return Boolean(
+/**
+ * A valid coordinate pair, or null.
+ *
+ * Returns the pair rather than a type predicate: a predicate can only narrow ONE
+ * parameter, so `lat is number` left `lng` as `number | null` and every call site
+ * needed an assertion to compile.
+ */
+function coordsOf(
+  lat: number | null,
+  lng: number | null,
+): { lat: number; lng: number } | null {
+  const valid =
     typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90 &&
-      typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180,
-  );
+    typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+  return valid ? { lat: lat as number, lng: lng as number } : null;
 }
 
 /** Only provider-resolved places may become contractual locations. */
@@ -47,13 +52,14 @@ function isResolvedPlace(place: PlaceValue | null): place is PlaceValue {
     place &&
       !place.placeId.startsWith('text:') &&
       !place.placeId.startsWith('legacy:') &&
-      hasCoordinates(place.lat, place.lng),
+      coordsOf(place.lat, place.lng) !== null,
   );
 }
 
 function meetingFromSale(sale: Tables<'cash_sales'>): PlaceValue | null {
   if (!sale.meeting_location?.trim()) return null;
-  if (!hasCoordinates(sale.meeting_lat, sale.meeting_lng)) {
+  const coords = coordsOf(sale.meeting_lat, sale.meeting_lng);
+  if (!coords) {
     return {
       label: sale.meeting_location,
       placeId: `text:${sale.meeting_location}`,
@@ -65,8 +71,8 @@ function meetingFromSale(sale: Tables<'cash_sales'>): PlaceValue | null {
   return {
     label: sale.meeting_location,
     placeId: sale.meeting_place_id ?? `legacy:${sale.id}`,
-    lat: sale.meeting_lat,
-    lng: sale.meeting_lng,
+    lat: coords.lat,
+    lng: coords.lng,
     precision: 'exact',
   };
 }
@@ -74,12 +80,14 @@ function meetingFromSale(sale: Tables<'cash_sales'>): PlaceValue | null {
 function deliveryFromSnapshot(
   deliveryAddress: CashSaleDeliveryAddress | null | undefined,
 ): PlaceValue | null {
-  if (!deliveryAddress || !hasCoordinates(deliveryAddress.lat, deliveryAddress.lng)) return null;
+  if (!deliveryAddress) return null;
+  const coords = coordsOf(deliveryAddress.lat, deliveryAddress.lng);
+  if (!coords) return null;
   return {
     label: deliveryAddress.label,
     placeId: deliveryAddress.placeId,
-    lat: deliveryAddress.lat,
-    lng: deliveryAddress.lng,
+    lat: coords.lat,
+    lng: coords.lng,
     countryCode: deliveryAddress.countryCode,
     precision: 'exact',
   };
@@ -152,7 +160,7 @@ export function CashSaleTermsDialog({
       return;
     }
     if (method === 'DELIVERY' && canEditDeliveryAddress && !isResolvedPlace(deliveryPlace)) {
-      setError('Select a suggested delivery address before saving.');
+      setError(FULFILMENT_FIELD_ERRORS.address);
       return;
     }
     const scheduledAt = meetingAt ? new Date(meetingAt) : null;
@@ -161,7 +169,7 @@ export function CashSaleTermsDialog({
       (!isResolvedPlace(meetingPlace) || !scheduledAt || !Number.isFinite(scheduledAt.getTime()) ||
         scheduledAt.getTime() <= Date.now())
     ) {
-      setError('Choose a suggested public meeting point and a future meeting time.');
+      setError(FULFILMENT_FIELD_ERRORS.meeting);
       return;
     }
 
@@ -196,7 +204,11 @@ export function CashSaleTermsDialog({
         router.refresh();
         setOpen(false);
       } else {
-        setError(result.message ?? 'Terms changed elsewhere. Review and try again.');
+        // Never guess at a concurrency conflict here. This used to report
+        // "Terms changed elsewhere" for every failure, including missing
+        // database functions, so members were told to review a version that had
+        // not changed while the real cause stayed invisible.
+        setError(cashSaleErrorMessage(result));
       }
     });
   }
@@ -220,75 +232,51 @@ export function CashSaleTermsDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-5">
-            <div className="space-y-2">
-              <Label htmlFor="sale-method">Fulfillment method</Label>
-              <Select value={method} onValueChange={(value) => setMethod(value as typeof method)}>
-                <SelectTrigger id="sale-method"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DELIVERY">Ship the item</SelectItem>
-                  <SelectItem value="IN_PERSON">Meet face to face</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Same picker and same fields as the trade room. They used to be a
+                `Select` here and a pair of tiles there, with different validation
+                behind each — which is how the trade room ended up accepting a
+                free-text meeting point and an optional meeting time. */}
+            <FulfilmentMethodChoice
+              name="sale-method"
+              value={method}
+              onChange={setMethod}
+              disabled={pending}
+              legend="Fulfillment method"
+            />
 
-            {method === 'DELIVERY' ? (
-              <>
-                {canEditDeliveryAddress ? (
-                  <PlacePicker
-                    id="sale-address"
-                    label="Delivery address"
-                    precision="exact"
-                    value={deliveryPlace}
-                    onChange={setDeliveryPlace}
-                    required
-                    showMap={false}
-                    placeholder="Search your delivery address"
-                    error={
-                      error === 'Select a suggested delivery address before saving.'
-                        ? error
-                        : undefined
-                    }
-                    hint="Select an address from the suggestions. We never show a map or share it until Stripe has collected payment."
-                    textFallbackPlaceholder="Search your delivery address"
-                  />
-                ) : (
-                  <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                    Only the buyer can add or replace the delivery address. It is shared with you once Stripe has collected payment.
-                  </p>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="sale-shipping-cost">Shipping cost (AUD)</Label>
-                  <Input id="sale-shipping-cost" inputMode="decimal" value={shippingCost} onChange={(event) => setShippingCost(event.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sale-shipping-notes">Shipping details</Label>
-                  <Textarea id="sale-shipping-notes" value={shippingNotes} onChange={(event) => setShippingNotes(event.target.value)} placeholder="Insurance, signature, packaging or carrier preference" />
-                </div>
-              </>
-            ) : (
-              <>
-                <PlacePicker
-                  id="sale-location"
-                  label="Meeting location"
-                  precision="exact"
-                  value={meetingPlace}
-                  onChange={setMeetingPlace}
-                  required
-                  error={
-                    error === 'Choose a suggested public meeting point and a future meeting time.'
-                      ? error
-                      : undefined
-                  }
-                  hint="Use a public spot both parties can find. Choose a suggestion to confirm the map pin."
-                  textFallbackPlaceholder="A public, agreed meeting point"
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="sale-meeting-at">Meeting time</Label>
-                  <Input id="sale-meeting-at" type="datetime-local" value={meetingAt} onChange={(event) => setMeetingAt(event.target.value)} required />
-                </div>
-              </>
-            )}
-            {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+            <FulfilmentTermsFields
+              idPrefix="sale"
+              method={method}
+              meetingPlace={meetingPlace}
+              onMeetingPlaceChange={setMeetingPlace}
+              meetingAt={meetingAt}
+              onMeetingAtChange={setMeetingAt}
+              deliveryCost={shippingCost}
+              onDeliveryCostChange={setShippingCost}
+              deliveryNotes={shippingNotes}
+              onDeliveryNotesChange={setShippingNotes}
+              deliveryCostLabel="Shipping cost (AUD)"
+              deliveryCostHint="Enter 0 for free shipping. Tracking is added when the seller posts it."
+              // The seller receives nothing by post, so only the buyer supplies an
+              // address. This is the one place the two flows legitimately differ:
+              // a trade posts both ways and asks both traders.
+              showDeliveryAddress
+              deliveryAddress={deliveryPlace}
+              onDeliveryAddressChange={
+                canEditDeliveryAddress ? setDeliveryPlace : undefined
+              }
+              deliveryAddressReadOnlyNote="Only the buyer can add or replace the delivery address. It is shared with you once Stripe has collected payment."
+              error={error}
+              disabled={pending}
+            />
+
+            {error &&
+            error !== FULFILMENT_FIELD_ERRORS.meeting &&
+            error !== FULFILMENT_FIELD_ERRORS.address ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
           </div>
           <DialogFooter>
             <Button type="submit" disabled={pending} aria-busy={pending}>

@@ -1,4 +1,4 @@
-// app/page.tsx
+﻿// app/page.tsx
 //
 // NoDitto landing page. Presents one concrete, collateral-backed trade so
 // collectors can understand the clearinghouse before entering the marketplace.
@@ -27,12 +27,12 @@ export const metadata = {
 // Iconic chase cards so the example trade reads as a serious, high-value swap:
 // "Moonbreon" (Prismatic Evolutions SIR), Pikachu ex SIR (Ascended Heroes),
 // and the "bubble Mew" SIR from Paldean Fates (#232). Prefer `_hires` scans
-// from the Pokémon TCG CDN; Ascended Heroes is only on Scrydex's large size.
+// from the PokÃ©mon TCG CDN; Ascended Heroes is only on Scrydex's large size.
 //
 // ALT TEXT IS EMPTY ON ALL THREE, DELIBERATELY. The fan is one decorative
 // composition, not three informative images. Umbreon previously carried a full
 // description while the other two were `alt=""`, so a screen reader announced
-// exactly one card out of three — describing the picture inaccurately. The
+// exactly one card out of three â€” describing the picture inaccurately. The
 // adjacent hero copy already carries the message, so decorating out is correct.
 // Keep them empty, or describe the composition once on a container.
 const CARD_IMAGES = {
@@ -59,7 +59,9 @@ export default async function HomePage() {
   const user = authResult.data.user;
   const previewItems = catalogResult.ok ? catalogResult.items : [];
   const isAuthenticated = Boolean(user);
-  const dealHref = isAuthenticated ? '/deals/new' : '/sign-up';
+  // Deals are withdrawn (Req 12): a private deal was a Trade negotiated in its own
+  // room, which is what opening a trade offer now does.
+  const tradeHref = isAuthenticated ? '/trades' : '/sign-up';
 
   return (
     <div className="flex flex-col">
@@ -82,14 +84,14 @@ export default async function HomePage() {
                   "every trader is ID-checked, and every transaction is backed by
                   collateral. Buy, sell, and trade with no risk." All three were
                   contradicted by the product:
-                    * Buyers are deliberately unverified — a buy-only member holds no
+                    * Buyers are deliberately unverified â€” a buy-only member holds no
                       verified identity, by design (see product.md).
                     * Cash sales carry no collateral at all, and a deal between two
                       verified parties skips it too.
                     * Nothing is "no risk": collateral is a card authorisation, and
                       those lapse in about seven days (see 0035_hold_expiry_reconciler).
                   Each sentence below is now something the code actually does. Keep it
-                  that way — an overstated protection claim is a consumer-law problem,
+                  that way â€” an overstated protection claim is a consumer-law problem,
                   not a copy preference. */}
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
                 Transparency is crucial for a safe deal. Every seller on NoDitto is
@@ -113,7 +115,7 @@ export default async function HomePage() {
                   variant="outline"
                   className="border-parchment/25 bg-transparent text-parchment shadow-none hover:border-gold/70 hover:bg-white/10 hover:text-parchment"
                 >
-                  <Link href={dealHref}>Start a Private Deal</Link>
+                  <Link href={tradeHref}>Start a Trade</Link>
                 </Button>
               </div>
             </div>
@@ -141,7 +143,7 @@ export default async function HomePage() {
                   <EmptyState
                     title="No Public Listings Yet"
                     description="You can still make a protected deal with another collector."
-                    action={{ label: 'Start a Private Deal', href: dealHref }}
+                    action={{ label: 'Start a Trade', href: tradeHref }}
                     titleAs="h3"
                     compact
                   />
@@ -170,7 +172,7 @@ export default async function HomePage() {
             <div className="border-t border-parchment/15">
               {/* Below `sm` the rows stack and carry their own inline
                   "Elsewhere:"/"Us:" labels, so a column-header row has nothing
-                  to line up with — hide it entirely. */}
+                  to line up with â€” hide it entirely. */}
               <div className="market-label hidden gap-x-6 border-b border-parchment/15 py-3 text-parchment/60 sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
                 <span aria-hidden="true" />
                 <span className="text-center">Typical marketplace</span>
@@ -187,12 +189,12 @@ export default async function HomePage() {
                 ours="DittoShield identity status"
               />
               {/* Was "Contract-backed collateral protection", which is not what happens
-                  when a CASH SALE goes wrong — those carry no collateral. What actually
+                  when a CASH SALE goes wrong â€” those carry no collateral. What actually
                   happens on every contract type is that funds stop moving and a person
                   decides, which is a stronger claim and a true one. */}
               <ComparisonRow
                 aspect="If a deal goes wrong"
-                typical="“Sort it out yourselves”"
+                typical="â€œSort it out yourselvesâ€"
                 ours="Funds frozen, reviewed by support"
               />
               <ComparisonRow
@@ -225,9 +227,9 @@ export default async function HomePage() {
             </Link>
             <Link
               className="rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              href="/deals"
+              href="/trades"
             >
-              Deals
+              Trades
             </Link>
             <Link
               className="rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -244,10 +246,10 @@ export default async function HomePage() {
               rel="noreferrer"
               className="underline decoration-gold/50 underline-offset-4 hover:text-foreground"
             >
-              Pokémon TCG API
+              PokÃ©mon TCG API
             </a>
-            . Pokémon names and artwork belong to their respective owners. NoDitto is not
-            affiliated with or endorsed by The Pokémon Company. Payments are processed by
+            . PokÃ©mon names and artwork belong to their respective owners. NoDitto is not
+            affiliated with or endorsed by The PokÃ©mon Company. Payments are processed by
             Stripe.
           </p>
         </div>
@@ -288,7 +290,7 @@ function ProtectedTradePreview() {
           priority
           className="absolute left-1/2 top-[16%] z-10 w-[42%] -translate-x-1/2 rounded-[4%] drop-shadow-[0_22px_28px_rgba(0,0,0,0.65)]"
         />
-        {/* Two claims, side by side — the pitch in the fewest possible words.
+        {/* Two claims, side by side â€” the pitch in the fewest possible words.
             "All Parties ID Verified" was the previous wording and it was not true:
             buyers are deliberately unverified, so a checkmark against "all parties"
             asserted something the platform does not do. Narrowed to sellers, which is

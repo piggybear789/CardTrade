@@ -14,6 +14,7 @@
 // The buy/trade actions re-enforce these gates server-side; the gating here
 // only decides what to surface.
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -27,9 +28,10 @@ import {
 import { getItem, type ItemRow } from "@/lib/actions/listings";
 import { getWatchCount, isWatching } from "@/lib/actions/watchlist";
 import { createClient } from "@/lib/supabase/server";
-import { identityGateMessage, readIdentityGate } from "@/lib/identityGate";
+import { readIdentityGate } from "@/lib/identityGate";
 import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
 import type { SellerIdentityDisclosure } from "@/domain/orchestrator/merchantOnboarding";
+import type { VerificationState } from "@/domain/identity/identityGate";
 import {
   formatAud,
   itemImageUrl,
@@ -46,10 +48,12 @@ import {
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
+import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
 import { StarRating } from "@/components/listings/StarRating";
 import { IdentityBadge } from "@/components/identity/IdentityBadge";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 import { PlaceMap } from "@/components/location";
+import type { PlacePrecision } from "@/lib/location/types";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -146,11 +150,11 @@ export default async function ItemDetailPage({
 
   const sellerRow = sellerRowResult.data;
   const ownItems = (ownItemsResult.data ?? []) as ItemRow[];
-  const canStartTrade = Boolean(viewerTradeGate?.satisfied);
-  const tradeGateMessage =
-    viewerTradeGate && !viewerTradeGate.satisfied
-      ? identityGateMessage('trade', viewerTradeGate.state)
-      : null;
+  // The viewer's own gate no longer disables Propose Trade: an unverified viewer
+  // gets a pressable button that opens verification (see ProposeTradeDialog).
+  // `null` means "nothing to resolve".
+  const viewerVerification =
+    viewerTradeGate && !viewerTradeGate.satisfied ? viewerTradeGate.state : null;
   const sellerDisplayName =
     (sellerRow?.display_name as string | null)?.trim() || "The other trader";
 
@@ -203,8 +207,16 @@ export default async function ItemDetailPage({
           declared somewhere, and this wrapper is the one place where it's
           composed purely of fixed paddings. Below lg the wrapper is
           auto-height, the columns stack, and the page scrolls normally. */}
+      {/* Reconciles payout state when the viewer lands back here from the
+          provider's hosted onboarding flow. Renders nothing. Suspense because it
+          reads searchParams; the page is force-dynamic, so this never blocks a
+          prerender. */}
+      <Suspense fallback={null}>
+        <PayoutReturnRefresh />
+      </Suspense>
+
       <div className="flex min-h-0 flex-col lg:h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))]">
-        <nav className="mb-4 sm:mb-6" aria-label="Breadcrumb">
+        <nav className="mb-2 sm:mb-3" aria-label="Breadcrumb">
           <Button asChild variant="outline" size="sm">
             <Link href="/listings">
               <ArrowLeft aria-hidden="true" />
@@ -232,8 +244,15 @@ export default async function ItemDetailPage({
             (save/report) stick to the bottom when content is short. The
             scrollbar itself is hidden (same treatment as the workspace rail):
             it rendered as a visible gutter splitting the two panes. Wheel,
-            drag, and keyboard scrolling all still work. */}
-          <div className="flex min-w-0 flex-col overscroll-contain lg:flex-1 lg:overflow-y-auto lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+            drag, and keyboard scrolling all still work.
+
+            `lg:pb-7` is not decoration: the gallery caps itself at
+            `calc(100% - 3.5rem)` of the row and is centred vertically, so its
+            bottom edge sits half that breathing room — 1.75rem — above the row
+            bottom. This pane is full height, so without the matching padding
+            the message composer overhangs the image. Keep the two in sync: if
+            FRAME_HEIGHT's 3.5rem changes, this becomes half the new value. */}
+          <div className="flex min-w-0 flex-col overscroll-contain lg:flex-1 lg:overflow-y-auto lg:pb-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="space-y-6">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -368,8 +387,7 @@ export default async function ItemDetailPage({
                 isOwner={isOwner}
                 isAuthenticated={Boolean(user)}
                 isAvailable={isAvailable}
-                canStartTrade={canStartTrade}
-                tradeGateMessage={tradeGateMessage}
+                viewerVerification={viewerVerification}
                 sellerIdentity={sellerIdentity}
                 activeSaleId={activeSaleId}
                 activeTradeId={activeTradeId}
@@ -398,10 +416,15 @@ export default async function ItemDetailPage({
                   <h2 id="location-heading" className="text-sm font-medium">
                     Based near
                   </h2>
+                  {/* A listing pin is a locality, never a street address — the
+                      precision is what keeps the frame honest about that. */}
                   <PlaceMap
                     lat={item.location_lat}
                     lng={item.location_lng}
                     label={item.location_label}
+                    precision={
+                      (item.location_precision as PlacePrecision | null) ?? 'suburb'
+                    }
                     heightClassName="h-40"
                   />
                 </section>
@@ -447,8 +470,7 @@ function ItemActions({
   isOwner,
   isAuthenticated,
   isAvailable,
-  canStartTrade,
-  tradeGateMessage,
+  viewerVerification,
   sellerIdentity,
   activeSaleId,
   activeTradeId,
@@ -464,8 +486,7 @@ function ItemActions({
   isOwner: boolean;
   isAuthenticated: boolean;
   isAvailable: boolean;
-  canStartTrade: boolean;
-  tradeGateMessage: string | null;
+  viewerVerification: VerificationState | null;
   sellerIdentity: SellerIdentityDisclosure | null;
   activeSaleId: string | null;
   activeTradeId: string | null;
@@ -489,12 +510,12 @@ function ItemActions({
       </>
     ) : null;
 
-  const canOpenTrade = canStartTrade && Boolean(sellerIdentity);
-  const disabledTradeReason = !canStartTrade
-    ? tradeGateMessage
-    : !sellerIdentity
-      ? 'This seller must finish payout setup before a trade can start.'
-      : null;
+  // Only the SELLER's missing setup disables the trigger — the viewer cannot
+  // complete somebody else's onboarding by pressing a button, so there is nothing
+  // for a click to offer. The viewer's own gate is handled inside the dialog.
+  const disabledTradeReason = !sellerIdentity
+    ? 'This seller must finish payout setup before a trade can start.'
+    : null;
 
   const proposeTrade =
     isAuthenticated && !isOwner && isAvailable ? (
@@ -508,17 +529,18 @@ function ItemActions({
         }}
         ownItems={ownItems}
         emphasize={!sellerIdentity}
-        disabled={!canOpenTrade}
+        viewerVerification={viewerVerification}
+        returnPath={`/listings/${itemId}`}
+        disabled={Boolean(disabledTradeReason)}
         disabledReason={disabledTradeReason}
       />
     ) : null;
 
-  const tradeGateNotice =
-    !canOpenTrade && disabledTradeReason ? (
-      <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        {disabledTradeReason}
-      </p>
-    ) : null;
+  const tradeGateNotice = disabledTradeReason ? (
+    <p className="text-center text-xs leading-relaxed text-muted-foreground">
+      {disabledTradeReason}
+    </p>
+  ) : null;
   // Owner controls: when the item is under contract, surface the active
   // contract link prominently instead of edit/delete (which aren't allowed on
   // RESERVED items anyway per Req 3.5).

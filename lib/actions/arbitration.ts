@@ -1,17 +1,17 @@
-'use server';
+﻿'use server';
 
 // lib/actions/arbitration.ts
 //
 // Server binding for the arbitration workspace.
 //
-// Assembles the queue from the three records a case can be a view over — disputed
-// Cash_Sales, disputed Trades, Chargebacks — and normalises them through
+// Assembles the queue from the three records a case can be a view over â€” disputed
+// Cash_Sales, disputed Trades, Chargebacks â€” and normalises them through
 // `domain/arbitration` so triage ordering and money-at-risk arithmetic stay pure and
 // testable.
 //
 // EVERY EXPORT RE-CHECKS THE GATE. `requireStaff` is called inside each action rather
 // than once at the page, because a Server Action is reachable by anyone who knows its
-// id — a page-level check protects the page, not the action.
+// id â€” a page-level check protects the page, not the action.
 //
 // Reads use the SERVICE-ROLE client, deliberately: an arbitrator is not a party to the
 // contracts they arbitrate, so RLS on the cookie-bound client would return nothing
@@ -51,7 +51,7 @@ export interface ArbitrationNote {
  *
  * Kept separate from the triage shape on purpose. The queue needs one comparable
  * number per case so it can be ordered; a decision needs the specific figures the
- * outcome is computed from — the platform fee a release nets off, the collateral a
+ * outcome is computed from â€” the platform fee a release nets off, the collateral a
  * fraud finding captures. Flattening both into `ArbitrationCase` would put money
  * fields on the queue model that only ever mean something for one of the three kinds.
  */
@@ -85,23 +85,11 @@ export type ArbitrationResolution =
       /**
        * The provider's own dispute id, needed to find the case in the Stripe dashboard
        * where the evidence is actually submitted. Carried here because chargebacks are
-       * no longer listed on `/admin` — this is the only surface that shows them.
+       * no longer listed on `/admin` â€” this is the only surface that shows them.
        */
       disputeRef: string | null;
       /** `lost` is the only outcome that means the platform absorbed the amount. */
       outcome: string | null;
-    }
-  | {
-      kind: 'DEAL';
-      dealId: string;
-      /** The uncaptured cash authorisation the outcome decides. Zero for goods swaps. */
-      cashHeldCents: number;
-      payer: { id: string; name: string } | null;
-      recipient: { id: string; name: string } | null;
-      /** Collateral frozen per party, released in every outcome. */
-      collateral: readonly { id: string; name: string; amountCents: number }[];
-      /** Set when a previous attempt was refused by the provider: retry is safe. */
-      cashError: string | null;
     };
 
 /** Everything a case detail page renders. */
@@ -153,7 +141,7 @@ export async function getArbitrationQueue(): Promise<
 
   const admin = createAdminClient();
 
-  const [sales, trades, chargebacks, deals, assignments, noteCounts] = await Promise.all([
+  const [sales, trades, chargebacks, assignments, noteCounts] = await Promise.all([
     admin
       .from('cash_sales')
       .select(
@@ -170,12 +158,6 @@ export async function getArbitrationQueue(): Promise<
       .from('charge_disputes')
       .select('id, amount_cents, opened_at, evidence_due_by, profile_id, cash_sale_id, trade_id, reason')
       .is('closed_at', null),
-    admin
-      .from('deals')
-      .select(
-        'id, title, creator_id, counterparty_id, cash_amount_cents, cash_payer_id, collateral_cents, disputed_at, dispute_raised_by, dispute_reason',
-      )
-      .eq('state', 'DISPUTED'),
     admin.from('arbitration_assignments').select('case_kind, case_ref, assignee_id'),
     admin.from('arbitration_notes').select('case_kind, case_ref'),
   ]);
@@ -206,46 +188,11 @@ export async function getArbitrationQueue(): Promise<
     }
   }
 
-  // Deal escrow, read per deal rather than per case kind: a disputed deal freezes an
-  // uncaptured cash authorisation AND a collateral hold per party, and an arbitrator
-  // needs both figures — only the cash is decided by the outcome, but the collateral is
-  // what each party currently has frozen.
-  const dealIds = (deals.data ?? []).map((d) => d.id as string);
-  const dealCashHeldOf = new Map<string, number>();
-  const dealCollateralOf = new Map<string, Map<string, number>>();
-  if (dealIds.length > 0) {
-    const [{ data: dealCash }, { data: dealHolds }] = await Promise.all([
-      admin
-        .from('deal_payments')
-        .select('deal_id, amount_cents, status')
-        .in('deal_id', dealIds)
-        .eq('status', 'HELD'),
-      admin
-        .from('deal_holds')
-        .select('deal_id, party_id, amount_cents, status')
-        .in('deal_id', dealIds)
-        .eq('status', 'ACTIVE'),
-    ]);
-    for (const row of dealCash ?? []) {
-      const id = row.deal_id as string;
-      dealCashHeldOf.set(id, (dealCashHeldOf.get(id) ?? 0) + Number(row.amount_cents ?? 0));
-    }
-    for (const row of dealHolds ?? []) {
-      const id = row.deal_id as string;
-      const perParty = dealCollateralOf.get(id) ?? new Map<string, number>();
-      perParty.set(row.party_id as string, Number(row.amount_cents ?? 0));
-      dealCollateralOf.set(id, perParty);
-    }
-  }
 
   const ids: string[] = [];
   for (const s of sales.data ?? []) ids.push(s.buyer_id as string, s.seller_id as string);
   for (const t of trades.data ?? []) ids.push(t.initiator_id as string, t.counterpart_id as string);
   for (const c of chargebacks.data ?? []) if (c.profile_id) ids.push(c.profile_id as string);
-  for (const d of deals.data ?? []) {
-    ids.push(d.creator_id as string);
-    if (d.counterparty_id) ids.push(d.counterparty_id as string);
-  }
   // Assignees resolve through the same lookup as parties. They are staff, not parties,
   // so they would otherwise render as a UUID on the one control that needs a person's
   // name to be useful.
@@ -304,7 +251,7 @@ export async function getArbitrationQueue(): Promise<
     cases.push({
       kind: 'TRADE',
       ref: id,
-      title: `${nameFor(trade.initiator_id as string)} ⇄ ${nameFor(trade.counterpart_id as string)}`,
+      title: `${nameFor(trade.initiator_id as string)} â‡„ ${nameFor(trade.counterpart_id as string)}`,
       // A fraud finding captures one full collateral, so the larger of the two is what
       // the outcome can move. A condition finding moves only the Friction_Tax.
       amountAtRiskCents: Math.max(initiatorBond, counterpartBond, FRICTION_TAX_CENTS),
@@ -334,56 +281,6 @@ export async function getArbitrationQueue(): Promise<
       hasHardDeadline: false,
       deadlineAt: null,
       fraudAlleged: Boolean(trade.fraud_claimed_by),
-    });
-  }
-
-  for (const deal of deals.data ?? []) {
-    const id = deal.id as string;
-    const creatorId = deal.creator_id as string;
-    const counterpartyId = (deal.counterparty_id as string | null) ?? null;
-    const cashHeld = dealCashHeldOf.get(id) ?? 0;
-    const collateral = dealCollateralOf.get(id) ?? new Map<string, number>();
-    const payerId = (deal.cash_payer_id as string | null) ?? null;
-
-    /** A party's stake: their frozen collateral, plus their side of the cash. */
-    const stakeFor = (partyId: string) =>
-      (collateral.get(partyId) ?? 0) + (cashHeld > 0 ? cashHeld : 0);
-    const roleFor = (partyId: string) => {
-      if (cashHeld === 0 || !payerId) return partyId === creatorId ? 'Creator' : 'Counterparty';
-      return partyId === payerId ? 'Cash payer' : 'Recipient';
-    };
-
-    const parties = [creatorId, counterpartyId]
-      .filter((partyId): partyId is string => Boolean(partyId))
-      .map((partyId) => ({
-        id: partyId,
-        name: nameFor(partyId),
-        stakeCents: stakeFor(partyId),
-        role: roleFor(partyId),
-      }));
-
-    cases.push({
-      kind: 'DEAL',
-      ref: id,
-      title: (deal.title as string | null) ?? 'Untitled deal',
-      // Only the cash is DECIDED by the outcome: collateral is released in every case,
-      // because a deal has no Friction_Tax and no fraud finding to capture it for. A
-      // goods-for-goods deal therefore reports $0 at stake, and still gets triaged —
-      // priority comes from age, never from amount.
-      amountAtRiskCents: cashHeld,
-      openedAt: (deal.disputed_at as string | null) ?? null,
-      raisedById: (deal.dispute_raised_by as string | null) ?? null,
-      claim: (deal.dispute_reason as string | null) ?? null,
-      parties,
-      assigneeId: assigneeOf.get(`DEAL:${id}`) ?? null,
-      assigneeName: assigneeNameFor(assigneeOf.get(`DEAL:${id}`) ?? null),
-      noteCount: noteCountOf.get(`DEAL:${id}`) ?? 0,
-      // No externally-imposed deadline, but the authorisations behind the escrow do
-      // lapse in about seven days. That is a real clock, and it is why a deal dispute
-      // cannot simply sit — see the note on the resolution action.
-      hasHardDeadline: false,
-      deadlineAt: null,
-      fraudAlleged: false,
     });
   }
 
@@ -470,7 +367,7 @@ export async function getArbitrationCase(
     createdAt: row.created_at as string,
   }));
 
-  // The contract's own event log. Cash_Sales and deals each keep one; trades and
+  // The contract's own event log. Cash_Sales keep one; trades and
   // chargebacks do not, and those cases show no timeline rather than a fabricated one.
   let timeline: { event: string; detail: string | null; at: string }[] = [];
   if (kind === 'CASH_SALE') {
@@ -478,17 +375,6 @@ export async function getArbitrationCase(
       .from('cash_sale_events')
       .select('event, detail, created_at')
       .eq('cash_sale_id', ref)
-      .order('created_at', { ascending: true });
-    timeline = (events ?? []).map((row) => ({
-      event: row.event as string,
-      detail: (row.detail as string | null) ?? null,
-      at: row.created_at as string,
-    }));
-  } else if (kind === 'DEAL') {
-    const { data: events } = await admin
-      .from('deal_events')
-      .select('event, detail, created_at')
-      .eq('deal_id', ref)
       .order('created_at', { ascending: true });
     timeline = (events ?? []).map((row) => ({
       event: row.event as string,
@@ -503,15 +389,13 @@ export async function getArbitrationCase(
       ? `/sales/${ref}`
       : kind === 'TRADE'
         ? `/trades/${ref}`
-        : kind === 'DEAL'
-          ? `/deals/${ref}`
-          : resolution?.kind === 'CHARGEBACK'
-            ? resolution.cashSaleId
-              ? `/sales/${resolution.cashSaleId}`
-              : resolution.tradeId
-                ? `/trades/${resolution.tradeId}`
-                : null
-            : null;
+        : resolution?.kind === 'CHARGEBACK'
+          ? resolution.cashSaleId
+            ? `/sales/${resolution.cashSaleId}`
+            : resolution.tradeId
+              ? `/trades/${resolution.tradeId}`
+              : null
+          : null;
 
   return ok({
     case: found,
@@ -594,61 +478,6 @@ async function readResolution(
     };
   }
 
-  if (kind === 'DEAL') {
-    const [{ data: deal }, { data: cashRows }, { data: holdRows }] = await Promise.all([
-      admin
-        .from('deals')
-        .select('id, creator_id, counterparty_id, cash_payer_id')
-        .eq('id', ref)
-        .maybeSingle(),
-      admin
-        .from('deal_payments')
-        .select('amount_cents, status, refund_error')
-        .eq('deal_id', ref)
-        .in('status', ['HELD', 'FAILED']),
-      admin
-        .from('deal_holds')
-        .select('party_id, amount_cents, status')
-        .eq('deal_id', ref)
-        .eq('status', 'ACTIVE'),
-    ]);
-    if (!deal) return null;
-
-    const nameOf = (id: string | null) =>
-      id ? (triaged.parties.find((p) => p.id === id)?.name ?? 'Member') : null;
-    const creatorId = deal.creator_id as string;
-    const counterpartyId = (deal.counterparty_id as string | null) ?? null;
-    const payerId = (deal.cash_payer_id as string | null) ?? null;
-    const recipientId = payerId
-      ? payerId === creatorId
-        ? counterpartyId
-        : creatorId
-      : null;
-
-    // A row left FAILED is a previous refusal, not held money. Sum only what is still
-    // authorised, or an arbitrator would be offered a capture of funds that are gone.
-    const cashHeldCents = (cashRows ?? [])
-      .filter((row) => row.status === 'HELD')
-      .reduce((sum, row) => sum + Number(row.amount_cents ?? 0), 0);
-    const cashError =
-      (cashRows ?? []).find((row) => row.status === 'FAILED')?.refund_error ?? null;
-
-    return {
-      kind: 'DEAL',
-      dealId: deal.id as string,
-      cashHeldCents,
-      payer: payerId ? { id: payerId, name: nameOf(payerId) ?? 'Payer' } : null,
-      recipient: recipientId
-        ? { id: recipientId, name: nameOf(recipientId) ?? 'Recipient' }
-        : null,
-      collateral: (holdRows ?? []).map((row) => ({
-        id: row.party_id as string,
-        name: nameOf(row.party_id as string) ?? 'Member',
-        amountCents: Number(row.amount_cents ?? 0),
-      })),
-      cashError: (cashError as string | null) ?? null,
-    };
-  }
 
   const { data } = await admin
     .from('charge_disputes')

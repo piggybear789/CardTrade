@@ -48,8 +48,10 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
   const links: NavLink[] = [
     { href: '/listings', label: 'Marketplace', match: 'prefix', except: ['/listings/new'] },
     { href: '/listings/new', label: 'Sell', match: 'exact' },
+    // Deals are withdrawn. A private deal was a Trade negotiated in its own room,
+    // which is now what opening a trade offer does (Req 12).
     ...(isAuthenticated
-      ? [{ href: '/deals', label: 'Deals', match: 'prefix' as const }]
+      ? [{ href: '/trades', label: 'Trades', match: 'prefix' as const }]
       : []),
   ];
 

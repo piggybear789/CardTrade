@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { ExternalLink, MapPin } from 'lucide-react';
 
 import { mapsExternalUrl, staticMapUrl } from '@/lib/location/geoapify';
+import type { PlacePrecision } from '@/lib/location/types';
 import { cn } from '@/lib/utils';
 
 export interface PlaceMapProps {
@@ -16,6 +17,12 @@ export interface PlaceMapProps {
   className?: string;
   /** Map height; default 12rem. */
   heightClassName?: string;
+  /**
+   * What the coordinates mean. A `suburb` pin is a locality centroid and is framed
+   * wider than an `exact` address, so the view matches the claim the pin makes.
+   * Omit to keep the neutral default zoom.
+   */
+  precision?: PlacePrecision | null;
   /** Kept for call-site compatibility; static maps are non-interactive. */
   interactive?: boolean;
 }
@@ -26,6 +33,7 @@ export function PlaceMap({
   label,
   className,
   heightClassName = 'h-48',
+  precision = null,
 }: PlaceMapProps) {
   const [failed, setFailed] = useState(false);
   const hasCoords =
@@ -34,7 +42,7 @@ export function PlaceMap({
     Number.isFinite(lat) &&
     Number.isFinite(lng);
 
-  const imageUrl = hasCoords ? staticMapUrl(lat, lng) : null;
+  const imageUrl = hasCoords ? staticMapUrl(lat, lng, { precision }) : null;
   const externalUrl = hasCoords
     ? mapsExternalUrl(lat, lng, label ?? undefined)
     : null;

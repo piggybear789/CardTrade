@@ -20,6 +20,7 @@ import {
   settleCashSale,
   updateCashSaleTerms,
   type CashSaleOrchestratorDeps,
+  type CashSaleTermsInput,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
 import type { PaymentService } from '@/domain/services/types';
 import {
@@ -68,7 +69,9 @@ function makeDeps(
 /** Drive a sale to both-accepted so payment is submitted. */
 async function agreeAndPay(
   deps: CashSaleOrchestratorDeps,
-  terms = DELIVERY_TERMS,
+  // Typed as the domain input rather than inferred from DELIVERY_TERMS, whose
+  // literal `'DELIVERY'` would otherwise reject an IN_PERSON fixture.
+  terms: CashSaleTermsInput = DELIVERY_TERMS,
 ) {
   const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
   if (!created.ok) throw new Error(`agreement failed: ${created.error}`);

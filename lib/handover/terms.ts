@@ -1,13 +1,31 @@
 // lib/handover/terms.ts
 //
-// Shared helpers for face-to-face / postage handover terms used by deals and
-// 2-way trades. `delivery_cost_cents` is the money source of truth;
-// `delivery_details` is the human-readable blob rebuilt from cost + notes.
+// DISPLAY helpers for face-to-face / postage handover terms, plus the mapping onto
+// the `trades` column names.
+//
+// The rules themselves — what a valid set of terms is, which fields the chosen
+// method needs, how long an inspection window runs — moved to
+// `domain/fulfilment`, which is pure and shared with the Cash_Sale. What is left
+// here is the part that legitimately belongs in `lib/`: strings that need
+// `formatAud`, and the trade-specific column names. `domain/` may not import from
+// `lib/`, which is exactly why the split falls where it does.
+//
+// The module header used to say "used by deals and 2-way trades". Deals are gone.
 
 import { formatAud } from '@/lib/format';
-import type { Enums } from '@/lib/supabase/database.types';
+import {
+  areFulfilmentTermsComplete,
+  type FulfilmentMethod,
+} from '@/domain/fulfilment';
 
-export type HandoverMethod = Enums<'handover_method'>;
+/**
+ * How the goods change hands.
+ *
+ * An alias of the shared {@link FulfilmentMethod} rather than a second definition
+ * off the database enum: the two were structurally identical, and two names for one
+ * concept is how the trade and sale rooms drifted apart in the first place.
+ */
+export type HandoverMethod = FulfilmentMethod;
 
 /** Fields persisted for a handover choice (deals, trade proposals, trades). */
 export interface HandoverTermsInput {
@@ -55,19 +73,39 @@ export function deliveryNotesFromDetails(details: string | null | undefined): st
   return details;
 }
 
-/** True when the handover terms are fully specified for the chosen method. */
+/**
+ * True when the stored handover terms are specified enough to act on.
+ *
+ * Delegates to the shared predicate so the trade room and the sale room agree on
+ * what "set" means. Deliberately weaker than validation: it accepts terms agreed
+ * before a rule tightened, so an in-flight contract does not become unreadable when
+ * policy changes.
+ */
 export function areHandoverTermsComplete(input: {
   handover_method: HandoverMethod | null;
   meeting_location: string | null;
   delivery_details: string | null;
 }): boolean {
-  if (input.handover_method === 'IN_PERSON') {
-    return Boolean(input.meeting_location?.trim());
-  }
-  if (input.handover_method === 'DELIVERY') {
-    return Boolean(input.delivery_details?.trim());
-  }
-  return false;
+  return areFulfilmentTermsComplete({
+    method: input.handover_method,
+    meeting: {
+      place: input.meeting_location?.trim()
+        ? {
+            label: input.meeting_location,
+            placeId: 'stored',
+            lat: 0,
+            lng: 0,
+          }
+        : null,
+      at: null,
+    },
+    // `delivery_details` is the rendered blob; its presence is what the trade row
+    // has always used to mean "postage was agreed".
+    delivery: {
+      costCents: input.delivery_details?.trim() ? 0 : null,
+      notes: null,
+    },
+  });
 }
 
 /**

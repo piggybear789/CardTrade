@@ -28,8 +28,14 @@ import type { TradeFacts, TradeState, TradeViewerRole } from '@/domain/state-mac
 /** The full persisted Trade row shape. */
 export type TradeRow = Tables<'trades'>;
 
-/** The three per-trader lifecycle actions of Req 6. */
-export type LifecycleAction = 'shipment' | 'receipt' | 'acceptance';
+/**
+ * The per-trader lifecycle actions.
+ *
+ * `handover` is the face-to-face counterpart of `shipment`: it is recorded in the
+ * same state (COLLATERAL_LOCKED) by the same guarded once-only write, and which of
+ * the two a trade uses is decided by its `handover_method`.
+ */
+export type LifecycleAction = 'shipment' | 'receipt' | 'acceptance' | 'handover';
 
 /**
  * Static description of a lifecycle action: the Trade_State in which it is
@@ -40,7 +46,7 @@ interface LifecycleSpec {
   /** The only state in which this action may be recorded (Req 6.1/6.3/6.5). */
   requiredState: TradeState;
   /** Which `TradeFacts` group this action populates. */
-  factGroup: 'shipped' | 'received' | 'accepted';
+  factGroup: 'shipped' | 'received' | 'accepted' | 'handoverConfirmed';
   /** The timestamp columns keyed by viewer role. */
   columns: Record<TradeViewerRole, keyof TradeRow>;
 }
@@ -51,6 +57,15 @@ export const LIFECYCLE_SPECS: Record<LifecycleAction, LifecycleSpec> = {
     requiredState: 'COLLATERAL_LOCKED',
     factGroup: 'shipped',
     columns: { INITIATOR: 'initiator_shipped_at', COUNTERPART: 'counterpart_shipped_at' },
+  },
+  handover: {
+    // Same state as `shipment`: this is the other way goods leave your hands.
+    requiredState: 'COLLATERAL_LOCKED',
+    factGroup: 'handoverConfirmed',
+    columns: {
+      INITIATOR: 'initiator_handover_confirmed_at',
+      COUNTERPART: 'counterpart_handover_confirmed_at',
+    },
   },
   receipt: {
     requiredState: 'IN_TRANSIT',
@@ -91,9 +106,19 @@ export function hasRecorded(
  * timestamp; hold activity is not tracked on the Trade row (it lives on
  * `pre_auth_holds`) and is not needed to derive the shipping/inspection
  * transitions, so it defaults to `false`.
+ *
+ * The terms legs compare each side's accepted version against the Trade's
+ * CURRENT `terms_version` rather than testing the timestamp for presence. The
+ * database clears both versions on any terms edit, so a stale acceptance reads as
+ * false here and a counter-offer cannot be pushed into escrow on the strength of
+ * an acceptance of the terms it replaced.
  */
 export function factsFromTrade(trade: TradeRow): TradeFacts {
   return {
+    termsAccepted: {
+      initiator: trade.initiator_terms_accepted_version === trade.terms_version,
+      counterpart: trade.counterpart_terms_accepted_version === trade.terms_version,
+    },
     shipped: {
       initiator: trade.initiator_shipped_at != null,
       counterpart: trade.counterpart_shipped_at != null,
@@ -106,6 +131,11 @@ export function factsFromTrade(trade: TradeRow): TradeFacts {
       initiator: trade.initiator_accepted_at != null,
       counterpart: trade.counterpart_accepted_at != null,
     },
+    handoverConfirmed: {
+      initiator: trade.initiator_handover_confirmed_at != null,
+      counterpart: trade.counterpart_handover_confirmed_at != null,
+    },
+    fulfilmentMethod: trade.handover_method,
     holdsActive: { initiator: false, counterpart: false },
   };
 }

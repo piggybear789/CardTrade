@@ -1,21 +1,56 @@
-'use client';
+﻿'use client';
 
 // components/layout/SiteMenu.tsx
 //
-// Overflow menu for the site header. Section navigation lives in the desktop
-// rail and mobile bottom hubs — this panel keeps search (narrow viewports),
-// secondary account links, admin, and sign-out so the burger never dumps the
-// full workspace map. Closes on outside click, Escape, and every route change.
+// Overflow menu for the site header. It lists the FULL workspace map, so every
+// section is reachable from the burger on any viewport â€” the desktop rail is
+// hidden on narrow screens and the mobile hubs only surface five destinations,
+// which left several tabs with no route in from here.
+//
+// The groups are read from `marketplace-nav-config` rather than restated, so the
+// menu cannot drift from the rail and the mobile hubs the way a second hardcoded
+// list would. Closes on outside click, Escape, and every route change.
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { Banknote, Menu, PackagePlus, Repeat2, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { SignOutButton } from '@/components/layout/SignOutButton';
+import {
+  MARKETPLACE_NAV_GROUPS,
+  STAFF_NAV_GROUP,
+  isMarketplaceSectionActive,
+  staffNavLinksFor,
+  type MarketplaceNavGroup,
+  type MarketplaceNavLink,
+} from '@/components/layout/marketplace-nav-config';
 import { cn } from '@/lib/utils';
+
+/**
+ * Destinations the section map deliberately omits, listed here so the burger can
+ * still reach them.
+ *
+ * They are not added to `MARKETPLACE_NAV_GROUPS` on purpose: that constant drives
+ * the desktop rail and the mobile hub sheets, and the hubs read it BY INDEX, so
+ * growing it would repoint the Contracts and Sell sheets. These rows are also the
+ * only way in on a phone, where `PrimaryNav` (which carries Sell) is `lg:` only.
+ */
+const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
+  {
+    label: 'Create',
+    links: [
+      { href: '/listings/new', label: 'Sell an item', icon: PackagePlus },
+      { href: '/trades/new', label: 'Propose a trade', icon: Repeat2 },
+    ],
+  },
+  {
+    label: 'Money',
+    links: [{ href: '/profile/payouts', label: 'Payouts', icon: Banknote }],
+  },
+];
 
 export interface SiteMenuProps {
   isAuthenticated: boolean;
@@ -35,6 +70,36 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const staffLinks = staffNavLinksFor({ isStaff, isAdmin });
+
+  /**
+   * One row per destination, marking the current section.
+   *
+   * `aria-current` and the visible highlight ship together: the semantic
+   * attribute on its own would tell assistive tech a position sighted users
+   * cannot see, which is the same half-fix `PrimaryNav` calls out.
+   *
+   * `trackCurrent` is off for {@link MENU_ONLY_GROUPS} because the section map
+   * already assigns those paths to a section â€” `/listings/new` belongs to My
+   * Listings, `/profile/payouts` to Account. Highlighting them here as well would
+   * put two rows in the menu each claiming to be the current page.
+   */
+  function renderLink(link: MarketplaceNavLink, trackCurrent = true) {
+    const active = trackCurrent && isMarketplaceSectionActive(pathname, link.href);
+    return (
+      <Button
+        key={link.href}
+        asChild
+        variant="ghost"
+        className={cn('justify-start', active && 'bg-accent text-accent-foreground')}
+      >
+        <Link href={link.href} aria-current={active ? 'page' : undefined}>
+          <link.icon aria-hidden />
+          {link.label}
+        </Link>
+      </Button>
+    );
+  }
 
   // Never leave the menu hanging open after a navigation.
   useEffect(() => {
@@ -117,31 +182,36 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
               </>
             ) : (
               <>
-                <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
-                  More
-                </p>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/saved">Saved</Link>
-                </Button>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/notifications">Notifications</Link>
-                </Button>
-                {isStaff || isAdmin ? (
+                {MARKETPLACE_NAV_GROUPS.map((group, index) => (
+                  <Fragment key={group.label}>
+                    {index > 0 ? <div className="my-1 border-t" /> : null}
+                    <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
+                      {group.label}
+                    </p>
+                    {group.links.map((link) => renderLink(link))}
+                  </Fragment>
+                ))}
+
+                {MENU_ONLY_GROUPS.map((group) => (
+                  <Fragment key={group.label}>
+                    <div className="my-1 border-t" />
+                    <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
+                      {group.label}
+                    </p>
+                    {group.links.map((link) => renderLink(link, false))}
+                  </Fragment>
+                ))}
+
+                {staffLinks.length > 0 ? (
                   <>
                     <div className="my-1 border-t" />
                     <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
-                      Staff
+                      {STAFF_NAV_GROUP.label}
                     </p>
-                    <Button asChild variant="ghost" className="justify-start">
-                      <Link href="/admin/arbitration">Cases</Link>
-                    </Button>
-                    {isAdmin ? (
-                      <Button asChild variant="ghost" className="justify-start">
-                        <Link href="/admin">Operations</Link>
-                      </Button>
-                    ) : null}
+                    {staffLinks.map((link) => renderLink(link))}
                   </>
                 ) : null}
+
                 <div className="my-1 border-t" />
                 <SignOutButton className="w-full justify-start" />
               </>

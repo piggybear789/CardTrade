@@ -155,25 +155,7 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
     expect(holds.every((h) => h.amountCents === 5000)).toBe(true);
   });
 
-  it('bonds only the unverified trader when symmetry is disabled', async () => {
-    seedTwoTraders(repo, 5000);
-    repo.profiles.set('alice', { id: 'alice', verified: false, payerId: 'payer_alice' });
-    const payments = makePayments();
-
-    const result = await proposeTrade(
-      { repository: repo, payments, symmetricBonds: false },
-      { proposerId: 'alice', initiatorItemId: 'item_a', counterpartItemId: 'item_b' },
-    );
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.bondsRequired).toBe(1);
-    const holds = await repo.getHolds(result.trade.id);
-    expect(holds).toHaveLength(1);
-    expect(holds[0]).toMatchObject({ traderId: 'alice', amountCents: 5000 });
-  });
-
-  it('places no bond at all when both traders are verified', async () => {
+  it('bonds BOTH traders even when both are verified', async () => {
     seedTwoTraders(repo, 5000);
     const payments = makePayments();
 
@@ -184,10 +166,14 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Verified identity replaces the bond, so nothing is charged (revised Req 5.4).
-    expect(result.bondsRequired).toBe(0);
-    expect(await repo.getHolds(result.trade.id)).toHaveLength(0);
-    // The trade still exists and both items are reserved.
+    // The verified exemption is gone for trades. It made every legal trade post zero
+    // collateral — both parties must satisfy the Identity_Gate to enter escrow, and
+    // that Gate IS "verified" — so the Friction_Tax (Req 7.3) had nothing to capture
+    // and an Objective_Fraud finding (Req 8.3) had nothing to pay the victim.
+    expect(result.bondsRequired).toBe(2);
+    const holds = await repo.getHolds(result.trade.id);
+    expect(holds.map((h) => h.traderId).sort()).toEqual(['alice', 'bob']);
+    expect(holds.every((h) => h.amountCents === 5000)).toBe(true);
     expect(repo.items.get('item_a')?.status).toBe('RESERVED');
     expect(repo.items.get('item_b')?.status).toBe('RESERVED');
   });

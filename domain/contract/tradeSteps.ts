@@ -1,12 +1,18 @@
 // domain/contract/tradeSteps.ts
 //
-// The 2-way Trade action plan (Req 6, 7, 11). Derived from the live Trade_State
-// plus the aggregate TradeFacts the state machine already consumes, so the plan
-// and the permitted actions can never disagree.
+// The 2-way Trade action plan. Derived from the live Trade_State plus the aggregate
+// TradeFacts the state machine already consumes, so the plan and the permitted
+// actions can never disagree.
 //
 // Trades are SYMMETRIC: every step needs both traders, and the state only advances
 // when the second one acts. That is why most steps are owned by `both` and their
 // detail line names whoever is outstanding.
+//
+// The plan BRANCHES on the fulfilment method, because the two methods reach
+// INSPECTION by genuinely different routes: a posted trade ships and confirms
+// arrival, a face-to-face one meets once. Before 0057 the rail showed "Send" and
+// "Receive" for both, so two people arranging to meet in a car park were told to post
+// their cards.
 //
 // Step actions are all `focus` rather than `act`: `ActionBar` remains the single
 // place trade actions are wired, and the plan points at it.
@@ -30,6 +36,12 @@ export interface TradeStepFacts {
   /** The aggregate legs the state machine derives from the trade row + holds. */
   facts: TradeFacts;
   counterpartyName: string;
+  /**
+   * Whether each trader has supplied a postal address, for a posted trade. Absent on
+   * a face-to-face trade. Without both, one side literally cannot post — which is why
+   * this is a step rather than a validation message discovered at the shipping dialog.
+   */
+  addresses?: { mine: boolean; theirs: boolean };
 }
 
 /** Read one leg of a symmetric pair from the viewer's perspective. */
@@ -59,14 +71,18 @@ function symmetricDetail(
   return pending;
 }
 
+/** States at or beyond INSPECTION, i.e. the goods have changed hands. */
+const EXCHANGED: ReadonlySet<TradeState> = new Set<TradeState>([
+  'INSPECTION',
+  'COMPLETED',
+]);
+
 /**
  * Build the ordered action plan for a 2-way trade.
  *
  * A trade that ends in DISPUTED or FRAUD_RESOLVED collapses its remaining steps:
  * the outcome is decided off-platform, so showing unreachable shipping steps would
- * be misleading. Unlike cancelled cash sales and deals, a trade has no cancellation
- * state — fraud has different semantics and will get its own timeline design rather
- * than being folded into the cancelled-contract behaviour.
+ * be misleading.
  */
 export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   const { state, viewerRole, facts, counterpartyName } = input;
@@ -88,7 +104,9 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   const shipped = legs(facts.shipped, viewerRole);
   const received = legs(facts.received, viewerRole);
   const accepted = legs(facts.accepted, viewerRole);
+  const handover = legs(facts.handoverConfirmed, viewerRole);
   const holds = legs(facts.holdsActive, viewerRole);
+  const inPerson = facts.fulfilmentMethod === 'IN_PERSON';
 
   const drafts: ContractStepDraft[] = [
     {
@@ -101,10 +119,10 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
         holds,
         counterpartyName,
         'posted collateral',
-        'An unverified trader authorises a hold for the full value of their item. Nothing is charged unless the trade goes wrong.',
+        'Each trader authorises a hold for the full value of what they receive. Nothing is charged unless the trade goes wrong.',
       ),
       owner: 'both',
-      done: state !== 'COLLATERAL_PENDING',
+      done: state !== 'COLLATERAL_PENDING' && state !== 'NEGOTIATING',
       action: {
         label: 'What is on the line',
         kind: 'focus',
@@ -117,54 +135,106 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   if (state === 'DISPUTED') {
     drafts.push({
       id: 'dispute',
-      // 'Review' matches the deal and cash-sale rails for the same state.
+      // 'Review' matches the cash-sale rail for the same state.
       short: 'Review',
-      label: 'Dispute under review',
+      label: 'Frozen for review',
       detail:
-        'Both holds stay active while the case is reviewed. A condition dispute settles with a fixed friction tax; objective fraud captures the full collateral.',
+        'Both holds stay active while an operator reviews the case. A condition dispute settles with a fixed friction tax; a failed handover or a lost parcel captures nothing.',
       owner: 'platform',
       done: false,
     });
     return sequenceSteps(drafts);
   }
 
+  if (inPerson) {
+    // Face to face: one mutual confirmation instead of a shipping round trip. Note
+    // it does NOT complete the trade — it lands on INSPECTION, so a trader who was
+    // robbed, coerced, or handed a fake at the meeting point still has a remedy.
+    drafts.push({
+      id: 'handover',
+      // Rail shorts must survive a five-tick rail on a 320px screen (~6
+      // characters); 'Handover' truncates to 'Handov…'.
+      short: 'Meet',
+      label: 'Meet and swap',
+      detail: symmetricDetail(
+        handover,
+        counterpartyName,
+        'confirmed the handover',
+        'Meet at the agreed place and time, swap, then you both confirm here. Confirming does not release either deposit.',
+      ),
+      owner: handover.mine ? 'them' : 'you',
+      done: handover.both || EXCHANGED.has(state),
+      action: {
+        label: 'Go to actions',
+        kind: 'focus',
+        target: TRADE_SECTIONS.actions,
+      },
+    });
+  } else {
+    // Posted: addresses, then two parcels, then two arrivals.
+    if (input.addresses) {
+      const addresses = input.addresses;
+      drafts.push({
+        id: 'addresses',
+        short: 'Address',
+        label: 'Both traders add a delivery address',
+        detail: symmetricDetail(
+          { mine: addresses.mine, theirs: addresses.theirs },
+          counterpartyName,
+          'added an address',
+          'Neither of you can post until both addresses are on the contract. They are private and never appear in chat.',
+        ),
+        owner: addresses.mine ? 'them' : 'you',
+        done: (addresses.mine && addresses.theirs) || shipped.both || EXCHANGED.has(state),
+        action: {
+          label: 'Add your address',
+          kind: 'focus',
+          target: TRADE_SECTIONS.terms,
+        },
+      });
+    }
+
+    drafts.push(
+      {
+        id: 'ship',
+        short: 'Send',
+        label: 'Both traders post with tracking',
+        detail: symmetricDetail(
+          shipped,
+          counterpartyName,
+          'posted their item',
+          'Post your item and record the carrier and tracking number.',
+        ),
+        owner: shipped.mine ? 'them' : 'you',
+        done: shipped.both || EXCHANGED.has(state),
+        action: {
+          label: 'Go to actions',
+          kind: 'focus',
+          target: TRADE_SECTIONS.actions,
+        },
+      },
+      {
+        id: 'receive',
+        short: 'Arrive',
+        label: 'Both parcels arrive',
+        detail: symmetricDetail(
+          received,
+          counterpartyName,
+          'confirmed receipt',
+          'Confirm when the other trader’s item reaches you. A carrier-confirmed delivery also counts.',
+        ),
+        owner: received.mine ? 'them' : 'you',
+        done: received.both || EXCHANGED.has(state),
+        action: {
+          label: 'Go to actions',
+          kind: 'focus',
+          target: TRADE_SECTIONS.actions,
+        },
+      },
+    );
+  }
+
   drafts.push(
-    {
-      id: 'ship',
-      short: 'Send',
-      label: 'Both traders send their items',
-      detail: symmetricDetail(
-        shipped,
-        counterpartyName,
-        'sent their item',
-        'Send your item once collateral is locked on both sides.',
-      ),
-      owner: shipped.mine ? 'them' : 'you',
-      done: shipped.both,
-      action: {
-        label: 'Go to actions',
-        kind: 'focus',
-        target: TRADE_SECTIONS.actions,
-      },
-    },
-    {
-      id: 'receive',
-      short: 'Receive',
-      label: 'Both traders confirm receipt',
-      detail: symmetricDetail(
-        received,
-        counterpartyName,
-        'confirmed receipt',
-        'Confirm when the other trader’s item reaches you.',
-      ),
-      owner: received.mine ? 'them' : 'you',
-      done: received.both,
-      action: {
-        label: 'Go to actions',
-        kind: 'focus',
-        target: TRADE_SECTIONS.actions,
-      },
-    },
     {
       id: 'accept',
       short: 'Accept',
@@ -173,7 +243,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
         accepted,
         counterpartyName,
         'accepted',
-        'Inspect the item, then accept to void both holds — or raise a dispute.',
+        'Inspect what you received, then accept to release both holds — or raise a dispute. Completes on its own after 72 hours.',
       ),
       owner: accepted.mine ? 'them' : 'you',
       done: state === 'COMPLETED',
@@ -185,7 +255,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     },
     {
       id: 'release',
-      // Terminal tick reads 'Done' in every flow (cash sale, deal, trade).
+      // Terminal tick reads 'Done' in every flow.
       short: 'Done',
       label: 'Both holds released',
       detail: 'Neither card is charged once the swap completes.',

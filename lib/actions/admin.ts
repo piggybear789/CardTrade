@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 // lib/actions/admin.ts
 //
@@ -32,27 +32,19 @@ import type { CashSaleDisputeOutcome } from '@/domain/orchestrator/cashSaleOrche
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
 import { createDefaultDisputeResolutionOrchestrator } from '@/domain/orchestrator/supabaseDisputeResolutionRepository';
 import {
-  dealPaymentStatusFor,
-  dealTerminalStateFor,
-  resolveDealCashDisposition,
-  type DealDisputeOutcome,
-} from '@/domain/deal/dealDispute';
-import {
   reconcileCustody,
   type CustodyPosition,
   type HeldSaleInput,
 } from '@/domain/payouts/custodyReconciliation';
 import { getPaymentService } from '@/domain/services';
-import { createNotification } from '@/lib/notifications/createNotification';
-import { formatAud } from '@/lib/format';
 import type { Enums } from '@/lib/supabase/database.types';
 
 /**
  * Admin action error codes.
- * - `not-authenticated` — no signed-in user.
- * - `not-authorized`    — the caller is not an admin.
- * - `not-found`         — the target row does not exist.
- * - `persistence-error` — the database write failed.
+ * - `not-authenticated` â€” no signed-in user.
+ * - `not-authorized`    â€” the caller is not an admin.
+ * - `not-found`         â€” the target row does not exist.
+ * - `persistence-error` â€” the database write failed.
  */
 export type AdminActionError =
   | 'not-authenticated'
@@ -268,7 +260,7 @@ export async function retryCashSalePayout(
  *
  * WHY `requireStaff` AND NOT `requireAdmin`. Deciding a dispute is the support
  * worker's job. Gating it on `is_admin` would mean every arbitrator also carried the
- * power to hide listings, action community reports and drain the payout queue — a
+ * power to hide listings, action community reports and drain the payout queue â€” a
  * blast radius earned by needing one capability. An admin still passes this gate; a
  * support worker passes it without inheriting moderation.
  *
@@ -302,7 +294,7 @@ export async function resolveCashSaleDispute(
         : result.error === 'NOTHING_TO_REFUND'
           ? 'No funds were ever collected for this sale, so there is nothing to refund.'
           : result.error === 'REFUND_FAILED'
-            ? 'The provider rejected the refund. The sale is still disputed — you can retry.'
+            ? 'The provider rejected the refund. The sale is still disputed â€” you can retry.'
             : result.error === 'INVALID_STATE'
               ? `This sale is ${result.detail ?? 'not disputed'}, so it cannot be resolved.`
               : (result.detail ?? 'The dispute could not be resolved.');
@@ -338,7 +330,7 @@ export async function resolveCashSaleDispute(
  *
  * Staff-gated because it used to be participant-gated: `resolveDispute` in
  * `lib/actions/trades.ts` let either party trigger a capture against the other. The
- * point of moving it was that a party must not decide their own case — not that only
+ * point of moving it was that a party must not decide their own case â€” not that only
  * an administrator may decide it.
  */
 export async function resolveTradeConditionDispute(
@@ -377,7 +369,7 @@ export async function resolveTradeConditionDispute(
  *
  * THE VICTIM IS AN ARGUMENT, and that is the entire point of this function existing.
  * `reportObjectiveFraud` previously inferred the victim from its caller, and its
- * caller was any participant — so a trader could name themselves the victim and take
+ * caller was any participant â€” so a trader could name themselves the victim and take
  * the counterparty's 100%-of-FMV collateral with no review, no evidence, and no
  * chance for the accused to answer. A participant can now only CLAIM fraud
  * (`reportFraud`), which freezes the trade; an operator decides who was defrauded.
@@ -429,265 +421,6 @@ export async function resolveTradeFraud(
 }
 
 /**
- * Resolve a disputed private deal, staff-gated.
- *
- * THE DEAD END THIS CLOSES. `raiseDealDispute` moved a binding deal to DISPUTED and
- * nothing anywhere read that state again — no participant action, no admin action, no
- * job. The cash authorisation stayed HELD and both collateral holds stayed ACTIVE
- * indefinitely, while the deal room told the parties the dispute was being reviewed.
- * Because card authorisations lapse in about seven days, the escrow expired on its own
- * and whoever was in the wrong got their collateral back by waiting.
- *
- * ORDER OF OPERATIONS IS THE WHOLE DESIGN:
- *
- *   1. Cash first, BEFORE the deal leaves DISPUTED. A provider refusal therefore
- *      leaves a still-disputed deal an arbitrator can retry, rather than a "resolved"
- *      deal whose money never moved — the one failure nobody can detect afterwards.
- *   2. Collateral second: released in every outcome. A deal has no Friction_Tax and no
- *      fraud finding, so capturing a party's collateral here would be inventing a
- *      penalty they were never told about.
- *   3. State last, guarded on DISPUTED so two arbitrators cannot both resolve it.
- *
- * Safe to call twice: an already-resolved deal returns success without touching money.
- */
-export async function resolveDealDispute(
-  dealId: string,
-  outcome: DealDisputeOutcome,
-  /** Required for SPLIT — the share of the cash the recipient keeps. */
-  recipientCents?: number,
-  /** Optional note recorded on the deal and shown to both parties. */
-  note?: string,
-): Promise<
-  AdminActionResult<{ id: string; state: string; capturedCents: number; releasedCents: number }>
-> {
-  const gate = await requireStaff();
-  if (!gate.ok) {
-    return { ok: false, error: gate.error };
-  }
-
-  const admin = createAdminClient();
-
-  const { data: deal } = await admin
-    .from('deals')
-    .select(
-      'id, title, state, creator_id, counterparty_id, dispute_outcome, cash_amount_cents',
-    )
-    .eq('id', dealId)
-    .maybeSingle();
-
-  if (!deal) return { ok: false, error: 'not-found' };
-
-  // Idempotent success, so a double-click or a retry after a lost response cannot
-  // capture twice.
-  if (deal.dispute_outcome) {
-    return {
-      ok: true,
-      data: { id: dealId, state: deal.state, capturedCents: 0, releasedCents: 0 },
-    };
-  }
-  if (deal.state !== 'DISPUTED') {
-    return {
-      ok: false,
-      error: 'persistence-error',
-      message: `This deal is ${deal.state}, so there is no dispute to resolve.`,
-    };
-  }
-
-  const payments = getPaymentService();
-
-  // ---- 1. The cash leg -----------------------------------------------------
-  //
-  // A disputed deal's cash is always an uncaptured authorisation: settlement only
-  // happens when both parties mark the deal complete, which by definition has not
-  // occurred. So releasing it is `voidHold` and a split is `partialCapture` — state
-  // transitions on one known PaymentIntent, not new outbound money movements. That is
-  // also why there is no idempotency nonce here and there is one on a cash sale.
-  const { data: cashRows } = await admin
-    .from('deal_payments')
-    .select('id, amount_cents, payment_ref, status')
-    .eq('deal_id', dealId)
-    .eq('status', 'HELD');
-
-  let capturedCents = 0;
-  let releasedCents = 0;
-
-  for (const row of cashRows ?? []) {
-    const held = Number(row.amount_cents ?? 0);
-    const paymentRef = (row.payment_ref as string | null) ?? null;
-    const disposition = resolveDealCashDisposition({ heldCents: held, outcome, recipientCents });
-
-    if (!disposition) {
-      return {
-        ok: false,
-        error: 'persistence-error',
-        message:
-          'A split must be more than zero and less than the amount held. Use a full release or a full refund for those.',
-      };
-    }
-    if (!paymentRef) {
-      // The authorisation reference is missing, so nothing can be released or taken.
-      // Refusing beats reporting a movement that cannot happen.
-      return {
-        ok: false,
-        error: 'persistence-error',
-        message: 'This deal has no payment reference on file, so its cash cannot be moved.',
-      };
-    }
-
-    const failed = async (reason: string) => {
-      await admin
-        .from('deal_payments')
-        .update({ status: 'FAILED', refund_error: reason })
-        .eq('id', row.id)
-        .eq('status', 'HELD');
-    };
-
-    try {
-      if (disposition.captureCents === 0) {
-        const voided = await payments.voidHold(paymentRef);
-        if (voided.status !== 'VOIDED') {
-          await failed('The provider would not release the authorisation.');
-          return {
-            ok: false,
-            error: 'persistence-error',
-            message:
-              'The provider refused to release the payer\u2019s authorisation. The deal is still disputed \u2014 you can retry.',
-          };
-        }
-      } else {
-        const capture =
-          disposition.releaseCents === 0
-            ? await payments.fullCapture(paymentRef)
-            : await payments.partialCapture({
-                holdId: paymentRef,
-                amount: disposition.captureCents,
-              });
-        if (capture.status !== 'SETTLED') {
-          // `CaptureResult` reports failure through `status` only — no reason field —
-          // so the recorded error names the operation rather than inventing a cause.
-          await failed('The provider would not capture the authorisation.');
-          return {
-            ok: false,
-            error: 'persistence-error',
-            message:
-              'The provider refused to charge the payer. The deal is still disputed \u2014 you can retry.',
-          };
-        }
-      }
-    } catch (e) {
-      const reason = e instanceof Error ? e.message : 'The provider call failed.';
-      await failed(reason);
-      return { ok: false, error: 'persistence-error', message: reason };
-    }
-
-    const { error: cashError } = await admin
-      .from('deal_payments')
-      .update({
-        status: dealPaymentStatusFor(disposition),
-        captured_cents: disposition.captureCents,
-        refund_cents: disposition.releaseCents,
-        refund_error: null,
-      })
-      .eq('id', row.id)
-      .eq('status', 'HELD');
-    if (cashError) {
-      return { ok: false, error: 'persistence-error', message: cashError.message };
-    }
-
-    capturedCents += disposition.captureCents;
-    releasedCents += disposition.releaseCents;
-  }
-
-  // ---- 2. Collateral -------------------------------------------------------
-  //
-  // Released in every outcome. Best-effort per hold: a provider refusal on one party's
-  // collateral must not block the other's release or leave the deal stuck DISPUTED,
-  // and an unvoided authorisation lapses on its own without charging anyone.
-  const { data: holds } = await admin
-    .from('deal_holds')
-    .select('id, hold_ref, status')
-    .eq('deal_id', dealId)
-    .eq('status', 'ACTIVE');
-
-  for (const hold of holds ?? []) {
-    const holdRef = (hold.hold_ref as string | null) ?? null;
-    if (!holdRef) continue;
-    try {
-      await payments.voidHold(holdRef);
-      await admin.from('deal_holds').update({ status: 'VOIDED' }).eq('id', hold.id);
-    } catch {
-      // Left ACTIVE deliberately: the provider is the source of truth and the
-      // authorisation expires without taking anything.
-    }
-  }
-
-  // ---- 3. The record -------------------------------------------------------
-  const terminalState = dealTerminalStateFor(outcome);
-  const resolutionNote = note?.trim() ? note.trim().slice(0, 2_000) : null;
-
-  const { data: resolved, error: dealError } = await admin
-    .from('deals')
-    .update({
-      state: terminalState,
-      dispute_outcome: outcome,
-      dispute_resolved_by: gate.ctx.userId,
-      dispute_resolved_at: new Date().toISOString(),
-      dispute_resolution_note: resolutionNote,
-    })
-    .eq('id', dealId)
-    .eq('state', 'DISPUTED')
-    .select('state')
-    .maybeSingle();
-
-  if (dealError) {
-    return { ok: false, error: 'persistence-error', message: dealError.message };
-  }
-  if (!resolved) {
-    // Someone else resolved it between the read and the write. The money above was
-    // idempotent at the provider, so this is a lost race, not a double movement.
-    return { ok: false, error: 'persistence-error', message: 'This deal was already resolved.' };
-  }
-
-  await admin.from('deal_events').insert({
-    deal_id: dealId,
-    actor_id: gate.ctx.userId,
-    event: `DISPUTE_RESOLVED_${outcome}`,
-    from_state: 'DISPUTED' as const,
-    to_state: terminalState,
-    detail: resolutionNote,
-  });
-
-  const outcomeLine =
-    outcome === 'REFUND_PAYER'
-      ? 'The deal was unwound. Nobody was charged and all collateral was released.'
-      : outcome === 'SPLIT'
-        ? `Adjusted terms: ${formatAud(capturedCents)} was paid to the recipient and ${formatAud(releasedCents)} released back to the payer. Collateral was released.`
-        : 'The dispute was not upheld. The agreed cash was paid to the recipient and collateral released.';
-
-  for (const partyId of [deal.creator_id, deal.counterparty_id]) {
-    if (!partyId) continue;
-    await createNotification({
-      userId: partyId,
-      type: 'SYSTEM',
-      title: 'Deal dispute resolved',
-      body: `"${deal.title}": ${outcomeLine}`,
-      link: `/deals/${dealId}`,
-    });
-  }
-
-  revalidatePath('/admin');
-  revalidatePath('/admin/arbitration');
-  revalidatePath(`/admin/arbitration/DEAL/${dealId}`);
-  revalidatePath(`/deals/${dealId}`);
-  revalidatePath('/deals');
-
-  return {
-    ok: true,
-    data: { id: dealId, state: resolved.state, capturedCents, releasedCents },
-  };
-}
-
-/**
  * The reconciliation verdict as the console renders it: the pure position plus the
  * currency it is denominated in and, when the balance could not be read, why.
  */
@@ -711,7 +444,7 @@ const COLLECTED_SALE_STATUSES = [
  * Reconcile what the platform owes members against what the provider says it holds.
  *
  * THE ONE CHECK THAT IS NOT CIRCULAR. Every other money figure on this console is
- * derived from `cash_sales` — a statement about our own belief. This is the only one
+ * derived from `cash_sales` â€” a statement about our own belief. This is the only one
  * that asks the provider, and it is therefore the only one that can detect a chargeback,
  * a provider fee, or an automatic payout quietly draining the balance members' funds sit
  * in. None of those write a row.
@@ -744,7 +477,7 @@ export async function getCustodyPosition(): Promise<AdminActionResult<CustodyRep
     const refundSettled = row.refund_status === 'SETTLED';
     const settledRefundCents = refundSettled ? Number(row.refund_cents ?? 0) : 0;
     // Nothing further is held once the Seller has been released, or once a refund has
-    // returned the whole collected amount. Anything else — including a FAILED release —
+    // returned the whole collected amount. Anything else â€” including a FAILED release â€”
     // is still the platform's to hold and therefore still owed.
     const fullyDisbursed =
       row.seller_payout_status === 'SETTLED' ||

@@ -88,14 +88,21 @@ describe('resolveTradeBonds', () => {
   const verified = { verified: true, fmvCents: 50_000 };
   const unverified = { verified: false, fmvCents: 50_000 };
 
-  it('requires nothing when both traders are verified', () => {
+  /**
+   * THE REGRESSION THIS LOCKS DOWN. Verified traders used to be exempt, and
+   * entering trade escrow requires both parties to satisfy the Identity_Gate —
+   * which is what "verified" means. So every trade that could legally start posted
+   * zero collateral, leaving a Condition_Dispute with no $20 to capture (Req 7.3)
+   * and an Objective_Fraud finding with nothing to pay the victim (Req 8.3).
+   */
+  it('bonds both traders even when both are verified', () => {
     expect(resolveTradeBonds({ initiator: verified, counterpart: verified })).toEqual({
-      initiatorBondCents: 0,
-      counterpartBondCents: 0,
+      initiatorBondCents: 50_000,
+      counterpartBondCents: 50_000,
     });
   });
 
-  it('bonds both sides when either is unverified', () => {
+  it('bonds both sides regardless of which one is unverified', () => {
     expect(resolveTradeBonds({ initiator: unverified, counterpart: verified })).toEqual({
       initiatorBondCents: 50_000,
       counterpartBondCents: 50_000,
@@ -116,10 +123,20 @@ describe('resolveTradeBonds', () => {
     ).toEqual({ initiatorBondCents: 30_000, counterpartBondCents: 40_000 });
   });
 
-  it('falls back to per-trader bonds when symmetry is disabled', () => {
+  it('honours a ceiling, so a high-value swap cannot demand an undeclinable hold', () => {
     expect(
-      resolveTradeBonds({ initiator: unverified, counterpart: verified, symmetric: false }),
-    ).toEqual({ initiatorBondCents: 50_000, counterpartBondCents: 0 });
+      resolveTradeBonds({
+        initiator: { verified: true, fmvCents: 5_678_900 },
+        counterpart: { verified: true, fmvCents: 5_678_900 },
+        policy: { ceilingCents: 200_000 },
+      }),
+    ).toEqual({ initiatorBondCents: 200_000, counterpartBondCents: 200_000 });
+  });
+
+  it('still exempts a verified party for a NON-trade bond', () => {
+    // `requiredBondCents` keeps the exemption: its other caller is the Cash_Sale
+    // seller bond, where the buyer's money is already collected.
+    expect(requiredBondCents({ verified: true, fmvCents: 50_000 })).toBe(0);
   });
 });
 

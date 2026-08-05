@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 // lib/actions/identity.ts
 //
@@ -11,7 +11,7 @@
 //
 // WHY THE SOURCE CHANGE IS SAFE. `merchant_legal_entity_name` is written only by
 // `applyComplianceUpdate`, from `identity.individual.given_name` + `surname` as
-// Stripe reports them for the connected account — never from anything a Member
+// Stripe reports them for the connected account â€” never from anything a Member
 // typed. It is also written monotonically, absent to present, so a later provider
 // report cannot blank a name already disclosed to a counterparty.
 //
@@ -23,7 +23,7 @@
 //
 // DISCLOSURE IS STILL STAGED. Public surfaces read `public_profiles`, which exposes
 // a given name and a badge only. The FULL legal name is released here, and only to
-// someone already transacting with that Member — never from a listing or profile
+// someone already transacting with that Member â€” never from a listing or profile
 // page.
 
 import { createClient } from '@/lib/supabase/server';
@@ -48,7 +48,7 @@ export interface CounterpartyIdentity {
  * Release a counterparty's full provider-verified legal name to the caller.
  *
  * Gated on an existing transactional relationship: the caller must be a
- * participant in a Trade, Cash_Sale or private deal with `counterpartyId`
+ * participant in a Trade or Cash_Sale with `counterpartyId`
  * (Req 17.2, 17.8).
  */
 export async function getCounterpartyIdentity(
@@ -65,9 +65,9 @@ export async function getCounterpartyIdentity(
 
   const admin = createAdminClient();
 
-  // Prove a shared transaction exists before disclosing anything. Any one of the
-  // three relationships is sufficient; each is checked with both role orderings.
-  const [trades, sales, deals] = await Promise.all([
+  // Prove a shared transaction exists before disclosing anything. Either relationship
+  // is sufficient; each is checked with both role orderings.
+  const [trades, sales] = await Promise.all([
     admin
       .from('trades')
       .select('id')
@@ -84,20 +84,10 @@ export async function getCounterpartyIdentity(
           `and(buyer_id.eq.${counterpartyId},seller_id.eq.${user.id})`,
       )
       .limit(1),
-    admin
-      .from('deals')
-      .select('id')
-      .or(
-        `and(creator_id.eq.${user.id},counterparty_id.eq.${counterpartyId}),` +
-          `and(creator_id.eq.${counterpartyId},counterparty_id.eq.${user.id})`,
-      )
-      .limit(1),
   ]);
 
   const related =
-    (trades.data?.length ?? 0) > 0 ||
-    (sales.data?.length ?? 0) > 0 ||
-    (deals.data?.length ?? 0) > 0;
+    (trades.data?.length ?? 0) > 0 || (sales.data?.length ?? 0) > 0;
 
   if (!related) {
     return fail(

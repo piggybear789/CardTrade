@@ -36,7 +36,12 @@ Protected prefixes are listed in `middleware.ts` in both `PROTECTED_PREFIXES` an
 
 ## components/
 
-One folder per feature (`account`, `admin`, `auth`, `deals`, `kyc`, `layout`, `listings`, `messages`, `notifications`, `offers`, `profile`, `reports`, `reviews`, `sales`, `trade`) plus `ui/` for shadcn primitives (button, card, dialog, form, input, label, select, textarea, badge, sonner).
+One folder per feature (`account`, `admin`, `auth`, `kyc`, `layout`, `listings`, `messages`, `notifications`, `offers`, `profile`, `reports`, `reviews`, `sales`, `trade`) plus `ui/` for shadcn primitives (button, card, dialog, form, input, label, select, textarea, badge, sonner).
+
+Two folders are cross-flow and should be reached for before writing anything new in `sales/` or `trade/`:
+
+- `contract/` — the contract room shell both flows render: header, progress rail, action card, detail rows, timeline, conversation panel.
+- `fulfilment/` — the fulfilment controls both flows render: `FulfilmentMethodChoice`, `FulfilmentTermsFields`, `RecordShipmentDialog`, `DeliveryAddressPanel`, `InspectionCountdown`, `HandoverFailedDialog`. None of them own a server action; each room injects its own, because the two flows freeze and settle differently even where they look identical. These exist because the rooms had drifted apart in ways that mattered — the trade room accepted a free-text meeting point and an optional meeting time where the sale demanded a resolved place and a future instant.
 
 Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shadcn conventions in `components.json`; don't hand-roll styling that a primitive already covers. Compose classes with `cn()` from `@/lib/utils`.
 
@@ -46,6 +51,7 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `validation/` — zod schemas per entity (`item.ts`, `profile.ts`, `registration.ts`), re-exported from `index.ts`. Use `runSchema()` from `result.ts` so failures come back as `{ ok: false, field, message }`.
 - `orchestrator/` — use-case logic paired with a repository interface. Each `xOrchestrator.ts` is pure and takes a repository; each `supabaseXRepository.ts` supplies the Supabase-backed implementation plus a `createDefaultXOrchestrator()` factory. Tests inject fakes instead of hitting a database.
 - `services/` — the payment seam. Callers depend only on `PaymentKycService` (`PaymentService & PayerService`) obtained from `getPaymentService()` in `index.ts`; the binding is chosen there and nowhere else. Never import the Stripe SDK outside `services/stripe/**`.
+- `fulfilment/` — the shared "how do the goods change hands" model: `FulfilmentMethod`, one validator (`validateFulfilmentTerms`), one normalizer, and the trade inspection clock (`deriveTradeInspectionDeadline`, `TRADE_INSPECTION_HOURS`). Cash_Sales and Trades both go through it. The two tables still spell the columns differently (`cash_sales.fulfillment_method / shipping_cost_cents` vs `trades.handover_method / delivery_cost_cents`) because renaming either would touch the terms RPCs, the Realtime publication, the seeds and the hand-maintained types; each flow adapts its row and everything above the adapter speaks one language. Display strings that need `formatAud` stay in `lib/handover/terms.ts`, because `domain/` may not import `lib/`.
 - `webhook/` — `mapEventToAction.ts` maps a `Webhook_Event` to a state machine event.
 - `identity/identityGate.ts` — the ONE place the Identity_Gate is evaluated. Never re-derive it inline.
 - `deal/` — private-deal policy: `dealCash.ts` (who pays whom), `dealCollateral.ts` (stake sizing), `dealDispute.ts` (dispute outcome arithmetic and terminal state).
@@ -58,6 +64,7 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `supabase/` — the three clients plus hand-maintained `database.types.ts` (the MCP generator only emits the `public` schema, so regenerating would destroy the `cardtrade` types — edit by hand).
 - `staffGate.ts` — `requireStaff()` (`is_support` OR `is_admin`, may arbitrate). Distinct from `requireAdmin()` in `lib/actions/admin.ts` (may moderate). Two capabilities, not a hierarchy: nothing derives one from the other. The three dispute-resolution actions are staff-gated; everything else in `admin.ts` is admin-only.
 - `realtime/` — `useXRealtime` client hooks for Supabase Realtime subscriptions.
+- `trades/` — `server-only` trade work that must NOT be a Server Action, because every export of a `'use server'` module is an endpoint addressable by anyone who learns its id. `completion.ts` holds `finalizeCompletedTrade` (release both collateral holds, then settle cash) so the mutual-acceptance path and the inspection timeout do the same thing; `inspectionSweep.ts` is the timeout itself, called only by `app/api/jobs/trade-inspections`.
 - `notifications/createNotification.ts`, `format.ts`, `utils.ts`, `marketplace-constants.ts` — shared helpers and tuned limits.
 
 ## Conventions

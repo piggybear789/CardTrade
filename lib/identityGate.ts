@@ -1,4 +1,4 @@
-import 'server-only';
+﻿import 'server-only';
 
 // lib/identityGate.ts
 //
@@ -60,14 +60,13 @@ export async function readIdentityGate(profileId: string): Promise<IdentityGateS
 }
 
 /** Actions the Identity_Gate protects, for message construction. */
-export type GatedAction = 'list' | 'sell' | 'trade' | 'deal';
+export type GatedAction = 'list' | 'sell' | 'trade';
 
 /** What each gated action is called in a refusal message. */
 const ACTION_LABEL: Record<GatedAction, string> = {
   list: 'publish a listing',
   sell: 'sell for cash',
   trade: 'start a trade',
-  deal: 'agree a deal that involves cash',
 };
 
 /**

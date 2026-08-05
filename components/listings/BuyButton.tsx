@@ -163,12 +163,11 @@ export function BuyButton({
           </div>
         ) : showCardForm ? (
           <>
-            <DialogHeader>
+            {/* Negative margin cancels DialogContent's flex gap: with the
+                description gone there is nothing to separate the title from
+                Stripe's own bordered card. */}
+            <DialogHeader className="-mb-3 sm:-mb-4">
               <DialogTitle>Add a payment method</DialogTitle>
-              <DialogDescription>
-                A card is required to buy. Details are encrypted in your browser
-                by Stripe — we never store the full card number.
-              </DialogDescription>
             </DialogHeader>
             <AddPaymentMethodForm
               onAttached={() => {

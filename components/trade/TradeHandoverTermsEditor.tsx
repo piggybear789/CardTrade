@@ -3,17 +3,24 @@
 // components/trade/TradeHandoverTermsEditor.tsx
 //
 // Agree face-to-face / postage details on a live trade until either side ships.
-// Method may already be set on the offer; place, cost, notes and (later) tracking
-// are filled in here once both traders are in the room.
+//
+// The method choice and the method-specific fields now come from
+// `components/fulfilment`, shared with the Cash_Sale room. That is not tidying: the
+// two had genuinely drifted. This editor used to accept a free-text meeting point
+// with a fallback map centre and treat the meeting time as optional, where the cash
+// sale demanded a provider-resolved place and a future time. The optional time is
+// what left a face-to-face trade with no instant to measure an inspection window
+// from, so it is now required.
+//
+// The postal ADDRESS is deliberately not here. It is private to each trader rather
+// than a negotiated term, so it lives in its own panel and its own action.
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { MapPin, Pencil, Truck } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 
-import { PlacePicker } from '@/components/location';
 import { Button } from '@/components/ui/button';
-import { ChoiceTile } from '@/components/ui/choice-tile';
 import {
   Dialog,
   DialogContent,
@@ -23,61 +30,70 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { updateTradeHandoverTerms } from '@/lib/actions/trades';
 import {
-  deliveryNotesFromDetails,
-  type HandoverMethod,
-} from '@/lib/handover/terms';
+  FULFILMENT_FIELD_ERRORS,
+  FulfilmentMethodChoice,
+  FulfilmentTermsFields,
+} from '@/components/fulfilment';
+import { updateTradeHandoverTerms } from '@/lib/actions/trades';
+import { deliveryNotesFromDetails } from '@/lib/handover/terms';
+import { isResolvedPlace, type FulfilmentMethod } from '@/domain/fulfilment';
 import { DEAL_DELIVERY_COST_MAX, DEAL_TEXT_MAX } from '@/lib/marketplace-constants';
-import type { PlaceValue } from '@/lib/location/types';
+import { FALLBACK_MAP_CENTER, type PlaceValue } from '@/lib/location/types';
 import type { TradeRow } from '@/lib/realtime/useTradeRealtime';
 
+/** Messages for the typed errors `updateTradeHandoverTerms` can return. */
+const ERROR_MESSAGES: Record<string, string> = {
+  unauthenticated: 'Please sign in to continue.',
+  'not-participant': 'You are not a participant in this trade.',
+  'invalid-state': 'Terms are locked once either trader has shipped.',
+  'invalid-handover': 'Choose how the goods change hands.',
+  'invalid-delivery-cost': 'Enter a valid postage amount.',
+  'missing-meeting-location': FULFILMENT_FIELD_ERRORS.meeting,
+  'missing-meeting-time': FULFILMENT_FIELD_ERRORS.meeting,
+  'persistence-error': 'Could not save the terms. Please try again.',
+};
+
+/** The stored meeting point as a picker value, preserving unresolved legacy rows. */
 function placeFromTrade(trade: TradeRow): PlaceValue | null {
-  if (!trade.meeting_location?.trim()) return null;
+  const label = trade.meeting_location?.trim();
+  if (!label) return null;
+  const hasCoords =
+    typeof trade.meeting_lat === 'number' && typeof trade.meeting_lng === 'number';
   return {
-    label: trade.meeting_location,
-    placeId: trade.meeting_place_id ?? `trade:${trade.id}`,
-    lat: trade.meeting_lat ?? -37.8136,
-    lng: trade.meeting_lng ?? 144.9631,
+    label,
+    // A legacy row with no provider id must not masquerade as resolved: the
+    // `text:` prefix is what `isResolvedPlace` keys on to refuse it.
+    placeId: trade.meeting_place_id ?? `text:${label}`,
+    lat: hasCoords ? (trade.meeting_lat as number) : FALLBACK_MAP_CENTER.lat,
+    lng: hasCoords ? (trade.meeting_lng as number) : FALLBACK_MAP_CENTER.lng,
     precision: 'exact',
   };
 }
 
-function centsToDollars(cents: number | null): string {
-  return cents == null ? '' : (cents / 100).toFixed(2);
-}
-
-function dollarsToCents(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === '') return null;
-  if (!/^(?:\d+|\d*\.\d{1,2})$/.test(trimmed)) return null;
-  const amount = Number(trimmed);
-  if (!Number.isFinite(amount) || amount < 0) return null;
-  return Math.round(amount * 100);
-}
-
+/** ISO instant to a `datetime-local` value in the viewer's own timezone. */
 function toLocalInputValue(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate(),
-  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  if (!Number.isFinite(date.getTime())) return '';
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'invalid-state': 'Delivery terms can only be changed before shipping starts.',
-  'invalid-handover': 'Choose face to face or delivery, and fill in the details.',
-  'invalid-delivery-cost': 'Enter the delivery cost, or 0 for free delivery.',
-  'missing-meeting-location': 'Add where you plan to meet.',
-  'persistence-error': 'Could not save the terms. Please try again.',
-  unauthenticated: 'Sign in again.',
-  'not-participant': 'You are not part of this trade.',
-};
+/** Integer cents to an editable dollar string. */
+function centsToDollars(cents: number | null): string {
+  if (cents == null) return '';
+  return (cents / 100).toFixed(2);
+}
+
+/** Dollar string to integer cents, or null when it is not a usable amount. */
+function dollarsToCents(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  const parsed = Number.parseFloat(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.round(parsed * 100);
+}
 
 export interface TradeHandoverTermsEditorProps {
   trade: TradeRow;
@@ -94,9 +110,7 @@ export function TradeHandoverTermsEditor({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [method, setMethod] = useState<HandoverMethod | null>(
-    trade.handover_method,
-  );
+  const [method, setMethod] = useState<FulfilmentMethod | null>(trade.handover_method);
   const [meetingPlace, setMeetingPlace] = useState<PlaceValue | null>(() =>
     placeFromTrade(trade),
   );
@@ -109,9 +123,16 @@ export function TradeHandoverTermsEditor({
   );
 
   const deliveryCents = dollarsToCents(deliveryCost);
+  const meetingInstant = meetingAt ? new Date(meetingAt) : null;
+
+  // Mirrors the server-side validator so the button is not offered for terms that
+  // will be refused. The server remains the authority.
   const detailsComplete =
     method === 'IN_PERSON'
-      ? Boolean(meetingPlace?.label.trim())
+      ? isResolvedPlace(meetingPlace) &&
+        meetingInstant !== null &&
+        Number.isFinite(meetingInstant.getTime()) &&
+        meetingInstant.getTime() > Date.now()
       : method === 'DELIVERY'
         ? deliveryCents !== null && deliveryCents <= DEAL_DELIVERY_COST_MAX
         : false;
@@ -130,21 +151,29 @@ export function TradeHandoverTermsEditor({
 
   function handleSave() {
     setError(null);
-    if (method === null || !detailsComplete) {
+    if (method === null) {
       setError(ERROR_MESSAGES['invalid-handover']);
       return;
     }
+    if (!detailsComplete) {
+      setError(
+        method === 'IN_PERSON'
+          ? FULFILMENT_FIELD_ERRORS.meeting
+          : ERROR_MESSAGES['invalid-delivery-cost'],
+      );
+      return;
+    }
+
     startTransition(async () => {
       const result = await updateTradeHandoverTerms(trade.id, {
         method,
-        meetingLocation:
-          method === 'IN_PERSON' ? meetingPlace!.label.trim() : null,
+        meetingLocation: method === 'IN_PERSON' ? meetingPlace!.label.trim() : null,
         meetingLat: method === 'IN_PERSON' ? meetingPlace!.lat : null,
         meetingLng: method === 'IN_PERSON' ? meetingPlace!.lng : null,
         meetingPlaceId: method === 'IN_PERSON' ? meetingPlace!.placeId : null,
         meetingAt:
-          method === 'IN_PERSON' && meetingAt
-            ? new Date(meetingAt).toISOString()
+          method === 'IN_PERSON' && meetingInstant
+            ? meetingInstant.toISOString()
             : null,
         deliveryCostCents: method === 'DELIVERY' ? deliveryCents : null,
         deliveryNotes: method === 'DELIVERY' ? deliveryNotes.trim() || null : null,
@@ -177,133 +206,42 @@ export function TradeHandoverTermsEditor({
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Delivery Terms</DialogTitle>
+          <DialogTitle>Delivery terms</DialogTitle>
           <DialogDescription>
             Agree how the goods change hands. Either trader can update these until
-            someone marks a shipment.
+            someone marks a shipment or confirms a handover.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Handover</legend>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(
-                [
-                  {
-                    value: 'IN_PERSON' as const,
-                    label: 'Face to face',
-                    hint: 'Meet and swap',
-                    icon: MapPin,
-                  },
-                  {
-                    value: 'DELIVERY' as const,
-                    label: 'Delivery',
-                    hint: 'Post it',
-                    icon: Truck,
-                  },
-                ] as const
-              ).map((option) => (
-                <ChoiceTile
-                  key={option.value}
-                  id={`trade-room-handover-${option.value}`}
-                  name="trade-room-handover"
-                  type="radio"
-                  icon={option.icon}
-                  label={option.label}
-                  hint={option.hint}
-                  checked={method === option.value}
-                  onChange={() => setMethod(option.value)}
-                />
-              ))}
-            </div>
-          </fieldset>
+          <FulfilmentMethodChoice
+            name="trade-room-handover"
+            value={method}
+            onChange={setMethod}
+            disabled={isPending}
+          />
 
-          {method === 'IN_PERSON' ? (
-            <>
-              <PlacePicker
-                id="trade-meeting-location"
-                label="Meeting place"
-                precision="exact"
-                value={meetingPlace}
-                onChange={setMeetingPlace}
-                required
-                error={
-                  error === ERROR_MESSAGES['missing-meeting-location']
-                    ? error
-                    : undefined
-                }
-                hint="Somewhere public you can both find."
-                textFallbackPlaceholder="Melbourne Central, main entrance"
-              />
-              <div className="space-y-2">
-                <Label htmlFor="trade-meeting-at">
-                  Date and time{' '}
-                  <span className="font-normal text-muted-foreground">(optional)</span>
-                </Label>
-                <Input
-                  id="trade-meeting-at"
-                  type="datetime-local"
-                  value={meetingAt}
-                  onChange={(event) => setMeetingAt(event.target.value)}
-                />
-              </div>
-            </>
-          ) : null}
+          <FulfilmentTermsFields
+            idPrefix="trade"
+            method={method}
+            meetingPlace={meetingPlace}
+            onMeetingPlaceChange={setMeetingPlace}
+            meetingAt={meetingAt}
+            onMeetingAtChange={setMeetingAt}
+            deliveryCost={deliveryCost}
+            onDeliveryCostChange={setDeliveryCost}
+            deliveryNotes={deliveryNotes}
+            onDeliveryNotesChange={setDeliveryNotes}
+            notesMaxLength={DEAL_TEXT_MAX}
+            deliveryCostLabel="Postage each way (AUD)"
+            deliveryCostHint="Enter 0 for free postage. Add each address below, and tracking when you ship."
+            error={error}
+            disabled={isPending}
+          />
 
-          {method === 'DELIVERY' ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="trade-delivery-cost">
-                  Delivery cost
-                  <span className="text-destructive" aria-hidden>
-                    {' '}
-                    *
-                  </span>
-                </Label>
-                <div className="relative">
-                  <span
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                    aria-hidden
-                  >
-                    $
-                  </span>
-                  <Input
-                    id="trade-delivery-cost"
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    autoComplete="off"
-                    value={deliveryCost}
-                    onChange={(event) => setDeliveryCost(event.target.value)}
-                    className="pl-7"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Enter 0 for free delivery. Tracking is added when you record a
-                  shipment.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="trade-delivery-notes">
-                  Shipping notes{' '}
-                  <span className="font-normal text-muted-foreground">(optional)</span>
-                </Label>
-                <Textarea
-                  id="trade-delivery-notes"
-                  value={deliveryNotes}
-                  onChange={(event) => setDeliveryNotes(event.target.value)}
-                  placeholder="Who ships first, preferred carrier, packing notes…"
-                  maxLength={DEAL_TEXT_MAX}
-                  rows={3}
-                />
-              </div>
-            </>
-          ) : null}
-
-          {error ? (
+          {error &&
+          error !== FULFILMENT_FIELD_ERRORS.meeting &&
+          error !== FULFILMENT_FIELD_ERRORS.address ? (
             <p role="alert" className="text-sm text-destructive">
               {error}
             </p>

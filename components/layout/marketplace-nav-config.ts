@@ -1,4 +1,4 @@
-// Shared marketplace section map for the desktop rail and mobile bottom hubs.
+﻿// Shared marketplace section map for the desktop rail and mobile bottom hubs.
 // Keep labels/hrefs in one place so active-state logic cannot drift.
 
 import type { LucideIcon } from 'lucide-react';
@@ -34,7 +34,7 @@ export type MarketplaceNavGroup = {
  * The staff group, appended to the rail only for a caller who may arbitrate.
  *
  * Kept separate from {@link MARKETPLACE_NAV_GROUPS} rather than merged into it, because
- * every consumer of that constant renders it unconditionally — the mobile hubs read
+ * every consumer of that constant renders it unconditionally â€” the mobile hubs read
  * groups by index (`MARKETPLACE_NAV_GROUPS[1]`, `[2]`), so inserting a conditional
  * member would silently repoint the Contracts and Sell sheets.
  *
@@ -44,7 +44,7 @@ export type MarketplaceNavGroup = {
  * Moderation has the same problem and gets the same fix.
  */
 // "Cases" and "Operations", not "Arbitration" and "Moderation". The old pair told you
-// nothing about which one you wanted — both sound like "deal with a problem" — and the
+// nothing about which one you wanted â€” both sound like "deal with a problem" â€” and the
 // two surfaces genuinely split on a different axis: Cases is where someone is waiting on
 // your JUDGEMENT and money is frozen; Operations is where the system is waiting on your
 // ATTENTION. `arbitration` remains the data-model term (arbitration_assignments,
@@ -70,7 +70,7 @@ export function staffNavLinksFor(capability: {
     : STAFF_NAV_GROUP.links.filter((link) => link.href === '/admin/arbitration');
 }
 
-/** Rail sections — same order and glossary as the desktop workspace. */
+/** Rail sections â€” same order and glossary as the desktop workspace. */
 export const MARKETPLACE_NAV_GROUPS = [
   {
     label: 'Marketplace',
@@ -84,8 +84,9 @@ export const MARKETPLACE_NAV_GROUPS = [
     links: [
       { href: '/purchases', label: 'Purchases', icon: ShoppingBag },
       { href: '/sales', label: 'Sales', icon: Tag },
+      // Deals are withdrawn: a private deal WAS a trade, negotiated in its own
+      // room, which is what a Trade now does natively (Req 12).
       { href: '/trades', label: 'Trades', icon: Repeat2 },
-      { href: '/deals', label: 'Deals', icon: Handshake },
     ],
   },
   {

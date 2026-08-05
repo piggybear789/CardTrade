@@ -161,7 +161,7 @@ describe('PayoutOnboarding', () => {
     render(<PayoutOnboarding context={makeContext({ merchantStatus: 'PENDING', merchantRef: 'acct_1' })} />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/expired/i);
-    expect(screen.getByRole('button', { name: /finish payout setup/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /finish verification/i })).toBeInTheDocument();
   });
 
   it('shows the provider-verified name once approved, and nothing private', () => {

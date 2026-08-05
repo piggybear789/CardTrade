@@ -18,21 +18,28 @@ Two ID series:
 | Severity | Open | Done |
 |----------|------|------|
 | 4 — Catastrophe | 0 | 0 |
-| 3 — Major | 0 | 4 |
-| 2 — Minor | 0 | 11 |
-| 1 — Cosmetic | 0 | 3 |
-| **Total** | **0** | **18** |
+| 3 — Major | 0 | 10 |
+| 2 — Minor | 0 | 23 |
+| 1 — Cosmetic | 0 | 5 |
+| **Total** | **0** | **38** |
 
-All 18 findings implemented. Verified with `npx tsc --noEmit` (clean),
+F1–F18 implemented. Verified with `npx tsc --noEmit` (clean),
 `npx eslint app components lib domain` (clean), and `npm run test` (267 passed, 24 files).
 F6 is partial by design — see its entry. R1 is **not** built and track C is blocked; see R1.
 
-Not yet verified by anyone: how these look rendered. Worth a pass over the home page,
-catalog, a cash sale room, and a deal room's Terms tab before this is called finished.
+F19–F32 are the Round 4 mobile pass and are **open**.
+
+Not yet verified by anyone: how any of this looks rendered, on a phone or otherwise. That was
+outstanding after Round 1 and Round 4 did not change it — Round 4 is a code audit too. Several
+of its findings (F19, F20, F24) are about behaviour that only a device exercises, so a handset
+pass is now the highest-value verification available.
 
 Sources so far:
 - Round 1 — code audit of app shell + buyer-facing discovery flow (F1–F11)
 - Round 2 — user-reported, screenshots (F12–F17)
+- Round 3 — user-reported (F18)
+- Round 4 — code audit scoped to mobile: touch, scroll, keyboard, visual weight (F19–F32)
+- Round 5 — user-reported, contract details scroll (F33–F37). F33/F34 fixed, F35 partial.
 
 ---
 
@@ -396,3 +403,553 @@ Recorded so they are not re-raised.
 - **User impact:** A cancellation tells a member only that something ended, not what had happened before it ended. The successful checkmark is misleading and makes cancelled, refunded, and completed outcomes visually indistinguishable.
 - **Fix:** Added a `halted` step state. Closed Cash_Sales and Deals now retain their full ordered timeline: completed steps remain checks, the exact first unfinished step is marked with a destructive X and copy such as `Cancelled here`, and later steps remain unreached. The halt point is read from the closing event's `from_status` / `from_state` when the audit trail has it, with conservative fallbacks for legacy records. Deal dispute outcomes retain correct outcome-specific copy — a `SPLIT` never says that nobody was charged.
 - **Scope:** Trade fraud remains intentionally unchanged. Trades have no cancellation state and fraud resolution has materially different semantics; it should receive its own review rather than borrow the cancellation presentation.
+
+---
+
+# Round 4 — mobile pass (F19–F32)
+
+Code audit scoped to the phone: touch, scrolling, on-screen keyboard, interactivity
+feedback, and visual weight below `lg`. Read the app shell (`app/layout.tsx`,
+`app/globals.css`, `tailwind.config.ts`), all of `components/layout/`, every `components/ui/`
+primitive, the landing page, the catalog card and carousel, the item detail page, the image
+gallery, both chat panels, and the contract inspector / progress rail.
+
+**Nothing here was verified on a device.** Every finding is derived from the code, and each
+entry states the mechanism rather than a perceived symptom. Two claims were checked against
+build output rather than reasoned about, and are marked where they appear.
+
+Round 3 was a single user-reported finding (F18), so these continue the same series.
+
+## R4 — What was NOT checked
+
+- Rendered appearance on a real handset. Still outstanding from Round 1's closing note.
+- Android Chrome specifics beyond the standard viewport/keyboard model.
+- Realtime behaviour on a flaky mobile connection (reconnect copy exists; its timing was
+  not exercised).
+
+---
+
+## F19 — Every form field is 14px, so iOS Safari zooms the page on focus
+
+- [x] Addressed
+- **Severity:** 3
+- **Principle:** Error Prevention, Tolerance and Forgiveness, Perceptibility
+- **Source:** Round 4 (code)
+- **Location:** `components/ui/input.tsx:12`, `components/ui/textarea.tsx:12`, `components/ui/select.tsx:22` — all three carry `text-sm` (0.875rem / 14px)
+- **Issue:** iOS Safari auto-zooms the layout viewport when a focused form control's computed
+  `font-size` is below 16px. Every text input, textarea and select trigger in the app routes
+  through these three primitives, so every field in every form is below the threshold. The
+  viewport export correctly omits `maximumScale` / `userScalable` (suppressing zoom would be
+  an accessibility regression), which means nothing zooms the page back out afterwards.
+- **User impact:** Tapping any field on an iPhone zooms and horizontally offsets the page, and
+  it stays that way — the member has to pinch out by hand before they can see the rest of the
+  form. It fires on sign-in, sign-up, listing creation, offers, chat composers, the location
+  picker and every money field, i.e. every task on the platform. Compounding: after the zoom
+  the fixed bottom nav and any sticky dialog footer sit off-screen.
+- **Fix:** Floor the three primitives at 16px on touch viewports and keep 14px from `sm` up
+  (`text-base sm:text-sm`), which is the standard resolution and costs nothing on desktop.
+  Applying it at the primitive level covers the app in one change; check `CatalogControls`,
+  `ItemForm` and `AddPaymentMethodForm` for any field that sets its own `text-*` and would
+  override the floor. The Stripe Payment Element renders in its own iframe and is unaffected.
+
+## F20 — The layout viewport ignores the on-screen keyboard, and 20 files size themselves off it
+
+- [x] Addressed
+- **Severity:** 3
+- **Principle:** Visibility of System Status, Structure
+- **Source:** Round 4 (code)
+- **Location:** `app/layout.tsx:56-64` (the `viewport` export sets `themeColor`, `colorScheme`
+  and `viewportFit` but not `interactiveWidget`)
+- **Issue:** `dvh` tracks retracting *browser* chrome, not the virtual keyboard. With the
+  default `interactiveWidget: 'resizes-visual'` the keyboard overlays the layout viewport
+  without shrinking it, so a `100dvh`-derived height stays at full height while the bottom
+  ~40% of the screen is covered. 20 files compute a height from `dvh`, including
+  `components/ui/dialog.tsx` (the bottom-sheet cap and the sticky `DialogFooter`),
+  `components/ui/sheet.tsx`, `ChatThread.tsx`, `ImageGallery.tsx`'s `FRAME_HEIGHT`,
+  `MarketplaceShell.tsx`, `SiteMenu.tsx` and `ContractImageLightbox.tsx`.
+- **User impact:** Focusing a composer or a field inside a bottom sheet puts the thing being
+  typed into, and the button that submits it, behind the keyboard. The member types blind, or
+  scrolls a container that has no room to scroll. Worst in a contract room, where the covered
+  control is the one that moves money.
+- **Fix:** Add `interactiveWidget: 'resizes-content'` to the `viewport` export. Next 15.1.6's
+  `Viewport` type accepts it (`'resizes-visual' | 'resizes-content' | 'overlays-content'` —
+  confirmed in `node_modules/next/dist/lib/metadata/types/extra-types.d.ts`), so this is one
+  line and every `dvh` consumer starts measuring a viewport the keyboard has shrunk. Re-check
+  `ChatThread`'s `min-h-[min(36rem,...)]` afterwards: a 36rem floor can outlive the shrunken
+  viewport and reintroduce the same overlap on a short phone.
+
+## F21 — Nothing outside `<Button>` acknowledges a tap, and the tap highlight is suppressed globally
+
+- [x] Addressed
+- **Severity:** 3
+- **Principle:** Visibility of System Status, Affordances and Signifiers
+- **Source:** Round 4 (code)
+- **Location:** `app/globals.css:47` (`-webkit-tap-highlight-color: transparent` on `html`);
+  `components/listings/ItemCard.tsx:56` and `:171` (whole-card overlay `Link`, styled only via
+  `group-hover:`); `components/layout/MobileBottomNav.tsx:105` and `:135`;
+  `components/layout/SectionFilter.tsx:118`; `components/account/AccountTabs.tsx:52`;
+  `components/listings/ListingActionIcon.tsx` (`group-hover:` only)
+- **Issue:** F2 added `active:` to `buttonVariants` and fixed pressed feedback for everything
+  that routes through `<Button>`. It never reached anything that doesn't. A grep for `active:`
+  across `app/` and `components/` returns `components/ui/button.tsx` and nothing else — every
+  other hit is a variable name or an object key (`const active: T[]`, `holdsActive:`,
+  `ACTIVE:`). Meanwhile `globals.css` removes the platform's own fallback, on the stated
+  reasoning that "focus rings already communicate the tap" — but a focus ring is not painted
+  on a touch tap, and the elements above have no `active:` to take its place. Every remaining
+  cue is `hover:`, which on a touch device either does not fire or sticks after the tap.
+- **User impact:** Tapping a listing card — the single most repeated gesture in the product —
+  produces literally no visual change until the next page paints. On a slow connection that is
+  indistinguishable from a dead tile, and the reaction is a second tap. This is precisely the
+  failure F2 identified for buttons, still live on the card grid, the bottom nav, both tab
+  strips and the item page's action chips.
+- **Fix:** Give each of these an `active:` treatment in the same language `buttonVariants`
+  already uses (`active:translate-y-px` plus a background or opacity shift). For `ItemCard` the
+  overlay `Link` cannot show it directly — it has no visible box — so put it on the artwork via
+  the existing `group` (`group-active:scale-[0.99]`, or a brightness shift on `.auction-stage`).
+  The global `prefers-reduced-motion` block already neutralises the transform.
+
+## F22 — The contract inspector's plain-language explainers cannot be opened on a phone
+
+- [x] Addressed
+- **Severity:** 3
+- **Principle:** Help and Documentation, Accessibility, Affordances and Signifiers
+- **Source:** Round 4 (code)
+- **Location:** `components/contract/ContractDetailList.tsx:184-217` (the `(i)` button inside
+  `Tooltip` / `TooltipTrigger`)
+- **Issue:** Radix Tooltip opens on `pointerenter` and on focus, but deliberately suppresses
+  the focus path when the focus followed a `pointerdown` — which is exactly what a tap is. It
+  has no tap-to-open behaviour. These are the *only* tooltips in the app (grep: `TooltipTrigger`
+  appears in `ContractDetailList.tsx` and `components/ui/tooltip.tsx`, nowhere else), and what
+  they carry is the `explainer` copy for Item / Terms / Money / Collateral — the plain-language
+  answer to "what is this?" on the surface where a member is being asked to lock collateral.
+  The button's own `onClick` only calls `stopPropagation()` and re-selects the tab, so on touch
+  it is inert. Secondary problem in the same control: the trigger is `size-5` (20px) sitting
+  `gap-0.5` (2px) from the tab label button, so both are hard to hit and easy to confuse.
+- **User impact:** On a phone the only in-product explanation of what a card hold is, and what
+  the Money tab is showing, is unreachable — the member taps a help affordance and nothing
+  happens, which also teaches them the control is broken. Desktop users get the explanation;
+  phone users are asked to authorise collateral without it.
+- **Fix:** Tooltips are the wrong primitive for content that must be reachable by touch. Swap
+  these for a `Popover` (already in `components/ui/`), which opens on click and therefore works
+  on both input types with one code path — and keep `TooltipProvider` only if something else
+  later needs hover-only affordance. Give the trigger a 44px hit area the way
+  `ContractProgressRail` does (see F29 before copying that pattern) and widen the gap from the
+  tab label.
+
+## F23 — The item page's primary action is an icon chip ranked equal with "Report listing"
+
+- [x] Addressed
+- **Severity:** 3
+- **Principle:** Aesthetic and Minimalist Design, Affordances and Signifiers, Structure
+- **Source:** Round 4 (code)
+- **Location:** `app/listings/[id]/page.tsx:596-616` (`grid grid-cols-5 justify-items-center
+  gap-1 sm:gap-2`), `components/listings/ListingActionIcon.tsx:29-57`
+- **Issue:** Buy, Propose Trade, Make Offer, Save and Report render as five identical
+  `ListingActionIcon` chips — same `size-12` circle, same 11px label, same row, same gap. The
+  only differentiation available is the `default` / `outline` chip variant. Three of the five
+  are transaction entry points and two are utilities; one of them is a moderation report. The
+  grid is `grid-cols-5` at every width: inside the content column's `px-4`, a 375px phone gives
+  each cell ~65px and a 320px phone ~54px, against a 48px chip — so the inter-target gap falls
+  to ~6px, under the 8px minimum, and labels as long as "Report listing" wrap to two lines
+  while "Buy" does not, leaving the row's baselines ragged. The same page also uses
+  `grid-cols-3` and `grid-cols-2` for the other two viewer states, so the action row's shape
+  changes between branches.
+- **User impact:** On the page where the marketplace actually converts, the primary action has
+  no more visual weight than reporting the listing, and on a small phone the two sit ~6px
+  apart. A buyer scanning for "how do I buy this" finds five equal circles and has to read
+  11px labels to rank them; a mis-tap between adjacent chips can open a moderation report
+  instead of a purchase.
+- **Fix:** Stop treating these as one set. Promote Buy to a full-width primary `<Button>` with
+  its label visible, keep Trade and Offer as secondary buttons beside or beneath it, and demote
+  Save and Report to a separate, quieter row (or move Report to the end of the page — it is not
+  a peer of Buy). If the chip row survives for the secondary group, drop to `grid-cols-3` below
+  `sm` so the targets clear 44px with an 8px gap, and settle the three viewer-state branches on
+  one layout.
+
+## F24 — "Tap to zoom" is broken on touch, and the class meant to protect the pan generates no CSS
+
+- [x] Addressed
+- **Severity:** 3
+- **Principle:** Affordances and Signifiers, Visibility of System Status, User Control and Freedom
+- **Source:** Round 4 (code)
+- **Location:** `components/listings/ImageGallery.tsx:196` (`touch-action-none`), `:199`
+  (`onPointerLeave={resetZoom}`), `:251-252` (the `[@media(hover:none)]` "Tap to zoom" label),
+  `:257-283` (the arrow controls)
+- **Issue:** Three defects in the item page's only image viewer.
+  1. **The magnifier resets in the same gesture that engages it.** `onPointerLeave` calls
+     `resetZoom`. For touch, the browser dispatches `pointerleave` immediately after
+     `pointerup` — the pointer ceases to exist — so a tap sets `zoomPoint` and then clears it.
+     The component advertises the feature specifically to these devices: the hint renders
+     "Tap to zoom" under `[@media(hover:none)]`.
+  2. **The pan guard is not a Tailwind class.** Line 196 applies `touch-action-none`; the
+     utility is `touch-none`. **Verified against build output**, not inferred: `.touch-none` is
+     present in `.next/.../layout.css` and `.touch-action-none` is absent. So the stated intent
+     directly above it — "While zoomed, touch drags must pan the image, not scroll the page" —
+     does not happen.
+  3. **No swipe between images, and the arrows are undersized.** Paging is arrows only, at
+     `size-9` (36px) with `gap-0.5` (2px) between them, in the top-right corner. Swiping a
+     photo gallery is the default mobile expectation, and it is what the catalog carousel
+     already does natively.
+- **User impact:** A buyer inspecting a graded collectible on a phone — checking a slab label,
+  which is the whole reason the gallery uses `object-contain` and a 2.5× magnifier — cannot
+  zoom at all, is told they can, and has to hit two 36px arrows 2px apart to change image
+  instead of swiping.
+- **Fix:** Gate `onPointerLeave={resetZoom}` on `event.pointerType === 'mouse'` so a touch tap
+  keeps the magnifier engaged, and give touch an explicit way out (tap again already toggles;
+  the arrows and a close affordance should also reset). Change `touch-action-none` to
+  `touch-none`. Add swipe paging on the frame — a horizontal-drag threshold on the existing
+  pointer handlers, guarded to not fire while zoomed — and take the arrows to 44px with a
+  wider gap. Consider whether pinch-to-zoom should replace the tap magnifier on touch
+  entirely; the native gesture is what a phone user will try first.
+
+## F25 — Scroll padding is shorter than the header, so anchored content lands underneath it
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Structure, Visibility of System Status
+- **Source:** Round 4 (code)
+- **Location:** `app/globals.css:45` (`scroll-padding-top: 5rem`), against
+  `components/layout/SiteHeader.tsx:57` (`sticky top-0 ... pt-[env(safe-area-inset-top)]`) and
+  `:58` (`h-16`); same shortfall at `components/contract/ContractDetailList.tsx:226`
+  (`scroll-mt-20`)
+- **Issue:** `scroll-padding-top` is a fixed 5rem (80px). The header is 4rem of content plus
+  `env(safe-area-inset-top)` plus a 1px bottom border. `app/layout.tsx` sets
+  `viewportFit: 'cover'` precisely so that inset is non-zero, and on a notched iPhone in Safari
+  it is roughly 47–59px — putting the header at ~112–124px against 80px of scroll padding. The
+  reserve is also missing at the other end: the fixed `MobileBottomNav` is 56px plus its own
+  inset, and nothing sets `scroll-padding-bottom`.
+- **User impact:** Any in-page anchor or programmatic `scrollIntoView` on an affected iPhone
+  lands the target 30–45px under an opaque header — including `/sellers/[id]#reviews` (linked
+  from the item page's star rating) and `/profile#payouts` (linked from the footer). Keyboard
+  and screen-reader users hit the same thing when focus moves to an element near the top of a
+  scroll. At the bottom, content scrolled to the last screenful sits behind the hub bar.
+- **Fix:** Make the scroll padding express the same terms the header does:
+  `scroll-padding-top: calc(4rem + 1px + env(safe-area-inset-top))`. `MarketplaceShell` already
+  states the geometry this way at `:165` for the desktop rail, and its comment records what
+  happens when a term is dropped — reuse that expression rather than a second literal. Add
+  `scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom))`, and update
+  `ContractDetailList`'s `scroll-mt-20` to match.
+
+## F26 — Enter sends in both chat composers, and one of them collapses the keyboard on every send
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Flexibility and Efficiency, Tolerance and Forgiveness, Consistency and Standards
+- **Source:** Round 4 (code)
+- **Location:** `components/messages/ContractChat.tsx:213-221` (Enter submits) and `:227`
+  (`disabled={isPending}` on the `Textarea`); `components/messages/ChatThread.tsx:110-115`
+  (same Enter behaviour, no `disabled`)
+- **Issue:** Both composers bind Enter to submit and reserve Shift+Enter for a newline. A soft
+  keyboard has no usable Shift+Enter, so on a phone the newline is unreachable and the return
+  key becomes an unlabelled send — neither composer sets `enterKeyHint`, so the key still reads
+  "return" (or "go") while doing something else. Separately, `ContractChat` disables the
+  textarea while the send transition is pending: a disabled element cannot hold focus, so
+  focus is dropped and iOS dismisses the keyboard on every message. `ChatThread` does not
+  disable, so the two panels behave differently in the same product.
+- **User impact:** A phone user cannot write a two-line message anywhere in the app, and will
+  send half-written ones by reaching for what looks like a return key. In a contract room they
+  additionally lose the keyboard after every single message and must tap back into the field —
+  on the surface where coordinating a handover means several messages in a row.
+- **Fix:** Only submit on Enter when a pointer/keyboard device is likely — or better, keep
+  Enter-to-send on `sm` and up and let Enter insert a newline below it, where the visible Send
+  button is already full-height and adjacent. Set `enterKeyHint="send"` (or `"enter"`, matching
+  whichever behaviour ships) so the key is labelled honestly. Drop `disabled={isPending}` in
+  `ContractChat` and use `readOnly` or just leave it editable — the submit guard already blocks
+  a double send — so focus and the keyboard survive. Settle both composers on one behaviour.
+
+## F27 — Hidden-scrollbar strips have no edge affordance, except the one carousel that got fixed
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Affordances and Signifiers, Recognition Over Recall, Consistency and Standards
+- **Source:** Round 4 (code)
+- **Location:** `components/layout/SectionFilter.tsx:95-102` (`SectionTabs`),
+  `components/contract/ContractDetailList.tsx:150-153` (the tablist),
+  `components/location/PlaceSearch.tsx:229`, `components/trade/UnlistedItemDialog.tsx:254`
+- **Issue:** F4 established the pattern for a scrollable row whose scrollbar is suppressed:
+  track scroll position, disable the controls at each extreme, and fade the edge while more
+  content remains. It was applied to `ListingCarousel` and nowhere else. Every other
+  `overflow-x-auto` in the app pairs `[scrollbar-width:none]` +
+  `[&::-webkit-scrollbar]:hidden` with no fade, no arrows and no other signal. `SectionTabs`
+  is the sharpest case because its own comment states the problem it does not solve — "three
+  tabs with counts overflow a 320px viewport, and a clipped tab is an unreachable one" — and
+  then removes the only affordance a phone has left. `ContractDetailList` reasons that "the
+  clipped next tab is the affordance", which holds only when a tab happens to be clipped
+  mid-label rather than falling entirely outside the box.
+- **User impact:** On a 320–375px phone the arbitration queue's third tab, and a contract
+  inspector's later tabs, can sit off-screen with nothing indicating they exist. A member
+  concludes the tab is missing rather than scrolled — the "why can't I find anything" failure,
+  in navigation rather than filtering.
+- **Fix:** Apply F4's `mask-image` edge fade to these strips, on whichever side still has
+  overflow. It needs no scroll-position state to be useful in the common case (fade the right
+  edge whenever the content overflows), and `ListingCarousel:110-124` already has the exact
+  expression to copy. Worth extracting as a small shared wrapper so the next strip inherits it
+  instead of re-deciding.
+
+## F28 — Sub-44px targets, three of them stacked over another target
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Affordances and Signifiers, Error Prevention, Accessibility
+- **Source:** Round 4 (code)
+- **Location:** `components/listings/WatchButton.tsx:111` (`size-10`, mounted at
+  `ItemCard.tsx:98` / `:158` as `absolute right-2.5 top-2.5` over the card's full-bleed link);
+  `components/listings/ImageGallery.tsx:262` and `:277` (`size-9`, `gap-0.5`);
+  `components/ui/select.tsx:135` (`SelectItem`, `py-1.5` ≈ 32px);
+  `components/ui/slider.tsx:70` (thumb `size-5` = 20px)
+- **Issue:** Four controls below the 44px minimum, and the first one is the worst because of
+  what it sits on. The save heart is 40px, inset 10px from the corner of artwork whose entire
+  area is an overlay `<Link>` to the listing — so the 4px of miss around it navigates away
+  instead. `SelectItem` rows at ~32px are the category, condition and sort pickers.
+  The 20px slider thumb is the catalog price range.
+- **User impact:** A member trying to save a listing from the grid opens it instead and has to
+  come back — a wrong-outcome mis-tap, not just a fiddly one. Setting a price range on a phone
+  means grabbing a 20px handle; choosing a condition means hitting a 32px row in a list of
+  them, where the neighbouring value is a plausible answer and the mistake is quiet.
+- **Fix:** Take `WatchButton`'s icon variant to `size-11` and widen its inset so the miss
+  margin lands on the button rather than the link — or give it a transparent 44px hit box over
+  a 40px visible chip, the technique `ContractProgressRail` uses. Bump the gallery arrows (see
+  F24). Raise `SelectItem` to `min-h-11` below `sm`. Take the slider thumb to `size-6` with a
+  44px pseudo-element hit area, mirroring the rail.
+
+## F29 — Progress-rail hit areas overlap each other on a phone, so the tap lands on the wrong step
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Error Prevention, Affordances and Signifiers
+- **Source:** Round 4 (code)
+- **Location:** `components/contract/ContractProgressRail.tsx:76-79` (`before:-inset-3` over a
+  `size-5` tick), `:53` (`li` is `min-w-0 flex-1`)
+- **Issue:** The component correctly extends each 20px tick to a 44px touch target with an
+  invisible `before:` overlay — and says so. But the steps are `flex-1` in a single row, so
+  their width is the container divided by the step count, not 44px. In a phone-width contract
+  room (~288px of content at 320px, ~343px at 375px) a 7-step lifecycle gives each step 41–49px
+  and a 9-step one gives 32–38px. Once the step is narrower than 44px the neighbouring overlays
+  intersect, and in the overlap the later sibling paints on top and receives the tap.
+- **User impact:** Tapping a step in the contract timeline can open the *next* step's detail
+  line instead. The member reads a description of the wrong stage of their own contract and has
+  no way to tell it was a mis-hit, because both taps produce a plausible-looking result.
+- **Fix:** The row cannot hold nine 44px targets at 320px, so the layout has to give rather than
+  the target. Either scroll the rail horizontally below `sm` with fixed-width steps (and F27's
+  edge fade), or clamp the overlay to the available step width and instead grow the tick itself
+  so the visible target matches the hit area. If the overlay stays, cap it at half the step
+  width so adjacent areas meet without overlapping.
+
+## F30 — The bottom-sheet grabber is a signifier for a gesture that does not exist, and Dialog and Sheet disagree
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Affordances and Signifiers, Consistency and Standards
+- **Source:** Round 4 (code)
+- **Location:** `components/ui/dialog.tsx:88-93` (the grabber, rendered for
+  `mobile="sheet"` below `sm`); `components/ui/sheet.tsx:35-46` (`side="bottom"`, no grabber)
+- **Issue:** `DialogContent`'s mobile sheet paints a 40×4px rounded bar at the top — the
+  platform convention for "drag me down to dismiss". Neither primitive implements a drag
+  gesture; both dismiss only via the close button, the overlay and Escape. So the grabber
+  promises an interaction that is not there. `SheetContent side="bottom"` — which is what the
+  mobile hub menus in `MobileBottomNav` use — has no grabber at all, so the app's two
+  bottom-sheet presentations look different for no reason a member can perceive.
+- **User impact:** A phone user drags the handle, nothing moves, and the sheet stays open until
+  they find the close button. The handle is a false affordance in the strict sense — it
+  signifies a capability the object does not have. And because half the app's bottom sheets
+  omit it, the presentation reads as two different components rather than one.
+- **Fix:** Pick one and apply it to both. Cheapest honest option: drop the grabber from
+  `DialogContent` so nothing is promised. Better: implement drag-to-dismiss once (a
+  pointer-drag threshold on the content that calls `onOpenChange(false)`) and give both
+  primitives the same grabber, since it is the gesture a phone user tries first on a bottom
+  sheet. Either way the two should stop diverging.
+
+## F31 — `aria-controls` on the mobile hub buttons names an element that does not exist while closed
+
+- [x] Addressed
+- **Severity:** 1
+- **Principle:** Accessibility
+- **Source:** Round 4 (code)
+- **Location:** `components/layout/MobileBottomNav.tsx:140` (`aria-controls={`mobile-hub-${hub.id}`}`)
+  against `:167` (the id lives on `SheetContent`)
+- **Issue:** `SheetContent` is a Radix portal that only mounts while open, so the id is absent
+  in exactly the state the attribute is read in — a closed, collapsed hub button. An
+  `aria-controls` whose IDREF does not resolve is invalid and is dropped.
+- **User impact:** Small. `aria-expanded` still conveys the collapsed state and the sheet takes
+  focus when it opens, so a screen reader user is not stranded — they just lose the
+  relationship between the button and the panel it opens.
+- **Fix:** Drop `aria-controls` and rely on `aria-expanded` plus focus moving into the sheet,
+  which is the honest description of a portal-mounted dialog. Keep the id on `SheetContent` for
+  labelling.
+
+## F32 — 11px text survives in permanent mobile chrome, below the floor this project set for itself
+
+- [x] Addressed
+- **Severity:** 1
+- **Principle:** Perceptibility, Consistency and Standards
+- **Source:** Round 4 (code)
+- **Location:** `components/layout/MobileBottomNav.tsx:105`; `components/listings/ListingActionIcon.tsx:53`
+  (`text-[0.6875rem] sm:text-xs`); `app/listings/[id]/page.tsx:302` and `:315` (`StarRating`),
+  `:329` (the identity `<dl>`)
+- **Issue:** F7 established that catalog metadata at 10px was too small, and F6 encoded the
+  conclusion as a token: `fontSize.meta` is floored at 0.75rem in `tailwind.config.ts` with a
+  comment stating that the floor exists so F7 "cannot silently come back". These five sites are
+  `text-[0.6875rem]` (11px) bracket values that bypass it — and unlike the surfaces F6 chose not
+  to sweep, three of them are mobile-only or mobile-worst: the bottom nav labels are permanent
+  chrome on every signed-in page, the action chip labels only reach 12px at `sm`, and the item
+  page's seller rating and identity disclosure lines never do.
+- **User impact:** The five labels a phone user navigates by, and the seller identity block a
+  buyer is meant to read before committing, sit below the size this project already decided was
+  the comfort floor. Legible, but effortful — and it is the trust block.
+- **Fix:** Replace these with `text-meta` (or `text-xs`). The bottom nav has room at 12px:
+  five `h-14` cells at 320px are ~64px wide and the labels already `truncate`. This is small
+  enough to fold into whichever finding touches each file — F21 for the nav and the chips, F23
+  for the item page.
+
+---
+
+# Round 5 — contract details scroll (F33–F37)
+
+User-reported: "scroll is a bit weird in the contract details". Traced through the height
+and scroll chain: `ContractDetailList` → `ContractLiveRow` → `CashSaleView` /
+`TradeContract` → `MarketplaceShell` → `PageShell` → `body`, plus `ContractFocus`.
+
+Five distinct causes, which is why it reads as vague weirdness rather than one bug. F33 is
+the one most likely to be what was actually noticed. F33, F34 and half of F35 are fixed;
+F36 and F37 are structural and are left open.
+
+The shared root cause of F35 and F36: `ContractFocus` was written for a page of collapsible
+`<ContractSection>` blocks. That component no longer exists anywhere in the codebase — the
+only surviving occurrence of the name was its own header comment — and the scroll mechanism
+was never revisited when the design became a fixed-height tab inspector.
+
+---
+
+## F33 — Switching a contract detail tab keeps the previous tab's scroll position
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Visibility of System Status, Structure
+- **Source:** Round 5 (user-reported: "scroll is a bit weird")
+- **Location:** `components/contract/ContractDetailList.tsx:248` (the panel body)
+- **Issue:** The panel body is one persistent element that swaps its children when the tab
+  changes. React reconciles it by position and type, so the same DOM node is reused — and
+  `scrollTop` is state on the node, not in React. Nothing reset it. Reading the History tab
+  half way down and then tapping Money rendered Money already scrolled to that offset
+  (clamped to its own height).
+- **User impact:** Tapping a tab lands the reader mid-content, or in whitespace past the end
+  of a shorter panel, with nothing indicating there is content above. On a phone, where the
+  panel is most of the screen and the tabs are the primary way around the room, it reads as
+  the panel scrolling on its own.
+- **Fix:** Added a ref to the panel body and an effect that scrolls it to top on
+  `activeIndex` change. Keyed off the index rather than a `key` on the element, so a heavy
+  panel (the Item tab and its images) is not torn down and remounted just to move a scroll
+  offset.
+
+## F34 — `overscroll-contain` dead-ends the swipe below `lg`, where the page is the scroller
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** User Control and Freedom, Consistency and Standards
+- **Source:** Round 5 (user-reported, same symptom)
+- **Location:** `components/contract/ContractDetailList.tsx:248`
+- **Issue:** The panel body carried `overscroll-contain` at every width. That is correct from
+  `lg`, where the panel sits in `ContractLiveRow`'s bounded split and the page behind it does
+  not scroll. Below `lg` the room stacks and the page IS the scroller, so containment stopped
+  scroll chaining: a swipe that reached the bottom of the panel ended there instead of
+  carrying on down the page.
+- **User impact:** On a phone the reader has to lift their thumb and start a second swipe
+  outside the panel to keep moving down the room. A scroll that stops mid-gesture for no
+  visible reason is the single most common way an embedded scroll container feels broken.
+- **Fix:** `overscroll-contain` → `lg:overscroll-contain`. Containment where the panel is a
+  bounded pane; normal chaining where it is part of a scrolling page.
+
+## F35 — The focus scroll centred the panel, pushing the action card off the top
+
+- [~] Partially addressed — **alignment fixed; it still targets the wrong element on desktop. See F36.**
+- **Severity:** 2
+- **Principle:** Visibility of System Status, User Control and Freedom
+- **Source:** Round 5 (code, while tracing the reported symptom)
+- **Location:** `components/contract/ContractFocus.tsx:55` (was `block: 'center'`); one live
+  call site, `components/sales/CashSaleView.tsx:590` ("Choose a method")
+- **Issue:** `focusSection` scrolled the target with `block: 'center'`. The target is now a
+  tab panel with `min-h-[min(28rem,60dvh)]`, not a collapsible block — centring it on a phone
+  scrolls the action card, which holds the button just pressed and the copy saying what to do
+  next, off the top of the screen. `center` also silently ignores the panel's `scroll-mt-20`:
+  `scroll-margin` is honoured for `start` / `end` / `nearest` alignment only.
+- **User impact:** Pressing "Choose a method" jumps the page and takes the context away with
+  it. The member is moved somewhere they did not ask to go, and the thing that explains why
+  they are there is now off screen.
+- **Fix applied:** `block: 'nearest'`. The panel is usually already visible and should not
+  move at all; when partly off screen, the smallest scroll that reveals it is the least
+  surprising outcome. `nearest` also makes `scroll-mt-20` live — which ties this to **F25**,
+  since that offset is shorter than the header on a notched iPhone.
+- **Still wrong:** on desktop this scrolls nothing at all, because `getElementById` returns
+  the hidden mobile copy of the panel. That is F36, and it has to be fixed there.
+
+## F36 — `ContractLiveRow` mounts both panels twice, so ids collide and `getElementById` finds the hidden copy
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Structure, Accessibility, Consistency and Standards
+- **Source:** Round 5 (code)
+- **Location:** `components/contract/ContractLiveRow.tsx:90-127` — `{children}` and
+  `{conversation}` are each rendered in both the `lg:hidden` mobile block and the
+  `hidden lg:grid` desktop block; mounted by `CashSaleView.tsx:556` and `TradeContract.tsx:790`
+- **Issue:** The two layouts are switched with CSS, not by conditional mounting, so both
+  copies are always in the DOM. Consequences, in order of severity:
+  1. **Duplicate DOM ids.** `ContractDetailList` puts `activeRow.props.id` (e.g.
+     `contract-terms`) on the active tab panel. Both copies have the same active tab — they
+     share `focusedId` through context and start from the same `defaultOpen` — so the id is
+     duplicated essentially always. Invalid HTML, and it breaks any IDREF that resolves to it.
+  2. **`focusSection` scrolls the wrong element.** `document.getElementById` returns the
+     first match in document order, which is the mobile copy. On desktop that copy is inside
+     `display: none`, where `scrollIntoView` is a no-op — so the one live focus link switches
+     the tab but never scrolls, and has presumably never appeared to work there.
+  3. **Two chat panels for one conversation.** `ContractChat` mounts twice, so
+     `useConversationRealtime` opens two channels and `markConversationRead` fires twice per
+     change. **Not a correctness bug** — `uniqueRealtimeTopic` already anticipates exactly
+     this ("ChatThread + ContractChat sharing one conversationId") and gives each instance a
+     UUID topic — but it is double the subscriptions and double the initial history fetch, on
+     mobile connections, for a panel the viewer cannot see.
+- **User impact:** Mostly indirect. Directly: the desktop focus link is dead, and every
+  contract room pays for a duplicate realtime subscription and history fetch. For screen
+  reader users the duplicated ids mean the panel's accessible name can resolve to a hidden
+  element.
+- **Fix:** Mount one copy. The clean version is to render `children` / `conversation` once
+  and move the layout decision to `MobileOnly` / `DesktopOnly` from
+  `components/layout/Breakpoint.tsx`, which is the pattern `MarketplaceShell` already uses
+  for exactly this reason — its comment on `filters` says "they mount exactly once … so field
+  ids stay stable", which is the same problem. That swaps a CSS switch for a JS one, so check
+  the first-paint behaviour: `Breakpoint` assumes mobile on the server, so a desktop reader
+  briefly gets the stacked layout. If that flash is unacceptable, the alternative is to keep
+  the CSS switch and namespace the ids per copy, which fixes 1 and 2 but not 3.
+
+## F37 — The panel's scroll model flips between internal and page scroll depending on how much content the tab has
+
+- [x] Addressed
+- **Severity:** 2
+- **Principle:** Consistency and Standards, Visibility of System Status
+- **Source:** Round 5 (code) — **mechanism read from the code; the exact tipping point was not
+  reproduced in a browser**
+- **Location:** `components/contract/ContractLiveRow.tsx:100` and `:113`
+  (`min-h-[min(28rem,60dvh)]` with `[&>*]:h-full`); `components/contract/ContractDetailList.tsx:126`
+  (`h-full min-h-0`); the chain above it — `app/layout.tsx:76` (`body` is `min-h-dvh`),
+  `MarketplaceShell.tsx:186-206` (`flex-1 min-h-0` throughout)
+- **Issue:** `[&>*]:h-full` gives the inspector `height: 100%` against a parent that sets only
+  `min-height`. Whether that resolves to a definite height depends on whether the flex chain
+  above is itself bounded — and it is not, consistently: `body` is `min-h-dvh`, a floor rather
+  than a cap, so the chain grows to fit content. When the active tab is short the chain has a
+  definite height and the panel scrolls internally while the page stays put. When it is long
+  the chain grows, the panel takes content height, its `overflow-y-auto` never engages, and
+  the page scrolls instead.
+- **User impact:** The same swipe does two different things in the same room, and which one it
+  does changes as you switch tabs. Nothing on screen indicates which mode you are in. This is
+  the most likely source of the residual "weird" after F33 and F34, and it is the hardest to
+  describe precisely, which fits how it was reported.
+- **Fix:** Decide which model the room has and state it once, rather than letting it fall out
+  of the chain. The listing detail page already does this deliberately and documents why —
+  `app/listings/[id]/page.tsx:213` declares
+  `lg:h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))]` with a comment explaining that the
+  bound "has to be declared somewhere" because `min-h-dvh` is a floor. The contract room wants
+  the same treatment: a declared height at `lg` so the split panes scroll internally, and
+  auto-height below `lg` so the page scrolls and the panels do not — which also means dropping
+  the internal `overflow-y-auto` below `lg` rather than leaving a scroller that may or may not
+  engage. Verify on a device, and after **F20**: `dvh` currently ignores the keyboard, so any
+  declared height here is measured against a viewport that is wrong whenever the composer has
+  focus.

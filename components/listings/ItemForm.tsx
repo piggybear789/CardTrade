@@ -54,13 +54,66 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/** Collectible categories offered in the catalog. */
-const CATEGORIES = [
-  "Trading Cards",
-  "Coins",
-  "Stamps",
-  "Comics",
-  "Memorabilia",
+/** Fixed two-level collectible taxonomy. Managed by migration, not users. */
+const TAXONOMY = [
+  {
+    name: 'Trading Cards',
+    slug: 'trading-cards',
+    subcategories: [
+      { name: 'Pokémon', slug: 'pokemon' },
+      { name: 'Magic: The Gathering', slug: 'magic-the-gathering' },
+      { name: 'Yu-Gi-Oh!', slug: 'yu-gi-oh' },
+      { name: 'Sports Cards', slug: 'sports-cards' },
+      { name: 'Other TCG', slug: 'other-tcg' },
+    ],
+  },
+  {
+    name: 'Coins & Banknotes',
+    slug: 'coins-banknotes',
+    subcategories: [
+      { name: 'Coins', slug: 'coins' },
+      { name: 'Banknotes', slug: 'banknotes' },
+      { name: 'Tokens & Medals', slug: 'tokens-medals' },
+    ],
+  },
+  {
+    name: 'Stamps',
+    slug: 'stamps',
+    subcategories: [
+      { name: 'Australian', slug: 'stamps-australian' },
+      { name: 'International', slug: 'stamps-international' },
+      { name: 'First Day Covers', slug: 'first-day-covers' },
+    ],
+  },
+  {
+    name: 'Comics',
+    slug: 'comics',
+    subcategories: [
+      { name: 'Single Issues', slug: 'single-issues' },
+      { name: 'Graphic Novels', slug: 'graphic-novels' },
+      { name: 'Manga', slug: 'manga' },
+    ],
+  },
+  {
+    name: 'Memorabilia',
+    slug: 'memorabilia',
+    subcategories: [
+      { name: 'Sports', slug: 'memorabilia-sports' },
+      { name: 'Entertainment', slug: 'memorabilia-entertainment' },
+      { name: 'Historical', slug: 'memorabilia-historical' },
+      { name: 'Autographs', slug: 'autographs' },
+    ],
+  },
+  {
+    name: 'Figurines & Toys',
+    slug: 'figurines-toys',
+    subcategories: [
+      { name: 'Action Figures', slug: 'action-figures' },
+      { name: 'Model Kits', slug: 'model-kits' },
+      { name: 'Plush', slug: 'plush' },
+      { name: 'Vintage Toys', slug: 'vintage-toys' },
+    ],
+  },
 ] as const;
 
 /** Condition grades shown for a collectible, matching TCGplayer's standard scale. */
@@ -130,12 +183,45 @@ function centsToDollars(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/** Resolve the selected subcategory slug to its display name for the DB. */
+function subcategoryName(slug: string): string {
+  for (const group of TAXONOMY) {
+    for (const sub of group.subcategories) {
+      if (sub.slug === slug) return sub.name;
+    }
+  }
+  return slug;
+}
+
 export function ItemForm({ mode, item }: ItemFormProps) {
   const router = useRouter();
 
   const [title, setTitle] = React.useState(item?.title ?? "");
   const [description, setDescription] = React.useState(item?.description ?? "");
-  const [category, setCategory] = React.useState(item?.category ?? "");
+  const [category, setCategory] = React.useState(() => {
+    // In edit mode, infer the top-level category from the item's text category.
+    if (!item?.category) return "";
+    // Check if it matches a subcategory name directly
+    for (const group of TAXONOMY) {
+      for (const sub of group.subcategories) {
+        if (sub.name === item.category) return group.slug;
+      }
+    }
+    // Check if it matches a top-level name
+    for (const group of TAXONOMY) {
+      if (group.name === item.category) return group.slug;
+    }
+    return "";
+  });
+  const [subcategory, setSubcategory] = React.useState(() => {
+    if (!item?.category) return "";
+    for (const group of TAXONOMY) {
+      for (const sub of group.subcategories) {
+        if (sub.name === item.category) return sub.slug;
+      }
+    }
+    return "";
+  });
   const [condition, setCondition] = React.useState(item?.condition ?? "");
   const [fmvDollars, setFmvDollars] = React.useState(
     item ? centsToDollars(item.fmv_cents) : "",
@@ -197,6 +283,17 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       return;
     }
 
+    // Enforce subcategory selection (two-level taxonomy is required).
+    if (!subcategory) {
+      setError({
+        field: "category",
+        message: !category
+          ? "Select a category and subcategory."
+          : "Select a subcategory.",
+      });
+      return;
+    }
+
     // Client-side image-count guard (Req 3.3) with a friendly message.
     if (totalImages < IMAGES_MIN) {
       setError({
@@ -250,7 +347,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         const result = await createItem({
           title,
           description,
-          category,
+          category: subcategoryName(subcategory),
           condition,
           fmvCents,
           images: uploadedPaths,
@@ -271,7 +368,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         const result = await updateItem(item!.id, {
           title,
           description,
-          category,
+          category: subcategoryName(subcategory),
           condition,
           fmvCents,
           images,
@@ -539,18 +636,21 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : null}
             </div>
 
-            {/* Category + Condition */}
+            {/* Category + Subcategory + Condition */}
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select
                   value={category}
-                  onValueChange={(v) => setCategory(v)}
+                  onValueChange={(v) => {
+                    setCategory(v);
+                    setSubcategory("");
+                  }}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger
                     id="category"
-                    aria-invalid={categoryError ? true : undefined}
+                    aria-invalid={categoryError && !subcategory ? true : undefined}
                     aria-describedby={
                       categoryError ? "category-error" : undefined
                     }
@@ -558,9 +658,35 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
+                    {TAXONOMY.map((group) => (
+                      <SelectItem key={group.slug} value={group.slug}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subcategory">Subcategory</Label>
+                <Select
+                  value={subcategory}
+                  onValueChange={(v) => setSubcategory(v)}
+                  disabled={isSubmitting || !category}
+                >
+                  <SelectTrigger
+                    id="subcategory"
+                    aria-invalid={categoryError ? true : undefined}
+                    aria-describedby={
+                      categoryError ? "category-error" : undefined
+                    }
+                  >
+                    <SelectValue placeholder={category ? "Select a subcategory" : "Pick a category first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(TAXONOMY.find((g) => g.slug === category)?.subcategories ?? []).map((sub) => (
+                      <SelectItem key={sub.slug} value={sub.slug}>
+                        {sub.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -575,7 +701,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   </p>
                 ) : null}
               </div>
+            </div>
 
+            <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="condition">Condition</Label>
                 <Select

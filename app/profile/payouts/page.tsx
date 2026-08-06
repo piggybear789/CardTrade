@@ -62,16 +62,26 @@ export default async function PayoutsPage({
       <IdentityReturnRefresh />
 
       <div className="space-y-6">
-        {/* STEP ONE, ABOVE PAYOUT SETUP. Order is the explanation: identity unlocks
-            listing, selling and trading on its own, and payout setup only unlocks
-            receiving money. A member who reads top to bottom is never asked for bank
-            details before they have been asked who they are. */}
-        {identity.ok ? (
-          <IdentityCheckCard
-            status={identity.data.status}
-            verifiedName={identity.data.verifiedName}
-            returnPath="/profile/payouts"
-          />
+        {/* TWO-COLUMN GRID: Identity (step 1) on the left, Stripe Connect (step 2)
+            on the right. Both are compact cards in a grid so they share the row
+            without the Identity card consuming excessive vertical space. Order is
+            the explanation: identity unlocks listing, selling and trading on its own,
+            and payout setup only unlocks receiving money. A member who reads left to
+            right is never asked for bank details before they have been asked who they
+            are. */}
+        {identity.ok || (payoutContext.ok || result.ok) ? (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {identity.ok ? (
+              <IdentityCheckCard
+                status={identity.data.status}
+                verifiedName={identity.data.verifiedName}
+                returnPath="/profile/payouts"
+              />
+            ) : null}
+            {payoutContext.ok ? (
+              <PayoutOnboarding context={payoutContext.data} />
+            ) : null}
+          </div>
         ) : null}
 
         {/* Mock-only: drive the identity decision by hand, because MockService never
@@ -85,11 +95,6 @@ export default async function PayoutsPage({
           <PayoutsDashboard
             model={result.data.model}
             destination={result.data.destination}
-            connectSetup={
-              payoutContext.ok ? (
-                <PayoutOnboarding context={payoutContext.data} compact />
-              ) : undefined
-            }
             scope={scope}
           />
         ) : (

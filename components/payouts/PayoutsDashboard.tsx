@@ -17,7 +17,6 @@
 // Likewise a settled release is described as SENT, never as arrived or received:
 // once the provider has it, the timing belongs to the bank.
 
-import type { ReactNode } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -150,35 +149,23 @@ const DESTINATION_COPY: Record<
 export interface PayoutsDashboardProps {
   model: PayoutReadModel;
   destination: DestinationAccount;
-  /** Compact Stripe Connect status/setup card rendered in the top dashboard row. */
-  connectSetup?: ReactNode;
   /** Which slice of the Transfer_History to show. URL-driven via `?show=`. */
   scope: SectionScope;
 }
 
-export function PayoutsDashboard({ model, destination, connectSetup, scope }: PayoutsDashboardProps) {
+export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboardProps) {
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 xl:grid-cols-2">
-        <BalanceSummary model={model} />
-        {connectSetup ?? <DestinationAccountSummary destination={destination} compact />}
-      </div>
+      <BalanceSummary model={model} />
       <ActiveSalesSummary model={model} />
       {/* ONE payout destination card, not two.
           
-          The top-right slot already holds a Connect status card (`connectSetup`),
-          falling back to this same component when a caller has none. Rendering the
-          standalone section unconditionally as well meant that on the payouts page —
-          which always supplies `connectSetup` — a member saw the same fact twice, in
-          two vocabularies, with two buttons to the same Stripe flow: "Setup
-          required / Verify with Stripe" above, "Not started / Finish setup" below.
-          That is the shape of the 0060 bug, where "Verified Account" sat beside
-          "Payouts incomplete" because both were true of one row.
-
-          It earns its place only once VERIFIED, because that is the only state where
-          it reports something the Connect card cannot: `verifiedName`, the actual
-          account the money lands in. Before then "where your money goes" has no
-          answer, and the Connect card is the one with the action. */}
+          The Identity and Connect cards now live side-by-side in the page-level
+          grid above this dashboard. The standalone destination section earns its
+          place only once VERIFIED, because that is the only state where it reports
+          something the setup card cannot: `verifiedName`, the actual account the
+          money lands in. Before then "where your money goes" has no answer, and
+          the Connect card in the grid above is the one with the action. */}
       {destination.state === 'VERIFIED' ? (
         <DestinationAccountSummary destination={destination} />
       ) : null}

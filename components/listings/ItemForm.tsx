@@ -511,7 +511,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         <CardContent className="grid gap-8 lg:contents">
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
-          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:bg-muted/20 lg:p-8">
+          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:flex-col lg:bg-muted/20 lg:p-8">
             <Label htmlFor="images">Photos</Label>
             <p className="text-sm text-muted-foreground">
               Add {IMAGES_MIN}–{IMAGES_MAX} photos. {totalImages} selected.
@@ -523,7 +523,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className="flex max-h-[420px] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`flex min-h-[320px] w-full flex-1 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50${coverUrl ? ' max-h-[420px]' : ''}`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (

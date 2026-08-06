@@ -198,7 +198,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
         <h3 id="balance-heading" className="sr-only">
           Releasing now
         </h3>
-        <Card className="h-full bg-background">
+        <Card className="h-full">
           <CardHeader className="pb-3">
             <CardDescription>Releasing now</CardDescription>
             <CardTitle className="text-4xl tabular-nums">{formatAud(0)}</CardTitle>
@@ -222,15 +222,14 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
         Releasing now
       </h3>
 
-      <Card className="h-full bg-background">
+      <Card className="h-full">
         <CardHeader className="pb-3">
           <CardDescription>Releasing now</CardDescription>
           <CardTitle className="text-3xl tabular-nums">
             {formatAud(model.releasingNowCents)}
           </CardTitle>
           <CardDescription>
-            Owed to you and already queued. Released automatically — there is
-            nothing for you to click.
+            Queued and released automatically.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -243,8 +242,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
                 {formatAud(model.upcomingProceedsCents)}
               </dd>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Buyer has paid and we are holding it. Becomes releasable when they
-                accept the item or the inspection window closes.
+                Held until the buyer accepts or inspection closes.
               </p>
             </div>
             {model.atRiskProceedsCents > 0 ? (
@@ -264,10 +262,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
           </dl>
 
           <p className="text-xs text-muted-foreground">
-            Every figure is what you receive, after the 5% platform fee on the
-            agreed item price. Shipping is passed straight through to the carrier
-            and is not revenue. Amounts count only money already collected from a
-            buyer.
+            All figures are net of the 5% platform fee. Shipping is a pass-through.
           </p>
 
           {model.hasBlockedRelease ? (

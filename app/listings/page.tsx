@@ -158,8 +158,6 @@ export default async function ListingsPage({
     min: minDollars,
     max: maxDollars,
     includeSold,
-    regionCode: region.code,
-    regionSource: region.source,
   };
   const hasAnyFilter =
     q !== '' ||

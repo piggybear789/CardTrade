@@ -29,23 +29,6 @@ import { Slider } from '@/components/ui/slider';
 import { CURRENCY_CODE, CURRENCY_LOCALE } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { CatalogSort } from '@/lib/actions/listings';
-import {
-  isGuessedRegionSource,
-  REGIONS,
-  type RegionSource,
-} from '@/domain/region';
-import { setBrowseRegion } from '@/lib/actions/region';
-
-/**
- * The `?region=` value meaning "every region".
- *
- * Duplicated from `lib/location/resolveRegion.ts` rather than imported: that module
- * is `server-only` (it reads request headers and cookies) and this is a client
- * component, so importing it would pull a server module into the browser bundle.
- * It is a one-word URL token, and both sides are covered by
- * `tests/unit/regionResolution.test.ts`.
- */
-const ALL_REGIONS_PARAM = 'all';
 
 const SORT_LABELS: Record<CatalogSort, string> = {
   newest: 'Recently Listed',
@@ -104,14 +87,6 @@ export interface CatalogFilterState {
   max: string;
   /** Include sold items in results. */
   includeSold: boolean;
-  /** Active region scope (0065), or null for every region. */
-  regionCode: string | null;
-  /**
-   * How the region was arrived at. Drives whether the control explains itself: a
-   * scope the visitor never chose has to be stated, or a filtered catalog reads as
-   * an empty marketplace.
-   */
-  regionSource: RegionSource;
 }
 
 /** Merge URL updates, remove blank values, and reset the result page. */
@@ -144,68 +119,6 @@ function useCatalogNav() {
   }, [pathname, router]);
 
   return { isPending, pushWith, reset };
-}
-
-/**
- * Region scope control.
- *
- * Renders every known region, not just the tradeable ones: a member can look at a
- * region that is not open yet, they just cannot open a contract there. The option
- * labels say so, because "United Kingdom" in a picker with no caveat implies a
- * working market behind it.
- */
-function RegionScopeField({
-  value,
-  source,
-  disabled,
-  onChange,
-}: {
-  value: string | null;
-  source: RegionSource;
-  disabled: boolean;
-  onChange: (next: string) => void;
-}) {
-  // Only worth explaining when the visitor did not pick it. An explicit choice
-  // (`param`, `cookie`) or their own profile region needs no justification, and a
-  // permanent note beside a deliberate setting is noise.
-  const note = !isGuessedRegionSource(source)
-    ? null
-    : source === 'geo'
-      ? 'Set from your location. Change it any time.'
-      : 'Our default. Change it to browse elsewhere.';
-
-  return (
-    <div>
-      <label
-        htmlFor="catalog-region"
-        className="market-label mb-2 block text-muted-foreground"
-      >
-        Region
-      </label>
-      <Select
-        value={value ?? ALL_REGIONS_PARAM}
-        onValueChange={onChange}
-        disabled={disabled}
-      >
-        <SelectTrigger id="catalog-region" className="w-full">
-          <SelectValue placeholder="Choose a region" />
-        </SelectTrigger>
-        <SelectContent>
-          {REGIONS.map((region) => (
-            <SelectItem key={region.code} value={region.code}>
-              {region.label}
-              {region.tradingEnabled ? '' : ' — browse only'}
-            </SelectItem>
-          ))}
-          <SelectItem value={ALL_REGIONS_PARAM}>All regions</SelectItem>
-        </SelectContent>
-      </Select>
-      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-        {note ? `${note} ` : ''}
-        Deals are completed within one region, so postage and payouts stay local.
-      </p>
-    </div>
-  );
 }
 
 export interface CatalogFiltersProps {
@@ -362,32 +275,6 @@ export function CatalogFilters({
             </button>
           ) : null}
         </div>
-
-        {/*
-          Region sits above everything else because it is the broadest scope and,
-          unlike every other control here, it is ALWAYS applied — including on a
-          first visit where it was guessed rather than chosen. Hiding it would leave
-          a member widening the price range to explain a result set that a silent
-          country filter produced.
-        */}
-        <RegionScopeField
-          value={current.regionCode}
-          source={current.regionSource}
-          disabled={isPending}
-          onChange={(next) => {
-            // Two writes, and both are needed. The URL param scopes THIS page and
-            // keeps the view shareable; the cookie is what makes the choice survive
-            // navigating somewhere that carries no param — the homepage, or a link
-            // out of the burger menu. Without the cookie an anonymous visitor's
-            // choice would silently revert to the IP guess on the next page.
-            //
-            // Fire-and-forget: the cookie is a preference, and the visible result of
-            // the click is the URL push. Blocking the navigation on it would add a
-            // round trip to a control that has already been actioned.
-            void setBrowseRegion(next === ALL_REGIONS_PARAM ? null : next);
-            pushWith({ region: next });
-          }}
-        />
 
         {facets.categories.length > 0 ? (
           <fieldset className="border-t border-border/70 pt-5">

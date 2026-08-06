@@ -340,6 +340,7 @@ export async function submitMerchantOnboarding(
     profileId: user.id,
     buyerDisclosureConsent: details.buyerDisclosureConsent,
     details: {
+      profileId: user.id,
       businessEmail,
       tradingName: details.tradingName,
       legalEntityName: (profile?.display_name as string | null) ?? undefined,

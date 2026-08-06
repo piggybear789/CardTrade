@@ -1,21 +1,21 @@
-﻿// components/arbitration/ArbitrationCaseView.tsx
+// components/arbitration/ArbitrationCaseView.tsx
 //
 // One arbitration case, with everything needed to decide it and nothing else.
 //
-// WHY A COMPONENT AND NOT A PAGE BODY. Every other detail surface in the workspace â€”
-// `/trades/[id]`, `/sales/[id]`, `/deals/[id]`, `/messages/[id]` â€” keeps its route file
+// WHY A COMPONENT AND NOT A PAGE BODY. Every other detail surface in the workspace —
+// `/trades/[id]`, `/sales/[id]`, `/deals/[id]`, `/messages/[id]` — keeps its route file
 // thin (auth, fetch, redirect) and hands the whole room to a component. This started
 // life inlined in the route, which made the arbitration route the only detail page
 // shaped differently from the rest.
 //
 // LAYOUT REFLECTS THE ORDER OF WORK: what is claimed, who is affected and what each
-// stands to lose, what the record shows, what staff have already noted â€” and only then
+// stands to lose, what the record shows, what staff have already noted — and only then
 // the controls that move money. Putting the buttons last is not decoration; the outcome
 // is irreversible, so the evidence should be behind the arbitrator's eyes before the
 // button is under their cursor.
 //
 // HEADING LEVELS. MarketplaceShell owns the <h1> and SectionHeader the <h2>, so the
-// sections here are <h3> â€” matching PayoutsDashboard. They were <h2> when inlined,
+// sections here are <h3> — matching PayoutsDashboard. They were <h2> when inlined,
 // which put them at the same level as the page title they sit underneath.
 
 import Link from 'next/link';
@@ -91,7 +91,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         >
           <Clock className="size-3.5 shrink-0" aria-hidden />
           Raised {c.openedAt ? formatRelativeTime(c.openedAt) : 'at an unrecorded time'}
-          {overdue ? ` Â· over ${ARBITRATION_SLA_HOURS}h old` : ''}
+          {overdue ? ` · over ${ARBITRATION_SLA_HOURS}h old` : ''}
         </span>
         {c.hasHardDeadline && c.hoursToDeadline !== null ? (
           <span
@@ -207,7 +207,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         )}
       </section>
 
-      {/* 4. Internal notes. Staff-only and append-only â€” see the composer. */}
+      {/* 4. Internal notes. Staff-only and append-only — see the composer. */}
       <section aria-labelledby="notes-heading" className="mb-8">
         <h3 id="notes-heading" className="mb-3 text-xl font-semibold">
           Internal notes
@@ -229,7 +229,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 <li key={note.id} className="rounded-lg border bg-card p-3">
                   <p className="whitespace-pre-line break-words text-sm">{note.body}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {note.authorName} Â· {formatRelativeTime(note.createdAt)}
+                    {note.authorName} · {formatRelativeTime(note.createdAt)}
                   </p>
                 </li>
               ))}
@@ -284,7 +284,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         ) : (
           // A chargeback is decided by the cardholder's bank, not by us. Pretending
           // otherwise with a resolve button would be a lie about who holds the
-          // outcome â€” the only thing staff can do here is submit evidence in the
+          // outcome — the only thing staff can do here is submit evidence in the
           // provider dashboard before the deadline, and record what they sent.
           //
           // This panel carries the provider ref and the dashboard link because
@@ -294,7 +294,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             <p className="font-medium">This one is not ours to decide.</p>
             <p className="text-muted-foreground">
               The cardholder&apos;s bank rules on a chargeback. Submit evidence in the
-              Stripe dashboard, then note here what was sent â€” missing the deadline
+              Stripe dashboard, then note here what was sent — missing the deadline
               forfeits the amount automatically, with no appeal.
             </p>
 
@@ -318,7 +318,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   <dd className="inline">
                     {resolution.outcome}
                     {resolution.outcome === 'lost'
-                      ? ' â€” the platform absorbed this amount'
+                      ? ' — the platform absorbed this amount'
                       : ''}
                   </dd>
                 </div>

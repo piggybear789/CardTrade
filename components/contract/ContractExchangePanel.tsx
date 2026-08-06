@@ -1,8 +1,8 @@
-﻿'use client';
+'use client';
 
 // components/contract/ContractExchangePanel.tsx
 //
-// WHAT IS BEING EXCHANGED â€” one component for all three shapes a contract takes:
+// WHAT IS BEING EXCHANGED — one component for all three shapes a contract takes:
 //
 //   * Cash sale: one side (the item), money on the other.
 //   * 2-way trade: goods â‡„ goods, either side possibly several items, plus a cash
@@ -61,7 +61,7 @@ export interface ContractExchangeSide {
   feeCents?: number | null;
   /** Override the fee line's copy. */
   feeLabel?: string;
-  /** Edit control â€” only rendered for the side the viewer owns. */
+  /** Edit control — only rendered for the side the viewer owns. */
   action?: ReactNode;
   /** Emphasise the viewer's own side. */
   isMine?: boolean;
@@ -87,19 +87,19 @@ function SideColumn({
    * Decided by the PANEL, not by this column, so both ledgers gain or lose the row
    * together. Per-side it went ragged: a three-line side would total while a
    * one-line side opposite it did not, and the two columns of figures stopped
-   * lining up â€” which is the one thing an accounting layout has to get right.
+   * lining up — which is the one thing an accounting layout has to get right.
    */
   showTotal?: boolean;
   /**
    * Give the single item an image-left / details-right layout instead of a list
-   * row. Set only for a one-sided, non-compact contract with exactly one item â€”
+   * row. Set only for a one-sided, non-compact contract with exactly one item —
    * i.e. a cash sale in the full inspector, where the item IS the subject of the
    * panel and there is height to spend on it.
    */
   showcase?: boolean;
 }) {
   // Cash is part of what this side GIVES, so it is a line in the ledger and it
-  // counts towards the total â€” not a note floating beside it. Summing goods and
+  // counts towards the total — not a note floating beside it. Summing goods and
   // cash together is also what makes the swap legible: $1,110 of card plus $150 of
   // cash against $1,260 of card is only obviously fair when both columns add up.
   const goodsCents = side.items.reduce((sum, item) => sum + (item.valueCents ?? 0), 0);
@@ -122,7 +122,7 @@ function SideColumn({
         {side.badge ? <div className="shrink-0">{side.badge}</div> : null}
         {/* Unframed. The trust line used to be a bordered, shadowed, width-capped
             chip, which made it read as a second panel competing with the item rows
-            beneath it â€” two nested containers where the section already provides
+            beneath it — two nested containers where the section already provides
             one. Plain text beside the name sits in the same visual layer as
             everything else in the panel. */}
         {!compact && side.party ? (
@@ -151,7 +151,7 @@ function SideColumn({
 
       {side.items.length > 0 ? (
         showcase ? (
-          /* SHOWCASE LAYOUT â€” one side, one item, full inspector height available.
+          /* SHOWCASE LAYOUT — one side, one item, full inspector height available.
              Mirrors the listing detail page: artwork left, facts right. The row
              layout below is right for a trade (two sides, possibly several items
              each) but wrong here, because it rendered the item under contract as a
@@ -180,7 +180,7 @@ function SideColumn({
                 ) : null}
                 {/* The description belongs in THIS column, beside the artwork, not in
                     a full-width band under it. Rendered here rather than by the shared
-                    note block below â€” a two-column layout whose second column stops
+                    note block below — a two-column layout whose second column stops
                     after the price, with the prose spanning underneath, is not a
                     two-column layout; it just makes the image look stranded. */}
                 {side.note?.trim() ? (
@@ -219,7 +219,7 @@ function SideColumn({
 
             {/* Cash as a ledger line, aligned to the item rows above it. The
                 thumbnail column is held open with a spacer so the titles and the
-                amounts stay on the same two axes â€” an amount that does not line up
+                amounts stay on the same two axes — an amount that does not line up
                 with the amounts above it reads as a different kind of fact. */}
             {!compact && cashCents > 0 ? (
               <li className="flex items-center gap-2.5">
@@ -307,7 +307,7 @@ export function ContractExchangePanel({
   // wants the showcase treatment.
   const showcase = !compact && !twoSided && sides[0]?.items.length === 1;
 
-  // The Total row appears only when there is something to add up â€” i.e. when some
+  // The Total row appears only when there is something to add up — i.e. when some
   // side contributes more than one line (goods, or goods plus cash). A single item
   // against a single item needs no total: the figure would just restate the row
   // above it. Evaluated across BOTH sides so the two ledgers stay symmetric.

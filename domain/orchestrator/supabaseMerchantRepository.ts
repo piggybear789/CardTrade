@@ -122,7 +122,19 @@ export function createSupabaseMerchantRepository(
       if (update.submittedAt !== undefined) patch.merchant_submitted_at = update.submittedAt;
       if (update.decisionAt !== undefined) patch.merchant_decision_at = update.decisionAt;
 
-      await client.from('profiles').update(patch).eq('id', update.profileId);
+      const { error } = await client.from('profiles').update(patch).eq('id', update.profileId);
+      // Loudly, on purpose. This write is what remembers a provider account that
+      // has ALREADY been created, so discarding the error (as this did) reports
+      // successful onboarding while leaving a live connected account with no
+      // reference to it anywhere. The account cannot then be reached or recreated,
+      // and the Member is stuck. A throw here surfaces as SUBMISSION_FAILED with
+      // the reference in the detail, which is recoverable.
+      if (error) {
+        throw new Error(
+          `Failed to persist merchant state for profile ${update.profileId}` +
+            `${update.merchantRef ? ` (merchantRef ${update.merchantRef})` : ''}: ${error.message}`,
+        );
+      }
     },
 
     async findProfileIdByMerchantRef(merchantRef: string): Promise<string | null> {

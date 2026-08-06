@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // components/trade/TradeNegotiationPanel.tsx
 //
@@ -12,7 +12,7 @@
 // the terms on the table, who has accepted them, the chat, and Accept / Counter /
 // Decline all sit in one place.
 //
-// The controls offered are decided by `availableActions`, not by this component â€”
+// The controls offered are decided by `availableActions`, not by this component —
 // the same rule ActionBar follows.
 
 import { useState, useTransition } from 'react';
@@ -182,7 +182,7 @@ export function TradeNegotiationPanel({
   return (
     <>
       {/* Controls only. The terms themselves, the version and each side's
-          acceptance all live in the room's detail rows and progress rail â€” showing
+          acceptance all live in the room's detail rows and progress rail — showing
           them again here made the action card a summary with buttons attached
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}

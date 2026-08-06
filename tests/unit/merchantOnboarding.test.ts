@@ -22,6 +22,7 @@ import type { ManagedMerchant, ManagedMerchantDetails, PaymentService } from '@/
 // verifies the bank account, government registration, date of birth and address
 // on its own pages, so none of it is submitted from here.
 const DETAILS: ManagedMerchantDetails = {
+  profileId: 'profile-1',
   businessEmail: 'jane@example.com',
   tradingName: 'Jane Collector',
   legalEntityName: 'Jane Collector',

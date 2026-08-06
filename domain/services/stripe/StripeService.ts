@@ -30,6 +30,8 @@
 // guard sits on the Supabase repository files instead. Credentials stay server
 // side because `config.ts` only ever reads `process.env`, and nothing under
 // `components/**` imports this module.
+import { createHash } from 'node:crypto';
+
 import type Stripe from 'stripe';
 
 import type {
@@ -627,43 +629,49 @@ export class StripeService implements PaymentService, PayerService {
    * collecting them; nothing here reads, persists, or logs them.
    */
   async createManagedMerchant(details: ManagedMerchantDetails): Promise<ManagedMerchant> {
-    const account = await this.stripe.v2.core.accounts.create(
-      {
-        contact_email: details.businessEmail,
-        display_name: details.tradingName || details.legalEntityName,
-        dashboard: 'express',
-        // RECIPIENT only — the account receives funds but is never merchant of
-        // record. Requesting a `merchant` configuration would drag the Seller
-        // through far heavier onboarding for a capability they never use.
-        configuration: {
-          recipient: {
-            capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
-          },
-        },
-        defaults: {
-          currency: this.opts.config.currency,
-          // Platform collects fees and carries negative-balance liability, which
-          // separate charges and transfers requires.
-          responsibilities: {
-            fees_collector: 'application',
-            losses_collector: 'application',
-          },
-        },
-        identity: { country: 'au', entity_type: 'individual' },
-        include: [
-          'identity',
-          'configuration.recipient',
-          'requirements',
-        ],
-        metadata: {
-          ...(details.legalEntityName
-            ? { cardtrade_stated_name: details.legalEntityName }
-            : {}),
-          ...(details.tradingName ? { cardtrade_trading_name: details.tradingName } : {}),
+    const body: Stripe.V2.Core.AccountCreateParams = {
+      contact_email: details.businessEmail,
+      display_name: details.tradingName || details.legalEntityName,
+      dashboard: 'express',
+      // RECIPIENT only — the account receives funds but is never merchant of
+      // record. Requesting a `merchant` configuration would drag the Seller
+      // through far heavier onboarding for a capability they never use.
+      configuration: {
+        recipient: {
+          capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
         },
       },
-      { idempotencyKey: `merchant:${details.businessEmail}` },
-    );
+      defaults: {
+        currency: this.opts.config.currency,
+        // Platform collects fees and carries negative-balance liability, which
+        // separate charges and transfers requires.
+        responsibilities: {
+          fees_collector: 'application',
+          losses_collector: 'application',
+        },
+      },
+      identity: { country: 'au', entity_type: 'individual' },
+      include: ['identity', 'configuration.recipient', 'requirements'],
+      metadata: {
+        // Stamped so an account whose reference we failed to persist can still be
+        // traced back to the Profile that opened it. Without it an orphaned
+        // account is only identifiable by an email address.
+        cardtrade_profile_id: details.profileId,
+        ...(details.legalEntityName ? { cardtrade_stated_name: details.legalEntityName } : {}),
+        ...(details.tradingName ? { cardtrade_trading_name: details.tradingName } : {}),
+      },
+    };
+
+    // Keyed on the Profile AND a fingerprint of the request, because Stripe binds
+    // a key to the exact body it first saw and rejects any reuse with a different
+    // one. A retry of the identical request still replays — which is the whole
+    // point of the key — but a changed body (a new display name, or an edit to
+    // this call) takes a new key instead of deadlocking onboarding until the old
+    // key expires. Scoping to `profileId` rather than the email also means a
+    // recreated Profile is a new subject rather than a collision with a dead one.
+    const account = await this.stripe.v2.core.accounts.create(body, {
+      idempotencyKey: `merchant:${details.profileId}:${fingerprint(body)}`,
+    });
 
     return fromV2Account(account);
   }
@@ -771,6 +779,22 @@ export class StripeService implements PaymentService, PayerService {
 // is Stripe's own onboarding requirement, evaluated inside Connect — reimplementing it
 // from a date of birth would mean reading and holding a birthdate this integration
 // deliberately never persists.
+
+/**
+ * A short, stable digest of a request body, for use as part of an idempotency key.
+ *
+ * Key order is normalised so a body that is semantically identical produces the
+ * same digest regardless of how it was assembled. It carries no secrets: the
+ * bodies fingerprinted here hold a Profile id, an email and display names.
+ */
+function fingerprint(body: unknown): string {
+  const canonical = JSON.stringify(body, (_key, value) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value as Record<string, unknown>).sort())
+      : value,
+  );
+  return createHash('sha256').update(canonical, 'utf8').digest('hex').slice(0, 16);
+}
 
 /** The shape we read off a v2 Account, narrowed to what this module needs. */
 interface V2AccountLike {

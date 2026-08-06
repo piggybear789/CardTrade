@@ -1,4 +1,4 @@
-﻿// app/admin/page.tsx
+// app/admin/page.tsx
 //
 // The operations console. One tab per queue, admin-gated.
 //
@@ -14,7 +14,7 @@
 //                       own; you are unsticking them.
 //
 // THIS PAGE USED TO BREAK THAT RULE. It listed disputed sales, disputed trades, disputed
-// deals and chargebacks â€” all four record types the arbitration workspace owns â€” so the
+// deals and chargebacks — all four record types the arbitration workspace owns — so the
 // same records appeared on two surfaces with different controls. That is not a
 // distinction anyone could infer, because there wasn't one. Those sections are gone;
 // what remains is what this page uniquely owns.
@@ -23,7 +23,7 @@
 // counterparty and no money, a payout has no claimant, a reconciliation flag has neither
 // a reason nor an amount. A single table over all three is mostly empty cells, and the
 // per-row action differs every time. Tabs also let the page fetch only the rows it is
-// about to show â€” it previously ran seven full table reads on every visit regardless.
+// about to show — it previously ran seven full table reads on every visit regardless.
 //
 // Authorization: the caller's own `is_admin` via the cookie-bound client (RLS scopes it
 // to `auth.uid()`), then the SERVICE-ROLE client for cross-user reads, because an admin
@@ -59,10 +59,10 @@ import {
 import type { Tables } from '@/lib/supabase/database.types';
 
 export const metadata = {
-  title: 'Operations Â· NoDitto',
+  title: 'Operations · NoDitto',
 };
 
-// Reads the caller's session + live queue state â€” never prerender.
+// Reads the caller's session + live queue state — never prerender.
 export const dynamic = 'force-dynamic';
 
 type ReportRow = Tables<'reports'>;
@@ -310,7 +310,7 @@ export default async function AdminPage({
           </div>
 
           <p className="mb-4 text-sm text-muted-foreground">
-            Money the platform is holding that already belongs to a seller â€” the owner is
+            Money the platform is holding that already belongs to a seller — the owner is
             settled and only the transfer is outstanding. An hourly job drains this on its
             own; anything sitting here is stuck.
           </p>
@@ -345,7 +345,7 @@ export default async function AdminPage({
                           </span>
                         </div>
                         <CardDescription className="break-words">
-                          {sale.item_title} Â· paid by {nameFor(sale.buyer_id)} Â·{' '}
+                          {sale.item_title} · paid by {nameFor(sale.buyer_id)} ·{' '}
                           <Link
                             href={`/sales/${sale.id}`}
                             className="underline underline-offset-2 hover:text-foreground"
@@ -440,7 +440,7 @@ export default async function AdminPage({
                           </span>
                         </div>
                         <CardDescription className="break-words">
-                          Reported by {nameFor(report.reporter_id)} Â·{' '}
+                          Reported by {nameFor(report.reporter_id)} ·{' '}
                           <Link
                             href={targetHref}
                             className="underline underline-offset-2 hover:text-foreground"

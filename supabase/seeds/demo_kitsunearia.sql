@@ -1,4 +1,4 @@
-﻿-- supabase/seeds/demo_kitsunearia.sql
+-- supabase/seeds/demo_kitsunearia.sql
 --
 -- Demo fixtures for kitsunearia@gmail.com: one completed Cash_Sale with a Seller
 -- release still owed, and one live Deal room.
@@ -11,7 +11,7 @@
 --
 -- PROVIDER REFS ARE FAKE. Nothing here touches Stripe. `pi_demo_*` / `mch_demo_*`
 -- are placeholders so the rows render, which means:
---   * "Retry release" WILL fail against the real API â€” that is honest behaviour
+--   * "Retry release" WILL fail against the real API — that is honest behaviour
 --     for a fake reference, and it exercises the error path.
 --   * Do not use these fixtures to conclude anything about live payment behaviour.
 --     scripts/smoke-stripe-test.ts is the tool for that.

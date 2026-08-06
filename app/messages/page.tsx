@@ -1,4 +1,4 @@
-﻿// app/messages/page.tsx
+// app/messages/page.tsx
 //
 // The Messages inbox (Phase 2). A Server Component that requires an
 // authenticated user and lists their conversations (newest activity first) via
@@ -26,7 +26,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Messages Â· NoDitto',
+  title: 'Messages · NoDitto',
   description: 'Your buyer and seller conversations.',
 };
 
@@ -55,7 +55,7 @@ export default async function MessagesPage() {
               {conversations.length === 1
                 ? '1 conversation'
                 : `${conversations.length} conversations`}
-              {unreadTotal > 0 ? ` Â· ${unreadTotal} unread` : ''}
+              {unreadTotal > 0 ? ` · ${unreadTotal} unread` : ''}
             </>
           }
         />

@@ -1,4 +1,4 @@
-﻿'use server';
+'use server';
 
 // lib/actions/admin.ts
 //
@@ -42,10 +42,10 @@ import type { Enums } from '@/lib/supabase/database.types';
 
 /**
  * Admin action error codes.
- * - `not-authenticated` â€” no signed-in user.
- * - `not-authorized`    â€” the caller is not an admin.
- * - `not-found`         â€” the target row does not exist.
- * - `persistence-error` â€” the database write failed.
+ * - `not-authenticated` — no signed-in user.
+ * - `not-authorized`    — the caller is not an admin.
+ * - `not-found`         — the target row does not exist.
+ * - `persistence-error` — the database write failed.
  */
 export type AdminActionError =
   | 'not-authenticated'
@@ -261,7 +261,7 @@ export async function retryCashSalePayout(
  *
  * WHY `requireStaff` AND NOT `requireAdmin`. Deciding a dispute is the support
  * worker's job. Gating it on `is_admin` would mean every arbitrator also carried the
- * power to hide listings, action community reports and drain the payout queue â€” a
+ * power to hide listings, action community reports and drain the payout queue — a
  * blast radius earned by needing one capability. An admin still passes this gate; a
  * support worker passes it without inheriting moderation.
  *
@@ -295,7 +295,7 @@ export async function resolveCashSaleDispute(
         : result.error === 'NOTHING_TO_REFUND'
           ? 'No funds were ever collected for this sale, so there is nothing to refund.'
           : result.error === 'REFUND_FAILED'
-            ? 'The provider rejected the refund. The sale is still disputed â€” you can retry.'
+            ? 'The provider rejected the refund. The sale is still disputed — you can retry.'
             : result.error === 'INVALID_STATE'
               ? `This sale is ${result.detail ?? 'not disputed'}, so it cannot be resolved.`
               : (result.detail ?? 'The dispute could not be resolved.');
@@ -331,7 +331,7 @@ export async function resolveCashSaleDispute(
  *
  * Staff-gated because it used to be participant-gated: `resolveDispute` in
  * `lib/actions/trades.ts` let either party trigger a capture against the other. The
- * point of moving it was that a party must not decide their own case â€” not that only
+ * point of moving it was that a party must not decide their own case — not that only
  * an administrator may decide it.
  */
 export async function resolveTradeConditionDispute(
@@ -370,7 +370,7 @@ export async function resolveTradeConditionDispute(
  *
  * THE VICTIM IS AN ARGUMENT, and that is the entire point of this function existing.
  * `reportObjectiveFraud` previously inferred the victim from its caller, and its
- * caller was any participant â€” so a trader could name themselves the victim and take
+ * caller was any participant — so a trader could name themselves the victim and take
  * the counterparty's 100%-of-FMV collateral with no review, no evidence, and no
  * chance for the accused to answer. A participant can now only CLAIM fraud
  * (`reportFraud`), which freezes the trade; an operator decides who was defrauded.
@@ -465,7 +465,7 @@ const COLLECTED_SALE_STATUSES = [
  * Reconcile what the platform owes members against what the provider says it holds.
  *
  * THE ONE CHECK THAT IS NOT CIRCULAR. Every other money figure on this console is
- * derived from `cash_sales` â€” a statement about our own belief. This is the only one
+ * derived from `cash_sales` — a statement about our own belief. This is the only one
  * that asks the provider, and it is therefore the only one that can detect a chargeback,
  * a provider fee, or an automatic payout quietly draining the balance members' funds sit
  * in. None of those write a row.
@@ -498,7 +498,7 @@ export async function getCustodyPosition(): Promise<AdminActionResult<CustodyRep
     const refundSettled = row.refund_status === 'SETTLED';
     const settledRefundCents = refundSettled ? Number(row.refund_cents ?? 0) : 0;
     // Nothing further is held once the Seller has been released, or once a refund has
-    // returned the whole collected amount. Anything else â€” including a FAILED release â€”
+    // returned the whole collected amount. Anything else — including a FAILED release —
     // is still the platform's to hold and therefore still owed.
     const fullyDisbursed =
       row.seller_payout_status === 'SETTLED' ||

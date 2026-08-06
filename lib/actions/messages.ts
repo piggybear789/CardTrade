@@ -1,4 +1,4 @@
-﻿'use server';
+'use server';
 
 // lib/actions/messages.ts
 //
@@ -509,7 +509,7 @@ export async function sendMessage(
     userId: recipientId,
     type: 'MESSAGE',
     title: 'New message',
-    body: trimmed.length > 120 ? `${trimmed.slice(0, 117)}â€¦` : trimmed,
+    body: trimmed.length > 120 ? `${trimmed.slice(0, 117)}…` : trimmed,
     link: `/messages/${conversationId}`,
   });
 

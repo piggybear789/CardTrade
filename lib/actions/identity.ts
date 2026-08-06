@@ -1,4 +1,4 @@
-﻿'use server';
+'use server';
 
 // lib/actions/identity.ts
 //
@@ -11,7 +11,7 @@
 //
 // WHY THE SOURCE CHANGE IS SAFE. `merchant_legal_entity_name` is written only by
 // `applyComplianceUpdate`, from `identity.individual.given_name` + `surname` as
-// Stripe reports them for the connected account â€” never from anything a Member
+// Stripe reports them for the connected account — never from anything a Member
 // typed. It is also written monotonically, absent to present, so a later provider
 // report cannot blank a name already disclosed to a counterparty.
 //
@@ -23,7 +23,7 @@
 //
 // DISCLOSURE IS STILL STAGED. Public surfaces read `public_profiles`, which exposes
 // a given name and a badge only. The FULL legal name is released here, and only to
-// someone already transacting with that Member â€” never from a listing or profile
+// someone already transacting with that Member — never from a listing or profile
 // page.
 
 import { createClient } from '@/lib/supabase/server';

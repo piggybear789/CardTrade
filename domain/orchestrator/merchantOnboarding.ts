@@ -324,18 +324,32 @@ export async function submitMerchantOnboarding(
     identityVerifiedAt: merchantStatus === 'APPROVED' ? submittedAt : null,
   };
 
-  await repository.updateMerchant({
-    profileId: params.profileId,
-    merchantRef: merchant.merchantRef,
-    merchantStatus,
-    complianceStatus: merchant.complianceStatus,
-    liveEnabled: merchant.liveEnabled,
-    transactionsEnabled: merchant.transactionsEnabled,
-    settlementsEnabled: merchant.settlementsEnabled,
-    notes: merchant.notes ?? null,
-    submittedAt,
-    ...identity,
-  });
+  // The account now EXISTS at the provider, so a failure to persist its reference
+  // orphans it: nothing can reach it again and nothing can legitimately replace
+  // it. Report that as a failure carrying the reference rather than returning
+  // `ok` over a row that never recorded it.
+  try {
+    await repository.updateMerchant({
+      profileId: params.profileId,
+      merchantRef: merchant.merchantRef,
+      merchantStatus,
+      complianceStatus: merchant.complianceStatus,
+      liveEnabled: merchant.liveEnabled,
+      transactionsEnabled: merchant.transactionsEnabled,
+      settlementsEnabled: merchant.settlementsEnabled,
+      notes: merchant.notes ?? null,
+      submittedAt,
+      ...identity,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: 'SUBMISSION_FAILED',
+      detail:
+        `Created provider account ${merchant.merchantRef} but could not record it: ` +
+        `${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 
   return {
     ok: true,

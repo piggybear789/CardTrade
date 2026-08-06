@@ -1,8 +1,8 @@
-﻿// lib/marketplace-constants.ts
+// lib/marketplace-constants.ts
 //
 // Plain (non-'use server') shared constants for marketplace features. These live
 // outside the Server Action modules because a "use server" file may ONLY export
-// async functions â€” exporting runtime constants from one is a Next.js error.
+// async functions — exporting runtime constants from one is a Next.js error.
 // Both server actions and client components import these values from here.
 
 /** Inclusive bounds for an offer amount, in integer AUD cents. */
@@ -40,7 +40,7 @@ export const DEAL_CASH_MAX = 99_999_999_999;
  * Collateral fallback for the binding-contract (escrow) step, in integer AUD
  * cents. When a deal specifies neither `collateral_cents` nor a
  * `cash_amount_cents` to size the hold from, each party is held for this
- * default ($100) â€” enough to be a meaningful commitment for a pure swap while
+ * default ($100) — enough to be a meaningful commitment for a pure swap while
  * staying predictable for the parties.
  */
 export const DEAL_DEFAULT_COLLATERAL_CENTS = 10_000;
@@ -54,7 +54,7 @@ export const DEAL_REASON_MAX = 500;
 
 /**
  * Photo bounds for goods either deal participant puts up. At least one photo is
- * required whenever a participant describes goods â€” these photos are the
+ * required whenever a participant describes goods — these photos are the
  * evidence base if the deal is later arbitrated.
  */
 export const DEAL_PHOTOS_MIN = 1;

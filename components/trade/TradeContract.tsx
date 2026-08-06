@@ -1,18 +1,18 @@
-﻿'use client';
+'use client';
 
 // components/trade/TradeContract.tsx
 //
 // The flagship real-time Trade Contract view (Req 11), on the same three pieces as the
 // cash sale and deal rooms:
 //
-//   header        2-way swap Â· value each side Â· You â‡„ Ada âœ“ Â· Trade_State
+//   header        2-way swap · value each side · You â‡„ Ada âœ“ · Trade_State
 //   â”Œ your move â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬ chat â”€â”€â”€â”€â”€â”€â”
 //   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 //   â—â”€â”€â—â”€â”€â—‹â”€â”€â—‹â”€â”€â—‹   Collateral Send Receive Accept Released
-//   Swap Â· Collateral Â· Demo                          (collapsed rows)
+//   Swap · Collateral · Demo                          (collapsed rows)
 //
 // The action card holds `ActionBar`, which remains the single place trade actions are
-// wired â€” the state machine decides what appears, not this component (Req 11.3, 11.4).
+// wired — the state machine decides what appears, not this component (Req 11.3, 11.4).
 // The rail is `deriveTradeSteps`, which reads the same TradeFacts the state machine
 // consumes, so the two can never disagree.
 //
@@ -202,8 +202,8 @@ function toContractParty(party: TradeParty): ContractParty {
     ratingCount: party.ratingCount,
     // No value stat. Each side's value was appearing three times over: in the
     // header's `money` line, in this chip, and again on every item row beneath it.
-    // The item rows are the authoritative place â€” they attribute value to the thing
-    // that has it â€” so the trust line carries trust only.
+    // The item rows are the authoritative place — they attribute value to the thing
+    // that has it — so the trust line carries trust only.
   };
 }
 
@@ -249,8 +249,8 @@ function TradeCashSettlementNotice({
 
   const pendingAfterComplete =
     trade.state === 'COMPLETED' && trade.manual_reconciliation;
-  // Trades have no CANCELLED state â€” a failed hold simply never reaches
-  // COLLATERAL_LOCKED â€” so only the two terminal states end the reminder.
+  // Trades have no CANCELLED state — a failed hold simply never reaches
+  // COLLATERAL_LOCKED — so only the two terminal states end the reminder.
   const waitingBeforeComplete =
     trade.state !== 'COMPLETED' &&
     trade.state !== 'FRAUD_RESOLVED' &&
@@ -303,7 +303,7 @@ function TradeCashSettlementNotice({
                 });
               }}
             >
-              {isPending ? 'Settlingâ€¦' : 'Retry cash settlement'}
+              {isPending ? 'Settling…' : 'Retry cash settlement'}
             </Button>
           </div>
         </>
@@ -315,7 +315,7 @@ function TradeCashSettlementNotice({
               : `Cash of ${amount} settles after they finish payout setup`}
           </p>
           <p className="mt-1 text-muted-foreground">
-            You can keep trading â€” collateral covers the goods. Stripe
+            You can keep trading — collateral covers the goods. Stripe
             moves the cash once the receiver can take payouts.
           </p>
           {iReceive ? (
@@ -392,13 +392,13 @@ function trackingLabel(
   number: string | null | undefined,
 ): string {
   if (!carrier?.trim() || !number?.trim()) return 'Not shipped yet';
-  return `${carrier.trim()} Â· ${number.trim()}`;
+  return `${carrier.trim()} · ${number.trim()}`;
 }
 
 /**
  * DELIVERY terms as postage + free-text notes. Putting the whole
  * `delivery_details` blob under a bare "Delivery" label left the panel looking
- * empty when notes were blank â€” cash sales show cost as the value instead.
+ * empty when notes were blank — cash sales show cost as the value instead.
  */
 function deliveryTermsRows(trade: TradeRow) {
   const cost = trade.delivery_cost_cents;
@@ -431,7 +431,7 @@ function toContractEvents(
   }));
 }
 
-/** Terms row â€” meeting / delivery, editable until first ship. */
+/** Terms row — meeting / delivery, editable until first ship. */
 function TradeTermsRow({
   trade,
   viewerRole,
@@ -488,14 +488,14 @@ function TradeTermsRow({
     >
       {trade.handover_method === null ? (
         <p className="text-muted-foreground">
-          Not agreed yet â€” choose face to face or delivery, then fill in the
+          Not agreed yet — choose face to face or delivery, then fill in the
           details.
         </p>
       ) : !areHandoverDetailsFilled(trade) ? (
         <p className="text-muted-foreground">
           {trade.handover_method === 'IN_PERSON'
-            ? 'Face to face â€” add a meeting place when you both know where to meet.'
-            : 'Delivery â€” agree postage and notes here; add tracking when you ship.'}
+            ? 'Face to face — add a meeting place when you both know where to meet.'
+            : 'Delivery — agree postage and notes here; add tracking when you ship.'}
         </p>
       ) : (
         <>
@@ -649,7 +649,7 @@ export function TradeContract({
     // unlocks the counterpart's address.
   }, [isDeliveryTrade, tradeState, refreshAddresses]);
 
-  // How many actions the state machine permits the viewer right now â€” drives the
+  // How many actions the state machine permits the viewer right now — drives the
   // "no actions available" helper text (Req 11.4).
   const permittedActionCount =
     trade && viewer ? availableActions(trade.state, viewer).length : 0;
@@ -752,7 +752,7 @@ export function TradeContract({
           <Card>
             <CardContent className="flex items-center gap-3 py-10 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" aria-hidden />
-              Loading tradeâ€¦
+              Loading trade…
             </CardContent>
           </Card>
         ) : (
@@ -792,7 +792,7 @@ export function TradeContract({
                 <ContractActionCard step={step} tone={STATE_TONE[trade.state]}>
                   {/* Commitment-point identity disclosure. A 2-way trade involves
                       no connected account, so the payee-side verified name shown
-                      on a cash sale does not exist here â€” this is the only place
+                      on a cash sale does not exist here — this is the only place
                       a trader learns who they are actually swapping with. Fetched
                       by the component itself, which re-checks server-side that
                       the viewer really is a party to this trade. */}
@@ -855,7 +855,7 @@ export function TradeContract({
                   currentUserId={myUserId}
                   counterpartyName={theirName}
                   title="Chat"
-                  placeholder="Message about the tradeâ€¦"
+                  placeholder="Message about the trade…"
                   emptyHint="Use chat to coordinate shipping and receipt."
                   failed={chat.failed}
                   onRetry={chat.retry}
@@ -969,7 +969,7 @@ export function TradeContract({
                       ? `${formatAud(goods.cashAmountCents)} cash ${
                           goods.cashDirection === 'outgoing' ? 'from you' : 'to you'
                         }`
-                      : 'No cash â€” goods for goods'
+                      : 'No cash — goods for goods'
                   }
                   contentClassName="space-y-3"
                 >
@@ -993,7 +993,7 @@ export function TradeContract({
                     />
                   ) : (
                     <p className="text-muted-foreground">
-                      No cash component â€” this trade is goods for goods.
+                      No cash component — this trade is goods for goods.
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">
@@ -1048,7 +1048,7 @@ export function TradeContract({
                 label="History"
                 summary={
                   latestEvent
-                    ? `${history.length} events Â· ${latestEvent.event
+                    ? `${history.length} events · ${latestEvent.event
                         .toLowerCase()
                         .replace(/_/g, ' ')}`
                     : 'Nothing has happened yet'

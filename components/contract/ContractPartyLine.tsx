@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // components/contract/ContractPartyLine.tsx
 //
@@ -52,7 +52,7 @@ function shortStatNoun(label: ReactNode): string {
   return lower.replace(/\s+completed$/i, '').trim();
 }
 
-/** Compact trust line â€” verified Â· rating Â· sales Â· buys â€” for exchange side cards. */
+/** Compact trust line — verified · rating · sales · buys — for exchange side cards. */
 export function ContractPartyStats({
   party,
   className,

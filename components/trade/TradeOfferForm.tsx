@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // components/trade/TradeOfferForm.tsx
 //
@@ -51,7 +51,7 @@ import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
 import type { ItemRow } from '@/lib/actions/listings';
 import type { HandoverMethod } from '@/lib/handover/terms';
 
-/** How the goods change hands â€” details are agreed later in the trade room. */
+/** How the goods change hands — details are agreed later in the trade room. */
 const HANDOVER_OPTIONS: {
   value: HandoverMethod;
   label: string;
@@ -112,8 +112,8 @@ export interface TradeOfferFormProps {
   /** Set when answering an existing offer, which supersedes it on submit. */
   counterOfProposalId?: string | null;
   /**
-   * `page` â€” centred Card on `/trades/new`.
-   * `dialog` â€” chrome-less body for ProposeTradeDialog.
+   * `page` — centred Card on `/trades/new`.
+   * `dialog` — chrome-less body for ProposeTradeDialog.
    */
   layout?: 'page' | 'dialog';
   /** Called after a successful send when embedded (close dialog + refresh). */
@@ -147,7 +147,7 @@ export function TradeOfferForm({
   const [terms, setTerms] = useState<PaymentTerms>(EMPTY_PAYMENT_TERMS);
   const [termsDialogOpen, setTermsDialogOpen] = useState(false);
 
-  /** Face to face or postage â€” details (place, cost, tracking) are set in the room. */
+  /** Face to face or postage — details (place, cost, tracking) are set in the room. */
   const [handover, setHandover] = useState<HandoverMethod | null>(null);
 
   const { cashDirection, message } = terms;
@@ -192,7 +192,7 @@ export function TradeOfferForm({
     }
     if (declaredValueCents > 0) parts.push(`valued ${formatAud(declaredValueCents)}`);
     if (message.trim() !== '') parts.push('note added');
-    return parts.join(' Â· ');
+    return parts.join(' · ');
   }, [cashAmountCents, cashDirection, declaredValueCents, message]);
 
   function handleSubmit() {
@@ -232,7 +232,7 @@ export function TradeOfferForm({
         // along as part of the bundle.
         initiatorExtraItemIds: unlisted ? selectedItemIds : extraItemIds,
         // The opening offer names the handover METHOD only. Where and when to
-        // meet, and what postage costs, are settled in the room â€” which is the
+        // meet, and what postage costs, are settled in the room — which is the
         // point of opening one.
         terms: {
           cashAmountCents,
@@ -347,7 +347,7 @@ export function TradeOfferForm({
           </div>
         ) : null}
 
-        {/* Selected listings only â€” full inventory is searched in the picker. */}
+        {/* Selected listings only — full inventory is searched in the picker. */}
         {selectedItemIds.length > 0 ? (
           <ul className="min-w-0 space-y-1">
             {selectedItemIds.map((id) => {
@@ -437,7 +437,7 @@ export function TradeOfferForm({
         onClick={() => setTermsDialogOpen(true)}
       />
 
-      {/* Running total. Sides do not have to match â€” this just shows where the
+      {/* Running total. Sides do not have to match — this just shows where the
           offer stands so nobody has to do the arithmetic themselves. */}
       <div
         className="rounded-lg border bg-muted/20 p-3 text-sm"
@@ -497,7 +497,7 @@ export function TradeOfferForm({
         aria-busy={isPending}
         className="w-full sm:w-auto"
       >
-        {isPending ? 'Sending Offerâ€¦' : 'Send Offer'}
+        {isPending ? 'Sending Offer…' : 'Send Offer'}
       </Button>
     </>
   );

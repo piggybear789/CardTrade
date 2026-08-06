@@ -1,4 +1,4 @@
-﻿// CardTrade â€” Supabase database types
+// CardTrade — Supabase database types
 //
 // HAND-AUTHORED to faithfully mirror the SQL migrations in
 // `supabase/migrations/` (0001_schema.sql, 0002_rls.sql, 0003_realtime.sql).
@@ -8,7 +8,7 @@
 // below intentionally matches the output that
 //   supabase gen types typescript --local > lib/supabase/database.types.ts
 // (or `--project-id <ref>`) produces, so it can be regenerated later to match
-// once a Supabase instance is linked â€” with no changes required at call sites.
+// once a Supabase instance is linked — with no changes required at call sites.
 //
 // Type mapping used (Postgres -> TypeScript):
 //   uuid          -> string
@@ -47,8 +47,8 @@ export type Database = {
           contact_email: string;
           // The retired payer gate lived here: `kyc_status`, `kyc_reason`,
           // `identity_session_id` and the `identity_verified_*` columns. All were
-          // dropped by migration 0043. Verification is the Identity_Gate â€”
-          // `merchant_status` with `merchant_settlements_enabled` â€” and the only
+          // dropped by migration 0043. Verification is the Identity_Gate —
+          // `merchant_status` with `merchant_settlements_enabled` — and the only
           // identity held is `merchant_legal_entity_name`.
           /** Stripe Customer id (`cus_...`), platform-scoped. */
           payer_id: string | null;
@@ -260,7 +260,7 @@ export type Database = {
            */
           shipping_deadline_at: string | null;
           shipping_warned_at: string | null;
-          /** Deadline breached. Advisory â€” the trade is not cancelled. */
+          /** Deadline breached. Advisory — the trade is not cancelled. */
           shipping_overdue_at: string | null;
           initiator_tracking_carrier: string | null;
           initiator_tracking_number: string | null;
@@ -1556,7 +1556,7 @@ export type Database = {
       };
       /**
        * Internal staff notes on an arbitration case (0047). Append-only and NOT
-       * visible to the parties â€” there is no member read policy and one must not be
+       * visible to the parties — there is no member read policy and one must not be
        * added.
        */
       arbitration_notes: {
@@ -1802,7 +1802,7 @@ export type Database = {
       };
       /**
        * Records a participant's allegation of objective fraud on a trade (0046).
-       * Records the claim only â€” capturing collateral is an operator decision.
+       * Records the claim only — capturing collateral is an operator decision.
        */
       record_trade_fraud_claim: {
         Args: { p_trade_id: string; p_claimant_id: string; p_reason: string };

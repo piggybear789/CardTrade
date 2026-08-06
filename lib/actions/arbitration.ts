@@ -1,17 +1,17 @@
-﻿'use server';
+'use server';
 
 // lib/actions/arbitration.ts
 //
 // Server binding for the arbitration workspace.
 //
-// Assembles the queue from the three records a case can be a view over â€” disputed
-// Cash_Sales, disputed Trades, Chargebacks â€” and normalises them through
+// Assembles the queue from the three records a case can be a view over — disputed
+// Cash_Sales, disputed Trades, Chargebacks — and normalises them through
 // `domain/arbitration` so triage ordering and money-at-risk arithmetic stay pure and
 // testable.
 //
 // EVERY EXPORT RE-CHECKS THE GATE. `requireStaff` is called inside each action rather
 // than once at the page, because a Server Action is reachable by anyone who knows its
-// id â€” a page-level check protects the page, not the action.
+// id — a page-level check protects the page, not the action.
 //
 // Reads use the SERVICE-ROLE client, deliberately: an arbitrator is not a party to the
 // contracts they arbitrate, so RLS on the cookie-bound client would return nothing
@@ -51,7 +51,7 @@ export interface ArbitrationNote {
  *
  * Kept separate from the triage shape on purpose. The queue needs one comparable
  * number per case so it can be ordered; a decision needs the specific figures the
- * outcome is computed from â€” the platform fee a release nets off, the collateral a
+ * outcome is computed from — the platform fee a release nets off, the collateral a
  * fraud finding captures. Flattening both into `ArbitrationCase` would put money
  * fields on the queue model that only ever mean something for one of the three kinds.
  */
@@ -85,7 +85,7 @@ export type ArbitrationResolution =
       /**
        * The provider's own dispute id, needed to find the case in the Stripe dashboard
        * where the evidence is actually submitted. Carried here because chargebacks are
-       * no longer listed on `/admin` â€” this is the only surface that shows them.
+       * no longer listed on `/admin` — this is the only surface that shows them.
        */
       disputeRef: string | null;
       /** `lost` is the only outcome that means the platform absorbed the amount. */

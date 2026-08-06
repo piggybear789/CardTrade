@@ -1,9 +1,9 @@
-﻿'use client';
+'use client';
 
 // components/layout/SiteMenu.tsx
 //
 // Overflow menu for the site header. It lists the FULL workspace map, so every
-// section is reachable from the burger on any viewport â€” the desktop rail is
+// section is reachable from the burger on any viewport — the desktop rail is
 // hidden on narrow screens and the mobile hubs only surface five destinations,
 // which left several tabs with no route in from here.
 //
@@ -80,7 +80,7 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
    * cannot see, which is the same half-fix `PrimaryNav` calls out.
    *
    * `trackCurrent` is off for {@link MENU_ONLY_GROUPS} because the section map
-   * already assigns those paths to a section â€” `/listings/new` belongs to My
+   * already assigns those paths to a section — `/listings/new` belongs to My
    * Listings, `/profile/payouts` to Account. Highlighting them here as well would
    * put two rows in the menu each claiming to be the current page.
    */

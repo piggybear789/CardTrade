@@ -132,6 +132,7 @@ async function main() {
   let payable = false;
   try {
     const merchant = await payments.createManagedMerchant!({
+      profileId: seller.id,
       businessEmail: seller.contact_email ?? SELLER_EMAIL,
       tradingName: seller.display_name ?? undefined,
     });

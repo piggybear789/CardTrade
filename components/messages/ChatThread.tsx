@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // components/messages/ChatThread.tsx
 //
@@ -227,7 +227,7 @@ export function ChatThread({
                     )}
                   >
                     {formatRelativeTime(message.created_at)}
-                    {isMine && message.read_at ? ' Â· Read' : ''}
+                    {isMine && message.read_at ? ' · Read' : ''}
                   </time>
                 </div>
               </div>
@@ -249,7 +249,7 @@ export function ChatThread({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             enterKeyHint="send"
-            placeholder="Write a messageâ€¦"
+            placeholder="Write a message…"
             rows={2}
             maxLength={MESSAGE_BODY_MAX}
             className="min-h-[44px] resize-none"

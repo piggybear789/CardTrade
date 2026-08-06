@@ -1,10 +1,10 @@
-﻿// domain/arbitration/arbitrationCase.ts
+// domain/arbitration/arbitrationCase.ts
 //
 // The arbitration case model: one triageable shape over three different records.
 //
 // WHY NORMALISE. A support worker's queue contains disputed Cash_Sales, disputed
 // Trades, and Chargebacks. Those live in three tables with three different money
-// models â€” collected funds held by the platform, paired collateral authorisations,
+// models — collected funds held by the platform, paired collateral authorisations,
 // and a bank reversal already in progress. An arbitrator does not care about that
 // distinction when deciding what to pick up next; they care how much is at stake, how
 // long someone has been waiting, and whether anyone is already on it. So the queue is
@@ -13,7 +13,7 @@
 // WHY NOT AN `arbitration_cases` TABLE. Copying the money into a second table means
 // two representations of the same disputed amount, and the stale one is the one staff
 // would eventually act on. The source record stays authoritative; only assignment and
-// internal notes â€” which have no home on the source record â€” are persisted separately.
+// internal notes — which have no home on the source record — are persisted separately.
 //
 // Pure module: no Supabase, no React, no provider types. Runs in the Node-only
 // `domain` Vitest project so the triage ordering and the money-at-risk arithmetic can
@@ -65,7 +65,7 @@ export interface ArbitrationCase {
    * Display name of that staff member.
    *
    * Carried alongside the id because "held by someone else" is only useful if it says
-   * who â€” an arbitrator deciding whether to take over needs a person to ask, and a
+   * who — an arbitrator deciding whether to take over needs a person to ask, and a
    * UUID is not one. Null whenever `assigneeId` is.
    */
   assigneeName: string | null;
@@ -111,7 +111,7 @@ function hoursBetween(fromIso: string | null, now: Date): number {
  * Ordered by what actually cannot be recovered if ignored:
  *
  *   1. A hard deadline inside the warning window. A chargeback whose evidence
- *      deadline passes is forfeited automatically â€” no amount of later attention
+ *      deadline passes is forfeited automatically — no amount of later attention
  *      brings the money back, so this outranks everything.
  *   2. Alleged fraud. The remedy is capturing someone's full collateral, and the
  *      authorisations behind it expire in about seven days, so a slow decision can

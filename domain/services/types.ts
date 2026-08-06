@@ -202,6 +202,19 @@ export interface ManagedMerchant {
  * server, so none of it belongs on this interface.
  */
 export interface ManagedMerchantDetails {
+  /**
+   * The Profile the account is being opened for.
+   *
+   * NOT provider data — it is the idempotency scope. A retry must not open a
+   * second account for the same Member, and the only durable name for "the same
+   * Member" is the Profile id. It used to be `businessEmail`, which is mutable,
+   * shareable between Profiles, and outlives the row it was read from: a Profile
+   * recreated against a Stripe account that still existed could neither reach the
+   * old account (its reference was gone) nor create a new one (the key was taken
+   * with a different body), which deadlocks onboarding for that address until the
+   * key expires.
+   */
+  profileId: string;
   /** Contact email for the account. The one field a provider always needs. */
   businessEmail: string;
   /**

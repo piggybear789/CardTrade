@@ -13,6 +13,7 @@
 
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { satisfiesIdentityGate, type MerchantStatus } from '../identity/identityGate';
 import type { PreAuthHold } from '../services/types';
 import type { TradeRecord } from './tradeOrchestrator';
 import {
@@ -52,20 +53,27 @@ export function createSupabaseTradeProposalRepository(
     async getProfile(profileId: string): Promise<ProfileRecord | null> {
       const { data } = await client
         .from('profiles')
-        .select('id, merchant_status, payer_id')
+        .select('id, merchant_status, merchant_settlements_enabled, payer_id')
         .eq('id', profileId)
         .maybeSingle();
       if (!data) return null;
       const row = data as {
         id: string;
         merchant_status: string;
+        merchant_settlements_enabled: boolean | null;
         payer_id: string | null;
       };
-      // Bond exemption follows Managed Merchant approval — the same identity
-      // signal the profile rail and payout setup treat as "verified".
+      // Answered by the gate module, never re-derived here. This line used to read
+      // `row.merchant_status === 'APPROVED'` inline and omit settlements, which is a
+      // second answer to a question that must have exactly one — the shape of the bug
+      // that broke buying. It was inert only because `resolveTradeBonds` discards
+      // `verified`; the next caller that trusted it would not have been so lucky.
       return {
         id: row.id,
-        verified: row.merchant_status === 'APPROVED',
+        verified: satisfiesIdentityGate({
+          merchantStatus: row.merchant_status as MerchantStatus,
+          settlementsEnabled: Boolean(row.merchant_settlements_enabled),
+        }),
         payerId: row.payer_id,
       };
     },

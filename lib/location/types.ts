@@ -6,7 +6,7 @@ export type PlacePrecision = 'suburb' | 'exact';
 export interface PlaceValue {
   /** Human label, e.g. "Fitzroy, VIC" or a street / POI name. */
   label: string;
-  /** Provider place id (Geoapify place_id, or synthetic text:/geo: fallback). */
+  /** Provider place id (Google place_id, or synthetic text:/geo: fallback). */
   placeId: string;
   lat: number;
   lng: number;

@@ -76,6 +76,10 @@ export type Database = {
           is_admin: boolean;
           /** Staff capability: may arbitrate disputes (0047). Not member-writable. */
           is_support: boolean;
+          onboarding_completed_at: string | null;
+          fraud_banned_at: string | null;
+          fraud_banned_by: string | null;
+          fraud_ban_trade_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -107,6 +111,10 @@ export type Database = {
           rating_count?: number;
           is_admin?: boolean;
           is_support?: boolean;
+          onboarding_completed_at?: string | null;
+          fraud_banned_at?: string | null;
+          fraud_banned_by?: string | null;
+          fraud_ban_trade_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -138,6 +146,10 @@ export type Database = {
           rating_count?: number;
           is_admin?: boolean;
           is_support?: boolean;
+          onboarding_completed_at?: string | null;
+          fraud_banned_at?: string | null;
+          fraud_banned_by?: string | null;
+          fraud_ban_trade_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

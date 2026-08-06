@@ -9,17 +9,31 @@
 // verified on one surface and unverified on another. This module is the one place
 // that answers the question, so every surface answers it the same way.
 //
-// THE GATE. Connect onboarding APPROVED *and* settlements enabled. Approval alone
-// is not enough: `stripe_transfers.status === 'active'` is the only provider
-// signal that means money can actually arrive, and it is what promotes
-// `merchant_status` to APPROVED with `merchant_settlements_enabled` true.
+// THE GATE IS CONNECT ONBOARDING ACTUALLY FINISHED: `merchant_status = 'APPROVED'`
+// AND `merchant_settlements_enabled`. The second conjunct is the whole point —
+// `merchant_settlements_enabled` is true only when Stripe reports
+// `stripe_transfers.status === 'active'`, which is the only signal that the hosted
+// flow completed and money can reach the member.
+//
+// MIGRATION 0060 BRIEFLY DROPPED THAT CONJUNCT and 0061 restored it. Under 0060 the
+// mere CREATION of a Connect recipient account — an empty shell, before the member
+// had typed anything into Stripe's pages — set `merchant_status = APPROVED` and
+// therefore read as verified. A member could be badged verified, publish listings and
+// enter trade escrow having completed no onboarding at all, and the payouts card said
+// "Verified Account" and "Payouts incomplete" in the same breath because both were
+// true. Verification that a shell account satisfies is not verification. Do not
+// reintroduce the shortcut; if account creation ever needs to unlock something on its
+// own, give that thing its own predicate rather than widening this one.
 //
 // DELIBERATELY MATCHES THE DATABASE, AND THERE IS NOW EXACTLY ONE OF EACH.
 // `public_profiles.is_verified` is `merchant_status = 'APPROVED' and
 // merchant_settlements_enabled`, and `items.seller_identity_verified` is denormalised
 // from the same expression by trigger. This predicate is defined identically so the SQL
-// and the TypeScript cannot drift — see the denormalisation-agreement property
-// (Req 21.6).
+// and the TypeScript cannot drift — see the denormalisation-agreement property in
+// `tests/property/identityGate.test.ts` (Req 21.6), which pins the SQL text of both
+// against this function. That property did not exist when this comment first claimed
+// it, which is exactly how 0060 changed the SQL and left this header describing an
+// expression the code no longer implemented.
 //
 // Migration 0049 removed the second copy of each: the view also carried
 // `identity_verified` and `items` also carried `seller_verified`, both byte-identical
@@ -72,6 +86,8 @@ export interface IdentityGateInput {
  * Buyer, who never receives a transfer (Req 14.4).
  */
 export function satisfiesIdentityGate(input: IdentityGateInput): boolean {
+  // Both conjuncts, always. APPROVED alone is an account shell; `settlementsEnabled`
+  // is the provider saying the onboarding it hosts actually finished.
   return input.merchantStatus === 'APPROVED' && input.settlementsEnabled;
 }
 

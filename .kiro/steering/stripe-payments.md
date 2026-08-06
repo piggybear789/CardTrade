@@ -1,11 +1,11 @@
 # Stripe — Integration Rules
 
-Rules for anything that touches the payment/KYC provider. Replaces the former
+Rules for anything that touches the payment provider (Stripe). Replaces the former
 Pinch steering docs; the Pinch binding has been removed entirely.
 
 ## The seam is non-negotiable
 
-`domain/services/types.ts` defines `PaymentService` / `KycService`. Everything
+`domain/services/types.ts` defines `PaymentService` / `PayerService`. Everything
 else (orchestrators, state machine, server actions, UI) depends on those
 interfaces only.
 
@@ -146,24 +146,41 @@ Create accounts with `stripe.v2.core.accounts.create`.
   and must be accepted in the Dashboard before creating accounts.
 - Onboarding is **provider-hosted** via `v2.core.accountLinks.create`. Links are
   single-use and short-lived: request a new one each time rather than caching.
-- `stripe_transfers.status === 'active'` is the ONLY signal that means money can
-  actually arrive. It is what gates `merchant_status = APPROVED`. Returning from
-  the hosted flow does NOT prove payability.
+- `stripe_transfers.status === 'active'` is the ONLY signal that means the hosted flow
+  actually completed, so it is BOTH halves of the answer: it gates platform access via
+  `satisfiesIdentityGate` and payout attempts via `canReceiveFunds`. Returning from the
+  hosted flow does not prove it — read the account back.
+- Creating the account shell is the START of onboarding. It lands `PENDING`
+  (`deriveMerchantStatus`), never APPROVED. Migration 0060 briefly made creation itself
+  the verification milestone and 0061 reversed it; see `product.md` for why, and do not
+  reintroduce it.
 - There is no compliance simulator and none is needed: Stripe test mode approves
-  for real. Never write `merchant_status` directly.
+  for real. Never write `merchant_status` directly, and never latch it — it is
+  re-derived from the provider in both directions, so an account Stripe later
+  restricts stops being verified.
 
-Two distinct gates, do not conflate them:
-
-There is now ONE gate, not two. The former payer gate is retired.
+ONE gate for platform access, plus a mechanical precondition for moving money. The
+former payer gate is retired.
 
 | | Columns | Gates |
 | --- | --- | --- |
-| Identity_Gate | `merchant_status` + `merchant_settlements_enabled` | listing, selling, trade escrow, cash deals, being paid |
+| Identity_Gate | `merchant_status = APPROVED` **and** `merchant_settlements_enabled` | listing, selling, trade access, being a disclosed seller |
+| `canReceiveFunds` | the gate **plus** a non-null `merchant_ref` | actual transfer attempts |
 
-A cash Buyer is exempt: they never receive a transfer. Evaluate the gate only via
-`domain/identity/identityGate.ts`.
+These are not two opinions about identity — the second is the first plus a provider
+destination to send to. A cash Buyer is exempt from both: they never receive a
+transfer. Evaluate platform access only via `domain/identity/identityGate.ts`, and
+payout attempts only via `canReceiveFunds`.
 
-A trade-only User never needs the second.
+**Event types: `account.updated` is the v1 event.** Accounts are created with
+`v2.core.accounts.create`, and Accounts v2 reports capability changes on
+`v2.core.account.updated` / `v2.core.account[configuration.recipient].updated`. Stripe
+also routes v2 account events to the **"My account"** endpoint, not the "Connected and
+v2 accounts" one, so a Connect-scoped endpoint alone will not receive them. Because of
+that, the reliable path for "did onboarding finish" is the v2 read-back —
+`getManagedMerchant` via `refreshPayoutStatus`, which every return from the hosted flow
+performs — and the webhook is a backstop. Do not make the gate depend on the webhook
+alone.
 
 ## Charge type
 
@@ -236,25 +253,26 @@ numbers, bank details, or compliance notes.
 `getIdentitySummary`, `STRIPE_KYC_MODE` and the `identity.verification_session.*`
 translations have all been removed. Do not reintroduce a second verification path.
 
-Identity is the Identity_Gate: Connect onboarding APPROVED with settlements
-enabled. It arrives on `account.updated`, the same event that decides payability,
-and `applyComplianceUpdate` persists both the status and the provider-verified
-legal name. Identity is therefore state this integration already reports, not a
-call it has to make.
+Identity is the Identity_Gate: Connect onboarding APPROVED **with settlements enabled**,
+which permits listing, selling, and trade access. Account creation persists `PENDING`;
+the provider report that enables transfers is what makes a member verified, and it also
+carries any provider-reported legal name. Identity is therefore state this integration
+reports, not a separate call it has to make.
 
 `createPayer` stays on the seam (as `PayerService`) and still throws rather than
 returning a status, because a payer is a payment prerequisite and a failure must
 leave verification state untouched.
 
-**Accepted assurance limit, recorded deliberately.** Connect's verification burden
-on a recipient-only account is generally lighter than a document-and-selfie check,
-and Stripe may defer document collection until volume thresholds. So
-`stripe_transfers.status === 'active'` proves payability and yields a
-provider-verified legal name, but does NOT prove a government document was
-inspected at that moment. Never write copy claiming a document or selfie check.
-Re-adding Stripe Identity as a higher tier on top of the gate remains possible —
-it would be an addition, not a reversal — and in Australia Identity is self-serve
-public beta that must be activated on the account.
+**Accepted assurance limit, recorded deliberately.** Satisfying the gate means Stripe
+enabled transfers. It does **not** prove a government document or selfie was checked —
+Connect can defer document collection — and the disclosed legal name may still be the
+member's stated name until Stripe returns a provider-reported one. That fallback is
+load-bearing, not sloppiness: `sellerIdentityDisclosure` returns null without a name,
+and a null disclosure blocks the entire buy path (migration 0041 records that shipping).
+`applyComplianceUpdate` upgrades the name absent→present the moment the provider reports
+one. Never describe this state as ID- or document-verified. When Stripe grants Connect
+Additional Document Verification, add its accepted document status on top of transfers
+active.
 
 Verified identity data is sensitive: server-only, never logged, never returned to a
 client component.

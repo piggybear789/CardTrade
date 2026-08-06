@@ -23,6 +23,7 @@
 // it is testable against fakes. The Supabase binding lives in
 // `supabaseMerchantRepository.ts`.
 
+import { satisfiesIdentityGate } from '../identity/identityGate';
 import type {
   ManagedMerchant,
   ManagedMerchantDetails,
@@ -79,16 +80,21 @@ export interface SellerIdentityDisclosure {
  * `SELLER_IDENTITY_UNVERIFIED` and blocked buying and offers outright. Only
  * seeded demo sellers, which hardcode a fake ABN, ever passed it.
  *
- * `settlementsEnabled` is required as well as APPROVED, because a seller who
- * cannot receive funds has nothing to disclose an identity for.
+ * `settlementsEnabled` is required as well as APPROVED, because a seller who cannot
+ * receive funds has nothing to disclose an identity for — the buyer is being told who
+ * their money is going to, so it must be someone it can actually go to. This condition
+ * was stated in this docstring but MISSING from the code between 0060 and 0061, which
+ * is how a shell account could front a cash sale.
  */
 export function sellerIdentityDisclosure(
   merchant: MerchantRecord | null,
 ): SellerIdentityDisclosure | null {
   if (
     !merchant ||
-    merchant.merchantStatus !== 'APPROVED' ||
-    !merchant.settlementsEnabled ||
+    !satisfiesIdentityGate({
+      merchantStatus: merchant.merchantStatus,
+      settlementsEnabled: merchant.settlementsEnabled,
+    }) ||
     !merchant.identityDisclosureConsentedAt ||
     !merchant.identityVerifiedAt ||
     !merchant.legalEntityName
@@ -276,7 +282,11 @@ export async function submitMerchantOnboarding(
     };
   }
 
-  const merchantStatus = deriveMerchantStatus(merchant);
+  // A freshly created account has every capability inactive, so this lands on
+  // PENDING. It must: creating the shell is the START of onboarding, not the end.
+  // 0060 overrode this with `merchant.merchantRef ? 'APPROVED' : ...`, which made a
+  // shell read as a finished, verified, sellable account; 0061 restored the derivation.
+  const merchantStatus: MerchantStatus = deriveMerchantStatus(merchant);
   const submittedAt = now().toISOString();
   const identityVersion = `${merchant.merchantRef}:${submittedAt}`;
   // The buyer-safe disclosure snapshot. At submission time the provider has
@@ -289,13 +299,29 @@ export async function submitMerchantOnboarding(
   // the authoritative payee name arrives later, on the compliance webhook, as a
   // name checked against a government document — so the disclosure is written
   // once verification actually completes rather than trusted up front.
+  //
+  // `legalEntityName` KEEPS its fallback to the Seller's stated name, and that is
+  // load-bearing, not laziness. `sellerIdentityDisclosure` returns null without a
+  // name, a null disclosure makes `initiateCashSale` fail with
+  // SELLER_IDENTITY_UNVERIFIED, and 0041 records that combination taking the entire
+  // buy path dark. Stripe reports no verified name at account creation, so without
+  // the fallback every seller would be unsellable for the window between finishing
+  // onboarding and Stripe returning a name. `applyComplianceUpdate` upgrades it in
+  // place, absent→present only, the moment the provider reports a real one. Nothing
+  // may describe this value as document-verified until that happens.
   const identity = {
     legalEntityName: merchant.legalName ?? params.details.legalEntityName ?? null,
     tradingName: params.details.tradingName ?? null,
     registrationNumber: null,
     organisationType: 'individual',
     identityVersion,
+    // A real record: the Member pressed the control the disclosure is stated on.
     identityDisclosureConsentedAt: submittedAt,
+    // NOT stamped at submission. 0060 set this to `submittedAt` unconditionally,
+    // which dated "identity verified" to the moment an empty shell was created.
+    // `applyComplianceUpdate` stamps it when the status actually reaches APPROVED,
+    // which now requires settlements — i.e. when Stripe has finished.
+    identityVerifiedAt: merchantStatus === 'APPROVED' ? submittedAt : null,
   };
 
   await repository.updateMerchant({
@@ -322,7 +348,9 @@ export async function submitMerchantOnboarding(
       transactionsEnabled: merchant.transactionsEnabled,
       settlementsEnabled: merchant.settlementsEnabled,
       notes: merchant.notes ?? null,
-      identityVerifiedAt: null,
+      // `identity` carries `identityVerifiedAt`, which is null unless the provider
+      // already reported the account active. There used to be an explicit `null`
+      // here as well, which the spread silently overwrote (TS2783).
       ...identity,
     },
   };
@@ -375,7 +403,11 @@ export async function applyComplianceUpdate(
   const settlementsEnabled = params.settlementsEnabled ?? existing.settlementsEnabled;
   const complianceStatus = params.complianceStatus ?? existing.complianceStatus ?? undefined;
 
-  const merchantStatus = deriveMerchantStatus({
+  // Always re-derived from what the provider just reported. 0060 pinned this to
+  // APPROVED for any row with a `merchantRef`, which made the status a one-way latch:
+  // once set it could never fall back, so an account Stripe later restricted went on
+  // reading as verified. The provider is the source of truth in both directions.
+  const merchantStatus: MerchantStatus = deriveMerchantStatus({
     complianceStatus,
     settlementsEnabled,
     merchantActive: params.merchantActive,

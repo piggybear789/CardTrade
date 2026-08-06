@@ -26,6 +26,7 @@ import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
 import { requireStaff } from '@/lib/staffGate';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import type { CashSaleDisputeOutcome } from '@/domain/orchestrator/cashSaleOrchestrator';
@@ -410,6 +411,26 @@ export async function resolveTradeFraud(
         result.error === 'NOT_PARTICIPANT'
           ? 'That member is not a party to this trade.'
           : (result.detail ?? 'The fraud resolution could not be completed.'),
+    };
+  }
+
+  const ban = await permanentlyBanConfirmedFraudOffender({
+    offenderId: result.outcome.offendingTraderId,
+    staffId: gate.ctx.userId,
+    tradeId,
+  });
+
+  if (!ban.ok) {
+    // FRAUD_RESOLVED remains committed. The profile ban may already be active even
+    // when the Auth sync fails, so make the required staff follow-up explicit.
+    revalidatePath('/admin');
+    revalidatePath('/admin/arbitration');
+    revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
+    revalidatePath(`/trades/${tradeId}`);
+    return {
+      ok: false,
+      error: 'persistence-error',
+      message: `Objective fraud was resolved, but the permanent ban needs follow-up: ${ban.message}`,
     };
   }
 

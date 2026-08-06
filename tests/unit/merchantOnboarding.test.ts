@@ -155,9 +155,10 @@ describe('sellerIdentityDisclosure', () => {
     expect(disclosure).not.toHaveProperty('registrationNumber');
   });
 
-  it('withholds a disclosure when settlements are not enabled', () => {
-    // APPROVED without settlements is not payable, so there is nothing to
-    // disclose an identity for.
+  it('withholds a disclosure while the provider has not enabled transfers', () => {
+    // The buyer is being told who their money is going to, so it must be someone it
+    // can actually go to. Between 0060 and 0061 this condition was stated in the
+    // docstring but absent from the code, so an empty Connect shell could front a sale.
     expect(sellerIdentityDisclosure(approved({ settlementsEnabled: false }))).toBeNull();
   });
 
@@ -236,7 +237,7 @@ describe('submitMerchantOnboarding', () => {
     settlementsEnabled: false,
   };
 
-  it('stores the new merchant as PENDING with a submission timestamp', async () => {
+  it('stores a new Connect account as PENDING, because creating it starts onboarding', async () => {
     const repository = makeRepository(baseRecord());
     const result = await submitMerchantOnboarding(
       { repository, payments: makePayments(created), now: () => new Date('2026-07-25T00:00:00Z') },
@@ -247,8 +248,14 @@ describe('submitMerchantOnboarding', () => {
     expect(repository.updates[0]).toMatchObject({
       profileId: 'profile-1',
       merchantRef: 'mch_new',
+      // NOT APPROVED. The member has not touched Stripe's hosted pages yet.
       merchantStatus: 'PENDING',
       settlementsEnabled: false,
+      // Consent is real — they pressed the control it is stated on — but nothing has
+      // been verified, so the verification timestamp stays absent (the 0060 bug was
+      // dating "identity verified" to the creation of an empty shell).
+      identityDisclosureConsentedAt: '2026-07-25T00:00:00.000Z',
+      identityVerifiedAt: null,
       submittedAt: '2026-07-25T00:00:00.000Z',
     });
   });

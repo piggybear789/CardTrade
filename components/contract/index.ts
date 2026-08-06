@@ -30,7 +30,9 @@
 export { ContractActionCard } from './ContractActionCard';
 export { ContractConnectionStatus } from './ContractConnectionStatus';
 export { ContractConversationPanel } from './ContractConversationPanel';
+export { CollateralExplainerDialog } from './CollateralExplainerDialog';
 export { ContractDetailList, ContractDetailRow } from './ContractDetailList';
+export { DittoBondExplainer, CashSaleCollateralExplainer } from './DittoBondExplainer';
 export { ContractExchangePanel } from './ContractExchangePanel';
 export { ContractFocusProvider, useContractFocus } from './ContractFocus';
 export { ContractHeader } from './ContractHeader';

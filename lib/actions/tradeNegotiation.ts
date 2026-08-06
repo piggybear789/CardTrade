@@ -332,7 +332,7 @@ export async function acceptTradeTerms(
       error: 'bond-failed',
       message:
         bonds.error === 'payer-not-found'
-          ? 'A saved card is needed to hold the DittoBond for this trade. Add one in your profile, then accept again.'
+          ? 'A saved card is needed to place the trade collateral hold. Add one in your profile, then accept again.'
           : 'Collateral could not be arranged, so the trade was not started. Nothing was charged.',
     };
   }

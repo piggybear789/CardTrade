@@ -17,12 +17,11 @@
 // Likewise a settled release is described as SENT, never as arrived or received:
 // once the provider has it, the timing belongs to the bank.
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
   ArrowUpRight,
-  Banknote,
-  Clock,
   Scale,
   ShieldCheck,
 } from 'lucide-react';
@@ -58,9 +57,9 @@ const FAILURE_COPY: Record<
 > = {
   NOT_PAYABLE: {
     summary: 'Your account is not verified yet, so we have nowhere to send this.',
-    action: 'Finish verification and we will release it automatically.',
-    href: '/profile#payouts',
-    actionLabel: 'Finish verification',
+    action: 'Finish Stripe Connect setup and we will release it automatically.',
+    href: '/profile/payouts#identity',
+    actionLabel: 'Open Stripe Connect setup',
   },
   PROVIDER_REJECTED: {
     summary: 'Our payment provider rejected this release.',
@@ -147,17 +146,25 @@ const DESTINATION_COPY: Record<
 export interface PayoutsDashboardProps {
   model: PayoutReadModel;
   destination: DestinationAccount;
+  /** Compact Stripe Connect status/setup card rendered in the top dashboard row. */
+  connectSetup?: ReactNode;
   /** Which slice of the Transfer_History to show. URL-driven via `?show=`. */
   scope: SectionScope;
 }
 
-export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboardProps) {
+export function PayoutsDashboard({ model, destination, connectSetup, scope }: PayoutsDashboardProps) {
   return (
-    <div className="space-y-10">
-      <BalanceSummary model={model} />
+    <div className="space-y-8">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <BalanceSummary model={model} />
+        {connectSetup ?? <DestinationAccountSummary destination={destination} compact />}
+      </div>
+      <ActiveSalesSummary model={model} />
       <DestinationAccountSummary destination={destination} />
       <TransferHistory model={model} scope={scope} />
-      <ArbitrationSummary model={model} />
+      {model.arbitrations.length > 0 || model.atRiskProceedsCents > 0 ? (
+        <ArbitrationSummary model={model} />
+      ) : null}
     </div>
   );
 }
@@ -181,27 +188,33 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
     return (
       <section aria-labelledby="balance-heading">
         <h3 id="balance-heading" className="sr-only">
-          Balance
+          Releasing now
         </h3>
-        <EmptyState
-          icon={<Banknote className="size-6" aria-hidden />}
-          title="No Sales Yet"
-          titleAs="h4"
-          description="Once a buyer pays for one of your listings, the money appears here and is released to you automatically when they accept the item."
-          action={{ label: 'Create a listing', href: '/listings/new' }}
-          compact
-        />
+        <Card className="h-full bg-muted/20">
+          <CardHeader className="pb-3">
+            <CardDescription>Releasing now</CardDescription>
+            <CardTitle className="text-4xl tabular-nums">{formatAud(0)}</CardTitle>
+            <CardDescription>
+              No funds are queued for release yet. Releases happen automatically after a sale resolves.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-xs text-muted-foreground">
+              Net proceeds are released automatically after a sale resolves.
+            </p>
+          </CardContent>
+        </Card>
       </section>
     );
   }
 
   return (
-    <section aria-labelledby="balance-heading">
-      <h3 id="balance-heading" className="mb-4 text-xl font-semibold">
-        Your money
+    <section aria-labelledby="balance-heading" className="h-full">
+      <h3 id="balance-heading" className="sr-only">
+        Releasing now
       </h3>
 
-      <Card>
+      <Card className="h-full bg-muted/20">
         <CardHeader className="pb-3">
           <CardDescription>Releasing now</CardDescription>
           <CardTitle className="text-3xl tabular-nums">
@@ -259,106 +272,120 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
             </p>
           ) : null}
 
-          {model.releasing.length > 0 ? (
-            <ul className="divide-y rounded-lg border">
-              {model.releasing.map((row) => {
-                const copy = row.failureCause ? FAILURE_COPY[row.failureCause] : null;
-                return (
-                  <li key={row.cashSaleId} className="p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Link
-                        href={`/sales/${row.cashSaleId}`}
-                        className="min-w-0 truncate text-sm font-medium underline-offset-4 hover:underline"
-                      >
-                        {row.itemTitle}
-                      </Link>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums">
-                        {formatAud(row.netCents)}
-                      </span>
-                    </div>
-                    {copy ? (
-                      <div className="mt-2 space-y-1.5">
-                        <p className="text-xs text-destructive">{copy.summary}</p>
-                        <p className="text-xs text-muted-foreground">{copy.action}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Your money stays held by CardTrade for you. You do not need
-                          to re-sell or re-invoice.
-                        </p>
-                        {copy.href ? (
-                          <Button asChild size="sm" variant="outline" className="mt-1">
-                            <Link href={copy.href}>{copy.actionLabel}</Link>
-                          </Button>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="size-3.5 shrink-0" aria-hidden />
-                        Queued for release.
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
         </CardContent>
       </Card>
     </section>
   );
 }
 
-function DestinationAccountSummary({ destination }: { destination: DestinationAccount }) {
+function DestinationAccountSummary({
+  destination,
+  compact = false,
+}: {
+  destination: DestinationAccount;
+  compact?: boolean;
+}) {
   const copy = DESTINATION_COPY[destination.state];
   const needsSetup = destination.state !== 'VERIFIED';
 
+  const card = (
+    <Card className={compact ? 'h-full' : undefined}>
+      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-md border bg-muted/30">
+            <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold">
+                {destination.verifiedName ?? 'Stripe payout account'}
+              </p>
+              <Badge variant={copy.variant}>{copy.badge}</Badge>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {destination.state === 'VERIFIED'
+                ? 'Bank account on file with Stripe · releases are automatic'
+                : copy.detail}
+            </p>
+          </div>
+        </div>
+        {destination.hostedOnboarding ? (
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <Link href="/profile/payouts#identity">
+              {needsSetup ? 'Finish setup' : 'Manage with Stripe'}
+              <ArrowUpRight aria-hidden />
+            </Link>
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+
+  if (compact) return card;
+
   return (
     <section aria-labelledby="destination-heading">
-      <h3 id="destination-heading" className="mb-4 text-xl font-semibold">
+      <h3 id="destination-heading" className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Where your money goes
       </h3>
+      {card}
+      <p className="mt-2 text-xs text-muted-foreground">
+        Bank details are held by Stripe. NoDitto never receives or stores them.
+      </p>
+    </section>
+  );
+}
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <CardTitle className="text-base">
-              {destination.verifiedName ?? 'Your payout account'}
-            </CardTitle>
-            <Badge variant={copy.variant}>{copy.badge}</Badge>
-          </div>
-          <CardDescription>{copy.detail}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* No BSB, no account number, no masked digits. Stripe collects and holds
-              settlement details in its own hosted flow; we never receive them, so
-              there is nothing here to mask (Req 4.5, 4.7). */}
-          <p className="text-xs text-muted-foreground">
-            Your bank details are collected and held by our payment provider.
-            CardTrade never receives or stores them, so they cannot be shown or
-            edited here.
-          </p>
+function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
+  const hasActivity = model.releasing.length > 0 || model.upcomingProceedsCents > 0;
 
-          {destination.hostedOnboarding ? (
-            <Button asChild variant="outline">
-              <Link href="/profile#payouts">
-                {needsSetup ? 'Set up payouts' : 'Update payout details'}
-                <ArrowUpRight aria-hidden />
-              </Link>
-            </Button>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Payout details are managed by our payment provider.
-            </p>
-          )}
-
-          {destination.state === 'VERIFIED' ? (
-            <p className="text-xs text-muted-foreground">
-              Once a release is sent it can take up to four business days to appear
-              in your account. That timing is your bank&apos;s, not ours.
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
+  return (
+    <section aria-labelledby="active-sales-heading">
+      <h3 id="active-sales-heading" className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        Active sales
+      </h3>
+      {!hasActivity ? (
+        <EmptyState
+          title="No current activity"
+          titleAs="h4"
+          description="Once a buyer pays for one of your listings, its release status appears here."
+          action={{ label: 'Create a listing', href: '/listings/new' }}
+          className="border-solid bg-card"
+          compact
+        />
+      ) : (
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-sm font-medium">Sales in progress</p>
+              <p className="text-sm font-semibold tabular-nums">
+                {formatAud(model.upcomingProceedsCents + model.releasingNowCents)}
+              </p>
+            </div>
+            {model.releasing.length > 0 ? (
+              <ul className="divide-y rounded-md border">
+                {model.releasing.map((sale) => (
+                  <li key={sale.cashSaleId} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                    <Link
+                      href={`/sales/${sale.cashSaleId}`}
+                      className="min-w-0 truncate text-sm font-medium underline-offset-4 hover:underline"
+                    >
+                      {sale.itemTitle}
+                    </Link>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatAud(sale.netCents)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Buyer payment is held while delivery and inspection are underway.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </section>
   );
 }
@@ -375,7 +402,7 @@ function TransferHistory({
 
   return (
     <section aria-labelledby="history-heading">
-      <h3 id="history-heading" className="mb-4 text-xl font-semibold">
+      <h3 id="history-heading" className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Transfer history
       </h3>
 
@@ -393,6 +420,7 @@ function TransferHistory({
           title="Nothing Has Moved Yet"
           titleAs="h4"
           description="The first entry appears when a buyer accepts an item and your proceeds are queued for release."
+          className="border-solid bg-card py-8"
           compact
         />
       ) : shown.length === 0 ? (

@@ -2,14 +2,21 @@
 
 // components/contract/ContractFocus.tsx
 //
-// Wires the action plan to the sections it points at. A step whose action is
-// `{ kind: 'focus', target: 'contract-terms' }` calls `focusSection('contract-terms')`,
-// and the matching <ContractSection id="contract-terms"> expands itself, scrolls
-// into view and pulses a ring so the eye lands on it.
+// Wires the action card to the contract detail it points at. A step whose action is
+// `{ kind: 'focus', target: 'contract-terms' }` calls `focusSection('contract-terms')`;
+// `ContractDetailList` reads `focusedId`, selects the matching tab, and pulses a ring
+// so the eye lands on it.
 //
-// This is what makes a compact, mostly-collapsed contract room navigable: the plan
-// drives disclosure, so the reader never has to hunt for the control a step is
-// talking about.
+// This is what makes a dense contract room navigable: the action card drives
+// disclosure, so the reader never has to hunt for the control a step is talking about.
+//
+// HISTORY, because it explains the scroll. This was written for a page of
+// COLLAPSIBLE <ContractSection> blocks — a component that no longer exists anywhere
+// in the codebase — where scrolling a newly-expanded block into view was the whole
+// point. The design is now a fixed-height tab inspector that does not move on the
+// page, so the scroll is at best a nudge and was actively wrong when it used
+// `block: 'center'`: centring a 28rem panel on a phone pushed the action card, which
+// holds the button just pressed, off the top of the screen.
 
 import {
   createContext,
@@ -44,12 +51,18 @@ export function ContractFocusProvider({ children }: { children: ReactNode }) {
   const focusSection = useCallback((sectionId: string) => {
     setFocusedId(sectionId);
 
-    // The section may still be collapsed when this fires; it opens on the same
-    // render that reads `focusedId`, so scroll on the next frame.
+    // The target tab may not be selected yet; it is selected on the same render
+    // that reads `focusedId`, so scroll on the next frame.
+    //
+    // `nearest`, not `center`: the panel is usually already on screen and should
+    // not be moved at all, and when it is partly off screen the least surprising
+    // result is the smallest scroll that reveals it. `nearest` also honours the
+    // panel's `scroll-mt`, which `center` ignores — `scroll-margin` applies to
+    // start/end/nearest alignment only.
     if (typeof window !== 'undefined') {
       window.requestAnimationFrame(() => {
         const target = document.getElementById(sectionId);
-        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     }
 

@@ -2,42 +2,37 @@
 
 // components/profile/PayoutOnboarding.tsx
 //
-// Seller payout onboarding (Req 3.9, 4.8-4.12). Three states in one card:
+// Seller payout onboarding (Req 3.9, 4.8-4.12). Two states in one card:
 //
-//   NONE / REJECTED -> a consent gate, then a redirect into the provider's own
-//     hosted onboarding flow.
-//   PENDING         -> "finish verification" (a fresh link) plus a status re-check.
-//   APPROVED        -> the exact identity buyers see at checkout.
+//   No account yet  -> one button that creates the Connect account and redirects
+//                      to the provider's hosted setup in a single action.
+//   Account exists   -> resume the hosted flow, or re-read status. Once the
+//                      provider reports transfers active, the provider-reported
+//                      name is available for the limited buyer disclosure.
 //
-// NAMED FOR WHAT IT GATES, NOT FOR ONE OF ITS CONSEQUENCES. This card used to be
-// titled "Getting paid" with a "Finish payout setup" button, which reads as
-// optional plumbing a Member can defer until they have a sale. It is the
-// Identity_Gate: unverified, you cannot list, sell, enter trade escrow, or run a
-// cash-bearing deal either. Member-facing, that gate is DittoShield — the same
-// name the workspace rail uses — so the copy here says verification and lets
-// payout be one outcome of it.
+// This is the Identity_Gate: without Stripe Connect setup, a member cannot list,
+// sell, enter trade escrow, or receive money. It is not a document-identity claim:
+// Connect can defer document collection, so member-facing copy must never say
+// government ID, selfie, or Stripe Identity verification. It must also not call an
+// account "Verified" while `settlementsEnabled` is false — an empty Connect shell
+// is not a finished setup, and saying so was the reason this card read
+// "Verified Account / Payouts incomplete" at the same time.
 //
-// WHAT WE NO LONGER ASK FOR. This used to be a three-step, fifteen-field form
-// collecting BSB, account number, ABN/ACN, date of birth and residential
-// address, because Stripe required all of it in the request body and offered no
-// tokenised alternative for a settlement account. The provider now collects and
-// verifies every one of those fields on its own pages, so the only thing left
-// here is the disclosure consent and an optional shop name.
-//
-// The identity shown to Buyers is the provider's VERIFIED legal name — checked
-// against a government document — not a value the Seller typed. That is why this
-// component never renders an editable legal-name field.
+// WHAT WE NO LONGER ASK FOR. The provider collects payout and bank details on its
+// own pages. There are now NO local inputs at all: the optional shop name was
+// display-only data sitting in the verification path, and the consent checkbox is
+// stated next to the button that acts on it. Card or bank data must never enter
+// this component.
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { BadgeCheck, ExternalLink, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 
-import { DittoShieldMark } from '@/components/brand/DittoShieldMark';
 import {
   createPayoutOnboardingLink,
   refreshPayoutStatus,
-  submitMerchantOnboarding,
+  startIdentityVerification,
   type MerchantStateData,
   type PayoutSetupContext,
 } from '@/lib/actions/merchant';
@@ -50,30 +45,37 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 const STATUS_BADGE: Record<
   MerchantStateData['merchantStatus'],
   { label: string; variant: BadgeProps['variant'] }
 > = {
-  NONE: { label: 'Not verified', variant: 'secondary' },
-  PENDING: { label: 'Verifying', variant: 'secondary' },
-  APPROVED: { label: 'Verified', variant: 'default' },
+  NONE: { label: 'Setup required', variant: 'secondary' },
+  PENDING: { label: 'Setup in progress', variant: 'secondary' },
+  APPROVED: { label: 'Payouts active', variant: 'default' },
   REJECTED: { label: 'Action needed', variant: 'destructive' },
 };
 
-export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
+export function PayoutOnboarding({
+  context,
+  compact = false,
+}: {
+  context: PayoutSetupContext;
+  compact?: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [state, setState] = useState(context.state);
-  const [consent, setConsent] = useState(false);
-  const [tradingName, setTradingName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const badge = STATUS_BADGE[state.merchantStatus] ?? STATUS_BADGE.NONE;
-  const needsSetup = state.merchantStatus === 'NONE' || state.merchantStatus === 'REJECTED';
+  const needsPayoutCompletion = Boolean(state.merchantRef) && !state.settlementsEnabled;
+  const needsSetup = !state.merchantRef || state.merchantStatus === 'REJECTED';
+  // An account shell with transfers still inactive is an UNFINISHED setup, never a
+  // verified one. `settlementsEnabled` is the only signal that Stripe has finished.
+  const badge = needsPayoutCompletion
+    ? { label: 'Setup incomplete', variant: 'secondary' as const }
+    : (STATUS_BADGE[state.merchantStatus] ?? STATUS_BADGE.NONE);
 
   // Returning from the provider does NOT prove the Seller can be paid, so re-read
   // the authoritative state rather than assuming success. `payouts=refresh` means
@@ -104,34 +106,29 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
     });
   }
 
-  function handleStart(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  /**
+   * Create the Connect account and open the provider's hosted setup in one action.
+   * Pressing this is the buyer-disclosure consent (Req 4.8-4.12), stated below it.
+   */
+  function handleStart() {
     setError(null);
 
-    if (!consent) {
-      setError('Buyers must be able to see who they are paying, so this is required.');
-      return;
-    }
-
     startTransition(async () => {
-      const result = await submitMerchantOnboarding({
-        tradingName: tradingName.trim() || undefined,
-        buyerDisclosureConsent: true,
-      });
-
+      const result = await startIdentityVerification();
       if (!result.ok) {
         setError(result.message);
         return;
       }
-
-      setState(result.data);
-      router.refresh();
-
-      if (!context.hostedOnboarding) {
-        toast.success('Verification submitted.');
+      if (result.data.url) {
+        // Full navigation, not a router push: the destination is off-origin.
+        window.location.assign(result.data.url);
         return;
       }
-      openHostedOnboarding();
+      // No hosted flow (MockService): creating the account was the whole flow.
+      const refreshed = await refreshPayoutStatus();
+      if (refreshed.ok) setState(refreshed.data);
+      router.refresh();
+      toast.success('Payout setup submitted.');
     });
   }
 
@@ -144,53 +141,114 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
       }
       setState(result.data);
       toast.success(
-        result.data.merchantStatus === 'APPROVED'
-          ? 'Verified. You can list, sell, trade, and be paid.'
-          : 'Still verifying — we will update this automatically.',
+        result.data.settlementsEnabled
+          ? 'Payouts are active. You can receive funds through Stripe.'
+          : 'Stripe has not finished your setup yet. Continue with Stripe to complete it.',
       );
       router.refresh();
     });
   }
 
+  if (compact && Boolean(state.merchantRef)) {
+    return (
+      <Card className="h-full">
+        <CardHeader className="pb-3">
+          <CardDescription>Merchant identity</CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              {state.settlementsEnabled ? (
+                <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+              ) : (
+                <ShieldAlert className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              )}
+              {state.settlementsEnabled ? 'Verified Account' : 'Stripe Connect'}
+            </CardTitle>
+            <Badge variant={state.settlementsEnabled ? 'default' : 'secondary'}>
+              {state.settlementsEnabled ? 'Payouts active' : 'Setup incomplete'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted-foreground">Payout name</dt>
+              <dd className="min-w-0 truncate text-right font-medium">
+                {state.legalEntityName ?? 'Awaiting Stripe name'}
+              </dd>
+            </div>
+            {state.tradingName ? (
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-muted-foreground">Store</dt>
+                <dd className="min-w-0 truncate text-right font-medium">{state.tradingName}</dd>
+              </div>
+            ) : null}
+            {state.settlementsEnabled && state.identityVerifiedAt ? (
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-muted-foreground">Active since</dt>
+                <dd className="font-medium">
+                  {new Date(state.identityVerifiedAt).toLocaleDateString('en-AU')}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          {context.hostedOnboarding ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={openHostedOnboarding}
+              disabled={isPending}
+              className="w-full"
+            >
+              {isPending ? (
+                <Loader2 className="animate-spin" aria-hidden />
+              ) : (
+                <ExternalLink className="size-3.5" aria-hidden />
+              )}
+              {needsPayoutCompletion ? 'Continue with Stripe' : 'Manage with Stripe'}
+            </Button>
+          ) : null}
+          {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-2">
-              {/* ShieldCheck, not the photo mark: the emblem is an <Image> and
-                  turns to mush at 16px. The rail's DittoShield links use this
-                  same glyph. */}
+            <CardTitle className="flex items-center gap-2 text-lg">
               <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
-              DittoShield verification
+              Stripe Connect
             </CardTitle>
             <CardDescription>
-              Verify who you are to list, sell, trade, and receive cash. Buyers
-              see your verified name before they pay you.
+              Your seller/trader verification and payout destination.
             </CardDescription>
           </div>
           <Badge variant={badge.variant}>{badge.label}</Badge>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {state.merchantStatus === 'APPROVED' ? (
+      <CardContent className="space-y-3">
+        {state.merchantStatus === 'APPROVED' && !needsPayoutCompletion ? (
           <div className="space-y-3">
             <div className="flex gap-3 rounded-lg border px-3 py-2.5">
-              <DittoShieldMark className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
               <div className="min-w-0 space-y-0.5 text-sm leading-snug">
-                <p className="font-medium text-foreground">This is what buyers see</p>
+                <p className="font-medium text-foreground">This is what buyers may see</p>
                 <p className="text-muted-foreground">
-                  Verified against your government ID. Your address, date of
-                  birth and bank details are never shown.
+                  Your provider-reported name may be disclosed to a buyer for an agreed sale.
+                  NoDitto never shows your address or bank details.
                 </p>
               </div>
             </div>
-            <dl className="grid gap-2 text-sm">
+            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
               <div className="min-w-0">
-                <dt className="text-muted-foreground">Verified name</dt>
+                <dt className="text-muted-foreground">Payout account name</dt>
                 <dd className="break-words font-medium">
-                  {state.legalEntityName ?? 'Awaiting verified name'}
+                  {state.legalEntityName ?? 'Awaiting provider name'}
                 </dd>
               </div>
               {state.tradingName ? (
@@ -201,7 +259,7 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
               ) : null}
               {state.identityVerifiedAt ? (
                 <div>
-                  <dt className="text-muted-foreground">Verified</dt>
+                  <dt className="text-muted-foreground">Payouts active</dt>
                   <dd>{new Date(state.identityVerifiedAt).toLocaleDateString('en-AU')}</dd>
                 </div>
               ) : null}
@@ -209,18 +267,18 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
           </div>
         ) : null}
 
-        {state.merchantStatus === 'PENDING' ? (
+        {needsPayoutCompletion ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Verification is in progress. If you did not finish every step, pick
-              up where you left off.
+              Stripe has not finished your setup yet, so you cannot be paid. Continue
+              with Stripe to complete it — you will pick up where you left off.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button onClick={openHostedOnboarding} disabled={isPending}>
                 {isPending ? <Loader2 className="animate-spin" aria-hidden /> : (
                   <ExternalLink className="size-3.5" aria-hidden />
                 )}
-                Finish verification
+                Continue with Stripe
               </Button>
               <Button variant="outline" onClick={handleRecheck} disabled={isPending}>
                 <RefreshCw className="size-3.5" aria-hidden />
@@ -231,43 +289,18 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
         ) : null}
 
         {needsSetup ? (
-          <form onSubmit={handleStart} className="space-y-4">
+          <div className="space-y-4">
             {state.merchantStatus === 'REJECTED' ? (
               <p className="flex gap-2 text-sm text-destructive">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-                Verification did not pass last time. You can start again.
+                Payout setup did not complete last time. You can start again.
               </p>
             ) : null}
 
-            <div className="space-y-1.5">
-              <Label htmlFor="tradingName">Store name (optional)</Label>
-              <Input
-                id="tradingName"
-                name="tradingName"
-                value={tradingName}
-                onChange={(event) => setTradingName(event.target.value)}
-                disabled={isPending}
-                placeholder="e.g. Harbour City Cards"
-              />
-              <p className="text-xs text-muted-foreground">
-                Shown alongside your verified name. Leave blank to sell under your
-                own name.
-              </p>
-            </div>
-
-            <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                name="buyerDisclosureConsent"
-                className="mt-0.5 size-4 shrink-0"
-                checked={consent}
-                onChange={(event) => setConsent(event.target.checked)}
-                disabled={isPending}
-              />
-              <span className="text-muted-foreground">
-                I agree that buyers can see my verified name before they pay me.
-              </span>
-            </label>
+            <p className="text-sm text-muted-foreground">
+              Verify through Stripe Connect to list, sell, and trade. It takes one step
+              and happens entirely on Stripe&apos;s pages.
+            </p>
 
             {error ? (
               <p role="alert" className="text-sm text-destructive">
@@ -275,18 +308,20 @@ export function PayoutOnboarding({ context }: { context: PayoutSetupContext }) {
               </p>
             ) : null}
 
-            <Button type="submit" disabled={isPending} aria-busy={isPending}>
+            <Button type="button" onClick={handleStart} disabled={isPending} aria-busy={isPending}>
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : (
                 <BadgeCheck className="size-3.5" aria-hidden />
               )}
-              {context.hostedOnboarding ? 'Verify my identity' : 'Submit verification'}
+              {context.hostedOnboarding ? 'Verify with Stripe' : 'Submit payout setup'}
             </Button>
 
+            {/* Req 4.8-4.12: continuing is the consent, so it is stated here. */}
             <p className="text-xs text-muted-foreground">
-              You will be taken to our payment provider to confirm your identity
-              and bank account. NoDitto never sees your bank details.
+              Stripe collects your payout and bank details on its own pages — NoDitto never
+              sees them. You agree that the payout name Stripe reports can be shown to
+              someone you have an agreed sale or trade with.
             </p>
-          </form>
+          </div>
         ) : null}
 
         {error && !needsSetup ? (

@@ -132,6 +132,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (mode === "sign-in") {
         const result = await signIn(email, password);
         if (!result.ok) {
+          if (result.error === 'ACCOUNT_BANNED') {
+            router.push('/account-suspended');
+            return;
+          }
           applyError(result.field, result.message);
           return;
         }
@@ -152,7 +156,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
       toast.success("Account created.");
-      router.push(destination ?? DEFAULT_DESTINATION);
+      router.push('/onboarding');
       router.refresh();
     });
   }

@@ -9,6 +9,9 @@
 // there is one source, that every surface agrees with it, and that no retired
 // column can influence it.
 
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
@@ -39,7 +42,7 @@ const retiredColumns = fc.record({
 });
 
 describe('satisfiesIdentityGate', () => {
-  it('is true only for APPROVED with settlements enabled (single-source property)', () => {
+  it('requires BOTH approval and active transfers, for every input', () => {
     fc.assert(
       fc.property(gateInput, (input) => {
         expect(satisfiesIdentityGate(input)).toBe(
@@ -49,12 +52,11 @@ describe('satisfiesIdentityGate', () => {
     );
   });
 
-  it('never treats approval alone as verified', () => {
-    fc.assert(
-      fc.property(fc.constant('APPROVED' as const), (merchantStatus) => {
-        expect(satisfiesIdentityGate({ merchantStatus, settlementsEnabled: false })).toBe(false);
-      }),
-    );
+  it('never treats a Connect account shell without active transfers as verified', () => {
+    // The 0060 regression: creating the account is the START of onboarding. A member
+    // in this state has completed nothing on Stripe's pages, so they must not be able
+    // to list, sell, or enter trade escrow.
+    expect(satisfiesIdentityGate({ merchantStatus: 'APPROVED', settlementsEnabled: false })).toBe(false);
   });
 
   it('is unaffected by any retired payer-gate value (independence property)', () => {
@@ -78,7 +80,10 @@ describe('verificationState', () => {
     );
   });
 
-  it('collapses approved-without-settlements to in-progress', () => {
+  it('reports approval without active transfers as still in progress', () => {
+    // Deliberately not a distinct state: from the member's point of view there is one
+    // thing left to happen, and surfacing "approved but not payable" as its own status
+    // is how the two-gate confusion started.
     expect(
       verificationState({ merchantStatus: 'APPROVED', settlementsEnabled: false }),
     ).toBe('IN_PROGRESS');
@@ -137,5 +142,108 @@ describe('every verification surface answers from one source', () => {
         );
       }),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Req 21.6 — the denormalisation-agreement property.
+//
+// `domain/identity/identityGate.ts` claimed this property existed for a long time
+// before it did. That is not a paperwork problem: it is exactly how migration 0060
+// changed `public_profiles.is_verified` and both `seller_identity_verified` trigger
+// functions to an APPROVED-only expression while the module header went on
+// describing the settlement-backed one. Two answers to one question, which the
+// header itself names as the bug that silently broke buying.
+//
+// So this reads the effective SQL out of `supabase/migrations/` and evaluates it
+// against `satisfiesIdentityGate` over every input. It is deliberately strict about
+// the FORM of the expression: an expression it cannot interpret throws rather than
+// passing, because a silent pass here is worse than no test at all.
+// ---------------------------------------------------------------------------
+
+const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations');
+
+/** Migration file contents, newest first. */
+function migrationsNewestFirst(): string[] {
+  return readdirSync(MIGRATIONS_DIR)
+    .filter((name) => name.endsWith('.sql'))
+    .sort()
+    .reverse()
+    .map((name) => readFileSync(join(MIGRATIONS_DIR, name), 'utf8'));
+}
+
+/**
+ * The effective definition of a SQL expression: the one in the highest-numbered
+ * migration that defines it, since later migrations replace earlier ones.
+ */
+function effectiveExpression(pattern: RegExp, label: string): string {
+  for (const sql of migrationsNewestFirst()) {
+    const match = sql.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  throw new Error(`No migration defines ${label}`);
+}
+
+/**
+ * Turn a SQL boolean expression into a predicate over {@link IdentityGateInput}.
+ *
+ * Only a conjunction of the two known column tests is accepted. Anything else —
+ * an OR, a negation, a third column, a different comparison — throws, so a
+ * change in the SQL that this test cannot reason about fails loudly.
+ */
+function sqlPredicate(expression: string): (input: IdentityGateInput) => boolean {
+  const APPROVED = /^(new\.)?merchant_status\s*=\s*'APPROVED'::cardtrade\.merchant_status$/;
+  const SETTLEMENTS = /^(new\.)?merchant_settlements_enabled$/;
+
+  const terms = expression
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\(|\)$/g, '')
+    .split(/\s+and\s+/i)
+    .map((term) => term.trim());
+
+  const checks = terms.map((term) => {
+    if (APPROVED.test(term)) {
+      return (input: IdentityGateInput) => input.merchantStatus === 'APPROVED';
+    }
+    if (SETTLEMENTS.test(term)) return (input: IdentityGateInput) => input.settlementsEnabled;
+    throw new Error(`Uninterpretable SQL term in the Identity_Gate expression: ${term}`);
+  });
+
+  return (input) => checks.every((check) => check(input));
+}
+
+describe('SQL/TypeScript denormalisation agreement (Req 21.6)', () => {
+  const sources: Array<[string, RegExp]> = [
+    ['public_profiles.is_verified', /\(([^()]*?)\)\s+as is_verified/],
+    [
+      'set_item_seller_identity_verified()',
+      /select\s*\(([\s\S]*?)\)\s*into new\.seller_identity_verified/,
+    ],
+    ['sync_items_seller_identity_verified()', /verified\s*:=\s*\(([\s\S]*?)\);/],
+  ];
+
+  for (const [label, pattern] of sources) {
+    it(`${label} computes exactly what satisfiesIdentityGate computes`, () => {
+      const predicate = sqlPredicate(effectiveExpression(pattern, label));
+      fc.assert(
+        fc.property(gateInput, (input) => {
+          expect(predicate(input)).toBe(satisfiesIdentityGate(input));
+        }),
+      );
+    });
+  }
+
+  it('propagates on both gate columns, so the denormalisation cannot go stale', () => {
+    // 0060 narrowed this to `after update of merchant_status`. With the gate depending
+    // on settlements, a report flipping only settlements — the transition that MEANS
+    // onboarding finished — would not fire, and every item row would freeze. Nothing
+    // reads the column yet, so it would have failed silently and indefinitely.
+    const trigger = effectiveExpression(
+      /create trigger profiles_sync_items_seller_identity_verified\s*\n\s*after update of ([^\n]*)\n/,
+      'the seller_identity_verified propagation trigger',
+    );
+    const columns = trigger.split(',').map((column) => column.trim());
+    expect(columns).toEqual(['merchant_status', 'merchant_settlements_enabled']);
   });
 });

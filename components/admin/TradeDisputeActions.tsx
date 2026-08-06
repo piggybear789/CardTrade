@@ -83,7 +83,7 @@ export function TradeDisputeActions({
       const result = await resolveTradeFraud(tradeId, victimId);
       setConfirming(null);
       if (result.ok) {
-        toast.success('Resolved as objective fraud. Collateral captured and paid out.');
+        toast.success('Resolved as objective fraud. Collateral captured, victim paid, and account permanently banned.');
         return;
       }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Resolution failed.');
@@ -191,7 +191,7 @@ export function TradeDisputeActions({
           title="Resolve as objective fraud?"
           // Names both sides explicitly. An operator about to move a four-figure sum
           // should have to read who loses it, not just who gains.
-          description={`${formatAud(offender.bondCents)} will be captured from ${offender.name} and paid to ${victim.name}, whose own collateral is released. The trade becomes terminal. This cannot be undone.`}
+          description={`${formatAud(offender.bondCents)} will be captured from ${offender.name} and paid to ${victim.name}, whose own collateral is released. The trade becomes terminal and ${offender.name}'s account is permanently banned. This cannot be undone.`}
           confirmLabel={`Capture from ${offender.name}`}
           confirmVariant="destructive"
           pending={isPending}

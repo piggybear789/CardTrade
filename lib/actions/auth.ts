@@ -39,7 +39,7 @@ export interface SignUpData {
 }
 
 /** Typed failure codes for {@link signIn}. */
-export type SignInError = 'VALIDATION' | 'INVALID_CREDENTIALS';
+export type SignInError = 'VALIDATION' | 'INVALID_CREDENTIALS' | 'ACCOUNT_BANNED';
 
 /** Typed failure codes for {@link signOut}. */
 export type SignOutError = 'SIGN_OUT_FAILED';
@@ -157,6 +157,12 @@ export async function signIn(
   });
 
   if (error || !data.user) {
+    if (error && /ban(?:ned)?/i.test(error.message)) {
+      return fail(
+        'ACCOUNT_BANNED',
+        'This account was permanently suspended after a staff-confirmed objective fraud finding.',
+      );
+    }
     return fail('INVALID_CREDENTIALS', 'Invalid email or password.');
   }
 

@@ -1,129 +1,89 @@
 // app/profile/page.tsx
 //
-// Profile page (Req 1.4–1.6). A Server Component that loads the authenticated
-// caller's own Profile via the cookie-bound server client — RLS
-// (`profiles_owner_select`) guarantees a User can only read their own row, so
-// only the owner can view/edit (Req 1.6).
-//
-// `PayoutOnboarding` is now genuinely the single verification surface, which this
-// comment previously claimed while the page still rendered a separate identity
-// card beside it. "Verified" means Connect onboarding APPROVED with settlements
-// enabled — one gate, the provider's, with no separate payer check.
+// Compact personal-account surface. Stripe Connect setup and money movement live
+// exclusively on /profile/payouts so this page does not duplicate payout UI.
 
-import { redirect } from "next/navigation";
-import { CreditCard } from "lucide-react";
+import { redirect } from 'next/navigation';
+import { CreditCard } from 'lucide-react';
 
-import { createClient } from "@/lib/supabase/server";
-import { getPayoutSetupContext } from "@/lib/actions/merchant";
-import { getPaymentMethodStatus } from "@/lib/actions/payments";
-import { AccountTabs } from "@/components/account/AccountTabs";
-import { EditProfileDialog } from "@/components/profile/EditProfileDialog";
-import { PayoutOnboarding } from "@/components/profile/PayoutOnboarding";
-import { AddPaymentMethodDialog } from "@/components/payments/AddPaymentMethodDialog";
-import { Button } from "@/components/ui/button";
+import { createClient } from '@/lib/supabase/server';
+import { getPaymentMethodStatus } from '@/lib/actions/payments';
+import { AccountTabs } from '@/components/account/AccountTabs';
+import { EditProfileDialog } from '@/components/profile/EditProfileDialog';
+import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
-import { SectionHeader } from "@/components/layout/SectionHeader";
-import { EmptyState } from "@/components/ui/empty-state";
+} from '@/components/ui/card';
+import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import { SectionHeader } from '@/components/layout/SectionHeader';
+import { EmptyState } from '@/components/ui/empty-state';
 
-// This page reads the authenticated user's cookies, so it must render
-// dynamically (never statically prerendered at build time).
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 export default async function ProfilePage() {
   const supabase = await createClient();
-
-  // Require an authenticated User; unauthenticated visitors are sent to sign-in
-  // (Req 1.7). The subsequent read is RLS-scoped to the caller's own row.
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
-    redirect("/sign-in?redirectTo=/profile");
+    redirect('/sign-in?redirectTo=/profile');
   }
 
   const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("display_name, contact_email")
-    .eq("id", user.id)
+    .from('profiles')
+    .select('display_name, contact_email')
+    .eq('id', user.id)
     .single();
 
   if (error || !profile) {
     return (
-      <MarketplaceShell title="Account" center>
+      <MarketplaceShell title="Profile" center>
         <EmptyState
-          title="Account Unavailable"
-          description="We couldn't load your account right now. Reload the page to try again."
-          action={{ label: "Try Again", href: "/profile" }}
+          title="Profile unavailable"
+          description="We could not load your account details. Reload to try again."
+          action={{ label: 'Try again', href: '/profile' }}
           compact
         />
       </MarketplaceShell>
     );
   }
 
-  // Seller payout state + whether the test-mode compliance simulator is
-  // available. Resolved on the server so the client never reads provider env.
-  const payoutContext = await getPayoutSetupContext();
-
-  // Display-safe saved-card summary: label only, never a token or source id.
   const paymentMethodResult = await getPaymentMethodStatus();
   const paymentMethod = paymentMethodResult.ok ? paymentMethodResult.data : null;
 
   return (
-    <MarketplaceShell title="Account">
+    <MarketplaceShell title="Profile">
       <SectionHeader
-        title="Account Settings"
-        description="Manage your public identity, DittoShield status, and Stripe payout details."
+        title="Profile"
+        description="Your public name, contact details, and payment method."
       />
       <AccountTabs />
 
-      <div className="space-y-6">
-        {/* Verification leads the page and is the ONLY verification surface. There
-            used to be a separate "Identity verification" card above this one
-            pointing at /kyc, which made the account page assert two different
-            definitions of verified — the rail said one thing, this page another.
-            There is one gate now: Connect onboarding approved with settlements
-            enabled.
-
-            The `#identity` alias nests INSIDE this wrapper rather than sitting
-            beside it as an empty sibling: as a sibling it collected a
-            `space-y-6` margin of its own, which opened a double gap between the
-            tab strip and the first card for a node that renders nothing. */}
-        <div id="payouts" className="scroll-mt-24">
-          <div id="identity" className="scroll-mt-24" />
-          {payoutContext.ok ? <PayoutOnboarding context={payoutContext.data} /> : null}
-        </div>
-
+      <div className="grid gap-4 xl:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Your details</CardTitle>
-            <CardDescription>
-              What other traders see when you buy, sell, or trade.
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Your details</CardTitle>
+            <CardDescription>What other members see when they trade with you.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <dl className="grid gap-3 sm:grid-cols-2">
               <div className="min-w-0">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Display name
                 </dt>
-                <dd className="truncate text-sm font-semibold">
-                  {profile.display_name}
-                </dd>
+                <dd className="mt-1 truncate text-sm font-semibold">{profile.display_name}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Contact email
                 </dt>
-                <dd className="truncate text-sm font-semibold">
-                  {profile.contact_email}
-                </dd>
+                <dd className="mt-1 truncate text-sm font-semibold">{profile.contact_email}</dd>
               </div>
             </dl>
             <EditProfileDialog
@@ -134,41 +94,38 @@ export default async function ProfilePage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">How you pay with Stripe</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Card for Buying & Trade Holds</CardTitle>
             <CardDescription>
-              The card you buy with, and the one your collateral is held against.
-              Card details go straight to Stripe and never touch our servers.
+              Used for purchases and temporary trade collateral holds. Card details stay with Stripe.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Show what is saved. The label is display-only; the card itself
-                lives at the provider. */}
             {paymentMethod?.hasPaymentMethod ? (
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                <CreditCard className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {paymentMethod.label ?? "Card saved"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Saved with Stripe for purchases and collateral.
+              <div className="aspect-[1.586/1] w-full max-w-xs rounded-2xl bg-foreground p-5 text-background shadow-sm">
+                <div className="flex items-start justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">NoDitto</p>
+                  <CreditCard className="size-5 opacity-80" aria-hidden />
+                </div>
+                <div className="mt-8 h-7 w-10 rounded-md bg-background/20" aria-hidden />
+                <div className="mt-6">
+                  <p className="text-xs uppercase tracking-wide opacity-60">Purchases & collateral</p>
+                  <p className="mt-1 truncate text-base font-semibold tracking-wide">
+                    {paymentMethod.label ?? 'Card saved with Stripe'}
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No Stripe method saved.
+              <p className="rounded-md border border-dashed bg-card p-3 text-sm text-muted-foreground">
+                No purchase or collateral card saved yet.
               </p>
             )}
 
             <AddPaymentMethodDialog
               trigger={
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" size="sm">
                   <CreditCard aria-hidden />
-                  {paymentMethod?.hasPaymentMethod
-                    ? "Replace payment method"
-                    : "Add payment method"}
+                  {paymentMethod?.hasPaymentMethod ? 'Replace card' : 'Add card'}
                 </Button>
               }
             />

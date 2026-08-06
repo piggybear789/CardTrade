@@ -55,10 +55,12 @@ import { StateBadge } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
 import { PlaceMap } from '@/components/location';
 import {
+  CollateralExplainerDialog,
   ContractActionCard,
   ContractConversationPanel,
   ContractDetailList,
   ContractDetailRow,
+  DittoBondExplainer,
   ContractExchangePanel,
   ContractFocusProvider,
   ContractHeader,
@@ -524,7 +526,8 @@ function TradeTermsRow({
               lat={trade.meeting_lat}
               lng={trade.meeting_lng}
               label={trade.meeting_location}
-              heightClassName="h-40"
+              precision="exact"
+              heightClassName="h-56"
             />
           ) : null}
           {/* Where each parcel is actually going. A posted trade previously had no
@@ -1004,7 +1007,7 @@ export function TradeContract({
               <ContractDetailRow
                 id={TRADE_SECTIONS.collateral}
                 label="Collateral"
-                explainer="A temporary hold when a trader isn't DittoShield verified. Released when the trade completes; only charged if something goes wrong."
+                explainer="Trade collateral is a temporary card authorisation each trader places against the agreed value. It is released after normal completion; it is not a payment."
                 summary={
                   holds.length === 0
                     ? 'Nothing on the line yet'
@@ -1017,11 +1020,22 @@ export function TradeContract({
                 {/* Both traders bond now — the verified exemption is gone, because it
                     left every trade with no collateral and made a dispute or fraud
                     finding unpayable. See `domain/bond/bondPolicy.ts`. */}
-                <p className="text-muted-foreground">
-                  Both traders hold a DittoBond against the value of what they
-                  receive. It is an authorisation, not a payment: no money moves, and
-                  nothing is charged unless the trade goes wrong.
-                </p>
+                <div className="flex flex-col gap-3 rounded-lg border bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-medium">Both traders have collateral on this trade</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                      Each saved card has a temporary authorisation for the agreed value.
+                      It is released when the trade resolves normally.
+                    </p>
+                  </div>
+                  <CollateralExplainerDialog
+                    title="How trade collateral protects a trade"
+                    description="Understand the temporary card hold, normal release, and resolution outcomes."
+                    triggerLabel="How trade collateral works"
+                  >
+                    <DittoBondExplainer />
+                  </CollateralExplainerDialog>
+                </div>
                 <HoldStatus
                   holds={holds}
                   initiatorId={initiatorId}

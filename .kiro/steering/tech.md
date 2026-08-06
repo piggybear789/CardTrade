@@ -46,7 +46,7 @@ npx vitest --run tests/unit/tradeProposal.test.ts
 - `domain` — Node environment, covers `tests/unit/**` and `tests/property/**` (pure state machine, validators, orchestrators, fast-check properties). No DOM, no Supabase.
 - `component` — jsdom environment with globals and `tests/setup.ts` (jest-dom matchers), covers `tests/component/**`.
 
-Property tests use `fast-check` to assert the correctness properties recorded in the spec design doc. Domain logic must stay pure so it can be tested without a database.
+Property tests use `fast-check` to assert correctness properties of the domain logic. Domain logic must stay pure so it can be tested without a database.
 
 ## Path aliases
 
@@ -69,7 +69,7 @@ Generated DB types live in `lib/supabase/database.types.ts` (`Tables<'items'>`, 
 Copy `.env.local.example` to `.env.local`:
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — browser-safe
-- `NEXT_PUBLIC_GEOAPIFY_KEY` — browser-safe Geoapify key for address autocomplete + static maps (restrict by HTTP referrer in the Geoapify dashboard)
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — browser-safe Google Maps key for Places Autocomplete, Maps Embed API (meeting points), and Maps Static API (suburb previews). Restrict by HTTP referrer in the Google Cloud Console. Enable Places API (New) + Maps Embed API + Maps Static API on the key.
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only, RLS-bypassing
 - `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `stripe` (real Stripe API)
 - `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks
@@ -83,6 +83,6 @@ Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret valu
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/`, currently through `0057_trade_fulfilment_parity.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0061_restore_settlement_backed_verification.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
 
-Note the base DDL for `deals` / `deal_holds` / `deal_events` is **not** in `supabase/migrations/` — those tables predate the numbered sequence. Alter them with `add column if not exists` rather than assuming a prior migration defines them.
+When a migration changes the Identity_Gate expressions (`public_profiles.is_verified`, the two `seller_identity_verified` trigger functions, or that trigger's column list), the denormalisation-agreement property in `tests/property/identityGate.test.ts` reads the newest migration that defines each and evaluates it against `satisfiesIdentityGate`. It fails loudly on an expression it cannot interpret, so keep the SQL in the plain `merchant_status = 'APPROVED'::cardtrade.merchant_status and merchant_settlements_enabled` form.

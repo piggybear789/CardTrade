@@ -27,7 +27,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Loader2, MapPin, X } from 'lucide-react';
 
-import { searchPlaces } from '@/lib/location/geoapify';
+import { searchPlaces } from '@/lib/location/googleMaps';
 import type { PlacePrecision, PlaceValue } from '@/lib/location/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';

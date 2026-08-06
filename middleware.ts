@@ -14,11 +14,14 @@ const PROTECTED_PREFIXES = [
   "/listings/new",
   "/listings/mine",
   "/trades",
+  "/messages",
+  "/notifications",
   "/purchases",
   "/sales",
   "/offers",
   "/saved",
   "/account",
+  "/onboarding",
   // Covers /admin/arbitration too. Middleware only proves there IS a session — the
   // capability check is the page's own `is_admin` read and `requireStaff`, and every
   // staff action re-checks. This entry exists so an anonymous visitor is sent to
@@ -46,6 +49,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const supabase = createServerClient(url, anonKey, {
+    db: { schema: 'cardtrade' },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -79,6 +83,36 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // `/listings` is publicly browseable, but it is the normal post-sign-in
+  // destination. Include it here so a returning member who has not completed
+  // onboarding cannot silently skip the flow; anonymous visitors still browse it.
+  const isOnboardingEntryPoint = pathname === '/listings';
+  if (
+    user &&
+    pathname !== '/onboarding' &&
+    (isProtected(pathname) || isOnboardingEntryPoint)
+  ) {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('onboarding_completed_at, fraud_banned_at')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!profileError && profile?.fraud_banned_at) {
+      const suspendedUrl = request.nextUrl.clone();
+      suspendedUrl.pathname = '/account-suspended';
+      suspendedUrl.search = '';
+      return NextResponse.redirect(suspendedUrl);
+    }
+
+    if (!profileError && !profile?.onboarding_completed_at) {
+      const onboardingUrl = request.nextUrl.clone();
+      onboardingUrl.pathname = '/onboarding';
+      onboardingUrl.search = '';
+      return NextResponse.redirect(onboardingUrl);
+    }
+  }
+
   return response;
 }
 
@@ -86,14 +120,19 @@ export const config = {
   // Only run on the protected trees to keep middleware overhead minimal.
   matcher: [
     "/profile/:path*",
-    "/listings/new/:path*",
-    "/listings/mine/:path*",
+    // The catalog stays public; this matcher only lets the middleware redirect a
+    // signed-in, incomplete member after sign-in. `isProtected()` still limits
+    // anonymous auth redirects to /listings/new and /listings/mine.
+    "/listings/:path*",
     "/trades/:path*",
+    "/messages/:path*",
+    "/notifications/:path*",
     "/purchases/:path*",
     "/sales/:path*",
     "/offers/:path*",
     "/saved/:path*",
     "/account/:path*",
+    "/onboarding/:path*",
     // `:path*` matches the bare prefix as well as its children, so this covers /admin
     // and /admin/arbitration/... alike.
     "/admin/:path*",

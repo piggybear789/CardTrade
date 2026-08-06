@@ -79,3 +79,69 @@ export async function updateProfile(
     contactEmail: data.contact_email,
   });
 }
+
+/** Persisted result of the one-time member onboarding flow. */
+export interface OnboardingCompletionData {
+  displayName: string;
+  onboardingCompletedAt: string;
+}
+
+/**
+ * Complete member onboarding after the user has chosen their public alias and path.
+ *
+ * The contact email remains server-owned: it is read from the existing Profile so a
+ * client cannot blank or replace it just to complete onboarding. The authenticated
+ * owner may update only `display_name` and `onboarding_completed_at`; provider and
+ * role columns remain protected by both column grants and RLS.
+ */
+export async function completeOnboarding(
+  displayName: string,
+): Promise<ActionResult<OnboardingCompletionData, UpdateProfileError>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return fail('NOT_AUTHENTICATED', 'You must be signed in to finish onboarding.');
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('contact_email')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) {
+    return fail('UPDATE_FAILED', profileError?.message ?? 'Your profile could not be found.');
+  }
+
+  const validation = validateProfileUpdate({
+    displayName,
+    contactEmail: profile.contact_email,
+  });
+  if (!validation.ok) {
+    return fail('VALIDATION', validation.message, validation.field);
+  }
+
+  const onboardingCompletedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      display_name: validation.value.displayName,
+      onboarding_completed_at: onboardingCompletedAt,
+    })
+    .eq('id', user.id)
+    .select('display_name, onboarding_completed_at')
+    .single();
+
+  if (error || !data?.onboarding_completed_at) {
+    return fail('UPDATE_FAILED', error?.message ?? 'Onboarding could not be saved.');
+  }
+
+  return ok({
+    displayName: data.display_name,
+    onboardingCompletedAt: data.onboarding_completed_at,
+  });
+}
+

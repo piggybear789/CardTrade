@@ -47,6 +47,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ContractActionCard,
+  CashSaleCollateralExplainer,
+  CollateralExplainerDialog,
   ContractConversationPanel,
   ContractDetailList,
   ContractDetailRow,
@@ -1038,7 +1040,8 @@ function CashSaleRoom({
                     lat={sale.meeting_lat}
                     lng={sale.meeting_lng}
                     label={sale.meeting_location}
-                    heightClassName="h-52 sm:h-60"
+                    precision="exact"
+                    heightClassName="h-56 sm:h-64"
                   />
                 ) : (
                   <div className="flex min-h-32 items-center rounded-md border border-dashed bg-muted/30 px-4 text-sm text-muted-foreground">
@@ -1110,41 +1113,54 @@ function CashSaleRoom({
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.collateral}
           label="Collateral"
+          explainer="Cash sale protection comes from the buyer's collected payment. Open the full explanation to see when the seller is paid and why a separate collateral hold may not appear."
           summary={
             sellerBondCents === 0
-              ? 'None required'
+              ? 'Buyer payment collected first'
               : `Seller posts ${formatAud(sellerBondCents)}`
           }
           contentClassName="gap-3"
         >
-          {sellerBondCents === 0 ? (
-            <p className="w-full rounded-lg border bg-background p-4 text-muted-foreground">
-              The seller is DittoShield verified, and the buyer pays through Stripe
-              Payments before anything ships, so neither side posts a bond.
-            </p>
-          ) : (
-            <>
-              <p className="text-muted-foreground">
-                The seller is not DittoShield verified, so they post a bond. The buyer
-                posts none — Stripe collects their payment up front. The bond is
-                released when the contract completes.
+          <div className="flex flex-col gap-3 rounded-lg border bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-medium">
+                {sellerBondCents > 0
+                  ? `${seller.name} has collateral on this sale`
+                  : 'Buyer payment is the protection on this sale'}
               </p>
-              <ContractMoneyTable
-                ariaLabel="Collateral"
-                rows={[
-                  {
-                    label: iAmBuyer ? `${seller.name}'s bond` : 'Your bond',
-                    value: formatAud(sellerBondCents),
-                  },
-                  {
-                    label: iAmBuyer ? 'Your bond' : `${buyer.name}'s bond`,
-                    value: 'Not required',
-                    muted: true,
-                  },
-                ]}
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                {sellerBondCents > 0
+                  ? 'The seller has a temporary card authorisation; the buyer does not post a separate bond.'
+                  : 'The buyer pays first and the seller is paid only after the sale resolves.'}
+              </p>
+            </div>
+            <CollateralExplainerDialog
+              title="How protection works on this cash sale"
+              description="See where the buyer payment sits, when the seller is paid, and why a separate bond may not be needed."
+              triggerLabel="How protection works"
+            >
+              <CashSaleCollateralExplainer
+                sellerBondCents={sellerBondCents}
+                sellerName={seller.name}
               />
-            </>
-          )}
+            </CollateralExplainerDialog>
+          </div>
+          {sellerBondCents > 0 ? (
+            <ContractMoneyTable
+              ariaLabel="Collateral"
+              rows={[
+                {
+                  label: iAmBuyer ? `${seller.name}'s collateral` : 'Your collateral',
+                  value: formatAud(sellerBondCents),
+                },
+                {
+                  label: iAmBuyer ? 'Your collateral' : `${buyer.name}'s collateral`,
+                  value: 'Not required',
+                  muted: true,
+                },
+              ]}
+            />
+          ) : null}
         </ContractDetailRow>
 
         {events.length > 0 ? (

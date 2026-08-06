@@ -185,6 +185,48 @@ export async function createPayoutOnboardingLink(
 }
 
 /**
+ * Start verification and hand back the provider-hosted URL in one round trip.
+ *
+ * WHY THIS EXISTS. Minting a hosted link needs an `acct_...` to build it for, so
+ * two provider calls are unavoidable: create the recipient account, then create
+ * the account link. Those two calls used to be exposed as two separate member
+ * clicks ("Save setup details", then "Continue with Stripe") with an optional shop
+ * name hung off the first to make it look like a step. Nothing required that. The
+ * member asked to verify; this does both calls and returns the URL to send them to.
+ *
+ * `url` is null when the active provider has no hosted flow (the MockService), in
+ * which case creating the account was the entire flow and the caller should just
+ * re-read status.
+ *
+ * CONSENT (Req 4.8-4.12). Calling this IS the buyer-disclosure consent, so every
+ * caller must render the disclosure next to the control that invokes it. The flag
+ * is passed as `true` here rather than being collected on a separate screen — the
+ * requirement is informed consent, not an extra click.
+ */
+export async function startIdentityVerification(
+  returnPath?: string,
+): Promise<ActionResult<{ url: string | null }, MerchantOnboardingActionError>> {
+  const state = await getMerchantState();
+  if (!state.ok) {
+    return state.error === 'not-authenticated'
+      ? fail('not-authenticated', 'You must be signed in to verify your account.')
+      : fail('profile-not-found', 'No profile was found for your account.');
+  }
+
+  // Resume rather than fail when an account shell already exists: a member who
+  // abandoned the provider's pages mid-flow presses the same button again.
+  if (!state.data.merchantRef) {
+    const submitted = await submitMerchantOnboarding({ buyerDisclosureConsent: true });
+    if (!submitted.ok && submitted.error !== 'already-onboarded') return submitted;
+  }
+
+  const link = await createPayoutOnboardingLink(returnPath);
+  if (link.ok) return ok({ url: link.data.url });
+  if (link.error === 'not-supported') return ok({ url: null });
+  return link;
+}
+
+/**
  * Normalise a caller-supplied return path into a same-origin prefix ending in
  * `?` or `&`, ready for the `payouts=` marker to be appended.
  *

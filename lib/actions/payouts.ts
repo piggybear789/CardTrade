@@ -42,10 +42,9 @@ import {
   type TradeArbitrationInput,
   type TradeState,
 } from '@/domain/payouts/payoutReadModel';
-import {
-  verificationState,
-  type MerchantStatus,
-  type VerificationState,
+import type {
+  MerchantStatus,
+  VerificationState,
 } from '@/domain/identity/identityGate';
 import { type ActionResult, fail, ok } from './result';
 
@@ -262,9 +261,17 @@ export async function getPayoutsDashboard(): Promise<
   const merchantStatus = (profile?.merchant_status ?? 'NONE') as MerchantStatus;
   const settlementsEnabled = Boolean(profile?.merchant_settlements_enabled);
 
+  const destinationState: DestinationAccount['state'] = settlementsEnabled
+    ? 'VERIFIED'
+    : merchantStatus === 'REJECTED'
+      ? 'NOT_APPROVED'
+      : merchantStatus === 'NONE'
+        ? 'NOT_STARTED'
+        : 'IN_PROGRESS';
+
   const destination: DestinationAccount = {
     verifiedName: (profile?.merchant_legal_entity_name as string | null) ?? null,
-    state: verificationState({ merchantStatus, settlementsEnabled }),
+    state: destinationState,
     settlementsEnabled,
     // Resolved from the provider seam rather than from env, so the client never
     // learns which provider is configured.

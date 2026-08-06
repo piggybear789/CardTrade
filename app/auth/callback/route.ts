@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.user) {
+    if (error && /ban(?:ned)?/i.test(error.message)) {
+      return NextResponse.redirect(new URL('/account-suspended', origin));
+    }
     return failure(error?.message ?? 'Could not complete Google sign-in.');
   }
 
@@ -91,10 +94,11 @@ export async function GET(request: NextRequest) {
 
   const next = safeNextPath(params.get('next'));
 
-  // Both new and returning users go to wherever they were headed (or the
-  // catalog as fallback). Identity verification is offered on-demand from
-  // /profile, not imposed as a mandatory detour after sign-up.
-  const destination = next ?? DEFAULT_DESTINATION;
+  // New users go through the onboarding flow. Returning users go to their
+  // intended destination (or the catalog as fallback).
+  const destination = profile.created
+    ? '/onboarding'
+    : (next ?? DEFAULT_DESTINATION);
 
   return NextResponse.redirect(new URL(destination, origin));
 }

@@ -1,8 +1,8 @@
 'use client';
 
-// Autocomplete place picker (suburb vs exact). No interactive map — selection
-// comes from Geoapify Address Autocomplete suggestions, and the confirmation is a
-// static map image.
+// Autocomplete place picker (suburb vs exact). No interactive map SDK — selection
+// comes from Google Places Autocomplete suggestions, and the confirmation is a
+// Google Maps Embed preview.
 //
 // The map is here for ERROR PREVENTION, not decoration. Two suburbs share a name
 // often enough that a text-only "Selected: Richmond" is not a confirmation of
@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { readGeoapifyKey } from '@/lib/location/geoapify';
+import { readGoogleMapsKey } from '@/lib/location/googleMaps';
 import {
   FALLBACK_MAP_CENTER,
   type PlacePrecision,
@@ -72,7 +72,7 @@ export function PlacePicker({
   countries,
   biasCountry,
 }: PlacePickerProps) {
-  const apiKey = readGeoapifyKey();
+  const apiKey = readGoogleMapsKey();
   const [textOnly, setTextOnly] = useState(value?.label ?? '');
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export function PlacePicker({
         />
         {hint && !error ? (
           <p id={hintId} className="text-xs text-muted-foreground">
-            {hint} Address search unavailable until a Geoapify key is configured.
+            {hint} Address search unavailable until a Google Maps API key is configured.
           </p>
         ) : null}
         {error ? (
@@ -176,7 +176,7 @@ export function PlacePicker({
           lng={value.lng}
           label={value.label}
           precision={value.precision}
-          heightClassName="h-40"
+          heightClassName="h-48"
         />
       ) : null}
 

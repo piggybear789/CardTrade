@@ -250,12 +250,12 @@ export function BuyButton({
                 </Button>
               </div>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm">
+              <label className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm">
                 <input
                   type="checkbox"
                   checked={confirmed}
                   onChange={(event) => setConfirmed(event.target.checked)}
-                  className="mt-0.5 h-4 w-4"
+                  className="h-4 w-4 shrink-0"
                   disabled={isPending}
                 />
                 <span>

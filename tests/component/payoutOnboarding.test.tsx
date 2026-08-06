@@ -3,24 +3,26 @@
 // Seller payout onboarding (Req 3.9, 4.8-4.12).
 //
 // The guarantees worth pinning down after moving to provider-hosted onboarding:
-//   * the consent gate still blocks submission (Req 4.8);
+//   * asking to verify leaves for the provider in ONE action — there is no
+//     intermediate "save setup details" screen to click through (the shop-name
+//     step that used to sit there was display-only data in the verification path);
 //   * no bank, registration, date-of-birth or address field is collected here at
 //     all — the provider owns those, so they must not exist in our DOM;
 //   * returning from the provider does NOT display "verified" on its own; the
 //     authoritative status is re-read;
-//   * the approved view shows the provider-VERIFIED legal name and nothing
-//     private.
+//   * an account shell with transfers inactive never reads as verified;
+//   * the payable view shows the provider-VERIFIED legal name and nothing private.
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-const submitMerchantOnboarding = vi.fn();
+const startIdentityVerification = vi.fn();
 const createPayoutOnboardingLink = vi.fn();
 const refreshPayoutStatus = vi.fn();
 
 vi.mock('@/lib/actions/merchant', () => ({
-  submitMerchantOnboarding: (...args: unknown[]) => submitMerchantOnboarding(...args),
+  startIdentityVerification: (...args: unknown[]) => startIdentityVerification(...args),
   createPayoutOnboardingLink: (...args: unknown[]) => createPayoutOnboardingLink(...args),
   refreshPayoutStatus: (...args: unknown[]) => refreshPayoutStatus(...args),
 }));
@@ -58,7 +60,7 @@ function makeContext(overrides: Partial<PayoutSetupContext['state']> = {}): Payo
 const assign = vi.fn();
 
 beforeEach(() => {
-  submitMerchantOnboarding.mockReset();
+  startIdentityVerification.mockReset();
   createPayoutOnboardingLink.mockReset();
   refreshPayoutStatus.mockReset();
   refresh.mockReset();
@@ -70,9 +72,9 @@ beforeEach(() => {
     value: { assign, href: 'http://localhost/profile' },
   });
 
-  submitMerchantOnboarding.mockResolvedValue({
+  startIdentityVerification.mockResolvedValue({
     ok: true,
-    data: { ...makeContext().state, merchantStatus: 'PENDING', merchantRef: 'acct_1' },
+    data: { url: 'https://connect.stripe.com/setup/s/abc123' },
   });
   createPayoutOnboardingLink.mockResolvedValue({
     ok: true,
@@ -81,14 +83,27 @@ beforeEach(() => {
 });
 
 describe('PayoutOnboarding', () => {
-  it('refuses to submit until the buyer disclosure is consented to', async () => {
+  it('leaves for the provider in one action, with no intermediate save step', async () => {
     const user = userEvent.setup();
     render(<PayoutOnboarding context={makeContext()} />);
 
-    await user.click(screen.getByRole('button', { name: /verify my identity/i }));
+    // The step that used to stand here.
+    expect(screen.queryByLabelText(/store name/i)).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: /save setup details/i })).toBeNull();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/see who they are paying/i);
-    expect(submitMerchantOnboarding).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /verify with stripe/i }));
+
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/s/abc123'),
+    );
+    expect(startIdentityVerification).toHaveBeenCalledTimes(1);
+  });
+
+  it('states the buyer disclosure next to the control that consents to it', () => {
+    render(<PayoutOnboarding context={makeContext()} />);
+
+    expect(screen.getByText(/payout name Stripe reports can be shown/i)).toBeInTheDocument();
   });
 
   it('collects no bank, registration, date-of-birth or address fields', () => {
@@ -101,27 +116,8 @@ describe('PayoutOnboarding', () => {
     }
   });
 
-  it('submits with consent, then redirects into the provider-hosted flow', async () => {
-    const user = userEvent.setup();
-    render(<PayoutOnboarding context={makeContext()} />);
-
-    await user.type(screen.getByLabelText(/store name/i), 'Harbour City Cards');
-    await user.click(screen.getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: /verify my identity/i }));
-
-    await waitFor(() => expect(submitMerchantOnboarding).toHaveBeenCalledTimes(1));
-    expect(submitMerchantOnboarding).toHaveBeenCalledWith({
-      tradingName: 'Harbour City Cards',
-      buyerDisclosureConsent: true,
-    });
-
-    await waitFor(() =>
-      expect(assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/s/abc123'),
-    );
-  });
-
   it('surfaces a server error without redirecting', async () => {
-    submitMerchantOnboarding.mockResolvedValue({
+    startIdentityVerification.mockResolvedValue({
       ok: false,
       error: 'submission-failed',
       message: 'Payout setup could not be submitted. Please try again.',
@@ -129,11 +125,29 @@ describe('PayoutOnboarding', () => {
 
     const user = userEvent.setup();
     render(<PayoutOnboarding context={makeContext()} />);
-    await user.click(screen.getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: /verify my identity/i }));
+    await user.click(screen.getByRole('button', { name: /verify with stripe/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not be submitted/i);
     expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('never reads as verified while the provider has not enabled transfers', () => {
+    render(
+      <PayoutOnboarding
+        context={makeContext({
+          merchantStatus: 'APPROVED',
+          merchantRef: 'acct_1',
+          settlementsEnabled: false,
+          identityVerifiedAt: '2026-08-01T00:00:00.000Z',
+        })}
+      />,
+    );
+
+    // An empty Connect shell is an unfinished setup, not a verified account. This
+    // card used to badge it "Verified Through Stripe" the moment the shell existed.
+    expect(screen.queryByText(/verified/i)).toBeNull();
+    expect(screen.getByText(/setup incomplete/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue with stripe/i })).toBeInTheDocument();
   });
 
   it('re-reads status on return from the provider rather than assuming success', async () => {
@@ -146,9 +160,9 @@ describe('PayoutOnboarding', () => {
     render(<PayoutOnboarding context={makeContext({ merchantStatus: 'PENDING', merchantRef: 'acct_1' })} />);
 
     await waitFor(() => expect(refreshPayoutStatus).toHaveBeenCalledTimes(1));
-    // Still verifying, so the card must not claim the seller can be paid.
-    expect(screen.getByText(/verifying/i)).toBeInTheDocument();
-    expect(screen.queryByText(/^Verified name$/i)).toBeNull();
+    // Payout setup is still in progress, so the card must not claim the seller can be paid.
+    expect(screen.getByText(/setup incomplete/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Payout account name$/i)).toBeNull();
   });
 
   it('explains an expired setup link and offers to restart it', async () => {
@@ -161,7 +175,7 @@ describe('PayoutOnboarding', () => {
     render(<PayoutOnboarding context={makeContext({ merchantStatus: 'PENDING', merchantRef: 'acct_1' })} />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/expired/i);
-    expect(screen.getByRole('button', { name: /finish verification/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue with stripe/i })).toBeInTheDocument();
   });
 
   it('shows the provider-verified name once approved, and nothing private', () => {
@@ -182,5 +196,27 @@ describe('PayoutOnboarding', () => {
     expect(screen.getByText('Harbour City Cards')).toBeInTheDocument();
     // The merchant reference is a provider credential, never surfaced.
     expect(screen.queryByText(/acct_1/)).toBeNull();
+  });
+
+  it('renders a compact merchant identity summary on the payouts dashboard', () => {
+    render(
+      <PayoutOnboarding
+        compact
+        context={makeContext({
+          merchantStatus: 'APPROVED',
+          merchantRef: 'acct_1',
+          settlementsEnabled: true,
+          legalEntityName: 'Jane Collector',
+          tradingName: 'Harbour City Cards',
+          identityVerifiedAt: '2026-08-01T00:00:00.000Z',
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Merchant identity')).toBeInTheDocument();
+    expect(screen.getByText('Verified Account')).toBeInTheDocument();
+    expect(screen.getByText('Jane Collector')).toBeInTheDocument();
+    expect(screen.queryByText(/this is what buyers may see/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /manage with stripe/i })).toBeInTheDocument();
   });
 });

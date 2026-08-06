@@ -28,7 +28,7 @@ import { BadgeCheck, ExternalLink, Loader2, RefreshCw, ShieldAlert } from 'lucid
 import {
   createPayoutOnboardingLink,
   refreshPayoutStatus,
-  submitMerchantOnboarding,
+  startIdentityVerification,
 } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,7 +60,6 @@ export function PayoutSetupPrompt({
   onVerified,
 }: PayoutSetupPromptProps) {
   const router = useRouter();
-  const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -107,27 +106,27 @@ export function PayoutSetupPrompt({
     setNotice(successMessage);
   }
 
-  function handleStart(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  /**
+   * Create the Connect account and leave for the provider in one action. Pressing
+   * this is the buyer-disclosure consent (Req 4.8-4.12), stated beneath it.
+   */
+  function handleStart() {
     setError(null);
     setNotice(null);
 
-    if (!consent) {
-      setError('Buyers must be able to see who they are paying, so this is required.');
-      return;
-    }
-
     startTransition(async () => {
-      const submitted = await submitMerchantOnboarding({ buyerDisclosureConsent: true });
-      // A second click after a successful submission should resume, not fail.
-      if (!submitted.ok && submitted.error !== 'already-onboarded') {
-        setError(submitted.message);
+      const started = await startIdentityVerification(returnPath);
+      if (!started.ok) {
+        setError(started.message);
         return;
       }
-      const outcome = await openHostedFlow();
-      if (outcome === 'settled') {
-        await settle('Verification submitted. We will update this as soon as it completes.');
+      if (started.data.url) {
+        // Full navigation, not a router push: the destination is off-origin.
+        window.location.assign(started.data.url);
+        return;
       }
+      // No hosted flow (MockService): the account creation was the whole flow.
+      await settle('Still verifying — we will update this automatically.');
     });
   }
 
@@ -153,8 +152,8 @@ export function PayoutSetupPrompt({
       <div className="space-y-1.5">
         <p className="text-sm text-muted-foreground">
           {resuming
-            ? `Your verification is not finished yet, so you cannot ${blockedAction} for the moment. Pick up where you left off.`
-            : `Verify yourself once and you can ${blockedAction}. A trade can pay one side money if something goes wrong, so we need somewhere to send it.`}
+            ? `Your Stripe Connect setup is not finished yet, so you cannot ${blockedAction} for the moment. Continue when you are ready.`
+            : `Complete Stripe Connect payout setup to ${blockedAction}. A trade can pay one side money if something goes wrong, so payouts must be active first.`}
         </p>
         {state === 'NOT_APPROVED' ? (
           <p className="flex gap-2 text-sm text-destructive">
@@ -172,7 +171,7 @@ export function PayoutSetupPrompt({
             ) : (
               <ExternalLink className="size-3.5" aria-hidden />
             )}
-            Finish verification
+            Continue with Stripe
           </Button>
           <Button variant="outline" onClick={handleRecheck} disabled={isPending}>
             <RefreshCw className="size-3.5" aria-hidden />
@@ -180,30 +179,14 @@ export function PayoutSetupPrompt({
           </Button>
         </div>
       ) : (
-        <form onSubmit={handleStart} className="space-y-3">
-          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-            <input
-              type="checkbox"
-              name="buyerDisclosureConsent"
-              className="mt-0.5 size-4 shrink-0"
-              checked={consent}
-              onChange={(event) => setConsent(event.target.checked)}
-              disabled={isPending}
-            />
-            <span className="text-muted-foreground">
-              I agree that the people I trade with can see my verified name.
-            </span>
-          </label>
-
-          <Button type="submit" disabled={isPending} aria-busy={isPending}>
-            {isPending ? (
-              <Loader2 className="animate-spin" aria-hidden />
-            ) : (
-              <BadgeCheck className="size-3.5" aria-hidden />
-            )}
-            Verify my identity
-          </Button>
-        </form>
+        <Button type="button" onClick={handleStart} disabled={isPending} aria-busy={isPending}>
+          {isPending ? (
+            <Loader2 className="animate-spin" aria-hidden />
+          ) : (
+            <BadgeCheck className="size-3.5" aria-hidden />
+          )}
+          Verify with Stripe
+        </Button>
       )}
 
       {error ? (
@@ -213,10 +196,11 @@ export function PayoutSetupPrompt({
       ) : null}
       {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
 
+      {/* Req 4.8-4.12: continuing is the consent, so it is stated here. */}
       <p className="text-xs text-muted-foreground">
-        You will be taken to our payment provider to confirm your identity and bank
-        account, then brought straight back here. NoDitto never sees your bank
-        details.
+        Stripe collects your payout and bank details on its own pages — NoDitto never sees
+        them. You agree that the payout name Stripe reports can be shown to someone you
+        have an agreed sale or trade with.
       </p>
     </div>
   );

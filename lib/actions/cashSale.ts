@@ -9,11 +9,15 @@ import { createClient } from '@/lib/supabase/server';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
 
+import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
+
 import type {
   CashSaleError,
+  CashSaleLineItem,
   CashSaleRecord,
   CashSaleTermsInput,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
+import type { CashSaleLineItemInput } from '@/domain/validation/cashSaleLineItems';
 
 export type CashSaleActionError =
   | 'not-authenticated'
@@ -22,6 +26,8 @@ export type CashSaleActionError =
   | 'seller-identity-unverified'
   | 'seller-identity-changed'
   | 'seller-not-payable'
+  /** Buyer and seller are not in the same enabled trading region (0065). */
+  | 'region-mismatch'
   | 'item-not-found'
   | 'item-unavailable'
   | 'self-purchase'
@@ -48,6 +54,14 @@ export interface InitiateCashSaleInput {
   sellerIdentityVersion: string;
   buyerConfirmedSellerIdentity: boolean;
   agreedPriceCents?: number;
+  /**
+   * What the buyer is asking for out of a SHOPFRONT listing (0064).
+   *
+   * Required for a shopfront and rejected for a single listing. The contract
+   * price is the sum of these lines, so `agreedPriceCents` is ignored when they
+   * are present.
+   */
+  lineItems?: CashSaleLineItemInput[];
 }
 
 async function getUserId(): Promise<string | null> {
@@ -56,6 +70,20 @@ async function getUserId(): Promise<string | null> {
   return user?.id ?? null;
 }
 
+/**
+ * Build the orchestrator for the contract actions in this module.
+ *
+ * NO REGION IS PASSED, and that is deliberate rather than an omission. Every
+ * provider call in the Cash_Sale orchestrator lives in `resolvePaymentPayer`,
+ * `submitClaimedPayment`, `payoutCashSaleSeller` and the dispute refund — none of
+ * which are reachable from this module. What is here is terms, line items,
+ * acceptances, shipment, receipt, tracking, inspection, handover, cancellation and
+ * dispute-raising: all database writes.
+ *
+ * Region binding therefore belongs where the money actually moves — `payments.ts`,
+ * `admin.ts`, the payout job and the webhook pipeline — and passing one here would
+ * imply this call selects a Stripe account when it selects nothing.
+ */
 function orchestrator() {
   return createDefaultCashSaleOrchestrator({ payments: getPaymentService() });
 }
@@ -66,6 +94,11 @@ function mapError(error: CashSaleError): CashSaleActionError {
     SELLER_IDENTITY_UNVERIFIED: 'seller-identity-unverified',
     SELLER_IDENTITY_CHANGED: 'seller-identity-changed',
     SELLER_NOT_PAYABLE: 'seller-not-payable',
+    // Surfaced distinctly rather than folded into `item-unavailable`: the listing is
+    // perfectly available, just not to this buyer, and the orchestrator's `detail`
+    // names both regions so the member can tell a fixable problem (no region set)
+    // from a permanent one (the seller is overseas).
+    REGION_MISMATCH: 'region-mismatch',
     ITEM_NOT_FOUND: 'item-not-found',
     ITEM_UNAVAILABLE: 'item-unavailable',
     SELF_PURCHASE: 'self-purchase',
@@ -114,14 +147,87 @@ export async function initiateCashSale(
       message: 'Confirm the verified seller before opening the agreement.',
     };
   }
+  // Validate the requested items before opening anything, so a malformed line
+  // comes back as a field message rather than a constraint violation.
+  let lineItems: CashSaleLineItemInput[] | undefined;
+  if (input.lineItems && input.lineItems.length > 0) {
+    const validated = validateCashSaleLineItems(input.lineItems);
+    if (!validated.ok) {
+      return { ok: false, error: 'invalid-terms', message: validated.message };
+    }
+    lineItems = validated.value;
+  }
+
   const result = await orchestrator().initiateCashSale({
     buyerId: userId,
     itemId: input.itemId,
     sellerIdentityVersion: input.sellerIdentityVersion,
     buyerConfirmedSellerIdentity: true,
     agreedPriceCents: input.agreedPriceCents,
+    lineItems,
   });
   return actionResult(result);
+}
+
+/**
+ * Replace what a shopfront contract covers (0064).
+ *
+ * Both acceptances are cleared by the change, so each party must re-accept the
+ * new contents. The contract chat is notified by the same database trigger that
+ * mirrors every other contract event, so this action must not post its own
+ * message or the note would appear twice.
+ */
+export async function updateCashSaleItems(
+  cashSaleId: string,
+  expectedTermsVersion: number,
+  lineItems: CashSaleLineItemInput[],
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  if (!cashSaleId || !Number.isInteger(expectedTermsVersion)) {
+    return { ok: false, error: 'invalid-terms' };
+  }
+
+  const validated = validateCashSaleLineItems(lineItems);
+  if (!validated.ok) {
+    return { ok: false, error: 'invalid-terms', message: validated.message };
+  }
+
+  return actionResult(
+    await orchestrator().replaceLineItems({
+      actorId: userId,
+      cashSaleId,
+      expectedTermsVersion,
+      lineItems: validated.value,
+    }),
+  );
+}
+
+/**
+ * Read a contract's line items.
+ *
+ * Participant-scoped by RLS on `cash_sale_items`, but the orchestrator runs on
+ * the service-role client, so membership is re-checked here for the same reason
+ * every other write path does: authorization is enforced twice.
+ */
+export async function listCashSaleItems(
+  cashSaleId: string,
+): Promise<{ ok: true; items: CashSaleLineItem[] } | { ok: false; error: CashSaleActionError }> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+
+  const supabase = await createClient();
+  const { data: sale } = await supabase
+    .from('cash_sales')
+    .select('id, buyer_id, seller_id')
+    .eq('id', cashSaleId)
+    .maybeSingle();
+  if (!sale) return { ok: false, error: 'cash-sale-not-found' };
+  if (sale.buyer_id !== userId && sale.seller_id !== userId) {
+    return { ok: false, error: 'not-participant' };
+  }
+
+  return { ok: true, items: await orchestrator().listLineItems(cashSaleId) };
 }
 
 /** Save a new version of fulfillment terms and clear both acceptances. */

@@ -18,6 +18,7 @@
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import { PlacePicker } from '@/components/location';
 import type { PlaceValue } from '@/lib/location/types';
@@ -39,13 +40,29 @@ export interface FulfilmentTermsFieldsProps {
   // --- DELIVERY ---
   /** Dollar string, so a half-typed amount is not destroyed by rounding. */
   deliveryCost: string;
-  onDeliveryCostChange: (value: string) => void;
+  /**
+   * Omit to render the postage figure read-only, with
+   * {@link deliveryCostReadOnlyNote} in place of the input.
+   *
+   * A Cash_Sale omits it for the Buyer: the Seller picks the carrier and pays
+   * them, so only they can price it. A Trade passes it for both traders, who each
+   * post and therefore each have a say.
+   */
+  onDeliveryCostChange?: (value: string) => void;
   deliveryNotes: string;
   onDeliveryNotesChange: (value: string) => void;
   notesMaxLength?: number;
   /** Label for the postage field. Trades split it; a sale passes it on. */
   deliveryCostLabel?: string;
   deliveryCostHint?: string;
+  /**
+   * Drops the required marker. Postage defaults to 0, so on a Cash_Sale leaving it
+   * alone is a real choice — the Seller has priced postage into the item — rather
+   * than an unanswered question.
+   */
+  deliveryCostOptional?: boolean;
+  /** Shown instead of the input when the viewer may not price postage. */
+  deliveryCostReadOnlyNote?: string;
 
   // --- The viewer's own postal address, when they receive goods by post ---
   /**
@@ -81,8 +98,10 @@ export function FulfilmentTermsFields({
   deliveryNotes,
   onDeliveryNotesChange,
   notesMaxLength = 2000,
-  deliveryCostLabel = 'Delivery cost (AUD)',
+  deliveryCostLabel = 'Delivery cost',
   deliveryCostHint = 'Enter 0 for free delivery. Tracking is added when you record a shipment.',
+  deliveryCostOptional = false,
+  deliveryCostReadOnlyNote,
   showDeliveryAddress = false,
   deliveryAddress = null,
   onDeliveryAddressChange,
@@ -155,33 +174,39 @@ export function FulfilmentTermsFields({
         <div className="space-y-2">
           <Label htmlFor={`${idPrefix}-delivery-cost`}>
             {deliveryCostLabel}
-            <span className="text-destructive" aria-hidden>
-              {' '}
-              *
-            </span>
+            {deliveryCostOptional ? (
+              <span className="font-normal text-muted-foreground"> (optional)</span>
+            ) : (
+              <span className="text-destructive" aria-hidden>
+                {' '}
+                *
+              </span>
+            )}
           </Label>
-          <div className="relative">
-            <span
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-              aria-hidden
-            >
-              $
-            </span>
-            <Input
+          {onDeliveryCostChange ? (
+            <MoneyInput
               id={`${idPrefix}-delivery-cost`}
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              autoComplete="off"
               value={deliveryCost}
               onChange={(event) => onDeliveryCostChange(event.target.value)}
               disabled={disabled}
-              className="pl-7"
-              required
+              required={!deliveryCostOptional}
             />
-          </div>
+          ) : (
+            // Read-only: show the figure that has been proposed, not an empty
+            // note. The viewer still has to accept this number, so hiding it
+            // would ask them to agree to a total they cannot see broken down.
+            <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              <span className="font-medium tabular-nums">
+                ${Number.parseFloat(deliveryCost || '0').toFixed(2)}
+              </span>
+              {deliveryCostReadOnlyNote ? (
+                <span className="text-muted-foreground">
+                  {' '}
+                  — {deliveryCostReadOnlyNote}
+                </span>
+              ) : null}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">{deliveryCostHint}</p>
         </div>
 

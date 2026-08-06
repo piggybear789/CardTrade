@@ -232,12 +232,49 @@ export function translateStripeEvent(event: Stripe.Event): WebhookEvent[] {
       });
     }
 
-    // Stripe Identity events (`identity.verification_session.*`) were translated
-    // here into `kyc.verified` / `kyc.rejected`. Both are gone with the payer
-    // gate: identity is now reported by `account.updated` below, which is the same
-    // event that decides payability. An Identity event arriving now falls through
-    // to the default branch and is a logged NO_OP, which is the correct handling
-    // for an event type we no longer route.
+    // --- Identity verification (the Identity_Gate, 0069) -------------------
+    //
+    // These were once translated into `kyc.verified` / `kyc.rejected` and then
+    // removed with the payer gate, because that gate was a SECOND answer to "is
+    // this member verified" competing with Connect state. They are back as the
+    // SINGLE answer: Connect no longer contributes to the gate at all.
+    //
+    // Routed by `metadata.cardtrade_profile_id`, stamped at session creation, with
+    // the session id as a fallback so a session created outside our own call path
+    // can still be reconciled by the indexed `identity_check_session_id` lookup.
+
+    case 'identity.verification_session.verified': {
+      const session = event.data.object as Stripe.Identity.VerificationSession;
+      const verified = session.verified_outputs ?? null;
+      const first = verified?.first_name?.trim() ?? '';
+      const last = verified?.last_name?.trim() ?? '';
+      return build('identity.verified', {
+        profileId: profileIdOf(session.metadata),
+        identitySessionId: session.id,
+        // From `verified_outputs` only — the name Stripe read off the document.
+        // `verified_outputs` is not expanded on a webhook payload for every
+        // account, so a null here is normal and the read-back fills it in.
+        identityVerifiedName: [first, last].filter(Boolean).join(' ') || null,
+        status: session.status,
+      });
+    }
+
+    // `requires_input` is Stripe's "we could not verify this" signal. It is NOT
+    // terminal: a blurry photo or an unsupported document is retryable, so the
+    // member is offered another attempt rather than being locked out.
+    case 'identity.verification_session.requires_input': {
+      const session = event.data.object as Stripe.Identity.VerificationSession;
+      return build('identity.failed', {
+        profileId: profileIdOf(session.metadata),
+        identitySessionId: session.id,
+        status: session.status,
+        reason: session.last_error?.reason ?? undefined,
+      });
+    }
+
+    // `processing` and `created` deliberately have no translation. They carry no
+    // decision, and writing PENDING on them would add nothing: the column is
+    // already PENDING from the moment the session was created.
 
     // --- Seller payout onboarding ------------------------------------------
 

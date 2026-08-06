@@ -29,8 +29,8 @@ import { resolveCashSaleDispute } from '@/lib/actions/admin';
 import type { CashSaleDisputeOutcome } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { formatAud } from '@/lib/format';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -133,14 +133,12 @@ export function DisputeActions({
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-0">
           <Label htmlFor={`partial-${cashSaleId}`} className="text-xs">
-            Partial refund (AUD)
+            Partial refund
           </Label>
-          <Input
+          <MoneyInput
             id={`partial-${cashSaleId}`}
-            inputMode="decimal"
             value={partialDollars}
             onChange={(event) => setPartialDollars(event.target.value)}
-            placeholder="0.00"
             className="mt-1 h-9 w-32"
             aria-describedby={`partial-help-${cashSaleId}`}
           />

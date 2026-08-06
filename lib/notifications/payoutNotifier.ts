@@ -28,7 +28,7 @@ const FAILURE_COPY = {
     body: (itemTitle: string) =>
       `We are holding your proceeds for "${itemTitle}" because your payout setup is not finished. ` +
       'Complete it and we will release the money automatically.',
-    link: '/profile#payouts',
+    link: '/profile/payouts',
   },
   PROVIDER_REJECTED: {
     title: 'Payout delayed',

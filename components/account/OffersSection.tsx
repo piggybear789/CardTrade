@@ -28,8 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/account/EmptyState';
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
@@ -310,28 +310,16 @@ function CounterOfferDialog({
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor={`counter-amount-${offerId}`}>Your counter (AUD)</Label>
-              <div className="relative">
-                <span
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                  aria-hidden
-                >
-                  $
-                </span>
-                <Input
-                  id={`counter-amount-${offerId}`}
-                  type="number"
-                  inputMode="decimal"
-                  min="0.01"
-                  step="0.01"
-                  placeholder={placeholder}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="pl-7"
-                  autoFocus
-                  required
-                />
-              </div>
+              <Label htmlFor={`counter-amount-${offerId}`}>Your counter</Label>
+              <MoneyInput
+                id={`counter-amount-${offerId}`}
+                min="0.01"
+                placeholder={placeholder}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                autoFocus
+                required
+              />
             </div>
 
             <div className="space-y-2">

@@ -229,6 +229,22 @@ export interface ManagedMerchantDetails {
    * Buyer as though the provider had checked it.
    */
   legalEntityName?: string;
+  /**
+   * The jurisdiction the account is registered in — ISO 3166-1 alpha-2, lowercase
+   * (0065).
+   *
+   * NOT cosmetic and NOT inferable. The provider fixes an account's country at
+   * creation and it cannot be changed afterwards, the onboarding requirements it
+   * presents differ per country, and a transfer to an account registered somewhere
+   * other than where the funds were collected either fails or becomes a
+   * cross-border payment with its own rules. So this must come from
+   * `profiles.region_code` — the member's stated trading region — and never from a
+   * request IP.
+   *
+   * Optional on the interface so `MockService` and `InMemoryService` need no
+   * change; the Stripe binding falls back to its configured default when absent.
+   */
+  country?: string | null;
 }
 
 /**
@@ -268,12 +284,14 @@ export interface VaultedInstrument {
 
 // The retired payer-gate types lived here: `KycResult`, `IdentityCheckSession`
 // and `VerifiedIdentitySummary`. All three are gone along with the separate
-// verification gate. Identity is now the Identity_Gate — Connect onboarding
-// APPROVED with settlements enabled — and the only identity the platform holds is
-// the provider-verified legal name Connect reports, persisted by
-// `applyComplianceUpdate` as `merchant_legal_entity_name`. There is no synchronous
-// verification call, no hosted identity session to open, and no summary to read
-// back, so no seam member is needed for any of it.
+// verification gate — that gate was a SECOND opinion about identity running beside
+// Connect, which is the thing not to rebuild.
+//
+// `IdentityService` below is NOT that. Migration 0069 moved the Identity_Gate to
+// Stripe Identity, so there IS a hosted session to open and a result to read back
+// again — but it is the ONLY verification path now. Connect contributes nothing to
+// the gate and decides payability alone, so there are no longer two columns each
+// claiming to answer "is this member verified".
 
 /**
  * The set of payment lifecycle changes reported via Webhook_Events. These
@@ -297,9 +315,18 @@ export type WebhookEventType =
   // choice is this event — without it, a failed refund leaves a sale marked
   // REFUNDED while the money is still sitting on the platform.
   | 'refund.failed'
-  // `kyc.verified` / `kyc.rejected` were removed with the payer gate. Identity now
-  // arrives on `merchant.compliance.updated`, which is the same event that decides
-  // payability — one signal, one event.
+  // Identity verification outcomes (0069). These ARE the Identity_Gate.
+  //
+  // `kyc.verified` / `kyc.rejected` existed once and were removed with the payer
+  // gate, because that gate was a SECOND answer to "is this member verified" that
+  // competed with Connect state. These are not that: Connect no longer contributes
+  // to the gate at all, so this is the single event pair that decides it.
+  //
+  // A webhook is the BACKSTOP, not the only path. Every return from the hosted flow
+  // also reads the session back, because a delivery can be delayed or lost and a
+  // member staring at an unverified badge will not wait for a retry.
+  | 'identity.verified' // document + selfie accepted -> the gate opens
+  | 'identity.failed' // provider could not verify; the member may retry
   | 'merchant.compliance.updated' // a sub-merchant's compliance decision changed
   // A payer disputed a charge with their bank (a chargeback).
   //
@@ -334,6 +361,15 @@ export interface WebhookEventPayload {
   reason?: string;
   /** Sub-merchant reference for `merchant.compliance.updated` events. */
   merchantRef?: string;
+  /** Verification session id (`vs_...`) for `identity.*` events. */
+  identitySessionId?: string;
+  /**
+   * Name the provider read off the document, on `identity.verified`.
+   *
+   * Only ever from the provider's own verified output — never from anything the
+   * member typed. This becomes the buyer-facing disclosure.
+   */
+  identityVerifiedName?: string | null;
   /** Provider dispute reference for `charge.disputed` / `charge.dispute.closed`. */
   disputeId?: string;
   /**
@@ -587,6 +623,77 @@ export interface PayerService {
     details?: PayerDetails,
     options?: PayerCreateOptions,
   ): Promise<Payer>;
+}
+
+// ---------------------------------------------------------------------------
+// Identity verification (0069)
+// ---------------------------------------------------------------------------
+
+/** Outcome of a provider identity check. Mirrors `cardtrade.identity_check_status`. */
+export type IdentityCheckOutcome = 'PENDING' | 'VERIFIED' | 'FAILED';
+
+/** A provider identity verification session. */
+export interface IdentityCheck {
+  /** Provider session id (`vs_...`). Persisted so a webhook can be reconciled. */
+  sessionId: string;
+  outcome: IdentityCheckOutcome;
+  /**
+   * Full name the provider read off the document, when it accepted one.
+   *
+   * The FIRST name in this system backed by a checked document rather than by
+   * whatever the member typed or Connect happened to hold. Null until VERIFIED.
+   */
+  verifiedName: string | null;
+  /** When the provider accepted the check. Null until VERIFIED. */
+  verifiedAt: string | null;
+  /**
+   * Single-use URL to send the member to. Present only when a session was just
+   * created — reading a session back does not mint a new link.
+   */
+  hostedUrl?: string | null;
+  /** Provider-supplied reason a check failed, for support. Never shown verbatim. */
+  failureReason?: string | null;
+}
+
+/**
+ * Provider identity verification — the Identity_Gate (Req 13, migration 0069).
+ *
+ * ITS OWN INTERFACE, intersected into {@link PaymentKycService}, for the same
+ * reason as {@link PayerService}: the many `PaymentService`-only fakes in tests
+ * must not have to grow methods they never call.
+ *
+ * THIS IS NOT THE RETIRED KYC SEAM. `KycService` was removed because it was a
+ * SECOND, PARALLEL answer to "is this member verified" — `kyc_status` competed
+ * with `merchant_status` and the two could disagree on different surfaces. This is
+ * the SINGLE source for that answer, and Connect no longer contributes to it at
+ * all; Connect answers "where does money go" via `canReceiveFunds`. One question,
+ * one provider, one column.
+ *
+ * `createIdentityCheck` THROWS on failure rather than returning a status, matching
+ * `createPayer`: a provider failure must leave verification state untouched, and a
+ * half-created session that we recorded as PENDING would strand the member.
+ */
+export interface IdentityService {
+  /**
+   * Start a verification session and return the URL to send the member to.
+   *
+   * `returnUrl` is where the provider sends them afterwards. Returning does NOT
+   * prove the check passed — the outcome arrives by webhook, or by reading the
+   * session back — so callers must not treat the redirect as success. This is the
+   * same trap as Connect's hosted onboarding return.
+   */
+  createIdentityCheck(params: {
+    profileId: string;
+    returnUrl: string;
+  }): Promise<IdentityCheck>;
+
+  /**
+   * Read a session back from the provider.
+   *
+   * The reliable path for "did it pass": a webhook can be missed or delayed, so
+   * every return from the hosted flow reads back rather than trusting the redirect.
+   */
+  readIdentityCheck(sessionId: string): Promise<IdentityCheck>;
 }
 
 /**

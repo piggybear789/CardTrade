@@ -28,8 +28,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import { formatAud } from '@/lib/format';
 import { makeOffer, type MakeOfferResult } from '@/lib/actions/offers';
@@ -184,28 +184,15 @@ export function MakeOfferDialog({
             </label>
 
             <div className="space-y-2">
-              <Label htmlFor="offer-amount">Your offer (AUD)</Label>
-              <div className="relative">
-                <span
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                  aria-hidden
-                >
-                  $
-                </span>
-                <Input
-                  id="offer-amount"
-                  type="number"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  min="0.01"
-                  step="0.01"
-                  placeholder={placeholder}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="pl-7"
-                  required
-                />
-              </div>
+              <Label htmlFor="offer-amount">Your offer</Label>
+              <MoneyInput
+                id="offer-amount"
+                min="0.01"
+                placeholder={placeholder}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
               {fmvCents && fmvCents > 0 ? (
                 <p className="text-xs text-muted-foreground">
                   Listed at {formatAud(fmvCents)}.

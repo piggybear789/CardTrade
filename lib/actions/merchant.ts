@@ -28,7 +28,26 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { MerchantStatus } from '@/domain/orchestrator/merchantOnboarding';
+import { findRegion, normalizeRegionCode } from '@/domain/region';
+import { regionForProfile } from '@/lib/regionBinding';
+import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { type ActionResult, fail, ok } from './result';
+
+/**
+ * The signed-in member's platform-account region.
+ *
+ * Their connected account, its hosted onboarding links and its compliance read-back
+ * all belong to one Stripe platform (0068), so every provider call in this module has
+ * to use theirs. Falls back to the default region when there is no session; the
+ * actions themselves then refuse for want of a user.
+ */
+async function viewerRegion(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ? regionForProfile(user.id) : DEFAULT_CONFIG_REGION;
+}
 
 /** Typed failure codes for {@link submitMerchantOnboarding}. */
 export type MerchantOnboardingActionError =
@@ -130,7 +149,9 @@ export async function getPayoutSetupContext(): Promise<
   const state = await getMerchantState();
   if (!state.ok) return state;
 
-  const payments = getPaymentService();
+  // The member's own region's platform account (0068): their connected account and
+  // its onboarding links belong to exactly one platform.
+  const payments = getPaymentService(await viewerRegion());
   return ok({
     state: state.data,
     hostedOnboarding: Boolean(payments.createMerchantOnboardingLink),
@@ -160,7 +181,9 @@ export async function createPayoutOnboardingLink(
     return fail('submission-failed', 'Start payout setup before opening the onboarding form.');
   }
 
-  const payments = getPaymentService();
+  // The member's own region's platform account (0068): their connected account and
+  // its onboarding links belong to exactly one platform.
+  const payments = getPaymentService(await viewerRegion());
   if (!payments.createMerchantOnboardingLink) {
     return fail('not-supported', 'The active payment provider does not support payout accounts.');
   }
@@ -269,7 +292,9 @@ export async function refreshPayoutStatus(): Promise<
   if (!state.ok) return fail('profile-not-found', 'No profile was found for your account.');
   if (!state.data.merchantRef) return ok(state.data);
 
-  const payments = getPaymentService();
+  // The member's own region's platform account (0068): their connected account and
+  // its onboarding links belong to exactly one platform.
+  const payments = getPaymentService(await viewerRegion());
   if (!payments.getManagedMerchant) return ok(state.data);
 
   const merchant = await payments.getManagedMerchant(state.data.merchantRef);
@@ -323,7 +348,7 @@ export async function submitMerchantOnboarding(
   // rather than a value from the client payload.
   const { data: profile } = await createAdminClient()
     .from('profiles')
-    .select('display_name, contact_email')
+    .select('display_name, contact_email, region_code')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -332,8 +357,25 @@ export async function submitMerchantOnboarding(
     return fail('validation-error', 'Add a contact email to your profile before setting up payouts.');
   }
 
+  // The connected account's country is fixed at creation and cannot be changed
+  // afterwards, so a Member must have declared a region BEFORE the account exists —
+  // otherwise the fallback silently registers them in the default jurisdiction and
+  // they are stuck there. Onboarding sets `region_code` before it offers the seller
+  // path, so a null here means a Profile that predates 0065.
+  const regionCode = normalizeRegionCode(profile?.region_code);
+  if (!regionCode) {
+    return fail(
+      'validation-error',
+      'Set your region before setting up payouts — your payout account is registered in it and cannot be moved later.',
+      'regionCode',
+    );
+  }
+  const accountCountry = findRegion(regionCode)?.stripeCountry ?? null;
+
   const orchestrator = createDefaultMerchantOnboardingOrchestrator({
-    payments: getPaymentService(),
+    // Opened on the region the member declared, which is also the country passed as
+    // identity.country below. Stripe fixes an account's country at creation.
+    payments: getPaymentService(regionCode),
   });
 
   const result = await orchestrator.submitMerchantOnboarding({
@@ -344,6 +386,7 @@ export async function submitMerchantOnboarding(
       businessEmail,
       tradingName: details.tradingName,
       legalEntityName: (profile?.display_name as string | null) ?? undefined,
+      country: accountCountry,
     },
   });
 

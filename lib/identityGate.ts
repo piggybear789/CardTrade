@@ -24,7 +24,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import {
   satisfiesIdentityGate,
   verificationState,
-  type MerchantStatus,
+  type IdentityCheckStatus,
   type VerificationState,
 } from '@/domain/identity/identityGate';
 
@@ -44,13 +44,12 @@ export interface IdentityGateStatus {
 export async function readIdentityGate(profileId: string): Promise<IdentityGateStatus> {
   const { data } = await createAdminClient()
     .from('profiles')
-    .select('merchant_status, merchant_settlements_enabled')
+    .select('identity_check_status')
     .eq('id', profileId)
     .maybeSingle();
 
   const input = {
-    merchantStatus: (data?.merchant_status ?? 'NONE') as MerchantStatus,
-    settlementsEnabled: Boolean(data?.merchant_settlements_enabled),
+    identityCheckStatus: (data?.identity_check_status ?? 'NONE') as IdentityCheckStatus,
   };
 
   return {
@@ -72,9 +71,10 @@ const ACTION_LABEL: Record<GatedAction, string> = {
 /**
  * The member-facing refusal for a blocked action (Req 14.7).
  *
- * Names the blocked action and points at payout setup, because that is the only
- * thing that resolves it. Deliberately mentions no provider and no compliance
- * detail.
+ * Points at IDENTITY VERIFICATION, not payout setup. Those became separate steps in
+ * 0069 and this gate is the first one: a member blocked here has not verified who
+ * they are, and telling them to add bank details would send them to the wrong place
+ * — one they may not even need yet.
  */
 export function identityGateMessage(
   action: GatedAction,
@@ -83,11 +83,11 @@ export function identityGateMessage(
   const what = ACTION_LABEL[action];
   switch (state) {
     case 'IN_PROGRESS':
-      return `Your payout setup is still being approved. You can ${what} once it completes.`;
+      return `Your identity check is still being reviewed. You can ${what} once it completes.`;
     case 'NOT_APPROVED':
-      return `Your payout setup was not approved, so you cannot ${what} yet. You can start it again from your account.`;
+      return `Your identity check could not be completed, so you cannot ${what} yet. You can try again from your account.`;
     case 'NOT_STARTED':
     default:
-      return `Set up payouts before you ${what}, so we know who you are and have somewhere to send your money.`;
+      return `Verify your identity before you ${what}. It takes about a minute and needs a photo ID.`;
   }
 }

@@ -23,7 +23,10 @@
 // it is testable against fakes. The Supabase binding lives in
 // `supabaseMerchantRepository.ts`.
 
-import { satisfiesIdentityGate } from '../identity/identityGate';
+import {
+  satisfiesIdentityGate,
+  type IdentityCheckStatus,
+} from '../identity/identityGate';
 import type {
   ManagedMerchant,
   ManagedMerchantDetails,
@@ -51,6 +54,18 @@ export interface MerchantRecord {
   identityVersion?: string | null;
   identityDisclosureConsentedAt?: string | null;
   identityVerifiedAt?: string | null;
+  /**
+   * Stripe Identity check state (0069). THIS is the Identity_Gate; the
+   * `merchant_*` fields above are the payout side.
+   *
+   * Optional so a caller that only needs payout facts need not fetch it, and
+   * absent is read as `'NONE'` — the safe default, since a missing value must
+   * never read as verified.
+   */
+  identityCheckStatus?: IdentityCheckStatus | null;
+  /** Name Stripe Identity read off the document, when it accepted one. */
+  identityCheckName?: string | null;
+  identityCheckVerifiedAt?: string | null;
 }
 
 /**
@@ -89,16 +104,25 @@ export interface SellerIdentityDisclosure {
 export function sellerIdentityDisclosure(
   merchant: MerchantRecord | null,
 ): SellerIdentityDisclosure | null {
-  if (
-    !merchant ||
-    !satisfiesIdentityGate({
-      merchantStatus: merchant.merchantStatus,
-      settlementsEnabled: merchant.settlementsEnabled,
-    }) ||
-    !merchant.identityDisclosureConsentedAt ||
-    !merchant.identityVerifiedAt ||
-    !merchant.legalEntityName
-  ) {
+  if (!merchant) return null;
+
+  // THE GATE, not the payout state (0069). A disclosure asserts "a provider checked
+  // who this is", which is exactly what the Identity check answers and what Connect
+  // never did.
+  if (!satisfiesIdentityGate({ identityCheckStatus: merchant.identityCheckStatus ?? 'NONE' })) {
+    return null;
+  }
+
+  // PREFER THE DOCUMENT-BACKED NAME. `identityCheckName` came off a government
+  // document; `legalEntityName` is whatever Connect held, which for a member
+  // verified before 0069 may still be their own stated name. The fallback is
+  // load-bearing rather than sloppy: a null disclosure blocks the entire buy path
+  // (migration 0041 records that shipping), so a grandfathered seller must keep the
+  // name they were already disclosed under.
+  const legalEntityName = merchant.identityCheckName ?? merchant.legalEntityName;
+  const verifiedAt = merchant.identityCheckVerifiedAt ?? merchant.identityVerifiedAt;
+
+  if (!merchant.identityDisclosureConsentedAt || !verifiedAt || !legalEntityName) {
     return null;
   }
 
@@ -111,10 +135,10 @@ export function sellerIdentityDisclosure(
     // Deriving it from the account reference and the verification timestamp keeps
     // it stable per verification and changes it if the provider re-verifies.
     version: identityVersionFor(merchant),
-    legalEntityName: merchant.legalEntityName,
+    legalEntityName,
     tradingName: merchant.tradingName ?? null,
     organisationType: merchant.organisationType ?? null,
-    verifiedAt: merchant.identityVerifiedAt,
+    verifiedAt,
   };
 }
 

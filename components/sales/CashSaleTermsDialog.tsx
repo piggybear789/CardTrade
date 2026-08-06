@@ -99,6 +99,13 @@ export interface CashSaleTermsDialogProps {
   sale: CashSaleRow;
   deliveryAddress?: CashSaleDeliveryAddress | null;
   canEditDeliveryAddress: boolean;
+  /**
+   * Whether the viewer may price postage. The Seller only: they choose the carrier
+   * and pay them, so they are the only party who can estimate it. Mirrors
+   * `canEditDeliveryAddress`, which is the Buyer only — between them the dialog
+   * reads as "the buyer owns where it goes, the seller owns what it costs".
+   */
+  canEditShippingCost: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   initialMethod?: 'DELIVERY' | 'IN_PERSON';
@@ -109,6 +116,7 @@ export function CashSaleTermsDialog({
   sale,
   deliveryAddress,
   canEditDeliveryAddress,
+  canEditShippingCost,
   open: controlledOpen,
   onOpenChange,
   initialMethod,
@@ -154,9 +162,15 @@ export function CashSaleTermsDialog({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    const cents = Math.round(Number.parseFloat(shippingCost || '0') * 100);
+    // A viewer who may not price postage sends the STORED cents back untouched,
+    // rather than a value round-tripped through the dollar string. The server
+    // rejects a buyer who changes this figure, so re-deriving it here would risk
+    // failing the save over a formatting artefact rather than an actual edit.
+    const cents = canEditShippingCost
+      ? Math.round(Number.parseFloat(shippingCost || '0') * 100)
+      : sale.shipping_cost_cents;
     if (method === 'DELIVERY' && (!Number.isFinite(cents) || cents < 0)) {
-      setError('Enter a valid shipping cost.');
+      setError('Enter a valid postage amount, or 0 if it is included in the price.');
       return;
     }
     if (method === 'DELIVERY' && canEditDeliveryAddress && !isResolvedPlace(deliveryPlace)) {
@@ -252,11 +266,19 @@ export function CashSaleTermsDialog({
               meetingAt={meetingAt}
               onMeetingAtChange={setMeetingAt}
               deliveryCost={shippingCost}
-              onDeliveryCostChange={setShippingCost}
+              onDeliveryCostChange={
+                canEditShippingCost ? setShippingCost : undefined
+              }
               deliveryNotes={shippingNotes}
               onDeliveryNotesChange={setShippingNotes}
-              deliveryCostLabel="Shipping cost (AUD)"
-              deliveryCostHint="Enter 0 for free shipping. Tracking is added when the seller posts it."
+              deliveryCostLabel="Postage on top"
+              deliveryCostHint={
+                canEditShippingCost
+                  ? 'Leave at 0 if postage is already included in your asking price. Added to what the buyer pays; the platform fee is charged on the item price only. Tracking is added when you post it.'
+                  : 'Added to the item price in what you pay. The platform fee is charged on the item price only.'
+              }
+              deliveryCostOptional
+              deliveryCostReadOnlyNote="only the seller can price postage, since they choose the carrier"
               // The seller receives nothing by post, so only the buyer supplies an
               // address. This is the one place the two flows legitimately differ:
               // a trade posts both ways and asks both traders.

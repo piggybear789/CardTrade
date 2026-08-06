@@ -155,7 +155,16 @@ export function ContractChat({
         <div
           ref={logRef}
           onScroll={handleLogScroll}
-          className="h-full space-y-3 overflow-y-auto overscroll-contain p-3"
+          // `overscroll-contain` only from `lg`, matching the details panel this
+          // sits beside (see ContractDetailList). At `lg` the room is bounded and
+          // the page behind does not scroll, so containment costs nothing and
+          // stops the gesture escaping to the pane wrapper. Below `lg` the room
+          // stacks and the PAGE is the scroller, so containing here dead-ended
+          // the swipe: reaching the end of the log stopped the gesture instead of
+          // carrying on down the page, and the reader had to lift and re-swipe
+          // outside the log to continue. The two panes stack at the same
+          // breakpoint, so they must make the same choice.
+          className="h-full space-y-3 overflow-y-auto p-3 lg:overscroll-contain"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"

@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import {
   Select,
   SelectContent,
@@ -226,10 +227,9 @@ export function TradeNegotiationPanel({
           <div className="space-y-4 py-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="trade-cash">Cash (AUD)</Label>
-                <Input
+                <Label htmlFor="trade-cash">Cash</Label>
+                <MoneyInput
                   id="trade-cash"
-                  inputMode="decimal"
                   value={cash}
                   onChange={(event) => setCash(event.target.value)}
                 />
@@ -290,10 +290,9 @@ export function TradeNegotiationPanel({
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="trade-postage">Postage cost (AUD)</Label>
-                  <Input
+                  <Label htmlFor="trade-postage">Postage cost</Label>
+                  <MoneyInput
                     id="trade-postage"
-                    inputMode="decimal"
                     value={deliveryCost}
                     onChange={(event) => setDeliveryCost(event.target.value)}
                   />

@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { AccountTabs } from '@/components/account/AccountTabs';
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog';
+import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +38,7 @@ export default async function ProfilePage() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('display_name, contact_email')
+    .select('display_name, contact_email, avatar_path')
     .eq('id', user.id)
     .single();
 
@@ -71,25 +72,42 @@ export default async function ProfilePage() {
             <CardTitle className="text-lg">Your details</CardTitle>
             <CardDescription>What other members see when they trade with you.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <dl className="grid gap-3 sm:grid-cols-2">
-              <div className="min-w-0">
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Display name
-                </dt>
-                <dd className="mt-1 truncate text-sm font-semibold">{profile.display_name}</dd>
-              </div>
-              <div className="min-w-0">
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Contact email
-                </dt>
-                <dd className="mt-1 truncate text-sm font-semibold">{profile.contact_email}</dd>
-              </div>
-            </dl>
-            <EditProfileDialog
+          <CardContent className="space-y-5">
+            {/* AVATAR WITH ITS OWN EDIT AFFORDANCE.
+                The common profile pattern: a large avatar with a camera/pencil
+                overlay or an adjacent change link, so the member can act on it
+                without opening a separate dialog. `AvatarUploadField` saves on
+                pick, so there is no form-submit step — clicking and choosing a file
+                is the whole interaction. */}
+            <AvatarUploadField
+              avatarPath={profile.avatar_path}
               displayName={profile.display_name}
-              contactEmail={profile.contact_email}
+              hideHint
             />
+
+            {/* FIELDS AS A SIMPLE LIST rather than a definition list grid. The
+                dl/dt/dd + uppercase tracking pattern mimicked a credentials panel,
+                which added visual weight to two pieces of information a member reads
+                once. A labeled list is lighter and leaves room to grow. */}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Display name</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold">{profile.display_name}</p>
+                </div>
+                <div className="flex min-w-0 items-baseline gap-4">
+                  <div className="min-w-0 text-right">
+                    <p className="text-xs text-muted-foreground">Contact email</p>
+                    <p className="mt-0.5 truncate text-sm font-semibold">{profile.contact_email}</p>
+                  </div>
+                  <EditProfileDialog
+                    avatarPath={profile.avatar_path}
+                    displayName={profile.display_name}
+                    contactEmail={profile.contact_email}
+                  />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

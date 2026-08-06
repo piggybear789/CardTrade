@@ -41,7 +41,9 @@ import {
   type ImageUpload,
 } from '@/lib/storage/itemImages';
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
+import { normalizeRegionCode } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
+import type { ListingKind } from '@/domain/orchestrator/cashSaleOrchestrator';
 
 /** A persisted item row as returned to callers. */
 export type ItemRow = Tables<'items'>;
@@ -61,6 +63,15 @@ export interface ItemLocationInput {
   placeId: string;
   lat: number;
   lng: number;
+  /**
+   * ISO 3166-1 alpha-2 of the resolved place (0065). Scopes the listing to a
+   * region in the catalog.
+   *
+   * Optional because the free-text place fallback resolves no country, and
+   * refusing a listing over it would make the no-API-key path unusable. Null
+   * simply means unscoped.
+   */
+  countryCode?: string | null;
   precision?: 'suburb' | 'exact';
 }
 
@@ -79,6 +90,15 @@ export interface CreateItemInput {
   images: ImageInput[];
   /** Required for public catalog listings; optional for private trade items. */
   location?: ItemLocationInput | null;
+  /**
+   * What kind of listing this is (0064). Defaults to `SINGLE`.
+   *
+   * `SHOPFRONT` is a browsable inventory — a binder, a bulk lot — that several
+   * buyers open their own contract against at once. It is never reserved and
+   * never sold, and its `fmvCents` is only an indicative "from" price: each
+   * contract's real total is the sum of that contract's line items.
+   */
+  listingKind?: ListingKind;
 }
 
 /** Fields accepted when updating an Item. Images may mix kept paths + new uploads. */
@@ -105,6 +125,7 @@ function normalizeItemLocation(
         location_lat: number;
         location_lng: number;
         location_precision: 'suburb' | 'exact';
+        location_country_code: string | null;
       } | null;
     }
   | { ok: false; field: string; message: string } {
@@ -132,6 +153,11 @@ function normalizeItemLocation(
   ) {
     return { ok: false, field: 'location', message: 'Pick a place on the map.' };
   }
+  // The country was resolved by the Places lookup and then DISCARDED here until
+  // 0065, which is why the catalog had no way to scope by region despite every
+  // listing carrying a pin. Normalized through the region registry so an
+  // unrecognised country lands as null rather than as a code nothing can filter on.
+  const countryCode = normalizeRegionCode(location.countryCode);
   return {
     ok: true,
     value: {
@@ -140,6 +166,7 @@ function normalizeItemLocation(
       location_lat: location.lat,
       location_lng: location.lng,
       location_precision: location.precision === 'exact' ? 'exact' : 'suburb',
+      location_country_code: countryCode,
     },
   };
 }
@@ -316,6 +343,7 @@ export async function createItem(
       fmv_cents: validated.value.fmvCents,
       image_paths: validated.value.images,
       status: 'AVAILABLE',
+      listing_kind: input.listingKind ?? 'SINGLE',
       ...(location.value ?? {}),
     })
     .select('*')
@@ -627,6 +655,69 @@ export async function deleteItem(
 }
 
 /**
+ * Close a SHOPFRONT listing (0064).
+ *
+ * A shopfront never reaches `SOLD`, because nothing about it is ever sold — the
+ * contracts opened against it are. So it needs an explicit end of life, and this
+ * is it: the listing leaves the catalog and takes no new contracts.
+ *
+ * Contracts already open are deliberately untouched. Those buyers have
+ * negotiated, and some have already paid; closing the shop window cannot cancel
+ * their agreements. Deleting the listing is not offered as an alternative for the
+ * same reason — `deleteListing` would remove the row and the Storage objects that
+ * live contracts snapshot their images from.
+ */
+export async function closeShopfrontListing(
+  itemId: string,
+): Promise<ListingActionResult<{ id: string; closedAt: string }>> {
+  const supabase = await createClient();
+
+  const userId = await getUserId(supabase);
+  if (!userId) {
+    return { ok: false, error: 'not-authenticated' };
+  }
+
+  // Owner-scoped in SQL as well, so this read only distinguishes the failures.
+  const { data: existing } = await supabase
+    .from('items')
+    .select('id, owner_id, listing_kind, closed_at')
+    .eq('id', itemId)
+    .maybeSingle();
+
+  if (!existing) return { ok: false, error: 'not-found' };
+  if (existing.owner_id !== userId) return { ok: false, error: 'unauthorized' };
+  if (existing.listing_kind !== 'SHOPFRONT') {
+    return {
+      ok: false,
+      error: 'validation-error',
+      message: 'Only a shopfront listing can be closed. Delete a single listing instead.',
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc('close_shopfront_listing', {
+    p_item_id: itemId,
+    p_owner_id: userId,
+  });
+
+  if (error) {
+    return { ok: false, error: 'persistence-error', message: error.message };
+  }
+  const row = (data as ItemRow[] | null)?.[0];
+  if (!row) {
+    // The RPC is owner-and-open scoped, so an empty set means it was already
+    // closed by a concurrent call. Idempotent, not an error worth surfacing.
+    return {
+      ok: false,
+      error: 'validation-error',
+      message: 'This listing is already closed.',
+    };
+  }
+
+  return { ok: true, data: { id: row.id, closedAt: row.closed_at ?? '' } };
+}
+
+/**
  * Read the catalog of AVAILABLE Items (Req 3.8). RLS additionally exposes the
  * caller's own non-available items, so the query filters to AVAILABLE to return
  * exactly the public catalog.
@@ -639,6 +730,7 @@ export async function listAvailableItems(): Promise<ListingActionResult<ItemRow[
     .select('*')
     .eq('status', 'AVAILABLE')
     .eq('hidden', false)
+    .is('closed_at', null)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -714,8 +806,9 @@ export interface CatalogSeller {
   rating: number | null;
   ratingCount: number;
   /**
-   * The Identity_Gate: Connect onboarding APPROVED with settlements enabled, which
-   * is both "we know who this is" and "this seller can actually be paid".
+   * The Identity_Gate: `identity_check_status = 'VERIFIED'` (0069). It means "we
+   * know who this is" and NOTHING about being payable - that is `canReceiveFunds`,
+   * a separate step this flag deliberately no longer implies.
    *
    * ONE FIELD, not two. This carried a second `identityVerified` alongside it,
    * reading `public_profiles.identity_verified` — a column that was the identical
@@ -729,6 +822,13 @@ export interface CatalogSeller {
    * released only at a commitment point via `getCounterpartyIdentity`.
    */
   identityFirstName: string | null;
+  /**
+   * Avatar object path, or null (0066). A PATH, not a URL — `avatarUrl()` resolves it.
+   *
+   * Self-chosen and unverified, so it sits BESIDE `isVerified` and never stands in
+   * for it. A picture is recognisability, not assurance.
+   */
+  avatarPath: string | null;
 }
 
 /** An AVAILABLE item plus its seller's public profile for the marketplace grid. */
@@ -750,6 +850,7 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
     .select('*')
     .eq('status', 'AVAILABLE')
     .eq('hidden', false)
+    .is('closed_at', null)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -764,7 +865,7 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
   const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
   const { data: sellersData } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified, identity_first_name')
+    .select('id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path')
     .in('id', ownerIds);
 
   const sellerById = new Map<string, CatalogSeller>(
@@ -776,7 +877,8 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
-        identityFirstName: (s.identity_first_name as string | null) ?? null,
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
+        avatarPath: (s.avatar_path as string | null) ?? null,
       },
     ]),
   );
@@ -810,6 +912,15 @@ export interface SearchCatalogParams {
   minCents?: number;
   /** Maximum fair market value, in integer AUD cents (inclusive). */
   maxCents?: number;
+  /**
+   * Restrict to listings in this region (ISO 3166-1 alpha-2), plus listings with
+   * no country recorded (0065).
+   *
+   * Omit for the unscoped, worldwide catalog. An unrecognised code is IGNORED
+   * rather than matched literally, so a hand-edited URL cannot produce an empty
+   * marketplace that looks like an outage.
+   */
+  regionCode?: string | null;
   // `identityVerifiedOnly` used to live here. Removed: publishing a listing now
   // requires the Identity_Gate (Req 14.1), so every item in the catalog is owned by
   // a verified seller and the filter matched everything. A control that never
@@ -875,7 +986,7 @@ async function enrichWithSellers(
   const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
   const { data: sellersData } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified, identity_first_name')
+    .select('id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path')
     .in('id', ownerIds);
 
   const sellerById = new Map<string, CatalogSeller>(
@@ -887,7 +998,8 @@ async function enrichWithSellers(
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
-        identityFirstName: (s.identity_first_name as string | null) ?? null,
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
+        avatarPath: (s.avatar_path as string | null) ?? null,
       },
     ]),
   );
@@ -934,10 +1046,13 @@ export async function searchCatalog(
   const to = from + pageSize - 1;
 
   // Base query: public catalog only, with an exact total for pagination.
+  // `closed_at` is null for every SINGLE listing and for every open shopfront; a
+  // closed shopfront is excluded here as well as by RLS (0064).
   let query = supabase
     .from('items')
     .select('*', { count: 'exact' })
-    .eq('hidden', false);
+    .eq('hidden', false)
+    .is('closed_at', null);
 
   // Status filter: default to AVAILABLE only; optionally include SOLD.
   if (params.includeSold) {
@@ -977,6 +1092,22 @@ export async function searchCatalog(
   }
   if (params.maxCents != null && Number.isFinite(params.maxCents)) {
     query = query.lte('fmv_cents', Math.trunc(params.maxCents));
+  }
+
+  // Region scope (0065). Normalized first, so an unknown code falls through to the
+  // unscoped catalog instead of matching nothing.
+  //
+  // NULLS ARE INCLUDED, DELIBERATELY AND TEMPORARILY. Every listing that predates
+  // 0065 has no country: scoping them out would empty the marketplace for everyone
+  // on the day this ships, which is a worse failure than showing a legacy listing
+  // to the wrong region — the contract guards refuse a cross-region deal anyway, so
+  // nothing unsafe can be opened from one. Tighten this to a bare `.eq()` once the
+  // existing rows carry a country.
+  const regionCode = normalizeRegionCode(params.regionCode);
+  if (regionCode) {
+    query = query.or(
+      `location_country_code.eq.${regionCode},location_country_code.is.null`,
+    );
   }
 
   // No verified-seller filter. Publishing requires the Identity_Gate, so every
@@ -1093,15 +1224,37 @@ export interface CatalogFacets {
  * SOLD, non-hidden items to populate the filter rail. Dedupe and the maximum
  * are computed in one pass in JS — simple and sufficient for MVP scale (a
  * dedicated aggregate/RPC can replace this if the catalog grows large).
+ *
+ * Takes the SAME region scope as {@link searchCatalog}, and must keep doing so.
+ * Facets describe the result set they filter: an unscoped facet list offers a
+ * member categories with nothing behind them and a price ceiling set by a listing
+ * in another country, so every one of those controls returns an empty grid. That
+ * reads as a broken filter rather than as an empty region.
+ *
+ * @param regionCode the active region, or null/omitted for every region
  */
-export async function getCatalogFacets(): Promise<CatalogFacets> {
+export async function getCatalogFacets(
+  regionCode?: string | null,
+): Promise<CatalogFacets> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('items')
     .select('category, fmv_cents')
     .in('status', ['AVAILABLE', 'SOLD'])
-    .eq('hidden', false);
+    .eq('hidden', false)
+    .is('closed_at', null);
+
+  // Nulls included, matching `searchCatalog` exactly — the two predicates have to
+  // agree or the facets describe a different set than the grid shows.
+  const region = normalizeRegionCode(regionCode);
+  if (region) {
+    query = query.or(
+      `location_country_code.eq.${region},location_country_code.is.null`,
+    );
+  }
+
+  const { data, error } = await query;
 
   if (error || !data) {
     return { categories: [], maxPriceCents: 0 };

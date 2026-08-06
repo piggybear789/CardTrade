@@ -26,6 +26,7 @@ import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
 import { requireStaff } from '@/lib/staffGate';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
@@ -37,7 +38,9 @@ import {
   type CustodyPosition,
   type HeldSaleInput,
 } from '@/domain/payouts/custodyReconciliation';
-import { getPaymentService } from '@/domain/services';
+import { getPaymentService, operationalRegions } from '@/domain/services';
+import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
+import { normalizeRegionCode, regionCurrency } from '@/domain/region';
 import type { Enums } from '@/lib/supabase/database.types';
 
 /**
@@ -144,6 +147,64 @@ export async function unhideItem(itemId: string): Promise<AdminActionResult> {
 }
 
 /**
+ * Clear a member's avatar. Admin-only (0066).
+ *
+ * WHY THIS EXISTS AT ALL. An avatar is a member-supplied image rendered beside
+ * their name on the catalog, in chat, and in a contract room where money is at
+ * stake — so it is an abuse surface, and it is the one part of the avatar feature
+ * that needed a staff remedy before it shipped. Reports already cover listings
+ * (`hideItem`) and there was no equivalent for a picture.
+ *
+ * CLEARS, rather than hides. There is no `avatar_hidden` flag and deliberately so:
+ * a second column would be another piece of state to keep in agreement with the
+ * first, and the fallback for "no avatar" already exists and is the common case, so
+ * nulling the column lands the member on initials with nothing else to maintain.
+ *
+ * The Storage object is deleted too. Leaving it would keep an offensive image
+ * fetchable at a public URL by anyone who had already seen it, which is most of the
+ * harm the clear is meant to stop.
+ *
+ * Service-role, because the column is owner-writable only — an admin is not the
+ * owner, so RLS would refuse the cookie-bound client.
+ */
+export async function clearMemberAvatar(profileId: string): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+
+  const admin = createAdminClient();
+
+  // Read the outgoing path first: after the update it is unrecoverable, and the
+  // object has to be removed as well as dereferenced.
+  const { data: before } = await admin
+    .from('profiles')
+    .select('avatar_path')
+    .eq('id', profileId)
+    .maybeSingle();
+
+  const { data, error } = await admin
+    .from('profiles')
+    .update({ avatar_path: null })
+    .eq('id', profileId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, error: 'persistence-error', message: error.message };
+  }
+  if (!data) {
+    return { ok: false, error: 'not-found' };
+  }
+
+  // Best-effort and after the row is updated: the profile no longer points at the
+  // object, so a storage failure leaves an orphan rather than a live avatar.
+  await removeAvatarObject(admin, (before?.avatar_path as string | null) ?? null);
+
+  return { ok: true, data: { id: data.id } };
+}
+
+/**
  * Set a report's status. `ACTIONED` also stamps `reviewed_by`/`reviewed_at`;
  * `DISMISSED` records the reviewer as well so triage is auditable. Admin-only.
  */
@@ -227,8 +288,11 @@ export async function retryCashSalePayout(
     return { ok: false, error: gate.error };
   }
 
+  // Bound to the SALE's own region (0068): the release transfers into the seller's
+  // connected account, and a transfer from the wrong platform account is refused by
+  // Stripe as a cross-region transfer.
   const orchestrator = createDefaultCashSaleOrchestrator({
-    payments: getPaymentService(),
+    payments: getPaymentService(await regionForCashSale(cashSaleId)),
   });
   const result = await orchestrator.payoutSeller({ cashSaleId });
 
@@ -278,8 +342,10 @@ export async function resolveCashSaleDispute(
     return { ok: false, error: gate.error };
   }
 
+  // A resolution refunds the buyer and/or releases to the seller, so it must run on
+  // the platform account that collected the money (0068).
   const orchestrator = createDefaultCashSaleOrchestrator({
-    payments: getPaymentService(),
+    payments: getPaymentService(await regionForCashSale(cashSaleId)),
   });
   const result = await orchestrator.resolveDispute({
     cashSaleId,
@@ -442,13 +508,49 @@ export async function resolveTradeFraud(
 }
 
 /**
- * The reconciliation verdict as the console renders it: the pure position plus the
- * currency it is denominated in and, when the balance could not be read, why.
+ * The reconciliation verdict for ONE region, as the console renders it: the pure
+ * position plus the currency it is denominated in and, when the balance could not be
+ * read, why.
+ *
+ * Per region because each region is a separate Stripe platform account with its own
+ * balance. Summing them would be the same mistake `getPlatformBalance` already
+ * refuses to make across currencies — a total that looks reassuring and means
+ * nothing.
  */
 export type CustodyReport = CustodyPosition & {
+  /** ISO 3166-1 alpha-2 of the platform account this position belongs to. */
+  region: string;
   currency: string;
   unreadableReason: string | null;
 };
+
+/**
+ * The region whose Stripe platform account holds a contract's money.
+ *
+ * Resolved from the contract's frozen `currency` rather than from the seller's
+ * current profile region, because the currency is what the money actually is and it
+ * cannot drift: a seller whose region were later corrected would otherwise have
+ * their in-flight contracts pointed at a platform account that never held the funds.
+ *
+ * Falls back to the default region when the row or the currency cannot be mapped;
+ * the provider then refuses anything genuinely mismatched rather than paying the
+ * wrong account.
+ */
+async function regionForCashSale(cashSaleId: string): Promise<string> {
+  const { data } = await createAdminClient()
+    .from('cash_sales')
+    .select('currency')
+    .eq('id', cashSaleId)
+    .maybeSingle();
+
+  const currency = (data?.currency as string | null)?.toLowerCase() ?? null;
+  if (!currency) return DEFAULT_CONFIG_REGION;
+
+  for (const code of operationalRegions()) {
+    if (regionCurrency(code) === currency) return code;
+  }
+  return DEFAULT_CONFIG_REGION;
+}
 
 /** Statuses in which the Buyer's money has been COLLECTED into the platform balance. */
 const COLLECTED_SALE_STATUSES = [
@@ -474,11 +576,19 @@ const COLLECTED_SALE_STATUSES = [
  * not a member's contract, and it is not information an arbitrator needs to decide a
  * case.
  */
-export async function getCustodyPosition(): Promise<AdminActionResult<CustodyReport>> {
+export async function getCustodyPosition(
+  region?: string | null,
+): Promise<AdminActionResult<CustodyReport>> {
   const gate = await requireAdmin();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+
+  const code =
+    normalizeRegionCode(region) ??
+    [...operationalRegions()][0] ??
+    DEFAULT_CONFIG_REGION;
+  const currency = regionCurrency(code) ?? 'aud';
 
   const admin = createAdminClient();
 
@@ -486,8 +596,13 @@ export async function getCustodyPosition(): Promise<AdminActionResult<CustodyRep
     admin
       .from('cash_sales')
       .select('id, status, amount_cents, refund_cents, refund_status, seller_payout_status')
-      .in('status', [...COLLECTED_SALE_STATUSES]),
-    getPaymentService().getPlatformBalance(),
+      .in('status', [...COLLECTED_SALE_STATUSES])
+      // Scoped to this region's contracts, because they are the only ones whose money
+      // is in this platform account's balance. Comparing all regions' obligations
+      // against one region's balance would invent a shortfall the size of every other
+      // region.
+      .eq('currency', currency),
+    getPaymentService(code).getPlatformBalance(),
   ]);
 
   if (error) {
@@ -525,6 +640,7 @@ export async function getCustodyPosition(): Promise<AdminActionResult<CustodyRep
     ok: true,
     data: {
       ...position,
+      region: code,
       currency: balance.currency,
       unreadableReason: balance.status === 'READ' ? null : (balance.reason ?? null),
     },
@@ -545,11 +661,25 @@ export async function drainCashSalePayouts(): Promise<
     return { ok: false, error: gate.error };
   }
 
-  const orchestrator = createDefaultCashSaleOrchestrator({
-    payments: getPaymentService(),
-  });
-  const result = await orchestrator.processDuePayouts();
+  // Run ONCE PER REGION (0068). The drain releases funds to sellers, and each region's
+  // funds sit in that region's own Stripe platform account — one pass on one account
+  // could only pay the sellers in its own region and would fail on the rest as
+  // cross-region transfers. Totals are summed because the figures are counts of
+  // contracts, not money; nothing here adds amounts across currencies.
+  const totals = { considered: 0, settled: 0, stillOwed: 0 };
+  for (const region of operationalRegions()) {
+    const orchestrator = createDefaultCashSaleOrchestrator({
+      payments: getPaymentService(region),
+      // Scoped so this pass only attempts the contracts whose money is in the account
+      // it is holding. Without it every region's pass would try every contract.
+      payoutRegionCurrency: regionCurrency(region) ?? undefined,
+    });
+    const result = await orchestrator.processDuePayouts();
+    totals.considered += result.considered;
+    totals.settled += result.settled;
+    totals.stillOwed += result.stillOwed;
+  }
 
   revalidatePath('/admin');
-  return { ok: true, data: result };
+  return { ok: true, data: totals };
 }

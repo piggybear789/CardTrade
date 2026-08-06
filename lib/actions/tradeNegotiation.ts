@@ -23,12 +23,18 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
-import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
+import {
+  getPaymentService,
+  isLivePaymentsProvider,
+  operationalRegions,
+} from '@/domain/services';
 import { placeBondsForAgreedTrade } from '@/domain/orchestrator/tradeProposal';
 import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
 import { validateFulfilmentTerms } from '@/domain/fulfilment';
+import { regionForTrade } from '@/lib/regionBinding';
+import { checkRegionCompatibility, regionMismatchMessage } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
 
 type TradeRow = Tables<'trades'>;
@@ -307,7 +313,9 @@ export async function acceptTradeTerms(
   const bonds = await placeBondsForAgreedTrade(
     {
       repository: createSupabaseTradeProposalRepository(admin),
-      payments: getPaymentService(),
+      // The trade's own platform account (0068): collateral is a real card
+      // authorisation and belongs to one Stripe account.
+      payments: getPaymentService(await regionForTrade(tradeId)),
     },
     {
       tradeId,
@@ -318,7 +326,9 @@ export async function acceptTradeTerms(
     },
   );
 
-  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  const orchestrator = createDefaultTradeOrchestrator({
+    payments: getPaymentService(await regionForTrade(tradeId)),
+  });
   if (!bonds.ok) {
     // Collateral could not be sought. Run the documented HOLDS_FAILED
     // compensation (Req 5.6) rather than leaving a trade stuck mid-escrow.
@@ -406,7 +416,9 @@ async function syncHolds(tradeId: string, actorId: string): Promise<void> {
   const admin = createAdminClient();
   const holds = await createSupabaseTradeProposalRepository(admin).getHolds(tradeId);
   if (holds.length === 0) return;
-  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  const orchestrator = createDefaultTradeOrchestrator({
+    payments: getPaymentService(await regionForTrade(tradeId)),
+  });
   if (holds.every((hold) => hold.status === 'ACTIVE')) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
     return;
@@ -457,7 +469,16 @@ export async function declineTradeOffer(
 /** Result of opening a negotiation from a listing. */
 export type OpenTradeNegotiationResult =
   | { ok: true; tradeId: string }
-  | { ok: false; error: TradeNegotiationError | 'item-unavailable' | 'self-trade'; message?: string };
+  | {
+      ok: false;
+      error:
+        | TradeNegotiationError
+        | 'item-unavailable'
+        | 'self-trade'
+        /** The two traders are not in the same enabled region (0065). */
+        | 'region-mismatch';
+      message?: string;
+    };
 
 /**
  * Open a negotiation on a Counterpart's listing (Req 5.1, 5.13).
@@ -499,6 +520,82 @@ export async function openTradeNegotiation(input: {
   const problem = termsProblem(input.terms);
   if (problem) return { ok: false, error: 'invalid-terms', message: problem };
 
+  // EVERY refusal below has to come before `createPrivateTradeItem`, which is why
+  // the target checks are hoisted above it. A private offer item is a real row with
+  // real uploaded images, and it is created hidden with no listing to reach it from —
+  // so returning an error after creating one leaks a row and its Storage objects with
+  // nothing that will ever clean them up. Availability and self-trade have always
+  // been refused down here; the region guard (0065) would have been a third path into
+  // the same leak.
+  const admin = createAdminClient();
+  const { data: itemRow } = await admin
+    .from('items')
+    .select('owner_id, status, listing_kind')
+    .eq('id', input.counterpartItemId)
+    .maybeSingle();
+  const target = itemRow as
+    | { owner_id: string; status: string; listing_kind: string }
+    | null;
+  if (!target || target.status !== 'AVAILABLE') {
+    return {
+      ok: false,
+      error: 'item-unavailable',
+      message: 'That listing is no longer available to trade for.',
+    };
+  }
+
+  // Region precondition (0065). Unlike the Identity_Gate — which is deliberately
+  // NOT checked here, because making an offer puts nothing at stake — region is
+  // checked at the offer rather than at `acceptTradeTerms`, and the difference is
+  // deliberate. An ungated Identity_Gate costs a member nothing: they can negotiate
+  // now and onboard before committing. An ungated region cannot be resolved at all,
+  // because neither trader can move: a swap needs goods posted both ways inside a
+  // ~7-day card authorisation, so a cross-region trade is not a thing to warn about
+  // later, it is a conversation with no possible ending. Letting it open would waste
+  // both traders' time and then fail at the Commitment_Point.
+  const { data: regions } = await admin
+    .from('profiles')
+    .select('id, region_code')
+    .in('id', [userId, target.owner_id]);
+  const regionOf = new Map(
+    (regions ?? []).map((row) => [row.id as string, row.region_code as string | null]),
+  );
+  const mismatch = checkRegionCompatibility(
+    regionOf.get(userId) ?? null,
+    regionOf.get(target.owner_id) ?? null,
+    // The runtime set, not the registry flag: a trade bonds both traders against a
+    // real card authorisation and can end in a payout to either of them, so it needs
+    // a Stripe platform account for the region to exist before it starts.
+    operationalRegions(),
+  );
+  if (mismatch) {
+    return {
+      ok: false,
+      error: 'region-mismatch',
+      message: regionMismatchMessage(mismatch),
+    };
+  }
+  // A SHOPFRONT cannot enter trade escrow (0064). Collateral is an authorisation
+  // for 100% of FMV, and a shopfront's FMV is the whole binder, so bonding it
+  // would demand an authorisation for an inventory rather than for the cards
+  // actually being swapped. It also stays AVAILABLE permanently, so the RPC's own
+  // availability guard would never catch it. Until a trade side can be itemised
+  // the way a Cash_Sale contract now is, this is refused outright.
+  if (target.listing_kind === 'SHOPFRONT') {
+    return {
+      ok: false,
+      error: 'item-unavailable',
+      message:
+        'This is a binder or bulk listing. Ask the seller for the cards you want as a cash purchase instead.',
+    };
+  }
+  if (target.owner_id === userId) return { ok: false, error: 'self-trade' };
+
+  // Only now is the offer known to be openable, so this is the first safe point to
+  // create a side of it. `private` describes something not in the catalog: the Item
+  // is created hidden, exactly as `createTradeProposal` did, so a trader can offer a
+  // card they never listed. Nothing can reach it except the negotiation below, which
+  // is precisely why it must not be created for an offer that is about to be refused.
   let initiatorItemId: string;
   if (input.offer.kind === 'existing') {
     initiatorItemId = input.offer.itemId;
@@ -520,22 +617,6 @@ export async function openTradeNegotiation(input: {
     }
     initiatorItemId = created.data.id;
   }
-
-  const admin = createAdminClient();
-  const { data: itemRow } = await admin
-    .from('items')
-    .select('owner_id, status')
-    .eq('id', input.counterpartItemId)
-    .maybeSingle();
-  const target = itemRow as { owner_id: string; status: string } | null;
-  if (!target || target.status !== 'AVAILABLE') {
-    return {
-      ok: false,
-      error: 'item-unavailable',
-      message: 'That listing is no longer available to trade for.',
-    };
-  }
-  if (target.owner_id === userId) return { ok: false, error: 'self-trade' };
 
   const { data, error } = await admin.rpc('open_trade_negotiation', {
     p_initiator_id: userId,

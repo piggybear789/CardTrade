@@ -13,9 +13,20 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   'not-authenticated': 'Please sign in again.',
   'no-payment-method': 'Add a payment method before terms can be accepted.',
   'buyer-confirmation-required': 'Confirm the verified seller before continuing.',
-  'seller-identity-unverified': 'The seller has not completed payout onboarding.',
+  // Names the step that is ACTUALLY missing. This said "has not completed payout
+  // onboarding", which since 0069 is a different step: the disclosure is withheld
+  // because the seller has not passed the identity check, and a buyer told to wait on
+  // bank setup would be watching the wrong thing. `seller-not-payable` below is the
+  // one that really is about payouts.
+  'seller-identity-unverified': 'The seller has not verified their identity yet.',
   'seller-identity-changed': 'The seller identity changed. Review it before continuing.',
   'seller-not-payable': 'The seller cannot receive payment right now.',
+  // Fallback only. The orchestrator sends a `detail` naming both regions, and
+  // `cashSaleErrorMessage` prefers it — which matters here more than for most codes,
+  // because "different region" without saying WHICH leaves the member unable to tell
+  // a fixable cause (no region set on their own profile) from a permanent one (the
+  // seller is overseas).
+  'region-mismatch': 'Deals are completed within one region, and this listing is in another.',
   'item-not-found': 'That item no longer exists.',
   'item-unavailable': 'That item is no longer available.',
   'self-purchase': 'You cannot buy your own listing.',

@@ -17,12 +17,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { proposeCashSalePrice } from '@/lib/actions/cashSale';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 
 export interface CashSalePriceDialogProps {
+  /** The contract's currency (0068), so the confirmation quotes the real one. */
+  currency: string;
   cashSaleId: string;
   termsVersion: number;
   agreedPriceCents: number;
@@ -32,6 +34,7 @@ export function CashSalePriceDialog({
   cashSaleId,
   termsVersion,
   agreedPriceCents,
+  currency,
 }: CashSalePriceDialogProps) {
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState((agreedPriceCents / 100).toFixed(2));
@@ -56,7 +59,7 @@ export function CashSalePriceDialog({
     startTransition(async () => {
       const result = await proposeCashSalePrice(cashSaleId, termsVersion, cents);
       if (result.ok) {
-        toast.success(`Price change to ${formatAud(cents)} sent.`);
+        toast.success(`Price change to ${formatMoney(cents, currency)} sent.`);
         setOpen(false);
       } else {
         setError(result.message ?? 'The price could not be changed. Refresh and retry.');
@@ -88,16 +91,17 @@ export function CashSalePriceDialog({
           </DialogHeader>
           <div className="space-y-4 py-5">
             <div className="space-y-2">
-              <Label htmlFor="sale-price">Item price (AUD)</Label>
-              <Input
+              <Label htmlFor="sale-price">Item price</Label>
+              <MoneyInput
                 id="sale-price"
-                inputMode="decimal"
+                // An asking price of zero is not a real answer, unlike postage.
+                min="0.01"
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Currently {formatAud(agreedPriceCents)}. Shipping and the platform fee
+                Currently {formatMoney(agreedPriceCents, currency)}. Shipping and the platform fee
                 are shown separately.
               </p>
             </div>

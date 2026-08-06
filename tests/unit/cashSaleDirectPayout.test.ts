@@ -225,7 +225,12 @@ describe('cash sale — direct payout mode', () => {
       },
     });
 
-    expect(result).toMatchObject({ ok: false, error: 'SELLER_IDENTITY_UNVERIFIED' });
+    // SELLER_NOT_PAYABLE, not SELLER_IDENTITY_UNVERIFIED. Since 0069 those are two
+    // different failures and this seller has only the second problem: they passed the
+    // identity check (so they are verified and disclosable) but have not finished
+    // Connect, so there is nowhere to send the money. The refusal still stands and
+    // the item is still not reserved — only the reason is now accurate.
+    expect(result).toMatchObject({ ok: false, error: 'SELLER_NOT_PAYABLE' });
     expect(state.item.status).toBe('AVAILABLE');
     expect(calls.transfers).toHaveLength(0);
   });

@@ -56,9 +56,13 @@ const FAILURE_COPY: Record<
   { summary: string; action: string; href?: string; actionLabel?: string }
 > = {
   NOT_PAYABLE: {
-    summary: 'Your account is not verified yet, so we have nowhere to send this.',
+    // Says PAYOUT SETUP, not "not verified". Since 0069 "verified" means the identity
+    // check, and this member may well have passed it — a payable-but-unverified or
+    // verified-but-unpayable member are both normal states. Reusing the word here
+    // told a verified seller they were unverified.
+    summary: 'Your payout setup is not finished, so we have nowhere to send this.',
     action: 'Finish Stripe Connect setup and we will release it automatically.',
-    href: '/profile/payouts#identity',
+    href: '/profile/payouts',
     actionLabel: 'Open Stripe Connect setup',
   },
   PROVIDER_REJECTED: {
@@ -160,7 +164,24 @@ export function PayoutsDashboard({ model, destination, connectSetup, scope }: Pa
         {connectSetup ?? <DestinationAccountSummary destination={destination} compact />}
       </div>
       <ActiveSalesSummary model={model} />
-      <DestinationAccountSummary destination={destination} />
+      {/* ONE payout destination card, not two.
+          
+          The top-right slot already holds a Connect status card (`connectSetup`),
+          falling back to this same component when a caller has none. Rendering the
+          standalone section unconditionally as well meant that on the payouts page —
+          which always supplies `connectSetup` — a member saw the same fact twice, in
+          two vocabularies, with two buttons to the same Stripe flow: "Setup
+          required / Verify with Stripe" above, "Not started / Finish setup" below.
+          That is the shape of the 0060 bug, where "Verified Account" sat beside
+          "Payouts incomplete" because both were true of one row.
+
+          It earns its place only once VERIFIED, because that is the only state where
+          it reports something the Connect card cannot: `verifiedName`, the actual
+          account the money lands in. Before then "where your money goes" has no
+          answer, and the Connect card is the one with the action. */}
+      {destination.state === 'VERIFIED' ? (
+        <DestinationAccountSummary destination={destination} />
+      ) : null}
       <TransferHistory model={model} scope={scope} />
       {model.arbitrations.length > 0 || model.atRiskProceedsCents > 0 ? (
         <ArbitrationSummary model={model} />
@@ -190,7 +211,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
         <h3 id="balance-heading" className="sr-only">
           Releasing now
         </h3>
-        <Card className="h-full bg-muted/20">
+        <Card className="h-full bg-background">
           <CardHeader className="pb-3">
             <CardDescription>Releasing now</CardDescription>
             <CardTitle className="text-4xl tabular-nums">{formatAud(0)}</CardTitle>
@@ -214,7 +235,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
         Releasing now
       </h3>
 
-      <Card className="h-full bg-muted/20">
+      <Card className="h-full bg-background">
         <CardHeader className="pb-3">
           <CardDescription>Releasing now</CardDescription>
           <CardTitle className="text-3xl tabular-nums">
@@ -311,7 +332,7 @@ function DestinationAccountSummary({
         </div>
         {destination.hostedOnboarding ? (
           <Button asChild size="sm" variant="outline" className="shrink-0">
-            <Link href="/profile/payouts#identity">
+            <Link href="/profile/payouts#payout-setup">
               {needsSetup ? 'Finish setup' : 'Manage with Stripe'}
               <ArrowUpRight aria-hidden />
             </Link>

@@ -5,6 +5,7 @@
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import type {
   BuyerRecord,
+  CashSaleLineItem,
   CashSaleRecord,
   CashSaleRepository,
   ItemRecord,
@@ -21,6 +22,8 @@ export const INSPECTION_WINDOW_DAYS = 7;
 export interface FakeState {
   sale: CashSaleRecord | null;
   item: ItemRecord;
+  /** Contract line items (0064). Populated only for a SHOPFRONT contract. */
+  lineItems: CashSaleLineItem[];
   events: { event: string; actorId: string | null }[];
   payerRefs: Record<string, string>;
 }
@@ -48,7 +51,22 @@ export const APPROVED_SELLER: MerchantRecord = {
   identityVersion: IDENTITY.version,
   identityDisclosureConsentedAt: '2026-07-24T00:00:00.000Z',
   identityVerifiedAt: IDENTITY.verifiedAt,
+  // The Identity_Gate since 0069. A seller now needs BOTH: this check to be
+  // disclosed and to sell at all, and the `merchant_*` fields above to be paid.
+  identityCheckStatus: 'VERIFIED',
+  identityCheckVerifiedAt: IDENTITY.verifiedAt,
 };
+
+/**
+ * The region both default parties trade in (0065).
+ *
+ * Both fixtures carry it because `initiateCashSale` refuses an UNKNOWN region — a
+ * missing region is not treated as permissive, so leaving these unset would make
+ * every contract-opening test fail on the region guard instead of exercising what
+ * it was written for. Tests that WANT a mismatch override one of them; see
+ * `tests/unit/regionGuard.test.ts`.
+ */
+export const TEST_REGION = 'AU';
 
 export const BUYER: BuyerRecord = {
   profileId: 'buyer-1',
@@ -57,6 +75,7 @@ export const BUYER: BuyerRecord = {
   displayName: 'Buyer One',
   contactEmail: 'buyer@example.com',
   paymentTokenType: 'credit-card',
+  regionCode: TEST_REGION,
 };
 
 export const ITEM: ItemRecord = {
@@ -65,6 +84,7 @@ export const ITEM: ItemRecord = {
   fmvCents: 10_000,
   status: 'AVAILABLE',
   title: 'Charizard Base Set',
+  ownerRegionCode: TEST_REGION,
 };
 
 export function makeCashSaleRepository(options: {
@@ -76,6 +96,7 @@ export function makeCashSaleRepository(options: {
   const state: FakeState = {
     sale: null,
     item: { ...(options.item ?? ITEM) },
+    lineItems: [],
     events: [],
     payerRefs: {},
   };
@@ -174,12 +195,30 @@ export function makeCashSaleRepository(options: {
       return state.item;
     },
     async createAgreement(params) {
-      if (state.item.status !== 'AVAILABLE') return null;
-      state.item = { ...state.item, status: 'RESERVED' };
+      // Mirrors `create_cash_sale_agreement` after 0064: a SHOPFRONT is gated on
+      // being open rather than AVAILABLE, and is never reserved, so the next
+      // buyer can still contract against it.
+      const shopfront = (state.item.listingKind ?? 'SINGLE') === 'SHOPFRONT';
+      if (shopfront) {
+        if (state.item.closedAt) return null;
+      } else {
+        if (state.item.status !== 'AVAILABLE') return null;
+        state.item = { ...state.item, status: 'RESERVED' };
+      }
+      state.lineItems = (params.lineItems ?? []).map((line, index) => ({
+        id: `line-${index + 1}`,
+        description: line.description,
+        condition: line.condition ?? null,
+        quantity: line.quantity,
+        unitPriceCents: line.unitPriceCents,
+        imagePath: line.imagePath ?? null,
+        sortOrder: index,
+      }));
       state.sale = {
         id: 'sale-1',
         itemId: params.itemId,
         itemTitle: state.item.title ?? 'Test item',
+        fromShopfront: shopfront,
         disputeResolution: null,
         disputeResolvedAt: null,
         refundCents: 0,
@@ -279,6 +318,48 @@ export function makeCashSaleRepository(options: {
         agreedPriceCents,
         platformFeeCents: feeCents,
         amountCents: agreedPriceCents + feeCents + sale.shippingCostCents,
+        termsVersion: sale.termsVersion + 1,
+        version: sale.version + 1,
+        buyerTermsAcceptedVersion: null,
+        sellerTermsAcceptedVersion: null,
+        buyerTermsAcceptedAt: null,
+        sellerTermsAcceptedAt: null,
+      };
+      return state.sale;
+    },
+    async loadLineItems() {
+      return state.lineItems;
+    },
+    async replaceLineItems({
+      expectedTermsVersion,
+      lineItems,
+      agreedPriceCents,
+      platformFeeCents,
+    }) {
+      const sale = state.sale;
+      // Mirrors `replace_cash_sale_items`: participant, AGREEMENT, matching
+      // version, and shopfront-only.
+      if (!sale || sale.status !== 'AGREEMENT') return null;
+      if (sale.termsVersion !== expectedTermsVersion) return null;
+      if (!sale.fromShopfront) return null;
+      if (lineItems.length === 0) return null;
+
+      state.lineItems = lineItems.map((line, index) => ({
+        id: `line-${index + 1}`,
+        description: line.description,
+        condition: line.condition ?? null,
+        quantity: line.quantity,
+        unitPriceCents: line.unitPriceCents,
+        imagePath: line.imagePath ?? null,
+        sortOrder: index,
+      }));
+      // The price write is what clears the ticks, exactly as the trigger does —
+      // including when the new lines total the same, because the goods changed.
+      state.sale = {
+        ...sale,
+        agreedPriceCents,
+        platformFeeCents,
+        amountCents: agreedPriceCents + platformFeeCents + sale.shippingCostCents,
         termsVersion: sale.termsVersion + 1,
         version: sale.version + 1,
         buyerTermsAcceptedVersion: null,

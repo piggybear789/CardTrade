@@ -141,6 +141,8 @@ export async function getOrCreateConversation(
 export interface OtherParticipant {
   id: string;
   displayName: string | null;
+  /** Avatar object path, or null. A PATH, not a URL. */
+  avatarPath?: string | null;
 }
 
 /** A compact summary of the item a conversation is about (if any). */
@@ -242,7 +244,7 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
   const [profilesRes, itemsRes, cashSalesRes, messagesRes] = await Promise.all([
     supabase
       .from('public_profiles')
-      .select('id, display_name')
+      .select('id, display_name, avatar_path')
       .in('id', otherIds),
     itemIds.length > 0
       ? supabase.from('items').select('id, title, image_paths').in('id', itemIds)
@@ -261,6 +263,13 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
     (profilesRes.data ?? []).map((p) => [
       p.id as string,
       (p.display_name as string | null) ?? null,
+    ]),
+  );
+
+  const avatarById = new Map<string, string | null>(
+    (profilesRes.data ?? []).map((p) => [
+      p.id as string,
+      (p.avatar_path as string | null) ?? null,
     ]),
   );
 
@@ -309,7 +318,11 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       id: c.id,
       itemId: c.item_id,
       lastMessageAt: c.last_message_at,
-      other: { id: otherId, displayName: nameById.get(otherId) ?? null },
+      other: {
+        id: otherId,
+        displayName: nameById.get(otherId) ?? null,
+        avatarPath: avatarById.get(otherId) ?? null,
+      },
       item: c.item_id ? (itemById.get(c.item_id) ?? null) : null,
       trade: c.trade_id ? { id: c.trade_id } : null,
       dispute: (c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id
@@ -383,7 +396,7 @@ export async function getConversation(
   const [profileRes, itemRes, messagesRes] = await Promise.all([
     supabase
       .from('public_profiles')
-      .select('id, display_name')
+      .select('id, display_name, avatar_path')
       .eq('id', otherId)
       .maybeSingle(),
     conv.item_id
@@ -415,6 +428,7 @@ export async function getConversation(
       other: {
         id: otherId,
         displayName: (profileRes.data?.display_name as string | null) ?? null,
+        avatarPath: (profileRes.data?.avatar_path as string | null) ?? null,
       },
       item,
       trade: conv.trade_id ? { id: conv.trade_id } : null,

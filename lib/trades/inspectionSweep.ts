@@ -27,6 +27,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
 import { getPaymentService } from '@/domain/services';
+import { regionForCurrency } from '@/lib/regionBinding';
 import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment';
 import { finalizeCompletedTrade, type TradeRow } from './completion';
 
@@ -67,9 +68,27 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
     .not('inspection_deadline_at', 'is', null)
     .lte('inspection_deadline_at', nowIso);
 
-  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  // One orchestrator PER PLATFORM ACCOUNT (0068), cached across the batch.
+  //
+  // This sweep spans every region at once, and completing a trade releases its
+  // collateral — a real authorisation that belongs to the Stripe account which
+  // created it. A single shared service would fail to find the PaymentIntent for
+  // every trade outside its own region and leave that collateral held until the
+  // authorisation lapsed, which is the failure the inspection clock exists to
+  // prevent. Cached rather than rebuilt per trade because a batch is usually one
+  // region and constructing a client per row is wasteful.
+  const byRegion = new Map<string, ReturnType<typeof createDefaultTradeOrchestrator>>();
+  const orchestratorFor = (currency: string | null) => {
+    const region = regionForCurrency(currency);
+    const existing = byRegion.get(region);
+    if (existing) return existing;
+    const built = createDefaultTradeOrchestrator({ payments: getPaymentService(region) });
+    byRegion.set(region, built);
+    return built;
+  };
 
   for (const row of (due ?? []) as TradeRow[]) {
+    const orchestrator = orchestratorFor(row.currency);
     const applied = await orchestrator.applyEvent({
       tradeId: row.id,
       event: 'INSPECTION_EXPIRED',

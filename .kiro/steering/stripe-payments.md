@@ -147,8 +147,8 @@ Create accounts with `stripe.v2.core.accounts.create`.
 - Onboarding is **provider-hosted** via `v2.core.accountLinks.create`. Links are
   single-use and short-lived: request a new one each time rather than caching.
 - `stripe_transfers.status === 'active'` is the ONLY signal that means the hosted flow
-  actually completed, so it is BOTH halves of the answer: it gates platform access via
-  `satisfiesIdentityGate` and payout attempts via `canReceiveFunds`. Returning from the
+  actually completed, and since 0069 it answers ONE question: whether the member can be
+  PAID (`canReceiveFunds`). It is no part of the Identity_Gate. Returning from the
   hosted flow does not prove it — read the account back.
 - Creating the account shell is the START of onboarding. It lands `PENDING`
   (`deriveMerchantStatus`), never APPROVED. Migration 0060 briefly made creation itself
@@ -159,18 +159,19 @@ Create accounts with `stripe.v2.core.accounts.create`.
   re-derived from the provider in both directions, so an account Stripe later
   restricts stops being verified.
 
-ONE gate for platform access, plus a mechanical precondition for moving money. The
-former payer gate is retired.
+TWO SEQUENTIAL GATES, plus a mechanical precondition for moving money. The former
+payer gate is retired.
 
 | | Columns | Gates |
 | --- | --- | --- |
-| Identity_Gate | `merchant_status = APPROVED` **and** `merchant_settlements_enabled` | listing, selling, trade access, being a disclosed seller |
-| `canReceiveFunds` | the gate **plus** a non-null `merchant_ref` | actual transfer attempts |
+| Identity_Gate (step 1) | `identity_check_status = VERIFIED` | listing, selling, trade access, being a disclosed seller |
+| Payout setup (step 2) | `merchant_status = APPROVED` **and** `merchant_settlements_enabled` | nothing on its own — feeds `canReceiveFunds` |
+| `canReceiveFunds` | step 2 **plus** a non-null `merchant_ref` | actual transfer attempts |
 
-These are not two opinions about identity — the second is the first plus a provider
-destination to send to. A cash Buyer is exempt from both: they never receive a
-transfer. Evaluate platform access only via `domain/identity/identityGate.ts`, and
-payout attempts only via `canReceiveFunds`.
+Steps 1 and 2 are independent in both directions and a member may legitimately hold
+either without the other. Evaluate platform access only via
+`domain/identity/identityGate.ts`, and payout attempts only via `canReceiveFunds`. A cash
+Buyer is exempt from both: they never receive a transfer.
 
 **Event types: `account.updated` is the v1 event.** Accounts are created with
 `v2.core.accounts.create`, and Accounts v2 reports capability changes on
@@ -235,11 +236,13 @@ difference in the platform balance.
 
 ## Buyer-safe seller disclosure
 
-The disclosure is the provider-VERIFIED legal name
-(`identity.individual.given_name` + `surname`), checked against a government
-document — not anything the Seller typed. Persist it only from the provider's own
-report, and only absent→present so a later event cannot blank a name already
-disclosed.
+The disclosure is the provider-VERIFIED legal name, checked against a government
+document — not anything the Seller typed. Since 0069 it comes from Stripe Identity's
+`verified_outputs` (`first_name` + `last_name`), stored as `identity_check_name`, with
+`merchant_legal_entity_name` as the fallback for members grandfathered from Connect
+state. Persist either only from the provider's own report, and only absent→present so a
+later event cannot blank a name already disclosed. The fallback is load-bearing: a null
+disclosure blocks the entire buy path, so removing it breaks every pre-0069 seller.
 
 Government registration numbers (ABN/ACN) are gone: they were a previous-provider
 requirement, sellers are individuals, and Stripe does not return tax IDs.
@@ -249,33 +252,39 @@ numbers, bank details, or compliance notes.
 
 ## Identity
 
-**There is no KYC seam.** `KycService`, `runVerification`, `beginIdentityCheck`,
-`getIdentitySummary`, `STRIPE_KYC_MODE` and the `identity.verification_session.*`
-translations have all been removed. Do not reintroduce a second verification path.
+**There IS an identity seam again, and it is not the retired KYC one.** `IdentityService`
+on `domain/services/types.ts` (`createIdentityCheck`, `readIdentityCheck`) binds Stripe
+**Identity**, and `identity.verification_session.*` is translated in `webhook.ts` and
+routed as `IDENTITY_DECISION`.
 
-Identity is the Identity_Gate: Connect onboarding APPROVED **with settlements enabled**,
-which permits listing, selling, and trade access. Account creation persists `PENDING`;
-the provider report that enables transfers is what makes a member verified, and it also
-carries any provider-reported legal name. Identity is therefore state this integration
-reports, not a separate call it has to make.
+Why this is not a reintroduction of the thing these docs told you not to reintroduce: the
+old `KycService` was a SECOND verification path running in PARALLEL with Connect, so two
+columns each claimed to answer "is this member verified". This is the ONLY path. Connect
+contributes nothing to the gate now — `merchant.compliance.updated` decides payability
+alone. `runVerification`, `getIdentitySummary`, `STRIPE_KYC_MODE` and `kyc_status` stay
+retired.
 
-`createPayer` stays on the seam (as `PayerService`) and still throws rather than
-returning a status, because a payer is a payment prerequisite and a failure must
-leave verification state untouched.
+`STRIPE_IDENTITY_VERIFICATION_FLOW` holds a Dashboard Verification Flow id (`vf_...`) and
+is read per region, because a flow belongs to one Stripe account. Unset, the binding falls
+back to an equivalent inline `type: 'document'` session — it works, but the options are
+then duplicated in code instead of being owned by the Dashboard.
 
-**Accepted assurance limit, recorded deliberately.** Satisfying the gate means Stripe
-enabled transfers. It does **not** prove a government document or selfie was checked —
-Connect can defer document collection — and the disclosed legal name may still be the
-member's stated name until Stripe returns a provider-reported one. That fallback is
-load-bearing, not sloppiness: `sellerIdentityDisclosure` returns null without a name,
-and a null disclosure blocks the entire buy path (migration 0041 records that shipping).
-`applyComplianceUpdate` upgrades the name absent→present the moment the provider reports
-one. Never describe this state as ID- or document-verified. When Stripe grants Connect
-Additional Document Verification, add its accepted document status on top of transfers
-active.
+**`verified_outputs` is not returned by default.** `readIdentityCheck` expands it
+explicitly; that is where the document-backed name comes from, and without the expansion
+the name is silently null. A webhook payload may legitimately carry no outputs, which is
+why the name is persisted monotonically rather than overwritten on every event.
 
-Verified identity data is sensitive: server-only, never logged, never returned to a
-client component.
+**The read-back is the reliable path, the webhook is the backstop** — the same division as
+`refreshPayoutStatus` on the Connect side, and for the same reason: a member returning from
+the hosted flow will not wait for a delayed delivery before deciding the app is broken.
+`refreshIdentityCheck` performs it on every return.
+
+`createIdentityCheck` throws rather than returning a status, matching `createPayer`, so a
+provider failure leaves verification state untouched (Req 2.6).
+
+Verified identity data is sensitive: server-only, never logged, never returned to a client
+component. The disclosure is a name and nothing else — never document numbers, address, or
+date of birth.
 
 ## Verification
 

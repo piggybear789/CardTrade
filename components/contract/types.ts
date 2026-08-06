@@ -47,6 +47,13 @@ export interface ContractPartyStat {
 export interface ContractParty {
   /** Display name, already defaulted by the caller (never blank). */
   name: string;
+  /**
+   * Avatar object path, or null/absent. A PATH, not a URL.
+   *
+   * Optional so a flow that has not plumbed it through still compiles and simply
+   * shows initials — which is the correct fallback, not a broken state.
+   */
+  avatarPath?: string | null;
   /** Short side label — "Buyer", "Seller", "Trader". Omit when a flow has none. */
   roleLabel?: string | null;
   /** KYC identity verification state. */

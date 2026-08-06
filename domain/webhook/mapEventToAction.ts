@@ -27,6 +27,13 @@ export type WebhookAction =
   | { kind: 'CASH_SALE_SETTLE' }
   | { kind: 'CASH_SALE_FAIL' }
   | { kind: 'MERCHANT_COMPLIANCE' }
+  /**
+   * A provider identity decision — the Identity_Gate (0069).
+   *
+   * `verified: false` is a retryable failure, not a ban: a document check fails for
+   * mundane reasons and the member is offered another attempt.
+   */
+  | { kind: 'IDENTITY_DECISION'; verified: boolean }
   | { kind: 'CASH_SALE_REFUND_FAILED' }
   | { kind: 'CHARGE_DISPUTE'; phase: 'OPENED' | 'CLOSED' }
   | { kind: 'NO_OP' };
@@ -74,14 +81,29 @@ export function mapEventToAction(event: WebhookEvent): WebhookAction {
         ? { kind: 'CASH_SALE_REFUND_FAILED' }
         : { kind: 'NO_OP' };
 
-    // `kyc.verified` / `kyc.rejected` used to be routed here to a KYC_DECISION.
-    // The separate payer gate is retired: there is one verification signal now,
-    // and it arrives on `merchant.compliance.updated` below. That event is
-    // therefore no longer only about being PAID — it is also where the
-    // provider-verified legal name and the verified state come from.
+    // Identity verification -> the Identity_Gate (0069).
+    //
+    // `kyc.verified` / `kyc.rejected` used to route here to a KYC_DECISION and were
+    // removed with the payer gate, because that gate was a SECOND answer to "is this
+    // member verified" competing with Connect state. These are the SINGLE answer now:
+    // `merchant.compliance.updated` below no longer decides verification at all, only
+    // payability.
+    //
+    // Needs something to attribute the decision to. A session carrying neither a
+    // profile id nor a session id is unroutable and is a logged NO_OP rather than
+    // being applied to a guess — the same rule as an unreferenced transfer.
+    case 'identity.verified':
+      return event.payload.profileId || event.payload.identitySessionId
+        ? { kind: 'IDENTITY_DECISION', verified: true }
+        : { kind: 'NO_OP' };
+    case 'identity.failed':
+      return event.payload.profileId || event.payload.identitySessionId
+        ? { kind: 'IDENTITY_DECISION', verified: false }
+        : { kind: 'NO_OP' };
 
     // A sub-merchant compliance decision: routed to the merchant onboarding
-    // orchestrator, which decides APPROVED/REJECTED/PENDING from the flags.
+    // orchestrator, which decides APPROVED/REJECTED/PENDING from the flags. Since
+    // 0069 this decides PAYABILITY only — verification is the identity events above.
     case 'merchant.compliance.updated':
       return event.payload.merchantRef ? { kind: 'MERCHANT_COMPLIANCE' } : { kind: 'NO_OP' };
 

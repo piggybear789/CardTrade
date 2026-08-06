@@ -27,9 +27,11 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ImageOff, ImagePlus, X } from "lucide-react";
+import { ImageOff, ImagePlus, Library, Package, X } from "lucide-react";
 
 import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
+import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
+import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
@@ -45,6 +47,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -54,7 +57,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/** Fixed two-level collectible taxonomy. Managed by migration, not users. */
+/**
+ * Fixed two-level collectible taxonomy. Managed by migration, not users.
+ *
+ * This MUST stay byte-identical to the `cardtrade.categories` seed (migrations
+ * 0062 and 0063): the form submits the subcategory `name` into the free-text
+ * `items.category` column, and `searchCatalog` filters on that exact string.
+ *
+ * Trading Cards subcategories are ordered by market size (TCGplayer GMV for
+ * Q2 2026), not alphabetically, so the likely pick sits at the top of the list.
+ */
 const TAXONOMY = [
   {
     name: 'Trading Cards',
@@ -62,7 +74,18 @@ const TAXONOMY = [
     subcategories: [
       { name: 'Pokémon', slug: 'pokemon' },
       { name: 'Magic: The Gathering', slug: 'magic-the-gathering' },
+      { name: 'One Piece', slug: 'one-piece' },
       { name: 'Yu-Gi-Oh!', slug: 'yu-gi-oh' },
+      { name: 'Disney Lorcana', slug: 'disney-lorcana' },
+      { name: 'Riftbound', slug: 'riftbound' },
+      { name: 'Gundam', slug: 'gundam' },
+      { name: 'Dragon Ball Super', slug: 'dragon-ball-super' },
+      { name: 'Digimon', slug: 'digimon' },
+      { name: 'Star Wars: Unlimited', slug: 'star-wars-unlimited' },
+      { name: 'Flesh and Blood', slug: 'flesh-and-blood' },
+      { name: 'Union Arena', slug: 'union-arena' },
+      { name: 'Weiss Schwarz', slug: 'weiss-schwarz' },
+      { name: 'Cardfight!! Vanguard', slug: 'cardfight-vanguard' },
       { name: 'Sports Cards', slug: 'sports-cards' },
       { name: 'Other TCG', slug: 'other-tcg' },
     ],
@@ -118,6 +141,7 @@ const TAXONOMY = [
 
 /** Condition grades shown for a collectible, matching TCGplayer's standard scale. */
 const CONDITIONS = [
+  "Graded",
   "Unopened",
   "Near Mint",
   "Mint",
@@ -154,6 +178,9 @@ function placeFromItem(item?: ItemRow): PlaceValue | null {
     placeId: item.location_place_id ?? `item:${item.id}`,
     lat: item.location_lat,
     lng: item.location_lng,
+    // Carried so an edit that does not touch the place keeps its country instead of
+    // clearing it, which would quietly drop the listing out of its own region.
+    countryCode: item.location_country_code,
     precision: item.location_precision === "exact" ? "exact" : "suburb",
   };
 }
@@ -164,6 +191,29 @@ export interface ItemFormProps {
   /** The existing item to edit; required when `mode === "edit"`. */
   item?: ItemRow;
 }
+
+/**
+ * The two kinds of listing (0064), with the copy that tells them apart.
+ *
+ * The distinction has to land here, at the only point where the seller chooses:
+ * a single listing is held for one buyer, a shopfront is not held for anyone.
+ * Everything downstream — no reservation, several concurrent contracts, a price
+ * that comes from each contract rather than from this form — follows from it.
+ */
+const LISTING_KINDS = [
+  {
+    value: "SINGLE" as const,
+    icon: Package,
+    label: "One item",
+    hint: "A single collectible. Reserved for one buyer as soon as they open a contract.",
+  },
+  {
+    value: "SHOPFRONT" as const,
+    icon: Library,
+    label: "Binder or bulk",
+    hint: "Many cards buyers pick from. Several buyers can negotiate at once and nothing is held.",
+  },
+];
 
 /**
  * Convert a dollars string (e.g. `"123.45"`) to integer AUD cents. Returns
@@ -223,6 +273,13 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     return "";
   });
   const [condition, setCondition] = React.useState(item?.condition ?? "");
+  // Immutable after creation: contracts already open against a shopfront depend
+  // on it not being reserved, and a single listing's live contract depends on the
+  // opposite. Switching either way mid-flight would break one of them.
+  const [listingKind, setListingKind] = React.useState<ListingKind>(
+    item?.listing_kind ?? "SINGLE",
+  );
+  const isShopfront = listingKind === "SHOPFRONT";
   const [fmvDollars, setFmvDollars] = React.useState(
     item ? centsToDollars(item.fmv_cents) : "",
   );
@@ -323,6 +380,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       placeId: location.placeId,
       lat: location.lat,
       lng: location.lng,
+      // Resolved by the Places lookup and forwarded so the listing lands in a
+      // region (0065). Null on the free-text fallback, which resolves no country;
+      // `normalizeItemLocation` accepts that as unscoped rather than refusing.
+      countryCode: location.countryCode ?? null,
       precision: "suburb" as const,
     };
 
@@ -352,6 +413,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           fmvCents,
           images: uploadedPaths,
           location: locationPayload,
+          listingKind,
         });
 
         if (result.ok) {
@@ -439,8 +501,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           {mode === "create" ? "List an item" : "Edit listing"}
         </CardTitle>
         <CardDescription>
-          Describe your collectible and set its fair market value in Australian
-          dollars.
+          {isShopfront
+            ? "Describe what buyers can pick from. You agree the cards and the price with each buyer separately."
+            : "Describe your collectible and set its fair market value in Australian dollars."}
         </CardDescription>
       </CardHeader>
 
@@ -460,7 +523,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className="flex aspect-square w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex max-h-[420px] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -470,7 +533,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   alt="Cover photo"
                   width={640}
                   height={640}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               ) : (
                 <>
@@ -588,6 +651,41 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
           {/* Details form — a dedicated right-hand rail. */}
           <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:border-l lg:border-border/80 lg:px-7 lg:pb-7">
+            {/* Listing kind (0064). First, because it changes what the rest of
+                this form means: for a shopfront the price below is only a guide
+                and the condition covers a mixed pile. Locked in edit mode. */}
+            <fieldset className="space-y-2" disabled={mode === "edit"}>
+              <legend className="mb-2 text-sm font-medium leading-none">
+                What are you listing?
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {LISTING_KINDS.map((kind) => (
+                  <ChoiceTile
+                    key={kind.value}
+                    id={`listing-kind-${kind.value}`}
+                    name="listingKind"
+                    type="radio"
+                    icon={kind.icon}
+                    label={kind.label}
+                    hint={kind.hint}
+                    checked={listingKind === kind.value}
+                    onChange={() => setListingKind(kind.value)}
+                  />
+                ))}
+              </div>
+              {mode === "edit" ? (
+                <p className="text-xs text-muted-foreground">
+                  This can&apos;t be changed after a listing is created.
+                </p>
+              ) : isShopfront ? (
+                <p className="text-xs text-muted-foreground">
+                  Buyers ask for the cards they want and you agree a price with
+                  each one. Nothing is reserved, so the same card can be asked for
+                  twice — check your open contracts before you accept.
+                </p>
+              ) : null}
+            </fieldset>
+
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
@@ -705,7 +803,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="condition">Condition</Label>
+                <Label htmlFor="condition">
+                  {isShopfront ? "Typical condition" : "Condition"}
+                </Label>
                 <Select
                   value={condition}
                   onValueChange={(v) => setCondition(v)}
@@ -740,40 +840,33 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               </div>
             </div>
 
-            {/* Fair Market Value (dollars) */}
+            {/* Fair Market Value (dollars). For a shopfront this is INDICATIVE
+                only: each contract's real total is the sum of the cards that
+                buyer asks for, so the label must not promise a purchase price. */}
             <div className="space-y-2">
-              <Label htmlFor="fmv">Fair market value (AUD)</Label>
-              <div className="relative">
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                >
-                  $
-                </span>
-                <Input
-                  id="fmv"
-                  name="fmv"
-                  type="number"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="123.45"
-                  className="pl-7"
-                  value={fmvDollars}
-                  onChange={(e) => setFmvDollars(e.target.value)}
-                  aria-invalid={fmvError ? true : undefined}
-                  aria-describedby={fmvError ? "fmv-error" : "fmv-hint"}
-                  disabled={isSubmitting}
-                />
-              </div>
+              <Label htmlFor="fmv">
+                {isShopfront ? "Typical price" : "Fair market value"}
+              </Label>
+              <MoneyInput
+                id="fmv"
+                name="fmv"
+                min="0.01"
+                placeholder="123.45"
+                value={fmvDollars}
+                onChange={(e) => setFmvDollars(e.target.value)}
+                aria-invalid={fmvError ? true : undefined}
+                aria-describedby={fmvError ? "fmv-error" : "fmv-hint"}
+                disabled={isSubmitting}
+              />
               {fmvError ? (
                 <p id="fmv-error" role="alert" className="text-sm text-destructive">
                   {fmvError}
                 </p>
               ) : (
                 <p id="fmv-hint" className="text-sm text-muted-foreground">
-                  Enter dollars and cents, e.g. 123.45.
+                  {isShopfront
+                    ? "Shown as a “from” guide. Each buyer’s total is the cards they pick."
+                    : "Enter dollars and cents, e.g. 123.45."}
                 </p>
               )}
             </div>

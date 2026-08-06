@@ -2,18 +2,23 @@
 //
 // Persistent verification state for the workspace rail (Req 13.3, 18.4).
 //
-// Reports the Identity_Gate — Connect onboarding APPROVED with settlements
-// enabled — which is now the app's ONLY verification signal. This file used to
-// assert that while `app/profile/page.tsx` rendered a separate identity card
-// beside the payout card, so the rail and the account page could disagree about
-// whether the same Member was verified. That second gate is gone, and the state
-// shown here is derived from `verificationState` in `domain/identity/identityGate.ts`
-// so the rail cannot drift from the predicate every other surface uses.
+// Reports the Identity_Gate — since 0069 a Stripe Identity document-plus-selfie
+// check, `identity_check_status = 'VERIFIED'`. It is the app's ONLY verification
+// signal. This file used to assert that while `app/profile/page.tsx` rendered a
+// separate identity card beside the payout card, so the rail and the account page
+// could disagree about whether the same Member was verified. That second gate is
+// gone, and the state shown here is derived from `verificationState` in
+// `domain/identity/identityGate.ts` so the rail cannot drift from the predicate
+// every other surface uses.
 //
-// The gate decides Bond relief on trades and private deals and whether a Member
-// may list, sell or trade, so the rail carries it on every signed-in surface with
-// a route into payout setup (`/profile#payouts`). Renders nothing for signed-out
-// visitors, who have no status to report.
+// CONNECT IS NOT THIS. Payout setup is a separate, later step and gates only whether
+// a member can be PAID. The rail must keep routing to the identity check, because
+// that is what moves the state it displays — pointing it at payout setup would offer
+// an action that cannot change the badge beside it.
+//
+// The gate decides whether a Member may list, sell or trade, so the rail carries it
+// on every signed-in surface with a route into verification. Renders nothing for
+// signed-out visitors, who have no status to report.
 
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
@@ -23,7 +28,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import {
   verificationState,
-  type MerchantStatus,
+  type IdentityCheckStatus,
   type VerificationState,
 } from '@/domain/identity/identityGate';
 
@@ -31,9 +36,9 @@ import {
  * Rail presentation per Identity_Gate state: a badge plus the action that moves
  * the Member forward. VERIFIED is terminal, so it offers no action.
  *
- * Keyed on `VerificationState` rather than on `merchant_status` directly, so the
- * "approved but settlements not enabled is not verified" rule lives in one place
- * instead of being re-derived here.
+ * Keyed on `VerificationState` rather than on the raw column, so the mapping from
+ * check status to member-facing wording lives in one place instead of being
+ * re-derived here.
  */
 const VERIFICATION_RAIL: Record<
   VerificationState,
@@ -59,14 +64,13 @@ export async function KycRailStatus() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('merchant_status, merchant_settlements_enabled')
+    .select('identity_check_status')
     .eq('id', user.id)
     .maybeSingle();
   if (!profile) return null;
 
   const state = verificationState({
-    merchantStatus: (profile.merchant_status ?? 'NONE') as MerchantStatus,
-    settlementsEnabled: Boolean(profile.merchant_settlements_enabled),
+    identityCheckStatus: (profile.identity_check_status ?? 'NONE') as IdentityCheckStatus,
   });
   const status = VERIFICATION_RAIL[state] ?? VERIFICATION_RAIL.NOT_STARTED;
 
@@ -94,7 +98,7 @@ export async function KycRailStatus() {
 
       {status.action ? (
         <Link
-          href="/profile#payouts"
+          href="/profile/payouts"
           className="mt-2 flex items-center gap-2 rounded-md text-sm font-semibold text-foreground underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ShieldCheck className="size-4 shrink-0 text-gold" aria-hidden="true" />

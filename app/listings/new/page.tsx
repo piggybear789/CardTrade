@@ -43,12 +43,16 @@ export default async function NewListingPage() {
   if (!gate.satisfied) {
     return (
       <MarketplaceShell title="Sell an Item" center>
+        {/* SENDS THEM TO THE IDENTITY CHECK, NOT PAYOUTS. This used to read "Set Up
+            Payouts First" and link to payout setup, which after 0069 does not open
+            this gate at all — a blocked seller would have handed over their bank
+            details and still been unable to list. */}
         <EmptyState
           icon={<ShieldAlert className="size-6" aria-hidden />}
-          title="Set Up Payouts First"
+          title="Verify Your Identity First"
           titleAs="h3"
           description={identityGateMessage('list', gate.state)}
-          action={{ label: 'Set up payouts', href: '/profile#payouts' }}
+          action={{ label: 'Verify identity', href: '/profile/payouts' }}
           className="border-none"
         />
       </MarketplaceShell>

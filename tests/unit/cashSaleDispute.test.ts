@@ -83,10 +83,21 @@ async function disputedSale(deps: CashSaleOrchestratorDeps) {
   if (!created.ok) throw new Error('setup: could not initiate');
   const saleId = created.sale.id;
 
+  // Two saves by two parties: postage is the seller's to price, the address is the
+  // buyer's. The seller goes first so the buyer's save leaves postage unchanged,
+  // which is the only way a buyer may carry that field.
+  const priced = await updateCashSaleTerms(deps, {
+    cashSaleId: saleId,
+    actorId: ITEM.ownerId,
+    expectedTermsVersion: created.sale.termsVersion,
+    terms: { ...DELIVERY_TERMS, deliveryAddress: undefined },
+  });
+  if (!priced.ok) throw new Error('setup: could not price postage');
+
   await updateCashSaleTerms(deps, {
     cashSaleId: saleId,
     actorId: BUYER.profileId,
-    expectedTermsVersion: created.sale.termsVersion,
+    expectedTermsVersion: priced.sale.termsVersion,
     terms: DELIVERY_TERMS,
   });
   const sale = await deps.repository.loadCashSale(saleId);

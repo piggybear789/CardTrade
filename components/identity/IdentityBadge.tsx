@@ -2,17 +2,21 @@
 //
 // The PUBLIC face of identity verification.
 //
-// WHAT THIS BADGE MAY CLAIM, AND WHAT IT MAY NOT. It reports the Identity_Gate:
-// Stripe Connect onboarding APPROVED with settlements enabled. That proves the
-// provider verified a payout recipient and returned a legal name it stands behind —
-// which is a real assurance, and enough to trade on.
+// WHAT THIS BADGE MAY CLAIM, AND WHY THAT CHANGED. It reports the Identity_Gate,
+// which since migration 0069 is a Stripe **Identity** check: a government document
+// plus a matching selfie, with the legal name taken from the provider's own reading
+// of the document.
 //
-// It does NOT prove a government document was inspected or a selfie matched. Connect's
-// verification burden on a recipient-only account is lighter than that, and Stripe may
-// defer document collection until volume thresholds. This file used to say otherwise in
-// its `title`, its `aria-label` and its header comment, so a buyer hovering the badge
-// was told a check had happened that may not have. Copy here must not overstate the
-// assurance — see `product.md`.
+// SO IT MAY NOW SAY DOCUMENT AND SELFIE, AND THAT IS NEW. While the gate was Connect
+// payout onboarding, this file carried the opposite instruction — a recipient-only
+// account's verification burden is lighter and Stripe may defer document collection,
+// so a badge claiming a document check would have overstated the assurance. It said
+// so in its `title`, its `aria-label` and its header, and that disclaimer was correct
+// at the time. The underlying check is now real, so the claim is honest.
+//
+// WHAT IT STILL MAY NOT CLAIM. Anything about being payable. Payout setup is a
+// separate later step, and a verified member may legitimately have no bank account
+// attached — see `canReceiveFunds`. Never mention payouts here.
 //
 // The full legal name is deliberately NOT available here: it is released only at a
 // commitment point, by `getCounterpartyIdentity`, to someone already transacting with
@@ -31,7 +35,7 @@ import { cn } from '@/lib/utils';
 export interface IdentityBadgeProps {
   /**
    * True when the Identity_Gate is satisfied, read as `public_profiles.is_verified`:
-   * Connect onboarding APPROVED with settlements enabled.
+   * `identity_check_status = 'VERIFIED'` (0069).
    *
    * There is exactly one such column. The view previously also carried
    * `identity_verified`, the identical SQL expression under a name that invited the
@@ -72,7 +76,7 @@ export function IdentityBadge({
   return (
     <span
       className={cn('text-trust inline-flex items-center gap-1 font-medium', className)}
-      title="Identity verified by Stripe as part of payout onboarding"
+      title="Identity verified by Stripe with a photo ID and a selfie"
       // `role="img"` so the label is actually exposed. In `iconOnly` mode the
       // ShieldCheck is `aria-hidden` and there is no visible text, so without a
       // role this badge could be announced as nothing — silently dropping the

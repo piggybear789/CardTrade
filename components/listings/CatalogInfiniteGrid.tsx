@@ -22,13 +22,22 @@ export interface CatalogInfiniteGridProps {
   initialHasMore: boolean;
   currentUserId: string | null;
   initialWatchingIds: string[];
+  /**
+   * The predicates the first page was fetched with, replayed for every page after
+   * it. Anything missing here is silently dropped on scroll, which appends items
+   * the active filters exclude — `conditions` and `regionCode` were both added
+   * after exactly that.
+   */
   query: {
     q: string;
     categories: string[];
+    conditions: string[];
     minCents?: number;
     maxCents?: number;
     includeSold: boolean;
     sort: CatalogSort;
+    /** Region scope (0065). Must be replayed, or scrolling leaves the region. */
+    regionCode?: string | null;
   };
 }
 
@@ -79,10 +88,12 @@ export function CatalogInfiniteGrid({
     const params: SearchCatalogParams = {
       q: q.q || undefined,
       categories: q.categories,
+      conditions: q.conditions,
       minCents: q.minCents,
       maxCents: q.maxCents,
       includeSold: q.includeSold || undefined,
       sort: q.sort,
+      regionCode: q.regionCode ?? undefined,
       page: nextPage,
     };
 

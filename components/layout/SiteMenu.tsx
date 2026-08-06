@@ -18,6 +18,7 @@ import { Banknote, Menu, PackagePlus, Repeat2, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
+import { SignInLink } from '@/components/layout/SignInLink';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import {
   MARKETPLACE_NAV_GROUPS,
@@ -174,10 +175,10 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                 </Button>
                 <div className="my-1 border-t" />
                 <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/sign-in">Sign in</Link>
+                  <SignInLink>Sign in</SignInLink>
                 </Button>
                 <Button asChild className="justify-start">
-                  <Link href="/sign-up">Get started</Link>
+                  <SignInLink target="/sign-up">Get started</SignInLink>
                 </Button>
               </>
             ) : (

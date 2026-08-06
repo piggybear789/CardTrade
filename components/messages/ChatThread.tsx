@@ -35,6 +35,7 @@ import {
 import { MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
 import { formatRelativeTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
 
 export interface ChatThreadProps {
   /** The conversation being viewed. */
@@ -43,6 +44,12 @@ export interface ChatThreadProps {
   currentUserId: string;
   /** Display name of the other participant (falls back to a generic label). */
   otherName: string | null;
+  /**
+   * The other participant's avatar object path, or null. A PATH, not a URL.
+   * Optional: without it the header and incoming messages show initials, which is
+   * the correct fallback rather than a gap.
+   */
+  otherAvatarPath?: string | null;
   /** Optional item context this conversation is about. */
   item: { id: string; title: string; imagePath: string | null } | null;
   /** Set when this thread belongs to a 2-way trade's contract room. */
@@ -53,6 +60,7 @@ export function ChatThread({
   conversationId,
   currentUserId,
   otherName,
+  otherAvatarPath = null,
   item,
   trade = null,
 }: ChatThreadProps) {
@@ -205,8 +213,21 @@ export function ChatThread({
             return (
               <div
                 key={message.id}
-                className={cn('flex', isMine ? 'justify-end' : 'justify-start')}
+                className={cn(
+                  'flex items-end gap-2',
+                  isMine ? 'justify-end' : 'justify-start',
+                )}
               >
+                {/* Only on INCOMING messages. Repeating the viewer's own picture
+                    beside every message they sent adds nothing — they know who they
+                    are — and would halve the width available to the text. */}
+                {isMine ? null : (
+                  <Avatar
+                    avatarPath={otherAvatarPath}
+                    displayName={displayName}
+                    size="xs"
+                  />
+                )}
                 <div
                   className={cn(
                     'max-w-[75%] rounded-2xl px-4 py-2 text-sm',

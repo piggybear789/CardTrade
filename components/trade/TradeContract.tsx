@@ -5,10 +5,10 @@
 // The flagship real-time Trade Contract view (Req 11), on the same three pieces as the
 // cash sale and deal rooms:
 //
-//   header        2-way swap · value each side · You â‡„ Ada âœ“ · Trade_State
-//   â”Œ your move â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬ chat â”€â”€â”€â”€â”€â”€â”
-//   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-//   â—â”€â”€â—â”€â”€â—‹â”€â”€â—‹â”€â”€â—‹   Collateral Send Receive Accept Released
+//   header        2-way swap · value each side · You ⇄ Ada ✓ · Trade_State
+//   ┌ your move ─────────────────────┬ chat ──────┐
+//   └────────────────────────────────┴────────────┘
+//   ●──●──○──○──○   Collateral Send Receive Accept Released
 //   Swap · Collateral · Demo                          (collapsed rows)
 //
 // The action card holds `ActionBar`, which remains the single place trade actions are
@@ -184,6 +184,8 @@ function toExchangeItems(items: TradeGood[]): ContractExchangeItem[] {
 /** Reputation summary for one trader, shown in the compact party line. */
 export interface TradeParty {
   name: string;
+  /** Avatar object path, or null. A PATH, not a URL. */
+  avatarPath?: string | null;
   verified: boolean;
   rating: number | null;
   ratingCount: number;
@@ -196,6 +198,7 @@ export interface TradeParty {
 function toContractParty(party: TradeParty): ContractParty {
   return {
     name: party.name,
+    avatarPath: party.avatarPath ?? null,
     roleLabel: 'Trader',
     verified: party.verified,
     rating: party.rating,
@@ -272,13 +275,16 @@ function TradeCashSettlementNotice({
           </p>
           <p className="mt-1 text-muted-foreground">
             {iReceive
-              ? 'Finish DittoShield so Stripe can pay the cash into your account, then retry.'
+              ? // Says PAYOUT SETUP, not "DittoShield". That brand names the identity
+                // check, which since 0069 is a different step — and one this member
+                // has already passed, or they could not have entered the trade.
+                'Finish payout setup so Stripe can pay the cash into your account, then retry.'
               : 'They need to finish payout setup before Stripe can move the cash. You can retry once they have.'}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {iReceive ? (
               <Button asChild size="sm" variant="outline">
-                <Link href="/profile#payouts">Set up payouts</Link>
+                <Link href="/profile/payouts">Set up payouts</Link>
               </Button>
             ) : null}
             <Button
@@ -320,7 +326,7 @@ function TradeCashSettlementNotice({
           </p>
           {iReceive ? (
             <Button asChild size="sm" variant="outline" className="mt-3">
-              <Link href="/profile#payouts">Set up payouts</Link>
+              <Link href="/profile/payouts">Set up payouts</Link>
             </Button>
           ) : null}
         </>
@@ -423,7 +429,7 @@ function toContractEvents(
   return transitions.map((row) => ({
     id: row.id,
     event: row.event,
-    detail: `${row.from_state.replace(/_/g, ' ').toLowerCase()} â†’ ${row.to_state
+    detail: `${row.from_state.replace(/_/g, ' ').toLowerCase()} → ${row.to_state
       .replace(/_/g, ' ')
       .toLowerCase()}`,
     created_at: row.created_at,
@@ -724,12 +730,18 @@ export function TradeContract({
 
   return (
     <ContractFocusProvider>
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {/* Height budget for the room, declared once — see the note in
+          CashSaleView for the 8.25rem breakdown (4rem header + 4.25rem section
+          padding, because `lg:pb-10` overrides `lg:py-7`'s bottom). At `lg` this
+          is exactly the shell content box, so the header, action card and
+          details/chat row divide it and the panes scroll internally instead of
+          growing the page (F37). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
         <ContractHeader
           title="2-way trade"
           money={
             goods
-              ? `${formatAud(yoursValueCents)} â‡„ ${formatAud(theirsValueCents)}${
+              ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}${
                   goods.cashAmountCents > 0
                     ? ` + ${formatAud(goods.cashAmountCents)} cash`
                     : ''

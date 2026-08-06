@@ -2,7 +2,7 @@
 
 // components/contract/ContractPartyLine.tsx
 //
-// The two parties as one line inside the header: `You â‡„ Ada Lovelace âœ“ 4.8`.
+// The two parties as one line inside the header: `You ⇄ Ada Lovelace ✓ 4.8`.
 //
 // Header stays as a compact name line. Reputation figures live inside each exchange
 // side card (`ContractPartyStats`). Optional `showDetails` still expands full cards
@@ -13,11 +13,20 @@ import { ChevronDown, ShieldCheck, Star, UserPlus } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import type { ContractParty } from './types';
+import { Avatar } from '@/components/ui/avatar';
 
 /** One party, collapsed to a name plus its two trust signals. */
 function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5">
+      {/* `xs` to keep the header a single compact line. Decorative: the name is
+          right beside it. An avatar is recognisability only — the shield below is
+          the assurance, and this must never be mistaken for it. */}
+      <Avatar
+        avatarPath={party.avatarPath}
+        displayName={isMe ? 'You' : party.name}
+        size="xs"
+      />
       <span className="truncate text-sm font-medium">
         {isMe ? 'You' : party.name}
       </span>
@@ -191,7 +200,7 @@ export function ContractPartyLine({
   me,
   them,
   showDetails = false,
-  separator = 'â‡„',
+  separator = '⇄',
   className,
 }: ContractPartyLineProps) {
   const [expanded, setExpanded] = useState(false);

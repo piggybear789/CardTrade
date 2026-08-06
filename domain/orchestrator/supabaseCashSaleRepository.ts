@@ -9,6 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { Tables, TablesUpdate } from '@/lib/supabase/database.types';
 import { createPayoutNotifier } from '@/lib/notifications/payoutNotifier';
 import { getTrackingService } from '@/domain/services/tracking';
+import { operationalRegions } from '@/domain/services';
 import {
   createCashSaleOrchestrator,
   platformFeeCentsFor,
@@ -17,6 +18,8 @@ import {
   type CashSaleOrchestratorDeps,
   type CashSaleDisputeOutcome,
   type CashSalePayoutStatus,
+  type CashSaleLineItem,
+  type CashSaleLineItemDraft,
   type CashSaleRecord,
   type CashSaleRepository,
   type CreateCashSaleParams,
@@ -27,6 +30,42 @@ import type { MerchantRecord } from './merchantOnboarding';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type CashSaleRow = Tables<'cash_sales'>;
+type LineItemRow = Pick<
+  Tables<'cash_sale_items'>,
+  'id' | 'description' | 'condition' | 'quantity' | 'unit_price_cents' | 'image_path' | 'sort_order'
+>;
+
+/** Map one contract line row to the aggregate shape (0064). */
+function toLineItem(row: LineItemRow): CashSaleLineItem {
+  return {
+    id: row.id,
+    description: row.description,
+    condition: row.condition,
+    quantity: row.quantity,
+    unitPriceCents: row.unit_price_cents,
+    imagePath: row.image_path,
+    sortOrder: row.sort_order,
+  };
+}
+
+/**
+ * Shape contract lines for the `jsonb` argument both RPCs take.
+ *
+ * Snake_case keys because the SQL reads them with `line->>'unit_price_cents'`;
+ * array order becomes `sort_order` on the way in, so the member's ordering
+ * survives a round trip.
+ */
+function toLineItemPayload(
+  lines: readonly CashSaleLineItemDraft[],
+): { description: string; condition: string | null; quantity: number; unit_price_cents: number; image_path: string | null }[] {
+  return lines.map((line) => ({
+    description: line.description,
+    condition: line.condition ?? null,
+    quantity: line.quantity,
+    unit_price_cents: line.unitPriceCents,
+    image_path: line.imagePath ?? null,
+  }));
+}
 
 type ProfileRow = Pick<
   Tables<'profiles'>,
@@ -36,6 +75,7 @@ type ProfileRow = Pick<
   | 'display_name'
   | 'contact_email'
   | 'payment_token_type'
+  | 'region_code'
 >;
 
 /** Map one database row to the provider-independent aggregate. */
@@ -50,6 +90,7 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     agreedPriceCents: row.agreed_price_cents,
     platformFeeCents: row.platform_fee_cents,
     status: row.status,
+    fromShopfront: row.from_shopfront ?? false,
     version: row.version,
     transferId: row.transfer_id,
     paymentNonce: row.payment_nonce,
@@ -143,7 +184,7 @@ export function createSupabaseCashSaleRepository(
       const { data } = await client
         .from('profiles')
         .select(
-          'id, payer_id, payment_source_id, display_name, contact_email, payment_token_type',
+          'id, payer_id, payment_source_id, display_name, contact_email, payment_token_type, region_code',
         )
         .eq('id', buyerId)
         .maybeSingle();
@@ -156,6 +197,7 @@ export function createSupabaseCashSaleRepository(
             displayName: row.display_name,
             contactEmail: row.contact_email,
             paymentTokenType: row.payment_token_type,
+            regionCode: row.region_code,
           }
         : null;
     },
@@ -211,21 +253,42 @@ export function createSupabaseCashSaleRepository(
     async loadItem(itemId: string): Promise<ItemRecord | null> {
       const { data } = await client
         .from('items')
-        .select('id, owner_id, fmv_cents, status, title, description, condition, image_paths')
+        .select(
+          'id, owner_id, fmv_cents, status, listing_kind, closed_at, title, description, condition, image_paths',
+        )
         .eq('id', itemId)
         .maybeSingle();
-      return data
-        ? {
-            id: data.id,
-            ownerId: data.owner_id,
-            fmvCents: data.fmv_cents,
-            status: data.status,
-            title: data.title,
-            description: data.description,
-            condition: data.condition,
-            imagePaths: data.image_paths,
-          }
-        : null;
+      if (!data) return null;
+
+      // The OWNER's trading region, read separately rather than as an embedded
+      // select. `database.types.ts` is hand-maintained, and a typed relational
+      // embed against it is easy to get subtly wrong in a way `tsc` accepts and the
+      // query then returns as null — which here would read as "region unknown" and
+      // silently refuse every contract. One extra round trip, once per contract
+      // open, buys a query whose failure mode is an error rather than a wrong answer.
+      //
+      // Note this is the owner's region, NOT `items.location_country_code`: the
+      // listing's country is where the goods are, and the guard is about where the
+      // money moves.
+      const { data: owner } = await client
+        .from('profiles')
+        .select('region_code')
+        .eq('id', data.owner_id)
+        .maybeSingle();
+
+      return {
+        id: data.id,
+        ownerId: data.owner_id,
+        fmvCents: data.fmv_cents,
+        status: data.status,
+        listingKind: data.listing_kind,
+        closedAt: data.closed_at,
+        title: data.title,
+        description: data.description,
+        condition: data.condition,
+        imagePaths: data.image_paths,
+        ownerRegionCode: owner?.region_code ?? null,
+      };
     },
 
     async createAgreement(params: CreateCashSaleParams) {
@@ -243,10 +306,53 @@ export function createSupabaseCashSaleRepository(
         p_seller_organisation_type: params.sellerIdentity.organisationType,
         p_seller_identity_verified_at: params.sellerIdentity.verifiedAt,
         p_buyer_identity_confirmed_at: params.buyerSellerIdentityConfirmedAt,
+        // Written inside the same transaction as the agreement (0064). A shopfront
+        // contract must never exist, even momentarily, without saying which goods
+        // it covers — otherwise it reads as a contract for the whole binder.
+        p_items: params.lineItems ? toLineItemPayload(params.lineItems) : null,
       });
       if (error) {
         if (error.message.includes('own item')) throw new Error('SELF_PURCHASE');
         throw new Error(`Failed to create agreement: ${error.message}`);
+      }
+      const row = (data as CashSaleRow[] | null)?.[0];
+      return row ? toCashSale(row) : null;
+    },
+
+    async loadLineItems(cashSaleId: string): Promise<CashSaleLineItem[]> {
+      const { data } = await client
+        .from('cash_sale_items')
+        .select('id, description, condition, quantity, unit_price_cents, image_path, sort_order')
+        .eq('cash_sale_id', cashSaleId)
+        .order('sort_order', { ascending: true });
+      return ((data ?? []) as LineItemRow[]).map(toLineItem);
+    },
+
+    async replaceLineItems({
+      cashSaleId,
+      actorId,
+      expectedTermsVersion,
+      lineItems,
+      agreedPriceCents,
+      platformFeeCents,
+    }) {
+      const { data, error } = await client.rpc('replace_cash_sale_items', {
+        p_cash_sale_id: cashSaleId,
+        p_actor_id: actorId,
+        p_expected_terms_version: expectedTermsVersion,
+        p_items: toLineItemPayload(lineItems),
+        p_agreed_price_cents: agreedPriceCents,
+        p_platform_fee_cents: platformFeeCents,
+      });
+      // The RPC returns an empty set for each of its guards (missing sale, not a
+      // participant, wrong status, stale version, not a shopfront, no lines) and
+      // RAISES only when the caller's total disagrees with the lines — which is a
+      // bug, not a member-visible condition, so it is not swallowed here.
+      if (error) {
+        if (error.message.includes('Line items total')) {
+          throw new Error(`Line item total mismatch: ${error.message}`);
+        }
+        return null;
       }
       const row = (data as CashSaleRow[] | null)?.[0];
       return row ? toCashSale(row) : null;
@@ -499,13 +605,29 @@ export function createSupabaseCashSaleRepository(
       return selectSale(client, cashSaleId);
     },
 
-    async listDuePayouts({ limit, maxAttempts }: { limit: number; maxAttempts: number }) {
-      const { data } = await client
+    async listDuePayouts({
+      limit,
+      maxAttempts,
+      currency,
+    }: {
+      limit: number;
+      maxAttempts: number;
+      currency?: string;
+    }) {
+      let query = client
         .from('cash_sales')
         .select('id')
         .eq('status', 'COMPLETED')
         .in('seller_payout_status', ['PENDING', 'FAILED'])
-        .lt('seller_payout_attempts', maxAttempts)
+        .lt('seller_payout_attempts', maxAttempts);
+
+      // Scoped so a drain pass only sees contracts the platform account it holds can
+      // actually settle (0068). Attempting another region's contract would fail as a
+      // cross-region transfer AND burn a payout attempt, eventually exhausting the
+      // retry budget on a contract that was never broken.
+      if (currency) query = query.eq('currency', currency.toLowerCase());
+
+      const { data } = await query
         // Oldest owed first, so nobody is starved by a steady stream of new sales.
         .order('seller_payout_due_at', { ascending: true, nullsFirst: true })
         .limit(limit);
@@ -647,5 +769,12 @@ export function createDefaultCashSaleOrchestrator(
       deps.payoutMode ?? (process.env.PAYOUT_MODE === 'direct' ? 'direct' : 'platform'),
     notifier:
       deps.notifier === null ? undefined : (deps.notifier ?? createPayoutNotifier()),
+    // Defaulted HERE rather than left to call sites, for the same reason the notifier
+    // is: a contract can be opened from several places and every one of them must
+    // apply the same region rule. The runtime set is stricter than the registry's
+    // `tradingEnabled` — it also requires a configured Stripe platform account for
+    // the region, without which the seller could not be paid.
+    operationalRegions: deps.operationalRegions ?? operationalRegions(),
+    payoutRegionCurrency: deps.payoutRegionCurrency,
   });
 }

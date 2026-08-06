@@ -13,7 +13,7 @@
 
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { satisfiesIdentityGate, type MerchantStatus } from '../identity/identityGate';
+import { satisfiesIdentityGate, type IdentityCheckStatus } from '../identity/identityGate';
 import type { PreAuthHold } from '../services/types';
 import type { TradeRecord } from './tradeOrchestrator';
 import {
@@ -53,14 +53,13 @@ export function createSupabaseTradeProposalRepository(
     async getProfile(profileId: string): Promise<ProfileRecord | null> {
       const { data } = await client
         .from('profiles')
-        .select('id, merchant_status, merchant_settlements_enabled, payer_id')
+        .select('id, identity_check_status, payer_id')
         .eq('id', profileId)
         .maybeSingle();
       if (!data) return null;
       const row = data as {
         id: string;
-        merchant_status: string;
-        merchant_settlements_enabled: boolean | null;
+        identity_check_status: string;
         payer_id: string | null;
       };
       // Answered by the gate module, never re-derived here. This line used to read
@@ -71,8 +70,7 @@ export function createSupabaseTradeProposalRepository(
       return {
         id: row.id,
         verified: satisfiesIdentityGate({
-          merchantStatus: row.merchant_status as MerchantStatus,
-          settlementsEnabled: Boolean(row.merchant_settlements_enabled),
+          identityCheckStatus: row.identity_check_status as IdentityCheckStatus,
         }),
         payerId: row.payer_id,
       };

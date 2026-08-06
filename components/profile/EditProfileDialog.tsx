@@ -10,7 +10,6 @@ import { useState } from 'react';
 import { Pencil } from 'lucide-react';
 
 import { ProfileForm } from './ProfileForm';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -23,19 +22,25 @@ import {
 export function EditProfileDialog({
   displayName,
   contactEmail,
+  avatarPath = null,
 }: {
   displayName: string;
   contactEmail: string;
+  /** Current avatar object path, or null. */
+  avatarPath?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline">
-          <Pencil aria-hidden />
-          Edit details
-        </Button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Pencil className="size-3" aria-hidden />
+          Edit
+        </button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -47,6 +52,7 @@ export function EditProfileDialog({
         <ProfileForm
           initialDisplayName={displayName}
           initialContactEmail={contactEmail}
+          initialAvatarPath={avatarPath}
           embedded
           onSaved={() => setOpen(false)}
         />

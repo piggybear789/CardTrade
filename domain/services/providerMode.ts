@@ -5,9 +5,9 @@
 //
 // There is no separate KYC selection any more. `STRIPE_KYC_MODE` chose between a
 // deterministic verification simulation and Stripe Identity; both are gone.
-// Identity verification is the Identity_Gate — Connect onboarding APPROVED with
-// settlements enabled — which arrives on `account.updated` alongside payability,
-// so the provider binding is the only thing left to resolve here.
+// The Identity_Gate is a Stripe Identity check (0069), bound through
+// `IdentityService` on the same seam as payments rather than selected separately —
+// so the provider binding is still the only thing to resolve here.
 
 import { isStripeConfigured, type EnvLike } from './stripe/config';
 

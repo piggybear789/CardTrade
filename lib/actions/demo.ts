@@ -346,3 +346,159 @@ export async function fireCashSaleWebhook(
     deduped: body?.deduped === true,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Identity_Gate — simulated verification decision (0069)
+// ---------------------------------------------------------------------------
+//
+// WHY THIS EXISTS AT ALL. `MockService` lands every identity check `PENDING` and
+// never `VERIFIED`, deliberately — a mock that auto-verified would let local dev
+// walk through a gate production makes you earn, which is the 0060 shape of
+// mistake. But with nothing able to drive it forward, `PAYMENTS_PROVIDER=mock`
+// left the gate permanently shut: no listing, no selling, no trade escrow, ever.
+// That is a dead end rather than a safe default.
+//
+// SECURITY, AND THIS IS THE PART TO NOT GET WRONG. This action writes
+// `identity_check_status = VERIFIED`, which unlocks selling. Two properties keep
+// it from being a self-service verification bypass:
+//
+//   1. It is gated on `isPaymentDemoEnabled()`, which is false whenever a real
+//      provider is configured. With Stripe wired up this action cannot fire at all.
+//   2. It takes NO profile id and acts only on `auth.getUser()`. There is no
+//      parameter through which a caller could verify somebody else — that whole
+//      class of "demo control aimed at another member" is absent rather than
+//      guarded against.
+//
+// It delivers a SIGNED webhook through the real handler rather than writing the
+// column directly, so the local flow exercises the same translate → map → persist
+// path a real Stripe delivery takes. A demo that wrote the column itself would
+// leave that path untested precisely where it matters.
+
+/**
+ * The identity outcomes the demo can drive.
+ *   - `verify` -> `identity.verified` -> IDENTITY_DECISION(verified) -> VERIFIED
+ *   - `fail`   -> `identity.failed`   -> IDENTITY_DECISION(!verified) -> FAILED
+ */
+export type DemoIdentityWebhookKind = 'verify' | 'fail';
+
+/** Typed failure codes for {@link fireIdentityWebhook}. */
+export type FireIdentityWebhookError =
+  | 'unauthenticated'
+  | 'demo-disabled'
+  | 'no-check'
+  | 'delivery-failed'
+  | 'rejected';
+
+/** Discriminated result of firing a simulated identity webhook. */
+export type FireIdentityWebhookResult =
+  | { ok: true; kind: DemoIdentityWebhookKind; outcome: string; deduped: boolean }
+  | { ok: false; error: FireIdentityWebhookError; detail?: string };
+
+/** The webhook event type each identity demo control maps to. */
+const IDENTITY_EVENT_TYPE_BY_KIND: Record<DemoIdentityWebhookKind, WebhookEventType> = {
+  verify: 'identity.verified',
+  fail: 'identity.failed',
+};
+
+/**
+ * Fire a simulated Stripe Identity decision for the CALLER'S OWN profile.
+ *
+ * Requires a check to already exist: the member must have pressed "Verify with
+ * Stripe" first, so the local flow follows the same order as the real one rather
+ * than conjuring a verified state from nothing. That also means the stored session
+ * id is real, so the handler's session-id fallback is exercised too.
+ */
+export async function fireIdentityWebhook(
+  kind: DemoIdentityWebhookKind,
+): Promise<FireIdentityWebhookResult> {
+  if (!isPaymentDemoEnabled()) {
+    return {
+      ok: false,
+      error: 'demo-disabled',
+      detail: 'Mock payment demos are disabled while Stripe is live.',
+    };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+
+  // The caller's own row, and only ever their own. Read through the cookie-bound
+  // client so RLS is a second opinion on that, not just this query's WHERE clause.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('identity_check_session_id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const sessionId = (profile?.identity_check_session_id as string | null) ?? null;
+  if (!sessionId) {
+    return {
+      ok: false,
+      error: 'no-check',
+      detail: 'Start an identity check first, then drive it from here.',
+    };
+  }
+
+  const { webhookUrl, secret } = readWebhookConfig();
+
+  const event: WebhookEvent = {
+    // Stable per (profile, kind) -> idempotent re-fires (Req 10.5).
+    eventId: `evt_demo_identity_${kind}_${user.id}`,
+    type: IDENTITY_EVENT_TYPE_BY_KIND[kind],
+    occurredAt: new Date().toISOString(),
+    payload: {
+      profileId: user.id,
+      identitySessionId: sessionId,
+      ...(kind === 'verify'
+        ? // A stand-in for the document-backed name Stripe reports in
+          // `verified_outputs`, so the disclosure path is exercisable locally.
+          { identityVerifiedName: 'Mock Verified Member' }
+        : { reason: 'Simulated document verification failure' }),
+    },
+  };
+
+  const mock = new MockService({ webhookUrl, secret });
+  const envelope = mock.buildEnvelope(event);
+
+  let response: Response;
+  try {
+    response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        [MOCK_SIGNATURE_HEADER]: envelope.signature,
+        [MOCK_EVENT_ID_HEADER]: envelope.event.eventId,
+      },
+      body: envelope.rawBody,
+      cache: 'no-store',
+    });
+  } catch (cause) {
+    return {
+      ok: false,
+      error: 'delivery-failed',
+      detail: cause instanceof Error ? cause.message : 'Could not reach the webhook handler.',
+    };
+  }
+
+  if (!response.ok) {
+    return { ok: false, error: 'delivery-failed', detail: `Webhook responded ${response.status}.` };
+  }
+
+  const body = (await response.json().catch(() => null)) as
+    | { ok?: boolean; outcome?: string; deduped?: boolean }
+    | null;
+
+  if (body?.outcome === 'FAILURE') {
+    return { ok: false, error: 'rejected', detail: 'The identity decision could not be applied.' };
+  }
+
+  return {
+    ok: true,
+    kind,
+    outcome: body?.outcome ?? 'SUCCESS',
+    deduped: body?.deduped === true,
+  };
+}

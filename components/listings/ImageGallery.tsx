@@ -12,7 +12,7 @@
 // keyboard users are unaffected, and nothing about the layout or the
 // accessible content depends on it.
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, ImageOff, ZoomIn } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -75,11 +75,101 @@ export function ImageGallery({
    * handler ignore those release clicks so a pan never toggles the zoom off.
    */
   const draggedRef = useRef(false);
+  /** The frame box, needed to map viewport coords once the pointer is outside it. */
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Engaged flag kept separate from `zoomPoint` so the window listeners below
+   * subscribe once per engage rather than once per pan frame.
+   */
+  const isZoomed = zoomPoint !== null;
 
   const resetZoom = useCallback(() => {
     setZoomPoint(null);
     setPanning(false);
+    // Clear the drag flag too. Panning is now tracked on the window, so a
+    // press-drag that happens OUTSIDE the frame can set it; leaving it set would
+    // make the next click on the frame get swallowed as a release-click.
+    draggedRef.current = false;
   }, []);
+
+  /**
+   * Frame coordinates for a viewport point, CLAMPED to the frame box.
+   *
+   * The clamp is what lets the zoom survive the pointer leaving the frame. The
+   * pan is `-(ZOOM-1) * point`, so point `0..W` already spans the entire zoomed
+   * overflow — clamping the input therefore parks the pan on the nearest edge
+   * instead of running past the image into blank space.
+   */
+  const pointFromClient = useCallback((clientX: number, clientY: number) => {
+    const frame = frameRef.current;
+    if (!frame) return null;
+    const bounds = frame.getBoundingClientRect();
+    if (bounds.width === 0 || bounds.height === 0) return null;
+    return {
+      x: Math.min(Math.max(clientX - bounds.left, 0), bounds.width),
+      y: Math.min(Math.max(clientY - bounds.top, 0), bounds.height),
+    };
+  }, []);
+
+  /**
+   * HOLD THE ZOOM WHEN THE POINTER LEAVES THE FRAME (eBay behaviour).
+   *
+   * This previously reset on `pointerleave`, so the magnifier died the moment
+   * the pointer crossed the frame edge — which is exactly when you are trying
+   * to look at the edge of the slab. Tracking on the window instead keeps it
+   * engaged and keeps panning, clamped, wherever the pointer goes.
+   *
+   * Subscribed on ENGAGE, not on every move: the dependency is the boolean, not
+   * `zoomPoint`, so a pan does not tear down and re-add three listeners per
+   * mouse move.
+   *
+   * Because leaving the frame no longer disengages, the zoom needs deliberate
+   * exits — clicking the image again (see `handleClick`), Escape, or a press
+   * outside the frame.
+   */
+  useEffect(() => {
+    if (!isZoomed) return;
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      // Mouse pans on hover; touch and pen pan only while held down, so a bare
+      // touch move does not fight the tap-to-toggle.
+      if (event.pointerType !== 'mouse' && event.buttons === 0) return;
+      if (event.buttons > 0) draggedRef.current = true;
+      const point = pointFromClient(event.clientX, event.clientY);
+      if (!point) return;
+      setPanning(true);
+      setZoomPoint(point);
+    }
+
+    // CAPTURE phase, and swallow the key: the gallery is also rendered inside a
+    // dialog (ItemPeekDialog), whose own Escape handler would otherwise close
+    // the whole dialog. Escape should back out one level — the zoom — and leave
+    // the dialog open.
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      resetZoom();
+    }
+
+    // A press anywhere outside the frame dismisses. Presses INSIDE are left
+    // alone so the frame's own click handler can toggle off.
+    function handleOutsidePointerDown(event: PointerEvent) {
+      const frame = frameRef.current;
+      if (!frame) return;
+      if (event.target instanceof Node && !frame.contains(event.target)) {
+        resetZoom();
+      }
+    }
+
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    document.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('pointerdown', handleOutsidePointerDown, true);
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      document.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('pointerdown', handleOutsidePointerDown, true);
+    };
+  }, [isZoomed, pointFromClient, resetZoom]);
 
   // The arrows sit inside the click-to-zoom frame, so their clicks must not
   // bubble up and toggle the zoom while changing images.
@@ -101,35 +191,15 @@ export function ImageGallery({
       draggedRef.current = false;
       return;
     }
-    const bounds = event.currentTarget.getBoundingClientRect();
-    if (bounds.width === 0 || bounds.height === 0) return;
-    setZoomPoint((current) =>
-      current
-        ? null
-        : { x: event.clientX - bounds.left, y: event.clientY - bounds.top },
-    );
+    const point = pointFromClient(event.clientX, event.clientY);
+    if (!point) return;
+    setZoomPoint((current) => (current ? null : point));
     setPanning(false);
-  }, []);
+  }, [pointFromClient]);
 
-  /**
-   * Pan the engaged zoom with the pointer. Mouse pans freely; touch and pen
-   * pan while dragging (a bare touch move would fight the tap-to-toggle).
-   */
-  const handlePointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!zoomPoint) return;
-      if (event.pointerType !== 'mouse' && event.buttons === 0) return;
-      if (event.buttons > 0) draggedRef.current = true;
-      const bounds = event.currentTarget.getBoundingClientRect();
-      if (bounds.width === 0 || bounds.height === 0) return;
-      setPanning(true);
-      setZoomPoint({
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top,
-      });
-    },
-    [zoomPoint],
-  );
+  // No per-element `onPointerMove`: the window listener above covers movement
+  // over the frame as well as outside it, and having both would double every
+  // state update during a pan.
 
   if (images.length === 0) {
     return (
@@ -156,6 +226,7 @@ export function ImageGallery({
     // caps it at the viewport so a tall details rail can't drag the image
     // below the fold.
     <div
+      ref={frameRef}
       className={cn(
         frameClassName ?? FRAME_HEIGHT,
         'group relative w-full overflow-hidden rounded-lg border bg-muted',
@@ -167,12 +238,10 @@ export function ImageGallery({
       onPointerDown={() => {
         draggedRef.current = false;
       }}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={(event) => {
-        // Only reset on mouse leave; touch dispatches pointerleave on pointerup
-        // which would immediately cancel the zoom the tap just engaged.
-        if (event.pointerType === 'mouse') resetZoom();
-      }}
+      // NO `onPointerLeave` reset. Holding the zoom past the frame edge is the
+      // point (eBay does the same): the pan clamps to the nearest edge and stays
+      // engaged, so inspecting the edge of a slab no longer cancels the zoom.
+      // Exits are click-again, Escape, or a press outside the frame.
       onPointerCancel={resetZoom}
     >
       {activeFailed ? (

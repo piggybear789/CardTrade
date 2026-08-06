@@ -26,8 +26,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { CURRENCY_CODE, CURRENCY_LOCALE } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { CatalogSort } from '@/lib/actions/listings';
+import {
+  isGuessedRegionSource,
+  REGIONS,
+  type RegionSource,
+} from '@/domain/region';
+import { setBrowseRegion } from '@/lib/actions/region';
+
+/**
+ * The `?region=` value meaning "every region".
+ *
+ * Duplicated from `lib/location/resolveRegion.ts` rather than imported: that module
+ * is `server-only` (it reads request headers and cookies) and this is a client
+ * component, so importing it would pull a server module into the browser bundle.
+ * It is a one-word URL token, and both sides are covered by
+ * `tests/unit/regionResolution.test.ts`.
+ */
+const ALL_REGIONS_PARAM = 'all';
 
 const SORT_LABELS: Record<CatalogSort, string> = {
   newest: 'Recently Listed',
@@ -36,9 +54,9 @@ const SORT_LABELS: Record<CatalogSort, string> = {
   rating: 'Seller Rating: High to Low',
 };
 
-const AUD_FORMATTER = new Intl.NumberFormat('en-AU', {
+const AUD_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
   style: 'currency',
-  currency: 'AUD',
+  currency: CURRENCY_CODE,
   maximumFractionDigits: 2,
 });
 
@@ -47,9 +65,9 @@ const AUD_FORMATTER = new Intl.NumberFormat('en-AU', {
  * slider's step is always a whole number of dollars, so every reachable value
  * lands on one.
  */
-const AUD_WHOLE_FORMATTER = new Intl.NumberFormat('en-AU', {
+const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
   style: 'currency',
-  currency: 'AUD',
+  currency: CURRENCY_CODE,
   maximumFractionDigits: 0,
 });
 
@@ -65,15 +83,35 @@ const LOW_PRICE_STOPS_CENTS = [0, 200, 500];
  */
 const PRICE_DECADE_MULTIPLIERS = [1, 1.5, 2, 3, 4, 5, 7.5];
 
+/** Condition filter options — matches ItemForm + adds "Graded" as a bucket. */
+const CONDITION_OPTIONS = [
+  'Graded',
+  'Unopened',
+  'Mint',
+  'Near Mint',
+  'Lightly Played',
+  'Heavily Played',
+  'Damaged',
+] as const;
+
 /** Current URL-backed catalog filter values. */
 export interface CatalogFilterState {
   q: string;
   categories: string[];
+  conditions: string[];
   /** Dollar strings suitable for filter inputs; empty when unset. */
   min: string;
   max: string;
   /** Include sold items in results. */
   includeSold: boolean;
+  /** Active region scope (0065), or null for every region. */
+  regionCode: string | null;
+  /**
+   * How the region was arrived at. Drives whether the control explains itself: a
+   * scope the visitor never chose has to be stated, or a filtered catalog reads as
+   * an empty marketplace.
+   */
+  regionSource: RegionSource;
 }
 
 /** Merge URL updates, remove blank values, and reset the result page. */
@@ -106,6 +144,68 @@ function useCatalogNav() {
   }, [pathname, router]);
 
   return { isPending, pushWith, reset };
+}
+
+/**
+ * Region scope control.
+ *
+ * Renders every known region, not just the tradeable ones: a member can look at a
+ * region that is not open yet, they just cannot open a contract there. The option
+ * labels say so, because "United Kingdom" in a picker with no caveat implies a
+ * working market behind it.
+ */
+function RegionScopeField({
+  value,
+  source,
+  disabled,
+  onChange,
+}: {
+  value: string | null;
+  source: RegionSource;
+  disabled: boolean;
+  onChange: (next: string) => void;
+}) {
+  // Only worth explaining when the visitor did not pick it. An explicit choice
+  // (`param`, `cookie`) or their own profile region needs no justification, and a
+  // permanent note beside a deliberate setting is noise.
+  const note = !isGuessedRegionSource(source)
+    ? null
+    : source === 'geo'
+      ? 'Set from your location. Change it any time.'
+      : 'Our default. Change it to browse elsewhere.';
+
+  return (
+    <div>
+      <label
+        htmlFor="catalog-region"
+        className="market-label mb-2 block text-muted-foreground"
+      >
+        Region
+      </label>
+      <Select
+        value={value ?? ALL_REGIONS_PARAM}
+        onValueChange={onChange}
+        disabled={disabled}
+      >
+        <SelectTrigger id="catalog-region" className="w-full">
+          <SelectValue placeholder="Choose a region" />
+        </SelectTrigger>
+        <SelectContent>
+          {REGIONS.map((region) => (
+            <SelectItem key={region.code} value={region.code}>
+              {region.label}
+              {region.tradingEnabled ? '' : ' — browse only'}
+            </SelectItem>
+          ))}
+          <SelectItem value={ALL_REGIONS_PARAM}>All regions</SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+        {note ? `${note} ` : ''}
+        Deals are completed within one region, so postage and payouts stay local.
+      </p>
+    </div>
+  );
 }
 
 export interface CatalogFiltersProps {
@@ -154,6 +254,7 @@ export function CatalogFilters({
   const hasActiveFilters =
     current.q !== '' ||
     current.categories.length > 0 ||
+    current.conditions.length > 0 ||
     current.min !== '' ||
     current.max !== '' ||
     current.includeSold;
@@ -161,6 +262,7 @@ export function CatalogFilters({
   // Search has its own field on mobile — the Filters badge counts refine-only.
   const refineCount =
     current.categories.length +
+    current.conditions.length +
     Number(Boolean(current.min || current.max)) +
     Number(current.includeSold);
 
@@ -169,6 +271,13 @@ export function CatalogFilters({
       ? current.categories.filter((value) => value !== category)
       : [...current.categories, category];
     pushWith({ category: next });
+  }
+
+  function toggleCondition(condition: string) {
+    const next = current.conditions.includes(condition)
+      ? current.conditions.filter((value) => value !== condition)
+      : [...current.conditions, condition];
+    pushWith({ condition: next });
   }
 
   function commitPrices([minStop, maxStop]: [number, number]) {
@@ -254,8 +363,34 @@ export function CatalogFilters({
           ) : null}
         </div>
 
+        {/*
+          Region sits above everything else because it is the broadest scope and,
+          unlike every other control here, it is ALWAYS applied — including on a
+          first visit where it was guessed rather than chosen. Hiding it would leave
+          a member widening the price range to explain a result set that a silent
+          country filter produced.
+        */}
+        <RegionScopeField
+          value={current.regionCode}
+          source={current.regionSource}
+          disabled={isPending}
+          onChange={(next) => {
+            // Two writes, and both are needed. The URL param scopes THIS page and
+            // keeps the view shareable; the cookie is what makes the choice survive
+            // navigating somewhere that carries no param — the homepage, or a link
+            // out of the burger menu. Without the cookie an anonymous visitor's
+            // choice would silently revert to the IP guess on the next page.
+            //
+            // Fire-and-forget: the cookie is a preference, and the visible result of
+            // the click is the URL push. Blocking the navigation on it would add a
+            // round trip to a control that has already been actioned.
+            void setBrowseRegion(next === ALL_REGIONS_PARAM ? null : next);
+            pushWith({ region: next });
+          }}
+        />
+
         {facets.categories.length > 0 ? (
-          <fieldset>
+          <fieldset className="border-t border-border/70 pt-5">
             <legend className="market-label mb-2 text-muted-foreground">Categories</legend>
             <div className="space-y-0.5">
               {facets.categories.map((category) => {
@@ -292,9 +427,43 @@ export function CatalogFilters({
           </fieldset>
         ) : null}
 
+        <fieldset className="border-t border-border/70 pt-5">
+          <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
+          <div className="space-y-0.5">
+            {CONDITION_OPTIONS.map((condition) => {
+              const active = current.conditions.includes(condition);
+              return (
+                <button
+                  key={condition}
+                  type="button"
+                  onClick={() => toggleCondition(condition)}
+                  disabled={isPending}
+                  aria-pressed={active}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
+                    active
+                      ? 'bg-gold/10 font-semibold text-foreground'
+                      : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
+                  )}
+                >
+                  <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                    {active ? (
+                      <Check className="size-4 text-gold" />
+                    ) : (
+                      <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{condition}</span>
+                  {active ? <ChevronRight className="size-4 text-gold" aria-hidden="true" /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
         <div className="border-t border-border/70 pt-5">
           <div className="mb-3 flex items-baseline justify-between gap-2">
-            <p className="market-label text-muted-foreground">Price in AUD</p>
+            <p className="market-label text-muted-foreground">Price</p>
             {/* Tabular figures so the readout does not jitter mid-drag. */}
             <p className="text-xs font-semibold tabular-nums">
               {priceRangeLabel(priceLadder, priceStops, topStop)}
@@ -368,6 +537,7 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
   const hasFilters =
     Boolean(current.q) ||
     current.categories.length > 0 ||
+    current.conditions.length > 0 ||
     Boolean(current.min) ||
     Boolean(current.max) ||
     current.includeSold;
@@ -391,6 +561,16 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
           label={category}
           onRemove={() => pushWith({
             category: current.categories.filter((value) => value !== category),
+          })}
+          disabled={isPending}
+        />
+      ))}
+      {current.conditions.map((condition) => (
+        <FilterChip
+          key={condition}
+          label={condition}
+          onRemove={() => pushWith({
+            condition: current.conditions.filter((value) => value !== condition),
           })}
           disabled={isPending}
         />

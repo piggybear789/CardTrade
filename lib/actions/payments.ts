@@ -146,7 +146,7 @@ async function requirePayer(): Promise<
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('payer_id, display_name, contact_email')
+    .select('payer_id, display_name, contact_email, region_code')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -154,7 +154,11 @@ async function requirePayer(): Promise<
     return fail('PROFILE_NOT_FOUND', 'No profile was found for your account.');
   }
 
-  const payments = getPaymentService();
+  // The payer (a Stripe Customer) and any vaulted card belong to ONE platform
+  // account, so they must be created on the member's own region's platform (0068).
+  // A card vaulted on the AU platform is invisible to the GB platform, and a hold
+  // placed with the wrong one fails with no saved method rather than a clear error.
+  const payments = getPaymentService(profile.region_code as string | null);
   let payerId = (profile.payer_id as string | null) ?? null;
 
   if (!payerId) {

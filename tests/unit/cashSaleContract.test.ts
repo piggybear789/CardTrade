@@ -66,6 +66,37 @@ function makeDeps(
   return { deps, state, calls };
 }
 
+/**
+ * Save DELIVERY terms the way the room does, in two saves by two parties.
+ *
+ * Postage belongs to the seller (they choose the carrier and pay it) and the
+ * address belongs to the buyer; neither may set the other's field. The seller goes
+ * first so the buyer's save carries a postage figure equal to the stored one, which
+ * is the unchanged-value case the guard permits.
+ *
+ * Returns the buyer's save, i.e. the final terms version.
+ */
+async function agreeDeliveryTerms(
+  deps: CashSaleOrchestratorDeps,
+  saleId: string,
+  fromVersion: number,
+  terms: CashSaleTermsInput = DELIVERY_TERMS,
+) {
+  const priced = await updateCashSaleTerms(deps, {
+    actorId: ITEM.ownerId,
+    cashSaleId: saleId,
+    expectedTermsVersion: fromVersion,
+    terms: { ...terms, deliveryAddress: undefined },
+  });
+  if (!priced.ok) throw new Error(`postage failed: ${priced.error}`);
+  return updateCashSaleTerms(deps, {
+    actorId: BUYER.profileId,
+    cashSaleId: saleId,
+    expectedTermsVersion: priced.sale.termsVersion,
+    terms,
+  });
+}
+
 /** Drive a sale to both-accepted so payment is submitted. */
 async function agreeAndPay(
   deps: CashSaleOrchestratorDeps,
@@ -76,12 +107,18 @@ async function agreeAndPay(
   const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
   if (!created.ok) throw new Error(`agreement failed: ${created.error}`);
   const saleId = created.sale.id;
-  const updated = await updateCashSaleTerms(deps, {
-    actorId: BUYER.profileId,
-    cashSaleId: saleId,
-    expectedTermsVersion: created.sale.termsVersion,
-    terms,
-  });
+
+  // A DELIVERY sale needs both parties: see `agreeDeliveryTerms`. IN_PERSON has no
+  // postage to price, so one save by the buyer is enough.
+  const updated =
+    terms.fulfillmentMethod === 'DELIVERY'
+      ? await agreeDeliveryTerms(deps, saleId, created.sale.termsVersion, terms)
+      : await updateCashSaleTerms(deps, {
+          actorId: BUYER.profileId,
+          cashSaleId: saleId,
+          expectedTermsVersion: created.sale.termsVersion,
+          terms,
+        });
   if (!updated.ok) throw new Error(`terms failed: ${updated.error}`);
   const version = updated.sale.termsVersion;
   await acceptCashSaleTerms(deps, {
@@ -200,11 +237,14 @@ describe('cash sale — terms and dual acceptance', () => {
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
 
+    // Postage stays at the stored 0 so this exercises the MISSING ADDRESS, not the
+    // seller-owns-postage guard. 0 is a legitimate figure — the seller has priced
+    // postage into the item — so an incomplete DELIVERY sale is one with no address.
     const missingAddress = await updateCashSaleTerms(deps, {
       actorId: BUYER.profileId,
       cashSaleId: created.sale.id,
       expectedTermsVersion: created.sale.termsVersion,
-      terms: { fulfillmentMethod: 'DELIVERY', shippingCostCents: 500 },
+      terms: { fulfillmentMethod: 'DELIVERY', shippingCostCents: 0 },
     });
     const missingLocation = await updateCashSaleTerms(deps, {
       actorId: BUYER.profileId,
@@ -222,12 +262,7 @@ describe('cash sale — terms and dual acceptance', () => {
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
 
-    const updated = await updateCashSaleTerms(deps, {
-      actorId: BUYER.profileId,
-      cashSaleId: created.sale.id,
-      expectedTermsVersion: created.sale.termsVersion,
-      terms: DELIVERY_TERMS,
-    });
+    const updated = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
 
     expect(updated.ok).toBe(true);
     if (!updated.ok) return;
@@ -242,12 +277,7 @@ describe('cash sale — terms and dual acceptance', () => {
     const { deps, calls } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
-    const updated = await updateCashSaleTerms(deps, {
-      actorId: BUYER.profileId,
-      cashSaleId: created.sale.id,
-      expectedTermsVersion: created.sale.termsVersion,
-      terms: DELIVERY_TERMS,
-    });
+    const updated = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
     if (!updated.ok) throw new Error('setup failed');
 
     const first = await acceptCashSaleTerms(deps, {
@@ -280,12 +310,7 @@ describe('cash sale — terms and dual acceptance', () => {
     const { deps, calls } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
-    const v2 = await updateCashSaleTerms(deps, {
-      actorId: BUYER.profileId,
-      cashSaleId: created.sale.id,
-      expectedTermsVersion: created.sale.termsVersion,
-      terms: DELIVERY_TERMS,
-    });
+    const v2 = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
     if (!v2.ok) throw new Error('setup failed');
     await acceptCashSaleTerms(deps, {
       actorId: BUYER.profileId,
@@ -317,12 +342,7 @@ describe('cash sale — terms and dual acceptance', () => {
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
     const staleVersion = created.sale.termsVersion;
-    await updateCashSaleTerms(deps, {
-      actorId: BUYER.profileId,
-      cashSaleId: created.sale.id,
-      expectedTermsVersion: staleVersion,
-      terms: DELIVERY_TERMS,
-    });
+    await agreeDeliveryTerms(deps, created.sale.id, staleVersion);
 
     const result = await acceptCashSaleTerms(deps, {
       actorId: BUYER.profileId,
@@ -330,6 +350,79 @@ describe('cash sale — terms and dual acceptance', () => {
       termsVersion: staleVersion,
     });
     expect(result).toMatchObject({ ok: false, error: 'STALE_TERMS' });
+  });
+
+  it('lets only the seller price postage', async () => {
+    const { deps } = makeDeps();
+    const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
+    if (!created.ok) throw new Error('setup failed');
+
+    // The seller chooses the carrier and pays them, so the buyer proposing their
+    // own postage is a figure the seller would have to undo. Mirrors the rule that
+    // only the buyer may set the delivery address.
+    const buyerPrices = await updateCashSaleTerms(deps, {
+      actorId: BUYER.profileId,
+      cashSaleId: created.sale.id,
+      expectedTermsVersion: created.sale.termsVersion,
+      terms: { ...DELIVERY_TERMS, shippingCostCents: 9_999 },
+    });
+    expect(buyerPrices).toMatchObject({ ok: false, error: 'NOT_PERMITTED' });
+
+    const sellerPrices = await updateCashSaleTerms(deps, {
+      actorId: ITEM.ownerId,
+      cashSaleId: created.sale.id,
+      expectedTermsVersion: created.sale.termsVersion,
+      terms: { fulfillmentMethod: 'DELIVERY', shippingCostCents: 9_999 },
+    });
+    expect(sellerPrices.ok).toBe(true);
+    if (!sellerPrices.ok) return;
+    expect(sellerPrices.sale.shippingCostCents).toBe(9_999);
+  });
+
+  it('still lets the buyer save their address while postage stays put', async () => {
+    const { deps } = makeDeps();
+    const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
+    if (!created.ok) throw new Error('setup failed');
+
+    // The buyer's save carries the WHOLE terms object, postage included. Refusing
+    // it outright would make the address unsettable; only a CHANGE is refused.
+    const priced = await updateCashSaleTerms(deps, {
+      actorId: ITEM.ownerId,
+      cashSaleId: created.sale.id,
+      expectedTermsVersion: created.sale.termsVersion,
+      terms: { fulfillmentMethod: 'DELIVERY', shippingCostCents: 1_500 },
+    });
+    if (!priced.ok) throw new Error('setup failed');
+
+    const buyerSaves = await updateCashSaleTerms(deps, {
+      actorId: BUYER.profileId,
+      cashSaleId: created.sale.id,
+      expectedTermsVersion: priced.sale.termsVersion,
+      terms: DELIVERY_TERMS,
+    });
+
+    expect(buyerSaves.ok).toBe(true);
+    if (!buyerSaves.ok) return;
+    expect(buyerSaves.sale.shippingCostCents).toBe(1_500);
+    expect(buyerSaves.sale.deliveryAddressConfigured).toBe(true);
+  });
+
+  it('treats zero postage as complete, so it can be priced into the item', async () => {
+    const { deps } = makeDeps();
+    const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
+    if (!created.ok) throw new Error('setup failed');
+
+    const updated = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion, {
+      ...DELIVERY_TERMS,
+      shippingCostCents: 0,
+    });
+
+    expect(updated.ok).toBe(true);
+    if (!updated.ok) return;
+    // No postage line, so the buyer pays item + fee only.
+    expect(updated.sale.amountCents).toBe(
+      ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents),
+    );
   });
 
   it('does not double-charge when the same party accepts twice', async () => {
@@ -520,12 +613,7 @@ describe('cash sale — price renegotiation', () => {
     const { deps, calls } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
-    const withTerms = await updateCashSaleTerms(deps, {
-      actorId: BUYER.profileId,
-      cashSaleId: created.sale.id,
-      expectedTermsVersion: created.sale.termsVersion,
-      terms: DELIVERY_TERMS,
-    });
+    const withTerms = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
     if (!withTerms.ok) throw new Error('setup failed');
     await acceptCashSaleTerms(deps, {
       actorId: ITEM.ownerId,

@@ -22,7 +22,6 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { refreshPayoutStatus } from '@/lib/actions/merchant';
-import { satisfiesIdentityGate } from '@/domain/identity/identityGate';
 
 export function PayoutReturnRefresh() {
   const router = useRouter();
@@ -43,17 +42,19 @@ export function PayoutReturnRefresh() {
         toast.error('That setup link expired. Start it again to pick up where you left off.');
       } else {
         const result = await refreshPayoutStatus();
-        // One definition of "verified", shared with every other surface.
-        const verified =
+        // PAYOUT readiness, not the Identity_Gate. This is the return from Connect
+        // onboarding, whose job is a destination for money — a separate step from
+        // identity verification since 0069. Reporting "you are verified" here would
+        // conflate the two, which is what `satisfiesIdentityGate` used to do from
+        // this call site.
+        const payoutReady =
           result.ok &&
-          satisfiesIdentityGate({
-            merchantStatus: result.data.merchantStatus,
-            settlementsEnabled: result.data.settlementsEnabled,
-          });
-        toast[verified ? 'success' : 'info'](
-          verified
-            ? 'You are verified — go ahead.'
-            : 'Still verifying. We will update this automatically.',
+          result.data.merchantStatus === 'APPROVED' &&
+          result.data.settlementsEnabled;
+        toast[payoutReady ? 'success' : 'info'](
+          payoutReady
+            ? 'Payouts are set up — releases will be sent automatically.'
+            : 'Still setting up payouts. We will update this automatically.',
         );
       }
 

@@ -31,7 +31,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Trades · NoDitto',
-  description: 'Your 2-way escrow trades.',
+  description: 'Your collateral-backed 2-way trades.',
 };
 
 export default async function TradesPage({

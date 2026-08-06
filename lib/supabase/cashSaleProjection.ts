@@ -23,5 +23,16 @@ export const CASH_SALE_PUBLIC_SELECT = [
   'seller_payout_due_at', 'seller_payout_at', 'seller_payout_attempts',
   'seller_payout_error', 'dispute_resolution', 'dispute_resolved_at',
   'dispute_resolved_by', 'refund_cents', 'refund_status', 'refund_ref',
-  'refund_nonce', 'refund_error', 'refund_attempts', 'created_at', 'updated_at',
+  'refund_nonce', 'refund_error', 'refund_attempts',
+  // 0064. Drives the contract room's whole reading of itself: a shopfront
+  // contract shows its line items instead of the listing snapshot, and prices
+  // from those lines rather than from a directly proposed figure.
+  'from_shopfront',
+  // 0068. Without this the contract room reads every `*_cents` column above with no
+  // idea what they are denominated in, so a GBP contract would render as dollars —
+  // a wrong number rather than a missing one, which is the worse failure. This list
+  // is explicit precisely so a new money-relevant column has to be added here
+  // deliberately.
+  'currency',
+  'created_at', 'updated_at',
 ].join(',');

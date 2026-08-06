@@ -198,7 +198,7 @@ describe('PayoutOnboarding', () => {
     expect(screen.queryByText(/acct_1/)).toBeNull();
   });
 
-  it('renders a compact merchant identity summary on the payouts dashboard', () => {
+  it('renders a compact payout destination summary on the payouts dashboard', () => {
     render(
       <PayoutOnboarding
         compact
@@ -213,10 +213,52 @@ describe('PayoutOnboarding', () => {
       />,
     );
 
-    expect(screen.getByText('Merchant identity')).toBeInTheDocument();
-    expect(screen.getByText('Verified Account')).toBeInTheDocument();
+    // Says what it is — a destination for money. It read "Merchant identity" and
+    // "Verified Account", which since 0069 belongs to the identity check instead.
+    expect(screen.getByText('Payout destination')).toBeInTheDocument();
+    expect(screen.getByText('Payouts active')).toBeInTheDocument();
     expect(screen.getByText('Jane Collector')).toBeInTheDocument();
     expect(screen.queryByText(/this is what buyers may see/i)).toBeNull();
     expect(screen.getByRole('button', { name: /manage with stripe/i })).toBeInTheDocument();
+  });
+
+  it('NEVER calls a payable account "verified" — that word now means the identity check', () => {
+    // This is the 0060 mistake this card is named in `product.md` for making: it once
+    // read "Verified Account" beside "Payouts incomplete" because both were true of one
+    // row. Post-0069 it is worse than confusing — a member can be fully payable while
+    // having passed NO identity check, so the word would claim a verification Stripe
+    // never performed. Asserted across both the payable and unpayable renders.
+    const payable = render(
+      <PayoutOnboarding
+        compact
+        context={makeContext({
+          merchantStatus: 'APPROVED',
+          merchantRef: 'acct_1',
+          settlementsEnabled: true,
+          legalEntityName: 'Jane Collector',
+        })}
+      />,
+    );
+    expect(payable.container.textContent).not.toMatch(/verified account/i);
+    payable.unmount();
+
+    const shell = render(
+      <PayoutOnboarding
+        compact
+        context={makeContext({ merchantStatus: 'PENDING', merchantRef: 'acct_1' })}
+      />,
+    );
+    expect(shell.container.textContent).not.toMatch(/verified account/i);
+  });
+
+  it('does not claim to gate listing, selling or trading — the identity card does', () => {
+    // Both cards asserting "required before you can list, sell, or trade" would be two
+    // answers to one question, and only the identity card's answer is true.
+    const { container } = render(
+      <PayoutOnboarding context={makeContext({ merchantStatus: 'NONE' })} />,
+    );
+
+    expect(container.textContent).not.toMatch(/before you can (list|sell)/i);
+    expect(container.textContent).toMatch(/receive money/i);
   });
 });

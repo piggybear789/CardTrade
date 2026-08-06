@@ -133,7 +133,48 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         ) : null}
       </section>
 
-      {/* 2. Who is affected, and by how much. */}
+      {/* 2. What was actually bought, when the record itemises it (0064).
+             Sits immediately under the claim because it is what the claim is
+             ABOUT. Before this existed, a case opened against a shopfront
+             listing showed only the listing's title — "Josh's Pokémon binder" —
+             which is shared by every other contract against that binder, so a
+             claim about the wrong card arriving had nothing to be decided
+             against. These lines come from the contract, which froze when
+             payment started, not from the listing, which the seller can still
+             edit. */}
+      {c.goods.length > 0 ? (
+        <section aria-labelledby="goods-heading" className="mb-8">
+          <h3 id="goods-heading" className="mb-3 text-xl font-semibold">
+            What the contract covered
+          </h3>
+          <ul className="divide-y rounded-lg border">
+            {c.goods.map((line, index) => (
+              <li
+                key={index}
+                className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="break-words font-medium">{line.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {line.quantity > 1 ? `${line.quantity} × ` : ''}
+                    {formatAud(line.unitPriceCents)}
+                    {line.condition ? ` · stated as ${line.condition}` : ''}
+                  </p>
+                </div>
+                <span className="shrink-0 font-medium">
+                  {formatAud(line.quantity * line.unitPriceCents)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Agreed by both parties and frozen when payment was collected. The
+            listing it came from may have changed since.
+          </p>
+        </section>
+      ) : null}
+
+      {/* 3. Who is affected, and by how much. */}
       <section aria-labelledby="parties-heading" className="mb-8">
         <h3 id="parties-heading" className="mb-3 text-xl font-semibold">
           Parties

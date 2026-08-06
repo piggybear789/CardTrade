@@ -33,6 +33,11 @@ import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
 import type { SellerIdentityDisclosure } from "@/domain/orchestrator/merchantOnboarding";
 import type { VerificationState } from "@/domain/identity/identityGate";
 import {
+  checkRegionCompatibility,
+  regionMismatchMessage,
+} from "@/domain/region";
+import { viewerTradingRegion } from "@/lib/location/resolveRegion";
+import {
   formatAud,
   itemImageUrl,
 } from "@/lib/format";
@@ -47,11 +52,13 @@ import {
 } from "@/components/listings/ImageGallery";
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
+import { CloseShopfrontDialog } from "@/components/listings/CloseShopfrontDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
 import { StarRating } from "@/components/listings/StarRating";
 import { IdentityBadge } from "@/components/identity/IdentityBadge";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
+import { Avatar } from "@/components/ui/avatar";
 import { PlaceMap } from "@/components/location";
 import type { PlacePrecision } from "@/lib/location/types";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -112,12 +119,24 @@ export default async function ItemDetailPage({
 
   const isOwner = user?.id === item.owner_id;
   const status = (item.status as ItemStatus) ?? "AVAILABLE";
-  const statusBadge = STATUS_BADGE[status] ?? STATUS_BADGE.AVAILABLE;
-  const isAvailable = status === "AVAILABLE";
+  // A shopfront is never reserved and never sold — several buyers hold their own
+  // contracts against it at once — so `status` says nothing about whether it is
+  // open for business. Being unclosed is the whole test (0064).
+  const isShopfront = item.listing_kind === "SHOPFRONT";
+  const isClosed = Boolean(item.closed_at);
+  const statusBadge = isShopfront
+    ? isClosed
+      ? { variant: "outline" as const, label: "Closed" }
+      : { variant: "default" as const, label: "Open" }
+    : (STATUS_BADGE[status] ?? STATUS_BADGE.AVAILABLE);
+  const isAvailable = isShopfront ? !isClosed : status === "AVAILABLE";
 
   // Authenticated non-owners: watch state, own goods for Propose Trade, and
   // public seller profile + identity can load together.
-  const canProposeTrade = Boolean(user && !isOwner && isAvailable);
+  // Trades are excluded from a shopfront (0064). Trade collateral is an
+  // authorisation for 100% of FMV, and a shopfront's FMV is the whole binder, so
+  // there is nothing correct to bond until the trade side itemises a side too.
+  const canProposeTrade = Boolean(user && !isOwner && isAvailable && !isShopfront);
 
   const [
     initialWatching,
@@ -132,7 +151,7 @@ export default async function ItemDetailPage({
     supabase
       .from("public_profiles")
       .select(
-        "display_name, rating, rating_count, is_verified, identity_first_name",
+        "display_name, rating, rating_count, is_verified, identity_first_name, region_code, avatar_path",
       )
       .eq("id", item.owner_id)
       .maybeSingle(),
@@ -143,6 +162,9 @@ export default async function ItemDetailPage({
           .select("*")
           .eq("owner_id", user!.id)
           .eq("status", "AVAILABLE")
+          // A shopfront cannot be offered into a trade: its FMV is a whole
+          // binder, so the other trader would be bonded against an inventory.
+          .eq("listing_kind", "SINGLE")
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as ItemRow[] }),
     canProposeTrade ? readIdentityGate(user!.id) : Promise.resolve(null),
@@ -158,11 +180,64 @@ export default async function ItemDetailPage({
   const sellerDisplayName =
     (sellerRow?.display_name as string | null)?.trim() || "The other trader";
 
+  // Region compatibility, evaluated for DISPLAY only (0065).
+  //
+  // The authoritative refusal lives in the orchestrator and in
+  // `openTradeNegotiation`; this exists so a signed-in viewer is told before they
+  // commit rather than after. A member who reaches this page from a shared link or
+  // their watchlist has bypassed the region-scoped catalog entirely, and letting
+  // them fill in a contract only to have it refused at submit is the avoidable
+  // version of the same outcome.
+  //
+  // Only computed for a signed-in non-owner: an anonymous visitor has no region to
+  // compare, and warning them about a mismatch they cannot yet have would be noise.
+  const viewerRegionMismatch =
+    user && !isOwner
+      ? checkRegionCompatibility(
+          await viewerTradingRegion(),
+          (sellerRow?.region_code as string | null) ?? null,
+        )
+      : null;
+  // A viewer who has simply not set their own region is NOT warned here: that is
+  // their own incomplete onboarding rather than anything about this listing, and it
+  // is already surfaced where it can be fixed. Only a genuine incompatibility.
+  const regionNotice =
+    viewerRegionMismatch && viewerRegionMismatch.reason !== 'UNKNOWN_REGION'
+      ? regionMismatchMessage(viewerRegionMismatch)
+      : null;
+
   // When the item is RESERVED and the viewer is the owner, resolve the active
   // contract (Cash_Sale or Trade) so we can link directly to the contract room.
   let activeSaleId: string | null = null;
   let activeTradeId: string | null = null;
-  if (isOwner && status === "RESERVED") {
+  let openContracts: { id: string; buyerName: string; amountCents: number }[] = [];
+  // A shopfront has MANY live contracts by design, so the owner gets the whole
+  // list; a single listing has at most one and only while RESERVED.
+  if (isOwner && isShopfront) {
+    const { data: saleRows } = await supabase
+      .from("cash_sales")
+      .select("id, buyer_id, amount_cents, created_at")
+      .eq("item_id", item.id)
+      .not("status", "in", '("COMPLETED","CANCELLED","FAILED","REFUNDED")')
+      .order("created_at", { ascending: false });
+
+    const rows = saleRows ?? [];
+    const buyerIds = Array.from(new Set(rows.map((row) => row.buyer_id)));
+    const { data: buyers } = buyerIds.length
+      ? await supabase
+          .from("public_profiles")
+          .select("id, display_name")
+          .in("id", buyerIds)
+      : { data: [] };
+    const nameOf = new Map(
+      (buyers ?? []).map((b) => [b.id as string, b.display_name as string]),
+    );
+    openContracts = rows.map((row) => ({
+      id: row.id,
+      buyerName: nameOf.get(row.buyer_id) ?? "A buyer",
+      amountCents: row.amount_cents,
+    }));
+  } else if (isOwner && status === "RESERVED") {
     const [{ data: saleRow }, { data: tradeRow }] = await Promise.all([
       supabase
         .from("cash_sales")
@@ -190,12 +265,14 @@ export default async function ItemDetailPage({
 
   return (
     <MarketplaceShell
-      title={item.title.length > 40 ? `${item.title.slice(0, 37)}…` : item.title}
+      title="Marketplace"
     >
       {/* Split view (lg+), Facebook-Marketplace style: this wrapper is
           exactly the height of the workspace content box — 100dvh less the
-          header (h-16 + 1px border + safe-area) and the section's lg:py-7 —
-          all hard chrome values, no text metrics. The breadcrumb then takes
+          header (4rem + 1px + safe-area) and the section's vertical padding
+          (4.25rem: `lg:py-7`'s 1.75rem top, but 2.5rem bottom because the
+          shell's `lg:pb-10` is emitted after `py` and wins) — all hard chrome
+          values, no text metrics. The breadcrumb then takes
           its natural height inside and the split row gets the rest via
           flex-1, so nothing here depends on estimating line heights: the
           page itself never scrolls, the gallery pane stays put, and the
@@ -215,7 +292,7 @@ export default async function ItemDetailPage({
         <PayoutReturnRefresh />
       </Suspense>
 
-      <div className="flex min-h-0 flex-col lg:h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))]">
+      <div className="flex min-h-0 flex-col lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))]">
         <nav className="mb-2 sm:mb-3" aria-label="Breadcrumb">
           <Button asChild variant="outline" size="sm">
             <Link href="/listings">
@@ -252,7 +329,7 @@ export default async function ItemDetailPage({
             bottom. This pane is full height, so without the matching padding
             the message composer overhangs the image. Keep the two in sync: if
             FRAME_HEIGHT's 3.5rem changes, this becomes half the new value. */}
-          <div className="flex min-w-0 flex-col overscroll-contain lg:flex-1 lg:overflow-y-auto lg:pb-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-0 flex-col lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="space-y-6">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -290,6 +367,17 @@ export default async function ItemDetailPage({
                 <div className="rounded-lg border bg-card px-3 py-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="sr-only">Seller</span>
+                    {/* Ahead of the name so the eye lands on the person before the
+                        trust marks. `sm` keeps the details rail compact. */}
+                    <Avatar
+                      avatarPath={(sellerRow?.avatar_path as string | null) ?? null}
+                      displayName={
+                        isOwner
+                          ? "You"
+                          : ((sellerRow?.display_name as string | null) ?? null)
+                      }
+                      size="sm"
+                    />
                     <div className="flex min-w-0 items-center gap-1">
                       {isOwner ? (
                         <p className="truncate text-sm font-semibold">You</p>
@@ -387,10 +475,14 @@ export default async function ItemDetailPage({
                 isOwner={isOwner}
                 isAuthenticated={Boolean(user)}
                 isAvailable={isAvailable}
+                regionNotice={regionNotice}
                 viewerVerification={viewerVerification}
                 sellerIdentity={sellerIdentity}
                 activeSaleId={activeSaleId}
                 activeTradeId={activeTradeId}
+                isShopfront={isShopfront}
+                isClosed={isClosed}
+                openContracts={openContracts}
                 initialWatching={initialWatching}
                 ownItems={ownItems}
               />
@@ -470,10 +562,14 @@ function ItemActions({
   isOwner,
   isAuthenticated,
   isAvailable,
+  regionNotice,
   viewerVerification,
   sellerIdentity,
   activeSaleId,
   activeTradeId,
+  isShopfront,
+  isClosed,
+  openContracts,
   initialWatching,
   ownItems,
 }: {
@@ -486,10 +582,23 @@ function ItemActions({
   isOwner: boolean;
   isAuthenticated: boolean;
   isAvailable: boolean;
+  /**
+   * Why this viewer cannot contract on this listing across regions (0065), or null.
+   *
+   * Advisory copy only — the binding refusal is the orchestrator's. It is here so
+   * a viewer who arrived from a link or their watchlist, bypassing the
+   * region-scoped catalog, learns before filling in a contract rather than after.
+   */
+  regionNotice: string | null;
   viewerVerification: VerificationState | null;
   sellerIdentity: SellerIdentityDisclosure | null;
   activeSaleId: string | null;
   activeTradeId: string | null;
+  /** A browsable inventory rather than one object for sale (0064). */
+  isShopfront: boolean;
+  isClosed: boolean;
+  /** Every live contract against a shopfront; the owner sees them all. */
+  openContracts: { id: string; buyerName: string; amountCents: number }[];
   initialWatching: boolean;
   ownItems: ItemRow[];
 }) {
@@ -541,10 +650,81 @@ function ItemActions({
       {disabledTradeReason}
     </p>
   ) : null;
+
+  // Rendered as a warning rather than by disabling the controls. The region facts on
+  // both sides can change (a member completes onboarding, sets a region), and a
+  // disabled button with no explanation is the thing this is here to avoid. The
+  // orchestrator refuses regardless, so nothing unsafe depends on this being read.
+  const regionGateNotice = regionNotice ? (
+    <p
+      role="status"
+      className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-center text-xs leading-relaxed text-muted-foreground"
+    >
+      {regionNotice}
+    </p>
+  ) : null;
   // Owner controls: when the item is under contract, surface the active
   // contract link prominently instead of edit/delete (which aren't allowed on
   // RESERVED items anyway per Req 3.5).
   if (isOwner) {
+    // A shopfront's owner sees EVERY live contract, not one. There is no single
+    // "under contract" state to report, and a `.limit(1)` view would have hidden
+    // the rest — including a second buyer asking for a card already promised.
+    if (isShopfront) {
+      return (
+        <div className="space-y-4">
+          {openContracts.length > 0 ? (
+            <div className="space-y-3 rounded-lg border border-gold/40 bg-gold/5 p-4">
+              <div>
+                <p className="text-base font-semibold">
+                  {openContracts.length} open{" "}
+                  {openContracts.length === 1 ? "contract" : "contracts"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Nothing here is reserved. Check what each buyer has asked for
+                  before you accept, so you don&apos;t promise the same card twice.
+                </p>
+              </div>
+              <ul className="space-y-1.5">
+                {openContracts.map((contract) => (
+                  <li key={contract.id}>
+                    <Link
+                      href={`/sales/${contract.id}`}
+                      className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+                    >
+                      <span className="min-w-0 truncate">{contract.buyerName}</span>
+                      <span className="shrink-0 font-medium">
+                        {formatAud(contract.amountCents)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed px-4 py-4">
+              <p className="text-base font-semibold">No open contracts</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Buyers will ask for the cards they want, then you agree a price
+                with each of them.
+              </p>
+            </div>
+          )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href={`/listings/${itemId}/edit`}>
+                <Pencil aria-hidden />
+                Edit listing
+              </Link>
+            </Button>
+            {isClosed ? null : (
+              <CloseShopfrontDialog itemId={itemId} itemTitle={itemTitle} />
+            )}
+          </div>
+        </div>
+      );
+    }
+
     const hasContract = Boolean(activeSaleId || activeTradeId);
     if (hasContract) {
       const contractHref = activeSaleId
@@ -589,9 +769,13 @@ function ItemActions({
     return (
       <div className="space-y-4">
         <div className="rounded-lg border border-dashed px-4 py-5">
-          <p className="text-base font-semibold">Not Available</p>
+          <p className="text-base font-semibold">
+            {isShopfront ? "Closed" : "Not Available"}
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            This item is not currently available for purchase or trade.
+            {isShopfront
+              ? "This seller has closed the listing, so it is not taking new requests."
+              : "This item is not currently available for purchase or trade."}
           </p>
         </div>
         {watchReport ? (
@@ -641,7 +825,7 @@ function ItemActions({
           <div>
             <p className="text-base font-semibold">Payout setup needed</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              This seller cannot accept a cash purchase or start trade escrow
+              This seller cannot accept a cash purchase or start a trade
               until their payout setup is complete. You can message them in the
               meantime.
             </p>
@@ -656,37 +840,40 @@ function ItemActions({
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          <BuyButton
-            itemId={itemId}
-            sellerIdentity={sellerIdentity}
-            appearance="button"
-          />
-          <div
-            className="grid grid-cols-2 gap-2"
+        <div
+            className={
+              // A shopfront drops Trade and Offer, so the row is narrower.
+              isShopfront
+                ? "grid grid-cols-3 justify-items-center gap-2"
+                : "grid grid-cols-5 justify-items-center gap-2"
+            }
             role="group"
-            aria-label="Trade and offer"
+            aria-label="Listing actions"
           >
-            {proposeTrade}
-            <MakeOfferDialog
+            <BuyButton
               itemId={itemId}
-              fmvCents={fmvCents}
               sellerIdentity={sellerIdentity}
               appearance="icon"
+              isShopfront={isShopfront}
             />
+            {/* Offers carry one amount against the whole listing, which says
+                nothing on a binder — "$40" for which cards? The request dialog
+                already lets a buyer name items AND a price, so it replaces both
+                Buy and Offer here rather than sitting alongside them. */}
+            {isShopfront ? null : proposeTrade}
+            {isShopfront ? null : (
+              <MakeOfferDialog
+                itemId={itemId}
+                fmvCents={fmvCents}
+                sellerIdentity={sellerIdentity}
+                appearance="icon"
+              />
+            )}
+            {watchReport}
           </div>
-          {watchReport ? (
-            <div
-              className="flex items-center justify-center gap-4 pt-1"
-              role="group"
-              aria-label="Save and report"
-            >
-              {watchReport}
-            </div>
-          ) : null}
-        </div>
       )}
       {tradeGateNotice}
+      {regionGateNotice}
     </div>
   );
 }

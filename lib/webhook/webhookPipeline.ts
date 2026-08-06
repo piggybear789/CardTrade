@@ -32,6 +32,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database, Json } from '@/lib/supabase/database.types';
 import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
 import {
+  regionForCashSale,
+  regionForMerchantRef,
+  regionForTrade,
+} from '@/lib/regionBinding';
+import {
   MOCK_SIGNATURE_HEADER,
   signWebhookBody,
 } from '@/domain/services/mock/MockService';
@@ -167,8 +172,12 @@ async function dispatchEvent(
       // for this hook (see createCollateralSideEffects). Without wiring it in
       // here, a genuine provider decline left Items RESERVED forever with no
       // compensation — this is the only place HOLDS_FAILED is ever dispatched.
+      // Bound to the trade's own platform account (0068): the HOLDS_FAILED hook VOIDS
+      // active authorisations, and an authorisation belongs to the Stripe account
+      // that created it. Through the wrong client the void silently finds nothing and
+      // real collateral stays held.
       const orchestrator = createDefaultTradeOrchestrator({
-        payments: getPaymentService(),
+        payments: getPaymentService(await regionForTrade(tradeId)),
         runSideEffects: createSupabaseCollateralSideEffects(client),
       });
       const result = await orchestrator.applyEvent({
@@ -187,7 +196,7 @@ async function dispatchEvent(
       if (!cashSaleId) return { outcome: 'NO_OP', tradeId: null };
 
       const cashSales = createDefaultCashSaleOrchestrator({
-        payments: getPaymentService(),
+        payments: getPaymentService(await regionForCashSale(cashSaleId)),
       });
       const result =
         action.kind === 'CASH_SALE_SETTLE'
@@ -212,18 +221,69 @@ async function dispatchEvent(
     }
 
     // The `KYC_DECISION` branch used to live here. It wrote `kyc_status` plus the
-    // `identity_verified_*` columns from a Stripe Identity summary. Both the action
-    // and those writes are gone with the payer gate: the verified legal name now
-    // arrives on MERCHANT_COMPLIANCE below and is persisted by
-    // `applyComplianceUpdate`, which writes it monotonically so a later report
-    // cannot blank a name already disclosed to a Buyer.
+    // `identity_verified_*` columns from a Stripe Identity summary, and was removed
+    // with the payer gate because it was a SECOND answer to "is this member
+    // verified" that competed with Connect state.
+    //
+    // IDENTITY_DECISION below is not that. Connect no longer decides verification at
+    // all — MERCHANT_COMPLIANCE decides payability only — so this is the single
+    // writer of the gate column.
+
+    case 'IDENTITY_DECISION': {
+      const sessionId = event.payload.identitySessionId;
+      const profileId = event.payload.profileId;
+      if (!sessionId && !profileId) return { outcome: 'NO_OP', tradeId: null };
+
+      const admin = createAdminClient();
+
+      // Prefer the profile id stamped in session metadata; fall back to the indexed
+      // session id. Both exist because a session created outside our own call path
+      // carries no metadata, and a member who somehow has two sessions must still
+      // resolve to one Profile.
+      let targetProfileId = profileId ?? null;
+      if (!targetProfileId && sessionId) {
+        const { data } = await admin
+          .from('profiles')
+          .select('id')
+          .eq('identity_check_session_id', sessionId)
+          .maybeSingle();
+        targetProfileId = (data?.id as string | null) ?? null;
+      }
+      // Unattributable: acknowledge and log rather than guessing at a member. Writing
+      // a verification to the wrong Profile is the worst outcome available here.
+      if (!targetProfileId) return { outcome: 'NO_OP', tradeId: null };
+
+      const verified = action.verified;
+
+      // MONOTONIC ON THE NAME, matching `applyComplianceUpdate`. A later event that
+      // omits the name must not blank one already disclosed to a Buyer, so the name
+      // is only written when this event actually carries one.
+      const patch: Database['cardtrade']['Tables']['profiles']['Update'] = {
+        identity_check_status: verified ? 'VERIFIED' : 'FAILED',
+        ...(sessionId ? { identity_check_session_id: sessionId } : {}),
+        ...(verified ? { identity_check_verified_at: event.occurredAt } : {}),
+        ...(verified && event.payload.identityVerifiedName
+          ? { identity_check_name: event.payload.identityVerifiedName }
+          : {}),
+      };
+
+      const { error } = await admin
+        .from('profiles')
+        .update(patch)
+        .eq('id', targetProfileId);
+
+      return { outcome: error ? 'FAILURE' : 'SUCCESS', tradeId: null };
+    }
 
     case 'MERCHANT_COMPLIANCE': {
       const merchantRef = event.payload.merchantRef;
       if (!merchantRef) return { outcome: 'NO_OP', tradeId: null };
 
+      // A connected account belongs to ONE platform (0068), so the read-back inside
+      // `applyComplianceUpdate` has to use that platform's client — otherwise Stripe
+      // reports the account as not found and the member is never marked verified.
       const merchants = createDefaultMerchantOnboardingOrchestrator({
-        payments: getPaymentService(),
+        payments: getPaymentService(await regionForMerchantRef(merchantRef)),
       });
       const result = await merchants.applyComplianceUpdate({
         merchantRef,

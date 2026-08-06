@@ -58,10 +58,11 @@ export default async function CashSalePage({
     buyerStats,
     sellerStats,
     { data: deliveryDetails },
+    { data: lineItemRows },
   ] = await Promise.all([
     supabase
       .from('public_profiles')
-      .select('id, display_name, rating, rating_count, is_verified')
+      .select('id, display_name, rating, rating_count, is_verified, avatar_path')
       .in('id', [sale.buyer_id, sale.seller_id]),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.buyer_id }),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.seller_id }),
@@ -72,7 +73,24 @@ export default async function CashSalePage({
       .select('address_label, place_id, country_code, latitude, longitude')
       .eq('cash_sale_id', sale.id)
       .maybeSingle(),
+    // What this contract covers (0064). Participant-scoped by RLS, and empty for
+    // a single-item sale whose goods are the item snapshot on the sale itself.
+    // Not a Realtime subscription: every change to a line also rewrites
+    // `agreed_price_cents`, so the sale row's own event already signals it.
+    supabase
+      .from('cash_sale_items')
+      .select('id, description, condition, quantity, unit_price_cents, sort_order')
+      .eq('cash_sale_id', sale.id)
+      .order('sort_order', { ascending: true }),
   ]);
+
+  const lineItems = (lineItemRows ?? []).map((row) => ({
+    id: row.id,
+    description: row.description,
+    condition: row.condition,
+    quantity: row.quantity,
+    unitPriceCents: row.unit_price_cents,
+  }));
 
   const profileById = new Map(
     (profiles ?? []).map((profile) => [profile.id as string, profile]),
@@ -100,6 +118,7 @@ export default async function CashSalePage({
     return {
       id: userId,
       name: (profile?.display_name as string | null)?.trim() || 'NoDitto member',
+      avatarPath: (profile?.avatar_path as string | null) ?? null,
       role,
       verified: Boolean(profile?.is_verified),
       rating: rating === null || rating === undefined ? null : Number(rating),
@@ -150,6 +169,7 @@ export default async function CashSalePage({
         deliveryAddress={deliveryAddress}
         trackingRefreshAvailable={isTrackingStatusPollingAvailable()}
         paymentDemoEnabled={isPaymentDemoEnabled()}
+        lineItems={lineItems}
       />
 
       {sale.status === 'COMPLETED' ? (

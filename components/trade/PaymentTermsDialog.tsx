@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { TRADE_PROPOSAL_MESSAGE_MAX } from '@/lib/marketplace-constants';
@@ -150,15 +151,9 @@ export function PaymentTermsDialog({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="terms-cash">Cash (AUD)</Label>
-              <Input
+              <Label htmlFor="terms-cash">Cash</Label>
+              <MoneyInput
                 id="terms-cash"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                autoComplete="off"
-                placeholder="0.00"
                 value={draft.cashDollars}
                 onChange={(e) => set('cashDollars', e.target.value)}
               />

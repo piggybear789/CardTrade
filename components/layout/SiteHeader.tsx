@@ -10,11 +10,19 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import { Button } from '@/components/ui/button';
+import { Avatar } from '@/components/ui/avatar';
 import { Logo } from '@/components/layout/Logo';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { PrimaryNav } from '@/components/layout/PrimaryNav';
+import { RegionIndicator } from '@/components/layout/RegionIndicator';
+import { SignInLink } from '@/components/layout/SignInLink';
 import { SiteMenu } from '@/components/layout/SiteMenu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import {
+  resolveBrowseRegion,
+  type ResolvedRegion,
+} from '@/lib/location/resolveRegion';
+import { normalizeRegionCode } from '@/domain/region';
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -29,6 +37,22 @@ export async function SiteHeader() {
     ? (await listMyNotifications())
     : null;
 
+  // Which region the catalog is scoped to, for the read-only indicator. The header
+  // has no `searchParams`, so an explicit `?region=` on the current URL is not
+  // visible here — the indicator therefore shows the member's own region, their
+  // remembered choice, or the IP guess. That is the right thing for a persistent
+  // chrome element: it states their standing scope, while the marketplace's own
+  // controls state and change the scope of the page in front of them.
+  //
+  // Resolved WITHOUT `resolveBrowseRegion` on the signed-in path. That helper does
+  // its own `auth.getUser()` and its own `profiles` read, both of which this
+  // component has already done a few lines below — and this header renders on every
+  // route in the app, so paying for them twice is a cost on every page load. The
+  // signed-in region therefore comes from the profile read that is happening anyway,
+  // and the helper is called only for anonymous visitors, where it does no database
+  // work at all (cookie, then IP header, then the default).
+  let region: ResolvedRegion;
+
   // Surface the staff links only to staff. RLS scopes this read to the caller's own
   // profile, so a member can never learn about (or reach) either surface.
   //
@@ -39,15 +63,27 @@ export async function SiteHeader() {
   let isAdmin = false;
   let isStaff = false;
   let displayName: string | null = null;
+  let avatarPath: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_admin, is_support, display_name')
+      .select('is_admin, is_support, display_name, region_code, avatar_path')
       .eq('id', user.id)
       .maybeSingle();
     isAdmin = Boolean(profile?.is_admin);
     isStaff = isAdmin || Boolean(profile?.is_support);
     displayName = profile?.display_name?.trim() || null;
+    avatarPath = (profile?.avatar_path as string | null) ?? null;
+
+    const own = normalizeRegionCode(profile?.region_code);
+    // Falls back to the anonymous chain for a member who has not set a region yet —
+    // a Profile predating 0065. Showing them nothing would be worse than showing the
+    // scope their catalog is actually using.
+    region = own
+      ? { code: own, source: 'profile' }
+      : await resolveBrowseRegion();
+  } else {
+    region = await resolveBrowseRegion();
   }
 
   // The top bar stays transactional: browse, sell, deal, plus the caller's name
@@ -78,6 +114,7 @@ export async function SiteHeader() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center justify-end gap-1 text-parchment sm:min-w-0 sm:flex-1 sm:gap-2">
+          <RegionIndicator regionCode={region.code} source={region.source} />
           {isAuthenticated && user ? (
             <>
               <NotificationBell
@@ -89,24 +126,36 @@ export async function SiteHeader() {
               <Button asChild variant="ghost" size="sm" className="max-w-[9rem] sm:max-w-[14rem]">
                 <Link
                   href="/profile"
-                  className="truncate font-medium"
+                  /* No font override: the Button already supplies the header's
+                     `text-sm font-semibold`. This carried `font-medium`, which
+                     quietly stepped the name down a weight from the nav links
+                     sitting a few pixels away. */
+                  className="flex items-center gap-2"
                   title={displayName ?? 'Your profile'}
                 >
-                  {displayName ?? 'Profile'}
+                  {/* Own avatar as the profile shortcut — the conventional place a
+                      member looks for their own account. */}
+                  <Avatar
+                    avatarPath={avatarPath}
+                    displayName={displayName}
+                    size="xs"
+                    className="border-white/25"
+                  />
+                  <span className="truncate">{displayName ?? 'Profile'}</span>
                 </Link>
               </Button>
             </>
           ) : (
             <nav aria-label="Account" className="hidden items-center gap-1 lg:flex">
               <Button asChild variant="ghost" size="sm">
-                <Link href="/sign-in">Sign in</Link>
+                <SignInLink>Sign in</SignInLink>
               </Button>
               <Button
                 asChild
                 size="sm"
                 className="border-gold bg-gold text-obsidian hover:bg-gold/90"
               >
-                <Link href="/sign-up">Get started</Link>
+                <SignInLink target="/sign-up">Get started</SignInLink>
               </Button>
             </nav>
           )}

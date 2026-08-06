@@ -20,7 +20,7 @@ import { useState } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
-import { PayoutSetupPrompt } from '@/components/payouts/PayoutSetupPrompt';
+import { IdentityGatePrompt } from '@/components/identity/IdentityGatePrompt';
 import {
   TradeOfferForm,
   type TradeOfferRequested,
@@ -127,7 +127,7 @@ export function ProposeTradeDialog({
                 Nothing is sent to {requested.ownerName} yet.
               </DialogDescription>
             </DialogHeader>
-            <PayoutSetupPrompt
+            <IdentityGatePrompt
               state={viewerVerification!}
               blockedAction="trade"
               returnPath={returnPath ?? `/listings/${requested.id}`}

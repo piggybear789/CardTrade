@@ -26,10 +26,41 @@ import {
   buildQueue,
   type ArbitrationCase,
   type ArbitrationCaseKind,
+  type ArbitrationGoodsLine,
   type TriagedCase,
 } from '@/domain/arbitration/arbitrationCase';
 import { sellerNetCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { type ActionResult, fail, ok } from './result';
+
+/** Shape of the embedded `cash_sale_items` rows on a disputed-sale read. */
+type GoodsRow = {
+  description: string | null;
+  condition: string | null;
+  quantity: number | null;
+  unit_price_cents: number | null;
+  sort_order: number | null;
+};
+
+/**
+ * Map a contract's line items into the case model, in the order the parties
+ * agreed them (0064).
+ *
+ * Supabase returns an embedded relation as an array, or null when there is none.
+ * A single-item cash sale has no lines and gets an empty list: its goods are
+ * fully described by the contract's item snapshot.
+ */
+function toGoodsLines(rows: unknown): ArbitrationGoodsLine[] {
+  if (!Array.isArray(rows)) return [];
+  return (rows as GoodsRow[])
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((row) => ({
+      description: row.description ?? 'Unspecified item',
+      condition: row.condition ?? null,
+      quantity: Number(row.quantity ?? 1),
+      unitPriceCents: Number(row.unit_price_cents ?? 0),
+    }));
+}
 
 /** Typed failures for arbitration reads and writes. */
 export type ArbitrationActionError = StaffGateError | 'not-found' | 'persistence-error';
@@ -145,7 +176,11 @@ export async function getArbitrationQueue(): Promise<
     admin
       .from('cash_sales')
       .select(
-        'id, item_title, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, disputed_at, disputed_by, dispute_reason',
+        // `from_shopfront` and the nested lines (0064): a shopfront contract's
+        // title names the binder, so without its line items an arbitrator cannot
+        // tell which of several cases against that listing they are looking at,
+        // let alone what was owed.
+        'id, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, disputed_at, disputed_by, dispute_reason, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
       )
       .eq('status', 'DISPUTED'),
     admin
@@ -214,6 +249,7 @@ export async function getArbitrationQueue(): Promise<
       kind: 'CASH_SALE',
       ref: id,
       title: (sale.item_title as string | null) ?? 'Untitled item',
+      goods: toGoodsLines(sale.cash_sale_items),
       // The whole collected amount is what the outcome decides: it either goes back
       // to the buyer, splits, or releases to the seller.
       amountAtRiskCents: Number(sale.amount_cents ?? 0),
@@ -251,7 +287,10 @@ export async function getArbitrationQueue(): Promise<
     cases.push({
       kind: 'TRADE',
       ref: id,
-      title: `${nameFor(trade.initiator_id as string)} â‡„ ${nameFor(trade.counterpart_id as string)}`,
+      title: `${nameFor(trade.initiator_id as string)} ⇄ ${nameFor(trade.counterpart_id as string)}`,
+      // A trade's goods live in `trade_items` and are not itemised on the trade
+      // itself; the exchange panel in the trade room is the place that shows them.
+      goods: [],
       // A fraud finding captures one full collateral, so the larger of the two is what
       // the outcome can move. A condition finding moves only the Friction_Tax.
       amountAtRiskCents: Math.max(initiatorBond, counterpartBond, FRICTION_TAX_CENTS),
@@ -290,6 +329,8 @@ export async function getArbitrationQueue(): Promise<
       kind: 'CHARGEBACK',
       ref: id,
       title: 'Chargeback',
+      // A chargeback is a bank reversal against a payer, not a claim about goods.
+      goods: [],
       amountAtRiskCents: Number(dispute.amount_cents ?? 0),
       openedAt: (dispute.opened_at as string | null) ?? null,
       raisedById: (dispute.profile_id as string | null) ?? null,

@@ -22,6 +22,7 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
+import { Avatar } from '@/components/ui/avatar';
 import type {
   CatalogItem,
   CatalogSeller,
@@ -59,7 +60,7 @@ export default async function SellerProfilePage({
   const { data: sellerRow } = await supabase
     .from('public_profiles')
     .select(
-      'id, display_name, rating, rating_count, is_verified, identity_first_name',
+      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path',
     )
     .eq('id', id)
     .maybeSingle();
@@ -82,6 +83,7 @@ export default async function SellerProfilePage({
     ratingCount: (sellerRow.rating_count as number | null) ?? 0,
     isVerified: Boolean(sellerRow.is_verified),
     identityFirstName: (sellerRow.identity_first_name as string | null) ?? null,
+    avatarPath: (sellerRow.avatar_path as string | null) ?? null,
   };
 
   // Narrow, buyer-safe merchant identity — only populated once provider
@@ -95,6 +97,9 @@ export default async function SellerProfilePage({
     .select('*')
     .eq('owner_id', id)
     .eq('status', 'AVAILABLE')
+    // A closed shopfront takes no new contracts, so it must not appear on the
+    // seller's public profile either (0064).
+    .is('closed_at', null)
     .eq('hidden', false)
     .order('created_at', { ascending: false });
 
@@ -123,7 +128,16 @@ export default async function SellerProfilePage({
       {/* Header */}
       <header className="mb-8 space-y-2 border-b pb-6">
         <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-2">
+          {/* The avatar sits OUTSIDE the name/rating column so it stays a fixed
+              square beside a wrapping name rather than being pushed around by it.
+              Decorative: the name is the h2 immediately beside it. */}
+          <div className="flex min-w-0 items-start gap-4">
+            <Avatar
+              avatarPath={seller.avatarPath}
+              displayName={displayName}
+              size="xl"
+            />
+            <div className="min-w-0 space-y-2">
             {/* The shell rail already renders the page h1 ("Seller"), so the
                 name is an h2 to keep the document outline hierarchical —
                 mirroring the listing detail page. */}
@@ -154,6 +168,7 @@ export default async function SellerProfilePage({
             ) : (
               <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
             )}
+          </div>
           </div>
 
           {canReport && (

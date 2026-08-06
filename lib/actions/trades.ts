@@ -37,6 +37,7 @@ import type {
 import type { OrchestratorError } from '@/domain/orchestrator/tradeOrchestrator';
 import type { ProposeTradeError } from '@/domain/orchestrator/tradeProposal';
 import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
+import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import {
@@ -248,7 +249,15 @@ export async function proposeTrade(
     }
   }
 
-  const result = await proposeTradeWithSupabase(getPaymentService(), {
+  // Collateral is placed in the same call that creates the trade, so there is no
+  // frozen currency to read yet — the region comes from the initiator's profile
+  // (0068). Both traders are in one region by then: `openTradeNegotiation` refused
+  // the offer otherwise. The holds are real card authorisations on the region's own
+  // platform account, and placing them on the wrong one would not find the trader's
+  // saved card at all.
+  const tradeRegion = await regionForProfile(initiatorId);
+
+  const result = await proposeTradeWithSupabase(getPaymentService(tradeRegion), {
     proposerId: initiatorId,
     initiatorItemId,
     initiatorExtraItemIds: options?.initiatorExtraItemIds ?? [],
@@ -259,7 +268,9 @@ export async function proposeTrade(
   if (result.bondsRequired === 0) {
     // No collateral to wait on: lock the trade now. A rejected transition is not
     // fatal — the Trade still exists in COLLATERAL_PENDING and can be retried.
-    const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+    const orchestrator = createDefaultTradeOrchestrator({
+      payments: getPaymentService(tradeRegion),
+    });
     await orchestrator.applyEvent({
       tradeId: result.trade.id,
       event: 'HOLDS_CONFIRMED',
@@ -285,7 +296,11 @@ async function syncTradeHoldsFromStripe(tradeId: string, actorId: string): Promi
   const holds = await repository.getHolds(tradeId);
   if (holds.length === 0) return;
 
-  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  // HOLDS_FAILED runs the documented compensation, which VOIDS the holds that did
+  // succeed — a provider call, so this needs the trade's own platform account (0068).
+  const orchestrator = createDefaultTradeOrchestrator({
+    payments: getPaymentService(await regionForTrade(tradeId)),
+  });
   if (holds.every((h) => h.status === 'ACTIVE')) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
     return;
@@ -402,7 +417,11 @@ async function recordLifecycle(
     return { ok: true, state: write.trade.state, transitioned: false };
   }
 
-  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  // Bound to the trade's own platform account (0068): transitions out of escrow void
+  // or capture real authorisations, and those belong to one Stripe account.
+  const orchestrator = createDefaultTradeOrchestrator({
+    payments: getPaymentService(await regionForTrade(tradeId)),
+  });
   const result = await orchestrator.applyEvent({ tradeId, event, actorId: userId });
   if (!result.ok) {
     return { ok: false, error: result.error, detail: result.detail };
@@ -505,9 +524,17 @@ export async function recordAcceptance(tradeId: string): Promise<LifecycleAction
 /** Errors surfaced by the dispute/fraud actions. */
 export type DisputeActionError = AuthError | DisputeResolutionError | 'HOLD_NOT_FOUND';
 
-/** Build the dispute/fraud resolution orchestrator wired to the default bindings. */
-function buildDisputeOrchestrator() {
-  const service = getPaymentService();
+/**
+ * Build the dispute/fraud resolution orchestrator for one trade.
+ *
+ * Takes a region because resolution CAPTURES collateral — a Friction_Tax partial
+ * capture, or a full capture paid to a fraud victim — and an authorisation belongs to
+ * the Stripe platform account that created it (0068). Resolving through another
+ * region's client would fail to find the PaymentIntent, leaving a determined dispute
+ * with no money moved.
+ */
+function buildDisputeOrchestrator(region: string) {
+  const service = getPaymentService(region);
   const orchestrator = createDefaultTradeOrchestrator({ payments: service });
   return createDefaultDisputeResolutionOrchestrator({
     orchestrator,
@@ -536,7 +563,7 @@ export async function raiseDispute(tradeId: string): Promise<RaiseDisputeActionR
   const guard = await requireParticipant(tradeId);
   if (!guard.ok) return guard;
 
-  const result = await buildDisputeOrchestrator().raiseConditionDispute({
+  const result = await buildDisputeOrchestrator(await regionForTrade(tradeId)).raiseConditionDispute({
     tradeId,
     actorId: guard.ctx.userId,
   });
@@ -601,7 +628,7 @@ export async function reportFraud(tradeId: string): Promise<ClaimFraudActionResu
   // Move to DISPUTED first, so the Trade is visibly frozen and an operator can see
   // it. Already-disputed trades are fine: `raiseConditionDispute` is a no-op
   // transition from DISPUTED, and the claim below records regardless.
-  const raised = await buildDisputeOrchestrator().raiseConditionDispute({
+  const raised = await buildDisputeOrchestrator(await regionForTrade(tradeId)).raiseConditionDispute({
     tradeId,
     actorId: guard.ctx.userId,
   });
@@ -830,7 +857,9 @@ export async function reportTradeHandoverFailed(
     return { ok: false, error: 'not-permitted' };
   }
 
-  const orchestrator = createDefaultTradeOrchestrator({ payments: getPaymentService() });
+  const orchestrator = createDefaultTradeOrchestrator({
+    payments: getPaymentService(await regionForTrade(tradeId)),
+  });
   const result = await orchestrator.applyEvent({
     tradeId,
     event: 'HANDOVER_FAILED',
@@ -1098,7 +1127,7 @@ export async function syncTradeTracking(
     latest.counterpart_carrier_delivered_at
   ) {
     const orchestrator = createDefaultTradeOrchestrator({
-      payments: getPaymentService(),
+      payments: getPaymentService(await regionForTrade(tradeId)),
     });
     const result = await orchestrator.applyEvent({
       tradeId,

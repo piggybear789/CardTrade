@@ -5,7 +5,7 @@
 // WHAT IS BEING EXCHANGED — one component for all three shapes a contract takes:
 //
 //   * Cash sale: one side (the item), money on the other.
-//   * 2-way trade: goods â‡„ goods, either side possibly several items, plus a cash
+//   * 2-way trade: goods ⇄ goods, either side possibly several items, plus a cash
 //     leg in one direction.
 //   * Private deal: prose + evidence photos per side, since deal items are not
 //     catalog Items and carry no Fair_Market_Value.

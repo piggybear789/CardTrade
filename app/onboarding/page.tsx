@@ -17,18 +17,25 @@
 // Stripe. Three clicks and a dead-end anchor stood between asking to verify and
 // the only screen that can verify anything.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
+  MapPin,
   ShoppingBag,
   Store,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { completeOnboarding } from '@/lib/actions/profile';
-import { startIdentityVerification } from '@/lib/actions/merchant';
+import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
+import { beginIdentityCheck } from '@/lib/actions/identity';
+import { setTradingRegion } from '@/lib/actions/region';
+import {
+  listSelectableRegions,
+  type SelectableRegion,
+} from '@/lib/actions/regionOptions';
 import { AddPaymentMethodForm } from '@/components/payments/AddPaymentMethodForm';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,15 +49,44 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-type Step = 'welcome' | 'username' | 'intent' | 'card-setup';
+type Step = 'welcome' | 'username' | 'region' | 'intent' | 'card-setup';
 type Intent = 'buyer' | 'seller' | null;
 
-const STEPS: Step[] = ['welcome', 'username', 'intent'];
+const STEPS: Step[] = ['welcome', 'username', 'region', 'intent'];
+
+// Region choices are loaded at runtime, not read from the registry, because the real
+// answer depends on which regions have a Stripe platform account configured — see
+// `lib/actions/regionOptions.ts`. A browse-only region in this picker would badge the
+// member ready to sell and then fail every payout.
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>('welcome');
   const [displayName, setDisplayName] = useState('');
+  // Saved by AvatarUploadField the moment it is picked, so this only mirrors it for
+  // the preview — it is not part of what `completeOnboarding` submits.
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
+  // Pre-selected when only one region trades, so the step is a confirmation rather
+  // than a decision with one option. It is still SHOWN: this is the jurisdiction
+  // their payouts and postage are pinned to, and silently assigning it would make
+  // the later "your region is tied to your payout account" refusal come out of
+  // nowhere.
+  const [regionCode, setRegionCode] = useState<string | null>(null);
+  const [regionChoices, setRegionChoices] = useState<SelectableRegion[]>([]);
+
+  // Loaded on mount rather than computed here, because the answer depends on which
+  // regions have a Stripe platform account configured and that is server-side state.
+  useEffect(() => {
+    let cancelled = false;
+    void listSelectableRegions().then((regions) => {
+      if (cancelled) return;
+      setRegionChoices(regions);
+      if (regions.length === 1) setRegionCode(regions[0].code);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [intent, setIntent] = useState<Intent>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +109,29 @@ export default function OnboardingPage() {
     }
 
     setError(null);
+    setStep('region');
+  }
+
+  async function handleRegionContinue() {
+    if (!regionCode) {
+      setError('Choose where you are trading from.');
+      return;
+    }
+
+    // Persisted HERE rather than alongside the intent step, so the member cannot
+    // reach Stripe Connect without a region already on file. The Connect account is
+    // created with a country derived from this value, and an account registered in
+    // the wrong country cannot be paid — so the write has to precede it.
+    setSaving(true);
+    setError(null);
+    const result = await setTradingRegion(regionCode);
+    setSaving(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+
     setStep('intent');
   }
 
@@ -90,10 +149,16 @@ export default function OnboardingPage() {
     }
 
     if (intent === 'seller') {
-      // Create the Connect recipient account and mint a hosted link in one call,
-      // then leave the app. Pressing this button is the buyer-disclosure consent
-      // (Req 4.8-4.12), which is why the disclosure is rendered directly below it.
-      const verification = await startIdentityVerification('/profile/payouts');
+      // STEP ONE OF TWO, and this is the step that changed with 0069. It used to open
+      // Connect, which meant the first thing a new seller was asked for was their bank
+      // account — before they had listed anything or found a buyer. The identity check
+      // needs no bank details and unlocks listing, selling and trading on its own;
+      // payout setup is deferred to the payouts page, where it is needed only once
+      // money actually has to move.
+      //
+      // Pressing this button is the buyer-disclosure consent (Req 4.8-4.12), which is
+      // why the disclosure is rendered directly below it.
+      const verification = await beginIdentityCheck('/profile/payouts');
 
       if (verification.ok && verification.data.url) {
         // Full navigation, not a router push: the destination is off-origin.
@@ -101,7 +166,7 @@ export default function OnboardingPage() {
         return;
       }
 
-      // No hosted flow (MockService) or the link could not be minted. Land on the
+      // No hosted flow (MockService) or the session could not be created. Land on the
       // setup card so the member can retry, rather than stranding them here.
       if (!verification.ok) toast.error(verification.message);
       router.push('/profile/payouts#identity');
@@ -149,7 +214,7 @@ export default function OnboardingPage() {
                     All Sellers and Traders Are Verified Through Stripe
                   </h2>
                   <p className="mt-1 text-pretty text-sm leading-relaxed text-muted-foreground">
-                    Sellers and traders complete Stripe Connect payout onboarding before they can list, sell, receive money, or enter a trade. Confirmed fraud permanently bans the responsible individual.
+                    Sellers and traders pass a Stripe identity check — a photo ID and a selfie — before they can list, sell, or enter a trade. Bank details are collected separately, only when there is money to pay out. Confirmed fraud permanently bans the responsible individual.
                   </p>
                 </section>
 
@@ -220,6 +285,35 @@ export default function OnboardingPage() {
                 ) : null}
               </div>
 
+              {/* OPTIONAL, and never a gate on continuing. Onboarding already gates
+                  on Connect for anyone who wants to sell, and an avatar carries no
+                  assurance at all — it is self-chosen — so requiring one would add a
+                  drop-off point for nothing. It saves on pick via its own action, so
+                  it does not join `completeOnboarding`'s payload. */}
+              <div
+                role="group"
+                aria-labelledby="onboarding-avatar-label"
+                className="space-y-2 border-t pt-5"
+              >
+                <p
+                  id="onboarding-avatar-label"
+                  className="text-sm font-medium leading-none"
+                >
+                  Profile picture{' '}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </p>
+                <AvatarUploadField
+                  avatarPath={avatarPath}
+                  displayName={displayName || 'You'}
+                  onChange={setAvatarPath}
+                  hideHint
+                />
+                <p className="text-xs text-muted-foreground">
+                  Helps members recognise you. You can add or change it any time from
+                  your profile.
+                </p>
+              </div>
+
               <div className="flex gap-3">
                 <Button type="button" variant="outline" onClick={goBack} className="flex-1">
                   <ArrowLeft className="mr-2 size-4" aria-hidden />
@@ -232,6 +326,101 @@ export default function OnboardingPage() {
                   className="flex-1"
                 >
                   Continue
+                  <ArrowRight className="ml-2 size-4" aria-hidden />
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {step === 'region' ? (
+            <div className="space-y-6">
+              <DialogHeader className="space-y-2 pr-0 text-center">
+                <DialogTitle className="text-2xl">Where are you trading from?</DialogTitle>
+                <DialogDescription className="text-pretty leading-relaxed">
+                  Deals are completed within one region, so postage, currency and
+                  payouts all stay local.
+                </DialogDescription>
+              </DialogHeader>
+
+              <fieldset className="grid gap-3">
+                <legend className="sr-only">Your trading region</legend>
+                {regionChoices.map((region) => (
+                  <button
+                    key={region.code}
+                    type="button"
+                    onClick={() => {
+                      setRegionCode(region.code);
+                      setError(null);
+                    }}
+                    aria-pressed={regionCode === region.code}
+                    className={cn(
+                      'flex items-center gap-4 rounded-lg border p-4 text-left transition-colors',
+                      regionCode === region.code
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'hover:border-foreground/20 hover:bg-muted/50',
+                    )}
+                  >
+                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
+                      <MapPin className="size-5" aria-hidden />
+                    </span>
+                    <span>
+                      <span className="block font-medium">{region.label}</span>
+                      <span className="block text-sm text-muted-foreground">
+                        Buy, sell and trade in {region.currency.toUpperCase()} with
+                        other members in {region.label}.
+                      </span>
+                    </span>
+                  </button>
+                ))}
+                {/*
+                  An empty list is a misconfiguration, not a member error: it means no
+                  region has both product intent and a Stripe platform account. Say so
+                  plainly rather than showing an empty step with a dead Continue
+                  button, which reads as a broken page.
+                */}
+                {regionChoices.length === 0 ? (
+                  <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    No regions are open for deals right now. Please try again shortly —
+                    you can still browse listings in the meantime.
+                  </p>
+                ) : null}
+              </fieldset>
+
+              {/*
+                Stated plainly at the point of choosing, because it is not reversible
+                from the UI once a payout account exists — `setTradingRegion` refuses
+                and sends the member to support. Finding that out later would feel
+                like a bug.
+              */}
+              <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
+                This is tied to your payout account, so it is not something you can
+                switch later on your own. You can still browse listings in any region.
+              </p>
+
+              {error ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              ) : null}
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={goBack}
+                  disabled={saving}
+                  className="flex-1"
+                >
+                  <ArrowLeft className="mr-2 size-4" aria-hidden />
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleRegionContinue}
+                  disabled={!regionCode || saving}
+                  className="flex-1"
+                >
+                  {saving ? 'Saving…' : 'Continue'}
                   <ArrowRight className="ml-2 size-4" aria-hidden />
                 </Button>
               </div>
@@ -326,10 +515,10 @@ export default function OnboardingPage() {
               */}
               {intent === 'seller' ? (
                 <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-                  Continuing opens Stripe Connect, which collects your payout and bank
-                  details on its own pages — NoDitto never sees them. You agree that the
-                  payout name Stripe reports can be shown to someone you have an agreed
-                  sale or trade with.
+                  Continuing opens Stripe, which checks a photo ID and a selfie on its own
+                  pages — NoDitto never sees the document. You agree that the name on it can
+                  be shown to someone you have an agreed sale or trade with. Bank details
+                  come later, only when you have money to collect.
                 </p>
               ) : null}
             </div>
@@ -340,7 +529,7 @@ export default function OnboardingPage() {
               <DialogHeader className="space-y-2 pr-0 text-center">
                 <DialogTitle className="text-2xl">Add a payment card</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
-                  A saved card lets you buy instantly or enter trade escrow.
+                  A saved card lets you buy instantly or back a trade with collateral.
                   You can always add one later from your profile.
                 </DialogDescription>
               </DialogHeader>

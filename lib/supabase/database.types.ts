@@ -77,6 +77,35 @@ export type Database = {
           /** Staff capability: may arbitrate disputes (0047). Not member-writable. */
           is_support: boolean;
           onboarding_completed_at: string | null;
+          /**
+           * ISO 3166-1 alpha-2 jurisdiction the member transacts in (0065).
+           *
+           * Read by the contract guards through `checkRegionCompatibility`, and it
+           * must agree with the member's Stripe Connect account country — a
+           * transfer to an account registered elsewhere fails. Set at onboarding
+           * and NEVER from an IP address; see `domain/region/regions.ts` for why
+           * the browse region and this are separate values.
+           */
+          region_code: string | null;
+
+          /**
+           * Storage object path in the `profile-images` bucket, or null (0066).
+           *
+           * A PATH, never a URL — `avatarUrl()` in `lib/format.ts` resolves it.
+           * Self-chosen and unverified, so it is never identity: that is the
+           * Identity_Gate plus `merchant_legal_entity_name`.
+           */
+          avatar_path: string | null;
+          /**
+           * Stripe Identity check state (0069). THIS is the Identity_Gate.
+           *
+           * Provider-controlled: `authenticated` may SELECT it but holds no UPDATE
+           * grant, so only the Identity webhook or a server read-back writes it.
+           */
+          identity_check_status: Database['cardtrade']['Enums']['identity_check_status'];
+          identity_check_session_id: string | null;
+          identity_check_verified_at: string | null;
+          identity_check_name: string | null;
           fraud_banned_at: string | null;
           fraud_banned_by: string | null;
           fraud_ban_trade_id: string | null;
@@ -112,6 +141,17 @@ export type Database = {
           is_admin?: boolean;
           is_support?: boolean;
           onboarding_completed_at?: string | null;
+          region_code?: string | null;
+
+          avatar_path?: string | null;
+
+          identity_check_status?: Database['cardtrade']['Enums']['identity_check_status'];
+
+          identity_check_session_id?: string | null;
+
+          identity_check_verified_at?: string | null;
+
+          identity_check_name?: string | null;
           fraud_banned_at?: string | null;
           fraud_banned_by?: string | null;
           fraud_ban_trade_id?: string | null;
@@ -147,6 +187,17 @@ export type Database = {
           is_admin?: boolean;
           is_support?: boolean;
           onboarding_completed_at?: string | null;
+          region_code?: string | null;
+
+          avatar_path?: string | null;
+
+          identity_check_status?: Database['cardtrade']['Enums']['identity_check_status'];
+
+          identity_check_session_id?: string | null;
+
+          identity_check_verified_at?: string | null;
+
+          identity_check_name?: string | null;
           fraud_banned_at?: string | null;
           fraud_banned_by?: string | null;
           fraud_ban_trade_id?: string | null;
@@ -173,6 +224,14 @@ export type Database = {
           condition: string;
           fmv_cents: number;
           status: Database['cardtrade']['Enums']['item_status'];
+          /**
+           * SINGLE = one physical object, reserved by its one live contract.
+           * SHOPFRONT = a browsable inventory many buyers contract against at
+           * once; never reserved, never sold (0064).
+           */
+          listing_kind: Database['cardtrade']['Enums']['listing_kind'];
+          /** When the owner closed a SHOPFRONT. SINGLE listings use status. */
+          closed_at: string | null;
           image_paths: string[];
           hidden: boolean;
           seller_rating: number | null;
@@ -187,6 +246,25 @@ export type Database = {
           location_lat: number | null;
           location_lng: number | null;
           location_precision: 'suburb' | 'exact' | null;
+          /**
+           * ISO 3166-1 alpha-2 of the listing pin, uppercase (0065). Scopes the
+           * catalog by region.
+           *
+           * Null for listings created before 0065 and for the free-text place
+           * fallback, which resolves no country — `searchCatalog` treats null as
+           * unscoped and always visible rather than hiding it from everyone. This
+           * is where the GOODS are, NOT the seller's trading region: see
+           * `profiles.region_code`.
+           */
+          location_country_code: string | null;
+          /**
+           * ISO 4217 currency `fmv_cents` is denominated in (0068), lowercase.
+           *
+           * Derived from the OWNER's region by the `items_set_currency` trigger, not
+           * from `location_country_code` — the listing's country is where the goods
+           * are, the currency is what the owner sells in.
+           */
+          currency: string;
           created_at: string;
           updated_at: string;
         };
@@ -199,6 +277,8 @@ export type Database = {
           condition: string;
           fmv_cents: number;
           status?: Database['cardtrade']['Enums']['item_status'];
+          listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
+          closed_at?: string | null;
           image_paths: string[];
           hidden?: boolean;
           seller_rating?: number | null;
@@ -208,6 +288,8 @@ export type Database = {
           location_lat?: number | null;
           location_lng?: number | null;
           location_precision?: 'suburb' | 'exact' | null;
+          location_country_code?: string | null;
+          currency?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -220,6 +302,8 @@ export type Database = {
           condition?: string;
           fmv_cents?: number;
           status?: Database['cardtrade']['Enums']['item_status'];
+          listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
+          closed_at?: string | null;
           image_paths?: string[];
           hidden?: boolean;
           seller_rating?: number | null;
@@ -229,6 +313,8 @@ export type Database = {
           location_lat?: number | null;
           location_lng?: number | null;
           location_precision?: 'suburb' | 'exact' | null;
+          location_country_code?: string | null;
+          currency?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -310,6 +396,15 @@ export type Database = {
           fraud_claim_reason: string | null;
           fraud_claimed_at: string | null;
           cash_amount_cents: number;
+          /**
+           * ISO 4217 currency the collateral, fees and any cash leg are denominated
+           * in (0068), lowercase.
+           *
+           * There is exactly one because `checkRegionCompatibility` has already
+           * established that both traders are in the same region before a trade can
+           * be agreed. Set by the `trades_set_currency` trigger from the initiator.
+           */
+          currency: string;
           cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
           handover_method: Database['cardtrade']['Enums']['handover_method'] | null;
           meeting_location: string | null;
@@ -401,6 +496,7 @@ export type Database = {
           fraud_claim_reason?: string | null;
           fraud_claimed_at?: string | null;
           cash_amount_cents?: number;
+          currency?: string;
           cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
           handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
           meeting_location?: string | null;
@@ -427,6 +523,7 @@ export type Database = {
           initiator_item_id?: string;
           counterpart_item_id?: string;
           cash_amount_cents?: number;
+          currency?: string;
           cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
           handover_method?: Database['cardtrade']['Enums']['handover_method'] | null;
           meeting_location?: string | null;
@@ -621,6 +718,22 @@ export type Database = {
           dispute_resolution: 'REFUND_BUYER' | 'PARTIAL_REFUND' | 'RELEASE_SELLER' | null;
           dispute_resolved_at: string | null;
           dispute_resolved_by: string | null;
+          /**
+           * True when opened against a SHOPFRONT listing (0064). Exempts the row
+           * from `cash_sales_one_active_per_item` and means `agreed_price_cents`
+           * is derived from `cash_sale_items` rather than proposed directly.
+           */
+          from_shopfront: boolean;
+          /**
+           * ISO 4217 currency EVERY `*_cents` column on this row is denominated in
+           * (0068), lowercase.
+           *
+           * Frozen at creation from the seller's region by the `cash_sales_set_currency`
+           * trigger. Deliberately stored rather than re-derived from the seller's
+           * profile: a contract's denomination must not move if that profile is later
+           * corrected, exactly like the seller identity snapshot beside it.
+           */
+          currency: string;
           /** Returned to the buyer, in cents. Subtracted from the seller release. */
           refund_cents: number;
           refund_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
@@ -708,6 +821,8 @@ export type Database = {
           refund_nonce?: string | null;
           refund_error?: string | null;
           refund_attempts?: number;
+          from_shopfront?: boolean;
+          currency?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -788,6 +903,8 @@ export type Database = {
           refund_nonce?: string | null;
           refund_error?: string | null;
           refund_attempts?: number;
+          from_shopfront?: boolean;
+          currency?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -818,6 +935,56 @@ export type Database = {
             columns: ['conversation_id'];
             isOneToOne: false;
             referencedRelation: 'conversations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      /**
+       * What a Cash_Sale actually covers, line by line (0064). Required for
+       * SHOPFRONT contracts; SINGLE contracts describe their goods with the
+       * `cash_sales.item_*` snapshot columns instead. Frozen once the contract
+       * leaves AGREEMENT.
+       */
+      cash_sale_items: {
+        Row: {
+          id: string;
+          cash_sale_id: string;
+          description: string;
+          condition: string | null;
+          quantity: number;
+          unit_price_cents: number;
+          image_path: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          cash_sale_id: string;
+          description: string;
+          condition?: string | null;
+          quantity?: number;
+          unit_price_cents: number;
+          image_path?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          cash_sale_id?: string;
+          description?: string;
+          condition?: string | null;
+          quantity?: number;
+          unit_price_cents?: number;
+          image_path?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cash_sale_items_cash_sale_id_fkey';
+            columns: ['cash_sale_id'];
+            isOneToOne: false;
+            referencedRelation: 'cash_sales';
             referencedColumns: ['id'];
           },
         ];
@@ -1279,6 +1446,49 @@ export type Database = {
           },
         ];
       };
+      /**
+       * Jurisdictions the marketplace can operate in (0068).
+       *
+       * Reference data: one row per country Stripe supports separate charges and
+       * transfers in. Publicly readable, writable only by a migration. Mirrors
+       * `domain/region/regions.ts`, and the two are pinned together by
+       * `tests/unit/regionCurrencyAgreement.test.ts`.
+       */
+      regions: {
+        Row: {
+          /** ISO 3166-1 alpha-2, uppercase. */
+          code: string;
+          label: string;
+          /** ISO 4217, lowercase to match Stripe. */
+          currency: string;
+          /** 0 or 2. Three-decimal currencies are unrepresentable by design. */
+          minor_unit_digits: number;
+          /**
+           * PRODUCT INTENT ONLY. A region is genuinely live only when a Stripe
+           * platform account is also configured for it, which no column can know —
+           * see `operationalRegions()` in `domain/services`.
+           */
+          trading_enabled: boolean;
+          created_at: string;
+        };
+        Insert: {
+          code: string;
+          label: string;
+          currency: string;
+          minor_unit_digits: number;
+          trading_enabled?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          code?: string;
+          label?: string;
+          currency?: string;
+          minor_unit_digits?: number;
+          trading_enabled?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       watchlist: {
         Row: {
           user_id: string;
@@ -1596,7 +1806,7 @@ export type Database = {
           rating_count: number;
           /**
            * The Identity_Gate, and the only verification signal in the view:
-           * Connect onboarding APPROVED with settlements enabled.
+           * `identity_check_status = 'VERIFIED'` (0069). Connect state is no part of it.
            *
            * The former `identity_verified` column was the same expression under a
            * name that implied a document-and-selfie check Connect does not prove.
@@ -1608,6 +1818,37 @@ export type Database = {
            * is never exposed through this view.
            */
           identity_first_name: string | null;
+          /**
+           * The member's trading jurisdiction (0065), ISO 3166-1 alpha-2.
+           *
+           * See also `cardtrade.regions`, which this references from 0068.
+           *
+           * Exposed so a buy surface on the cookie-bound client can explain that a
+           * listing is out of region BEFORE the member commits — `profiles` itself
+           * is owner-only by RLS, so without this the refusal could only arrive
+           * after the attempt. Not sensitive: it is already implied by every
+           * listing the member has published.
+           */
+          region_code: string | null;
+
+          /**
+           * Storage object path in the `profile-images` bucket, or null (0066).
+           *
+           * A PATH, never a URL — `avatarUrl()` in `lib/format.ts` resolves it.
+           * Self-chosen and unverified, so it is never identity: that is the
+           * Identity_Gate plus `merchant_legal_entity_name`.
+           */
+          avatar_path: string | null;
+          /**
+           * Stripe Identity check state (0069). THIS is the Identity_Gate.
+           *
+           * Provider-controlled: `authenticated` may SELECT it but holds no UPDATE
+           * grant, so only the Identity webhook or a server read-back writes it.
+           */
+          identity_check_status: Database['cardtrade']['Enums']['identity_check_status'];
+          identity_check_session_id: string | null;
+          identity_check_verified_at: string | null;
+          identity_check_name: string | null;
         };
         Relationships: [];
       };
@@ -1626,8 +1867,35 @@ export type Database = {
           p_seller_organisation_type: string | null;
           p_seller_identity_verified_at: string;
           p_buyer_identity_confirmed_at: string;
+          /**
+           * Opening line items for a SHOPFRONT contract, written in the same
+           * transaction (0064). Required for a shopfront, null for a SINGLE
+           * listing. Snake_case keys: `description`, `condition`, `quantity`,
+           * `unit_price_cents`, `image_path`.
+           */
+          p_items?: Json | null;
         };
         Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      /** 0064. Replace a shopfront contract's line items and re-derive its price. */
+      replace_cash_sale_items: {
+        Args: {
+          p_cash_sale_id: string;
+          p_actor_id: string;
+          p_expected_terms_version: number;
+          p_items: Json;
+          p_agreed_price_cents: number;
+          p_platform_fee_cents: number;
+        };
+        Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      /** 0064. Retire a SHOPFRONT listing without touching its open contracts. */
+      close_shopfront_listing: {
+        Args: {
+          p_item_id: string;
+          p_owner_id: string;
+        };
+        Returns: Database['cardtrade']['Tables']['items']['Row'][];
       };
       update_cash_sale_terms: {
         Args: {
@@ -1848,7 +2116,11 @@ export type Database = {
     };
     Enums: {
       merchant_status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+      /** Stripe Identity outcome (0069). VERIFIED is the Identity_Gate. */
+      identity_check_status: 'NONE' | 'PENDING' | 'VERIFIED' | 'FAILED';
       item_status: 'AVAILABLE' | 'RESERVED' | 'SOLD';
+      /** 0064. See `items.listing_kind`. */
+      listing_kind: 'SINGLE' | 'SHOPFRONT';
       trade_proposal_status:
         | 'PENDING'
         | 'ACCEPTED'

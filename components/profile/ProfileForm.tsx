@@ -13,6 +13,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { updateProfile } from "@/lib/actions/profile";
+import { AvatarUploadField } from "@/components/profile/AvatarUploadField";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,6 +31,8 @@ export interface ProfileFormProps {
   initialDisplayName: string;
   /** The Profile's current contact email. */
   initialContactEmail: string;
+  /** Current avatar object path, or null when the member has none. */
+  initialAvatarPath?: string | null;
   /**
    * Render only the fields and submit control, without the surrounding Card, so
    * the form can live inside a dialog.
@@ -48,11 +51,15 @@ export interface ProfileFormProps {
 export function ProfileForm({
   initialDisplayName,
   initialContactEmail,
+  initialAvatarPath = null,
   embedded = false,
   onSaved,
 }: ProfileFormProps) {
   const [displayName, setDisplayName] = React.useState(initialDisplayName);
   const [contactEmail, setContactEmail] = React.useState(initialContactEmail);
+  // Avatar state is separate from the form's: it persists on pick, so it is not
+  // part of what submit sends.
+  const [avatarPath, setAvatarPath] = React.useState<string | null>(initialAvatarPath);
   const [fieldError, setFieldError] = React.useState<{
     field?: string;
     message: string;
@@ -100,6 +107,30 @@ export function ProfileForm({
 
   const fields = (
     <>
+      {/* The picture saves on pick, independently of this form's submit — see
+          AvatarUploadField. Placed first because it is the thing a member
+          recognises themselves by.
+
+          A styled <p>, NOT a <Label>: the control here is a pair of buttons, and a
+          <label> with no labelable form control associates with nothing. The group
+          gets its accessible name from this text instead, and the buttons already
+          read "Add a picture" / "Remove" on their own. */}
+      <div
+        role="group"
+        aria-labelledby="avatar-field-label"
+        className="space-y-2"
+      >
+        <p id="avatar-field-label" className="text-sm font-medium leading-none">
+          Profile picture
+        </p>
+        <AvatarUploadField
+          avatarPath={avatarPath}
+          displayName={displayName}
+          onChange={setAvatarPath}
+          disabled={isSaving}
+        />
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="displayName">Display name</Label>
         <Input

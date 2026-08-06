@@ -123,12 +123,21 @@ export async function makeOffer(
   // Load the item to resolve the seller (owner) and confirm availability.
   const { data: item } = await supabase
     .from('items')
-    .select('id, owner_id, status')
+    .select('id, owner_id, status, listing_kind')
     .eq('id', itemId)
     .maybeSingle();
 
   if (!item) return { ok: false, error: 'item-not-found' };
   if (item.owner_id === me) return { ok: false, error: 'self-offer' };
+  // An offer is one amount against a whole listing, which means nothing on a
+  // SHOPFRONT: "$40" for which cards? The request flow on a shopfront already
+  // carries both the items and a price, so offers are refused rather than
+  // silently recorded as an amount nobody can interpret (0064). The UI hides the
+  // control; this is the second enforcement, since a Server Action is reachable
+  // by anyone who knows its id.
+  if (item.listing_kind === 'SHOPFRONT') {
+    return { ok: false, error: 'item-not-available' };
+  }
   if (item.status !== 'AVAILABLE') {
     return { ok: false, error: 'item-not-available' };
   }

@@ -18,6 +18,7 @@ import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
+import { regionForCurrency, regionForTrade } from '@/lib/regionBinding';
 import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
 import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -38,7 +39,11 @@ export async function voidTradeHolds(tradeId: string): Promise<void> {
     .from('pre_auth_holds')
     .select('hold_ref, status')
     .eq('trade_id', tradeId);
-  const payments = getPaymentService();
+  // Bound to the trade's own platform account (0068). A PaymentIntent belongs to the
+  // account that created it, so cancelling one through a different region's client
+  // fails with "no such payment_intent" — which would leave real collateral held on a
+  // completed trade until the authorisation lapsed.
+  const payments = getPaymentService(await regionForTrade(tradeId));
   for (const hold of holds ?? []) {
     if (hold.status !== 'ACTIVE') continue;
     if (!hold.hold_ref) continue;
@@ -92,7 +97,10 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
     return { ok: false, error: 'not-ready' };
   }
 
-  const payments = getPaymentService();
+  // The trade's own platform account: both traders are in one region by the contract
+  // guard, so there is exactly one, and it is the only account that can pay this
+  // receiver's connected account.
+  const payments = getPaymentService(regionForCurrency(trade.currency));
   try {
     const transfer = await payments.requestTransfer({
       payerId,

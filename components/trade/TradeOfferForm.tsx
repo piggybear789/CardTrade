@@ -204,7 +204,7 @@ export function TradeOfferForm({
     const [primaryItemId, ...extraItemIds] = selectedItemIds;
 
     startTransition(async () => {
-      // Photos go browser â†’ Storage first, and only their object paths travel in
+      // Photos go browser → Storage first, and only their object paths travel in
       // the action call. Sending the files themselves would put them in the
       // Server Action body, which Next caps, and re-encoding them to fit would
       // strip the EXIF that makes a photo worth having in a dispute.

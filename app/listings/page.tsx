@@ -13,6 +13,8 @@ import {
 } from '@/lib/actions/listings';
 import { getWatchingSet } from '@/lib/actions/watchlist';
 import { createClient } from '@/lib/supabase/server';
+import { ALL_REGIONS, resolveBrowseRegion } from '@/lib/location/resolveRegion';
+import { regionLabel } from '@/domain/region';
 import {
   CatalogActiveFilters,
   CatalogFilters,
@@ -102,6 +104,7 @@ export default async function ListingsPage({
   const raw = await searchParams;
   const q = firstString(raw.q).trim();
   const categories = parseCategories(raw.category);
+  const conditions = parseCategories(raw.condition);
   const minDollars = firstString(raw.min).trim();
   const maxDollars = firstString(raw.max).trim();
   const includeSold = firstString(raw.sold).trim() === '1';
@@ -112,17 +115,28 @@ export default async function ListingsPage({
   const minCents = dollarsToCents(minDollars);
   const maxCents = dollarsToCents(maxDollars);
 
+  // Which region's listings to show. `?region=` wins so a shared link shows the
+  // same catalog to whoever opens it; otherwise the viewer's own trading region,
+  // their remembered choice, the IP guess, then the deployment default. `source`
+  // is carried into the UI because a guessed scope has to be stated — a silently
+  // filtered catalog is indistinguishable from an empty marketplace.
+  const region = await resolveBrowseRegion(raw.region);
+
   const [result, facets] = await Promise.all([
     searchCatalog({
       q,
       categories,
+      conditions,
       minCents,
       maxCents,
       includeSold,
       sort,
       page,
+      regionCode: region.code,
     }),
-    getCatalogFacets(),
+    // Same scope as the search above, so the filter rail describes the grid beside
+    // it rather than the worldwide catalog.
+    getCatalogFacets(region.code),
   ]);
 
   const items = result.ok ? result.items : [];
@@ -140,13 +154,17 @@ export default async function ListingsPage({
   const current = {
     q,
     categories,
+    conditions,
     min: minDollars,
     max: maxDollars,
     includeSold,
+    regionCode: region.code,
+    regionSource: region.source,
   };
   const hasAnyFilter =
     q !== '' ||
     categories.length > 0 ||
+    conditions.length > 0 ||
     minDollars !== '' ||
     maxDollars !== '' ||
     includeSold;
@@ -159,10 +177,14 @@ export default async function ListingsPage({
   const gridKey = [
     q,
     categories.join('\0'),
+    conditions.join('\0'),
     minDollars,
     maxDollars,
     includeSold ? '1' : '0',
     sort,
+    // In the key so switching region remounts the grid rather than appending the
+    // new region's pages onto the old region's items.
+    region.code ?? ALL_REGIONS,
     String(currentPage),
   ].join('|');
 
@@ -210,7 +232,22 @@ export default async function ListingsPage({
           </header>
 
           {total === 0 ? (
-            hasAnyFilter ? <NoMatches /> : <EmptyCatalog />
+            hasAnyFilter ? (
+              <NoMatches regionCode={region.code} />
+            ) : region.code == null ? (
+              /* Genuinely nothing anywhere — the original, unambiguous case. */
+              <EmptyCatalog />
+            ) : (
+              /*
+                A region scope is ALWAYS applied, so an empty result is ambiguous
+                in a way it never used to be: it can mean "nothing listed anywhere"
+                or "nothing listed here". Rendering `EmptyCatalog` for the second
+                tells a member in a quiet region that the entire marketplace is
+                empty, and offers them no way to look elsewhere. The region-specific
+                state exists to keep that distinction visible.
+              */
+              <EmptyRegion regionCode={region.code} />
+            )
           ) : (
             <>
               <CatalogInfiniteGrid
@@ -223,10 +260,12 @@ export default async function ListingsPage({
                 query={{
                   q,
                   categories,
+                  conditions,
                   minCents,
                   maxCents,
                   includeSold,
                   sort,
+                  regionCode: region.code,
                 }}
               />
 
@@ -276,7 +315,7 @@ export default async function ListingsPage({
   );
 }
 
-/** Shown when the entire catalog is empty (no AVAILABLE items, no filters). */
+/** Shown when the catalog is empty across every region and no filters are on. */
 function EmptyCatalog() {
   return (
     <EmptyState
@@ -289,13 +328,40 @@ function EmptyCatalog() {
   );
 }
 
+/**
+ * Shown when nothing is listed in the active region and no other filter is on.
+ *
+ * Names the region and offers the worldwide view, because the alternative — a
+ * generic "no listings yet" — is indistinguishable from a broken deployment for
+ * anyone browsing a region that simply has not filled up yet.
+ */
+function EmptyRegion({ regionCode }: { regionCode: string }) {
+  return (
+    <EmptyState
+      icon={<PackageOpen className="size-6" aria-hidden />}
+      title={`Nothing Listed in ${regionLabel(regionCode)} Yet`}
+      description={`We only show listings in ${regionLabel(regionCode)}, because deals are completed within one region. Nothing is here yet — see every region, or list the first item yourself from the Sell button.`}
+      action={{
+        label: 'Browse All Regions',
+        href: `/listings?region=${ALL_REGIONS}`,
+        variant: 'outline',
+      }}
+      compact
+    />
+  );
+}
+
 /** Shown when the active search and filters exclude every item. */
-function NoMatches() {
+function NoMatches({ regionCode }: { regionCode: string | null }) {
+  // Naming the region matters here too: "no matches" reads as a filter problem, and
+  // a member who does not realise a region scope is on will keep widening the price
+  // range that was never the cause.
+  const scope = regionCode ? ` in ${regionLabel(regionCode)}` : '';
   return (
     <EmptyState
       icon={<Search className="size-6" aria-hidden />}
       title="No Collectibles Match These Filters"
-      description="Broaden the price range, choose another category, or clear the filters to see more listings."
+      description={`Nothing${scope} matches. Broaden the price range, choose another category, or clear the filters to see more listings.`}
       action={{ label: 'Clear Filters', href: '/listings', variant: 'outline' }}
       compact
     />

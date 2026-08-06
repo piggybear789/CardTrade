@@ -72,8 +72,11 @@ export async function ensureProfile(
     display_name: defaultDisplayName(email, providerName),
     contact_email: email,
     // No verification column is initialised. A new Profile is simply not verified
-    // yet, which the Identity_Gate reports from `merchant_status` defaulting to
-    // NONE — there is no separate flag to seed.
+    // yet, which the Identity_Gate reports from `identity_check_status` defaulting to
+    // NONE — there is no separate flag to seed. (It said `merchant_status` before
+    // 0069, when the gate was Connect state; that column still defaults to NONE but
+    // now decides payability alone.) Both are `not null default 'NONE'`, so an insert
+    // naming neither cannot leave a Profile in an undefined verification state.
   });
 
   if (insertError) {

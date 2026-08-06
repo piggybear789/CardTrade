@@ -30,11 +30,21 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { initiateCashSale } from '@/lib/actions/cashSale';
+import {
+  ContractLineItemsEditor,
+  draftTotalCents,
+  emptyLine,
+  toLineItemInput,
+  type DraftLine,
+} from '@/components/sales/ContractLineItems';
 
 const ERROR_MESSAGES: Record<string, string> = {
   'not-authenticated': 'Please sign in to buy this item.',
   'buyer-confirmation-required': 'Confirm the verified seller identity to continue.',
-  'seller-identity-unverified': 'This seller is not currently verified to receive payment.',
+  // Two DIFFERENT blocks, and they must not read the same. Identity is step one and
+  // is what withholds the disclosure; payability is step two. Saying "verified to
+  // receive payment" for the first conflated them.
+  'seller-identity-unverified': 'This seller has not verified their identity yet.',
   'seller-identity-changed': 'The seller identity changed. Close and review the current details.',
   'seller-not-payable': 'This seller is not currently able to receive payment.',
   'item-not-found': 'This item is no longer available.',
@@ -48,17 +58,27 @@ export function BuyButton({
   itemId,
   sellerIdentity,
   appearance = 'button',
+  isShopfront = false,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
   /** `icon` = round chip + label below (item detail). */
   appearance?: 'button' | 'icon';
+  /**
+   * The listing is a browsable inventory rather than one object (0064).
+   *
+   * Changes what this control MEANS, so it changes every word on it: the buyer
+   * names the cards they want, the price comes from those lines, and — the part
+   * that must not be glossed — nothing is reserved by opening the contract.
+   */
+  isShopfront?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
 
   // Payment method status, fetched on dialog open.
   const [paymentLabel, setPaymentLabel] = useState<string | null>(null);
@@ -100,6 +120,7 @@ export function BuyButton({
         itemId,
         sellerIdentityVersion: sellerIdentity.version,
         buyerConfirmedSellerIdentity: true,
+        lineItems: isShopfront ? toLineItemInput(lines) : undefined,
       });
       if (result.ok) {
         router.push(`/sales/${result.sale.id}`);
@@ -119,6 +140,17 @@ export function BuyButton({
   }
 
   function handleBuy() {
+    if (isShopfront) {
+      const requested = toLineItemInput(lines);
+      if (requested.length === 0) {
+        setError('Add at least one card you want from this listing.');
+        return;
+      }
+      if (draftTotalCents(lines) <= 0) {
+        setError('Put a price against what you are asking for.');
+        return;
+      }
+    }
     if (!confirmed) {
       setError('Confirm that this is the seller you intend to buy from.');
       return;
@@ -138,6 +170,7 @@ export function BuyButton({
         if (!next) {
           setConfirmed(false);
           setError(null);
+          setLines([emptyLine()]);
         }
       }}
     >
@@ -145,13 +178,13 @@ export function BuyButton({
         {appearance === 'icon' ? (
           <ListingActionIcon
             icon={ShoppingCart}
-            label="Buy now"
+            label={isShopfront ? 'Ask for cards' : 'Buy now'}
             variant="default"
           />
         ) : (
           <Button type="button" size="lg" className="flex-1 sm:flex-none">
             <ShoppingCart aria-hidden />
-            Buy now
+            {isShopfront ? 'Ask for cards' : 'Buy now'}
           </Button>
         )}
       </DialogTrigger>
@@ -188,15 +221,39 @@ export function BuyButton({
         ) : showCheckout ? (
           <>
             <DialogHeader>
-              <DialogTitle>Start a purchase contract</DialogTitle>
+              <DialogTitle>
+                {isShopfront ? 'Ask for what you want' : 'Start a purchase contract'}
+              </DialogTitle>
               <DialogDescription>
-                This reserves the item and opens a private contract with the seller.
-                You pay through Stripe only after you both agree how the item
-                changes hands.
+                {isShopfront
+                  ? 'List the cards you want and what you would pay. The seller can adjust the list and the price with you before either of you accepts.'
+                  : 'This reserves the item and opens a private contract with the seller. You pay through Stripe only after you both agree how the item changes hands.'}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* The one thing a buyer could reasonably get wrong. Every other
+                  listing on the site is held the moment a contract opens; this
+                  one is not, and being vague about that would be the difference
+                  between a disappointed buyer and a misled one. */}
+              {isShopfront ? (
+                <>
+                  <div className="rounded-lg border border-dashed bg-muted/30 p-3 text-sm">
+                    <p className="font-medium">Nothing is held for you yet</p>
+                    <p className="mt-1 text-muted-foreground">
+                      Other buyers can ask for the same cards. Your place is
+                      settled when you both accept the terms and your payment is
+                      confirmed.
+                    </p>
+                  </div>
+                  <ContractLineItemsEditor
+                    lines={lines}
+                    onChange={setLines}
+                    disabled={isPending}
+                  />
+                </>
+              ) : null}
+
               {/* Seller identity */}
               <div className="rounded-lg border bg-muted/30 p-4">
                 <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
@@ -282,7 +339,11 @@ export function BuyButton({
                 aria-busy={isPending}
               >
                 {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-                {isPending ? 'Opening contract…' : 'Reserve item and agree terms'}
+                {isPending
+                  ? 'Opening contract…'
+                  : isShopfront
+                    ? 'Send request and agree terms'
+                    : 'Reserve item and agree terms'}
               </Button>
             </DialogFooter>
           </>

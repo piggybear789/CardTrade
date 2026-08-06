@@ -120,7 +120,7 @@ describe('deriveMerchantStatus', () => {
 });
 
 describe('sellerIdentityDisclosure', () => {
-  /** An approved, payable Stripe-onboarded seller. */
+  /** A verified, payable Stripe-onboarded seller. */
   function approved(overrides: Partial<MerchantRecord> = {}): MerchantRecord {
     return baseRecord({
       merchantRef: 'acct_1',
@@ -130,6 +130,10 @@ describe('sellerIdentityDisclosure', () => {
       identityVersion: 'acct_1:2026-07-25T00:00:00.000Z',
       identityDisclosureConsentedAt: '2026-07-25T00:00:00.000Z',
       identityVerifiedAt: '2026-07-26T00:00:00.000Z',
+      // The Identity_Gate since 0069. A disclosure asserts that a provider checked
+      // WHO this is, which is what the Identity check answers — the `merchant_*`
+      // fields above only establish that they can be paid.
+      identityCheckStatus: 'VERIFIED',
       ...overrides,
     });
   }
@@ -156,11 +160,45 @@ describe('sellerIdentityDisclosure', () => {
     expect(disclosure).not.toHaveProperty('registrationNumber');
   });
 
-  it('withholds a disclosure while the provider has not enabled transfers', () => {
-    // The buyer is being told who their money is going to, so it must be someone it
-    // can actually go to. Between 0060 and 0061 this condition was stated in the
-    // docstring but absent from the code, so an empty Connect shell could front a sale.
-    expect(sellerIdentityDisclosure(approved({ settlementsEnabled: false }))).toBeNull();
+  it('withholds a disclosure until the identity check is verified', () => {
+    // THE GATE MOVED IN 0069. A disclosure tells a buyer WHO their counterparty is,
+    // so it must rest on something that actually checked a document — which Connect
+    // never did, and which the Identity check does. Payout state is now irrelevant
+    // here; see the next test.
+    for (const status of ['NONE', 'PENDING', 'FAILED'] as const) {
+      expect(sellerIdentityDisclosure(approved({ identityCheckStatus: status }))).toBeNull();
+    }
+  });
+
+  it('discloses a verified seller who cannot yet be paid (two-step property)', () => {
+    // The precise consequence of splitting the gate: identity and payouts are
+    // separate steps, so a member who has verified but not finished Connect IS
+    // disclosable. Between 0060 and 0061 the reverse bug existed — an empty Connect
+    // shell could front a sale — and the fix then was to require settlements. The
+    // correct requirement was always "a provider checked who this is", which is what
+    // this now asserts.
+    const disclosure = sellerIdentityDisclosure(
+      approved({ merchantStatus: 'PENDING', settlementsEnabled: false }),
+    );
+
+    expect(disclosure).not.toBeNull();
+    expect(disclosure?.legalEntityName).toBe('Jane Collector');
+    // Being disclosable is NOT being payable. `canReceiveFunds` is the separate
+    // predicate that stops a sale the platform could not settle.
+    expect(canReceiveFunds(approved({ merchantStatus: 'PENDING', settlementsEnabled: false }))).toBe(
+      false,
+    );
+  });
+
+  it('prefers the document-backed name over the Connect-reported one', () => {
+    // `identityCheckName` came off a government document; `legalEntityName` is
+    // whatever Connect held, which for a member verified before 0069 may still be
+    // their own stated name.
+    const disclosure = sellerIdentityDisclosure(
+      approved({ identityCheckName: 'Jane Q Collector' }),
+    );
+
+    expect(disclosure?.legalEntityName).toBe('Jane Q Collector');
   });
 
   it('withholds a disclosure without a provider-verified legal name', () => {

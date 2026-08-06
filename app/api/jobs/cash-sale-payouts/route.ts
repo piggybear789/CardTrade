@@ -19,7 +19,8 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
-import { getPaymentService } from '@/domain/services';
+import { getPaymentService, operationalRegions } from '@/domain/services';
+import { regionCurrency } from '@/domain/region';
 
 /** Payouts must not be prerendered or cached. */
 export const dynamic = 'force-dynamic';
@@ -59,13 +60,50 @@ async function runPayoutPass(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const orchestrator = createDefaultCashSaleOrchestrator({
-    payments: getPaymentService(),
-  });
-
   try {
-    const result = await orchestrator.processDuePayouts();
-    return Response.json({ ok: true, ...result });
+    // One pass PER REGION (0068). Each region's proceeds sit in its own Stripe
+    // platform account, so a single pass could only release the sellers in its own
+    // region; the rest would fail as cross-region transfers and, worse, each failure
+    // burns a payout attempt until the retry budget is exhausted on a contract that
+    // was never broken.
+    //
+    // A failing region must not abort the others: an outage on one platform account
+    // is not a reason to leave every other region's sellers unpaid. Failures are
+    // collected and reported, and the pass still returns 200 when any region drained,
+    // because a cron retry of the whole job would re-attempt the ones that worked.
+    const totals = { considered: 0, settled: 0, stillOwed: 0 };
+    const failures: string[] = [];
+
+    for (const region of operationalRegions()) {
+      try {
+        const orchestrator = createDefaultCashSaleOrchestrator({
+          payments: getPaymentService(region),
+          payoutRegionCurrency: regionCurrency(region) ?? undefined,
+        });
+        const result = await orchestrator.processDuePayouts();
+        totals.considered += result.considered;
+        totals.settled += result.settled;
+        totals.stillOwed += result.stillOwed;
+      } catch (error) {
+        console.error(`[jobs] cash-sale-payouts failed for region ${region}`, error);
+        failures.push(region);
+      }
+    }
+
+    if (failures.length > 0 && totals.considered === 0) {
+      // Nothing drained anywhere: report it as a failure so the schedule's own
+      // alerting sees it rather than a green run that moved no money.
+      return Response.json(
+        { ok: false, error: 'Payout pass failed', failedRegions: failures },
+        { status: 500 },
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      ...totals,
+      ...(failures.length > 0 ? { failedRegions: failures } : {}),
+    });
   } catch (error) {
     console.error('[jobs] cash-sale-payouts failed', error);
     return Response.json(

@@ -1,9 +1,19 @@
 // components/contract/DittoBondExplainer.tsx
 //
-// Member-facing explanation of a trade's collateral. A trade collateral hold is a Stripe
-// card authorisation backing both sides of a trade — not a payment and not money held
-// by the platform. It deliberately lives beside the live hold list so a member can
-// understand both the current status and the consequences before accepting terms.
+// Member-facing explanations of where money sits in each transaction model. The two
+// exports describe DIFFERENT mechanisms and must not be merged:
+//
+//   * `DittoBondExplainer` — a TRADE's collateral. A Stripe card authorisation
+//     backing both sides; not a payment, and the platform never receives the
+//     authorised amount while the trade proceeds normally. Lives beside the live
+//     hold list so a member sees status and consequences before accepting terms.
+//   * `CashSaleProtectionExplainer` — a CASH SALE's collected payment. Real money,
+//     genuinely taken from the Buyer's card and held by the platform. There is no
+//     collateral anywhere in this flow, and it says so by omission rather than by
+//     explaining an absence.
+//
+// Member-facing copy says "trade collateral" and "a temporary card hold", never
+// "escrow" for the trade case — the platform holds a claim there, not funds.
 
 import type { ReactNode } from 'react';
 import {
@@ -15,7 +25,6 @@ import {
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { formatAud } from '@/lib/format';
 
 interface FlowStepProps {
   icon: typeof CreditCard;
@@ -110,72 +119,134 @@ export function DittoBondExplainer() {
 }
 
 
-export interface CashSaleCollateralExplainerProps {
-  sellerBondCents: number;
-  sellerName: string;
+/** One stage of the cash-sale money flow. */
+function MoneyStage({
+  index,
+  title,
+  where,
+  tone = 'neutral',
+  last = false,
+  children,
+}: {
+  index: number;
+  title: string;
+  /** Where the buyer's money physically is during this stage. */
+  where: string;
+  tone?: 'neutral' | 'success';
+  /** Suppresses the connector beneath the final stage. */
+  last?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <li className="flex gap-3 sm:gap-4">
+      {/* Marker rail. The connector is drawn here rather than as a border on the
+          text column so it lines up with the centre of the numbered marker. */}
+      <div className="flex flex-col items-center">
+        <span
+          className={cn(
+            'grid size-8 shrink-0 place-items-center rounded-full border text-sm font-semibold',
+            tone === 'success'
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              : 'border-border bg-background text-foreground',
+          )}
+          aria-hidden
+        >
+          {index}
+        </span>
+        {last ? null : <span className="mt-1 w-px flex-1 bg-border" aria-hidden />}
+      </div>
+
+      <div className={cn('min-w-0 flex-1', last ? 'pb-0' : 'pb-5')}>
+        <p className="text-sm font-semibold leading-tight">{title}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{children}</p>
+        <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-xs">
+          <span className="font-medium uppercase tracking-wide text-muted-foreground">
+            Money
+          </span>
+          <span
+            className={cn(
+              'font-medium',
+              tone === 'success'
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : 'text-foreground',
+            )}
+          >
+            {where}
+          </span>
+        </p>
+      </div>
+    </li>
+  );
 }
 
 /**
- * Explains why a Cash_Sale normally uses collected payment rather than a matching
- * trade collateral hold.
- * Buyer funds are genuinely collected, then retained by the platform until the
- * sale resolves; that is distinct from an uncaptured Trade authorisation.
+ * Explains where a Cash_Sale buyer's money sits at each stage, and when the Seller
+ * is paid.
+ *
+ * DELIBERATELY SAYS NOTHING ABOUT COLLATERAL. A Cash_Sale has none: the Buyer's
+ * money is genuinely collected up front, so there is nothing left for either party
+ * to guarantee with a card hold. `requiredBondCents` only ever returned a
+ * non-zero Seller bond for an UNVERIFIED Seller, and publishing a listing requires
+ * the Identity_Gate, so every Cash_Sale Seller is verified and that figure was
+ * always zero. Explaining an absent mechanism — and justifying it by naming the
+ * Identity_Gate — read as a caveat about missing protection when the collected
+ * payment IS the protection.
+ *
+ * Trade collateral is a different thing entirely and is explained by
+ * `DittoBondExplainer`; do not merge the two.
+ *
+ * The stages are a vertical list, not the three side-by-side columns this replaced.
+ * In a `max-w-2xl` dialog those columns were ~150px wide, so every line broke after
+ * two or three words.
  */
-export function CashSaleCollateralExplainer({
-  sellerBondCents,
-  sellerName,
-}: CashSaleCollateralExplainerProps) {
-  const sellerBondRequired = sellerBondCents > 0;
-
+export function CashSaleProtectionExplainer() {
   return (
-    <section
-      className="space-y-3 rounded-xl border bg-muted/20 p-3.5"
-      aria-labelledby="cash-sale-protection-title"
-    >
-      <div>
-        <h3 id="cash-sale-protection-title" className="text-sm font-semibold">
-          How protection works on this cash sale
-        </h3>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          A cash sale uses collected payment rather than two matching trade collateral holds. The
-          buyer&apos;s payment is real money; it is not a temporary card hold.
-        </p>
-      </div>
+    <div className="space-y-5">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Your payment is collected up front and held by NoDitto — not passed
+        straight to the seller. They are paid only after you have the item and are
+        happy with it.
+      </p>
 
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-stretch">
-        <FlowStep icon={CreditCard} title="1. Buyer pays">
-          Stripe collects the agreed item price and delivery cost. The buyer does not
-          post a separate collateral hold because their payment already commits the sale.
-        </FlowStep>
-        <ArrowRight className="mx-auto hidden size-4 self-center text-muted-foreground sm:block" aria-hidden />
-        <FlowStep icon={ShieldAlert} title="2. Goods are delivered">
-          The proceeds stay with the platform while the seller fulfils the order and
-          the buyer has their inspection window. The seller has not been paid yet.
-        </FlowStep>
-        <ArrowRight className="mx-auto hidden size-4 self-center text-muted-foreground sm:block" aria-hidden />
-        <FlowStep icon={CheckCircle2} title="3. Sale resolves" tone="success">
-          Once the buyer accepts—or the inspection period ends without a dispute—the
-          seller receives their net amount. A refund goes back to the buyer&apos;s original card.
-        </FlowStep>
-      </div>
+      <ol className="list-none">
+        <MoneyStage index={1} title="You pay" where="Leaves your card, held by NoDitto">
+          Stripe collects the agreed item price plus any delivery cost. Paying is
+          what commits the sale, so there is nothing else for you to put down.
+        </MoneyStage>
 
-      <div className="rounded-md border bg-background/70 p-2.5 text-xs leading-relaxed text-muted-foreground">
-        {sellerBondRequired ? (
-          <>
-            <span className="font-medium text-foreground">Extra seller protection:</span>{' '}
-            {sellerName} must also authorise {formatAud(sellerBondCents)} as a
-            temporary collateral hold on their saved card. It is released when the contract resolves; it is only
-            captured if the applicable resolution calls for it.
-          </>
-        ) : (
-          <>
-            <span className="font-medium text-foreground">Why no separate collateral appears here:</span>{' '}
-            the seller has passed the Identity_Gate for Stripe payouts, while the
-            buyer&apos;s payment is already collected. This is the normal Cash_Sale setup,
-            not an absence of buyer protection.
-          </>
-        )}
-      </div>
-    </section>
+        <MoneyStage index={2} title="The seller sends the item" where="Still held by NoDitto">
+          The seller can see the sale is paid for, which is what gives them the
+          confidence to post. They have not received any of it yet.
+        </MoneyStage>
+
+        <MoneyStage
+          index={3}
+          title="You check it over"
+          where="Still held by NoDitto"
+        >
+          You get an inspection window once it arrives. If the item is not what was
+          agreed, raise a dispute inside that window and the money stays put while
+          it is reviewed.
+        </MoneyStage>
+
+        <MoneyStage
+          index={4}
+          title="The sale resolves"
+          where="Released to the seller, or refunded to you"
+          tone="success"
+          last
+        >
+          When you accept — or the inspection window closes without a dispute — the
+          seller is paid. If it is refunded instead, it goes back to the original
+          card you paid with.
+        </MoneyStage>
+      </ol>
+
+      <p className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
+        <span className="font-medium text-foreground">Every seller is verified.</span>{' '}
+        Publishing a listing requires completing Stripe payout onboarding, so the
+        person you are buying from is identifiable and can be pursued.
+      </p>
+    </div>
   );
 }

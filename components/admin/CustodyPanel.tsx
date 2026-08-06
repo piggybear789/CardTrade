@@ -18,12 +18,25 @@
 import { AlertTriangle, HelpCircle, ShieldCheck } from 'lucide-react';
 
 import type { CustodyPosition } from '@/domain/payouts/custodyReconciliation';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
+import { regionLabel } from '@/domain/region';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export interface CustodyPanelProps {
-  position: CustodyPosition & { currency: string; unreadableReason: string | null };
+  position: CustodyPosition & {
+    /**
+     * The Stripe platform account this position belongs to (0068).
+     *
+     * Named in the heading and folded into the element ids, because with more than
+     * one region there is one of these panels per platform account and two unlabelled
+     * solvency figures side by side are unreadable — and worse, mistakable for each
+     * other.
+     */
+    region: string;
+    currency: string;
+    unreadableReason: string | null;
+  };
 }
 
 export function CustodyPanel({ position }: CustodyPanelProps) {
@@ -34,8 +47,16 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
     shortfallCents,
     surplusCents,
     saleCount,
+    region,
+    currency,
     unreadableReason,
   } = position;
+
+  // Formatted in the platform account's OWN currency. Rendering a GBP balance with a
+  // dollar sign would be a wrong number rather than a missing one, which on a
+  // solvency panel is the more dangerous of the two.
+  const money = (cents: number) => formatMoney(cents, currency);
+  const headingId = `custody-heading-${region}`;
 
   const tone =
     state === 'SHORTFALL'
@@ -61,15 +82,18 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
 
   return (
     <section
-      aria-labelledby="custody-heading"
+      aria-labelledby={headingId}
       className={cn('mb-6 rounded-lg border p-4', tone.wrapper)}
     >
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {tone.icon}
-        <h3 id="custody-heading" className="text-base font-semibold">
-          Money held for members
+        <h3 id={headingId} className="text-base font-semibold">
+          Money held for members — {regionLabel(region)}
         </h3>
         <Badge variant={tone.badge}>{tone.label}</Badge>
+        <Badge variant="outline" className="uppercase">
+          {currency}
+        </Badge>
       </div>
 
       <dl className="grid gap-3 sm:grid-cols-3">
@@ -78,7 +102,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
             Owed to members
           </dt>
           <dd className="mt-0.5 text-lg font-semibold tabular-nums">
-            {formatAud(heldForMembersCents)}
+            {money(heldForMembersCents)}
           </dd>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Across {saleCount} {saleCount === 1 ? 'sale' : 'sales'} where money has been
@@ -90,7 +114,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
             Held at Stripe
           </dt>
           <dd className="mt-0.5 text-lg font-semibold tabular-nums">
-            {state === 'UNKNOWN' ? '—' : formatAud(providerBalanceCents)}
+            {state === 'UNKNOWN' ? '—' : money(providerBalanceCents)}
           </dd>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Available plus pending. Card funds clear over days, so pending money is still
@@ -109,7 +133,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
           >
             {state === 'UNKNOWN'
               ? '—'
-              : formatAud(state === 'SHORTFALL' ? shortfallCents : surplusCents)}
+              : money(state === 'SHORTFALL' ? shortfallCents : surplusCents)}
           </dd>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {state === 'SHORTFALL'

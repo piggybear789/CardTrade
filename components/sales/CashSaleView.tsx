@@ -8,7 +8,7 @@
 //   ┌ your move ─────────────────────┬ chat ──────┐
 //   └────────────────────────────────┴────────────┘
 //   ●──●──○──○──○   Terms Accept Payment Ship Done
-//   Item · Terms · Money · Collateral · History      (collapsed rows)
+//   Item · Terms · Money · Protection · History      (collapsed rows)
 //
 // The room says each fact ONCE. Status lives in the header badge; what to do now lives
 // only in the action card; where we are lives only in the progress rail; the numbers and
@@ -19,9 +19,9 @@
 // — so "what happens next and whose move is it" is data rather than nested status
 // ternaries. This component only decides which controls belong to the live step.
 //
-// Flow-specific knowledge that stays here: the Cash_Sale status vocabulary, versioned
-// terms, and the asymmetric seller bond (the buyer pays up front, so only an unverified
-// seller posts collateral).
+// Flow-specific knowledge that stays here: the Cash_Sale status vocabulary and versioned
+// terms. A Cash_Sale carries NO collateral — the Buyer's payment is collected up front,
+// so neither party has anything left to guarantee with a card hold.
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -47,7 +47,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ContractActionCard,
-  CashSaleCollateralExplainer,
+  CashSaleProtectionExplainer,
   CollateralExplainerDialog,
   ContractConversationPanel,
   ContractDetailList,
@@ -74,13 +74,14 @@ import {
 } from '@/domain/contract';
 import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
+import { EditContractItemsDialog } from './EditContractItemsDialog';
+import { ContractLineItemsList, type ContractLine } from './ContractLineItems';
 import { cashSaleErrorMessage } from './errorCopy';
 import { CashSaleDemoControls } from './CashSaleDemoControls';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
-import { requiredBondCents } from '@/domain/bond/bondPolicy';
 
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
+import { formatMoney, formatContractDateTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
   useCashSaleRealtime,
@@ -108,6 +109,8 @@ type CashSaleRow = Tables<'cash_sales'>;
 export interface SaleParty {
   id: string;
   name: string;
+  /** Avatar object path, or null. A PATH, not a URL. */
+  avatarPath?: string | null;
   role: 'Buyer' | 'Seller';
   /** Identity verification (KYC) state of this member. */
   verified: boolean;
@@ -194,20 +197,14 @@ const STATUS_TONE: Partial<Record<CashSaleRow['status'], ContractActionTone>> = 
  * only the seller carries a legal identity snapshot and only an unverified seller posts
  * a bond — so the extra rows differ per side.
  */
-function toContractParty(party: SaleParty, bondCents: number): ContractParty {
+function toContractParty(party: SaleParty): ContractParty {
   const stats: ContractPartyStat[] = [
     { label: 'Sales completed', value: party.completedSales },
     { label: 'Purchases completed', value: party.completedPurchases },
   ];
-  if (bondCents > 0) {
-    stats.push(
-      party.role === 'Seller'
-        ? { label: 'Bond', value: formatAud(bondCents) }
-        : { label: 'Bond', value: 'Not required', muted: true },
-    );
-  }
   return {
     name: party.name,
+    avatarPath: party.avatarPath ?? null,
     roleLabel: party.role,
     verified: party.verified,
     rating: party.rating,
@@ -222,6 +219,7 @@ function CashSaleItemSnapshot({
   title,
   condition,
   agreedPriceCents,
+  currency,
   description,
   images,
   listingId,
@@ -229,6 +227,8 @@ function CashSaleItemSnapshot({
   title: string;
   condition: string | null;
   agreedPriceCents: number;
+  /** The contract's own currency (0068), so the headline price is never guessed. */
+  currency: string;
   description: string | null;
   images: string[];
   listingId: string;
@@ -245,11 +245,19 @@ function CashSaleItemSnapshot({
           <ImageGallery
             images={galleryImages}
             title={title}
-            frameClassName="h-full min-h-[18rem] max-h-[26rem] md:max-h-[calc(100%-1rem)]"
+            /* `min-h` carries the height only while the columns are stacked and
+               there is no definite parent height to fill. From `md` the pane IS
+               bounded, so the floor is dropped: CSS resolves `min-height` in
+               preference to `max-height`, so keeping it would let a portrait
+               card outgrow the pane and push the room taller than the viewport. */
+            frameClassName="h-full min-h-[18rem] max-h-[26rem] md:min-h-0 md:max-h-[calc(100%-1rem)]"
           />
         </div>
 
-        <div className="flex min-w-0 flex-col overscroll-contain md:flex-1 md:overflow-y-auto md:pr-1">
+        {/* `overscroll-contain` is scoped to the same breakpoint as the overflow
+            it governs. Unscoped it read as though it applied while stacked, where
+            there is no overflow for it to contain and the property is inert. */}
+        <div className="flex min-w-0 flex-col md:flex-1 md:overflow-y-auto md:overscroll-contain md:pr-1">
           <div className="space-y-5">
             <div className="space-y-3">
               <h3 className="break-words text-xl font-semibold tracking-[-0.025em] sm:text-2xl">
@@ -257,7 +265,7 @@ function CashSaleItemSnapshot({
               </h3>
               <div>
                 <p className="text-3xl font-semibold tabular-nums tracking-tight">
-                  {formatAud(agreedPriceCents)}
+                  {formatMoney(agreedPriceCents, currency)}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">Agreed item price</p>
               </div>
@@ -300,6 +308,14 @@ export interface CashSaleViewProps {
   trackingRefreshAvailable?: boolean;
   /** When false, hide mock settle/fail webhook buttons (Stripe is live). */
   paymentDemoEnabled?: boolean;
+  /**
+   * What this contract covers, line by line (0064).
+   *
+   * Populated only for a contract opened against a SHOPFRONT listing, where the
+   * listing is a whole binder and these lines are the only statement of the
+   * goods. Empty for a single-item sale, whose goods are the item snapshot.
+   */
+  lineItems?: ContractLine[];
 }
 
 /**
@@ -355,6 +371,7 @@ function CashSaleRoom({
   deliveryAddress = null,
   trackingRefreshAvailable = false,
   paymentDemoEnabled = false,
+  lineItems = [],
 }: CashSaleViewProps) {
   const router = useRouter();
   const { focusSection } = useContractFocus();
@@ -387,6 +404,11 @@ function CashSaleRoom({
   const me = iAmBuyer ? buyer : seller;
   const them = iAmBuyer ? seller : buyer;
   const iAmSeller = !iAmBuyer;
+  // Opened against a binder or bulk lot rather than one listed object (0064).
+  // Contents are negotiable on exactly the same window as price and terms — see
+  // `editable` below — because the second acceptance collects the money and
+  // freezes the whole contract at once.
+  const fromShopfront = sale.from_shopfront === true;
   const myAcceptedVersion = iAmBuyer
     ? sale.buyer_terms_accepted_version
     : sale.seller_terms_accepted_version;
@@ -482,6 +504,14 @@ function CashSaleRoom({
 
   const itemTotal = sale.agreed_price_cents;
 
+  // Every amount in this room is formatted in the CONTRACT's own currency (0068), not
+  // the viewer's region and not a global default. The contract froze its currency at
+  // creation, so this stays correct even if either party's profile region is later
+  // corrected — and a GBP contract rendered with a dollar sign would be a wrong
+  // number rather than a missing one, which is the worse failure in a room whose whole
+  // job is to state agreed terms precisely.
+  const money = (cents: number) => formatMoney(cents, sale.currency);
+
   // What the seller actually receives: everything except the Platform_Fee.
   // Shipping is a pass-through to the carrier and belongs to the seller, and the
   // fee is already computed on the item price alone.
@@ -491,14 +521,12 @@ function CashSaleRoom({
   // `InspectionCountdown`, which both this room and the trade room render from the
   // stored deadline — so both parties see the same instant regardless of clock skew.
 
-  // Collateral on a Cash_Sale is ASYMMETRIC, unlike a 2-way trade. The buyer's whole
-  // payment is collected before the seller ships, so the buyer is already committed and
-  // posts nothing. The only unsecured risk is an unverified seller taking the money and
-  // not delivering, so the bond falls on them alone.
-  const sellerBondCents = requiredBondCents({
-    verified: seller.verified,
-    fmvCents: sale.agreed_price_cents,
-  });
+  // NO COLLATERAL ON A CASH SALE. The Buyer's whole payment is collected before the
+  // Seller ships, so the Buyer is already committed and posts nothing — and the Seller
+  // has nothing left to guarantee. The bond policy could only ever have produced a
+  // Seller bond for an UNVERIFIED Seller, and publishing a listing requires the
+  // Identity_Gate, so that figure was always zero and the UI it drove was unreachable.
+  // Trade collateral is a separate mechanism; see `resolveTradeBonds`.
 
   const steps = deriveCashSaleSteps({
     status: sale.status,
@@ -528,7 +556,7 @@ function CashSaleRoom({
   const termsSummary = !termsSet
     ? 'Not proposed yet'
     : isDelivery
-      ? `Delivery ${sale.delivery_address_configured ? 'address confirmed' : 'address needed'} · ${formatAud(
+      ? `Delivery ${sale.delivery_address_configured ? 'address confirmed' : 'address needed'} · ${money(
           sale.shipping_cost_cents,
         )}`
       : `Meet at ${sale.meeting_location}`;
@@ -539,14 +567,29 @@ function CashSaleRoom({
   const isLegacy = !editable && !termsSet && sale.status !== 'CANCELLED';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    /* The room's height budget, declared once (F37). At `lg` the room is exactly
+       the shell's content box, so the header, action card and the details/chat
+       row divide THAT rather than each claiming a viewport height. The panes
+       below scroll internally and the page itself never scrolls.
+
+       8.25rem = 4rem header + 4.25rem of section padding. The padding is NOT
+       `lg:py-7`'s 3.5rem: the shell also sets `lg:pb-10` on a signed-in page, and
+       Tailwind emits `pb` after `py`, so the bottom is 2.5rem and the total is
+       1.75 + 2.5. Verified against the compiled stylesheet — recompute it there,
+       not from the class list, if the shell's padding ever changes.
+
+       The cap has to be stated explicitly: body is `min-h-dvh`, a floor rather
+       than a cap, so a `flex-1` chain with no definite ancestor height just grows
+       the page instead of being clipped. `lg:flex-none` retires the `flex-1` that
+       carries the stacked layout below `lg`, where the page scrolls normally. */
+    <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
       <ContractHeader
         title={sale.item_title}
-        money={`${formatAud(sale.amount_cents)} total`}
+        money={`${money(sale.amount_cents)} total`}
         parties={
           <ContractPartyLine
-            me={toContractParty(me, sellerBondCents)}
-            them={toContractParty(them, sellerBondCents)}
+            me={toContractParty(me)}
+            them={toContractParty(them)}
             showDetails={false}
           />
         }
@@ -610,7 +653,7 @@ function CashSaleRoom({
                       <Check aria-hidden />
                     )}
                     {iAmBuyer
-                      ? `Accept & pay ${formatAud(sale.amount_cents)} with Stripe`
+                      ? `Accept & pay ${money(sale.amount_cents)} with Stripe`
                       : 'Accept terms'}
                   </Button>
                 ) : null}
@@ -885,17 +928,56 @@ function CashSaleRoom({
         <ContractDetailList>
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.exchange}
-          label="Item"
-          summary={`${sale.item_title} · ${formatAud(itemTotal)}`}
+          label={fromShopfront ? 'Items' : 'Item'}
+          summary={
+            fromShopfront
+              ? `${lineItems.length} ${lineItems.length === 1 ? 'item' : 'items'} from ${sale.item_title} · ${money(itemTotal)}`
+              : `${sale.item_title} · ${money(itemTotal)}`
+          }
         >
-          <CashSaleItemSnapshot
-            title={sale.item_title}
-            condition={sale.item_condition}
-            agreedPriceCents={itemTotal}
-            description={sale.item_description}
-            images={itemImages}
-            listingId={sale.item_id}
-          />
+          {/* A shopfront contract leads with WHAT WAS AGREED, not the listing.
+              The listing is a binder that stays on sale and that the seller can
+              still edit; these lines are the contract, and they are frozen once
+              payment starts (0064). */}
+          {fromShopfront ? (
+            <div className="space-y-3">
+              <ContractLineItemsList lines={lineItems} currency={sale.currency} />
+              {editable ? (
+                <>
+                  <EditContractItemsDialog
+                    cashSaleId={sale.id}
+                    termsVersion={sale.terms_version}
+                    lines={lineItems}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Changing this list re-prices the contract and clears both
+                    acceptances, so you will each need to accept again.
+                  </p>
+                </>
+              ) : null}
+              <p className="text-xs text-muted-foreground">
+                From{' '}
+                <Link
+                  href={`/listings/${sale.item_id}`}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  {sale.item_title}
+                </Link>
+                . Nothing on that listing is held for you — this contract is what
+                you both agreed to.
+              </p>
+            </div>
+          ) : (
+            <CashSaleItemSnapshot
+              title={sale.item_title}
+              condition={sale.item_condition}
+              agreedPriceCents={itemTotal}
+              currency={sale.currency}
+              description={sale.item_description}
+              images={itemImages}
+              listingId={sale.item_id}
+            />
+          )}
         </ContractDetailRow>
 
         <ContractDetailRow
@@ -912,8 +994,8 @@ function CashSaleRoom({
             displayName={them.name}
           />
           <ContractPartyDetails
-            me={toContractParty(me, sellerBondCents)}
-            them={toContractParty(them, sellerBondCents)}
+            me={toContractParty(me)}
+            them={toContractParty(them)}
           />
         </ContractDetailRow>
 
@@ -1017,7 +1099,7 @@ function CashSaleRoom({
                               ? 'Confirmed. Shared with the seller once payment is collected.'
                               : 'Buyer must select an address before either party can accept.'
                           ),
-                          value: formatAud(sale.shipping_cost_cents),
+                          value: money(sale.shipping_cost_cents),
                         },
                         ...(sale.shipping_notes
                           ? [{ label: 'Notes', hint: sale.shipping_notes, value: '' }]
@@ -1063,24 +1145,24 @@ function CashSaleRoom({
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.payment}
           label="Stripe"
-          summary={`${formatAud(sale.amount_cents)} · buyer pays via Stripe`}
+          summary={`${money(sale.amount_cents)} · buyer pays via Stripe`}
         >
           <>
             <ContractMoneyTable
               ariaLabel="Stripe breakdown"
               rows={[
-                { label: 'Agreed item price', value: formatAud(itemTotal) },
+                { label: 'Agreed item price', value: money(itemTotal) },
                 {
                   label: isDelivery ? 'Shipping' : 'Shipping (not applicable)',
-                  value: formatAud(sale.shipping_cost_cents),
+                  value: money(sale.shipping_cost_cents),
                 },
                 {
                   label: `Platform fee (${PLATFORM_FEE_BPS / 100}%)`,
-                  value: formatAud(sale.platform_fee_cents),
+                  value: money(sale.platform_fee_cents),
                 },
                 {
                   label: 'Buyer pays via Stripe',
-                  value: formatAud(sale.amount_cents),
+                  value: money(sale.amount_cents),
                   total: true,
                 },
                 // The seller's own number. The rows above are all the BUYER's
@@ -1090,7 +1172,7 @@ function CashSaleRoom({
                   ? [
                       {
                         label: 'You receive',
-                        value: formatAud(sellerNetCents),
+                        value: money(sellerNetCents),
                         total: true,
                       },
                     ]
@@ -1098,12 +1180,17 @@ function CashSaleRoom({
               ]}
             />
             {iAmSeller ? <SellerReleaseStatus sale={sale} /> : null}
-            {editable ? (
+            {/* A shopfront contract has no standalone price to propose: its total
+                is the sum of its line items, so "Change items" in the Items row
+                is the only way it moves (0064). Offering both would be two
+                sources of truth for the number being charged. */}
+            {editable && !fromShopfront ? (
               <div className="mt-3 flex justify-end">
                 <CashSalePriceDialog
                   cashSaleId={sale.id}
                   termsVersion={sale.terms_version}
                   agreedPriceCents={sale.agreed_price_cents}
+                  currency={sale.currency}
                 />
               </div>
             ) : null}
@@ -1112,55 +1199,33 @@ function CashSaleRoom({
 
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.collateral}
-          label="Collateral"
-          explainer="Cash sale protection comes from the buyer's collected payment. Open the full explanation to see when the seller is paid and why a separate collateral hold may not appear."
-          summary={
-            sellerBondCents === 0
-              ? 'Buyer payment collected first'
-              : `Seller posts ${formatAud(sellerBondCents)}`
-          }
+          label="Protection"
+          explainer="Your payment is held by NoDitto until you have the item and are happy with it. Open the full explanation to see where the money sits at each stage."
+          summary="Payment held until you accept"
           contentClassName="gap-3"
         >
+          {/* NO COLLATERAL ON A CASH SALE, so this tab does not mention any. The
+              Buyer's money is collected up front, which leaves nothing for either
+              party to guarantee with a card hold — and the only Seller bond the
+              policy could ever produce required an UNVERIFIED Seller, which
+              publishing a listing makes impossible. See
+              `CashSaleProtectionExplainer`. */}
           <div className="flex flex-col gap-3 rounded-lg border bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="font-medium">
-                {sellerBondCents > 0
-                  ? `${seller.name} has collateral on this sale`
-                  : 'Buyer payment is the protection on this sale'}
-              </p>
+              <p className="font-medium">Your payment is the protection here</p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {sellerBondCents > 0
-                  ? 'The seller has a temporary card authorisation; the buyer does not post a separate bond.'
-                  : 'The buyer pays first and the seller is paid only after the sale resolves.'}
+                {seller.name} is paid only once the sale resolves — not when the
+                item is sent.
               </p>
             </div>
             <CollateralExplainerDialog
-              title="How protection works on this cash sale"
-              description="See where the buyer payment sits, when the seller is paid, and why a separate bond may not be needed."
+              title="Where your money sits"
+              description="Payment is collected up front and held by NoDitto until the sale resolves."
               triggerLabel="How protection works"
             >
-              <CashSaleCollateralExplainer
-                sellerBondCents={sellerBondCents}
-                sellerName={seller.name}
-              />
+              <CashSaleProtectionExplainer />
             </CollateralExplainerDialog>
           </div>
-          {sellerBondCents > 0 ? (
-            <ContractMoneyTable
-              ariaLabel="Collateral"
-              rows={[
-                {
-                  label: iAmBuyer ? `${seller.name}'s collateral` : 'Your collateral',
-                  value: formatAud(sellerBondCents),
-                },
-                {
-                  label: iAmBuyer ? 'Your collateral' : `${buyer.name}'s collateral`,
-                  value: 'Not required',
-                  muted: true,
-                },
-              ]}
-            />
-          ) : null}
         </ContractDetailRow>
 
         {events.length > 0 ? (
@@ -1190,6 +1255,7 @@ function CashSaleRoom({
         sale={sale}
         deliveryAddress={deliveryAddress}
         canEditDeliveryAddress={iAmBuyer}
+        canEditShippingCost={!iAmBuyer}
         hideTrigger
         open={detailsFor !== null}
         onOpenChange={(next) => setDetailsFor(next ? detailsFor : null)}

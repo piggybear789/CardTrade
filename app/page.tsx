@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { searchCatalog } from '@/lib/actions/listings';
 import { createClient } from '@/lib/supabase/server';
+import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 
 // Reads the authenticated user's session, so render dynamically.
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,7 @@ export const metadata = {
 // Iconic chase cards so the example trade reads as a serious, high-value swap:
 // "Moonbreon" (Prismatic Evolutions SIR), Pikachu ex SIR (Ascended Heroes),
 // and the "bubble Mew" SIR from Paldean Fates (#232). Prefer `_hires` scans
-// from the PokÃ©mon TCG CDN; Ascended Heroes is only on Scrydex's large size.
+// from the Pokémon TCG CDN; Ascended Heroes is only on Scrydex's large size.
 //
 // ALT TEXT IS EMPTY ON ALL THREE, DELIBERATELY. The fan is one decorative
 // composition, not three informative images. Umbreon previously carried a full
@@ -52,9 +53,13 @@ const CARD_IMAGES = {
 
 export default async function HomePage() {
   const supabase = await createClient();
+  // The landing carousel is region-scoped for the same reason the catalog is: an
+  // unscoped preview is a shop window of items the visitor cannot buy, and the
+  // contract guards would refuse every one of them.
+  const region = await resolveBrowseRegion();
   const [authResult, catalogResult] = await Promise.all([
     supabase.auth.getUser(),
-    searchCatalog({ sort: 'newest', pageSize: 12 }),
+    searchCatalog({ sort: 'newest', pageSize: 12, regionCode: region.code }),
   ]);
   const user = authResult.data.user;
   const previewItems = catalogResult.ok ? catalogResult.items : [];
@@ -233,7 +238,7 @@ export default async function HomePage() {
             </Link>
             <Link
               className="rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              href="/profile#payouts"
+              href="/profile/payouts#identity"
             >
               DittoShield
             </Link>
@@ -246,10 +251,10 @@ export default async function HomePage() {
               rel="noreferrer"
               className="underline decoration-gold/50 underline-offset-4 hover:text-foreground"
             >
-              PokÃ©mon TCG API
+              Pokémon TCG API
             </a>
-            . PokÃ©mon names and artwork belong to their respective owners. NoDitto is not
-            affiliated with or endorsed by The PokÃ©mon Company. Payments are processed by
+            . Pokémon names and artwork belong to their respective owners. NoDitto is not
+            affiliated with or endorsed by The Pokémon Company. Payments are processed by
             Stripe.
           </p>
         </div>

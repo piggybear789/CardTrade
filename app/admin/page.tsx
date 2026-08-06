@@ -38,6 +38,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatAud, formatRelativeTime } from '@/lib/format';
 import { getCustodyPosition, type CustodyReport } from '@/lib/actions/admin';
+import { operationalRegions } from '@/domain/services';
 import { ReportActions } from '@/components/admin/ReportActions';
 import { ClearFlagButton } from '@/components/admin/ClearFlagButton';
 import { CustodyPanel } from '@/components/admin/CustodyPanel';
@@ -188,7 +189,8 @@ export default async function AdminPage({
   let reports: ReportRow[] = [];
   let owedPayouts: CashSaleRow[] = [];
   let trades: TradeRow[] = [];
-  let custody: CustodyReport | null = null;
+  // One per operational region (0068), not one overall — see the fetch below.
+  let custodyPositions: CustodyReport[] = [];
 
   if (tab === 'reports') {
     const { data } = await admin
@@ -204,19 +206,28 @@ export default async function AdminPage({
     });
   } else if (tab === 'payouts') {
     // Oldest due first: that is the seller who has been waiting longest.
-    const [{ data }, position] = await Promise.all([
+    //
+    // Custody is read ONCE PER REGION (0068). Each region is a separate Stripe
+    // platform account with its own balance, and there is no meaningful sum across
+    // them — adding a GBP balance to an AUD one produces a number that looks
+    // reassuring and says nothing, which `getPlatformBalance` already refuses to do
+    // across currencies. So the tab shows one solvency panel per platform account.
+    const regions = [...operationalRegions()];
+    const [{ data }, ...positions] = await Promise.all([
       admin
         .from('cash_sales')
         .select('*')
         .eq('status', 'COMPLETED')
         .in('seller_payout_status', ['PENDING', 'FAILED'])
         .order('seller_payout_due_at', { ascending: true, nullsFirst: true }),
-      // Only on this tab: it calls the provider, so it should not cost anything on the
-      // Reports or Reconciliation views.
-      getCustodyPosition(),
+      // Only on this tab: each one calls the provider, so they should not cost
+      // anything on the Reports or Reconciliation views.
+      ...regions.map((region) => getCustodyPosition(region)),
     ]);
     owedPayouts = (data ?? []) as CashSaleRow[];
-    custody = position.ok ? position.data : null;
+    custodyPositions = positions
+      .filter((position) => position.ok)
+      .map((position) => (position as { ok: true; data: CustodyReport }).data);
   } else {
     const { data } = await admin
       .from('trades')
@@ -291,9 +302,13 @@ export default async function AdminPage({
 
       {tab === 'payouts' ? (
         <section aria-labelledby="payouts-heading">
-          {/* Leads the tab: everything below it is what we believe we owe, and this is
-              the only figure that can contradict that belief. */}
-          {custody ? <CustodyPanel position={custody} /> : null}
+          {/* Leads the tab: everything below it is what we believe we owe, and these are
+              the only figures that can contradict that belief. One per Stripe platform
+              account, because each region holds its own balance and there is no
+              meaningful total across currencies. */}
+          {custodyPositions.map((position) => (
+            <CustodyPanel key={position.region} position={position} />
+          ))}
 
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">

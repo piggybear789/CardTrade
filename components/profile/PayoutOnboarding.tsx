@@ -10,13 +10,16 @@
 //                      provider reports transfers active, the provider-reported
 //                      name is available for the limited buyer disclosure.
 //
-// This is the Identity_Gate: without Stripe Connect setup, a member cannot list,
-// sell, enter trade escrow, or receive money. It is not a document-identity claim:
-// Connect can defer document collection, so member-facing copy must never say
-// government ID, selfie, or Stripe Identity verification. It must also not call an
-// account "Verified" while `settlementsEnabled` is false — an empty Connect shell
-// is not a finished setup, and saying so was the reason this card read
-// "Verified Account / Payouts incomplete" at the same time.
+// THIS IS STEP TWO, NOT THE IDENTITY_GATE. Until 0069 it was both, and this comment
+// used to say so. Connect now gates only whether a member can RECEIVE money
+// (`canReceiveFunds`); listing, selling, trade access and being a disclosed seller
+// are gated by the identity check in `IdentityCheckCard`. Do not re-merge them: the
+// reason to split was that Connect can defer document collection, so this card could
+// never honestly claim a government ID or selfie had been checked.
+//
+// It must also not call an account "Verified" while `settlementsEnabled` is false —
+// an empty Connect shell is not a finished setup, and saying so was the reason this
+// card read "Verified Account / Payouts incomplete" at the same time.
 //
 // WHAT WE NO LONGER ASK FOR. The provider collects payout and bank details on its
 // own pages. There are now NO local inputs at all: the optional shop name was
@@ -151,9 +154,11 @@ export function PayoutOnboarding({
 
   if (compact && Boolean(state.merchantRef)) {
     return (
-      <Card className="h-full">
+      <Card id="payout-setup" className="h-full scroll-mt-24">
         <CardHeader className="pb-3">
-          <CardDescription>Merchant identity</CardDescription>
+          {/* SAYS PAYOUT DESTINATION, NOT "Merchant identity". Connect answers where
+              money goes; it says nothing about who the member is since 0069. */}
+          <CardDescription>Payout destination</CardDescription>
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2 text-base">
               {state.settlementsEnabled ? (
@@ -161,10 +166,16 @@ export function PayoutOnboarding({
               ) : (
                 <ShieldAlert className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               )}
-              {state.settlementsEnabled ? 'Verified Account' : 'Stripe Connect'}
+              {/* NEVER "Verified Account". That wording is the 0060 mistake this card
+                  is named in `product.md` for making — it once read "Verified Account"
+                  beside "Payouts incomplete" because both were true of one row. Since
+                  0069 it is worse than confusing: "verified" now means the identity
+                  check, and a member can be payable WITHOUT having passed it, so this
+                  title would have claimed a verification Stripe never performed. */}
+              {state.settlementsEnabled ? 'Payouts active' : 'Stripe Connect'}
             </CardTitle>
             <Badge variant={state.settlementsEnabled ? 'default' : 'secondary'}>
-              {state.settlementsEnabled ? 'Payouts active' : 'Setup incomplete'}
+              {state.settlementsEnabled ? 'Ready' : 'Setup incomplete'}
             </Badge>
           </div>
         </CardHeader>
@@ -215,7 +226,8 @@ export function PayoutOnboarding({
   }
 
   return (
-    <Card>
+    // `id` is the anchor target for `/profile/payouts#payout-setup`.
+    <Card id="payout-setup" className="scroll-mt-24">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -224,7 +236,12 @@ export function PayoutOnboarding({
               Stripe Connect
             </CardTitle>
             <CardDescription>
-              Your seller/trader verification and payout destination.
+              {/* SAYS PAYOUTS, NOT ACCESS. This read "Required before you can list,
+                  sell, or trade", which after 0069 is the IDENTITY card's claim — and
+                  `IdentityCheckCard` makes it. Two cards asserting the same
+                  requirement is the "two answers to one question" failure the docs
+                  warn about, and here only one of them was true. */}
+              Required before you can receive money.
             </CardDescription>
           </div>
           <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -297,10 +314,12 @@ export function PayoutOnboarding({
               </p>
             ) : null}
 
-            <p className="text-sm text-muted-foreground">
-              Verify through Stripe Connect to list, sell, and trade. It takes one step
-              and happens entirely on Stripe&apos;s pages.
-            </p>
+            {/* No standalone explainer paragraph here. It said "Verify through
+                Stripe Connect to list, sell, and trade. It takes one step and happens
+                entirely on Stripe's pages" — which restated the card title, repeated
+                "on Stripe's pages" from the note below, and duplicated what the
+                description now carries. Three blocks of prose around one button read
+                as a wall; the two that remain each say something the other does not. */}
 
             {error ? (
               <p role="alert" className="text-sm text-destructive">
@@ -315,10 +334,13 @@ export function PayoutOnboarding({
               {context.hostedOnboarding ? 'Verify with Stripe' : 'Submit payout setup'}
             </Button>
 
-            {/* Req 4.8-4.12: continuing is the consent, so it is stated here. */}
+            {/* Req 4.8-4.12: continuing is the consent, so it is stated here, next to
+                the control that gives it. The second sentence is that consent and is
+                deliberately left verbatim — the first now also carries the "one step,
+                on Stripe's pages" reassurance the deleted paragraph was making. */}
             <p className="text-xs text-muted-foreground">
-              Stripe collects your payout and bank details on its own pages — NoDitto never
-              sees them. You agree that the payout name Stripe reports can be shown to
+              One step, entirely on Stripe&apos;s pages — NoDitto never sees your bank
+              details. You agree that the payout name Stripe reports can be shown to
               someone you have an agreed sale or trade with.
             </p>
           </div>

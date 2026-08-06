@@ -28,8 +28,27 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { satisfiesIdentityGate, type MerchantStatus } from '@/domain/identity/identityGate';
+import { getPaymentService } from '@/domain/services';
+import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
+import { regionForProfile } from '@/lib/regionBinding';
+import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import { type ActionResult, fail, ok } from './result';
+
+/**
+ * The signed-in member's own platform region (0068).
+ *
+ * A verification flow belongs to one Stripe account, so the identity call has to go
+ * through the member's own platform — the same rule as their connected account.
+ * Falls back to the default region when there is no session; the actions themselves
+ * then refuse for want of a user.
+ */
+async function viewerRegion(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ? regionForProfile(user.id) : DEFAULT_CONFIG_REGION;
+}
 
 /** Typed failures for a disclosure read. */
 export type IdentityDisclosureError =
@@ -101,7 +120,7 @@ export async function getCounterpartyIdentity(
   const { data } = await admin
     .from('profiles')
     .select(
-      'merchant_status, merchant_settlements_enabled, merchant_legal_entity_name, merchant_identity_verified_at',
+      'identity_check_status, identity_check_name, identity_check_verified_at, merchant_legal_entity_name, merchant_identity_verified_at',
     )
     .eq('id', counterpartyId)
     .maybeSingle();
@@ -110,14 +129,221 @@ export async function getCounterpartyIdentity(
 
   // Only disclose while the Identity_Gate still stands.
   const verified = satisfiesIdentityGate({
-    merchantStatus: (data.merchant_status ?? 'NONE') as MerchantStatus,
-    settlementsEnabled: Boolean(data.merchant_settlements_enabled),
+    identityCheckStatus: (data.identity_check_status ?? 'NONE') as IdentityCheckStatus,
   });
 
+  // Prefer the document-backed name from Stripe Identity, falling back to the
+  // Connect-reported one for members verified before 0069. The fallback matters:
+  // a null disclosure blocks the buy path entirely, so a grandfathered seller must
+  // keep the name they were already disclosed under.
   return ok({
-    legalName: verified ? ((data.merchant_legal_entity_name as string | null) ?? null) : null,
-    verifiedAt: verified
-      ? ((data.merchant_identity_verified_at as string | null) ?? null)
+    legalName: verified
+      ? ((data.identity_check_name as string | null) ??
+         (data.merchant_legal_entity_name as string | null) ??
+         null)
       : null,
+    verifiedAt: verified
+      ? ((data.identity_check_verified_at as string | null) ??
+         (data.merchant_identity_verified_at as string | null) ??
+         null)
+      : null,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// The Identity_Gate: starting and refreshing a verification check (0069)
+// ---------------------------------------------------------------------------
+//
+// TWO STEPS, SEQUENTIAL. This is step one and it needs no bank details; Connect
+// payout setup is step two and lives in `lib/actions/merchant.ts`. Keeping them in
+// separate modules is deliberate — they answer different questions ("who is this"
+// and "where does money go") and the retired KYC seam's failure was letting one
+// surface answer both.
+
+/** Typed failures for starting or refreshing an identity check. */
+export type IdentityCheckError =
+  | 'NOT_AUTHENTICATED'
+  | 'NOT_SUPPORTED' // the active provider has no identity binding
+  | 'NO_CHECK' // refresh called with nothing to refresh
+  | 'START_FAILED'
+  | 'PERSIST_FAILED';
+
+/** What a caller needs to send the member to the provider. */
+export interface StartedIdentityCheck {
+  /** Provider-hosted URL. Single-use and short-lived — never cached. */
+  url: string;
+  sessionId: string;
+}
+
+/**
+ * Start (or resume) the caller's identity check and hand back the hosted URL.
+ *
+ * PERSISTS PENDING BEFORE RETURNING, so a member who abandons the flow and comes
+ * back is shown "in progress" rather than "not started" and can be reconciled by
+ * webhook. The session id is stored for exactly that: the pipeline resolves an
+ * event carrying no metadata through the indexed `identity_check_session_id`.
+ *
+ * DOES NOT mark anyone verified. `createIdentityCheck` throws rather than returning
+ * a status precisely so a provider failure leaves verification state untouched.
+ */
+export async function beginIdentityCheck(
+  returnPath = '/profile/payouts',
+): Promise<ActionResult<StartedIdentityCheck, IdentityCheckError>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to verify your identity.');
+
+  const payments = getPaymentService(await viewerRegion());
+  if (!payments.createIdentityCheck) {
+    return fail('NOT_SUPPORTED', 'The active payment provider does not support identity checks.');
+  }
+
+  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const path = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+  const separator = path.includes('?') ? '&' : '?';
+
+  let check;
+  try {
+    check = await payments.createIdentityCheck({
+      profileId: user.id,
+      returnUrl: `${origin}${path}${separator}identity=complete`,
+    });
+  } catch (err) {
+    return fail(
+      'START_FAILED',
+      err instanceof Error ? err.message : 'Could not start the identity check.',
+    );
+  }
+
+  if (!check.hostedUrl) {
+    return fail('START_FAILED', 'The provider did not return a verification link.');
+  }
+
+  // Service role: these columns are provider-owned and carry no member update grant.
+  // Only move NONE/FAILED to PENDING — never overwrite a VERIFIED member, so a stray
+  // second call cannot un-verify someone.
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      identity_check_status: 'PENDING',
+      identity_check_session_id: check.sessionId,
+    })
+    .eq('id', user.id)
+    .neq('identity_check_status', 'VERIFIED');
+
+  if (error) return fail('PERSIST_FAILED', error.message);
+
+  return ok({ url: check.hostedUrl, sessionId: check.sessionId });
+}
+
+/** The caller's own identity check state, for a status card. */
+export interface IdentityCheckState {
+  status: IdentityCheckStatus;
+  verifiedName: string | null;
+  verifiedAt: string | null;
+}
+
+/**
+ * Read the caller's own identity check state. No provider call.
+ *
+ * Separate from {@link refreshIdentityCheck} on purpose: rendering a page must not
+ * make a network round trip to Stripe, and a read that also WROTE would fire on
+ * every render of the card.
+ */
+export async function getIdentityCheckState(): Promise<
+  ActionResult<IdentityCheckState, IdentityCheckError>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to see your verification status.');
+
+  const { data } = await createAdminClient()
+    .from('profiles')
+    .select('identity_check_status, identity_check_name, identity_check_verified_at')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  return ok({
+    status: ((data?.identity_check_status as IdentityCheckStatus | null) ?? 'NONE'),
+    verifiedName: (data?.identity_check_name as string | null) ?? null,
+    verifiedAt: (data?.identity_check_verified_at as string | null) ?? null,
+  });
+}
+
+/**
+ * Read the check back from the provider and persist the outcome.
+ *
+ * THE RELIABLE PATH, and the reason this exists alongside the webhook: a delivery
+ * can be delayed, retried, or lost, and a member returning from the hosted flow will
+ * not wait for a retry before deciding the app is broken. Returning from the flow
+ * proves only that they came back — the same trap `refreshPayoutStatus` exists for on
+ * the Connect side.
+ *
+ * Idempotent and monotonic: it writes the provider's current answer, and the name
+ * only when the provider supplies one, so a later read cannot blank a name already
+ * disclosed to a buyer.
+ */
+export async function refreshIdentityCheck(): Promise<
+  ActionResult<IdentityCheckState, IdentityCheckError>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to check your verification.');
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('identity_check_status, identity_check_session_id, identity_check_name, identity_check_verified_at')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const sessionId = (profile?.identity_check_session_id as string | null) ?? null;
+  if (!sessionId) {
+    return fail('NO_CHECK', 'You have not started an identity check yet.');
+  }
+
+  const payments = getPaymentService(await viewerRegion());
+  if (!payments.readIdentityCheck) {
+    return fail('NOT_SUPPORTED', 'The active payment provider does not support identity checks.');
+  }
+
+  let check;
+  try {
+    check = await payments.readIdentityCheck(sessionId);
+  } catch (err) {
+    return fail(
+      'START_FAILED',
+      err instanceof Error ? err.message : 'Could not read the identity check.',
+    );
+  }
+
+  const status: IdentityCheckStatus =
+    check.outcome === 'VERIFIED' ? 'VERIFIED' : check.outcome === 'FAILED' ? 'FAILED' : 'PENDING';
+
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      identity_check_status: status,
+      ...(check.verifiedAt ? { identity_check_verified_at: check.verifiedAt } : {}),
+      // Monotonic: only ever absent -> present.
+      ...(check.verifiedName ? { identity_check_name: check.verifiedName } : {}),
+    })
+    .eq('id', user.id);
+
+  if (error) return fail('PERSIST_FAILED', error.message);
+
+  return ok({
+    status,
+    verifiedName:
+      check.verifiedName ?? ((profile?.identity_check_name as string | null) ?? null),
+    verifiedAt:
+      check.verifiedAt ?? ((profile?.identity_check_verified_at as string | null) ?? null),
   });
 }

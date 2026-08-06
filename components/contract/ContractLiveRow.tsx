@@ -119,12 +119,19 @@ export function ContractLiveRow({
         </div>
       </MobileOnly>
 
-      {/* Desktop: persistent split inspector + conversation. The declared
-          height bounds the panes so they scroll internally rather than growing
-          the page (F37). The expression mirrors the listing detail page: header
-          (4rem) + gap (3.5rem) + safe-area + 1px border. */}
+      {/* Desktop: persistent split inspector + conversation. The panes are
+          bounded so they scroll internally rather than growing the page (F37).
+
+          The height budget is declared ONCE, by the room root (CashSaleView /
+          TradeContract), and this row takes what is left via `flex-1`. It must
+          NOT re-declare `100dvh - chrome` here: the action card, the progress
+          rail and the contract header are all siblings ABOVE this row, so
+          claiming the whole content box would overflow the viewport by their
+          combined height — which is exactly the bug that made the page scroll
+          and left `h-full` children (the item image) resolving against an
+          over-tall box. */}
       <DesktopOnly>
-        <div className="h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))] flex-1 gap-4 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
+        <div className="min-h-0 flex-1 gap-4 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
           <div className="min-h-0 min-w-0 overflow-y-auto [&>*]:h-full">{children}</div>
           <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto [&>*]:h-full">
             {conversation}

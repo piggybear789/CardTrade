@@ -25,6 +25,9 @@ function report(overrides: Partial<CustodyReport> = {}): CustodyReport {
     shortfallCents: 0,
     surplusCents: 5_000,
     saleCount: 1,
+    // Each region is a separate Stripe platform account with its own balance (0068),
+    // so a custody position is always about one named region.
+    region: 'AU',
     currency: 'aud',
     unreadableReason: null,
     ...overrides,

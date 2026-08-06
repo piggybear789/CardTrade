@@ -48,6 +48,7 @@ const CATEGORIES = [
 
 /** Condition grades, mirroring the listing form (TCGplayer's standard scale). */
 const CONDITIONS = [
+  'Graded',
   'Unopened',
   'Near Mint',
   'Mint',

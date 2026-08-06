@@ -6,10 +6,12 @@
 
 import Stripe from 'stripe';
 
-import { readStripeConfig, type StripeConfig } from './config';
+import { DEFAULT_CONFIG_REGION, readStripeConfig, type StripeConfig } from './config';
 import { StripeService } from './StripeService';
 
 export {
+  allConfiguredRegionCodes,
+  DEFAULT_CONFIG_REGION,
   isStripeConfigured,
   readStripeConfig,
   readStripeEnvironment,
@@ -57,16 +59,23 @@ export function createStripeClient(config: StripeConfig = readStripeConfig()): S
 }
 
 /**
- * Build a `StripeService` from the environment.
+ * Build a `StripeService` for a region from the environment.
+ *
+ * Each region is a SEPARATE Stripe platform account, so this returns a service
+ * bound to that account's credentials, currency and country. Instances are not
+ * interchangeable: using the AU service to transfer to a GB connected account is
+ * the cross-region transfer Stripe refuses.
  *
  * Takes no KYC delegate: identity verification is the Identity_Gate, which is
  * Connect onboarding state rather than a provider call, so there is nothing left
  * to delegate.
  *
- * @throws Error when `STRIPE_SECRET_KEY` is missing.
+ * @throws Error when no secret key is configured for the region.
  */
-export function createStripeService(): StripeService {
-  const config = readStripeConfig();
+export function createStripeService(
+  options: { region?: string | null } = {},
+): StripeService {
+  const config = readStripeConfig(process.env, options.region ?? DEFAULT_CONFIG_REGION);
   return new StripeService({
     client: createStripeClient(config),
     config,

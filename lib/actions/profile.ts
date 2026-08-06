@@ -9,7 +9,14 @@
 // on a validation failure the previously stored values are left untouched
 // (Req 1.5).
 
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import {
+  createSignedAvatarUpload,
+  removeAvatarObject,
+  verifyStoredAvatar,
+  type SignedAvatarUpload,
+} from '@/lib/storage/profileImages';
 import { validateProfileUpdate } from '@/domain/validation';
 import { type ActionResult, fail, ok } from './result';
 
@@ -143,5 +150,114 @@ export async function completeOnboarding(
     displayName: data.display_name,
     onboardingCompletedAt: data.onboarding_completed_at,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Avatars (0066)
+// ---------------------------------------------------------------------------
+//
+// Two steps, because the bytes must not travel inside a Server Action body:
+//   1. `prepareAvatarUpload` mints a single-use signed URL for a server-chosen
+//      path under the caller's own prefix.
+//   2. The browser PUTs the file straight to Storage
+//      (`lib/storage/uploadAvatar.ts`).
+//   3. `setMyAvatar` verifies the resulting path and persists it.
+//
+// An avatar is NEVER identity. It is self-chosen and unverified, so nothing here
+// touches merchant/identity columns, and no surface may read it as assurance — that
+// is the Identity_Gate plus `merchant_legal_entity_name`.
+
+/** Typed failure codes for the avatar actions. */
+export type AvatarError =
+  | 'NOT_AUTHENTICATED'
+  | 'INVALID_IMAGE' // wrong format, too large, or not the caller's object
+  | 'UPDATE_FAILED';
+
+/**
+ * Mint a single-use signed upload target for the caller's new avatar.
+ *
+ * `contentType` is what the browser reports for the file; an unaccepted type is
+ * refused here rather than at upload time, so the member finds out before the bytes
+ * move.
+ */
+export async function prepareAvatarUpload(
+  contentType: string,
+): Promise<ActionResult<SignedAvatarUpload, AvatarError>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to change your picture.');
+
+  try {
+    return ok(await createSignedAvatarUpload(createAdminClient(), user.id, contentType));
+  } catch (error) {
+    return fail(
+      'INVALID_IMAGE',
+      error instanceof Error ? error.message : 'Could not prepare the upload.',
+    );
+  }
+}
+
+/**
+ * Persist an avatar the browser has already uploaded, or clear it with `null`.
+ *
+ * The path is verified against the caller's own prefix, existence, type and size
+ * before anything is written — a path from a client is a claim, not a fact.
+ *
+ * The PREVIOUS object is deleted after a successful write, so replacing a picture
+ * does not accumulate files forever. Deletion is best-effort and deliberately after
+ * the row update: an orphaned object is harmless, whereas deleting first and then
+ * failing to save would leave a profile pointing at nothing.
+ */
+export async function setMyAvatar(
+  avatarPath: string | null,
+): Promise<ActionResult<{ avatarPath: string | null }, AvatarError>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to change your picture.');
+
+  const admin = createAdminClient();
+
+  if (avatarPath !== null) {
+    try {
+      await verifyStoredAvatar(admin, user.id, avatarPath);
+    } catch (error) {
+      return fail(
+        'INVALID_IMAGE',
+        error instanceof Error ? error.message : 'That image could not be used.',
+      );
+    }
+  }
+
+  // Read the outgoing path first so it can be cleaned up after the swap.
+  const { data: before } = await supabase
+    .from('profiles')
+    .select('avatar_path')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  // Cookie-bound client: the `profiles_owner_update` policy (`auth.uid() = id`)
+  // confines this to the caller's own row, and 0066 grants UPDATE on this column
+  // specifically — `authenticated` holds no table-wide update grant.
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ avatar_path: avatarPath })
+    .eq('id', user.id)
+    .select('avatar_path')
+    .single();
+
+  if (error || !data) {
+    return fail('UPDATE_FAILED', error?.message ?? 'Your picture could not be saved.');
+  }
+
+  const previous = (before?.avatar_path as string | null) ?? null;
+  if (previous && previous !== data.avatar_path) {
+    await removeAvatarObject(admin, previous);
+  }
+
+  return ok({ avatarPath: (data.avatar_path as string | null) ?? null });
 }
 

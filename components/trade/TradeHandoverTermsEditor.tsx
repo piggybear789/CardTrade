@@ -233,7 +233,7 @@ export function TradeHandoverTermsEditor({
             deliveryNotes={deliveryNotes}
             onDeliveryNotesChange={setDeliveryNotes}
             notesMaxLength={DEAL_TEXT_MAX}
-            deliveryCostLabel="Postage each way (AUD)"
+            deliveryCostLabel="Postage each way"
             deliveryCostHint="Enter 0 for free postage. Add each address below, and tracking when you ship."
             error={error}
             disabled={isPending}

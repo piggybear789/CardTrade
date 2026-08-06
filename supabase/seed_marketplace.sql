@@ -246,7 +246,7 @@ spec(seller, dist, n, seed) as (values
   ('5eed000b-0000-4000-8000-00000000000b', '5545545555444555',              13, 29)
 ),
 pool(rating, idx, body) as (values
-  (5, 0, 'Slab arrived exactly as described. Double boxed, bubble wrapped, tracking up within the hour. Escrow released same day.'),
+  (5, 0, 'Slab arrived exactly as described. Double boxed, bubble wrapped, tracking up within the hour. Payment released same day.'),
   (5, 1, 'Third purchase from this seller and the standard has not moved. Photos match the card in hand, no surprises.'),
   (5, 2, 'Fast, straightforward, answered every question about centring before I committed. Would buy again.'),
   (5, 3, 'Card was better in hand than in the photos. Packed in a team bag inside a card saver inside a bubble mailer.'),
@@ -270,8 +270,8 @@ pool(rating, idx, body) as (values
   (2, 3, 'Case had a crack across the front that is not in any of the listing photos. Seller blamed the courier.'),
   (2, 4, 'Would not confirm the cert number before payment. Now I know why.'),
   (2, 5, 'Zero communication after payment. Turned up eventually in a bent envelope.'),
-  (1, 0, 'Do not deal with this account. Asked me to pay by direct bank transfer for a "discount" to skip escrow.'),
-  (1, 1, 'Empty box. The escrow hold is the only reason I am not out $2,000.'),
+  (1, 0, 'Do not deal with this account. Asked me to pay by direct bank transfer for a "discount" to skip buyer protection.'),
+  (1, 1, 'Empty box. The payment hold is the only reason I am not out $2,000.'),
   (1, 2, 'Slab in the photos is not the slab I received. Different cert, two grades lower.'),
   (1, 3, 'Never shipped, never replied, cancelled on day fourteen. Complete waste of two weeks.'),
   (1, 4, 'Card arrived with the case cracked and the label peeled. Refused a return, went straight to dispute.'),
@@ -302,7 +302,7 @@ insert into cardtrade.reviews (id, reviewer_id, reviewee_id, rating, comment, so
 values
   -- Marcus: the reference-quality seller.
   ('5eed2001-0000-4000-8000-000000000001','5eed0007-0000-4000-8000-000000000007','5eed0001-0000-4000-8000-000000000001',
-   5, E'Bought a $2,450 Base Set Charizard sight-unseen and it was the least stressful big purchase I have made.\nMarcus sent extra photos of the label and the back before I paid, shipped with signature on delivery, and the escrow released the same afternoon I confirmed. This is the benchmark.',
+   5, E'Bought a $2,450 Base Set Charizard sight-unseen and it was the least stressful big purchase I have made.\nMarcus sent extra photos of the label and the back before I paid, shipped with signature on delivery, and the payment released the same afternoon I confirmed. This is the benchmark.',
    'cash_sale','5eed3001-0000-4000-8000-000000000001', now() - interval '26 days'),
 
   -- Priya <-> Leo: a clean 2-way trade.
@@ -326,7 +326,7 @@ values
    1, E'Shipped him a CGC 9 Celebrations Venusaur. What came back to me was a weighted empty case in a padded satchel — no card, label peeled off.\nThe pre-auth hold on his side covered the full $2,300 and the platform generated the evidence pack from his KYC identity. Police report lodged. Avoid this account.',
    'trade','5eed4003-0000-4000-8000-000000000003', now() - interval '6 days'),
   ('5eed2007-0000-4000-8000-000000000007','5eed0007-0000-4000-8000-000000000007','5eed0005-0000-4000-8000-000000000005',
-   1, E'Listing was a PSA 10 Paldean Fates Mew with beautiful photos. The slab that arrived is cracked along the top seam and the cert number does not match the photos.\nHe told me to "just crack it and press it, it will grade fine". Disputed. Escrow is the only reason this is recoverable.',
+   1, E'Listing was a PSA 10 Paldean Fates Mew with beautiful photos. The slab that arrived is cracked along the top seam and the cert number does not match the photos.\nHe told me to "just crack it and press it, it will grade fine". Disputed. Buyer protection is the only reason this is recoverable.',
    'cash_sale','5eed3004-0000-4000-8000-000000000004', now() - interval '9 days'),
   ('5eed2008-0000-4000-8000-000000000008','5eed0100-0000-4000-8000-000000000100','5eed0005-0000-4000-8000-000000000005',
    1, 'Asked me to pay by bank transfer directly and skip the platform "because the fee is a rip off". Reported it instead.',
@@ -334,7 +334,7 @@ values
 
   -- quick_flip_99: the ghoster.
   ('5eed2009-0000-4000-8000-000000000009','5eed0007-0000-4000-8000-000000000007','5eed000a-0000-4000-8000-00000000000a',
-   1, E'Agreed terms, paid, then nothing for twelve days. No tracking, no replies, cancelled on day fourteen.\nGot every cent back because the money never left escrow, but that is two weeks I will not get back.',
+   1, E'Agreed terms, paid, then nothing for twelve days. No tracking, no replies, cancelled on day fourteen.\nGot every cent back because the money was held until delivery, but that is two weeks I will not get back.',
    'cash_sale','5eed3005-0000-4000-8000-000000000005', now() - interval '4 days'),
   ('5eed200a-0000-4000-8000-00000000000a','5eed0101-0000-4000-8000-000000000101','5eed000a-0000-4000-8000-00000000000a',
    1, 'The photos on this account are lifted from completed eBay listings. Reverse image search them before you buy anything.',
@@ -389,7 +389,7 @@ Sourced from an original Australian collection, unsearched since 1999. Cert veri
 
 The 1st Edition stamp is crisp with no ghosting. Shadowless border is unmistakable next to an unlimited copy. Surface is flawless under light; centring 60/40 top-to-bottom, which is the only thing between this and a 10.
 
-This is a four-figure card and I will treat it like one: rigid case, team bag, double box, signature on delivery, insured. Escrow only — I do not do off-platform deals, and neither should you.$d$,
+This is a four-figure card and I will treat it like one: rigid case, team bag, double box, signature on delivery, insured. Platform-protected only — I do not do off-platform deals, and neither should you.$d$,
    'PSA 9', 890000, 'AVAILABLE', false, 'v1_366472909285_0/front.jpg', 12),
 
   ('5eed1003-0000-4000-8000-000000000003','5eed0002-0000-4000-8000-000000000002',
@@ -471,7 +471,7 @@ Quick sale, don't message me asking for extra pics, everything you need is in th
 
 Straight from a sealed ETB into a semi-rigid and off to grading. Centring is excellent, no dimples on the surface, holo foil is even.
 
-Packed in a card saver inside a bubble mailer inside a box, tracked and insured. If a courier loses it I will wear it — the escrow refund path exists for a reason.$d$,
+Packed in a card saver inside a bubble mailer inside a box, tracked and insured. If a courier loses it I will wear it — the buyer protection refund path exists for a reason.$d$,
    'PSA 10', 26000, 'SOLD', false, '307003630699/front.jpg', 20),
 
   ('5eed100d-0000-4000-8000-00000000000d','5eed0004-0000-4000-8000-000000000004',
@@ -480,7 +480,7 @@ Packed in a card saver inside a bubble mailer inside a box, tracked and insured.
 
 Cheap, cheerful, and genuinely hard to find graded because most of these got played with. Slab is clean, label is centred, no scratches.
 
-First card I have listed since getting verified. Posted within 24 hours of escrow clearing, with tracking, and I will send a photo of the parcel before it goes.$d$,
+First card I have listed since getting verified. Posted within 24 hours of payment clearing, with tracking, and I will send a photo of the parcel before it goes.$d$,
    'PSA 9', 8500, 'SOLD', false, '306993372841/front.jpg', 7),
 
   ('5eed100e-0000-4000-8000-00000000000e','5eed0002-0000-4000-8000-000000000002',
@@ -667,7 +667,7 @@ select
       case p.h % 8
         when 0 then p.year || ' ' || p.set_pretty || ' ' || p.mon || ', graded ' || p.agency || ' ' || p.grade || '.' || E'\n\n'
           || 'Centring is strong front and back, corners are sharp, and the surface is clean under a loupe. Cert verifies on the ' || p.agency || ' lookup and the label is in the second photo.' || E'\n\n'
-          || 'Ships tracked and insured in a rigid mailer inside a box. Posted within one business day of escrow clearing.'
+          || 'Ships tracked and insured in a rigid mailer inside a box. Posted within one business day of payment clearing.'
         when 1 then p.mon || ' from ' || p.set_pretty || ' (' || p.year || '), ' || p.agency || ' ' || p.grade || '.' || E'\n\n'
           || 'Bought raw, submitted myself, so the chain of custody is short: sleeve, semi-rigid, grader, slab. Never re-holdered.' || E'\n\n'
           || 'Happy to send extra photos or a short video before you commit — just ask in the chat.'
@@ -679,7 +679,7 @@ select
           || 'Open to a 2-way trade against something of comparable value, with or without cash on top.'
         when 4 then p.mon || ' — ' || p.agency || ' ' || p.grade || ' — ' || p.year || ' ' || p.set_pretty || '.' || E'\n\n'
           || 'Population in this grade is thin and the last three sales I can find all cleared above this ask. I am not chasing the top of the market, I just want it gone to someone who will keep it.' || E'\n\n'
-          || 'Escrow only. Signature on delivery for anything over $500.'
+          || 'Platform-protected only. Signature on delivery for anything over $500.'
         when 5 then p.year || ' ' || p.set_pretty || ' ' || p.mon || ' in a ' || p.agency || ' ' || p.grade || '.' || E'\n\n'
           || 'Slab itself is clean: no scratches on the case, no scuffing on the label, hinge is tight. Worth saying because a scratched case costs you money when you resell.' || E'\n\n'
           || 'Packed in a team bag, card saver, bubble mailer, then a box. Tracked both ways if a return is ever needed.'

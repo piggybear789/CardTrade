@@ -164,6 +164,9 @@ export default async function NewTradePage({
     .select('*')
     .eq('owner_id', user.id)
     .eq('status', 'AVAILABLE')
+    // A shopfront cannot go INTO a trade either: its FMV is a whole binder, so
+    // the other trader would be bonded against an inventory (0064).
+    .eq('listing_kind', 'SINGLE')
     .order('created_at', { ascending: false });
 
   // The form is a short, self-contained interstitial, so it sits centred rather

@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { BadgeX, ImageOff, Lock, MapPin, Star } from 'lucide-react';
+import { BadgeX, ImageOff, Library, Lock, MapPin, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
+import { Avatar } from '@/components/ui/avatar';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { CatalogItem } from '@/lib/actions/listings';
@@ -35,7 +36,11 @@ const UNAVAILABLE_LABEL: Record<string, string> = {
 export function ItemCard({ item, variant = 'default', initialWatching }: ItemCardProps) {
   const imageUrl = itemImageUrl(item.image_paths?.[0] ?? null);
   const seller = item.seller;
-  const unavailableLabel = UNAVAILABLE_LABEL[item.status];
+  // A shopfront is never RESERVED or SOLD (0064), so the unavailable overlay can
+  // never apply to one — and its price is an indicative "from", not an asking
+  // price, so showing a bare figure would read as a purchase price for the lot.
+  const isShopfront = item.listing_kind === 'SHOPFRONT';
+  const unavailableLabel = isShopfront ? undefined : UNAVAILABLE_LABEL[item.status];
   const showWatch = initialWatching !== undefined;
 
   if (variant === 'catalog') {
@@ -108,8 +113,20 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             {item.title}
           </h3>
           <p className="mt-1 text-base font-semibold leading-tight text-foreground">
+            {isShopfront ? (
+              <span className="mr-1 text-xs font-normal text-muted-foreground">
+                from
+              </span>
+            ) : null}
             {formatAud(item.fmv_cents)}
           </p>
+          {/* A shopfront must not read as one purchasable object (0064). */}
+          {isShopfront ? (
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+              <Library className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">Binder or bulk — pick what you want</span>
+            </p>
+          ) : null}
           {item.location_label ? (
             <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="size-3 shrink-0" aria-hidden="true" />
@@ -123,6 +140,14 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                 href={`/sellers/${seller.id}`}
                 className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
               >
+                {/* `xs` because this is the densest grid in the app — big enough to
+                    recognise a familiar seller, small enough not to compete with the
+                    card's own photo, which is the thing being sold. */}
+                <Avatar
+                  avatarPath={seller.avatarPath}
+                  displayName={seller.displayName}
+                  size="xs"
+                />
                 <span className="truncate text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                   {seller.displayName ?? 'Unknown seller'}
                 </span>
@@ -227,8 +252,18 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           {item.title}
         </h3>
         <p className="mt-1.5 text-lg font-semibold leading-tight text-foreground">
+          {isShopfront ? (
+            <span className="mr-1 text-xs font-normal text-muted-foreground">from</span>
+          ) : null}
           {formatAud(item.fmv_cents)}
         </p>
+        {/* A shopfront must not read as one purchasable object (0064). */}
+        {isShopfront ? (
+          <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <Library className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">Binder or bulk — pick what you want</span>
+          </p>
+        ) : null}
         {item.location_label ? (
           <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="size-3.5 shrink-0" aria-hidden="true" />

@@ -15,6 +15,7 @@ import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
+import { regionForTrade } from '@/lib/regionBinding';
 import {
   resolveTradeFees,
   isTradeFeeRefundable,
@@ -54,7 +55,10 @@ export async function chargeTradeFees(params: {
   counterpartReceivesCents: number;
 }): Promise<TradeFeeOutcome> {
   const admin = createAdminClient();
-  const payments = getPaymentService();
+  // Fees are charged against the traders' saved cards, which are Customers on the
+  // trade's own platform account (0068). Charging through another region's client
+  // would not find the payer at all.
+  const payments = getPaymentService(await regionForTrade(params.tradeId));
 
   const { initiatorFeeCents, counterpartFeeCents } = resolveTradeFees({
     initiatorReceivesCents: params.initiatorReceivesCents,
@@ -170,7 +174,9 @@ async function recordFeeResult(
  */
 export async function refundTradeFees(tradeId: string): Promise<number> {
   const admin = createAdminClient();
-  const payments = getPaymentService();
+  // A refund acts on a charge that belongs to one platform account (0068), so it has
+  // to be issued through the same one that took the fee.
+  const payments = getPaymentService(await regionForTrade(tradeId));
 
   const { data } = await admin
     .from('trade_fees')

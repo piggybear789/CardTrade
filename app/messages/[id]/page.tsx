@@ -54,6 +54,7 @@ export default async function ConversationPage({
         conversationId={conversation.id}
         currentUserId={user.id}
         otherName={other.displayName}
+        otherAvatarPath={other.avatarPath}
         item={item}
         trade={trade}
       />

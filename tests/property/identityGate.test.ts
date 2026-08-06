@@ -19,19 +19,30 @@ import {
   satisfiesIdentityGate,
   showsVerifiedBadge,
   verificationState,
+  type IdentityCheckStatus,
   type IdentityGateInput,
-  type MerchantStatus,
 } from '@/domain/identity/identityGate';
 
-const MERCHANT_STATUSES: MerchantStatus[] = ['NONE', 'PENDING', 'APPROVED', 'REJECTED'];
+const IDENTITY_CHECK_STATUSES: IdentityCheckStatus[] = ['NONE', 'PENDING', 'VERIFIED', 'FAILED'];
 
 const gateInput: fc.Arbitrary<IdentityGateInput> = fc.record({
-  merchantStatus: fc.constantFrom(...MERCHANT_STATUSES),
-  settlementsEnabled: fc.boolean(),
+  identityCheckStatus: fc.constantFrom(...IDENTITY_CHECK_STATUSES),
 });
 
-/** A retired payer-gate row, which must never influence the answer. */
-const retiredColumns = fc.record({
+/**
+ * Values that must never influence the answer.
+ *
+ * Two eras of retired state here, both deliberate:
+ *
+ *  1. The payer gate dropped in 0043 — `kyc_status`, `identity_verified_*`,
+ *     `identity_session_id`. Reintroducing any of these names is how the original
+ *     two-gate bug would come back.
+ *  2. The CONNECT columns, which stopped being the gate in 0069. They still exist
+ *     and are still load-bearing for `canReceiveFunds`, so this is the sharper
+ *     property now: a member can be APPROVED with settlements active and still not
+ *     be verified, and vice versa. The gate must read neither.
+ */
+const nonGateColumns = fc.record({
   kyc_status: fc.constantFrom('UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED'),
   kyc_reason: fc.option(fc.string(), { nil: null }),
   identity_verified_name: fc.option(fc.string(), { nil: null }),
@@ -39,35 +50,57 @@ const retiredColumns = fc.record({
   identity_verified_at: fc.option(fc.string(), { nil: null }),
   identity_is_adult: fc.option(fc.boolean(), { nil: null }),
   identity_session_id: fc.option(fc.string(), { nil: null }),
+  merchantStatus: fc.constantFrom('NONE', 'PENDING', 'APPROVED', 'REJECTED'),
+  settlementsEnabled: fc.boolean(),
 });
 
 describe('satisfiesIdentityGate', () => {
-  it('requires BOTH approval and active transfers, for every input', () => {
+  it('is exactly "the Identity check was accepted", for every input', () => {
     fc.assert(
       fc.property(gateInput, (input) => {
-        expect(satisfiesIdentityGate(input)).toBe(
-          input.merchantStatus === 'APPROVED' && input.settlementsEnabled,
-        );
+        expect(satisfiesIdentityGate(input)).toBe(input.identityCheckStatus === 'VERIFIED');
       }),
     );
   });
 
-  it('never treats a Connect account shell without active transfers as verified', () => {
-    // The 0060 regression: creating the account is the START of onboarding. A member
-    // in this state has completed nothing on Stripe's pages, so they must not be able
-    // to list, sell, or enter trade escrow.
-    expect(satisfiesIdentityGate({ merchantStatus: 'APPROVED', settlementsEnabled: false })).toBe(false);
+  it('never treats a started-but-unfinished check as verified', () => {
+    // Creating a VerificationSession is the START. A member who has opened Stripe's
+    // pages and not finished has proven nothing, so they must not be able to list,
+    // sell, or enter trade escrow. Same lesson as the 0060 Connect account shell.
+    expect(satisfiesIdentityGate({ identityCheckStatus: 'PENDING' })).toBe(false);
+    expect(satisfiesIdentityGate({ identityCheckStatus: 'FAILED' })).toBe(false);
+    expect(satisfiesIdentityGate({ identityCheckStatus: 'NONE' })).toBe(false);
   });
 
-  it('is unaffected by any retired payer-gate value (independence property)', () => {
+  it('is unaffected by any non-gate value, Connect included (independence property)', () => {
     fc.assert(
-      fc.property(gateInput, retiredColumns, (input, retired) => {
-        // The retired columns are spread in to prove the predicate cannot read
-        // them even when they are present on the same object.
-        const polluted = { ...retired, ...input } as IdentityGateInput;
+      fc.property(gateInput, nonGateColumns, (input, other) => {
+        // Spread in to prove the predicate cannot read them even when they sit on
+        // the same object. Connect state is in here on purpose: since 0069 being
+        // payable and being verified are different questions.
+        const polluted = { ...other, ...input } as IdentityGateInput;
         expect(satisfiesIdentityGate(polluted)).toBe(satisfiesIdentityGate(input));
       }),
     );
+  });
+
+  it('does not read Connect approval as verification (two-step property)', () => {
+    // The precise thing 0069 changed: a member fully set up for payouts is NOT
+    // verified unless they also passed the document check.
+    const payableButUnverified = {
+      merchantStatus: 'APPROVED',
+      settlementsEnabled: true,
+      identityCheckStatus: 'NONE',
+    } as unknown as IdentityGateInput;
+    expect(satisfiesIdentityGate(payableButUnverified)).toBe(false);
+
+    // And the converse: verified with no payout account at all.
+    const verifiedNotPayable = {
+      merchantStatus: 'NONE',
+      settlementsEnabled: false,
+      identityCheckStatus: 'VERIFIED',
+    } as unknown as IdentityGateInput;
+    expect(satisfiesIdentityGate(verifiedNotPayable)).toBe(true);
   });
 });
 
@@ -80,13 +113,8 @@ describe('verificationState', () => {
     );
   });
 
-  it('reports approval without active transfers as still in progress', () => {
-    // Deliberately not a distinct state: from the member's point of view there is one
-    // thing left to happen, and surfacing "approved but not payable" as its own status
-    // is how the two-gate confusion started.
-    expect(
-      verificationState({ merchantStatus: 'APPROVED', settlementsEnabled: false }),
-    ).toBe('IN_PROGRESS');
+  it('reports a created-but-unfinished session as still in progress', () => {
+    expect(verificationState({ identityCheckStatus: 'PENDING' })).toBe('IN_PROGRESS');
   });
 
   it('maps every status to exactly one state', () => {
@@ -99,20 +127,20 @@ describe('verificationState', () => {
     );
   });
 
-  it('reports NOT_STARTED only when nothing was submitted', () => {
+  it('reports NOT_STARTED only when no check was ever created', () => {
     fc.assert(
       fc.property(gateInput, (input) => {
         if (verificationState(input) !== 'NOT_STARTED') return;
-        expect(input.merchantStatus).toBe('NONE');
+        expect(input.identityCheckStatus).toBe('NONE');
       }),
     );
   });
 
-  it('reports NOT_APPROVED only when the provider declined', () => {
+  it('reports NOT_APPROVED only when the check failed', () => {
     fc.assert(
       fc.property(gateInput, (input) => {
         if (verificationState(input) !== 'NOT_APPROVED') return;
-        expect(input.merchantStatus).toBe('REJECTED');
+        expect(input.identityCheckStatus).toBe('FAILED');
       }),
     );
   });
@@ -127,21 +155,13 @@ describe('every verification surface answers from one source', () => {
     );
   });
 
-  // Buy-only members hold no Connected_Account, so the gate is false for them and
-  // every gated action must be refused while buying stays open. The gate itself
-  // carries no notion of "buyer": that exemption is expressed by simply not
-  // consulting it on buyer paths, which this asserts is safe to rely on.
-  it('a member with no connected account is never verified (buyer-exemption property)', () => {
-    fc.assert(
-      fc.property(fc.boolean(), (settlementsEnabled) => {
-        expect(satisfiesIdentityGate({ merchantStatus: 'NONE', settlementsEnabled })).toBe(
-          false,
-        );
-        expect(verificationState({ merchantStatus: 'NONE', settlementsEnabled })).toBe(
-          'NOT_STARTED',
-        );
-      }),
-    );
+  // Buy-only members never verify, so the gate is false for them and every gated
+  // action must be refused while buying stays open. The gate itself carries no
+  // notion of "buyer": that exemption is expressed by simply not consulting it on
+  // buyer paths, which this asserts is safe to rely on.
+  it('a member who never verified is never verified (buyer-exemption property)', () => {
+    expect(satisfiesIdentityGate({ identityCheckStatus: 'NONE' })).toBe(false);
+    expect(verificationState({ identityCheckStatus: 'NONE' })).toBe('NOT_STARTED');
   });
 });
 
@@ -187,13 +207,18 @@ function effectiveExpression(pattern: RegExp, label: string): string {
 /**
  * Turn a SQL boolean expression into a predicate over {@link IdentityGateInput}.
  *
- * Only a conjunction of the two known column tests is accepted. Anything else —
- * an OR, a negation, a third column, a different comparison — throws, so a
- * change in the SQL that this test cannot reason about fails loudly.
+ * Only the one known column test is accepted. Anything else — an OR, a negation, a
+ * Connect column, a different comparison — throws, so a change in the SQL that this
+ * test cannot reason about fails loudly rather than passing silently.
+ *
+ * The Connect terms are NOT accepted any more. That is the point of 0069: if a
+ * future migration reintroduces `merchant_settlements_enabled` into a gate
+ * expression, this throws rather than quietly agreeing, because the TypeScript no
+ * longer reads it and the two would have diverged.
  */
 function sqlPredicate(expression: string): (input: IdentityGateInput) => boolean {
-  const APPROVED = /^(new\.)?merchant_status\s*=\s*'APPROVED'::cardtrade\.merchant_status$/;
-  const SETTLEMENTS = /^(new\.)?merchant_settlements_enabled$/;
+  const VERIFIED =
+    /^(new\.)?identity_check_status\s*=\s*'VERIFIED'::cardtrade\.identity_check_status$/;
 
   const terms = expression
     .replace(/\s+/g, ' ')
@@ -203,10 +228,9 @@ function sqlPredicate(expression: string): (input: IdentityGateInput) => boolean
     .map((term) => term.trim());
 
   const checks = terms.map((term) => {
-    if (APPROVED.test(term)) {
-      return (input: IdentityGateInput) => input.merchantStatus === 'APPROVED';
+    if (VERIFIED.test(term)) {
+      return (input: IdentityGateInput) => input.identityCheckStatus === 'VERIFIED';
     }
-    if (SETTLEMENTS.test(term)) return (input: IdentityGateInput) => input.settlementsEnabled;
     throw new Error(`Uninterpretable SQL term in the Identity_Gate expression: ${term}`);
   });
 
@@ -234,16 +258,17 @@ describe('SQL/TypeScript denormalisation agreement (Req 21.6)', () => {
     });
   }
 
-  it('propagates on both gate columns, so the denormalisation cannot go stale', () => {
-    // 0060 narrowed this to `after update of merchant_status`. With the gate depending
-    // on settlements, a report flipping only settlements — the transition that MEANS
-    // onboarding finished — would not fire, and every item row would freeze. Nothing
-    // reads the column yet, so it would have failed silently and indefinitely.
+  it('propagates on the gate column, so the denormalisation cannot go stale', () => {
+    // 0060 narrowed this to `after update of merchant_status` while the gate also
+    // depended on settlements, so the transition that MEANT onboarding finished did
+    // not fire and every item row would have frozen. Nothing read the column yet, so
+    // it would have failed silently and indefinitely. The gate now depends on one
+    // column, so this must watch exactly that one — no more, no fewer.
     const trigger = effectiveExpression(
       /create trigger profiles_sync_items_seller_identity_verified\s*\n\s*after update of ([^\n]*)\n/,
       'the seller_identity_verified propagation trigger',
     );
     const columns = trigger.split(',').map((column) => column.trim());
-    expect(columns).toEqual(['merchant_status', 'merchant_settlements_enabled']);
+    expect(columns).toEqual(['identity_check_status']);
   });
 });

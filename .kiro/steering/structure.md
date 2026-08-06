@@ -40,6 +40,8 @@ One folder per feature (`account`, `admin`, `arbitration`, `auth`, `brand`, `con
 Two folders are cross-flow and should be reached for before writing anything new in `sales/` or `trade/`:
 
 - `contract/` — the contract room shell both flows render: header, progress rail, action card, detail rows, timeline, conversation panel, exchange panel, hold list, money table, image lightbox.
+
+`sales/ContractLineItems.tsx` holds BOTH the editor and the read-only list of what a Cash_Sale covers (0064), deliberately in one module: the buyer composes a request in the editor and then reviews the same lines in the contract room, and drift between the two would read as the terms having changed on them. `sales/EditContractItemsDialog.tsx` is the renegotiation surface; `listings/CloseShopfrontDialog.tsx` retires a binder listing without touching its open contracts.
 - `fulfilment/` — the fulfilment controls both flows render: `FulfilmentMethodChoice`, `FulfilmentTermsFields`, `RecordShipmentDialog`, `DeliveryAddressPanel`, `InspectionCountdown`, `HandoverFailedDialog`. None of them own a server action; each room injects its own, because the two flows freeze and settle differently even where they look identical. These exist because the rooms had drifted apart in ways that mattered — the trade room accepted a free-text meeting point and an optional meeting time where the sale demanded a resolved place and a future instant.
 
 Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shadcn conventions in `components.json`; don't hand-roll styling that a primitive already covers. Compose classes with `cn()` from `@/lib/utils`.
@@ -47,7 +49,7 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 ## domain/
 
 - `state-machine/` — `machine.ts` holds the `TRANSITIONS` table, the single source of truth for `Trade_State` changes. `guards.ts`, `actions.ts`, `types.ts` build on it. No Supabase, React, or service imports.
-- `validation/` — zod schemas per entity (`item.ts`, `profile.ts`, `registration.ts`), re-exported from `index.ts`. Use `runSchema()` from `result.ts` so failures come back as `{ ok: false, field, message }`.
+- `validation/` — zod schemas per entity (`item.ts`, `profile.ts`, `registration.ts`, `cashSaleLineItems.ts`), re-exported from `index.ts`. Use `runSchema()` from `result.ts` so failures come back as `{ ok: false, field, message }`. `cashSaleLineItems.ts` mirrors the CHECK constraints in migration 0064 and owns `lineItemsTotalCents`, the one definition of a shopfront contract's price — `replace_cash_sale_items` re-derives the same sum in SQL and aborts when the two disagree, so they are pinned to each other rather than merely intended to match.
 - `orchestrator/` — use-case logic paired with a repository interface. Each `xOrchestrator.ts` is pure and takes a repository; each `supabaseXRepository.ts` supplies the Supabase-backed implementation plus a `createDefaultXOrchestrator()` factory. Tests inject fakes instead of hitting a database. Key orchestrators: `cashSaleOrchestrator`, `tradeOrchestrator`, `tradeProposal`, `disputeResolution`, `merchantOnboarding`, `itemOrchestrator`.
 - `services/` — the payment seam. Callers depend only on `PaymentKycService` (`PaymentService & PayerService`) obtained from `getPaymentService()` in `index.ts`; the binding is chosen there and nowhere else. Never import the Stripe SDK outside `services/stripe/**`. Sub-folders: `stripe/` (real binding), `mock/` (deterministic simulation), `testing/` (InMemoryService for unit tests), `tracking/` (manual shipment tracking).
 - `fulfilment/` — the shared "how do the goods change hands" model: `FulfilmentMethod`, one validator (`validateFulfilmentTerms`), one normalizer, and the trade inspection clock (`deriveTradeInspectionDeadline`, `TRADE_INSPECTION_HOURS`). Cash_Sales and Trades both go through it. The two tables still spell the columns differently (`cash_sales.fulfillment_method / shipping_cost_cents` vs `trades.handover_method / delivery_cost_cents`) because renaming either would touch the terms RPCs, the Realtime publication, the seeds and the hand-maintained types; each flow adapts its row and everything above the adapter speaks one language. Display strings that need `formatAud` stay in `lib/handover/terms.ts`, because `domain/` may not import `lib/`.
@@ -56,6 +58,7 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `contract/` — step definitions for the contract progress rail. `cashSaleSteps.ts`, `tradeSteps.ts`, `steps.ts` (shared utilities).
 - `webhook/mapEventToAction.ts` — maps a `Webhook_Event` to a state machine event.
 - `identity/identityGate.ts` — the ONE place the Identity_Gate is evaluated. Never re-derive it inline.
+- `region/regions.ts` — the trading-region registry and the ONE place two parties' regions are compared (`checkRegionCompatibility`). Pure, so the orchestrator guard and the browse UI share it. The request-scoped half — IP header, cookie, profile — is `lib/location/resolveRegion.ts`, which is `server-only` and is the only place `x-vercel-ip-country` is read.
 - `arbitration/arbitrationCase.ts` — the triage model over disputed sales, trades and chargebacks. Priority is derived from deadlines, fraud allegations and SLA, deliberately **not** from amount, because weighting by money parks small disputes forever.
 - `payouts/payoutReadModel.ts` — what a seller is owed and what has landed. `custodyReconciliation.ts` — platform balance health check.
 
@@ -69,6 +72,7 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `webhook/webhookPipeline.ts` — the full verify → translate → dedupe → map → dispatch → log pipeline.
 - `notifications/createNotification.ts`, `format.ts`, `utils.ts`, `marketplace-constants.ts` — shared helpers and tuned limits.
 - `location/geoapify.ts` — address autocomplete and map embed integration (Google Maps).
+- `location/resolveRegion.ts` — `server-only`. The one place a request becomes a browse region, and the one place `x-vercel-ip-country` is read. The precedence chain is `?region=` → the member's own `profiles.region_code` → their remembered cookie → the IP guess → `DEFAULT_REGION`, and it reports which of those it used so the UI can disclose a guess. Nothing on the read path writes; only `setBrowseRegion` does.
 - `handover/terms.ts` — display-layer formatting for fulfilment terms.
 - `storage/` — Supabase Storage helpers for item image uploads.
 

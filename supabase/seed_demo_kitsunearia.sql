@@ -76,7 +76,7 @@ from (values
 
 Odd little Japanese side-set that most people have never handled. Print is sharp, no roller lines, corners are clean. Centring is 55/45 which is about as good as this stock gets.
 
-Sold and settled through escrow. Kept listed for provenance.$d$,
+Sold and settled through the platform. Kept listed for provenance.$d$,
    'PSA 9', 78000, 'SOLD', '117189238483/front.jpg', 41),
 
   ('5eed5002-0000-4000-8000-000000000002','33187ec5-ba33-4ac0-806e-08f09244c517',
@@ -85,7 +85,7 @@ Sold and settled through escrow. Kept listed for provenance.$d$,
 
 The one everybody wants out of that set. Pulled from a booster box I opened myself, straight into a sleeve and a semi-rigid, submitted the same week. Texture is untouched, no silvering anywhere on the edges.
 
-Currently under contract — escrow is funded and I am packing it this week. Ships double boxed with signature on delivery.$d$,
+Currently under contract — payment is confirmed and I am packing it this week. Ships double boxed with signature on delivery.$d$,
    'PSA 10', 145000, 'RESERVED', '117250697361/front.jpg', 15),
 
   ('5eed5003-0000-4000-8000-000000000003','33187ec5-ba33-4ac0-806e-08f09244c517',
@@ -119,7 +119,7 @@ Happy to trade this against Japanese vintage or another high-grade Charizard, ca
    $t$Mew · 2021 PCP 25th Anniversary (JPN) — PSA 10$t$,
    $d$Japanese Pokémon Center 25th Anniversary Mew promo, PSA 10.
 
-Traded away in a 2-way escrow swap against a Terastal Fest Umbreon. Both holds released the same day we accepted. Kept listed so the trade has a paper trail on both sides.$d$,
+Traded away in a 2-way collateral-backed swap against a Terastal Fest Umbreon. Both holds released the same day we accepted. Kept listed so the trade has a paper trail on both sides.$d$,
    'PSA 10', 162000, 'SOLD', 'v1_366470551557_0/front.jpg', 33),
 
   ('5eed5007-0000-4000-8000-000000000007','33187ec5-ba33-4ac0-806e-08f09244c517',
@@ -135,7 +135,7 @@ In transit as part of an active 2-way trade — collateral is locked on both sid
    $t$Mew · 2023 151 Ultra Premium Collection — PSA 10$t$,
    $d$151 UPC Mew special illustration, PSA 10 Gem Mint.
 
-Shipped in a 2-way trade that the other party never honoured — an empty case came back. The escrow hold covered the full value and the platform generated the evidence pack from their identity data.
+Shipped in a 2-way trade that the other party never honoured — an empty case came back. The collateral hold covered the full value and the platform generated the evidence pack from their identity data.
 
 Left listed as part of the fraud record.$d$,
    'PSA 10', 225000, 'SOLD', 'v1_377269467368_0/front.jpg', 18),
@@ -401,7 +401,7 @@ select
   'DELIVERY', true,
   1, now() - interval '19 days', 1, 1, now() - interval '18 days', now() - interval '18 days',
   now() - interval '4 days', i.owner_id,
-  'Seller cancelled after 14 days without shipping. No tracking was ever provided and messages went unanswered from day three. Escrow was never released, so the buyer was not out of pocket.',
+  'Seller cancelled after 14 days without shipping. No tracking was ever provided and messages went unanswered from day three. Payment was never released, so the buyer was not out of pocket.',
   now() - interval '19 days', now() - interval '4 days'
 from cardtrade.items i
 where i.id = '5eed100b-0000-4000-8000-00000000000b'

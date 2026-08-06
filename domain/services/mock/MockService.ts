@@ -32,6 +32,8 @@ import type {
   InstrumentSetup,
   ManagedMerchant,
   ManagedMerchantDetails,
+  IdentityCheck,
+  IdentityCheckOutcome,
   Payer,
   PayerService,
   PayerCreateOptions,
@@ -158,6 +160,12 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
   private readonly payersByProfile = new Map<string, Payer>();
   /** Reverse lookup: profile id keyed by payer id (for KYC + webhook payloads). */
   private readonly profileByPayer = new Map<string, string>();
+  /** Simulated verification session id keyed by profile id. */
+  private readonly identityByProfile = new Map<string, string>();
+  /** Reverse lookup: profile id keyed by verification session id. */
+  private readonly profileByIdentity = new Map<string, string>();
+  /** Demo-driven outcome per verification session; absent means PENDING. */
+  private readonly identityOutcomes = new Map<string, IdentityCheckOutcome>();
   /** Simulated hold ledger keyed by hold id. */
   private readonly holds = new Map<string, PreAuthHold>();
   /** Events awaiting manual emission (when `scenario.autoEmit` is false). */
@@ -195,6 +203,71 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     this.payersByProfile.set(key, payer);
     this.profileByPayer.set(payer.payerId, profileId);
     return payer;
+  }
+
+  // -------------------------------------------------------------------------
+  // Identity verification — the Identity_Gate (0069)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Simulate opening a verification session.
+   *
+   * Lands PENDING, never VERIFIED — matching the real provider, where the member
+   * has to complete Stripe's hosted pages and the outcome arrives afterwards by
+   * webhook or read-back. A mock that returned VERIFIED immediately would let local
+   * development pass a gate that production makes you earn, which is precisely the
+   * 0060 shape of mistake.
+   *
+   * The demo drives the outcome with an `identity.verification_session.verified`
+   * event, the same way it drives Connect approval.
+   */
+  async createIdentityCheck(params: {
+    profileId: string;
+    returnUrl: string;
+  }): Promise<IdentityCheck> {
+    const sessionId = `vs_${shortHash(params.profileId)}`;
+    this.identityByProfile.set(params.profileId, sessionId);
+    this.profileByIdentity.set(sessionId, params.profileId);
+
+    return {
+      sessionId,
+      outcome: 'PENDING',
+      verifiedName: null,
+      verifiedAt: null,
+      // Back to the caller's own return URL: there is no provider page to host, and
+      // sending the member somewhere that does not exist would break the local flow.
+      hostedUrl: params.returnUrl,
+      failureReason: null,
+    };
+  }
+
+  /** Read back a simulated session. Reflects whatever the demo has driven it to. */
+  async readIdentityCheck(sessionId: string): Promise<IdentityCheck> {
+    const outcome = this.identityOutcomes.get(sessionId) ?? 'PENDING';
+    const profileId = this.profileByIdentity.get(sessionId);
+    const verified = outcome === 'VERIFIED';
+
+    return {
+      sessionId,
+      outcome,
+      // A deterministic stand-in for a document-backed name, so the disclosure path
+      // is exercisable locally.
+      verifiedName: verified ? `Mock Member ${shortHash(profileId ?? sessionId)}` : null,
+      verifiedAt: verified ? new Date().toISOString() : null,
+      hostedUrl: null,
+      failureReason: outcome === 'FAILED' ? 'document_unverified_other' : null,
+    };
+  }
+
+  /**
+   * Demo control: drive a simulated session to an outcome.
+   *
+   * NOT part of the production contract — the real binding learns outcomes from
+   * Stripe. Exposed so the demo panel can exercise the verified and failed branches
+   * without a real document.
+   */
+  setIdentityOutcome(sessionId: string, outcome: IdentityCheckOutcome): void {
+    this.identityOutcomes.set(sessionId, outcome);
   }
 
   /**

@@ -5,8 +5,8 @@
 //
 // THE RULE (revises Req 2.4 + 5.4). Trust is either identity or money:
 //   * Verified   -> no bond. A Trader is "verified" when the Identity_Gate is
-//     satisfied — Connect onboarding APPROVED with settlements enabled (see
-//     `domain/identity/identityGate.ts`) — so they are identifiable and pursuable
+//     satisfied — a Stripe Identity document-plus-selfie check, `identity_check_status`
+//     (see `domain/identity/identityGate.ts`) — so they are identifiable and pursuable
 //     and trade with zero friction and zero cost.
 //   * Anything else -> a bond sized from the Item's Fair_Market_Value. An
 //     unverified Trader is anonymous, so the only remedy that works on the day

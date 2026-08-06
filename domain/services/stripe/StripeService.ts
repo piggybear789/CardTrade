@@ -40,6 +40,8 @@ import type {
   InstrumentSetup,
   ManagedMerchant,
   ManagedMerchantDetails,
+  IdentityCheck,
+  IdentityCheckOutcome,
   Payer,
   PayerCreateOptions,
   PayerDetails,
@@ -112,6 +114,110 @@ export class StripeService implements PaymentService, PayerService {
     );
 
     return { payerId: customer.id, profileId };
+  }
+
+  // -------------------------------------------------------------------------
+  // Identity verification — the Identity_Gate (0069)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Start a Stripe Identity verification session.
+   *
+   * PREFERS THE DASHBOARD-CONFIGURED FLOW (`identityVerificationFlow`). The check's
+   * options — selfie, ID number, live capture, accepted documents — then live in one
+   * place that changes without a deploy. Building them inline as well would be a
+   * second definition of what "verified" requires, which is the class of bug this
+   * codebase has hit twice.
+   *
+   * Falls back to an equivalent inline session so a developer with only an API key
+   * can exercise the flow.
+   *
+   * Idempotent per Profile per return URL: a double-submitted button returns the same
+   * session rather than opening a second one the member could half-finish.
+   *
+   * @throws {Stripe.errors.StripeError} — deliberately. Matching `createPayer`, a
+   * provider failure must leave verification state untouched; recording a PENDING
+   * session that does not exist would strand the member with no way to resume.
+   */
+  async createIdentityCheck(params: {
+    profileId: string;
+    returnUrl: string;
+  }): Promise<IdentityCheck> {
+    const flow = this.opts.config.identityVerificationFlow;
+
+    const session = await this.stripe.identity.verificationSessions.create(
+      {
+        ...(flow
+          ? { verification_flow: flow }
+          : {
+              type: 'document',
+              options: {
+                document: {
+                  require_matching_selfie: true,
+                  require_id_number: true,
+                  require_live_capture: true,
+                },
+              },
+            }),
+        return_url: params.returnUrl,
+        metadata: { cardtrade_profile_id: params.profileId },
+      },
+      { idempotencyKey: `identity:${params.profileId}:${params.returnUrl}` },
+    );
+
+    return this.toIdentityCheck(session);
+  }
+
+  /**
+   * Read a verification session back from Stripe.
+   *
+   * THE RELIABLE PATH for "did it pass". A webhook can be delayed, retried, or lost,
+   * and returning from the hosted flow proves only that the member came back — not
+   * that Stripe accepted anything. Same trap as Connect's hosted onboarding return,
+   * which is why `refreshPayoutStatus` exists.
+   *
+   * `expand` is required: `verified_outputs` is not included by default, and it
+   * carries the document-backed name that becomes the buyer-facing disclosure.
+   */
+  async readIdentityCheck(sessionId: string): Promise<IdentityCheck> {
+    const session = await this.stripe.identity.verificationSessions.retrieve(sessionId, {
+      expand: ['verified_outputs'],
+    });
+    return this.toIdentityCheck(session);
+  }
+
+  /** Translate a Stripe session into the seam's shape. */
+  private toIdentityCheck(
+    session: Stripe.Identity.VerificationSession,
+  ): IdentityCheck {
+    const outcome: IdentityCheckOutcome =
+      session.status === 'verified'
+        ? 'VERIFIED'
+        : // `requires_input` after a submission means Stripe could not verify. Before
+          // one it means "not started yet" — both are non-terminal for us and the
+          // member may retry, so both map to FAILED only when a reason is present.
+          session.status === 'requires_input' && session.last_error
+          ? 'FAILED'
+          : 'PENDING';
+
+    const verified = session.verified_outputs ?? null;
+    const first = verified?.first_name?.trim() ?? '';
+    const last = verified?.last_name?.trim() ?? '';
+    const fullName = [first, last].filter(Boolean).join(' ') || null;
+
+    return {
+      sessionId: session.id,
+      outcome,
+      // Only ever populated from `verified_outputs`, i.e. read off the document
+      // Stripe accepted. Never from anything the member typed.
+      verifiedName: outcome === 'VERIFIED' ? fullName : null,
+      verifiedAt:
+        outcome === 'VERIFIED'
+          ? new Date(session.created * 1000).toISOString()
+          : null,
+      hostedUrl: session.url ?? null,
+      failureReason: session.last_error?.reason ?? null,
+    };
   }
 
   /**
@@ -650,7 +756,20 @@ export class StripeService implements PaymentService, PayerService {
           losses_collector: 'application',
         },
       },
-      identity: { country: 'au', entity_type: 'individual' },
+      // Country comes from the Member's stated trading region (0065), falling back
+      // to the configured default for a caller that has not supplied one.
+      //
+      // FIXED FOREVER AT CREATION. Stripe does not allow an account's country to
+      // change, the onboarding requirements differ per country, and a transfer to
+      // an account registered outside the jurisdiction the funds were collected in
+      // either fails or becomes a cross-border payment with its own rules. This was
+      // hardcoded to 'au' until 0065; parameterising it is what lets a second
+      // region exist at all, and it is also why `setTradingRegion` refuses to move
+      // a member who already has a `merchant_ref`.
+      identity: {
+        country: resolveAccountCountry(details.country, this.opts.config.country),
+        entity_type: 'individual',
+      },
       include: ['identity', 'configuration.recipient', 'requirements'],
       metadata: {
         // Stamped so an account whose reference we failed to persist can still be
@@ -779,6 +898,27 @@ export class StripeService implements PaymentService, PayerService {
 // is Stripe's own onboarding requirement, evaluated inside Connect — reimplementing it
 // from a date of birth would mean reading and holding a birthdate this integration
 // deliberately never persists.
+
+/**
+ * The country a connected account is registered in (0065).
+ *
+ * Prefers the Member's own trading region and falls back to the configured
+ * default. Validated to two ASCII letters, because an account's country is fixed
+ * at creation and cannot be corrected afterwards — passing through a malformed
+ * value would either be rejected by the provider or, worse, accepted as some other
+ * jurisdiction and left there permanently. An unusable value therefore falls back
+ * rather than being forwarded.
+ *
+ * @param requested the Member's region, ISO 3166-1 alpha-2 in any casing
+ * @param fallback  the configured default, already lowercase
+ */
+function resolveAccountCountry(
+  requested: string | null | undefined,
+  fallback: string,
+): string {
+  const code = requested?.trim().toLowerCase() ?? '';
+  return /^[a-z]{2}$/.test(code) ? code : fallback;
+}
 
 /**
  * A short, stable digest of a request body, for use as part of an idempotency key.

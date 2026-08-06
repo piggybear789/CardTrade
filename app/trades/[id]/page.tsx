@@ -32,7 +32,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Trade contract · NoDitto',
-  description: 'Live escrow status and actions for a 2-way trade.',
+  description: 'Live contract status and actions for a 2-way trade.',
 };
 
 export default async function TradePage({
@@ -82,13 +82,14 @@ export default async function TradePage({
   // Req 2.1): reputation only, never merchant/compliance detail.
   const { data: partyRows } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified')
+    .select('id, display_name, rating, rating_count, is_verified, avatar_path')
     .in('id', [trade.initiator_id, trade.counterpart_id]);
   const partyById = new Map((partyRows ?? []).map((row) => [row.id as string, row]));
   const partyFor = (id: string) => {
     const row = partyById.get(id);
     return {
       name: (row?.display_name as string | null)?.trim() || 'NoDitto member',
+      avatarPath: (row?.avatar_path as string | null) ?? null,
       verified: Boolean(row?.is_verified),
       rating: row?.rating == null ? null : Number(row.rating),
       ratingCount: (row?.rating_count as number | null) ?? 0,

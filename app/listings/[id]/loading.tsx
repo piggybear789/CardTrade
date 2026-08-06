@@ -13,7 +13,7 @@ export default function ItemDetailLoading() {
   return (
     <MarketplaceShellSkeleton>
       <div
-        className="flex min-h-0 flex-col lg:h-[calc(100dvh-7.5rem-1px-env(safe-area-inset-top))]"
+        className="flex min-h-0 flex-col lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))]"
         role="status"
         aria-busy="true"
         aria-label="Loading listing"

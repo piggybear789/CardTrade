@@ -12,6 +12,7 @@ import { AlertTriangle, Handshake, MessageSquare } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { listMyConversations } from '@/lib/actions/messages';
+import { Avatar } from '@/components/ui/avatar';
 import { formatRelativeTime, itemImageUrl } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -119,7 +120,17 @@ export default async function MessagesPage() {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-medium">{name}</p>
+                      {/* Beside the NAME, not in the leading square — that square is
+                          the item thumbnail, which is what a member recognises a
+                          marketplace conversation by. */}
+                      <p className="flex min-w-0 items-center gap-1.5 font-medium">
+                        <Avatar
+                          avatarPath={c.other.avatarPath}
+                          displayName={name}
+                          size="xs"
+                        />
+                        <span className="truncate">{name}</span>
+                      </p>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         {time}
                       </span>

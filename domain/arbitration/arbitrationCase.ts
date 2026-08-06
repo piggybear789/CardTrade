@@ -33,6 +33,24 @@ export type ArbitrationCaseKind = 'CASH_SALE' | 'TRADE' | 'CHARGEBACK';
  */
 export type ArbitrationPriority = 'CRITICAL' | 'HIGH' | 'NORMAL';
 
+/**
+ * One line of goods a disputed contract covers (0064).
+ *
+ * Exists because `title` alone stopped being a sufficient description of the
+ * goods once a listing could be a SHOPFRONT. A binder's ten concurrent contracts
+ * all carry the same title, so a case reading only that would tell an arbitrator
+ * "Josh's Pokémon binder, $340" with no way to decide a claim about which card
+ * was owed. These lines come from the CONTRACT, which is frozen at the
+ * Commitment_Point, never from the listing, which the seller can still edit.
+ */
+export interface ArbitrationGoodsLine {
+  description: string;
+  /** Per-line grade, because a binder is not one condition. */
+  condition: string | null;
+  quantity: number;
+  unitPriceCents: Cents;
+}
+
 /** A party to a case, as an arbitrator needs to see them. */
 export interface ArbitrationParty {
   id: string;
@@ -48,8 +66,22 @@ export interface ArbitrationCase {
   kind: ArbitrationCaseKind;
   /** Primary key of the underlying record. */
   ref: string;
-  /** Short human label, e.g. the item title. */
+  /**
+   * Short human label, e.g. the item title.
+   *
+   * For a shopfront contract this names the LISTING, not the goods — several
+   * cases will share it. Read {@link goods} to know what the contract covered.
+   */
   title: string;
+  /**
+   * What the contract covered, line by line, when the record itemises it.
+   *
+   * Empty for a trade, a chargeback, and a single-item cash sale, whose goods are
+   * fully described by `title`. Non-empty for a shopfront cash sale, where it is
+   * the only thing that distinguishes one case from another against the same
+   * listing.
+   */
+  goods: readonly ArbitrationGoodsLine[];
   /** Total money the outcome decides, in cents. */
   amountAtRiskCents: Cents;
   /** When the dispute was raised, ISO-8601. Null when the source never recorded it. */

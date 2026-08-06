@@ -32,6 +32,9 @@ import type {
   TransferResult,
   WebhookEmitter,
   WebhookEvent,
+  IdentityService,
+  IdentityCheck,
+  IdentityCheckOutcome,
 } from '../types';
 
 /** A forced outcome for a simulated payment operation. */
@@ -107,12 +110,22 @@ export interface InMemoryRefund {
  * behavior (via `InMemoryServiceOptions`) and inspect the resulting side
  * effects (via the public `*By*` maps / arrays).
  */
-export class InMemoryService implements PaymentService, PayerService, WebhookEmitter {
+export class InMemoryService
+  implements PaymentService, PayerService, IdentityService, WebhookEmitter
+{
   /** Provider payer keyed by owning profile id. */
   readonly payersByProfile = new Map<string, Payer>();
   /** Reverse lookup: profile id keyed by payer id. */
   readonly profileByPayer = new Map<string, string>();
   /** Simulated hold ledger keyed by hold id. */
+  /** Simulated identity sessions, both directions, mirroring the payer maps. */
+  readonly identityByProfile = new Map<string, string>();
+
+  readonly profileByIdentity = new Map<string, string>();
+
+  /** Outcomes a test has driven, keyed by session id. Absent means PENDING. */
+  readonly identityOutcomes = new Map<string, IdentityCheckOutcome>();
+
   readonly holds = new Map<string, PreAuthHold>();
   /** Every capture requested, in order (settled and failed). */
   readonly captures: InMemoryCapture[] = [];
@@ -148,9 +161,77 @@ export class InMemoryService implements PaymentService, PayerService, WebhookEmi
     return payer;
   }
 
-  // `runVerification` used to live here. Removed with the payer gate: identity is
-  // the Identity_Gate now, which is Connect onboarding state rather than a
-  // provider call, so a fake has nothing to stand in for.
+  // -------------------------------------------------------------------------
+  // IdentityService
+  // -------------------------------------------------------------------------
+  //
+  // `runVerification` used to live here and was removed with the payer gate, when
+  // the gate became Connect onboarding state and a fake had nothing to stand in for.
+  // 0069 moved the gate to Stripe Identity, so there is a provider call again — and
+  // this is a fake of THAT, not a revival of the retired parallel KYC path.
+  //
+  // DEFAULTS TO PENDING, never VERIFIED. A fake that verified on creation would let
+  // a test pass the gate without saying it meant to, so any test relying on a
+  // verified member has to declare that with `setIdentityOutcome`. The assumption
+  // then reads in the test rather than hiding in the fake.
+
+  /** Create a deterministic simulated verification session. Lands PENDING. */
+  async createIdentityCheck(params: {
+    profileId: string;
+    returnUrl: string;
+  }): Promise<IdentityCheck> {
+    const existing = this.identityByProfile.get(params.profileId);
+    const sessionId = existing ?? `vs_${this.nextId()}_${params.profileId}`;
+    this.identityByProfile.set(params.profileId, sessionId);
+    this.profileByIdentity.set(sessionId, params.profileId);
+
+    return {
+      sessionId,
+      outcome: this.identityOutcomes.get(sessionId) ?? 'PENDING',
+      verifiedName: null,
+      verifiedAt: null,
+      // No provider page to host, so the caller's own return URL stands in.
+      hostedUrl: params.returnUrl,
+      failureReason: null,
+    };
+  }
+
+  /** Read back a simulated session, reflecting whatever the test drove it to. */
+  async readIdentityCheck(sessionId: string): Promise<IdentityCheck> {
+    const outcome = this.identityOutcomes.get(sessionId) ?? 'PENDING';
+    const profileId = this.profileByIdentity.get(sessionId);
+    const verified = outcome === 'VERIFIED';
+
+    return {
+      sessionId,
+      outcome,
+      // Stands in for the document-backed name from `verified_outputs`, so the
+      // disclosure path is exercisable without a real document.
+      verifiedName: verified ? `Verified ${profileId ?? sessionId}` : null,
+      verifiedAt: verified ? new Date().toISOString() : null,
+      hostedUrl: null,
+      failureReason: verified ? null : outcome === 'FAILED' ? 'document_unverified_other' : null,
+    };
+  }
+
+  /**
+   * Test control: drive a simulated session to an outcome.
+   *
+   * NOT part of the production contract — the real binding learns outcomes from
+   * Stripe.
+   */
+  setIdentityOutcome(sessionId: string, outcome: IdentityCheckOutcome): void {
+    this.identityOutcomes.set(sessionId, outcome);
+  }
+
+  /** Convenience for the common case: verify a Profile without knowing its session. */
+  verifyIdentityFor(profileId: string): string {
+    const sessionId = this.identityByProfile.get(profileId) ?? `vs_${this.nextId()}_${profileId}`;
+    this.identityByProfile.set(profileId, sessionId);
+    this.profileByIdentity.set(sessionId, profileId);
+    this.identityOutcomes.set(sessionId, 'VERIFIED');
+    return sessionId;
+  }
 
 
   // -------------------------------------------------------------------------

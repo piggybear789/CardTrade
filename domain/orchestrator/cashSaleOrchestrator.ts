@@ -8,6 +8,11 @@
 import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
 import {
+  checkRegionCompatibility,
+  regionMismatchMessage,
+  type RegionCode,
+} from '../region';
+import {
   canReceiveFunds,
   sellerIdentityDisclosure,
   type MerchantRecord,
@@ -16,6 +21,18 @@ import {
 
 export type PayoutMode = 'platform' | 'direct';
 export type ItemStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD';
+
+/**
+ * What kind of thing a listing is (0064).
+ *
+ * - `SINGLE`    — one physical object. Its one live contract reserves it, and
+ *   `items.status` is both the availability rule and the mutual exclusion that
+ *   makes double-selling impossible.
+ * - `SHOPFRONT` — a browsable inventory: a binder, a bulk lot. Several Buyers
+ *   hold their own contract against it at the same time, so it is never reserved
+ *   and never sold. What each contract covers lives on the contract, not here.
+ */
+export type ListingKind = 'SINGLE' | 'SHOPFRONT';
 export type FulfillmentMethod = 'DELIVERY' | 'IN_PERSON';
 export type CashSaleStatus =
   | 'AGREEMENT'
@@ -50,6 +67,15 @@ export function platformFeeCentsFor(agreedPriceCents: Cents): Cents {
 
 export interface BuyerRecord {
   profileId: string;
+  /**
+   * The Buyer's trading region, ISO 3166-1 alpha-2 (0065).
+   *
+   * Optional so a repository or test fake that predates the column still compiles.
+   * Absent is NOT permissive: `checkRegionCompatibility` refuses an unknown region,
+   * because "we do not know where either party is" is not a basis for taking their
+   * money.
+   */
+  regionCode?: string | null;
   // `kycStatus` used to be carried here. It was selected, threaded through, and
   // never compared to anything — the documented buyer verification gate did not
   // actually exist. A cash Buyer needs a payment method, not payout onboarding, so
@@ -71,10 +97,63 @@ export interface ItemRecord {
   ownerId: string;
   fmvCents: Cents;
   status: ItemStatus;
+  /**
+   * The OWNER's trading region, ISO 3166-1 alpha-2 (0065).
+   *
+   * Deliberately the seller's region and not `items.location_country_code`. The
+   * listing's country says where the goods are, which can differ from where the
+   * seller settles — they may post a listing while travelling. What the contract
+   * needs to know is which jurisdiction the money moves in, and that is a property
+   * of the payee, not the parcel.
+   */
+  ownerRegionCode?: string | null;
+  /** Defaults to `SINGLE` so a repository that predates 0064 behaves as before. */
+  listingKind?: ListingKind;
+  /** Set when the owner closed a SHOPFRONT. A closed shopfront takes no new contracts. */
+  closedAt?: string | null;
   title?: string;
   description?: string;
   condition?: string;
   imagePaths?: string[];
+}
+
+/**
+ * One negotiated line of a Cash_Sale contract, as persisted (0064).
+ *
+ * For a SHOPFRONT contract these lines ARE the goods and their sum IS the price.
+ * A SINGLE contract has none: its goods are the `item*` snapshot columns copied
+ * from the listing at creation.
+ */
+export interface CashSaleLineItem {
+  id: string;
+  description: string;
+  condition: string | null;
+  quantity: number;
+  unitPriceCents: Cents;
+  imagePath: string | null;
+  sortOrder: number;
+}
+
+/** A line as supplied by a caller, before it has an id. */
+export interface CashSaleLineItemDraft {
+  description: string;
+  condition?: string | null;
+  quantity: number;
+  unitPriceCents: Cents;
+  imagePath?: string | null;
+}
+
+/**
+ * Total price of a set of contract lines, in integer AUD cents.
+ *
+ * Duplicated in SQL by `replace_cash_sale_items`, which aborts if the two
+ * disagree — so this function and that query are pinned to each other rather
+ * than merely intended to match.
+ */
+export function lineItemsTotalCents(
+  lines: readonly { quantity: number; unitPriceCents: Cents }[],
+): Cents {
+  return lines.reduce((sum, line) => sum + line.quantity * line.unitPriceCents, 0);
 }
 
 /** Persisted aggregate used by the pure orchestrator and UI boundary. */
@@ -93,6 +172,15 @@ export interface CashSaleRecord {
   agreedPriceCents: Cents;
   platformFeeCents: Cents;
   status: CashSaleStatus;
+  /**
+   * Opened against a SHOPFRONT listing (0064).
+   *
+   * Changes three things: the listing was never reserved, so nothing has to be
+   * released on cancellation; `agreedPriceCents` is the sum of the contract's
+   * line items rather than a directly proposed number; and the contract cannot be
+   * accepted until it states at least one line.
+   */
+  fromShopfront: boolean;
   version: number;
   transferId: string | null;
   paymentNonce: string | null;
@@ -193,6 +281,13 @@ export type CashSaleError =
   | 'SELLER_IDENTITY_UNVERIFIED'
   | 'SELLER_IDENTITY_CHANGED'
   | 'SELLER_NOT_PAYABLE'
+  /**
+   * The parties are not in the same enabled trading region (0065).
+   *
+   * A precondition, not a rejection of either party: both may be perfectly able to
+   * transact, just not with each other.
+   */
+  | 'REGION_MISMATCH'
   | 'ITEM_NOT_FOUND'
   | 'ITEM_UNAVAILABLE'
   | 'SELF_PURCHASE'
@@ -248,6 +343,14 @@ export interface CreateCashSaleParams {
   platformFeeCents: Cents;
   sellerIdentity: SellerIdentityDisclosure;
   buyerSellerIdentityConfirmedAt: string;
+  /**
+   * Opening line items, written in the same transaction as the agreement.
+   *
+   * Required for a SHOPFRONT listing and rejected for a SINGLE one. Atomic
+   * because a shopfront contract that existed even briefly without a statement of
+   * its goods would be a contract for an entire binder.
+   */
+  lineItems?: readonly CashSaleLineItemDraft[];
 }
 
 /** A provider-resolved residential address supplied only by the Buyer. */
@@ -317,6 +420,24 @@ export interface CashSaleRepository {
     cashSaleId: string;
     expectedTermsVersion: number;
     agreedPriceCents: Cents;
+  }): Promise<CashSaleRecord | null>;
+  /** The contract's line items in display order; empty for a SINGLE contract. */
+  loadLineItems(cashSaleId: string): Promise<CashSaleLineItem[]>;
+  /**
+   * Replace every line and re-derive the price from the new set.
+   *
+   * One call, not a diff, because a partially applied change would leave a
+   * contract describing goods nobody agreed to. The price write is what clears
+   * both acceptances, so swapping one card for another of identical value still
+   * forces a re-accept.
+   */
+  replaceLineItems(params: {
+    cashSaleId: string;
+    actorId: string;
+    expectedTermsVersion: number;
+    lineItems: readonly CashSaleLineItemDraft[];
+    agreedPriceCents: Cents;
+    platformFeeCents: Cents;
   }): Promise<CashSaleRecord | null>;
   acceptTerms(params: {
     cashSaleId: string;
@@ -391,7 +512,18 @@ export interface CashSaleRepository {
    * Excludes anything past {@link MAX_PAYOUT_ATTEMPTS} so a permanently broken
    * release stops consuming retries and waits for an operator instead.
    */
-  listDuePayouts(params: { limit: number; maxAttempts: number }): Promise<string[]>;
+  /**
+   * Ids of contracts whose Seller release is owed and still retryable.
+   *
+   * `currency`, when given, restricts the result to contracts denominated in it —
+   * the drain uses it so a pass holding one region's platform account never attempts
+   * a contract another account collected.
+   */
+  listDuePayouts(params: {
+    limit: number;
+    maxAttempts: number;
+    currency?: string;
+  }): Promise<string[]>;
   /** Record the outcome of a release attempt (Req 4.3, 4.4). */
   recordPayoutResult(params: {
     cashSaleId: string;
@@ -492,6 +624,28 @@ export interface CashSaleOrchestratorDeps {
   createNonce?: () => string;
   /** Optional; when absent no payout notifications are emitted. */
   notifier?: PayoutNotifier;
+  /**
+   * The regions a contract may actually be opened in (0068).
+   *
+   * INJECTED, not read, because this module is pure and the answer depends on
+   * whether a Stripe platform credential exists for the region — a runtime fact.
+   * `createDefaultCashSaleOrchestrator` supplies `operationalRegions()`, which is
+   * product intent AND a configured binding.
+   *
+   * Omitting it falls back to the registry's own `tradingEnabled`, which is right
+   * for unit tests but too permissive for a money path: it would let a contract open
+   * in a region with no Stripe account to pay the seller from.
+   */
+  operationalRegions?: ReadonlySet<RegionCode>;
+  /**
+   * The currency of the platform account {@link CashSaleOrchestratorDeps.payments}
+   * is bound to, scoping the payout drain to contracts it can actually settle (0068).
+   *
+   * Only read by `processDueCashSalePayouts`. Undefined means unscoped, which is
+   * correct for a single-region deployment and for tests; a multi-region drain runs
+   * one pass per region and sets this each time.
+   */
+  payoutRegionCurrency?: string;
 }
 
 export interface InitiateCashSaleParams {
@@ -500,6 +654,14 @@ export interface InitiateCashSaleParams {
   sellerIdentityVersion: string;
   buyerConfirmedSellerIdentity: boolean;
   agreedPriceCents?: Cents;
+  /**
+   * What the Buyer is asking for out of a SHOPFRONT listing.
+   *
+   * Mandatory for a shopfront and rejected for a SINGLE listing, whose goods are
+   * the whole listing. The price is derived from these lines, so
+   * `agreedPriceCents` is ignored when they are present.
+   */
+  lineItems?: readonly CashSaleLineItemDraft[];
 }
 
 /**
@@ -639,7 +801,46 @@ export async function initiateCashSale(
   const item = await deps.repository.loadItem(params.itemId);
   if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
   if (item.ownerId === params.buyerId) return { ok: false, error: 'SELF_PURCHASE' };
-  if (item.status !== 'AVAILABLE') return { ok: false, error: 'ITEM_UNAVAILABLE' };
+
+  // Region precondition (0065). Checked here, at the point a contract is opened,
+  // rather than relying on the catalog being region-scoped: a browse filter is
+  // bypassed by a shared link, a watchlist entry, a saved search, or opening the
+  // listing page directly. Without this a Buyer could still agree a contract with a
+  // Seller in another jurisdiction and the problem would surface at transfer time,
+  // with the Buyer's money already collected into the platform balance.
+  //
+  // Placed before the identity disclosure so an out-of-region Buyer is told the
+  // actual reason rather than being asked to confirm a seller they can never buy
+  // from.
+  const mismatch = checkRegionCompatibility(
+    buyer.regionCode,
+    item.ownerRegionCode,
+    deps.operationalRegions,
+  );
+  if (mismatch) {
+    return {
+      ok: false,
+      error: 'REGION_MISMATCH',
+      detail: regionMismatchMessage(mismatch),
+    };
+  }
+
+  // A SHOPFRONT is never reserved, so availability cannot gate it — several
+  // Buyers are meant to hold contracts against it at once. Being open is the
+  // whole test. A SINGLE listing keeps the original guard, which is also what
+  // stops two Buyers racing onto one physical card.
+  const shopfront = (item.listingKind ?? 'SINGLE') === 'SHOPFRONT';
+  if (shopfront) {
+    if (item.closedAt) {
+      return {
+        ok: false,
+        error: 'ITEM_UNAVAILABLE',
+        detail: 'This seller has closed the listing.',
+      };
+    }
+  } else if (item.status !== 'AVAILABLE') {
+    return { ok: false, error: 'ITEM_UNAVAILABLE' };
+  }
 
   const payee = await deps.repository.loadSellerPayee(item.ownerId);
   const sellerIdentity = sellerIdentityDisclosure(payee);
@@ -651,7 +852,28 @@ export async function initiateCashSale(
     return { ok: false, error: 'SELLER_IDENTITY_CHANGED' };
   }
 
-  const agreedPriceCents = Math.trunc(params.agreedPriceCents ?? item.fmvCents);
+  const lineItems = normalizeLineItems(params.lineItems);
+  if (shopfront && lineItems.length === 0) {
+    return {
+      ok: false,
+      error: 'INVALID_TERMS',
+      detail: 'Say which items you want from this listing.',
+    };
+  }
+  if (!shopfront && lineItems.length > 0) {
+    return {
+      ok: false,
+      error: 'NOT_SUPPORTED',
+      detail: 'This listing is sold as one item, so it cannot be itemised.',
+    };
+  }
+
+  // A shopfront's price is the sum of the lines and nothing else. Falling back to
+  // `item.fmvCents` here would charge for the whole binder, which for a shopfront
+  // is only ever an indicative "from" figure.
+  const agreedPriceCents = shopfront
+    ? lineItemsTotalCents(lineItems)
+    : Math.trunc(params.agreedPriceCents ?? item.fmvCents);
   if (!Number.isInteger(agreedPriceCents) || agreedPriceCents <= 0) {
     return { ok: false, error: 'INVALID_TERMS', detail: 'The agreed price is invalid.' };
   }
@@ -664,8 +886,133 @@ export async function initiateCashSale(
     platformFeeCents: deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents),
     sellerIdentity,
     buyerSellerIdentityConfirmedAt: currentIso(deps),
+    lineItems: shopfront ? lineItems : undefined,
   });
   return sale ? { ok: true, sale } : { ok: false, error: 'ITEM_UNAVAILABLE' };
+}
+
+/**
+ * Move the listing's availability in step with the contract — unless the listing
+ * is a SHOPFRONT, in which case do nothing.
+ *
+ * A shopfront was never reserved, so there is nothing to release; more to the
+ * point, every write here would be WRONG. Marking a binder `SOLD` because one
+ * card sold out of it would delist it while other Buyers are mid-negotiation, and
+ * marking it `AVAILABLE` on a cancellation would clear a reservation that other
+ * live contracts never had. `items.status` describes a single physical object and
+ * a shopfront is not one.
+ */
+async function syncListingStatus(
+  deps: CashSaleOrchestratorDeps,
+  sale: Pick<CashSaleRecord, 'itemId' | 'fromShopfront'>,
+  status: ItemStatus,
+): Promise<void> {
+  if (sale.fromShopfront) return;
+  await deps.repository.setItemStatus({ itemId: sale.itemId, status });
+}
+
+/**
+ * Coerce caller-supplied lines into the persisted shape.
+ *
+ * Text is trimmed and empty strings become null so the database's length CHECKs
+ * see the same values a form showed the member. Quantity and price are truncated
+ * to integers: money is integer cents end to end and a fractional quantity of a
+ * trading card is not a thing.
+ */
+function normalizeLineItems(
+  lines: readonly CashSaleLineItemDraft[] | undefined,
+): CashSaleLineItemDraft[] {
+  return (lines ?? [])
+    .map((line) => ({
+      description: line.description?.trim() ?? '',
+      condition: line.condition?.trim() || null,
+      quantity: Math.trunc(line.quantity),
+      unitPriceCents: Math.trunc(line.unitPriceCents),
+      imagePath: line.imagePath?.trim() || null,
+    }))
+    .filter((line) => line.description.length > 0);
+}
+
+/**
+ * Renegotiate WHAT a shopfront contract covers, and with it the price (0064).
+ *
+ * Only meaningful for a shopfront: a SINGLE contract's goods are the listing, so
+ * there is nothing to itemise and repricing goes through
+ * {@link proposeCashSalePrice} instead.
+ *
+ * Every line is replaced at once and the price is re-derived from the result, so
+ * the total can never drift from the goods. Both acceptances are cleared by the
+ * price write — including when the new lines happen to total the same, because
+ * what is being bought has still changed.
+ */
+export async function replaceCashSaleItems(
+  deps: CashSaleOrchestratorDeps,
+  params: {
+    actorId: string;
+    cashSaleId: string;
+    expectedTermsVersion: number;
+    lineItems: readonly CashSaleLineItemDraft[];
+  },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (!participantRole(sale, params.actorId)) {
+    return { ok: false, error: 'NOT_PARTICIPANT' };
+  }
+  if (!sale.fromShopfront) {
+    return {
+      ok: false,
+      error: 'NOT_SUPPORTED',
+      detail: 'This contract covers a single listed item, so its contents are fixed.',
+    };
+  }
+  if (sale.status !== 'AGREEMENT') {
+    return {
+      ok: false,
+      error: 'INVALID_STATE',
+      detail: 'Contents are locked once payment has started.',
+    };
+  }
+  if (sale.termsVersion !== params.expectedTermsVersion) {
+    return {
+      ok: false,
+      error: 'STALE_TERMS',
+      detail: 'The contract changed while you were editing. Review the current version.',
+    };
+  }
+
+  const lineItems = normalizeLineItems(params.lineItems);
+  if (lineItems.length === 0) {
+    return {
+      ok: false,
+      error: 'INVALID_TERMS',
+      detail: 'A contract must cover at least one item.',
+    };
+  }
+  if (lineItems.some((line) => line.quantity <= 0 || line.unitPriceCents < 0)) {
+    return { ok: false, error: 'INVALID_TERMS', detail: 'Check the quantities and prices.' };
+  }
+
+  const agreedPriceCents = lineItemsTotalCents(lineItems);
+  if (agreedPriceCents <= 0) {
+    return {
+      ok: false,
+      error: 'INVALID_TERMS',
+      detail: 'The contract total must be more than zero.',
+    };
+  }
+
+  const updated = await deps.repository.replaceLineItems({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    expectedTermsVersion: sale.termsVersion,
+    lineItems,
+    agreedPriceCents,
+    platformFeeCents: deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents),
+  });
+  if (!updated) return { ok: false, error: 'STALE_TERMS' };
+
+  return { ok: true, sale: updated };
 }
 /** Edit fulfillment terms and clear both stale acceptances via the repository. */
 export async function updateCashSaleTerms(
@@ -721,6 +1068,24 @@ export async function updateCashSaleTerms(
         ok: false,
         error: 'NOT_PERMITTED',
         detail: 'Only the buyer can set the delivery address.',
+      };
+    }
+    // POSTAGE IS THE SELLER'S TO PRICE, the mirror of the address rule above. The
+    // Seller chooses the carrier and pays them, so only they can estimate it, and a
+    // Buyer proposing their own postage is a figure the Seller must then undo.
+    //
+    // Compared against the STORED value rather than rejected outright: a Buyer
+    // legitimately saves this form to set their delivery address, and that save
+    // carries the whole terms object including the postage already agreed. Only an
+    // actual change is refused.
+    if (
+      params.actorId === sale.buyerId &&
+      terms.shippingCostCents !== sale.shippingCostCents
+    ) {
+      return {
+        ok: false,
+        error: 'NOT_PERMITTED',
+        detail: 'Only the seller can set postage, because they choose the carrier.',
       };
     }
     if (
@@ -805,6 +1170,16 @@ export async function proposeCashSalePrice(
   if (!participantRole(sale, params.actorId)) {
     return { ok: false, error: 'NOT_PARTICIPANT' };
   }
+  // A shopfront contract's price IS the sum of its lines. Letting it also be set
+  // directly would create two sources of truth for the same number and allow a
+  // total that does not match the goods it is meant to pay for.
+  if (sale.fromShopfront) {
+    return {
+      ok: false,
+      error: 'NOT_SUPPORTED',
+      detail: 'Change the items on this contract to change the price.',
+    };
+  }
   if (sale.status !== 'AGREEMENT') return { ok: false, error: 'INVALID_STATE' };
   if (sale.termsVersion !== params.expectedTermsVersion) {
     return { ok: false, error: 'STALE_TERMS' };
@@ -875,7 +1250,7 @@ async function submitClaimedPayment(
   const buyer = await deps.repository.loadBuyer(sale.buyerId);
   if (!buyer?.payerId || !buyer.paymentSourceId) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
-    await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'AVAILABLE' });
+    await syncListingStatus(deps, sale, 'AVAILABLE');
     return { ok: false, error: 'BUYER_NO_PAYMENT_METHOD' };
   }
 
@@ -883,12 +1258,12 @@ async function submitClaimedPayment(
   const identity = sellerIdentityDisclosure(payee);
   if (!identity || identity.version !== sale.sellerIdentity.version) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
-    await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'AVAILABLE' });
+    await syncListingStatus(deps, sale, 'AVAILABLE');
     return { ok: false, error: 'SELLER_IDENTITY_CHANGED' };
   }
   if ((deps.payoutMode ?? 'platform') === 'direct' && !canReceiveFunds(payee)) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
-    await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'AVAILABLE' });
+    await syncListingStatus(deps, sale, 'AVAILABLE');
     return { ok: false, error: 'SELLER_NOT_PAYABLE' };
   }
 
@@ -897,7 +1272,7 @@ async function submitClaimedPayment(
     target = await resolvePaymentPayer(deps, sale, buyer, payee);
   } catch (error) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
-    await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'AVAILABLE' });
+    await syncListingStatus(deps, sale, 'AVAILABLE');
     return {
       ok: false,
       error: 'TRANSFER_FAILED',
@@ -925,7 +1300,7 @@ async function submitClaimedPayment(
       cashSaleId: sale.id,
       transferId: transfer.transferId || undefined,
     });
-    await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'AVAILABLE' });
+    await syncListingStatus(deps, sale, 'AVAILABLE');
     await deps.repository.logEvent({
       cashSaleId: sale.id,
       actorId: null,
@@ -972,6 +1347,20 @@ export async function acceptCashSaleTerms(
   }
   if (sale.termsVersion !== params.termsVersion) {
     return { ok: false, error: 'STALE_TERMS' };
+  }
+  // The second acceptance collects the money and freezes the contract, so a
+  // shopfront contract must state its goods BEFORE it can be accepted. Otherwise
+  // the record would say only "Josh's Pokémon binder" and an arbitrator would
+  // have nothing to decide against.
+  if (sale.fromShopfront) {
+    const lines = await deps.repository.loadLineItems(sale.id);
+    if (lines.length === 0) {
+      return {
+        ok: false,
+        error: 'INVALID_TERMS',
+        detail: 'List the items this contract covers before accepting.',
+      };
+    }
   }
   if (
     (actor === 'BUYER' && sale.buyerTermsAcceptedVersion === sale.termsVersion) ||
@@ -1363,10 +1752,7 @@ async function completeResolvedDispute(
   });
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
 
-  await deps.repository.setItemStatus({
-    itemId: sale.itemId,
-    status: fullRefund ? 'AVAILABLE' : 'SOLD',
-  });
+  await syncListingStatus(deps, sale, fullRefund ? 'AVAILABLE' : 'SOLD');
 
   await deps.repository.logEvent({
     cashSaleId: sale.id,
@@ -1451,7 +1837,17 @@ export async function processDueCashSalePayouts(
   const limit = Math.max(1, Math.min(params.limit ?? 25, 200));
   const maxAttempts = params.maxAttempts ?? MAX_PAYOUT_ATTEMPTS;
 
-  const due = await deps.repository.listDuePayouts({ limit, maxAttempts });
+  // Scoped to the currency of the platform account `deps.payments` is bound to
+  // (0068). A pass holding the AU account can only release AU contracts — a GB
+  // contract would be a cross-region transfer and Stripe refuses it — so attempting
+  // them would burn a payout attempt per run and eventually exhaust
+  // MAX_PAYOUT_ATTEMPTS on a contract that was never broken. Undefined means "every
+  // currency", which is correct for a single-region deployment and for tests.
+  const due = await deps.repository.listDuePayouts({
+    limit,
+    maxAttempts,
+    currency: deps.payoutRegionCurrency,
+  });
   let settled = 0;
 
   for (const cashSaleId of due) {
@@ -1475,7 +1871,7 @@ export async function failCashSale(
   }
   const failed = await deps.repository.failPayment({ cashSaleId: sale.id });
   if (!failed) return { ok: false, error: 'INVALID_STATE' };
-  await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'AVAILABLE' });
+  await syncListingStatus(deps, sale, 'AVAILABLE');
   return { ok: true, sale: failed };
 }
 export async function recordCashSaleShipment(
@@ -1594,7 +1990,7 @@ export async function acceptCashSaleInspection(
     acceptedAt: currentIso(deps),
   });
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
-  await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'SOLD' });
+  await syncListingStatus(deps, sale, 'SOLD');
   await deps.repository.logEvent({
     cashSaleId: sale.id,
     actorId: params.actorId,
@@ -1642,7 +2038,7 @@ export async function confirmCashSaleHandover(
   });
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
   if (updated.status === 'COMPLETED') {
-    await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'SOLD' });
+    await syncListingStatus(deps, sale, 'SOLD');
   }
   await deps.repository.logEvent({
     cashSaleId: sale.id,
@@ -1705,7 +2101,7 @@ export async function cancelCashSaleAgreement(
     cancelledAt: currentIso(deps),
   });
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
-  await deps.repository.setItemStatus({ itemId: sale.itemId, status: 'AVAILABLE' });
+  await syncListingStatus(deps, sale, 'AVAILABLE');
   await deps.repository.logEvent({
     cashSaleId: sale.id,
     actorId: params.actorId,
@@ -1763,6 +2159,15 @@ export interface CashSaleOrchestrator {
     expectedTermsVersion: number;
     agreedPriceCents: Cents;
   }): Promise<CashSaleResult>;
+  /** Renegotiate a shopfront contract's contents, and with them its price (0064). */
+  replaceLineItems(params: {
+    actorId: string;
+    cashSaleId: string;
+    expectedTermsVersion: number;
+    lineItems: readonly CashSaleLineItemDraft[];
+  }): Promise<CashSaleResult>;
+  /** Read a contract's line items; empty for a SINGLE contract. */
+  listLineItems(cashSaleId: string): Promise<CashSaleLineItem[]>;
   acceptTerms(params: {
     actorId: string;
     cashSaleId: string;
@@ -1817,6 +2222,8 @@ export function createCashSaleOrchestrator(
     initiateCashSale: (params) => initiateCashSale(deps, params),
     updateTerms: (params) => updateCashSaleTerms(deps, params),
     proposePrice: (params) => proposeCashSalePrice(deps, params),
+    replaceLineItems: (params) => replaceCashSaleItems(deps, params),
+    listLineItems: (cashSaleId) => deps.repository.loadLineItems(cashSaleId),
     acceptTerms: (params) => acceptCashSaleTerms(deps, params),
     settleCashSale: (params) => settleCashSale(deps, params),
     failCashSale: (params) => failCashSale(deps, params),

@@ -227,7 +227,7 @@ export function PayoutOnboarding({
 
   return (
     // `id` is the anchor target for `/profile/payouts#payout-setup`.
-    <Card id="payout-setup" className="scroll-mt-24">
+    <Card id="payout-setup" className="h-full scroll-mt-24">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

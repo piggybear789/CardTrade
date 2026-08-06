@@ -79,7 +79,7 @@ export default async function PayoutsPage({
               />
             ) : null}
             {payoutContext.ok ? (
-              <PayoutOnboarding context={payoutContext.data} />
+              <PayoutOnboarding context={payoutContext.data} compact />
             ) : null}
           </div>
         ) : null}

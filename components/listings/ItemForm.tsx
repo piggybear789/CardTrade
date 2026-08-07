@@ -335,7 +335,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     if (fmvCents === null) {
       setError({
         field: "fmvCents",
-        message: "Enter a fair market value in dollars (e.g. 123.45).",
+        message: "Enter a price in dollars (e.g. 123.45).",
       });
       return;
     }
@@ -503,7 +503,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         <CardDescription>
           {isShopfront
             ? "Describe what buyers can pick from. You agree the cards and the price with each buyer separately."
-            : "Describe your collectible and set its fair market value in Australian dollars."}
+            : "Describe your collectible and set its price in Australian dollars."}
         </CardDescription>
       </CardHeader>
 
@@ -523,7 +523,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex min-h-[320px] w-full flex-1 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50${coverUrl ? ' max-h-[420px]' : ''}`}
+              className={`flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -845,7 +845,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 buyer asks for, so the label must not promise a purchase price. */}
             <div className="space-y-2">
               <Label htmlFor="fmv">
-                {isShopfront ? "Typical price" : "Fair market value"}
+                {isShopfront ? "Typical price" : "Price"}
               </Label>
               <MoneyInput
                 id="fmv"

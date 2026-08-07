@@ -170,7 +170,7 @@ export default async function ListingsPage({
     ? `Results for “${q}”`
     : categories.length === 1
       ? categories[0]
-      : 'Today’s picks';
+      : 'All Listings';
 
   const gridKey = [
     q,

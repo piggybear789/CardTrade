@@ -30,7 +30,8 @@ const MERCHANT_COLUMNS =
   'merchant_transactions_enabled, merchant_settlements_enabled, merchant_notes, ' +
   'merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, ' +
   'merchant_organisation_type, merchant_identity_version, ' +
-  'merchant_identity_disclosure_consented_at, merchant_identity_verified_at';
+  'merchant_identity_disclosure_consented_at, merchant_identity_verified_at, ' +
+  'identity_check_status, identity_check_name, identity_check_verified_at';
 
 interface MerchantRow {
   id: string;
@@ -48,6 +49,9 @@ interface MerchantRow {
   merchant_identity_version: string | null;
   merchant_identity_disclosure_consented_at: string | null;
   merchant_identity_verified_at: string | null;
+  identity_check_status: string | null;
+  identity_check_name: string | null;
+  identity_check_verified_at: string | null;
 }
 
 /** Map a DB row (snake_case) to the domain {@link MerchantRecord}. */
@@ -68,6 +72,9 @@ function toMerchantRecord(row: MerchantRow): MerchantRecord {
     identityVersion: row.merchant_identity_version,
     identityDisclosureConsentedAt: row.merchant_identity_disclosure_consented_at,
     identityVerifiedAt: row.merchant_identity_verified_at,
+    identityCheckStatus: (row.identity_check_status as MerchantRecord['identityCheckStatus']) ?? undefined,
+    identityCheckName: row.identity_check_name,
+    identityCheckVerifiedAt: row.identity_check_verified_at,
   };
 }
 

@@ -48,15 +48,16 @@ export interface RegionIndicatorProps {
 }
 
 export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
-  // Only one tradeable region (AU) exists right now. Showing a region picker
-  // that offers one option plus "All regions" is noise — hide it entirely until
-  // a second region is enabled.
-  if (TRADEABLE_REGIONS.length <= 1) return null;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+
+  // Only one tradeable region (AU) exists right now. Showing a region picker
+  // that offers one option plus "All regions" is noise — hide it entirely until
+  // a second region is enabled.
+  if (TRADEABLE_REGIONS.length <= 1) return null;
 
   const label = regionCode ? regionLabel(regionCode) : 'All regions';
 

@@ -70,7 +70,7 @@ const FAILURE_COPY: Record<
   },
   RETRIES_EXHAUSTED: {
     summary: 'Automatic retries for this release have stopped.',
-    action: 'A CardTrade operator is reviewing it. Your money is still held for you.',
+    action: 'A CardTrade operator is reviewing it. Your funds are safe and release will be retried.',
   },
 };
 
@@ -94,7 +94,7 @@ function historySentence(entry: TransferHistoryEntry): string {
 function arbitrationSentence(record: ArbitrationRecord): string {
   switch (record.effect) {
     case 'PROCEEDS_HELD':
-      return 'The proceeds are held until this is resolved.';
+      return 'The proceeds are paused until this is resolved.';
     case 'FRICTION_TAX_CAPTURED':
       return 'A $20 resolution fee was captured: $10 return shipping to the other party and $10 platform fee.';
     case 'COLLATERAL_CAPTURED_FROM_ME':
@@ -242,7 +242,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
                 {formatAud(model.upcomingProceedsCents)}
               </dd>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Held until the buyer accepts or inspection closes.
+                Pending until the buyer accepts or inspection closes.
               </p>
             </div>
             {model.atRiskProceedsCents > 0 ? (
@@ -383,7 +383,7 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
               </ul>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Buyer payment is held while delivery and inspection are underway.
+                Buyer payment is pending while delivery and inspection are underway.
               </p>
             )}
           </CardContent>

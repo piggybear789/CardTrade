@@ -1200,8 +1200,8 @@ function CashSaleRoom({
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.collateral}
           label="Protection"
-          explainer="Your payment is held by NoDitto until you have the item and are happy with it. Open the full explanation to see where the money sits at each stage."
-          summary="Payment held until you accept"
+          explainer="You're protected by NoDitto until you have the item and are happy with it. Open the full explanation to see how buyer protection works at each stage."
+          summary="Buyer protection active"
           contentClassName="gap-3"
         >
           {/* NO COLLATERAL ON A CASH SALE, so this tab does not mention any. The

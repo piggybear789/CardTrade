@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'NoDitto',
   description:
-    'Buy, sell, and swap high-value collectibles. Sellers are identity-verified through Stripe, swaps are backed by collateral from both traders, and payments are held until the buyer accepts.',
+    'Buy, sell, and swap high-value collectibles. Sellers are identity-verified through Stripe, swaps are backed by collateral from both traders, and buyers are protected until delivery is confirmed.',
 };
 
 // Iconic chase cards so the example trade reads as a serious, high-value swap:
@@ -100,8 +100,8 @@ export default async function HomePage() {
                   not a copy preference. */}
               <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-parchment/68 sm:text-lg sm:leading-8">
                 Transparency is crucial for a safe deal. Every seller on NoDitto is
-                identity-verified through Stripe, your payment is held until you accept
-                the goods, and swaps are backed by collateral from both traders.
+                identity-verified through Stripe, buyers are protected until delivery
+                is confirmed, and swaps are backed by collateral from both traders.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button

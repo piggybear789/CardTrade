@@ -188,7 +188,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                     open={confirmingAccept}
                     onOpenChange={setConfirmingAccept}
                     title="Accept this offer?"
-                    description={`Accepting opens a binding sale of "${title}" with ${counterparty} at ${formatAud(offer.amountCents)}. Your payment is held until you accept the item.`}
+                    description={`Accepting opens a binding sale of "${title}" with ${counterparty} at ${formatAud(offer.amountCents)}. You're protected until you confirm the item.`}
                     confirmLabel="Accept offer"
                     pending={isPending}
                     onConfirm={() => {

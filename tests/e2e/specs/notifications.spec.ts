@@ -22,7 +22,7 @@
 // The message this spec sends is MARKED so teardown can find it — both members are
 // seeded, so the marked-profile walk never reaches these rows. See messages.spec.ts.
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { ensureFreshSessions } from '../support/auth';

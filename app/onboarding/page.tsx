@@ -18,6 +18,7 @@
 // the only screen that can verify anything.
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -29,6 +30,7 @@ import {
 import { toast } from 'sonner';
 
 import { completeOnboarding } from '@/lib/actions/profile';
+import { signOut } from '@/lib/actions/auth';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { beginIdentityCheck } from '@/lib/actions/identity';
 import { setTradingRegion } from '@/lib/actions/region';
@@ -60,6 +62,19 @@ const STEPS: Step[] = ['welcome', 'username', 'region', 'intent'];
 // member ready to sell and then fail every payout.
 
 export default function OnboardingPage() {
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Leaving must work even if signing out fails, so a failed call still routes to
+  // the public catalog rather than stranding the member on this screen again.
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      // Swallowed deliberately: the redirect below is the escape either way.
+    }
+    window.location.assign('/listings');
+  }
   const router = useRouter();
   const [step, setStep] = useState<Step>('welcome');
   const [displayName, setDisplayName] = useState('');
@@ -553,6 +568,36 @@ export default function OnboardingPage() {
               </Button>
             </div>
           ) : null}
+
+          {/* A WAY OUT, ON EVERY STEP.
+              This wizard had no dismiss control, no sign-out and no link away, on the
+              reasoning that a member "completes the short flow or signs out" — but
+              signing out was not offered either, so the honest description was that
+              they completed it or stopped using the site. Members were sent here
+              merely for opening the catalog, and anyone whose profile row was missing
+              could not complete it at all, which turned a wizard into a locked door.
+              Browsing needs no profile, so leaving is always a legitimate choice. */}
+          <div className="mt-6 flex flex-col items-center gap-2 border-t pt-4">
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+              <Link href="/listings">
+                Not now — browse listings
+                <ArrowRight className="ml-1.5 size-3.5" aria-hidden />
+              </Link>
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              You can finish this any time. Selling, buying and trading need it
+              completed;{' '}
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="underline underline-offset-2 hover:text-foreground disabled:opacity-60"
+              >
+                {isSigningOut ? 'signing out…' : 'or sign out'}
+              </button>
+              .
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </main>

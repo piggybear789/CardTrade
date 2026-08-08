@@ -61,10 +61,38 @@ function rowKey(row: ReactElement<ContractDetailRowProps>, index: number): strin
 
 /** A fixed-height, single-selection inspector for binding contract details. */
 export function ContractDetailList({ children, className }: ContractDetailListProps) {
-  const rows = Children.toArray(children).filter(
+  // `Children.toArray` already drops null, undefined and booleans, so what remains is
+  // everything a caller meant to supply — the right denominator for the check below.
+  const supplied = Children.toArray(children);
+  const rows = supplied.filter(
     (child): child is ReactElement<ContractDetailRowProps> =>
       isValidElement<ContractDetailRowProps>(child) && child.type === ContractDetailRow,
   );
+
+  // COMPLAIN ABOUT ANYTHING DROPPED, in development.
+  //
+  // The filter above matches on `child.type === ContractDetailRow`, an exact identity
+  // check, so a row WRAPPED in a component of its own — `<TradeTermsRow>` returning a
+  // `<ContractDetailRow>` — does not match and is discarded without a word.
+  //
+  // That silence cost a severity-4 bug. The trade room's Terms row was wrapped, so its
+  // whole tab vanished, taking the delivery-address panel with it. On a posted trade
+  // past collateral the room then said "Neither of you can post until both addresses
+  // are on the contract" while offering no way to add one: an unfinishable trade, and
+  // nothing anywhere reported a problem.
+  //
+  // Dev-only and a warning rather than a throw: a missing tab should be shouted about
+  // in development, not turned into a white screen in production.
+  if (process.env.NODE_ENV !== 'production' && rows.length !== supplied.length) {
+    const dropped = supplied.length - rows.length;
+    console.error(
+      `[ContractDetailList] ignored ${dropped} child${dropped === 1 ? '' : 'ren'} that ` +
+        'is not a <ContractDetailRow>. A row wrapped in its own component will NOT be ' +
+        'picked up — call the helper as a function so the element it returns is the row ' +
+        'itself, or inline the <ContractDetailRow>.',
+    );
+  }
+
   const initialIndex = Math.max(
     rows.findIndex((row) => row.props.defaultOpen),
     0,

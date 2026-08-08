@@ -83,15 +83,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // `/listings` is publicly browseable, but it is the normal post-sign-in
-  // destination. Include it here so a returning member who has not completed
-  // onboarding cannot silently skip the flow; anonymous visitors still browse it.
-  const isOnboardingEntryPoint = pathname === '/listings';
-  if (
-    user &&
-    pathname !== '/onboarding' &&
-    (isProtected(pathname) || isOnboardingEntryPoint)
-  ) {
+  // ONBOARDING IS REQUIRED TO TRANSACT, NOT TO LOOK.
+  //
+  // `/listings` used to be treated as an onboarding entry point so a returning
+  // member "could not silently skip the flow". The effect was that signing in and
+  // clicking the catalog bounced them into a wizard with no dismiss control, no
+  // sign-out and no way back to the listings they had asked for. Browsing is public
+  // for anonymous visitors, so making it the one thing a signed-in member may NOT do
+  // inverted the incentive: creating an account made the site less usable.
+  //
+  // The gate now covers protected paths only — the places that need a profile
+  // because they write, spend, or receive. The catalog and item pages stay open, and
+  // the wizard offers its own way out (see app/onboarding/page.tsx), so an
+  // incomplete member can look around and finish later. Nothing about the money path
+  // is relaxed: every route that opens a contract is protected and still gated.
+  if (user && pathname !== '/onboarding' && isProtected(pathname)) {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('onboarding_completed_at, fraud_banned_at')

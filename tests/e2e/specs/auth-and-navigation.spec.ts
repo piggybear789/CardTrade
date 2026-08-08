@@ -7,7 +7,7 @@
 // a SHARED one, and getting that wrong here cost nineteen failures across six other
 // files plus a wrong diagnosis.
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, FRANK_ADMIN, storageStatePath } from '../support/users';
 import { markedEmail } from '../support/marker';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';

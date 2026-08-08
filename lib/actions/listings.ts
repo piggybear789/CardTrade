@@ -44,6 +44,7 @@ import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { normalizeRegionCode } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { ListingKind } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 
 /** A persisted item row as returned to callers. */
 export type ItemRow = Tables<'items'>;
@@ -354,7 +355,7 @@ export async function createItem(
     return {
       ok: false,
       error: 'persistence-error',
-      message: error?.message ?? 'Failed to create item',
+      message: friendlyWriteFailure(error, 'Failed to create item'),
     };
   }
 
@@ -462,7 +463,7 @@ export async function createPrivateTradeItem(
     return {
       ok: false,
       error: 'persistence-error',
-      message: error?.message ?? 'Failed to create item',
+      message: friendlyWriteFailure(error, 'Failed to create item'),
     };
   }
 
@@ -877,7 +878,8 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
-        identityFirstName: (s.identity_first_name as string | null) ?? null,
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
+
         avatarPath: (s.avatar_path as string | null) ?? null,
       },
     ]),
@@ -998,7 +1000,8 @@ async function enrichWithSellers(
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
-        identityFirstName: (s.identity_first_name as string | null) ?? null,
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
+
         avatarPath: (s.avatar_path as string | null) ?? null,
       },
     ]),

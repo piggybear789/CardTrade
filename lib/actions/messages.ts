@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { MESSAGE_BODY_MIN, MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 
 /** A persisted conversation row. */
 export type ConversationRow = Tables<'conversations'>;
@@ -126,7 +127,7 @@ export async function getOrCreateConversation(
     return {
       ok: false,
       error: 'not-found',
-      detail: error?.message ?? 'Failed to create conversation',
+      detail: friendlyWriteFailure(error, 'Failed to create conversation'),
     };
   }
 
@@ -502,7 +503,7 @@ export async function sendMessage(
     return {
       ok: false,
       error: 'persistence-error',
-      detail: error?.message ?? 'Failed to send message',
+      detail: friendlyWriteFailure(error, 'Failed to send message'),
     };
   }
 

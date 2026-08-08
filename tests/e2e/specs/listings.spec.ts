@@ -21,7 +21,7 @@
 //      for one buyer as soon as they open a contract."), so they are matched by
 //      prefix, not by equality.
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { createListing } from '../support/listings';

@@ -22,7 +22,7 @@
 // makes the rows findable; without it each run leaves a conversation and a
 // notification on Alice's account permanently.
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { ensureFreshSessions } from '../support/auth';

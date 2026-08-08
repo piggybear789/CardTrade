@@ -27,10 +27,11 @@
 //     "Accept & pay $X with Stripe", the seller's is "Accept terms". They are the
 //     same transition and must not be matched by one pattern.
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
+import type { Page } from '@playwright/test';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
-import { createListing } from '../support/listings';
+import { createListing, fillPlace, STUB_PLACES } from '../support/listings';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
 import { ensureFreshSessions } from '../support/auth';
 
@@ -138,19 +139,16 @@ test.describe.serial('Cash sale lifecycle', () => {
   
   await ctx.close(); });
 
-  test('the delivery address says it cannot be entered, rather than offering a dead field', async ({
-    browser,
-  }) => {
+
+  test('free text alone is refused as a delivery address', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: storageStatePath(BOB) });
     const page = await ctx.newPage();
 
     await page.goto(saleUrl);
     await page.waitForLoadState('domcontentloaded');
 
-    // "Choose a method" reveals the Terms panel inline; the METHOD TILE then opens
-    // the "Propose handover terms" dialog. Two steps, and the first is not the modal
-    // trigger — a spec that waits for `role=dialog` straight after it waits forever
-    // while the tiles sit visible on the page.
+    // "Choose a method" reveals the Terms panel inline; the METHOD TILE then opens the
+    // dialog. Two steps, and the first is not the modal trigger.
     await page.getByRole('button', { name: 'Choose a method' }).click();
     const ship = page.getByRole('button', { name: /Ship the item/i }).first();
     await expect(ship).toBeVisible({ timeout: RENDERED });
@@ -159,66 +157,38 @@ test.describe.serial('Cash sale lifecycle', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: RENDERED });
 
-    // THIS IS THE F13 GUARD, and it asserts the honest failure rather than the happy
-    // path. `domain/fulfilment/terms.ts` refuses a `text:` place for a delivery
-    // address, and this suite runs with no Maps key, so no value can be accepted.
+    // THE INVARIANT UNDER TEST. `domain/fulfilment/terms.ts` refuses an unresolved
+    // place — a `text:` id — for a delivery address, and it should: a parcel
+    // destination has to be a real location, not a string someone typed. Typing a
+    // complete, plausible address WITHOUT choosing a suggestion must therefore not be
+    // accepted.
     //
-    // The field used to render as a normal, fillable input. A member typed a complete
-    // address, pressed save, and got "Select a suggested delivery address before
-    // saving." — an instruction that cannot be followed, because with no key there
-    // are no suggestions. Now the field is disabled and says why.
-    //
-    // Asserting the DISABLED state and the explanation, not the absence of the field:
-    // hiding the requirement would read as a step that vanished rather than a
-    // deployment that is not finished.
+    // Worth asserting explicitly because the failure is quiet: the field looks filled,
+    // and only the save reveals that nothing usable was captured.
     const address = dialog.getByLabel(/Your delivery address/i);
-    await expect(address).toBeDisabled();
-    await expect(dialog.getByText(/Address search is not configured/i)).toBeVisible();
+    await address.fill('12 Test Street, Sydney NSW 2000');
+    await dialog.getByRole('button', { name: 'Propose terms' }).click();
+
+    await expect(
+      dialog.getByText(/Select a suggested delivery address/i),
+    ).toBeVisible({ timeout: RENDERED });
+
+    // Refused, so nothing was committed and the contract is still at terms.
+    await page.keyboard.press('Escape');
+    await expect(currentStep(page, 'Propose handover terms')).toBeVisible({
+      timeout: RENDERED,
+    });
 
     await ctx.close();
   });
 
-  // ---------------------------------------------------------------------------
-  // BLOCKED BELOW THIS LINE, and the blocker is a real product dependency rather
-  // than a selector problem. Recorded as F13 in FINDINGS.md.
-  //
-  // Agreeing handover terms for a DELIVERY requires a delivery address RESOLVED by
-  // Google Places. Typing a complete, valid address is refused with "Select a
-  // suggested delivery address before saving." — correctly, for a residential
-  // address a free-text string is not a place. But this suite deliberately runs the
-  // dev server with no Maps key so the rest of the listing flow is deterministic
-  // (see playwright.config.ts), which means PlacePicker is in its free-text
-  // fallback and can never produce a resolved place.
-  //
-  // So the consequence is not "these assertions need tuning": WITHOUT A MAPS KEY NO
-  // CONTRACT THAT NEEDS AN ADDRESS CAN BE COMPLETED AT ALL, by a test or a person.
-  // Every step past terms-agreement — escrow settlement, shipping, receipt,
-  // acceptance, release — is unreachable behind it.
-  //
-  // Two ways to unblock, neither free:
-  //   1. Run the suite WITH `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` and drive the
-  //      autocomplete listbox. Costs a live Google dependency in every run, and an
-  //      earlier attempt hung on clicking a provider-rendered option.
-  //   2. Intercept the Places request with `page.route()` and serve a fixed
-  //      suggestion. Deterministic and offline, but pins the test to the provider's
-  //      response shape.
-  //
-  // (2) is the better trade and is the next piece of work here. Until then these are
-  // `fixme` rather than deleted, so the gap stays visible in every run's summary
-  // instead of looking like coverage that was never scoped.
-  // ---------------------------------------------------------------------------
-
-  test.fixme('the buyer proposes delivery terms', async ({ browser }) => {
+  test('the buyer proposes delivery terms with a resolved address', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: storageStatePath(BOB) });
     const page = await ctx.newPage();
 
     await page.goto(saleUrl);
     await page.waitForLoadState('domcontentloaded');
 
-    // "Choose a method" reveals the Terms panel inline; the METHOD TILE then opens
-    // the "Propose handover terms" dialog. Two steps, and the first one is not the
-    // modal trigger — a spec that waits for `role=dialog` straight after it waits
-    // forever while the tiles sit visible on the page.
     await page.getByRole('button', { name: 'Choose a method' }).click();
     const ship = page.getByRole('button', { name: /Ship the item/i }).first();
     await expect(ship).toBeVisible({ timeout: RENDERED });
@@ -226,15 +196,19 @@ test.describe.serial('Cash sale lifecycle', () => {
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: RENDERED });
-    await expect(
-      dialog.getByRole('heading', { name: 'Propose handover terms' }),
-    ).toBeVisible();
 
-    // Delivery is preselected once the tile is chosen. THIS is the blocked step: the
-    // field demands a resolved place and free text is refused.
-    await dialog.getByLabel(/Your delivery address/i).fill('12 Test Street, Sydney NSW 2000');
+    // DELIVERY, not IN_PERSON: the posted path is the one where escrow does real work.
+    // A Cash_Sale's in-person path completes on the second handover confirmation
+    // instead of opening an inspection window, which is a different set of assertions.
+    //
+    // The buyer owns the address. Chosen from the intercepted autocomplete so the
+    // PlaceValue is RESOLVED — see tests/e2e/support/places.ts.
+    await fillPlace(page, /Your delivery address/i, STUB_PLACES.sydney, dialog);
+
     await dialog.getByRole('button', { name: 'Propose terms' }).click();
+    await expect(dialog).toBeHidden({ timeout: 25_000 });
 
+    // Terms proposed, so the rail advances to the acceptance step.
     await expect(currentStep(page, 'Review and accept the proposal')).toBeVisible({
       timeout: 25_000,
     });
@@ -242,111 +216,173 @@ test.describe.serial('Cash sale lifecycle', () => {
     await ctx.close();
   });
 
-  test.fixme('both parties accept the terms', async ({ browser }) => {
-    // ASYMMETRIC COPY for the same transition: the buyer is told what they are
-    // paying and through whom, the seller only agrees.
+  test('both parties accept the terms', async ({ browser }) => {
+    // ASYMMETRIC COPY for the same transition: the buyer is told what they are paying
+    // and through whom, the seller only agrees. Matching them with one pattern would
+    // hide which side was actually clicked.
+    //
+    // EACH ACCEPTANCE IS WAITED FOR BEFORE ITS CONTEXT CLOSES. Closing straight after
+    // the click aborts the in-flight server action, and the symptom is misleading: the
+    // seller's acceptance lands, the buyer's does not, and the room reads "You
+    // accepted. Waiting on Bob Carter." So the failure looks like the rail being wrong
+    // when the real answer is that one acceptance was never sent.
     const buyerCtx = await browser.newContext({ storageState: storageStatePath(BOB) });
     const buyerPage = await buyerCtx.newPage();
     await buyerPage.goto(saleUrl);
     await buyerPage.waitForLoadState('domcontentloaded');
-    await buyerPage.getByRole('button', { name: /Accept & pay .* with Stripe/i }).click();
+    const buyerAccept = buyerPage.getByRole('button', { name: /Accept & pay .* with Stripe/i });
+    await expect(buyerAccept).toBeVisible({ timeout: RENDERED });
+    await buyerAccept.click();
+    // The control retires once this side has accepted — the cheapest proof the write
+    // completed.
+    await expect(buyerAccept).toHaveCount(0, { timeout: 30_000 });
     await buyerCtx.close();
 
     const sellerCtx = await browser.newContext({ storageState: storageStatePath(ALICE) });
     const sellerPage = await sellerCtx.newPage();
     await sellerPage.goto(saleUrl);
     await sellerPage.waitForLoadState('domcontentloaded');
-    await sellerPage.getByRole('button', { name: 'Accept terms' }).click();
+    const sellerAccept = sellerPage.getByRole('button', { name: 'Accept terms' });
+    await expect(sellerAccept).toBeVisible({ timeout: 25_000 });
+    await sellerAccept.click();
 
-    // Both accepted: the contract is frozen at the Commitment_Point and the payment
-    // is now owed.
+    // Both accepted: the contract is frozen at the Commitment_Point and payment is now
+    // owed. NO MONEY HAS MOVED YET — that is the next step, and the separation is the
+    // point of the flow.
     await expect(currentStep(sellerPage, 'Payment clears into escrow')).toBeVisible({
-      timeout: 20_000,
+      timeout: 30_000,
     });
 
     await sellerCtx.close();
   });
 
-  test.fixme('payment settles into escrow', async ({ browser }) => { const ctx = await browser.newContext({ storageState: storageStatePath(BOB) });
-  const page = await ctx.newPage();
-  
-  await page.goto(saleUrl);
-  await page.waitForLoadState('domcontentloaded');
-  
-  // Fires a SIGNED webhook through the real handler rather than writing the
-  // column, so the local path is the same translate → map → persist path Stripe's
-  // own delivery takes.
-  await fireDemo(page, 'Simulate payment settled');
-  
-  // Funds are held by the platform, not forwarded to the seller — that is the
-  // whole point of separate charges and transfers. The rail moves on to handover.
-  await expect(currentStep(page, 'Both confirm the handover')).toBeVisible({
-    timeout: 25_000,
+  test('payment settles into escrow, held by the platform', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: storageStatePath(BOB) });
+    const page = await ctx.newPage();
+
+    await page.goto(saleUrl);
+    await page.waitForLoadState('domcontentloaded');
+
+    // THE MOCK PROVIDER CONFIRMS THE PAYMENT ITSELF, shortly after both acceptances —
+    // the room's own log reads "Both parties accepted the same terms, so payment was
+    // requested." then "Payment confirmed. The seller can now ship or meet." So by the
+    // time this step loads the page, the sale has usually already left
+    // PAYMENT_PENDING and the demo panel has retired with it.
+    //
+    // The panel is therefore fired only if it is still there. An earlier version
+    // clicked it unconditionally and hung for the full test budget waiting for a
+    // control that had correctly disappeared — a test asserting a fixture's timing
+    // rather than the product's behaviour.
+    const demoToggle = page.getByRole('button', { name: /Expand hackathon test controls/i });
+    if (await demoToggle.count() > 0) {
+      // Fires a SIGNED webhook through the real handler rather than writing the
+      // column, so the local path is the same translate -> map -> persist path
+      // Stripe's own delivery takes.
+      await fireDemo(page, 'Simulate payment settled');
+    }
+
+    // WHAT ACTUALLY MATTERS: funds are collected into the PLATFORM balance and the
+    // contract advances to handover — not forwarded to the seller. That is why this
+    // design uses separate charges and transfers rather than destination charges,
+    // where the money would be the seller's from the moment of purchase.
+    //
+    // Asserted through the SELLER'S UNLOCKED ACTION rather than a rail label, because
+    // the rail is method-dependent: a DELIVERY sale runs Terms / Accept / Escrow /
+    // Ship / Arrive / Done, where an in-person one converges sooner. Shipping becoming
+    // available is the same fact stated in a way that does not depend on which
+    // fulfilment method the contract took.
+    await expect(
+      page.getByRole('heading', { name: /Seller ships with tracking/i }),
+    ).toBeVisible({ timeout: 40_000 });
+
+    await ctx.close();
   });
-  
-  await ctx.close(); });
 
-  test.fixme('the seller ships and the buyer confirms receipt', async ({ browser }) => { const sellerCtx = await browser.newContext({ storageState: storageStatePath(ALICE) });
-  const sellerPage = await sellerCtx.newPage();
-  await sellerPage.goto(saleUrl);
-  await sellerPage.waitForLoadState('domcontentloaded');
-  
-  await sellerPage.getByRole('button', { name: 'Record shipment' }).click();
-  const shipDialog = sellerPage.getByRole('dialog');
-  if (await shipDialog.isVisible().catch(() => false)) {
-    await shipDialog.getByLabel(/Carrier/i).fill('Australia Post');
-    await shipDialog.getByLabel(/Tracking/i).fill('AP123456789AU');
-    await shipDialog.getByRole('button', { name: /Record shipment|Save/i }).click();
-    await expect(shipDialog).toBeHidden({ timeout: 20_000 });
-  }
-  await sellerCtx.close();
-  
-  const buyerCtx = await browser.newContext({ storageState: storageStatePath(BOB) });
-  const buyerPage = await buyerCtx.newPage();
-  await buyerPage.goto(saleUrl);
-  await buyerPage.waitForLoadState('domcontentloaded');
-  
-  const received = buyerPage.getByRole('button', { name: 'I received the item' });
-  await expect(received).toBeVisible({ timeout: 25_000 });
-  await received.click();
-  
-  // Receipt starts the inspection window; it does NOT release the money. The
-  // buyer still has to accept.
-  await expect(currentStep(buyerPage, 'Buyer accepts the item')).toBeVisible({
-    timeout: 25_000,
+  test('the seller ships and the buyer confirms receipt', async ({ browser }) => {
+    const sellerCtx = await browser.newContext({ storageState: storageStatePath(ALICE) });
+    const sellerPage = await sellerCtx.newPage();
+    await sellerPage.goto(saleUrl);
+    await sellerPage.waitForLoadState('domcontentloaded');
+
+    // INLINE IN THE ACTION CARD, not in a dialog, and `Record shipment` is DISABLED
+    // until both fields hold something. Clicking it first therefore waits forever on a
+    // control that will never become enabled — which reads as the app hanging rather
+    // than as the test skipping a step.
+    //
+    // Matched by placeholder because these inputs carry no visible <label>.
+    await expect(
+      sellerPage.getByRole('heading', { name: /Seller ships with tracking/i }),
+    ).toBeVisible({ timeout: 30_000 });
+
+    await sellerPage.getByPlaceholder(/Carrier/i).fill('Australia Post');
+    await sellerPage.getByPlaceholder(/Tracking number/i).fill('AP123456789AU');
+
+    const record = sellerPage.getByRole('button', { name: 'Record shipment' });
+    await expect(record).toBeEnabled({ timeout: RENDERED });
+    await record.click();
+
+    // Wait for the write to land before closing this context — a context closed
+    // mid-flight aborts the server action, and the next step then blames the buyer's
+    // view. Tracking is recorded, so the seller's own input retires.
+    await expect(record).toHaveCount(0, { timeout: 30_000 });
+    await sellerCtx.close();
+
+    const buyerCtx = await browser.newContext({ storageState: storageStatePath(BOB) });
+    const buyerPage = await buyerCtx.newPage();
+    await buyerPage.goto(saleUrl);
+    await buyerPage.waitForLoadState('domcontentloaded');
+
+    const received = buyerPage.getByRole('button', { name: /I received the item/i });
+    await expect(received).toBeVisible({ timeout: 30_000 });
+    await received.click();
+
+    // Receipt starts the inspection window; it does NOT release the money. The buyer
+    // still has to accept, and that ordering is the whole protection.
+    //
+    // Asserted via the acceptance control appearing rather than a rail label, for the
+    // same method-independence reason as the escrow step.
+    await expect(
+      buyerPage.getByRole('button', { name: 'Accept the item' }),
+    ).toBeVisible({ timeout: 40_000 });
+
+    await buyerCtx.close();
   });
-  
-  await buyerCtx.close(); });
 
-  test.fixme('the buyer accepts and the sale completes', async ({ browser }) => { const ctx = await browser.newContext({ storageState: storageStatePath(BOB) });
-  const page = await ctx.newPage();
-  
-  await page.goto(saleUrl);
-  await page.waitForLoadState('domcontentloaded');
-  
-  const accept = page.getByRole('button', { name: 'Accept the item' });
-  await expect(accept).toBeVisible({ timeout: RENDERED });
-  await accept.click();
-  
-  // Acceptance is the release trigger. Every action retires because the contract
-  // is terminal — asserting the ABSENCE of the accept control rather than looking
-  // for a success string, which is copy that may reasonably change.
-  await expect(accept).toHaveCount(0, { timeout: 25_000 });
-  
-  await ctx.close(); });
+  test('the buyer accepts and the sale completes', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: storageStatePath(BOB) });
+    const page = await ctx.newPage();
 
-  test.fixme('the item is now sold', async ({ browser }) => { const ctx = await browser.newContext({ storageState: storageStatePath(ALICE) });
-  const page = await ctx.newPage();
-  
-  await page.goto(`/listings/${itemId}`);
-  await page.waitForLoadState('domcontentloaded');
-  
-  await expect(page.getByText('Sold').first()).toBeVisible({ timeout: RENDERED });
-  
-  await ctx.close(); });
+    await page.goto(saleUrl);
+    await page.waitForLoadState('domcontentloaded');
+
+    const accept = page.getByRole('button', { name: 'Accept the item' });
+    await expect(accept).toBeVisible({ timeout: RENDERED });
+    await accept.click();
+
+    // Acceptance is the release trigger. Asserting the ABSENCE of the control rather
+    // than a success string: the contract is terminal, so every action retires, and
+    // copy is the kind of thing that reasonably changes.
+    await expect(accept).toHaveCount(0, { timeout: 30_000 });
+
+    await ctx.close();
+  });
+
+  test('the item is now sold', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: storageStatePath(ALICE) });
+    const page = await ctx.newPage();
+
+    await page.goto(`/listings/${itemId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    // SOLD, not RESERVED: the terminal state of the goods, and the thing that proves
+    // the contract ran to completion rather than merely advancing.
+    await expect(page.getByText('Sold').first()).toBeVisible({ timeout: RENDERED });
+
+    await ctx.close();
+  });
 });
 
-/** Marked titles contain `[` and `]`, which are regex metacharacters. */
+/** Marked titles contain [ and ], which are regex metacharacters. */
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

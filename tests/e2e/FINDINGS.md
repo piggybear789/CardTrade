@@ -490,3 +490,256 @@ Fixed by marking the CONTENT and matching it directly: `messages.body` and
 `offers.message` carry the marker, `notifications.body` is matched by containment
 because a notification quotes the message it announces, and conversations are swept
 only when left EMPTY so a thread holding real demo messages survives.
+
+---
+
+## F19 - Traders could not see what the other was putting up (severity 4, FIXED)
+
+**Symptom.** In the trade room's exchange panel, the counterparty column read
+**"They are putting up no goods."** and the header valued the trade
+`\.00 = \.00` - while `trade_items` held both rows, correctly attributed, and
+the trade was asking that same trader to authorise collateral against them.
+
+**Cause.** `items_catalog_select` was the ONLY SELECT policy on `cardtrade.items`:
+
+    (status = 'AVAILABLE' and closed_at is null) or owner_id = auth.uid()
+
+Correct for a catalog - availability is visibility, and an owner sees their own rows.
+But opening a trade flips BOTH items to RESERVED and neither trader owns the other's,
+so from that moment each of them could no longer read the other side. The room reads
+the bundle through the cookie-bound client, so the rows came back missing and the
+panel rendered its empty state.
+
+**Severity 4, not a cosmetic bug.** It is not a blank space, it is a confident and
+WRONG sentence about the other side of a deal, shown at the exact moment someone is
+deciding whether to authorise money against it. A trader could cancel a good trade, or
+proceed believing they are receiving nothing.
+
+**Fix.** Migration `0071_trade_participants_can_read_bundled_items.sql` adds a
+participant-scoped SELECT policy, covering both `trade_items` bundles and the two
+legacy primary columns a pre-0015 trade uses.
+
+**Verified both directions, as the `authenticated` role with forged JWT claims:**
+Alice can now read Bob's RESERVED item she does not own (`alice_owns: false`), and
+Carol - party to nothing - sees `0` of the same rows. Confirmed in the UI too: the
+header changed from `= \.00` to `= \.00` and both items now render.
+
+**Why a policy and not a service-role read.** Reading with the admin client would fix
+one surface and leave the next to rediscover it. The right statement is "a trade
+participant may see that trade's goods", and RLS is where that belongs.
+
+---
+
+## F20 - The whole webhook pipeline was never being tested (severity 3, FIXED - suite)
+
+**Symptom.** No trade could leave `COLLATERAL_PENDING`. The demo panel's "Confirm
+collateral holds" produced NO toast at all - not success, not failure - and the room
+simply sat there.
+
+**Cause.** `.env.local` sets `WEBHOOK_URL=http://localhost:3000/...` for a
+developer's normal `npm run dev`, and this suite deliberately runs on **3100** so it
+never collides with one. Nothing overrode it, so every simulated webhook was POSTed to
+port 3000 where nothing was listening.
+
+**How it was found, since the UI said nothing.** The database did:
+`pre_auth_holds` had both rows and `webhook_logs` had **zero**. Holds were being
+placed correctly; the confirmation was never arriving.
+
+**Consequence worth stating plainly.** The demo controls exist to exercise the real
+translate -> map -> dispatch -> log path. With this misconfigured, that path - the
+webhook pipeline the escrow depends on - was never exercised by any test. Collateral,
+and by extension the disputes and fraud flows that ride the same machinery, were
+untestable and untested.
+
+**Fix.** `WEBHOOK_URL` is set to this server's own port in both Playwright configs.
+Verified: the same flow now writes a `webhook_logs` row and the trade reaches
+`COLLATERAL_LOCKED`.
+
+**The silence is its own finding.** `fireTradeWebhook`'s caller does not guard a
+delivery failure, so a dead delivery target looked identical to nothing having been
+clicked - the same unguarded-transition shape as F6.
+
+---
+
+## F21 - The trade room does not react to its own webhook (severity 2, OPEN)
+
+After both traders confirm collateral the state genuinely advances -
+`trades.state = 'COLLATERAL_LOCKED'`, two `pre_auth_holds` rows, a `webhook_logs`
+row - but the room keeps showing the "Collateral pending" badge and the holds step
+until the page is fetched again.
+
+The webhook is a server-to-server delivery, so nothing in the open tab knows to
+re-render. `useTradeRealtime` subscribes to the trade row, so this is worth a proper
+look: either the subscription is not covering this transition or the badge is read from
+a server snapshot the subscription does not refresh. Same family as F7, where the
+notification bell kept a stale count because the only cross-instance channel ignored
+UPDATEs.
+
+A trader who has just authorised money watches a screen that says nothing happened.
+
+`trade.spec.ts` reloads before asserting, with a comment pointing here, so the gap is
+recorded rather than hidden by the reload.
+
+---
+
+## F22 - A Playwright click cannot open the trade room's Demo tab (severity 1, TESTING NOTE)
+
+The Demo tab is a visible, enabled `role="tab"` with `pointer-events: auto` and
+nothing covering it - confirmed via `elementFromPoint` returning the element itself -
+yet both a normal and a `force: true` Playwright click time out on it. A synthetic
+`dispatchEvent('click')` works immediately.
+
+Used in `trade.spec.ts` with the reasoning recorded inline. Worth a look before adding
+more tab-driven assertions: something about that tab strip defeats Playwright's
+actionability wait, and whatever it is may also affect assistive tech.
+
+---
+
+## F23 - A whole contract tab vanished because it was wrapped in a component (severity 4, FIXED)
+
+**Symptom.** On a DELIVERY trade past collateral the room says *"Both traders add a
+delivery address - neither of you can post until both addresses are on the contract"*
+and offers only `Record shipment` and `Item never arrived`. There was no address
+control anywhere - confirmed by searching the whole `documentElement.innerHTML`, not
+just the visible area. **The trade could not be completed.**
+
+**Cause.** `ContractDetailList` selects its rows with an exact identity check:
+
+    isValidElement(child) && child.type === ContractDetailRow
+
+The trade room's Terms row was rendered as `<TradeTermsRow />` - a wrapper component
+that RETURNS a `ContractDetailRow`. Its element type is `TradeTermsRow`, so it never
+matched, and the filter dropped it **without a word**. The Terms tab simply did not
+exist, and the `DeliveryAddressPanel` lives inside it.
+
+**Why it went unnoticed.** Every other row is written inline, so the wrapper was the
+only one affected; the tab strip looked complete (Exchange, Stripe, Collateral, History,
+Demo) because a missing tab looks exactly like a tab that was never specified.
+
+**Fix, in two parts.**
+1. `TradeTermsRow` is now CALLED as a function, so the child is the
+   `ContractDetailRow` it returns. Verified: the tab strip is now Exchange, **Terms**,
+   Stripe, Collateral, History, Demo.
+2. `ContractDetailList` logs an error in development for any child it drops, naming
+   the wrapper mistake. The silence is what made this expensive, and the guard means the
+   next wrapped row announces itself instead of deleting a tab.
+
+**STILL OPEN, and tracked below:** with the Terms tab restored, its panel renders the
+postage rows and the footnote but the `DeliveryAddressPanel` itself is still absent,
+so the address step remains unreachable. Established so far: the trade is
+`handover_method = 'DELIVERY'` and `COLLATERAL_LOCKED` with neither address set; the
+panel is gated on an explicit `trade.handover_method === 'DELIVERY'`; the summary text
+comes from the ELSE branch of a different ternary, so it reads "Delivery" even when the
+column is absent; the rail's address step does require the DELIVERY branch; and the
+panel's own always-rendered label ("Your delivery address") appears nowhere in the DOM,
+so the component is not mounting rather than merely rendering read-only. The page's own
+`trades` select lists 8 columns and does NOT include `handover_method`, while
+`useTradeRealtime` selects `*` - so which row reaches the component, and when, is the
+next thing to pin down.
+
+---
+
+## F24 - Onboarding was mandatory to BROWSE, and had no exit (severity 3, FIXED)
+
+**Reported by the user:** *"Don't require the onboarding flow to just browse listings...
+You can't drop out of onboarding to sign-out or browse."*
+
+**Two decisions that combined badly.**
+
+1. `middleware.ts` treated `/listings` as an onboarding entry point, so a signed-in
+   member who clicked the catalog was redirected into the wizard. The stated reason was
+   that a returning member "cannot silently skip the flow".
+2. `app/onboarding/page.tsx` rendered a dialog with `showClose={false}` and
+   `onOpenChange={() => undefined}`, and offered no link away and no sign-out.
+
+Separately each looks defensible. Together they mean **signing in makes the site less
+usable than not signing in**: the catalog is public to anonymous visitors, so the one
+person who could not browse it was the one who had just created an account. The page's
+own header comment claimed a member "completes the short flow or signs out" - but
+signing out was never offered, so the honest description was *completes it or leaves*.
+
+**Fix.** The gate now covers `isProtected()` paths only, so browsing and item pages are
+open while everything that opens a contract stays gated - nothing about the money path
+is relaxed. The wizard gained a persistent "Not now - browse listings" link and a sign
+out control on every step, and the sign-out escape routes to `/listings` even if the
+call fails, because being unable to sign out must not mean being unable to leave.
+
+**Pinned by** two tests in `onboarding.spec.ts`: one browses the catalog without
+finishing and then asserts `/offers` STILL redirects; one asserts both exits are present
+on two different steps and that following one does not bounce back.
+
+---
+
+## F25 - A missing profile row bricked the account, and reported it as a JSON error (severity 4, FIXED)
+
+**Reported by the user:** *"I keep getting error: cannot coerce json to a single object."*
+
+**This was one bug with F24, not a separate annoyance.** A `profiles` row is created at
+the two moments a member is born - password sign-up, and the OAuth callback via
+`ensureProfile`. Nothing repaired a session whose row went missing afterwards, and that
+state is reachable: an already-signed-in member never passes through the callback again.
+The result:
+
+- middleware finds no `onboarding_completed_at`, so it sends them to the wizard;
+- `completeOnboarding` did `.update(...).select().single()`, which matched **zero rows**;
+- PostgREST answered `PGRST116`, whose message is *"Cannot coerce the result to a single
+  JSON object"*, and the action passed `error.message` to the UI verbatim;
+- with no browse link and no sign-out (F24), there was nowhere to go.
+
+**A real account was in this state**, found in the database rather than the UI:
+`wanton.wonton396@gmail.com` held an active session and an OAuth identity with no
+profile row. Nine of twenty auth users had none - the app's profiles had all been
+recreated on 08-06/08-07 while their auth users survived.
+
+**Fix, at the right layer - and the first attempt was at the wrong one.** The repair
+initially went into `completeOnboarding`; the test proved that insufficient, because the
+username step is client-only and the first write is actually `setTradingRegion` at the
+REGION step, which would still have hit a missing row. The repair now lives in a new
+`app/onboarding/layout.tsx`, which every step is downstream of, so the row is guaranteed
+before the member touches anything. `completeOnboarding` keeps its own repair as defence
+in depth. The nine orphaned accounts were backfilled.
+
+**Pinned by** a test that DELETES the profile row of a freshly signed-up member - the
+only honest way to arrange a state no screen can reach, which is precisely why it went
+untested - then asserts the row is re-provisioned on load, that the words "coerce" and
+"single JSON object" appear nowhere, and that a real write (the region step) then
+succeeds.
+
+---
+
+## F26 - Raw driver errors were shown to members, and the good copy was unreachable (severity 2, FIXED)
+
+Eleven call sites across `lib/actions/` read:
+
+    error?.message ?? 'Failed to create item'
+
+**The precedence is inverted.** The readable sentence is the fallback for the driver's
+message, so it appears only when there is NO error - exactly the case it was not written
+for. Every real failure showed Postgres or PostgREST's own words instead, which is how a
+member came to read a sentence about JSON coercion.
+
+**Fix.** `lib/actions/writeFailure.ts` maps error CODES (not messages) to member-facing
+copy - `PGRST116`, plus the unique / foreign-key / not-null / check / privilege
+violations - and takes each site's specific sentence as the fallback for anything it
+cannot usefully translate. All eleven sites now call it, so no raw driver text reaches a
+member while the specific copy is kept. An unrecognised failure still says plainly that
+something went wrong rather than inventing an explanation.
+
+---
+
+## F27 - A stray auth trigger writes another project's table (severity 1, DOCUMENTED, deliberately not changed)
+
+`auth.users` carries `on_auth_user_created -> public.handle_new_user()`, which inserts
+into **`public.profiles (user_id)`**. This application's table is
+**`cardtrade.profiles (id)`** - the trigger belongs to a different project sharing this
+Supabase instance (the project is named "Pokedle"). It has never created a profile for
+this app; the 11 rows that existed came from `seed.sql`.
+
+Checked and harmless: `public.profiles` exists, and `profiles_pkey` is a unique index on
+`user_id`, so the `on conflict (user_id) do nothing` clause resolves and sign-up
+succeeds. Had that index been absent, every sign-up would have failed with *"Database
+error saving new user"*.
+
+**Left in place on purpose** - it may serve the other project, and dropping another
+application's trigger is not this suite's call. Recorded because it is a trap: it looks
+exactly like the thing that provisions profiles here, and it is not.

@@ -26,9 +26,10 @@
 // user (`scripts/e2e/cleanup-test-data.ts` matches `profiles.contact_email` on
 // `e2e-`).
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { marked, markedEmail } from '../support/marker';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
+import { deleteRows, profileIdByEmail } from '../support/db';
 
 /** Signing up must not inherit a seeded session. */
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -154,5 +155,151 @@ test.describe('Onboarding', () => {
     await expect(page.getByRole('button', { name: /^Australia/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^United Kingdom/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Great Britain/ })).toHaveCount(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Onboarding must not be a trap. Three reported problems, one shared cause:
+  // the wizard was mandatory to BROWSE, offered no exit, and could fail in a way
+  // that made it impossible to finish.
+  // -------------------------------------------------------------------------
+
+  test('an unfinished member can browse the catalog without being dragged back', async ({
+    page,
+  }) => {
+    // `/listings` was treated as an onboarding entry point, so a signed-in member who
+    // clicked the catalog was redirected into the wizard. Browsing is public for
+    // anonymous visitors, so this made having an account strictly worse than not
+    // having one, and the wizard they landed in had no way back.
+    const email = markedEmail('browsefirst');
+
+    await page.goto('/sign-up');
+    await page.waitForLoadState('domcontentloaded');
+    const emailField = page.getByLabel('Email');
+    await expect(emailField).toBeEditable({ timeout: RENDERED });
+    await emailField.fill(email);
+    await page.getByLabel('Password').fill('TestPassword123!');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
+
+    // Deliberately WITHOUT finishing the wizard.
+    await page.goto('/listings');
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page).toHaveURL(/\/listings/, { timeout: COLD_ROUTE });
+    await expect(page).not.toHaveURL(/\/onboarding/);
+    // The catalog really rendered, rather than an error shell that happens to sit on
+    // the right URL. The page title renders twice (sr-only + rail), hence `.first()`.
+    await expect(
+      page.getByRole('heading', { name: /Marketplace|Listings/ }).first(),
+    ).toBeVisible({ timeout: RENDERED });
+
+    // A protected route still requires onboarding. Relaxing the browse gate must not
+    // relax the ones that guard money.
+    await page.goto('/offers');
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
+  });
+
+  test('the wizard offers a way out on every step', async ({ page }) => {
+    // The page's own comment said a member "completes the short flow or signs out",
+    // but no sign-out control existed, so the real options were finish or leave.
+    const email = markedEmail('escapehatch');
+
+    await page.goto('/sign-up');
+    await page.waitForLoadState('domcontentloaded');
+    const emailField = page.getByLabel('Email');
+    await expect(emailField).toBeEditable({ timeout: RENDERED });
+    await emailField.fill(email);
+    await page.getByLabel('Password').fill('TestPassword123!');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
+
+    const browseAway = page.getByRole('link', { name: /browse listings/i });
+    const signOut = page.getByRole('button', { name: /sign out/i });
+
+    // Present on the first step...
+    await expect(browseAway).toBeVisible({ timeout: RENDERED });
+    await expect(signOut).toBeVisible();
+
+    // ...and still present deeper in, which is where being stuck actually hurts.
+    await page.getByRole('button', { name: 'Get started' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Choose your username' }),
+    ).toBeVisible({ timeout: RENDERED });
+    await expect(browseAway).toBeVisible();
+    await expect(signOut).toBeVisible();
+
+    // The exit works and does not bounce straight back.
+    await browseAway.click();
+    await expect(page).toHaveURL(/\/listings/, { timeout: COLD_ROUTE });
+    await expect(page).not.toHaveURL(/\/onboarding/);
+  });
+
+  test('onboarding still completes when the member has no profile row', async ({
+    page,
+  }) => {
+    // THE BUG THIS PINS. A profile row is created at sign-up and at the OAuth
+    // callback, and nothing repaired one that went missing afterwards. An
+    // already-signed-in member never passes through the callback again, so they were
+    // sent here to onboard, the UPDATE matched zero rows, and `.single()` reported
+    // PostgREST's "Cannot coerce the result to a single JSON object" — shown verbatim,
+    // on a screen with no way to browse or sign out. A real account was bricked by a
+    // message about JSON coercion.
+    //
+    // Deleting the row is the only honest way to arrange this: no screen can do it,
+    // which is exactly why the state went untested.
+    const email = markedEmail('noprofile');
+
+    await page.goto('/sign-up');
+    await page.waitForLoadState('domcontentloaded');
+    const emailField = page.getByLabel('Email');
+    await expect(emailField).toBeEditable({ timeout: RENDERED });
+    await emailField.fill(email);
+    await page.getByLabel('Password').fill('TestPassword123!');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
+
+    const profileId = await profileIdByEmail(email);
+    expect(profileId, 'sign-up should have created a profile to delete').toBeTruthy();
+
+    const removed = await deleteRows('profiles', `id=eq.${profileId}`);
+    expect(removed).toBe(1);
+    expect(await profileIdByEmail(email)).toBeNull();
+
+    // Now walk the wizard. The session is still valid; only the row is gone.
+    //
+    // THE REPAIR IS ASSERTED AT LOAD, not at the end. Writing the repair into
+    // `completeOnboarding` alone was not enough and this test is what showed it: the
+    // username step is client-only, so the first write is `setTradingRegion` at the
+    // REGION step, which would still have hit a row that did not exist. The fix moved
+    // to `app/onboarding/layout.tsx`, which every step is downstream of.
+    await page.reload();
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
+
+    const repairedId = await profileIdByEmail(email);
+    expect(
+      repairedId,
+      'loading onboarding should have re-provisioned the missing profile',
+    ).toBeTruthy();
+
+    await page.getByRole('button', { name: 'Get started' }).click();
+    await page.getByPlaceholder(/PokeTrader99/).fill(marked('Repaired'));
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    // THE REGRESSION ASSERTION. Named exactly, because the complaint was that this
+    // string reached a member.
+    await expect(page.getByText(/coerce/i)).toHaveCount(0);
+    await expect(page.getByText(/single JSON object/i)).toHaveCount(0);
+
+    await expect(
+      page.getByRole('heading', { name: 'Where are you trading from?' }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    // And a real write against the repaired row succeeds, which is the thing that was
+    // impossible before: pick a region and confirm the step does not refuse.
+    const australia = page.getByRole('button', { name: /^Australia/ });
+    await australia.click();
+    await page.getByRole('button', { name: /^Continue|^Saving/ }).click();
+    await expect(page.getByText(/could not be saved/i)).toHaveCount(0);
+    await expect(page.getByText('I want to buy')).toBeVisible({ timeout: 20_000 });
   });
 });

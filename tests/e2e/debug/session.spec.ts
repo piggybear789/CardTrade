@@ -7,7 +7,7 @@
 // per-file, all of them Alice-dependent, all of them running after the file that
 // signs Alice in interactively. Two guesses at the cause were already wrong, so this
 // measures instead.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, storageStatePath } from '../support/users';
 
 test('does a fresh sign-in revoke the stored session?', async ({ browser }) => {

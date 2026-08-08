@@ -22,7 +22,7 @@
 // listings, messages and trade, so corrupting her name breaks four files. Dave is
 // referenced by no other spec.
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, DAVE, storageStatePath } from '../support/users';
 import { ensureFreshSessions } from '../support/auth';
 
@@ -61,9 +61,29 @@ test.describe('Profile page', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
-    // Seed profiles carry a mock payer but no saved instrument, so the card slot
-    // offers "Add card" rather than a brand/last4 summary.
-    await expect(page.getByRole('button', { name: /Add card|Change card/i })).toBeVisible();
+
+    // STATE-INDEPENDENT ON PURPOSE. This used to assert `/Add card|Change card/`, on
+    // the stated assumption that "seed profiles carry a mock payer but no saved
+    // instrument". Both halves were wrong: `ensureSavedCard` in the cash-sale and trade
+    // specs gives ALICE a card, so the label depends on which specs ran first, and the
+    // saved-state label is "Replace card" - "Change card" matched nothing in either
+    // state. It passed only while the suite happened to run in a lucky order.
+    //
+    // What is actually invariant is that the slot always offers a way to put a card on
+    // file, and that its wording agrees with whether one is already there. Asserting
+    // the pairing is a stronger check than either label alone, and it holds whichever
+    // specs ran before this one.
+    const addCard = page.getByRole('button', { name: /^Add card$/i });
+    const replaceCard = page.getByRole('button', { name: /^Replace card$/i });
+    const manageCard = addCard.or(replaceCard);
+    await expect(manageCard).toBeVisible();
+
+    const hasSavedCard = (await replaceCard.count()) > 0;
+    if (hasSavedCard) {
+      await expect(page.getByText(/No purchase or collateral card saved yet/i)).toHaveCount(0);
+    } else {
+      await expect(page.getByText(/No purchase or collateral card saved yet/i)).toBeVisible();
+    }
   });
 });
 

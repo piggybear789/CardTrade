@@ -29,7 +29,7 @@ import { spawn } from 'node:child_process';
 const E2E_CLIENT_ENV = {
   // Forces PlacePicker's free-text fallback. See the note above and F13 in
   // tests/e2e/FINDINGS.md for the coverage this trades away.
-  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: '',
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
 };
 
 // Server-only values are read at runtime and so belong in `webServer.env`, NOT here.

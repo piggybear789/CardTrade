@@ -961,14 +961,22 @@ export function TradeContract({
                 />
               ) : null}
 
-              {trade ? (
-                <TradeTermsRow
-                  trade={trade}
-                  viewerRole={viewerRole}
-                  addresses={addresses}
-                  counterpartName={theirName}
-                />
-              ) : null}
+              {/* CALLED, NOT RENDERED — and that is the fix, not a style choice.
+                  `ContractDetailList` selects its rows with
+                  `child.type === ContractDetailRow`, so `<TradeTermsRow />` (whose type
+                  is `TradeTermsRow`) was silently discarded and this entire tab
+                  disappeared, taking the delivery-address panel with it. A posted trade
+                  past collateral then demanded an address it gave no way to add.
+                  Invoking the helper makes the child the `ContractDetailRow` it
+                  returns. `ContractDetailList` now also logs anything it drops. */}
+              {trade
+                ? TradeTermsRow({
+                    trade,
+                    viewerRole,
+                    addresses,
+                    counterpartName: theirName,
+                  })
+                : null}
 
               {/* Same section set and order as the deal room: Exchange, Terms,
                   Money, Collateral. */}

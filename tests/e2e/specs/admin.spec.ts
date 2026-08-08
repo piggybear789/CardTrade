@@ -10,7 +10,7 @@
 //
 // See lib/staffGate.ts: `requireStaff` = is_support OR is_admin;
 // the admin page itself reads `is_admin` from the profile row.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, FRANK_ADMIN, GRACE_SUPPORT, storageStatePath } from '../support/users';
 import { ensureFreshSessions } from '../support/auth';
 

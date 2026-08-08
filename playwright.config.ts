@@ -50,26 +50,37 @@ const useProductionServer = process.env.E2E_PRODUCTION_SERVER === '1' || !!proce
 const SERVER_ENV = {
   PAYMENTS_PROVIDER: 'mock',
   ENABLE_PAYMENT_DEMO: 'true',
-  // FORCE THE PLACEPICKER'S FREE-TEXT FALLBACK, deliberately.
+  // THE SIMULATED WEBHOOK MUST COME BACK TO *THIS* SERVER.
   //
-  // `Based near` is a REQUIRED field on the listing form, so a spec that creates a
-  // listing has to fill it. With a Maps key present the field is a Google Places
-  // Autocomplete: results arrive over the network, the listbox options are
-  // provider-rendered, and clicking one hung the run for the full test timeout.
-  // Driving that reliably would mean depending on a live Google response inside
-  // every listing test.
+  // `.env.local` sets `WEBHOOK_URL=http://localhost:3000/...` for a developer's normal
+  // `npm run dev`, and this suite deliberately runs on 3100 so it never collides with
+  // one. Without overriding it here, every demo webhook was POSTed to port 3000 —
+  // nothing listening — so delivery failed silently and no trade could ever leave
+  // COLLATERAL_PENDING.
   //
-  // With no key, `PlacePicker` renders a plain input whose onChange produces a
-  // complete PlaceValue (`placeId: 'text:<label>'`). That is not a test-only shim —
-  // it is the app's own documented no-key path, so the form, the validator and the
-  // action all run exactly as they do in production.
+  // It was silent because `fireTradeWebhook`'s caller does not guard the delivery
+  // failure: the panel showed no toast at all, so the room simply sat there. The
+  // database told the real story — `pre_auth_holds` had both rows and `webhook_logs`
+  // had none.
   //
-  // ACCEPTED COVERAGE GAP, and a large one: fulfilment terms REFUSE a `text:` place
-  // (`domain/fulfilment/terms.ts`), so no contract needing a delivery address or a
-  // meeting point can be agreed in this configuration. Six steps of
-  // cash-sale.spec.ts are `test.fixme` for that reason and the trade lifecycle is
-  // out of reach entirely. See F13 in tests/e2e/FINDINGS.md.
-  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: '',
+  // Worth stating plainly: with this wrong, the whole webhook pipeline — the
+  // translate -> map -> dispatch -> log path the demo controls exist to exercise — was
+  // never being tested at all.
+  WEBHOOK_URL: `http://localhost:${PORT}/api/webhooks/stripe`,
+  // A DUMMY MAPS KEY PLUS AN INTERCEPTED PLACES API.
+  //
+  // Not a credential and never leaves the browser: tests/e2e/support/places.ts routes
+  // every places.googleapis.com call to a deterministic stub. The key must merely be
+  // PRESENT, because searchPlaces returns [] without one.
+  //
+  // This replaced blanking the key. Blanking gave PlacePicker its free-text fallback,
+  // which made listing creation deterministic and made agreeing ANY contract
+  // impossible - domain/fulfilment/terms.ts refuses a 	ext: place for a delivery
+  // address or meeting point, so escrow settlement, shipping, receipt, acceptance,
+  // release, disputes, fraud and the whole trade lifecycle sat behind one field.
+  // Intercepting keeps the app's real autocomplete -> details -> PlaceValue path and
+  // produces a resolved place the domain accepts.
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
 };
 
 export default defineConfig({

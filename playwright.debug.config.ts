@@ -60,7 +60,10 @@ export default defineConfig({
     env: {
       PAYMENTS_PROVIDER: 'mock',
       ENABLE_PAYMENT_DEMO: 'true',
-      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: '',
+      // Must match playwright.config.ts: the simulated webhook has to come back to
+      // THIS server (3100), not the 3000 that .env.local names for a normal dev run.
+      WEBHOOK_URL: `http://localhost:${PORT}/api/webhooks/stripe`,
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
     },
   },
 });

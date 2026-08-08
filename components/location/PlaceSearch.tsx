@@ -88,6 +88,22 @@ export function PlaceSearch({
   // overwriting their edit, which is what made a selection unchangeable.
   const editingRef = useRef(false);
 
+  /**
+   * Pending `setOpen(false)` from a blur, so a refocus can cancel it.
+   *
+   * Held in a ref rather than left as a fire-and-forget timeout because the close has
+   * to be cancellable: see the note on `onFocus`.
+   */
+  const blurTimerRef = useRef<number | null>(null);
+
+  // Clear it on unmount so a close cannot fire against a gone component.
+  useEffect(
+    () => () => {
+      if (blurTimerRef.current !== null) window.clearTimeout(blurTimerRef.current);
+    },
+    [],
+  );
+
   // Adopt a selection made elsewhere (initial value, parent reset), but never while
   // the user is mid-edit. Keyed on `placeId` so a re-render with an equal-but-new
   // object does not retrigger.
@@ -190,10 +206,30 @@ export function PlaceSearch({
             setLoading(next.trim().length >= 2);
             onTextFallback?.(next);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            // CANCEL ANY PENDING CLOSE. Without this a blur that happened moments ago
+            // still fires its `setOpen(false)` 150ms later — after the field has been
+            // refocused and while the member is typing — so the list closes under them
+            // for no visible reason.
+            //
+            // Reachable by clicking away and straight back, or by tabbing out and in
+            // inside the delay window. The close is deferred so an option click can
+            // register; deferring it should not mean it becomes uncancellable.
+            if (blurTimerRef.current !== null) {
+              window.clearTimeout(blurTimerRef.current);
+              blurTimerRef.current = null;
+            }
+            setOpen(true);
+          }}
           onBlur={() => {
-            // Delay so option click registers.
-            window.setTimeout(() => setOpen(false), 150);
+            // Delay so an option click registers before the list unmounts.
+            if (blurTimerRef.current !== null) {
+              window.clearTimeout(blurTimerRef.current);
+            }
+            blurTimerRef.current = window.setTimeout(() => {
+              blurTimerRef.current = null;
+              setOpen(false);
+            }, 150);
           }}
         />
 

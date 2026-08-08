@@ -22,6 +22,7 @@ import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { validateRegistrationCredentials } from '@/domain/validation';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { type ActionResult, fail, ok } from './result';
 
 /** Typed failure codes for {@link signUp}. */
@@ -252,7 +253,7 @@ export async function signInWithGoogle(
   if (error || !data?.url) {
     return fail(
       'OAUTH_START_FAILED',
-      error?.message ?? 'Could not start Google sign-in. Please try again.',
+      friendlyWriteFailure(error, 'Could not start Google sign-in. Please try again.'),
     );
   }
 

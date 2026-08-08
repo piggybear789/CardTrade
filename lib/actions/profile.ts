@@ -13,6 +13,8 @@ import { revalidatePath } from 'next/cache';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { ensureProfile } from '@/lib/auth/ensureProfile';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import {
   createSignedAvatarUpload,
   removeAvatarObject,
@@ -79,7 +81,7 @@ export async function updateProfile(
     .single();
 
   if (error || !data) {
-    return fail('UPDATE_FAILED', error?.message ?? 'Profile update was rejected.');
+    return fail('UPDATE_FAILED', friendlyWriteFailure(error, 'Profile update was rejected.'));
   }
 
   // 4. Revalidate every surface that renders the display name.
@@ -117,6 +119,19 @@ export interface OnboardingCompletionData {
  * client cannot blank or replace it just to complete onboarding. The authenticated
  * owner may update only `display_name` and `onboarding_completed_at`; provider and
  * role columns remain protected by both column grants and RLS.
+ *
+ * A MISSING PROFILE IS REPAIRED HERE RATHER THAN TREATED AS FATAL. `ensureProfile`
+ * runs at the two points a member is BORN — password sign-up and the OAuth callback —
+ * so nothing repaired a session whose row went missing afterwards. That state is
+ * reachable and was reached: an already-signed-in member never passes through the
+ * callback again, so they were redirected here to onboard, the update matched zero
+ * rows, and `.single()` failed with PostgREST's "Cannot coerce the result to a single
+ * JSON object" — shown to them verbatim, with no way to browse or sign out. The
+ * account was bricked by a message about JSON coercion.
+ *
+ * Onboarding is the one screen every such member is already being sent to, which
+ * makes it the right place to heal: it needs the row anyway, and it now creates one
+ * instead of reporting an impossible-looking error.
  */
 export async function completeOnboarding(
   displayName: string,
@@ -130,19 +145,39 @@ export async function completeOnboarding(
     return fail('NOT_AUTHENTICATED', 'You must be signed in to finish onboarding.');
   }
 
+  // `maybeSingle`, not `single`: "this member has no profile yet" is a state to
+  // handle, not an error to render.
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('contact_email')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (profileError || !profile) {
-    return fail('UPDATE_FAILED', profileError?.message ?? 'Your profile could not be found.');
+  if (profileError) {
+    return fail('UPDATE_FAILED', friendlyWriteFailure(profileError));
   }
+
+  // Repair before validating: the contact email below is read from the row.
+  if (!profile) {
+    const repaired = await ensureProfile(
+      user.id,
+      user.email ?? '',
+      (user.user_metadata?.full_name as string | undefined) ??
+        (user.user_metadata?.name as string | undefined) ??
+        null,
+    );
+    if (!repaired.ok) {
+      return fail('UPDATE_FAILED', repaired.message);
+    }
+  }
+
+  // The contact email stays server-owned. A repaired profile may not carry one yet,
+  // and the validator wants a string, so fall back to the address Auth holds.
+  const contactEmail = profile?.contact_email ?? user.email ?? '';
 
   const validation = validateProfileUpdate({
     displayName,
-    contactEmail: profile.contact_email,
+    contactEmail,
   });
   if (!validation.ok) {
     return fail('VALIDATION', validation.message, validation.field);
@@ -157,10 +192,16 @@ export async function completeOnboarding(
     })
     .eq('id', user.id)
     .select('display_name, onboarding_completed_at')
-    .single();
+    .maybeSingle();
 
-  if (error || !data?.onboarding_completed_at) {
-    return fail('UPDATE_FAILED', error?.message ?? 'Onboarding could not be saved.');
+  if (error) {
+    return fail('UPDATE_FAILED', friendlyWriteFailure(error));
+  }
+  if (!data?.onboarding_completed_at) {
+    return fail(
+      'UPDATE_FAILED',
+      'We could not save your details. Please reload the page and try again.',
+    );
   }
 
   return ok({
@@ -267,7 +308,7 @@ export async function setMyAvatar(
     .single();
 
   if (error || !data) {
-    return fail('UPDATE_FAILED', error?.message ?? 'Your picture could not be saved.');
+    return fail('UPDATE_FAILED', friendlyWriteFailure(error, 'Your picture could not be saved.'));
   }
 
   const previous = (before?.avatar_path as string | null) ?? null;

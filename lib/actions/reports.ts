@@ -14,6 +14,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { REASON_MIN, REASON_MAX, DETAILS_MAX } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 
 /** A persisted report row as returned to callers. */
 export type ReportRow = Tables<'reports'>;
@@ -118,7 +119,7 @@ async function insertReport(
     return {
       ok: false,
       error: 'persistence-error',
-      message: error?.message ?? 'Failed to submit report.',
+      message: friendlyWriteFailure(error, 'Failed to submit report.'),
     };
   }
 

@@ -28,7 +28,8 @@
 // member, so the marked-profile walk in cleanup cannot reach these rows; the note
 // is what makes them findable. See scripts/e2e/cleanup-test-data.ts.
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
+import type { Page } from '@playwright/test';
 import { ALICE, CAROL, ERIN, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { createListing } from '../support/listings';

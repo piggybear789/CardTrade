@@ -35,20 +35,36 @@ set search_path to cardtrade, extensions, public;
 -- Auth users (must exist before profiles due to the profiles.id FK)
 -- =============================================================================
 -- crypt()/gen_salt() come from pgcrypto, which Supabase enables by default.
+--
+-- THE EMPTY-STRING TOKEN COLUMNS ARE LOAD-BEARING. Leave them NULL and NOBODY CAN
+-- SIGN IN AT ALL: GoTrue scans `confirmation_token`, `recovery_token`,
+-- `email_change_token_new`, `email_change_token_current`, `email_change`,
+-- `phone_change`, `phone_change_token` and `reauthentication_token` into Go `string`
+-- fields, and a NULL is not scannable into a non-pointer string. The lookup blows up
+-- before any password comparison, and the API returns
+-- `500 unexpected_failure / "Database error querying schema"` — which points at the
+-- schema and is nothing to do with it. Diagnosed the hard way; see F2 in
+-- tests/e2e/FINDINGS.md.
+--
+-- `phone` must stay NULL, not '': it carries a UNIQUE constraint, so a second seeded
+-- user with '' violates `users_phone_key`.
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
-  raw_app_meta_data, raw_user_meta_data
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change_token_new, email_change_token_current, email_change,
+  phone_change, phone_change_token, reauthentication_token
 )
 values
-  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'alice@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Alice Nguyen"}'),
-  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'bob@example.com',   crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Bob Carter"}'),
-  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'carol@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Carol Diaz"}'),
-  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'dave@example.com',  crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Dave Ellis"}'),
-  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'erin@example.com',  crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Erin Frost"}'),
-  ('00000000-0000-0000-0000-000000000000', '66666666-6666-6666-6666-666666666666', 'authenticated', 'authenticated', 'frank@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Frank Ito"}'),
-  ('00000000-0000-0000-0000-000000000000', '77777777-7777-7777-7777-777777777777', 'authenticated', 'authenticated', 'grace@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Grace Oduya"}')
+  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'alice@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Alice Nguyen"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'bob@example.com',   crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Bob Carter"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'carol@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Carol Diaz"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'dave@example.com',  crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Dave Ellis"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'erin@example.com',  crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Erin Frost"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '66666666-6666-6666-6666-666666666666', 'authenticated', 'authenticated', 'frank@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Frank Ito"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '77777777-7777-7777-7777-777777777777', 'authenticated', 'authenticated', 'grace@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Grace Oduya"}', '', '', '', '', '', '', '', '')
 on conflict (id) do nothing;
 
 -- Email/password sign-in resolves through an `email` provider identity, not
@@ -97,6 +113,40 @@ on conflict (id) do nothing;
 -- already exist from a prior run (ON CONFLICT DO NOTHING would otherwise skip them).
 update profiles set is_admin = true where id = '66666666-6666-6666-6666-666666666666';
 update profiles set is_support = true where id = '77777777-7777-7777-7777-777777777777';
+
+-- ---------------------------------------------------------------------------
+-- Trading region (0065) and the Identity_Gate (0069).
+--
+-- BOTH ARE REQUIRED FOR A SEEDED MEMBER TO TRANSACT AT ALL, and both were missing
+-- until the e2e suite could not open a single contract. Same UPDATE-after-INSERT
+-- pattern as the staff flags, for the same re-run reason.
+--
+--   * `region_code` - 0065 made an ABSENT region a REFUSAL rather than a pass, so a
+--     profile without one is rejected by every contract guard. It is the member's
+--     trading jurisdiction and must agree with the country on their Connect account;
+--     AU is the only `tradingEnabled` region today.
+--   * `identity_check_status` - since 0069 THIS is the Identity_Gate. The Connect
+--     columns above gate payouts and nothing else, so seeding them alone produced
+--     members who looked verified and could not list, sell, or enter trade escrow.
+--   * `identity_check_name` - the provider-verified legal name the buy path
+--     discloses. `sellerIdentityDisclosure` falls back to
+--     `merchant_legal_entity_name`, so a null here is survivable, but seeding it
+--     exercises the primary path rather than the grandfathered one.
+-- ---------------------------------------------------------------------------
+update profiles
+set region_code = coalesce(region_code, 'AU'),
+    identity_check_status = 'VERIFIED',
+    identity_check_name = coalesce(identity_check_name, display_name),
+    identity_check_verified_at = coalesce(identity_check_verified_at, now())
+where id in (
+  '11111111-1111-1111-1111-111111111111',
+  '22222222-2222-2222-2222-222222222222',
+  '33333333-3333-3333-3333-333333333333',
+  '44444444-4444-4444-4444-444444444444',
+  '55555555-5555-5555-5555-555555555555',
+  '66666666-6666-6666-6666-666666666666',
+  '77777777-7777-7777-7777-777777777777'
+);
 
 -- Onboarding (0058_onboarding_completion.sql) is a one-time post-signup flow gated by
 -- a NULL onboarding_completed_at; every seeded account is meant to be usable
@@ -180,3 +230,19 @@ values
    'Golden/Silver Age Superman #100, CGC 3.5. Sold in a prior transaction; retained here to exercise catalog filtering.',
    'Comics', 'CGC 3.5', 60000, 'SOLD', array['items/eeeeeeee2/cover.jpg'])
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Where the GOODS are (0065).
+--
+-- `items.location_country_code` is a DIFFERENT value from `profiles.region_code` and
+-- merging them is the mistake 0065 exists to prevent: this one scopes the CATALOG,
+-- that one gates CONTRACTS. A member can post a listing while travelling, so a
+-- parcel's origin is not the payee's jurisdiction.
+--
+-- Seeded NULL, every item was invisible in the region-scoped catalog - which reads as
+-- an empty marketplace rather than as missing data. Applied to every row still null so
+-- re-running this file repairs an older database too.
+-- ---------------------------------------------------------------------------
+update items
+set location_country_code = 'AU'
+where location_country_code is null;

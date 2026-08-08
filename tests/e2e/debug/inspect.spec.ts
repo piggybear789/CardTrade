@@ -9,7 +9,7 @@
 //   npx playwright test --config=playwright.debug.config.ts --grep "profile"
 //
 // Every test here PASSES by design — the output is the product, not the result.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, CAROL, DAVE, ERIN, storageStatePath } from '../support/users';
 import { createListing } from '../support/listings';
 

@@ -29,6 +29,7 @@ import { formatAud } from '@/lib/format';
 import { OFFER_AMOUNT_MIN, OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import type { Tables, Enums } from '@/lib/supabase/database.types';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 
 /** A persisted offer row. */
 export type OfferRow = Tables<'offers'>;
@@ -181,7 +182,7 @@ export async function makeOffer(
     return {
       ok: false,
       error: 'persistence-error',
-      detail: error?.message ?? 'Failed to create offer',
+      detail: friendlyWriteFailure(error, 'Failed to create offer'),
     };
   }
 
@@ -298,7 +299,7 @@ export async function counterOffer(
     return {
       ok: false,
       error: 'persistence-error',
-      detail: error?.message ?? 'Failed to create counter offer',
+      detail: friendlyWriteFailure(error, 'Failed to create counter offer'),
     };
   }
 

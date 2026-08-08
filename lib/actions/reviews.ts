@@ -22,6 +22,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createNotification } from '@/lib/notifications/createNotification';
 import type { Tables } from '@/lib/supabase/database.types';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 
 /** A persisted review row. */
 export type ReviewRow = Tables<'reviews'>;
@@ -224,7 +225,7 @@ export async function leaveReview(
     return {
       ok: false,
       error: 'persistence-error',
-      message: error?.message ?? 'Failed to save review.',
+      message: friendlyWriteFailure(error, 'Failed to save review.'),
     };
   }
 

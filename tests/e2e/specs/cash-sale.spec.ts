@@ -32,6 +32,7 @@ import type { Page } from '@playwright/test';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { createListing, fillPlace, STUB_PLACES } from '../support/listings';
+import { fillAndConfirm } from '../support/forms';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
 import { ensureFreshSessions } from '../support/auth';
 
@@ -133,10 +134,21 @@ test.describe.serial('Cash sale lifecycle', () => {
   
   // The owner still sees it, or a seller would lose sight of everything they have
   // under contract.
-  await page.goto('/listings/mine');
+  //
+  // ASSERTED ON THE ITEM'S OWN PAGE, not by finding it in `/listings/mine`. That list
+  // grows for ALICE as the run proceeds - every spec that needs to consume an item
+  // creates its own marked listing rather than eating a seeded one - so late in a full
+  // run the row this test wants is simply not on the first page, and the assertion
+  // failed while passing in isolation (F70). The rule under test is the RLS one, that
+  // an owner keeps sight of a reserved item, and the detail page exercises exactly
+  // that (`owner_id = auth.uid()`) without depending on where a paginated list happens
+  // to put it.
+  await page.goto(`/listings/${itemId}`);
   await page.waitForLoadState('domcontentloaded');
-  await expect(page.getByText(title).first()).toBeVisible({ timeout: RENDERED });
-  
+  await expect(page.getByRole('heading', { name: title }).first()).toBeVisible({
+    timeout: RENDERED,
+  });
+
   await ctx.close(); });
 
 
@@ -314,8 +326,12 @@ test.describe.serial('Cash sale lifecycle', () => {
       sellerPage.getByRole('heading', { name: /Seller ships with tracking/i }),
     ).toBeVisible({ timeout: 30_000 });
 
-    await sellerPage.getByPlaceholder(/Carrier/i).fill('Australia Post');
-    await sellerPage.getByPlaceholder(/Tracking number/i).fill('AP123456789AU');
+    // FILLED VIA `fillAndConfirm`, which verifies the value reached React state.
+    // These are controlled inputs, and on the mobile project the fill landed in the DOM
+    // before hydration attached — so state stayed empty, `Record shipment` never
+    // enabled, and the failure read as the button being broken.
+    await fillAndConfirm(sellerPage.getByPlaceholder(/Carrier/i), 'Australia Post');
+    await fillAndConfirm(sellerPage.getByPlaceholder(/Tracking number/i), 'AP123456789AU');
 
     const record = sellerPage.getByRole('button', { name: 'Record shipment' });
     await expect(record).toBeEnabled({ timeout: RENDERED });

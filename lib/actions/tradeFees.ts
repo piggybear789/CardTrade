@@ -209,3 +209,135 @@ export async function refundTradeFees(tradeId: string): Promise<number> {
   }
   return refundedCents;
 }
+
+// ---------------------------------------------------------------------------
+// Retry drain
+// ---------------------------------------------------------------------------
+
+/**
+ * Attempts allowed on one trader's fee before it stops being retried.
+ *
+ * Bounded for the same reason the Cash_Sale payout drain is: eight tries on an hourly
+ * schedule keeps every retry inside the provider's 24-hour idempotency-key window, so
+ * a retry can only ever REPLAY the original charge rather than create a second one.
+ * Past that the row stays FAILED for an operator, which is the honest outcome.
+ */
+const MAX_FEE_ATTEMPTS = 8;
+
+/** How many fee rows one pass will attempt. */
+const MAX_FEES_PER_PASS = 25;
+
+/** Outcome of one fee-retry pass. */
+export interface TradeFeeDrainResult {
+  /** Rows attempted this pass. */
+  attempted: number;
+  /** Rows that settled. */
+  settled: number;
+  /** Rows that failed again and remain owed. */
+  stillFailed: number;
+  /** Rows that have exhausted `MAX_FEE_ATTEMPTS` and are left for an operator. */
+  exhausted: number;
+  /** True when more rows were eligible than one pass handles. */
+  moreDue: boolean;
+}
+
+/**
+ * Retry Trade_Fees that failed to collect.
+ *
+ * THIS IS THE DRAIN `chargeTradeFees` ALREADY CLAIMED TO HAVE. Its doc-comment said a
+ * failed fee "is recorded FAILED for the drain job to retry", and nothing anywhere
+ * read those rows: `trade_fees` was touched only by the charge and refund functions in
+ * this module, both of which run once at the Commitment_Point and at cancellation. So
+ * every fee that failed — a declined card, a momentary provider error, a trader with no
+ * instrument on file at that instant — was silently uncollected revenue forever.
+ *
+ * REUSES THE PERSISTED NONCE VERBATIM, never a fresh one. That is what makes a retry
+ * safe: if the original charge actually succeeded and only the response was lost, the
+ * provider replays it instead of taking the money twice.
+ *
+ * Never throws. Per-row isolation, because one trader's dead card must not stop the
+ * queue — the same lesson as the inspection sweep.
+ */
+export async function drainFailedTradeFees(
+  limit = MAX_FEES_PER_PASS,
+): Promise<TradeFeeDrainResult> {
+  const admin = createAdminClient();
+  const bounded = Math.max(1, Math.min(limit, 200));
+  const result: TradeFeeDrainResult = {
+    attempted: 0,
+    settled: 0,
+    stillFailed: 0,
+    exhausted: 0,
+    moreDue: false,
+  };
+
+  const { data } = await admin
+    .from('trade_fees')
+    .select('*')
+    .eq('status', 'FAILED')
+    .lt('attempts', MAX_FEE_ATTEMPTS)
+    // Oldest first, so a persistently failing row cannot starve the rest.
+    .order('updated_at', { ascending: true })
+    .limit(bounded + 1);
+
+  const rows = (data ?? []) as TradeFeeRow[];
+  result.moreDue = rows.length > bounded;
+
+  for (const row of rows.slice(0, bounded)) {
+    try {
+      result.attempted += 1;
+
+      const { data: payerRow } = await admin
+        .from('profiles')
+        .select('payer_id')
+        .eq('id', row.trader_id)
+        .maybeSingle();
+      const payerId = (payerRow?.payer_id as string | null) ?? null;
+
+      if (!payerId) {
+        result.stillFailed += 1;
+        await recordFeeResult(row.trade_id, row.trader_id, 'FAILED', {
+          error: 'No payment instrument on file.',
+        });
+        continue;
+      }
+
+      const payments = getPaymentService(await regionForTrade(row.trade_id));
+      const charge = await payments.requestTransfer({
+        payerId,
+        amount: row.amount_cents,
+        ref: `tradefee:${row.trade_id}`,
+        // The persisted key, reused exactly.
+        nonce: row.nonce,
+      });
+
+      if (charge.status === 'SETTLED') {
+        result.settled += 1;
+        await recordFeeResult(row.trade_id, row.trader_id, 'SETTLED', {
+          chargeRef: charge.transferId,
+        });
+      } else {
+        result.stillFailed += 1;
+        await recordFeeResult(row.trade_id, row.trader_id, 'FAILED', {
+          chargeRef: charge.transferId,
+          error: 'The provider declined the fee charge.',
+        });
+      }
+    } catch (err) {
+      result.stillFailed += 1;
+      console.warn(
+        `[tradeFees] retry failed for trade ${row.trade_id} trader ${row.trader_id}:`,
+        err,
+      );
+    }
+  }
+
+  const { count } = await admin
+    .from('trade_fees')
+    .select('trade_id', { count: 'exact', head: true })
+    .eq('status', 'FAILED')
+    .gte('attempts', MAX_FEE_ATTEMPTS);
+  result.exhausted = count ?? 0;
+
+  return result;
+}

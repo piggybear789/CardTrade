@@ -200,16 +200,6 @@ export async function proposeTrade(
      * Bond, because the Counterpart receives all of them.
      */
     initiatorExtraItemIds?: string[];
-    /**
-     * Create the Trade on behalf of another Trader.
-     *
-     * Set only by `acceptTradeProposal`, where the accepting Counterpart is the
-     * caller but the *proposer* is the initiating Trader. The caller's own
-     * entitlement is established there by re-validating the PENDING proposal
-     * they are party to, so this must never be threaded through from client
-     * input.
-     */
-    onBehalfOfUserId?: string;
   },
 ): Promise<ProposeTradeActionResult> {
   const supabase = await createClient();
@@ -218,7 +208,21 @@ export async function proposeTrade(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'unauthenticated' };
 
-  const initiatorId = options?.onBehalfOfUserId ?? user.id;
+  // THE PROPOSER IS THE CALLER. FULL STOP.
+  //
+  // This used to accept an `onBehalfOfUserId` option and use it as the proposer,
+  // for `acceptTradeProposal` — which was removed in 0055 and has no replacement.
+  // Its own doc-comment said the value "must never be threaded through from client
+  // input", but every export of a `'use server'` module IS client input: the option
+  // was settable by anyone who could call the action.
+  //
+  // The effect was that a verified member could pass two ids straight off the public
+  // catalog and force two OTHER members into trade escrow — creating a trade neither
+  // had proposed, reserving both items, and placing a real card authorisation for
+  // 100% of FMV on both of their saved cards, with the caller not a party to it. It
+  // also skipped the region-compatibility and shopfront guards that
+  // `openTradeNegotiation` applies.
+  const initiatorId = user.id;
 
   // Req 14.2. Entering trade escrow requires the Identity_Gate, because an
   // Objective_Fraud resolution pays captured collateral to whichever trader was
@@ -226,25 +230,36 @@ export async function proposeTrade(
   // account could be awarded restitution the platform has no way to deliver, so
   // the trade must not start.
   //
-  // BOTH parties are checked, not just the caller. This function is reached from
-  // `acceptTradeProposal`, where the caller is the accepting Counterpart but the
-  // Trade is created on the PROPOSER's behalf via `onBehalfOfUserId`. Gating only
-  // the caller would let an ungated proposer into escrow.
-  for (const [partyId, isCaller] of [
-    [user.id, true],
-    [initiatorId, initiatorId !== user.id],
-  ] as const) {
-    if (!isCaller) continue;
-    const gate = await readIdentityGate(partyId);
-    if (!gate.satisfied) {
-      // This module's ActionFailure carries `detail`, not `message`.
+  // BOTH parties are checked, not just the caller — a fraud finding can pay either
+  // side, so both must be able to receive. The loop this replaces walked the caller
+  // and the removed `onBehalfOfUserId` proposer, which after that removal were always
+  // the same person: it checked one party twice and the actual counterparty never.
+  // The counterparty is now resolved from the item being traded for.
+  const { data: targetItem } = await supabase
+    .from('items')
+    .select('owner_id')
+    .eq('id', counterpartItemId)
+    .maybeSingle();
+  if (!targetItem) return { ok: false, error: 'item-not-found' };
+
+  const callerGate = await readIdentityGate(initiatorId);
+  if (!callerGate.satisfied) {
+    // This module's ActionFailure carries `detail`, not `message`.
+    return {
+      ok: false,
+      error: 'not-verified',
+      detail: identityGateMessage('trade', callerGate.state),
+    };
+  }
+
+  const counterpartyId = targetItem.owner_id as string;
+  if (counterpartyId !== initiatorId) {
+    const counterpartyGate = await readIdentityGate(counterpartyId);
+    if (!counterpartyGate.satisfied) {
       return {
         ok: false,
         error: 'not-verified',
-        detail:
-          partyId === user.id
-            ? identityGateMessage('trade', gate.state)
-            : 'The other trader has not finished payout setup, so this trade cannot start yet.',
+        detail: 'The other trader has not verified their identity, so this trade cannot start yet.',
       };
     }
   }

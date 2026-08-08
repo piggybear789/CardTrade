@@ -20,6 +20,7 @@ import {
   type DisputeResolutionOrchestrator,
   type DisputeResolutionRepository,
 } from './disputeResolution';
+import type { MerchantRecord } from './merchantOnboarding';
 
 /** The Supabase admin client type (service-role, RLS-bypassing). */
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -61,14 +62,35 @@ export function createSupabaseDisputeResolutionRepository(
       }));
     },
 
-    async getTraderPayerId(traderId: string): Promise<string | null> {
+    async getTraderPayee(traderId: string): Promise<MerchantRecord | null> {
+      // The victim's PAYOUT destination, not their card. Reading `payer_id` here
+      // was what let the fraud path charge the victim — see the interface comment.
       const { data } = await client
         .from('profiles')
-        .select('payer_id')
+        .select(
+          'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_live_enabled, merchant_transactions_enabled',
+        )
         .eq('id', traderId)
         .maybeSingle();
-      const row = data as { payer_id: string | null } | null;
-      return row?.payer_id ?? null;
+      const row = data as {
+        merchant_ref: string | null;
+        merchant_status: MerchantRecord['merchantStatus'] | null;
+        merchant_settlements_enabled: boolean | null;
+        merchant_live_enabled: boolean | null;
+        merchant_transactions_enabled: boolean | null;
+      } | null;
+      if (!row) return null;
+      // Only the payout facts are read. Identity fields are deliberately absent:
+      // `canReceiveFunds` does not consult them, and this module holds no identity
+      // data by design (see the module header).
+      return {
+        profileId: traderId,
+        merchantRef: row.merchant_ref,
+        merchantStatus: row.merchant_status ?? 'NONE',
+        liveEnabled: Boolean(row.merchant_live_enabled),
+        transactionsEnabled: Boolean(row.merchant_transactions_enabled),
+        settlementsEnabled: Boolean(row.merchant_settlements_enabled),
+      };
     },
 
     async recordDisputeParticipants(params): Promise<void> {

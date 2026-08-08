@@ -235,18 +235,34 @@ export function tradingRegions(): readonly RegionDefinition[] {
 // ---------------------------------------------------------------------------
 
 /**
+ * The ISO 4217 currencies whose minor unit is a THOUSANDTH, not a hundredth.
+ *
+ * Named explicitly so `minorUnitDigits` can report 3 for them, which is what makes
+ * {@link assertMinorUnitSupported} able to fire. Before this set existed, that
+ * function could not: `minorUnitDigits` returned only 0 or 2, so its
+ * `digits !== 0 && digits !== 2` condition was unsatisfiable, and the documented
+ * "crash at the seam rather than a rounding error in production" did not exist. A
+ * three-decimal currency would simply have been treated as two-decimal — every amount
+ * understated tenfold, silently.
+ */
+const THREE_DECIMAL_CURRENCIES = new Set(['bhd', 'iqd', 'jod', 'kwd', 'lyd', 'omr', 'tnd']);
+
+/**
  * How many decimal places a currency's smallest unit implies.
  *
- * @returns 2 for ordinary currencies, 0 for the zero-decimal ones
- * @throws Error for a currency this module has no entry for — see
- *   {@link assertMinorUnitSupported} for why refusing beats defaulting to 2
+ * @returns 2 for ordinary currencies, 0 for the zero-decimal ones, 3 for the
+ *   thousandth-unit ones — which this codebase's integer model cannot represent, so
+ *   callers on a money path must screen them with {@link assertMinorUnitSupported}
+ * @throws Error for anything that is not an ISO 4217 code at all
  */
 export function minorUnitDigits(currency: string): number {
   const code = currency.trim().toLowerCase();
   if (!/^[a-z]{3}$/.test(code)) {
     throw new Error(`Not an ISO 4217 currency code: ${currency}`);
   }
-  return ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : 2;
+  if (ZERO_DECIMAL_CURRENCIES.has(code)) return 0;
+  if (THREE_DECIMAL_CURRENCIES.has(code)) return 3;
+  return 2;
 }
 
 /**
@@ -259,9 +275,16 @@ export function minorUnitDigits(currency: string): number {
  * nothing in the system can detect it afterwards. A money path must fail loudly on
  * an input it cannot represent.
  *
- * None of the currently supported regions use a three-decimal currency, so this
- * never fires in practice; it exists so that adding one is a crash at the seam
- * rather than a rounding error in production.
+ * None of the currently supported regions use a three-decimal currency, so this does
+ * not fire today; it exists so that adding one is a crash at the seam rather than a
+ * rounding error in production.
+ *
+ * IT CAN NOW ACTUALLY FIRE, WHICH IT COULD NOT BEFORE. `minorUnitDigits` used to
+ * return only 0 or 2 — a currency it did not recognise fell through to 2 — so this
+ * function's condition was unsatisfiable and it had no call site either. It was a
+ * comment describing a protection, not a protection. `THREE_DECIMAL_CURRENCIES` makes
+ * the digit count truthful, and `readStripeConfig` calls this on every payment
+ * configuration it builds.
  */
 export function assertMinorUnitSupported(currency: string): void {
   const digits = minorUnitDigits(currency);

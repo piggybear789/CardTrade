@@ -983,3 +983,33 @@ verified to pass; what is not verified is that they all pass in one sequence. A 
 that must be run file-by-file to be believed is a weak gate, and this should be closed
 before the suite is relied on in CI - where retries: 1 would currently paper over
 exactly this.
+
+### F70 UPDATE - desktop is now fully green; one mobile test remains
+
+The catalog-accumulation diagnosis was correct and is FIXED. `cash-sale.spec.ts`'s
+owner-visibility check asserted its item was findable in `/listings/mine`, a paginated
+list that grows for ALICE as a run proceeds - every spec needing to consume an item
+creates its own marked listing rather than eating a seeded one, so late in a full run
+the row was simply not on the first page. It now asserts on the item's OWN page, which
+exercises the same RLS rule (an owner keeps sight of a reserved item) without depending
+on list position.
+
+| Run | Before | After |
+| --- | --- | --- |
+| desktop, full suite | 98 passed, 1 failed | **102 passed, 0 failed** |
+| mobile, full suite | 9 failed, then 3 | **99 passed, 1 failed** |
+
+STILL OPEN, one test: mobile `cash-sale` "the seller ships and the buyer confirms
+receipt". `Record shipment` stays DISABLED. A hydration race was ruled out: the carrier
+and tracking fields are now filled through `fillAndConfirm` (new
+`tests/e2e/support/forms.ts`), which asserts the value actually reached React state and
+would have failed first - it does not. So both fields hold their values and the button
+is still disabled, meaning it is gated on something further.
+
+The likely candidate, by analogy with F40: posting needs the buyer's delivery address on
+the contract, and `RecordShipmentDialog` carries the string "You do not have a delivery
+address for this contract yet". The desktop suite passes this test, so the difference is
+what an earlier step in this `describe.serial` chain leaves behind on mobile rather than
+the shipping step itself. Next move is to dump the action card's own copy at that point -
+the button's disabled REASON is almost certainly rendered next to it and has not yet been
+read.

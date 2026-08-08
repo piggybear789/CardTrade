@@ -19,6 +19,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { sweepTradeInspections } from '@/lib/trades/inspectionSweep';
+import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 
 /** Never prerender or cache a job that moves money. */
 export const dynamic = 'force-dynamic';
@@ -60,7 +61,20 @@ async function runSweep(request: Request): Promise<Response> {
 
   try {
     const result = await sweepTradeInspections();
-    return Response.json({ ok: true, ...result });
+
+    // The Trade_Fee retry rides along on this pass rather than on a route of its own.
+    // It is trade-scoped, hourly is the cadence its attempt budget assumes, and a
+    // second cron entry is a second thing to forget to configure. Isolated so a
+    // collection problem can never cost the inspection sweep, which is the half that
+    // releases collateral.
+    let fees: Awaited<ReturnType<typeof drainFailedTradeFees>> | null = null;
+    try {
+      fees = await drainFailedTradeFees();
+    } catch (error) {
+      console.error('[jobs] trade-fee drain failed', error);
+    }
+
+    return Response.json({ ok: true, ...result, fees });
   } catch (error) {
     console.error('[jobs] trade-inspections failed', error);
     return Response.json({ ok: false, error: 'Inspection pass failed' }, { status: 500 });

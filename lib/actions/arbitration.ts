@@ -30,6 +30,7 @@ import {
   type TriagedCase,
 } from '@/domain/arbitration/arbitrationCase';
 import { sellerNetCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
 import { type ActionResult, fail, ok } from './result';
 
 /** Shape of the embedded `cash_sale_items` rows on a disputed-sale read. */
@@ -65,8 +66,9 @@ function toGoodsLines(rows: unknown): ArbitrationGoodsLine[] {
 /** Typed failures for arbitration reads and writes. */
 export type ArbitrationActionError = StaffGateError | 'not-found' | 'persistence-error';
 
-/** The Friction_Tax an unresolved condition dispute would capture, in cents. */
-const FRICTION_TAX_CENTS = 2_000;
+// The Friction_Tax an unresolved condition dispute would capture. Imported, not
+// redeclared: this figure is the "amount at risk" staff triage on, and it used to be a
+// third independent `2_000` with no link to the amount the capture actually takes.
 
 /** One internal note, as staff see it. */
 export interface ArbitrationNote {

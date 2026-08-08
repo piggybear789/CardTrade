@@ -29,9 +29,22 @@ const PROTECTED_PREFIXES = [
   "/admin",
 ];
 
+// Protected routes that a PREFIX cannot express, because the variable segment comes
+// first. `/listings/[id]/edit` writes a listing, but `/listings` and `/listings/[id]`
+// are public, so it cannot be covered by a prefix without closing the catalog.
+//
+// It was in `config.matcher` but not in `PROTECTED_PREFIXES`, so `isProtected()` was
+// false for it and neither the sign-in redirect, the FRAUD-BAN redirect, nor the
+// onboarding gate ran on a route that mutates. The page authenticates and checks
+// ownership itself and RLS refuses a banned member's write, so this is defence in
+// depth — but it is the only write route that had none of the three.
+const PROTECTED_PATTERNS: readonly RegExp[] = [/^\/listings\/[^/]+\/edit\/?$/];
+
 function isProtected(pathname: string): boolean {
-  return PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  return (
+    PROTECTED_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    ) || PROTECTED_PATTERNS.some((pattern) => pattern.test(pathname))
   );
 }
 

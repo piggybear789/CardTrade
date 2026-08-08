@@ -9,7 +9,7 @@
 // mode and the credentials to disagree. Secret values are never logged or
 // returned to callers.
 
-import { findRegion } from '../../region';
+import { assertMinorUnitSupported, findRegion } from '../../region';
 
 /** Which Stripe mode the configured key targets. Derived, never declared. */
 export type StripeEnvironment = 'test' | 'live';
@@ -284,6 +284,22 @@ export function readStripeConfig(
   const tolerance = Number.parseInt(env.STRIPE_WEBHOOK_TOLERANCE_SECONDS?.trim() ?? '', 10);
   const definition = findRegion(code);
 
+  const currency =
+    definition?.currency ?? env.STRIPE_CURRENCY?.trim().toLowerCase() ?? DEFAULT_CURRENCY;
+
+  // THE MONEY SEAM SCREENS ITS OWN CURRENCY.
+  //
+  // `assertMinorUnitSupported` existed to be "a crash at the seam rather than a
+  // rounding error in production", and had no call site anywhere — so a currency whose
+  // minor unit is a thousandth would have been quietly treated as hundredths and every
+  // amount understated tenfold. This is the seam it meant: the point where a region
+  // becomes the currency that every `amount` in `StripeService` is denominated in.
+  //
+  // It throws, which is correct here. Refusing to construct a payment configuration is
+  // a loud, immediate, total failure for that region; the alternative is charging real
+  // people the wrong amount and being unable to detect it afterwards.
+  assertMinorUnitSupported(currency);
+
   return {
     environment: secretKey.startsWith('sk_live_') ? 'live' : 'test',
     secretKey,
@@ -291,10 +307,7 @@ export function readStripeConfig(
     webhookSecrets: readWebhookSecrets(env),
     publishableKey: readStripePublishableKey(env, code) ?? undefined,
     region: code,
-    currency:
-      definition?.currency ??
-      env.STRIPE_CURRENCY?.trim().toLowerCase() ??
-      DEFAULT_CURRENCY,
+    currency,
     country:
       definition?.stripeCountry ??
       env.STRIPE_ACCOUNT_COUNTRY?.trim().toLowerCase() ??

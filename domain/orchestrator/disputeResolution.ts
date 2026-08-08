@@ -27,20 +27,26 @@
 // All monetary amounts are integer AUD cents.
 
 import type { Cents, PaymentService, PreAuthHold } from '../services/types';
+import {
+  FRICTION_TAX_CENTS,
+  FRICTION_TAX_PLATFORM_FEE_CENTS,
+  FRICTION_TAX_RETURN_SHIPPING_CENTS,
+} from '../dispute/frictionTax';
+import { canReceiveFunds, type MerchantRecord } from './merchantOnboarding';
 import type { OrchestratorError, TradeOrchestrator, TradeRecord } from './tradeOrchestrator';
 
 // ---------------------------------------------------------------------------
 // Constants (Req 7.2, 7.3, 8.6)
 // ---------------------------------------------------------------------------
 
-/** The fixed Friction_Tax Partial_Capture on a Condition_Dispute: $20.00 (Req 7.2). */
-export const FRICTION_TAX_CENTS: Cents = 2000;
-
-/** Friction_Tax allocation to the Counterpart for return shipping: $10.00 (Req 7.3). */
-export const FRICTION_TAX_RETURN_SHIPPING_CENTS: Cents = 1000;
-
-/** Friction_Tax allocation to the Platform_Fee: $10.00 (Req 7.3). */
-export const FRICTION_TAX_PLATFORM_FEE_CENTS: Cents = 1000;
+// The Friction_Tax amounts now live in `domain/dispute/frictionTax.ts` and are
+// re-exported here so existing importers are unaffected. They were declared
+// independently in three modules; see that file for why one source matters.
+export {
+  FRICTION_TAX_CENTS,
+  FRICTION_TAX_RETURN_SHIPPING_CENTS,
+  FRICTION_TAX_PLATFORM_FEE_CENTS,
+} from '../dispute/frictionTax';
 
 /** The return window for a disputed Item: 14 calendar days (Req 7.5, 7.7). */
 export const DISPUTE_RETURN_WINDOW_DAYS = 14;
@@ -82,11 +88,17 @@ export interface DisputeResolutionRepository {
   getHolds(tradeId: string): Promise<DisputeHold[]>;
 
   /**
-   * Read a Trader's provider payer reference, used as the transfer destination
-   * when paying captured fraud collateral to the victim (Req 8.3). `null` when
-   * the Trader has no payer on file.
+   * Read a Trader's PAYOUT destination — their Connect state — used when paying
+   * captured fraud collateral to the victim (Req 8.3). `null` when the Trader has
+   * no merchant record at all.
+   *
+   * THIS REPLACED `getTraderPayerId`, AND THE DIFFERENCE IS THE WHOLE BUG. A payer
+   * reference is a saved CARD: it is where money is collected FROM. Paying a victim
+   * needs a destination to send money TO, which is a connected account. Reading the
+   * payer here is what let the fraud path charge the victim the collateral it was
+   * supposed to award them.
    */
-  getTraderPayerId(traderId: string): Promise<string | null>;
+  getTraderPayee(traderId: string): Promise<MerchantRecord | null>;
 
   /** Req 7.1: record the raising Trader and the disputed-against Trader. */
   recordDisputeParticipants(params: {
@@ -322,7 +334,19 @@ export async function resolveConditionDispute(
   const voidedHoldRefs: string[] = [];
   for (const hold of toVoid) {
     if (hold.status === 'VOIDED' || hold.status === 'FULLY_CAPTURED') continue;
-    await payments.voidHold(hold.holdRef);
+    // The RETURNED STATUS DECIDES. `voidHold` reports failure through `status`
+    // rather than throwing, and this loop used to discard it and mark the row
+    // VOIDED regardless — so a trader's collateral could stay a live authorisation
+    // against their card while the system said it had been released. The expiry
+    // reconciler only sweeps holds still marked ACTIVE, so it could not find one
+    // either: the encumbrance became invisible until the authorisation lapsed.
+    const released = await payments.voidHold(hold.holdRef);
+    if (released.status !== 'VOIDED') {
+      // Left ACTIVE deliberately, so `expire_lapsed_holds` still owns it and the
+      // trader is warned before it lapses.
+      await repository.flagManualReconciliation({ tradeId: trade.id });
+      continue;
+    }
     await repository.markHoldVoided(hold.holdRef);
     voidedHoldRefs.push(hold.holdRef);
   }
@@ -357,7 +381,17 @@ export async function markDisputeReturnOverdue(
  * `MISSING_IDENTITY_DATA` is gone along with the identity-disclosure step it
  * described — there is no longer any identity data to be missing.
  */
-export type FraudIndication = 'FULL_CAPTURE_FAILED';
+export type FraudIndication =
+  | 'FULL_CAPTURE_FAILED'
+  /**
+   * The collateral was captured but the victim has no Connect destination that can
+   * receive it, so it stays in the platform balance pending their payout setup.
+   */
+  | 'VICTIM_NOT_PAYABLE'
+  /** The payout to the victim was attempted and the provider refused it. */
+  | 'VICTIM_TRANSFER_FAILED'
+  /** A hold that should have been released reported a failed void (Req 8.5). */
+  | 'HOLD_VOID_FAILED';
 
 /** The aggregate outcome of resolving Objective_Fraud (Req 8.2-8.7). */
 export interface FraudResolutionOutcome {
@@ -482,16 +516,44 @@ export async function reportObjectiveFraud(
       holdRef: offendingHold.holdRef,
       capturedCents,
     });
-    // 3. Transfer the captured funds to the victim (Req 8.3). Pay the victim's
-    //    payer on file; fall back to the trader id if none is recorded.
-    const victimPayerId = (await repository.getTraderPayerId(victimTraderId)) ?? victimTraderId;
-    const transfer = await payments.requestTransfer({
-      payerId: victimPayerId,
-      amount: capturedCents,
-      ref: `fraud-payout:${trade.id}`,
-      nonce: `fraud-payout:${trade.id}`,
-    });
-    transferSettled = transfer.status === 'SETTLED';
+
+    // 3. Pay the captured funds OUT to the victim (Req 8.3).
+    //
+    // `payoutToMerchant`, NOT `requestTransfer`. This previously called
+    // `requestTransfer({ payerId: victimPayerId, ... })`, which is a COLLECTION
+    // primitive: it creates a PaymentIntent against the given customer's saved card
+    // and, with no `merchantRef`, returns SETTLED once that charge succeeds. So a
+    // confirmed fraud finding captured the offender's collateral and then DEBITED
+    // THE VICTIM for the same amount, reported success, and left the platform
+    // holding both sides. It is the exact mistake `payoutCashSaleSeller` documents
+    // at its own call site.
+    //
+    // The captured collateral is already in the platform balance, so releasing it
+    // is a payout of money we hold — never a fresh charge.
+    const victimPayee = await repository.getTraderPayee(victimTraderId);
+    if (!canReceiveFunds(victimPayee)) {
+      // Recoverable and deliberately not a silent success: the funds stay in the
+      // platform balance and the case is flagged, so a victim who has not finished
+      // payout onboarding is paid once they do rather than being charged now.
+      manualReconciliation = true;
+      indications.push('VICTIM_NOT_PAYABLE');
+      await repository.flagManualReconciliation({ tradeId: trade.id });
+    } else {
+      const payout = await payments.payoutToMerchant({
+        merchantRef: victimPayee!.merchantRef!,
+        amount: capturedCents,
+        ref: `fraud-payout:${trade.id}`,
+        nonce: `fraud-payout:${trade.id}`,
+      });
+      transferSettled = payout.status === 'SETTLED';
+      if (!transferSettled) {
+        // Payouts report failure through `status` rather than throwing (Req 8.6),
+        // so an unchecked call here would have recorded a payment that never landed.
+        manualReconciliation = true;
+        indications.push('VICTIM_TRANSFER_FAILED');
+        await repository.flagManualReconciliation({ tradeId: trade.id });
+      }
+    }
   } else {
     // Exhausted all retries -> preserve the offending hold, flag manual
     // reconciliation, surface the error indication (Req 8.6).
@@ -501,11 +563,22 @@ export async function reportObjectiveFraud(
   }
 
   // 4. Void the victim's hold at $0 (Req 8.5).
+  //
+  // The victim has already been defrauded; leaving their collateral authorised
+  // while telling them it was released is the last thing this flow should do, so
+  // the returned status is checked rather than assumed. See the same fix in
+  // `resolveConditionDispute`.
   let victimHoldVoided = false;
   if (victimHold && victimHold.status !== 'VOIDED') {
-    await payments.voidHold(victimHold.holdRef);
-    await repository.markHoldVoided(victimHold.holdRef);
-    victimHoldVoided = true;
+    const released = await payments.voidHold(victimHold.holdRef);
+    if (released.status === 'VOIDED') {
+      await repository.markHoldVoided(victimHold.holdRef);
+      victimHoldVoided = true;
+    } else {
+      manualReconciliation = true;
+      indications.push('HOLD_VOID_FAILED');
+      await repository.flagManualReconciliation({ tradeId: trade.id });
+    }
   }
 
   // NOTE: there is deliberately no identity-disclosure step here.

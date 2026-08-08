@@ -33,7 +33,7 @@ export type TradeRow = Tables<'trades'>;
  * changed hands — but it is logged so it can be chased. The same tolerance the
  * dispute and fraud paths apply to their own void calls.
  */
-export async function voidTradeHolds(tradeId: string): Promise<void> {
+export async function voidTradeHolds(tradeId: string): Promise<VoidTradeHoldsResult> {
   const admin = createAdminClient();
   const { data: holds } = await admin
     .from('pre_auth_holds')
@@ -44,6 +44,8 @@ export async function voidTradeHolds(tradeId: string): Promise<void> {
   // fails with "no such payment_intent" — which would leave real collateral held on a
   // completed trade until the authorisation lapsed.
   const payments = getPaymentService(await regionForTrade(tradeId));
+  let released = 0;
+  let failed = 0;
   for (const hold of holds ?? []) {
     if (hold.status !== 'ACTIVE') continue;
     if (!hold.hold_ref) continue;
@@ -53,10 +55,28 @@ export async function voidTradeHolds(tradeId: string): Promise<void> {
         .from('pre_auth_holds')
         .update({ status: voided.status })
         .eq('hold_ref', hold.hold_ref as string);
+      if (voided.status === 'VOIDED') released += 1;
+      else failed += 1;
     } catch (err) {
+      failed += 1;
       console.warn(`[trades] failed to void hold ${hold.hold_ref} on completion:`, err);
     }
   }
+  return { released, failed };
+}
+
+/** How many collateral authorisations were actually released, and how many refused. */
+export interface VoidTradeHoldsResult {
+  released: number;
+  failed: number;
+}
+
+/** What `finalizeCompletedTrade` managed to do, so a caller can report it honestly. */
+export interface FinalizeCompletedTradeResult {
+  holdsReleased: number;
+  holdsFailed: number;
+  /** `null` when the trade had no cash leg to settle. */
+  cashSettled: boolean | null;
 }
 
 /** Outcome of attempting to settle a trade's cash leg. */
@@ -134,10 +154,28 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
  *
  * Called from the mutual-acceptance path AND from the inspection-timeout sweep, so
  * the two cannot drift.
+ *
+ * REPORTS WHAT ACTUALLY HAPPENED. This returned `void` and discarded both outcomes,
+ * which the inspection sweep then read as success: it counted the trade completed and
+ * told both traders in writing that "both collateral holds were released", whether or
+ * not any had been. `settleTradeCash` flags `manual_reconciliation` so the state was
+ * recoverable, but the job's own report and the member-facing message were both
+ * wrong — which is what made it undetectable in operation.
+ *
+ * Failure still does not roll COMPLETED back: the goods have already changed hands.
+ * The caller decides what to say about it.
  */
-export async function finalizeCompletedTrade(trade: TradeRow): Promise<void> {
-  await voidTradeHolds(trade.id);
+export async function finalizeCompletedTrade(
+  trade: TradeRow,
+): Promise<FinalizeCompletedTradeResult> {
+  const holds = await voidTradeHolds(trade.id);
+  let cash: SettleTradeCashResult | null = null;
   if ((trade.cash_amount_cents ?? 0) > 0) {
-    await settleTradeCash(trade);
+    cash = await settleTradeCash(trade);
   }
+  return {
+    holdsReleased: holds.released,
+    holdsFailed: holds.failed,
+    cashSettled: cash === null ? null : cash.ok,
+  };
 }

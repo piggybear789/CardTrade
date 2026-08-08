@@ -343,7 +343,10 @@ export async function acceptTradeTerms(
       message:
         bonds.error === 'payer-not-found'
           ? 'A saved card is needed to place the trade collateral hold. Add one in your profile, then accept again.'
-          : 'Collateral could not be arranged, so the trade was not started. Nothing was charged.',
+          : bonds.error === 'hold-failed'
+            ? 'Your card declined the collateral hold, so the trade was not started. ' +
+              'Nothing was charged. Try another card and accept again.'
+            : 'Collateral could not be arranged, so the trade was not started. Nothing was charged.',
     };
   }
 
@@ -368,13 +371,23 @@ export async function acceptTradeTerms(
   // cash coming their way.
   const cash = Number(started.cash_amount_cents ?? 0);
   const initiatorPaysCash = started.cash_direction === 'PROPOSER_PAYS';
-  await chargeTradeFees({
+  const fees = await chargeTradeFees({
     tradeId,
     initiatorId: started.initiator_id,
     counterpartId: started.counterpart_id,
     initiatorReceivesCents: counterpartGives + (initiatorPaysCash ? 0 : cash),
     counterpartReceivesCents: initiatorGives + (initiatorPaysCash ? cash : 0),
   });
+  // The result was discarded here, which is why nothing noticed there was no drain
+  // behind the FAILED status. It is deliberately still not fatal — the exchange is the
+  // point of the contract and the traders are not at fault for our collection problem —
+  // but it is now recorded, and `drainFailedTradeFees` retries it hourly.
+  if (fees.anyFailed) {
+    console.warn(
+      `[tradeNegotiation] trade ${tradeId}: at least one Trade_Fee did not collect; ` +
+        'left FAILED for the retry drain.',
+    );
+  }
 
   if (bonds.bondsRequired === 0) {
     // Nobody owes a bond, so no provider event will ever arrive to confirm one.

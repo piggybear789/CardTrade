@@ -27,6 +27,12 @@
 // raw provider error or retry count appears in any output type. That is asserted
 // as a redaction property, because these values are the ones most likely to leak
 // into a UI by accident.
+//
+// The one import is a shared money constant. This module is otherwise dependency-free
+// on purpose, but a second copy of the Friction_Tax amount is exactly the kind of
+// duplication that makes a member's screen disagree with what was charged.
+
+import { FRICTION_TAX_CENTS } from '../dispute/frictionTax';
 
 /** Integer AUD cents. */
 export type Cents = number;
@@ -138,8 +144,15 @@ export interface PayoutReadModelInput {
   disputes: readonly ChargeDisputeInput[];
 }
 
-/** The fixed Friction_Tax on a Condition_Dispute, in cents. */
-export const FRICTION_TAX_CENTS = 2000;
+/**
+ * The fixed Friction_Tax on a Condition_Dispute, in cents.
+ *
+ * Taken from the single source rather than redeclared: this module drives what a member
+ * sees on their payouts screen, and it previously carried its own `2000` with no link
+ * to the amount actually captured. Re-exported so existing importers still resolve it
+ * from here.
+ */
+export { FRICTION_TAX_CENTS };
 
 /** Automatic-retry cap for a release. Mirrors `MAX_PAYOUT_ATTEMPTS`. */
 export const MAX_RELEASE_ATTEMPTS = 8;

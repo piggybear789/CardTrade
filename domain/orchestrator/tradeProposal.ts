@@ -365,7 +365,19 @@ export interface AgreedTradeBundles {
 
 export type PlaceAgreedBondsResult =
   | { ok: true; bondsRequired: number }
-  | { ok: false; error: 'profile-not-found' | 'item-not-found' | 'payer-not-found' };
+  | {
+      ok: false;
+      error:
+        | 'profile-not-found'
+        | 'item-not-found'
+        | 'payer-not-found'
+        /**
+         * The provider refused at least one collateral authorisation — typically a
+         * card decline. Reported as a FAILURE so the caller runs the HOLDS_FAILED
+         * compensation before anything is billed; see the note in the placement loop.
+         */
+        | 'hold-failed';
+    };
 
 /**
  * Size and place both Traders' bonds on a Trade that ALREADY EXISTS and whose
@@ -429,23 +441,45 @@ export async function placeBondsForAgreedTrade(
       p.amountCents > 0 && Boolean(p.payerId),
   );
 
+  let anyHoldFailed = false;
+
   for (const placement of placements) {
+    const deterministicRef = holdRef(params.tradeId, placement.traderId);
     const hold = await payments.placeHold({
       payerId: placement.payerId,
       amount: placement.amountCents,
       // Same deterministic key as the single-click path, so a retry cannot
       // double-authorise the same trader's collateral on the same trade.
-      ref: holdRef(params.tradeId, placement.traderId),
+      ref: deterministicRef,
     });
+    if (hold.status !== 'ACTIVE') anyHoldFailed = true;
     await repository.recordHold({
       tradeId: params.tradeId,
       traderId: placement.traderId,
-      holdRef: hold.holdId,
+      // A FAILED placement comes back with an EMPTY `holdId`. Recording that
+      // verbatim gave both traders' failed rows the same blank ref, so the
+      // compensation path's per-ref lookups matched nothing (and `voidHold('')`
+      // acted on nothing). The deterministic ref keeps the rows distinguishable and
+      // is the same value the provider was asked to key on.
+      holdRef: hold.holdId || deterministicRef,
       amountCents: placement.amountCents,
       status: hold.status,
       expiresAt: hold.expiresAt,
     });
   }
+
+  // A DECLINE IS A FAILURE, AND SAYING OTHERWISE COST BOTH TRADERS THE FEE.
+  //
+  // This used to return `ok: true` whatever the provider said, because the hold
+  // rows had been written and `syncHolds` would notice later. But the caller reads
+  // this result to decide whether to run the HOLDS_FAILED compensation, and it
+  // charges the Trade_Fee to BOTH traders immediately after. So a single declined
+  // card produced a cancelled trade with two 5% fees collected and no refund path —
+  // against the caller's own "No exchange, no fee."
+  //
+  // The rows are written first, deliberately: the compensation voids the holds that
+  // DID succeed, and it can only find them if they were recorded.
+  if (anyHoldFailed) return { ok: false, error: 'hold-failed' };
 
   return { ok: true, bondsRequired: placements.length };
 }

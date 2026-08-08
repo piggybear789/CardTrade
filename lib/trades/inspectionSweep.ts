@@ -37,6 +37,19 @@ const WARNING_LEAD_HOURS = 24;
 /** One hour in milliseconds. */
 const HOUR_MS = 3_600_000;
 
+/**
+ * How many due trades one pass will handle.
+ *
+ * The query used to be unbounded. A serverless function has a wall-clock limit and
+ * each trade here makes several provider calls, so a large backlog did not merely run
+ * slowly — it was cut off mid-batch, and the trades after the cut stayed in INSPECTION
+ * past their deadline with their collateral burning down toward the ~7-day
+ * authorisation limit. A bounded pass on an hourly schedule drains steadily and
+ * reports what it left behind. Mirrors the cash-sale payout drain, which bounds itself
+ * the same way.
+ */
+const MAX_TRADES_PER_PASS = 25;
+
 /** Outcome of one pass. */
 export interface TradeInspectionSweepResult {
   /** Trades completed because their window closed. */
@@ -45,6 +58,15 @@ export interface TradeInspectionSweepResult {
   warned: number;
   /** Trades that could not be completed; left for the next pass. */
   failed: number;
+  /**
+   * Trades that DID complete but whose money side did not fully land — a collateral
+   * void the provider refused, or a cash leg that did not settle. Each one is flagged
+   * `manual_reconciliation` in the database; this is the count for the job's report,
+   * because "completed" alone reads as "nothing to look at".
+   */
+  needsReconciliation: number;
+  /** True when more trades were due than one pass handles. */
+  moreDue: boolean;
 }
 
 /**
@@ -59,14 +81,28 @@ export interface TradeInspectionSweepResult {
 export async function sweepTradeInspections(): Promise<TradeInspectionSweepResult> {
   const admin = createAdminClient();
   const nowIso = new Date().toISOString();
-  const result: TradeInspectionSweepResult = { completed: 0, warned: 0, failed: 0 };
+  const result: TradeInspectionSweepResult = {
+    completed: 0,
+    warned: 0,
+    failed: 0,
+    needsReconciliation: 0,
+    moreDue: false,
+  };
 
+  // Oldest deadline first, so the trades closest to losing their collateral are
+  // handled before the rest, and one extra row to detect a backlog.
   const { data: due } = await admin
     .from('trades')
     .select('*')
     .eq('state', 'INSPECTION')
     .not('inspection_deadline_at', 'is', null)
-    .lte('inspection_deadline_at', nowIso);
+    .lte('inspection_deadline_at', nowIso)
+    .order('inspection_deadline_at', { ascending: true })
+    .limit(MAX_TRADES_PER_PASS + 1);
+
+  const dueRows = (due ?? []) as TradeRow[];
+  result.moreDue = dueRows.length > MAX_TRADES_PER_PASS;
+  const batch = dueRows.slice(0, MAX_TRADES_PER_PASS);
 
   // One orchestrator PER PLATFORM ACCOUNT (0068), cached across the batch.
   //
@@ -87,44 +123,69 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
     return built;
   };
 
-  for (const row of (due ?? []) as TradeRow[]) {
-    const orchestrator = orchestratorFor(row.currency);
-    const applied = await orchestrator.applyEvent({
-      tradeId: row.id,
-      event: 'INSPECTION_EXPIRED',
-      // Nobody decided this; a clock did. The audit row needs an actor, and the
-      // initiator is recorded as the requester with the event naming the real cause.
-      actorId: row.initiator_id,
-    });
-    if (!applied.ok) {
-      // A lost optimistic-lock race or a state that moved on. Not an error worth
-      // shouting about — the next pass picks it up if it is still due.
+  for (const row of batch) {
+    // ONE BAD ROW MUST NOT ABORT THE PASS.
+    //
+    // Nothing in this loop used to be guarded, so a throw from any of the writes, the
+    // provider calls or the notification insert propagated out to the job route as a
+    // 500. Every trade already handled stayed completed with its collateral released,
+    // and every trade after it in the batch stayed in INSPECTION past its deadline —
+    // the failure mode the timeout exists to prevent, triggered by the timeout itself.
+    // Isolating per trade means a single unhealthy row costs one trade, not the queue.
+    try {
+      const orchestrator = orchestratorFor(row.currency);
+      const applied = await orchestrator.applyEvent({
+        tradeId: row.id,
+        event: 'INSPECTION_EXPIRED',
+        // Nobody decided this; a clock did. The audit row needs an actor, and the
+        // initiator is recorded as the requester with the event naming the real cause.
+        actorId: row.initiator_id,
+      });
+      if (!applied.ok) {
+        // A lost optimistic-lock race or a state that moved on. Not an error worth
+        // shouting about — the next pass picks it up if it is still due.
+        result.failed += 1;
+        continue;
+      }
+
+      await admin
+        .from('trades')
+        .update({ auto_completed: true, updated_at: new Date().toISOString() })
+        .eq('id', row.id);
+
+      // The whole point: release collateral and settle cash, exactly as a mutual
+      // acceptance would.
+      const finalized = await finalizeCompletedTrade(row);
+      result.completed += 1;
+
+      const moneySettled =
+        finalized.holdsFailed === 0 && finalized.cashSettled !== false;
+      if (!moneySettled) result.needsReconciliation += 1;
+
+      // SAY ONLY WHAT HAPPENED. This message asserted that "both collateral holds
+      // were released" unconditionally, because the finalize result was discarded —
+      // so a trader whose card was still encumbered was told in writing that it was
+      // not. The claim is now conditional on the outcome.
+      await admin.from('notifications').insert(
+        [row.initiator_id, row.counterpart_id].map((userId) => ({
+          user_id: userId,
+          type: 'TRADE' as const,
+          title: 'Trade completed automatically',
+          body: moneySettled
+            ? `The ${TRADE_INSPECTION_HOURS}-hour inspection window closed without ` +
+              'either trader accepting or disputing, so the trade completed and both ' +
+              'collateral holds were released.'
+            : `The ${TRADE_INSPECTION_HOURS}-hour inspection window closed without ` +
+              'either trader accepting or disputing, so the trade completed. Part of ' +
+              'the settlement is still being finalised and our team is on it — if a ' +
+              'collateral hold is still showing on your card, it will clear shortly.',
+          link: `/trades/${row.id}`,
+        })),
+      );
+    } catch (err) {
       result.failed += 1;
-      continue;
+      console.warn(`[trades] inspection sweep failed for trade ${row.id}:`, err);
     }
-
-    await admin
-      .from('trades')
-      .update({ auto_completed: true, updated_at: new Date().toISOString() })
-      .eq('id', row.id);
-
-    // The whole point: release collateral and settle cash, exactly as a mutual
-    // acceptance would.
-    await finalizeCompletedTrade(row);
-    result.completed += 1;
-
-    await admin.from('notifications').insert(
-      [row.initiator_id, row.counterpart_id].map((userId) => ({
-        user_id: userId,
-        type: 'TRADE' as const,
-        title: 'Trade completed automatically',
-        body:
-          `The ${TRADE_INSPECTION_HOURS}-hour inspection window closed without ` +
-          'either trader accepting or disputing, so the trade completed and both ' +
-          'collateral holds were released.',
-        link: `/trades/${row.id}`,
-      })),
-    );
   }
 
   // Nudge before the window closes. A silent auto-complete would be a trap, and the
@@ -140,23 +201,30 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
     .lte('inspection_deadline_at', warnBefore);
 
   for (const row of closing ?? []) {
-    await admin.from('notifications').insert(
-      [row.initiator_id, row.counterpart_id].map((userId) => ({
-        user_id: userId,
-        type: 'TRADE' as const,
-        title: 'Inspection window closing',
-        body:
-          `This trade completes automatically within ${WARNING_LEAD_HOURS} hours and ` +
-          'both collateral holds are released. If something is wrong with what you ' +
-          'received, accept it or raise a dispute before then.',
-        link: `/trades/${row.id}`,
-      })),
-    );
-    await admin
-      .from('trades')
-      .update({ inspection_warned_at: new Date().toISOString() })
-      .eq('id', row.id);
-    result.warned += 1;
+    // Isolated for the same reason as the completion loop: a failed nudge must not
+    // cost the remaining traders theirs. A warning is also the cheapest thing here to
+    // lose, so it is never allowed to fail the pass.
+    try {
+      await admin.from('notifications').insert(
+        [row.initiator_id, row.counterpart_id].map((userId) => ({
+          user_id: userId,
+          type: 'TRADE' as const,
+          title: 'Inspection window closing',
+          body:
+            `This trade completes automatically within ${WARNING_LEAD_HOURS} hours and ` +
+            'both collateral holds are released. If something is wrong with what you ' +
+            'received, accept it or raise a dispute before then.',
+          link: `/trades/${row.id}`,
+        })),
+      );
+      await admin
+        .from('trades')
+        .update({ inspection_warned_at: new Date().toISOString() })
+        .eq('id', row.id);
+      result.warned += 1;
+    } catch (err) {
+      console.warn(`[trades] inspection warning failed for trade ${row.id}:`, err);
+    }
   }
 
   return result;

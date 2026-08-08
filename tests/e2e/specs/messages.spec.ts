@@ -59,8 +59,9 @@ async function sendFromListing(
 
   // Send is gated on content: an empty message is not sendable.
   await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+  await composer.click();
   await composer.fill(body);
-  await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled({ timeout: 5_000 });
 
   await page.getByRole('button', { name: 'Send' }).click();
 

@@ -100,8 +100,8 @@ export function DittoBondExplainer() {
         <div className="space-y-1">
           <p className="font-medium text-foreground">If something goes wrong</p>
           <p className="leading-relaxed text-muted-foreground">
-            A failed handover captures nothing. A condition finding can capture a
-            fixed $20 Friction_Tax; objective fraud can capture the responsible
+            A failed handover captures nothing. A condition dispute can capture a
+            fixed $20 resolution fee; confirmed fraud can capture the responsible
             trader&apos;s full collateral and pay the affected trader.
           </p>
         </div>
@@ -244,8 +244,8 @@ export function CashSaleProtectionExplainer() {
 
       <p className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
         <span className="font-medium text-foreground">Every seller is verified.</span>{' '}
-        Publishing a listing requires completing Stripe payout onboarding, so the
-        person you are buying from is identifiable and can be pursued.
+        Publishing a listing requires a Stripe identity check — a photo ID and a
+        selfie — so the person you are buying from is identifiable and can be pursued.
       </p>
     </div>
   );

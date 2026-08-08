@@ -133,9 +133,13 @@ export async function createListing(
 
   await page.getByRole('radio', { name: /^One item/ }).check();
 
-  await page.getByLabel('Title').fill(title);
-  await page.getByLabel('Description').fill(description);
-
+  // SELECTS BEFORE TEXT FIELDS — order matters on WebKit (F61).
+  //
+  // Radix Select's hidden native <select> triggers a form-level side-effect on
+  // WebKit that clears preceding controlled inputs. Selecting an option from any
+  // of the three dropdowns wipes the Title (and any other text field filled before
+  // it). Filling text fields AFTER the selects avoids the issue entirely and keeps
+  // the helper working on both Chromium (desktop) and WebKit (mobile).
   await page.locator('#category').click();
   await page.getByRole('option', { name: 'Trading Cards' }).click();
   await page.locator('#subcategory').click();
@@ -158,6 +162,8 @@ export async function createListing(
   // rather than a change to the component.
   await expect(page.locator('#condition')).toBeFocused({ timeout: 10_000 });
 
+  await page.getByLabel('Title').fill(title);
+  await page.getByLabel('Description').fill(description);
   await page.getByLabel('Price').fill(priceDollars);
 
   // PLACE BEFORE PHOTOS, and the order matters.
@@ -182,7 +188,11 @@ export async function createListing(
 
   await page.getByRole('button', { name: 'Create listing' }).click();
 
-  await expect(page).toHaveURL(/\/listings\/[0-9a-f-]{36}/, { timeout: 30_000 });
+  // 45s, not 30s. Publishing uploads to Storage, writes the row and then navigates to
+  // the new listing, and the mobile project emulates a phone — the same sequence that
+  // finishes well inside 30s on desktop repeatedly missed it there, which surfaced as
+  // "the form does not submit" when the form was submitting and the test gave up.
+  await expect(page).toHaveURL(/\/listings\/[0-9a-f-]{36}/, { timeout: 45_000 });
   return page.url();
 }
 

@@ -536,37 +536,6 @@ function TradeTermsRow({
               heightClassName="h-56"
             />
           ) : null}
-          {/* Where each parcel is actually going. A posted trade previously had no
-              address of record at all, so traders swapped them in the chat thread —
-              outside the contract and outside RLS. Two panels, because a swap posts
-              in both directions. */}
-          {trade.handover_method === 'DELIVERY' ? (
-            <DeliveryAddressPanel
-              mine={addresses.mine}
-              theirs={addresses.theirs}
-              theirsPending={
-                addresses.theirs
-                  ? null
-                  : trade.state === 'NEGOTIATING' ||
-                      trade.state === 'COLLATERAL_PENDING'
-                    ? 'Shared with you once collateral is locked on both sides.'
-                    : 'Not added yet. They need to add an address before you can post.'
-              }
-              counterpartName={counterpartName}
-              editable={editable}
-              onSave={async (address) => {
-                const result = await saveTradeDeliveryAddress(trade.id, address);
-                return result.ok
-                  ? { ok: true as const }
-                  : {
-                      ok: false as const,
-                      message:
-                        result.detail ??
-                        'Could not save the address. Please try again.',
-                    };
-              }}
-            />
-          ) : null}
           {/* Refresh both parcels from the carrier. A carrier-confirmed delivery is
               the only thing that starts the inspection clock — a trader's own word
               records receipt but never starts a clock that can end in a payout
@@ -598,6 +567,41 @@ function TradeTermsRow({
           ) : null}
         </>
       )}
+      {/* Where each parcel is actually going. A posted trade previously had no
+          address of record at all, so traders swapped them in the chat thread —
+          outside the contract and outside RLS. Two panels, because a swap posts
+          in both directions.
+          IMPORTANT: Rendered outside the areHandoverDetailsFilled gate (F40) — the
+          address must be settable BEFORE delivery cost is agreed, since you need to
+          know where to send it to price postage. The old placement inside the "filled"
+          branch made it unreachable when delivery_cost_cents was null. */}
+      {trade.handover_method === 'DELIVERY' ? (
+        <DeliveryAddressPanel
+          mine={addresses.mine}
+          theirs={addresses.theirs}
+          theirsPending={
+            addresses.theirs
+              ? null
+              : trade.state === 'NEGOTIATING' ||
+                  trade.state === 'COLLATERAL_PENDING'
+                ? 'Shared with you once collateral is locked on both sides.'
+                : 'Not added yet. They need to add an address before you can post.'
+          }
+          counterpartName={counterpartName}
+          editable={editable}
+          onSave={async (address) => {
+            const result = await saveTradeDeliveryAddress(trade.id, address);
+            return result.ok
+              ? { ok: true as const }
+              : {
+                  ok: false as const,
+                  message:
+                    result.detail ??
+                    'Could not save the address. Please try again.',
+                };
+          }}
+        />
+      ) : null}
       {editable ? (
         <p className="text-xs text-muted-foreground">
           Either trader can update delivery terms until someone marks the goods as

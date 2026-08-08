@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 /** Static placeholder shown while the Suspense-gated search box hydrates. */
-function HeaderSearchFallback({ className }: { className?: string }) {
+function HeaderSearchFallback({ className, ariaLabel }: { className?: string; ariaLabel: string }) {
   return (
     <div role="search" className={cn('relative w-full', className)}>
       {/* Default icon colour suits light surfaces (e.g. the menu panel); the
@@ -27,7 +27,7 @@ function HeaderSearchFallback({ className }: { className?: string }) {
         type="search"
         name="q"
         placeholder="Search cards, comics, coins…"
-        aria-label="Search listings"
+        aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
         className="h-9 w-full pl-9"
@@ -37,16 +37,27 @@ function HeaderSearchFallback({ className }: { className?: string }) {
   );
 }
 
+export interface HeaderSearchProps {
+  className?: string;
+  /**
+   * Accessible label distinguishing multiple search fields on one page.
+   * Defaults to "Search listings". The header bar instance and the mobile menu
+   * instance should carry different labels so assistive tech does not announce
+   * two identical controls.
+   */
+  ariaLabel?: string;
+}
+
 /** Keeps useSearchParams behind Suspense so non-dynamic pages can prerender. */
-export function HeaderSearch({ className }: { className?: string }) {
+export function HeaderSearch({ className, ariaLabel = 'Search listings' }: HeaderSearchProps) {
   return (
-    <Suspense fallback={<HeaderSearchFallback className={className} />}>
-      <HeaderSearchInner className={className} />
+    <Suspense fallback={<HeaderSearchFallback className={className} ariaLabel={ariaLabel} />}>
+      <HeaderSearchInner className={className} ariaLabel={ariaLabel} />
     </Suspense>
   );
 }
 
-function HeaderSearchInner({ className }: { className?: string }) {
+function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaLabel: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -93,7 +104,7 @@ function HeaderSearchInner({ className }: { className?: string }) {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search cards, comics, coins…"
-        aria-label="Search listings"
+        aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
         className="h-9 w-full pl-9"

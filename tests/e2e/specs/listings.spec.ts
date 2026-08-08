@@ -24,6 +24,7 @@
 import { test, expect } from '../support/fixtures';
 import { ALICE, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
+import { COLD_ROUTE } from '../support/waiting';
 import { createListing } from '../support/listings';
 import { ensureFreshSessions } from '../support/auth';
 
@@ -83,12 +84,23 @@ test.describe('Catalog', () => {
     await page.goto('/listings');
     await page.waitForLoadState('domcontentloaded');
 
-    // Desktop rail and mobile column each mount a search field.
-    const search = page.getByLabel('Search listings').first();
+    // TWO SEARCH FIELDS ARE MOUNTED, and which one is usable depends on the viewport.
+    // `HeaderSearch.tsx` exports a rail field and a mobile field, each carrying
+    // `aria-label="Search listings"`, and the shell hides the wrong one with CSS. On
+    // the desktop project `.first()` happened to be the visible one; on mobile it is
+    // the hidden rail field, so `fill()` waited the full 90s for an element that can
+    // never be editable. Selecting by visibility works on both, and keeps this test
+    // about search rather than about layout.
+    const search = page.getByLabel('Search listings').locator('visible=true').first();
+    await search.click();
     await search.fill('Charizard');
     await search.press('Enter');
 
-    await expect(page).toHaveURL(/[?&]q=Charizard/);
+    // COLD_ROUTE, not the 5s default. The catalog is a server-rendered navigation and
+    // the mobile project emulates a phone, where the same work takes noticeably longer
+    // — this assertion timed out there while passing on desktop, which reads as a
+    // broken search rather than a slow one.
+    await expect(page).toHaveURL(/[?&]q=Charizard/, { timeout: COLD_ROUTE });
     await expect(page.getByText(/Charizard/).first()).toBeVisible();
     await expect(page.getByText('1963 Fantastic Four #1 CGC 4.0')).toHaveCount(0);
   });
@@ -178,9 +190,19 @@ test.describe('Listing form', () => {
     const original = marked(`Editable ${Date.now()}`);
     const updated = `${original} (updated)`;
 
-    const detailUrl = await createListing(page, { title: original });
+    // The returned detail URL is deliberately discarded: the navigation below goes
+    // through the Edit link instead, for the reason in the next comment.
+    await createListing(page, { title: original });
 
-    await page.goto(`${detailUrl}/edit`);
+    // On WebKit, `router.refresh()` fires a soft navigation that competes with the
+    // subsequent `goto`. Simply waiting for a load state is not enough because the
+    // refresh is processed asynchronously by Next's router. The reliable workaround
+    // is to wait for the content that the refresh delivers (the heading), THEN
+    // navigate via the link the app already provides (the Edit link on the owner's
+    // own listing) rather than a raw `goto`.
+    await expect(page.getByRole('heading', { name: original })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('link', { name: /^Edit/ }).first().click();
+    await expect(page).toHaveURL(/\/edit/, { timeout: 15_000 });
     await page.waitForLoadState('domcontentloaded');
 
     const titleInput = page.getByLabel('Title');

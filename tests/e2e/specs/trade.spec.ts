@@ -28,7 +28,6 @@
 //     "Your item <theirs>↔Their item <yours>".
 
 import { test, expect } from '../support/fixtures';
-import type { Page } from '@playwright/test';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { createListing, fillPlace, STUB_PLACES } from '../support/listings';
@@ -269,6 +268,12 @@ test.describe.serial('Trade escrow lifecycle', () => {
       await page.goto(tradeUrl);
       await page.waitForLoadState('domcontentloaded');
 
+      // The Terms tab holds the DeliveryAddressPanel. ContractDetailList is a
+      // single-selection tabbed interface; the Exchange tab is open by default, so
+      // Terms must be selected first. Same `dispatchEvent` approach as the Demo tab
+      // (F22) since tab clicks have been unreliable in this room.
+      await page.locator('[role=tab]').filter({ hasText: 'Terms' }).first().dispatchEvent('click');
+
       const add = page
         .getByRole('button', { name: /Add delivery address|Add address|Change delivery address/i })
         .first();
@@ -296,16 +301,20 @@ test.describe.serial('Trade escrow lifecycle', () => {
       await page.goto(tradeUrl);
       await page.waitForLoadState('domcontentloaded');
 
-      const record = page.getByRole('button', { name: 'Record shipment' });
+      const record = page.getByRole('button', { name: 'Record shipment' }).first();
       await expect(record).toBeVisible({ timeout: 30_000 });
-
-      // Inline fields, as in the Cash_Sale room — no dialog, and the button stays
-      // disabled until both are filled.
-      await page.getByPlaceholder(/Carrier/i).fill('Australia Post');
-      await page.getByPlaceholder(/Tracking number/i).fill(`AP${Date.now()}AU`);
-      await expect(record).toBeEnabled({ timeout: RENDERED });
       await record.click();
-      await expect(record).toHaveCount(0, { timeout: 30_000 });
+
+      // Opens a dialog with carrier + tracking number fields
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible({ timeout: RENDERED });
+      await dialog.getByLabel(/Carrier/i).fill('Australia Post');
+      await dialog.getByLabel(/Tracking number/i).fill(`AP${Date.now()}AU`);
+
+      const submit = dialog.getByRole('button', { name: 'Record shipment' });
+      await expect(submit).toBeEnabled({ timeout: RENDERED });
+      await submit.click();
+      await expect(dialog).toBeHidden({ timeout: 30_000 });
 
       await ctx.close();
     }

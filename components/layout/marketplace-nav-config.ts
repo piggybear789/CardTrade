@@ -190,7 +190,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     label: 'Contracts',
     icon: Handshake,
     title: 'Contracts',
-    description: 'Live escrow rooms for cash, trades, and private deals.',
+    description: 'Active contracts for purchases, trades and deals.',
     links: CONTRACT_LINKS,
     isActive: (pathname) =>
       CONTRACT_LINKS.some((link) =>

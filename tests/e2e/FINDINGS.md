@@ -637,6 +637,14 @@ so the component is not mounting rather than merely rendering read-only. The pag
 `useTradeRealtime` selects `*` - so which row reaches the component, and when, is the
 next thing to pin down.
 
+**NOW FULLY FIXED — see F40 below.** The `DeliveryAddressPanel` was inside the
+`areHandoverDetailsFilled(trade)` truthy branch, which requires `delivery_cost_cents !=
+null`. A DELIVERY trade proposed without setting postage has `delivery_cost_cents = null`,
+so the code fell into the falsy branch (a placeholder text) and the address panel never
+mounted. F40 moved the panel outside the `areHandoverDetailsFilled` gate so it renders
+unconditionally for any DELIVERY trade. The test now clicks the "Terms" tab before
+looking for the button (the tab strip is single-selection, Exchange is open by default).
+
 ---
 
 ## F24 - Onboarding was mandatory to BROWSE, and had no exit (severity 3, FIXED)
@@ -743,3 +751,235 @@ error saving new user"*.
 **Left in place on purpose** - it may serve the other project, and dropping another
 application's trigger is not this suite's call. Recorded because it is a trap: it looks
 exactly like the thing that provisions profiles here, and it is not.
+
+---
+
+## F46 — Internal terminology "Friction_Tax" shown to members (severity 3, FIXED)
+
+**Principle:** Match Between System and Real World (H2)
+
+**Location:** `components/contract/DittoBondExplainer.tsx:104`
+
+**User impact:** A member reading the trade collateral explainer sees "Friction_Tax" —
+a code identifier with underscores and internal capitalisation — where they expect
+a description of what happens in a dispute. It reads as a developer debug string left
+in a production screen, which erodes trust in the platform at the moment it is
+explaining how their money is protected.
+
+**Fix.** Replaced "A condition finding can capture a fixed $20 Friction_Tax" with
+"A condition dispute can capture a fixed $20 resolution fee" — plain language that
+describes the same mechanism without exposing internal naming.
+
+---
+
+## F47 — CashSaleProtectionExplainer claims listing requires payout onboarding (severity 3, FIXED)
+
+**Principle:** Match Between System and Real World (H2)
+
+**Location:** `components/contract/DittoBondExplainer.tsx` (CashSaleProtectionExplainer
+final paragraph)
+
+**User impact:** The buyer protection explainer states "Publishing a listing requires
+completing Stripe payout onboarding", which is factually wrong since migration 0069.
+The gate is the Identity_Gate — a Stripe Identity check (photo ID + selfie). Payout
+setup is a separate, independent step that gates only receiving money. A member who
+reads this and then notices their seller has not completed payout onboarding may
+wrongly conclude the seller is unverified, damaging trust in a correct transaction.
+
+**Fix.** Reworded to "Publishing a listing requires a Stripe identity check — a photo
+ID and a selfie — so the person you are buying from is identifiable and can be
+pursued." Aligns with the actual gate documented in product.md.
+
+---
+
+## F48 — Two search inputs with identical accessible name (severity 2, FIXED)
+
+**Principle:** Accessibility (H13)
+
+**Location:** `components/layout/HeaderSearch.tsx`, `components/layout/SiteMenu.tsx`,
+`components/layout/SiteHeader.tsx`
+
+**User impact:** The site header mounts `<HeaderSearch>` (hidden below `sm` via
+`hidden sm:flex`) and the burger menu panel mounts a second `<HeaderSearch>` (shown
+below `sm` inside the open panel). Both render an `<input aria-label="Search listings">`
+and a `<form role="search">`. When the menu is open on a mobile viewport, screen
+readers announce two identical landmarks and two identical form controls — the user
+cannot distinguish which they are interacting with.
+
+**Fix.** Added an `ariaLabel` prop to `HeaderSearch` defaulting to `"Search listings"`.
+The SiteMenu instance now passes `ariaLabel="Search listings from menu"` so the two
+`<input>` elements carry distinct accessible names. The `<form role="search">` landmark
+is left unnamed — its role is sufficient for navigation — keeping `getByLabel` matches
+confined to the input elements as existing tests expect.
+
+---
+
+## F49 — Member-facing copy uses "escrow" for contracts (severity 2, FIXED)
+
+**Principle:** Match Between System and Real World (H2)
+
+**Location:** `components/layout/marketplace-nav-config.ts:193`
+
+**User impact:** The mobile navigation hub sheet for "Contracts" describes its contents
+as "Live escrow rooms for cash, trades, and private deals." Per the product rules,
+member-facing copy must never say "escrow" for trades — the platform holds a claim (an
+uncaptured card authorisation), not funds, and "escrow" implies a segregated custodial
+arrangement that does not exist. For cash sales the funds are in the platform balance,
+commingled, which is also not a traditional escrow. Using the term creates a regulatory
+and trust expectation the platform cannot meet.
+
+**Fix.** Changed to "Active contracts for purchases, trades and deals." — accurate,
+neutral, and makes no custodial claim.
+
+---
+
+## F50 — Onboarding wizard has no progress indicator (severity 2, FIXED)
+
+**Principle:** Visibility of System Status (H1)
+
+**Location:** `app/onboarding/page.tsx`
+
+**User impact:** A 4-step wizard (welcome, username, region, intent, plus an optional
+card-setup step) gives no visual cue of how many steps remain. A member who enters
+their username on step 2 does not know whether they are 20% or 80% through the flow.
+This is a peer-to-peer marketplace where completing onboarding gates the ability to
+buy or sell — perceived length uncertainty increases drop-off.
+
+**Fix.** Added a pill-based progress bar (`h-1.5` rounded segments) above the dialog
+content from step 2 onward (step 1 is welcome and has no back button, so counting
+before commitment is noise). Each pill expands and fills with the primary colour as
+the member progresses. Hidden on the welcome step.
+
+**Two corrections made when the rail was reviewed, both worth recording because each
+turned an indicator into misinformation.**
+
+1. It counted `STEPS`, the array the BACK BUTTON walks, which deliberately omits
+   `card-setup`. `STEPS.indexOf('card-setup')` is therefore `-1`, so on the final
+   screen the rail emptied every pill and announced "Step 0 of 4" — a reset at exactly
+   the point a member most wants to be told they are nearly done. Progress now counts
+   `PROGRESS_STEPS` (the spine plus `card-setup`), which is SCREENS rather than spine
+   entries. A seller leaves at the intent step for the provider, so they simply never
+   see the fifth pill fill.
+2. The count rode on an `aria-label` attached to a plain `<div>`. A generic `div` has
+   no role for a name to attach to, so the label is not reliably exposed and the one
+   piece of information the rail carries was the piece assistive tech could miss. The
+   pills are now `aria-hidden` decoration and the count is `sr-only` TEXT.
+
+---
+
+## F34 - Onboarding region step depends on operationalRegions() which needs a live Stripe key (severity 0, TESTING NOTE)
+
+**Observed.** The onboarding wizard's region step calls `operationalRegions()` to
+decide which tiles to show. That function requires BOTH `tradingEnabled: true` in
+the registry AND a configured Stripe platform binding (a `STRIPE_SECRET_KEY` or
+`STRIPE_SECRET_KEY_AU` env var present and valid). When the Stripe API is
+rate-limited, unresponsive, or the key is temporarily invalid, the step shows "No
+regions are open for deals right now" and no tiles at all — making onboarding
+impossible to complete for any new member until the provider recovers.
+
+This is not an app bug — the wizard correctly refuses to promise a region it cannot
+settle in. But it means e2e tests that sign up fresh members and need them to
+complete onboarding are fragile: any Stripe API hiccup during the run makes the
+region step unreachable.
+
+**Workaround in tests.** The guards spec bypasses the wizard entirely after sign-up,
+writing `region_code` and `onboarding_completed_at` via service-role PostgREST PATCH.
+This tests the CONTRACT GUARDS (which are server-side predicates) without coupling
+to the onboarding wizard's runtime dependencies. The wizard itself is exercised in
+`onboarding.spec.ts`.
+
+---
+
+## F40 - DeliveryAddressPanel gated behind delivery-cost check, unreachable without postage (severity 4, FIXED)
+
+**Symptom.** On a DELIVERY trade at `COLLATERAL_LOCKED` with `delivery_cost_cents = null`
+(no postage agreed during negotiation), the `DeliveryAddressPanel` never mounted. The
+rail said "Both traders add a delivery address — current step" while offering no way to
+do so. **The trade could not be completed.**
+
+**Cause.** In `components/trade/TradeContract.tsx`, the `TradeTermsRow` content was
+structured as a three-way conditional:
+
+```
+handover_method === null          → "Not agreed yet"
+!areHandoverDetailsFilled(trade)  → placeholder text
+else                               → (DeliveryAddressPanel + tracking + etc.)
+```
+
+`areHandoverDetailsFilled` for DELIVERY returns `trade.delivery_cost_cents != null`.
+When the proposal flow selects "Delivery" but sets no postage (which is the normal path
+— `deliveryCostCents ?? null`), the trade hits the middle branch, rendering a static
+paragraph instead of the address panel.
+
+The address is independent of the postage cost — you need to know WHERE to send before
+you can price postage — so the panel must render unconditionally for any DELIVERY trade.
+
+**Fix.** Moved `DeliveryAddressPanel` OUTSIDE the `areHandoverDetailsFilled` ternary,
+gated only on `trade.handover_method === 'DELIVERY'`. The tracking table and carrier
+refresh remain in the "filled" branch where they belong. Comment explains why.
+
+**Guarded by.** `trade.spec.ts` → "each trader records a postal address of record" —
+the test now clicks the Terms tab first (the panel is inside a single-selection tab
+strip, Exchange is default).
+
+---
+
+## F41 - Record Shipment is a dialog, not inline fields (severity 1, FIXED — test only)
+
+**Symptom.** `trade.spec.ts` step "both traders post" tried to find carrier and
+tracking number as page-level placeholder fields, then submit the "Record shipment"
+button. The fields don't exist on the page — they are inside a `RecordShipmentDialog`
+that opens when you CLICK "Record shipment".
+
+**Cause.** The test was written from the assumption that the trade room uses inline
+inputs (like an earlier iteration or the Cash_Sale room). The actual implementation
+uses `RecordShipmentDialog`, a shared `components/fulfilment` dialog with labelled
+inputs for Carrier and Tracking number, and a submit button also labelled "Record
+shipment".
+
+**Fix.** Updated the test to: click "Record shipment" (opens dialog) → fill Carrier
+and Tracking number by label → click dialog's "Record shipment" submit → assert dialog
+closes. Not a product bug — only a test/reality mismatch.
+
+---
+
+## F70 - The suite is green file-by-file but not as a whole run (severity 2, OPEN)
+
+This is the main thing standing between "every spec passes" and "the suite is a
+trustworthy production gate", so it is recorded rather than left as folklore.
+
+Measured on the same commit, --workers=1 throughout:
+
+| Run | Result |
+| --- | --- |
+| desktop, full suite | 98 passed, **1 failed** (offers - the buyer offers under asking) |
+| desktop, offers.spec.ts alone | **15 passed, 0 failed** |
+| mobile, full suite | **3 failed** (auth-and-navigation main nav links; cash-sale the reserved item leaves the catalog; listings edits a listing title) |
+| mobile, auth-and-navigation.spec.ts alone | **8 passed, 0 failed** |
+
+Every failure passes in isolation, so none is a defect in the behaviour under test.
+Something earlier in the run changes the state the later assertion depends on.
+
+**Ruled out.** Not parallel interference - these were single-worker runs, so files ran
+strictly in sequence. Not consumption of the seeded fixture item: the listing
+guards.spec.ts exercises is still AVAILABLE, confirmed by SQL after a full run. Not
+stale sessions in the F14 sense, since sequential files cannot overlap in the way
+refresh-token rotation requires.
+
+**Strongest remaining hypothesis: accumulated catalog content.** Specs create their own
+[E2E]-marked listings by design - a flow that consumes an item must not consume a
+seeded one - so the catalog grows as the run proceeds. An assertion phrased against
+catalog CONTENT ("the reserved item leaves the catalog") or against position therefore
+reads a different page late in a run than it does alone. That fits which tests fail,
+explains why they pass alone, and predicts the failures will move around as specs are
+added - which is what has been observed across runs.
+
+**What would settle it:** scope each failing assertion to its own marked title, and
+make the reserved-item check assert the absence of ITS OWN link rather than a property
+of the list. Three assertions, no app change.
+
+**Not a release blocker, and not dismissed either.** Every behaviour in the suite is
+verified to pass; what is not verified is that they all pass in one sequence. A gate
+that must be run file-by-file to be believed is a weak gate, and this should be closed
+before the suite is relied on in CI - where retries: 1 would currently paper over
+exactly this.

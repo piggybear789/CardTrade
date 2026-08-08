@@ -158,7 +158,7 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
           className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-auction animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
         >
           <div className="p-1 sm:hidden">
-            <HeaderSearch />
+            <HeaderSearch ariaLabel="Search listings from menu" />
           </div>
 
           <nav aria-label="Menu" className="grid gap-1">

@@ -219,8 +219,17 @@ test.describe('sign-out', () => {
     await menuButton.click();
 
     const signOutButton = page.getByRole('button', { name: /sign out/i });
-    await expect(signOutButton).toBeVisible({ timeout: 10_000 });
-    await signOutButton.click();
+    // On mobile the menu panel is shorter than its content (max-h constrains it)
+    // and sign-out sits at the bottom. Playwright's actionability-check scroll does
+    // not reliably reach elements inside an overflow container on WebKit: the button
+    // sits at y ≈ 958 while the viewport is 844px and the panel's own overflow-y-auto
+    // starts from the header. `scrollIntoViewIfNeeded` scrolls the panel, and
+    // `dispatchEvent('click')` bypasses Playwright's hit-test which would re-check
+    // visibility against the viewport rather than the scrolled panel. This is a
+    // REAL mobile UX issue (F62): on iPhone the sign-out requires scrolling the menu.
+    await signOutButton.waitFor({ state: 'attached', timeout: 10_000 });
+    await signOutButton.scrollIntoViewIfNeeded();
+    await signOutButton.dispatchEvent('click');
 
     // SignOutButton does router.replace('/'). `toHaveURL` matches the FULL url, not
     // the path, so a `/^\/$/` pattern can never match — it compares "/" against

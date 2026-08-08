@@ -2,14 +2,22 @@
 
 // app/onboarding/page.tsx
 //
-// Required post-signup onboarding presented as one focused modal wizard:
+// Post-signup onboarding presented as one focused modal wizard:
 //   1. Welcome — explain how NoDitto protects cash sales and trades
 //   2. Alias — choose the public display name shown to other members
-//   3. Intent — buyer enters card setup; seller goes straight to Stripe Connect
-//   4. Card Setup (buyer only, skippable) — Stripe Payment Element for vaulting a card
+//   3. Region — the trading region every contract is scoped to
+//   4. Intent — buyer enters card setup; seller goes straight to Stripe Identity
+//   5. Card Setup (buyer only, skippable) — Stripe Payment Element for vaulting a card
 //
-// The modal intentionally has no dismiss control. `onboarding_completed_at` gates
-// protected app entry, so a member completes the short flow or signs out.
+// ONBOARDING IS REQUIRED TO TRANSACT, NOT TO LOOK, so the wizard has a way out on
+// every step. It previously had no dismiss control, on the reasoning that a member
+// "completes the short flow or signs out" — but no sign-out control was offered
+// either, so the honest description of the options was finish or abandon the site.
+// Members were sent here merely for opening the catalog, and anyone whose `profiles`
+// row was missing could not finish at all, which made it a locked door rather than a
+// wizard. Browsing needs no profile, so leaving is a legitimate choice; the footer
+// offers the catalog and sign-out, and `onboarding_completed_at` still gates every
+// protected route (see `middleware.ts`).
 //
 // "Verify Identity" REDIRECTS TO THE PROVIDER, it does not route to /profile. It
 // used to push `/profile#identity` — a page with no such anchor — where the member
@@ -54,7 +62,17 @@ import { cn } from '@/lib/utils';
 type Step = 'welcome' | 'username' | 'region' | 'intent' | 'card-setup';
 type Intent = 'buyer' | 'seller' | null;
 
+// The navigation spine the back button walks. `card-setup` is deliberately absent:
+// it is reached only by a buyer choosing an intent, and stepping back into the intent
+// question after a card has been vaulted is not a move the wizard offers.
 const STEPS: Step[] = ['welcome', 'username', 'region', 'intent'];
+
+// What the progress rail counts, which is SCREENS rather than spine entries. Leaving
+// `card-setup` out made `STEPS.indexOf` return -1 on the last screen, so the rail
+// emptied itself and announced "Step 0 of 4" at the very point a member most wants to
+// know they are nearly done. A seller leaves at the intent step for the provider
+// rather than advancing, so they simply never see the fifth dot fill.
+const PROGRESS_STEPS: Step[] = [...STEPS, 'card-setup'];
 
 // Region choices are loaded at runtime, not read from the registry, because the real
 // answer depends on which regions have a Stripe platform account configured — see
@@ -107,6 +125,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const stepIndex = STEPS.indexOf(step);
+  const progressIndex = PROGRESS_STEPS.indexOf(step);
 
   function goBack() {
     const previous = STEPS[stepIndex - 1];
@@ -211,6 +230,31 @@ export default function OnboardingPage() {
           showClose={false}
           className="w-[calc(100%-2rem)] max-w-lg p-5 sm:p-6"
         >
+          {/* Progress indicator: shows which step you are on. Hidden on the welcome
+              step because it has no back button and counting "1 of 5" before the
+              member has committed to anything is noise.
+
+              The dots are decoration and say so; the count is carried by text, because
+              an `aria-label` on a plain <div> has no role to attach to and is not
+              reliably announced. */}
+          {step !== 'welcome' ? (
+            <div className="mb-2 flex items-center justify-center gap-1.5">
+              <span className="sr-only">
+                Step {progressIndex + 1} of {PROGRESS_STEPS.length}
+              </span>
+              {PROGRESS_STEPS.map((s, i) => (
+                <span
+                  key={s}
+                  className={cn(
+                    'h-1.5 rounded-full transition-all',
+                    i <= progressIndex ? 'w-6 bg-primary' : 'w-3 bg-border',
+                  )}
+                  aria-hidden
+                />
+              ))}
+            </div>
+          ) : null}
+
           {step === 'welcome' ? (
             <div className="space-y-6">
               <DialogHeader className="space-y-2 pr-0 text-center">

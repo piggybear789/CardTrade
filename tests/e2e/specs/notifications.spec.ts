@@ -64,6 +64,7 @@ test.describe('Notification delivery', () => {
   await bobPage.waitForLoadState('domcontentloaded');
   const composer = bobPage.getByLabel('Send seller a message');
   await expect(composer).toBeEnabled({ timeout: 15_000 });
+  await composer.click();
   await composer.fill(body);
   await bobPage.getByRole('button', { name: 'Send' }).click();
   // Landing in the thread is what proves the message was written — see F5 for

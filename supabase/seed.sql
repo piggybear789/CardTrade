@@ -4,6 +4,10 @@
 -- What this seeds:
 --   * 5 VERIFIED profiles (Req 1, 2) — every seeded user has passed KYC so they
 --     can immediately list, buy, and trade (the VERIFIED gate, Req 2.4/3.1/4.1/5.1).
+--   * 2 staff profiles (frank/grace) for exercising /admin and /admin/arbitration in
+--     the Playwright e2e suite (tests/e2e) — is_admin and is_support are separate
+--     capability gates (0047_arbitration_workspace.sql), not a hierarchy, so each
+--     gets its own account rather than one account with both flags.
 --   * A catalog of items exercising the catalog filter (Req 3.8): a mix of
 --     AVAILABLE, RESERVED, and SOLD statuses so only AVAILABLE items surface.
 --   * Two equal-Fair-Market-Value AVAILABLE pairs (Req 5.1) so a 2-way trade can
@@ -20,6 +24,13 @@
 --
 -- Password for every seeded auth user is: password123
 
+-- The app's tables live in the `cardtrade` schema, not `public`, and
+-- crypt()/gen_salt() live in `extensions` (pgcrypto). Locally this is usually
+-- already the session default, but that isn't guaranteed for every channel this
+-- file can be run through (e.g. the Management API query endpoint used by
+-- scripts/apply-sql.mjs defaults to just `public`), so make it explicit.
+set search_path to cardtrade, extensions, public;
+
 -- =============================================================================
 -- Auth users (must exist before profiles due to the profiles.id FK)
 -- =============================================================================
@@ -35,8 +46,28 @@ values
   ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'bob@example.com',   crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Bob Carter"}'),
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'carol@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Carol Diaz"}'),
   ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'dave@example.com',  crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Dave Ellis"}'),
-  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'erin@example.com',  crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Erin Frost"}')
+  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'erin@example.com',  crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Erin Frost"}'),
+  ('00000000-0000-0000-0000-000000000000', '66666666-6666-6666-6666-666666666666', 'authenticated', 'authenticated', 'frank@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Frank Ito"}'),
+  ('00000000-0000-0000-0000-000000000000', '77777777-7777-7777-7777-777777777777', 'authenticated', 'authenticated', 'grace@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Grace Oduya"}')
 on conflict (id) do nothing;
+
+-- Email/password sign-in resolves through an `email` provider identity, not
+-- just `auth.users.encrypted_password` — without this row GoTrue reports
+-- "Invalid email or password" even though the password hash is correct.
+-- `provider_id` is the user's own uuid as text, matching what a real signup
+-- via the app's `signUp` action produces.
+insert into auth.identities (
+  id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+)
+values
+  (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@example.com","email_verified":true}', 'email', now(), now(), now()),
+  (gen_random_uuid(), '22222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222', '{"sub":"22222222-2222-2222-2222-222222222222","email":"bob@example.com","email_verified":true}',   'email', now(), now(), now()),
+  (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333', '{"sub":"33333333-3333-3333-3333-333333333333","email":"carol@example.com","email_verified":true}', 'email', now(), now(), now()),
+  (gen_random_uuid(), '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-444444444444', '{"sub":"44444444-4444-4444-4444-444444444444","email":"dave@example.com","email_verified":true}',  'email', now(), now(), now()),
+  (gen_random_uuid(), '55555555-5555-5555-5555-555555555555', '55555555-5555-5555-5555-555555555555', '{"sub":"55555555-5555-5555-5555-555555555555","email":"erin@example.com","email_verified":true}',  'email', now(), now(), now()),
+  (gen_random_uuid(), '66666666-6666-6666-6666-666666666666', '66666666-6666-6666-6666-666666666666', '{"sub":"66666666-6666-6666-6666-666666666666","email":"frank@example.com","email_verified":true}', 'email', now(), now(), now()),
+  (gen_random_uuid(), '77777777-7777-7777-7777-777777777777', '77777777-7777-7777-7777-777777777777', '{"sub":"77777777-7777-7777-7777-777777777777","email":"grace@example.com","email_verified":true}', 'email', now(), now(), now())
+on conflict (provider, provider_id) do nothing;
 
 -- =============================================================================
 -- Profiles (all VERIFIED so seeded users can transact immediately)
@@ -55,8 +86,33 @@ values
   ('22222222-2222-2222-2222-222222222222', 'Bob Carter',   'bob@example.com',   'payer_bob',   'mch_seed_bob',   'APPROVED', 'approved', true, true, true, 'Bob Carter Collectibles Pty Ltd', 'Carter Cards', '00000000002', 'company', 'seed-identity-bob-v1', now(), now()),
   ('33333333-3333-3333-3333-333333333333', 'Carol Diaz',   'carol@example.com', 'payer_carol', 'mch_seed_carol', 'APPROVED', 'approved', true, true, true, 'Carol Diaz Collectibles Pty Ltd', 'Diaz Collectibles', '00000000003', 'company', 'seed-identity-carol-v1', now(), now()),
   ('44444444-4444-4444-4444-444444444444', 'Dave Ellis',   'dave@example.com',  'payer_dave',  'mch_seed_dave',  'APPROVED', 'approved', true, true, true, 'Dave Ellis Collectibles Pty Ltd', 'Ellis Comics', '00000000004', 'company', 'seed-identity-dave-v1', now(), now()),
-  ('55555555-5555-5555-5555-555555555555', 'Erin Frost',   'erin@example.com',  'payer_erin',  'mch_seed_erin',  'APPROVED', 'approved', true, true, true, 'Erin Frost Collectibles Pty Ltd', 'Frost Coins', '00000000005', 'company', 'seed-identity-erin-v1', now(), now())
+  ('55555555-5555-5555-5555-555555555555', 'Erin Frost',   'erin@example.com',  'payer_erin',  'mch_seed_erin',  'APPROVED', 'approved', true, true, true, 'Erin Frost Collectibles Pty Ltd', 'Frost Coins', '00000000005', 'company', 'seed-identity-erin-v1', now(), now()),
+  ('66666666-6666-6666-6666-666666666666', 'Frank Ito',    'frank@example.com', 'payer_frank', 'mch_seed_frank', 'APPROVED', 'approved', true, true, true, 'Frank Ito Collectibles Pty Ltd', 'Ito Cards', '00000000006', 'company', 'seed-identity-frank-v1', now(), now()),
+  ('77777777-7777-7777-7777-777777777777', 'Grace Oduya',  'grace@example.com', 'payer_grace', 'mch_seed_grace', 'APPROVED', 'approved', true, true, true, 'Grace Oduya Collectibles Pty Ltd', 'Oduya Cards', '00000000007', 'company', 'seed-identity-grace-v1', now(), now())
 on conflict (id) do nothing;
+
+-- Staff capability flags (0047_arbitration_workspace.sql): is_admin may moderate +
+-- arbitrate, is_support may arbitrate only. Explicit UPDATEs, not part of the INSERT
+-- above, so re-running this file also grants them on a database where frank/grace
+-- already exist from a prior run (ON CONFLICT DO NOTHING would otherwise skip them).
+update profiles set is_admin = true where id = '66666666-6666-6666-6666-666666666666';
+update profiles set is_support = true where id = '77777777-7777-7777-7777-777777777777';
+
+-- Onboarding (0058_onboarding_completion.sql) is a one-time post-signup flow gated by
+-- a NULL onboarding_completed_at; every seeded account is meant to be usable
+-- immediately without hitting it, so backfill it here rather than in the INSERT
+-- above (same re-run reasoning as the staff flags).
+update profiles set onboarding_completed_at = now()
+where id in (
+  '11111111-1111-1111-1111-111111111111',
+  '22222222-2222-2222-2222-222222222222',
+  '33333333-3333-3333-3333-333333333333',
+  '44444444-4444-4444-4444-444444444444',
+  '55555555-5555-5555-5555-555555555555',
+  '66666666-6666-6666-6666-666666666666',
+  '77777777-7777-7777-7777-777777777777'
+)
+and onboarding_completed_at is null;
 
 -- =============================================================================
 -- Items

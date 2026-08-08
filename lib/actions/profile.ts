@@ -9,6 +9,8 @@
 // on a validation failure the previously stored values are left untouched
 // (Req 1.5).
 
+import { revalidatePath } from 'next/cache';
+
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -79,6 +81,21 @@ export async function updateProfile(
   if (error || !data) {
     return fail('UPDATE_FAILED', error?.message ?? 'Profile update was rejected.');
   }
+
+  // 4. Revalidate every surface that renders the display name.
+  //
+  // Without this the write persisted but nothing on screen changed until a hard
+  // reload — the editor closed with "Profile updated" while the page and the nav
+  // rail both still showed the old name, which reads as the save having failed.
+  // Caught by tests/e2e/specs/profile-and-payouts.spec.ts.
+  //
+  // `'layout'` and not `'page'`: the name is rendered by MarketplaceShell's rail,
+  // which is layout-level chrome present on every authenticated route, so
+  // revalidating the page alone would leave the rail stale on all of them.
+  revalidatePath('/', 'layout');
+  // The public seller profile is a separate route segment and is not covered by
+  // the root layout revalidation above.
+  revalidatePath(`/sellers/${user.id}`);
 
   return ok({
     id: data.id,

@@ -5,10 +5,16 @@
 // Realtime subscription for the signed-in user's in-app notifications. Mirrors
 // the connection-status + auto-reconnect pattern of `useTradeRealtime` and
 // `useConversationRealtime`: it seeds from a server-provided initial list,
-// subscribes to Postgres Changes (INSERT) on `cardtrade.notifications` filtered
-// by `user_id=eq.<meId>`, merges new rows into local state, and exposes a
+// subscribes to Postgres Changes on `cardtrade.notifications` filtered by
+// `user_id=eq.<meId>`, merges rows into local state, and exposes a
 // {@link ConnectionStatus} for a live / reconnecting indicator plus a derived
 // unread count.
+//
+// BOTH INSERT AND UPDATE are subscribed, and the UPDATE half is load-bearing:
+// this hook is mounted twice per page (the header bell and, on /notifications,
+// the centre), those instances hold separate state, and read-state is changed by
+// whichever one the member clicked. UPDATE is the only channel through which the
+// other instance learns. See `applyUpdate`.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type {
@@ -109,6 +115,39 @@ export function useNotifications(
     [],
   );
 
+  /**
+   * Merge a single UPDATE — in practice a `read_at` transition — into local state.
+   *
+   * WHY UPDATE IS SUBSCRIBED AND NOT JUST INSERT. This hook is mounted more than
+   * once per page: `NotificationBell` in the header has an instance, and
+   * `NotificationCenter` on /notifications has another. They are separate React
+   * state, so `markAllReadLocal()` called by the centre cannot be seen by the
+   * bell, and with only INSERT subscribed there was no channel through which the
+   * bell could ever learn the rows had been read. The observable result was that
+   * "Mark all read" greyed the list out while the header badge kept saying
+   * "1 unread" until a full page reload.
+   *
+   * Subscribing to UPDATE makes the hook's state track the TABLE rather than
+   * whichever instance happened to perform the mutation, which is what it already
+   * claimed to do — and it fixes the same divergence for a read performed in
+   * another tab or on another device.
+   *
+   * Rows are merged, never appended: an UPDATE for a row this instance has not
+   * loaded (older than its 50-row window) is ignored rather than being inserted
+   * out of position.
+   */
+  const applyUpdate = useCallback(
+    (payload: RealtimePostgresChangesPayload<NotificationRow>) => {
+      const next = payload.new as NotificationRow;
+      if (!next?.id) return;
+      setNotifications((prev) => {
+        if (!prev.some((n) => n.id === next.id)) return prev;
+        return prev.map((n) => (n.id === next.id ? { ...n, ...next } : n));
+      });
+    },
+    [],
+  );
+
   const markReadLocal = useCallback((id: string) => {
     const now = new Date().toISOString();
     setNotifications((prev) =>
@@ -184,6 +223,22 @@ export function useNotifications(
             applyInsert(
               payload as RealtimePostgresChangesPayload<NotificationRow>,
             ),
+        )
+        // Read-state changes. See `applyUpdate` for why this is not optional:
+        // without it the header bell and the notification list hold divergent
+        // state and the badge survives "Mark all read" until a page reload.
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'cardtrade',
+            table: 'notifications',
+            filter: `user_id=eq.${meId}`,
+          },
+          (payload) =>
+            applyUpdate(
+              payload as RealtimePostgresChangesPayload<NotificationRow>,
+            ),
         );
 
       channel = nextChannel;
@@ -217,7 +272,7 @@ export function useNotifications(
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (channel) supabase.removeChannel(channel);
     };
-  }, [meId, applyInsert]);
+  }, [meId, applyInsert, applyUpdate]);
 
   const unreadCount = useMemo(
     () => notifications.reduce((acc, n) => (n.read_at === null ? acc + 1 : acc), 0),

@@ -14,7 +14,7 @@
 // that flow redirects out to Google and returns through /auth/callback, which
 // reports any failure back here in the `authError` query param.
 
-import { useId, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -119,6 +119,22 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const passwordErrorId = `${passwordId}-error`;
   const formErrorId = `${emailId}-form-error`;
 
+  /**
+   * Whether this component has hydrated on the client.
+   *
+   * The submit control is disabled until it has, which closes the window in which a
+   * submit would bypass `handleSubmit` entirely and fall back to a native form post.
+   * `method="post"` on the <form> keeps that fallback from leaking the password;
+   * this keeps it from happening at all.
+   *
+   * No cost to a real member: the effect runs on the first client render, so the
+   * button is enabled before it can be aimed at. And nothing is lost for a
+   * JS-disabled visitor, because this form CANNOT work without JS — it calls a
+   * client action — so a submit that reached the server would fail regardless.
+   */
+  const [isReady, setIsReady] = useState(false);
+  useEffect(() => setIsReady(true), []);
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -182,7 +198,22 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </h1>
         <CardDescription>{copy.description}</CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit} noValidate>
+      {/*
+        `method="post"` MATTERS EVEN THOUGH SUBMIT IS HANDLED IN JS.
+
+        `handleSubmit` calls `preventDefault`, so this method is never used on the
+        happy path. It is here for the window before hydration: a submit that lands
+        while React has not yet attached falls back to the browser default, and the
+        default for a form with no method is a GET to the current URL — which
+        serialises every field into the query string. That was observed in the wild
+        as `/sign-in?email=…&password=password123`, putting the password into browser
+        history, the server access log, and any referrer.
+
+        POST does not make the pre-hydration submit succeed. It makes it fail without
+        leaking the credential, which is the whole requirement. `isReady` below closes
+        the window itself.
+      */}
+      <form onSubmit={handleSubmit} method="post" noValidate>
         <CardContent className="space-y-4">
           {bannerError ? (
             <p
@@ -246,7 +277,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isPending} aria-busy={isPending}>
+          <Button type="submit" className="w-full" disabled={isPending || !isReady} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>
           <p className="text-sm text-muted-foreground">

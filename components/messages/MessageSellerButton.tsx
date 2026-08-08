@@ -29,6 +29,21 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 /**
+ * Copy for a refused `sendMessage`, keyed to `SendMessageError`.
+ *
+ * Separate from the map above because opening a conversation and writing into one
+ * fail for different reasons, and one of them is actionable in a way the other is
+ * not: an over-long body is something the member can fix, so saying "please try
+ * again" would be advice that cannot work.
+ */
+const SEND_ERROR_MESSAGES: Record<string, string> = {
+  unauthenticated: 'Please sign in to send a message.',
+  'not-participant': 'You are not part of this conversation.',
+  'invalid-body': 'Messages must be between 1 and 4000 characters.',
+  'persistence-error': 'Your message could not be sent. Please try again.',
+};
+
+/**
  * A "Message seller" control with two presentation modes.
  */
 export function MessageSellerButton({
@@ -78,8 +93,22 @@ export function MessageSellerButton({
         );
         return;
       }
-      // Send the message then navigate.
-      await sendMessage(result.conversationId, text);
+
+      // CHECK THE RESULT. This was `await sendMessage(...)` with the result
+      // discarded, so a refusal left `isPending` true, the composer disabled, and no
+      // message on screen — a dead control with the member's text still in it and no
+      // reason given. `handleClick` above always surfaced its failure; this path did
+      // not, which made it an inconsistency inside one component rather than a
+      // missing convention.
+      const sent = await sendMessage(result.conversationId, text);
+      if (!sent.ok) {
+        setError(
+          SEND_ERROR_MESSAGES[sent.error] ??
+            'Your message could not be sent. Please try again.',
+        );
+        return;
+      }
+
       router.push(`/messages/${result.conversationId}`);
     });
   }

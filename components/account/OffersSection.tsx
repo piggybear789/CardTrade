@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/card';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 import {
   Dialog,
   DialogContent,
@@ -124,9 +125,15 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
         router.refresh();
         return;
       }
+      // SURFACE THE REASON THE SERVER SENT. This branch used to replace every
+      // `sale-failed` with "the item may no longer be available", which threw away
+      // the one thing that made the refusal actionable — `detail` carries the
+      // underlying `initiateCashSale` code. For a buyer with no saved card, the
+      // substituted copy was also simply untrue, so they abandoned a purchase that
+      // needed one more click.
       const message =
         result.error === 'sale-failed'
-          ? 'Could not open the sale — the item may no longer be available.'
+          ? cashSaleRefusalMessage(result.detail, result.detail)
           : (result.detail ?? 'Could not update the offer. Please try again.');
       toast.error(message);
     });

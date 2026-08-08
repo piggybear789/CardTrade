@@ -503,7 +503,11 @@ export default function OnboardingPage() {
                       : 'Saving…'
                     : intent === 'seller'
                       ? 'Verify Identity'
-                      : 'Next'}
+                      // "Continue", matching every other step in this wizard. It read
+                      // "Next" here alone, which is a second word for one action and
+                      // bought nothing. `Verify Identity` stays different because the
+                      // action IS different — it leaves for Stripe.
+                      : 'Continue'}
                   <ArrowRight className="ml-2 size-4" aria-hidden />
                 </Button>
               </div>

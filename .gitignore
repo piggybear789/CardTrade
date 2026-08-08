@@ -34,3 +34,10 @@ yarn-error.log*
 next-env.d.ts
 .vercel
 .env*
+
+# playwright / e2e
+/test-results/
+/playwright-report/
+/playwright/.auth/
+/ux-review/captures/
+/blob-report/

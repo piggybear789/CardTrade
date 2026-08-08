@@ -11,7 +11,13 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "test:e2e": "playwright test",
+    "test:e2e:build": "node scripts/e2e/build-for-e2e.mjs",
+    "test:e2e:prod": "node scripts/e2e/run-prod.mjs",
+    "test:e2e:clean": "tsx scripts/e2e/cleanup-test-data.ts",
+    "test:e2e:killserver": "node scripts/e2e/kill-dev-server.mjs",
+    "ux-review:capture": "playwright test --config=playwright.ux-review.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -44,6 +50,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -58,6 +65,7 @@
     "jsdom": "^25.0.1",
     "postcss": "^8.5.22",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.23.10",
     "typescript": "^5.7.3",
     "vitest": "^3.2.7"
   }

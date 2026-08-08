@@ -38,21 +38,10 @@ import {
   type DraftLine,
 } from '@/components/sales/ContractLineItems';
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'not-authenticated': 'Please sign in to buy this item.',
-  'buyer-confirmation-required': 'Confirm the verified seller identity to continue.',
-  // Two DIFFERENT blocks, and they must not read the same. Identity is step one and
-  // is what withholds the disclosure; payability is step two. Saying "verified to
-  // receive payment" for the first conflated them.
-  'seller-identity-unverified': 'This seller has not verified their identity yet.',
-  'seller-identity-changed': 'The seller identity changed. Close and review the current details.',
-  'seller-not-payable': 'This seller is not currently able to receive payment.',
-  'item-not-found': 'This item is no longer available.',
-  'item-unavailable': 'This item is no longer available for purchase.',
-  'self-purchase': 'You cannot buy your own listing.',
-  'invalid-terms': 'This listing price is invalid. Contact the seller.',
-  'transfer-failed': 'The contract could not be opened. Please try again.',
-};
+// Refusal copy lives in `lib/cashSaleErrors.ts` because accepting an Offer opens
+// the same contract and has to explain the same refusals. Keeping a second map
+// here is what let the two drift — see the note in that file.
+import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 
 export function BuyButton({
   itemId,
@@ -132,9 +121,7 @@ export function BuyButton({
         return;
       }
       setError(
-        result.message ??
-          ERROR_MESSAGES[result.error] ??
-          'Unable to start the sale. Please try again.',
+        result.message ?? cashSaleRefusalMessage(result.error),
       );
     });
   }

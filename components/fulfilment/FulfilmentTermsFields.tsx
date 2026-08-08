@@ -119,6 +119,11 @@ export function FulfilmentTermsFields({
           value={meetingPlace}
           onChange={onMeetingPlaceChange}
           required
+          // Same domain rule as the delivery address: `text:` is refused. The map pin
+          // is the error-prevention this field exists for — two suburbs share a name
+          // often enough that a free-text "Richmond" confirms nothing — so an
+          // unresolved value is not a lesser answer, it is not an answer.
+          requireResolved
           error={error === FULFILMENT_FIELD_ERRORS.meeting ? error : undefined}
           hint="Somewhere public you can both find. Choose a suggestion to confirm the map pin."
           textFallbackPlaceholder="A public, agreed meeting point"
@@ -157,6 +162,10 @@ export function FulfilmentTermsFields({
               value={deliveryAddress}
               onChange={onDeliveryAddressChange}
               required
+              // `domain/fulfilment/terms.ts` refuses a `text:` id here, so without
+              // this the no-key fallback offered a field whose every value was
+              // certain to be rejected on save.
+              requireResolved
               showMap={false}
               placeholder="Search your delivery address"
               error={error === FULFILMENT_FIELD_ERRORS.address ? error : undefined}

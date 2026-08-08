@@ -43,6 +43,23 @@ export interface PlacePickerProps {
   countries?: string[];
   /** Rank this country's results first without excluding others. */
   biasCountry?: string | null;
+  /**
+   * This field's consumer REJECTS an unresolved place.
+   *
+   * Fulfilment terms do: `domain/fulfilment/terms.ts` refuses a `text:` id for a
+   * delivery address or a meeting point, and rightly — a parcel destination or a
+   * place to meet a stranger has to be a real location, not a string someone typed.
+   *
+   * Without this flag the no-key fallback rendered a perfectly fillable input whose
+   * every value was guaranteed to be refused on save, with the reason arriving only
+   * afterwards as "Select a suggested delivery address before saving." — advice that
+   * cannot be followed, because there are no suggestions to select. Set it and the
+   * fallback explains the situation instead of inviting work that cannot succeed.
+   *
+   * Leave it off for a field that accepts free text, such as a listing's `Based
+   * near`, which stores whatever was typed.
+   */
+  requireResolved?: boolean;
 }
 
 /**
@@ -71,6 +88,7 @@ export function PlacePicker({
   placeholder,
   countries,
   biasCountry,
+  requireResolved = false,
 }: PlacePickerProps) {
   const apiKey = readGoogleMapsKey();
   const [textOnly, setTextOnly] = useState(value?.label ?? '');
@@ -83,6 +101,39 @@ export function PlacePicker({
   const errorId = `${id}-error`;
 
   if (!apiKey) {
+    // NO KEY AND THE CONSUMER DEMANDS A RESOLVED PLACE, so there is nothing this
+    // field can be given that would be accepted. Say that, rather than rendering an
+    // input whose every value is refused on save with "Select a suggested address" —
+    // an instruction that cannot be followed when there are no suggestions.
+    //
+    // Disabled rather than hidden: the requirement stays visible, so it reads as a
+    // deployment that is not finished rather than a step that has silently vanished.
+    if (requireResolved) {
+      return (
+        <div className={cn('space-y-2', className)}>
+          {label ? (
+            <Label htmlFor={id}>
+              {label}
+              {required ? <span className="text-destructive"> *</span> : null}
+            </Label>
+          ) : null}
+          <input
+            id={id}
+            className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
+            value=""
+            disabled
+            readOnly
+            placeholder="Address search unavailable"
+            aria-describedby={errorId}
+          />
+          <p id={errorId} role="alert" className="text-sm text-destructive">
+            Address search is not configured on this deployment, so a verified
+            address cannot be entered. This step needs a Google Maps API key.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className={cn('space-y-2', className)}>
         {label ? (

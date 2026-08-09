@@ -893,16 +893,28 @@ export async function initiateCashSale(
     return { ok: false, error: 'INVALID_TERMS', detail: 'The agreed price is invalid.' };
   }
 
-  const sale = await deps.repository.createAgreement({
-    itemId: item.id,
-    buyerId: params.buyerId,
-    sellerId: item.ownerId,
-    agreedPriceCents,
-    platformFeeCents: deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents),
-    sellerIdentity,
-    buyerSellerIdentityConfirmedAt: currentIso(deps),
-    lineItems: shopfront ? lineItems : undefined,
-  });
+  let sale: Awaited<ReturnType<typeof deps.repository.createAgreement>>;
+  try {
+    sale = await deps.repository.createAgreement({
+      itemId: item.id,
+      buyerId: params.buyerId,
+      sellerId: item.ownerId,
+      agreedPriceCents,
+      platformFeeCents: deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents),
+      sellerIdentity,
+      buyerSellerIdentityConfirmedAt: currentIso(deps),
+      lineItems: shopfront ? lineItems : undefined,
+    });
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'ALREADY_OPEN') {
+      return {
+        ok: false,
+        error: 'ITEM_UNAVAILABLE',
+        detail: 'You already have an open contract on this listing.',
+      };
+    }
+    throw e;
+  }
   return sale ? { ok: true, sale } : { ok: false, error: 'ITEM_UNAVAILABLE' };
 }
 

@@ -316,6 +316,8 @@ export function createSupabaseCashSaleRepository(
       });
       if (error) {
         if (error.message.includes('own item')) throw new Error('SELF_PURCHASE');
+        if (error.message.includes('one_active_per_shopfront_buyer'))
+          throw new Error('ALREADY_OPEN');
         throw new Error(`Failed to create agreement: ${error.message}`);
       }
       const row = (data as CashSaleRow[] | null)?.[0];

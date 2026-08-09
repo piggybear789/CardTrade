@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BadgeX, ImageOff, Library, Lock, MapPin, Star } from 'lucide-react';
+import { BadgeX, ImageOff, Lock, MapPin, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -133,13 +133,6 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             ) : null}
             {formatAud(item.fmv_cents)}
           </p>
-          {/* A shopfront must not read as one purchasable object (0064). */}
-          {isShopfront ? (
-            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-              <Library className="size-3 shrink-0" aria-hidden="true" />
-              <span className="truncate">Binder or bulk — pick what you want</span>
-            </p>
-          ) : null}
           {item.location_label ? (
             <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
               <MapPin className="size-3 shrink-0" aria-hidden="true" />
@@ -281,13 +274,6 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           ) : null}
           {formatAud(item.fmv_cents)}
         </p>
-        {/* A shopfront must not read as one purchasable object (0064). */}
-        {isShopfront ? (
-          <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            <Library className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">Binder or bulk — pick what you want</span>
-          </p>
-        ) : null}
         {item.location_label ? (
           <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="size-3.5 shrink-0" aria-hidden="true" />

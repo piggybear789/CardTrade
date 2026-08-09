@@ -210,7 +210,7 @@ const LISTING_KINDS = [
   {
     value: "SHOPFRONT" as const,
     icon: Library,
-    label: "Binder or bulk",
+    label: "Collection",
     hint: "Many cards buyers pick from. Several buyers can negotiate at once and nothing is held.",
   },
 ];

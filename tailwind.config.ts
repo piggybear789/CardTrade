@@ -63,11 +63,11 @@ const config: Config = {
         },
       },
       fontFamily: {
-        // Geist pairing: Sans for headings + copy, Mono for labels and ledger
-        // data. `display` keeps its utility name so existing classnames don't
-        // change.
+        // Plus Jakarta Sans for headings + copy, Geist Mono for labels and
+        // ledger data. `display` keeps its utility name so existing classnames
+        // don't change.
         sans: [
-          "var(--font-geist-sans)",
+          "var(--font-plus-jakarta)",
           "ui-sans-serif",
           "system-ui",
           "Segoe UI",
@@ -76,7 +76,7 @@ const config: Config = {
           "sans-serif",
         ],
         display: [
-          "var(--font-geist-sans)",
+          "var(--font-plus-jakarta)",
           "ui-sans-serif",
           "system-ui",
           "Segoe UI",
@@ -146,10 +146,15 @@ const config: Config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "listing-marquee": {
+          from: { transform: "translate3d(0, 0, 0)" },
+          to: { transform: "translate3d(-50%, 0, 0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "listing-marquee": "listing-marquee 60s linear infinite",
       },
     },
   },

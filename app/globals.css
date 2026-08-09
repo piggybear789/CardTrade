@@ -173,6 +173,25 @@
   animation: step-complete 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Landing-page listing marquee.
+   The track holds the tiles TWICE, so -50% lands exactly where 0% started and the
+   loop has no visible seam. Duration is long on purpose: this is ambient texture
+   behind the hero, and anything faster reads as an advert. */
+@keyframes listing-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-listing-marquee {
+  /* Duration tracks tile size, because distance is what changes while duration is fixed
+     — a longer track at the same duration reads as a faster row. Tuned for the current
+     ~10.5rem tile; revisit it if the tiles are resized again. */
+  animation: listing-marquee 60s linear infinite;
+  /* Promote to its own layer: without this the whole row repaints every frame and
+     the hero text above it can shimmer on lower-end machines. */
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { GeistSans } from 'geist/font/sans';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { GeistMono } from 'geist/font/mono';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
@@ -8,10 +8,13 @@ import { Toaster } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import './globals.css';
 
-// The Geist pairing: Geist Sans carries headings and copy; Geist Mono is
-// reserved for labels and ledger data (prices, FMV figures, eyebrow labels),
-// which is where a monospaced voice actually helps.
-const geistSans = GeistSans;
+// Plus Jakarta Sans for headings and body — rounder, friendlier geometry than
+// Geist while still professional. Geist Mono stays for labels and ledger data.
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+});
 const geistMono = GeistMono;
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
@@ -70,7 +73,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(geistSans.variable, geistMono.variable)}
+      className={cn(plusJakarta.variable, geistMono.variable)}
     >
       <head>
         <link rel="preconnect" href="https://images.pokemontcg.io" />

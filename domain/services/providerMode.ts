@@ -61,5 +61,24 @@ export function isRealMoneyProvider(env: EnvLike = process.env): boolean {
  */
 export function isPaymentDemoEnabled(env: EnvLike = process.env): boolean {
   if (isLivePaymentsProvider(env)) return false;
-  return env.ENABLE_PAYMENT_DEMO?.trim().toLowerCase() !== 'false';
+
+  const explicit = env.ENABLE_PAYMENT_DEMO?.trim().toLowerCase();
+  if (explicit === 'true') return true;
+  if (explicit === 'false') return false;
+
+  // UNSET MEANS ON IN DEVELOPMENT, OFF IN PRODUCTION.
+  //
+  // This used to be "on unless the value is exactly 'false'", which failed OPEN in the
+  // one direction that matters. `isLivePaymentsProvider` is false whenever Stripe is
+  // unconfigured, so a deployment that lost or mistyped `STRIPE_SECRET_KEY` became a
+  // deployment where the demo actions were live — and `fireIdentityWebhook` writes
+  // `identity_check_status = 'VERIFIED'` for its caller, which is the gate that unlocks
+  // listing, selling and trade escrow. A missing credential should never be the thing
+  // that lets every member verify themselves.
+  //
+  // Development keeps working with no configuration, because that is where these panels
+  // are useful and where there is no real money to reach. Production requires the
+  // explicit opt-in; the e2e harness sets it (see `playwright.config.ts`), since
+  // `next start` runs with NODE_ENV=production.
+  return env.NODE_ENV !== 'production';
 }

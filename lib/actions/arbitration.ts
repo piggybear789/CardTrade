@@ -566,6 +566,23 @@ export async function assignArbitrationCase(
       .eq('case_ref', ref);
     if (error) return fail('persistence-error', 'Could not release the case.');
   } else {
+    // THE ASSIGNEE MUST BE STAFF. This wrote whatever id it was handed, and every
+    // other actor id in this module comes from the session — so it was the one place a
+    // caller chose who a row referred to. The assignee gains no access by being named
+    // (the read policy is `is_staff()`), so the harm was to the queue rather than to
+    // data: cases parked on accounts that cannot work them, indistinguishable from
+    // cases genuinely in progress. A triage queue that lies about who is on a case is
+    // the thing this workspace exists to prevent.
+    const { data: assignee } = await admin
+      .from('profiles')
+      .select('is_admin, is_support')
+      .eq('id', assigneeId)
+      .maybeSingle();
+    const assigneeIsStaff = Boolean(assignee?.is_admin || assignee?.is_support);
+    if (!assigneeIsStaff) {
+      return fail('not-found', 'That person is not a staff member, so cannot take a case.');
+    }
+
     const { error } = await admin.from('arbitration_assignments').upsert(
       {
         case_kind: kind,

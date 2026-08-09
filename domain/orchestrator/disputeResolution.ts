@@ -123,6 +123,17 @@ export interface DisputeResolutionRepository {
   /** Req 7.6: record that the Friction_Tax Partial_Capture failed to settle. */
   recordPartialCaptureFailure(params: { tradeId: string }): Promise<void>;
 
+  /**
+   * Req 7.3: record the outcome of paying the return-shipping share out to the trader
+   * who raised the dispute. Persists the idempotency nonce so a retry reuses it.
+   */
+  recordFrictionTaxReturnResult(params: {
+    tradeId: string;
+    nonce: string;
+    paid: boolean;
+    error?: string;
+  }): Promise<void>;
+
   /** Req 7.7: record that the disputed Item was not returned within the window. */
   recordReturnOverdue(params: { tradeId: string }): Promise<void>;
 
@@ -204,6 +215,13 @@ export type RaiseConditionDisputeResult =
       frictionTaxSettled: boolean;
       /** The $10/$10 allocation, present only when the capture settled (Req 7.3). */
       allocation?: FrictionTaxAllocation;
+      /**
+       * Whether the return-shipping share actually reached the raising Trader.
+       *
+       * `false` with `frictionTaxSettled: true` means the $20 was captured but the $10
+       * is still in the platform balance — owed, recorded, and flagged for an operator.
+       */
+      returnShippingPaid?: boolean;
     }
   | { ok: false; error: DisputeResolutionError | 'HOLD_NOT_FOUND'; detail?: string };
 
@@ -283,7 +301,90 @@ export async function raiseConditionDispute(
     allocation,
   });
 
-  return { ok: true, trade, disputedAgainst, frictionTaxSettled: true, allocation };
+  // 4c. PAY the return-shipping share to the trader who raised the dispute (Req 7.3).
+  //
+  // This step did not exist. The allocation was written to the trade and read back only
+  // for display, so the platform captured $20 and kept all of it, while the trader who
+  // has to post the item back was under-compensated by the $10 the requirement gives
+  // them. "Allocated" is not "paid": nothing moved the money.
+  //
+  // The RAISING trader is the payee because they are the one returning the goods — the
+  // dispute is theirs, the item came to them, and the return postage is theirs to
+  // cover. The other $10 is the platform's fee and correctly stays put.
+  const returnShippingPaid = await payReturnShippingShare(deps, {
+    tradeId: trade.id,
+    payeeTraderId: params.actorId,
+    amountCents: allocation.returnShippingCents,
+  });
+
+  return {
+    ok: true,
+    trade,
+    disputedAgainst,
+    frictionTaxSettled: true,
+    allocation,
+    returnShippingPaid,
+  };
+}
+
+/**
+ * Pay the captured return-shipping share out to the trader who raised the dispute.
+ *
+ * `payoutToMerchant`, never `requestTransfer`: the $10 is already in the platform
+ * balance because it was just captured from the other trader's collateral, so this
+ * releases money we hold. Charging the recipient instead is the mistake the fraud path
+ * shipped, and it is the same shape of call.
+ *
+ * Never throws, and never rolls the dispute back — the dispute is valid whether or not
+ * the small compensating payment lands. A failure is recorded and flagged so it is owed
+ * visibly rather than silently.
+ */
+async function payReturnShippingShare(
+  deps: DisputeResolutionDeps,
+  params: { tradeId: string; payeeTraderId: string; amountCents: Cents },
+): Promise<boolean> {
+  const { repository, payments } = deps;
+  if (params.amountCents <= 0) return true;
+
+  const nonce = `friction-return:${params.tradeId}`;
+  const payee = await repository.getTraderPayee(params.payeeTraderId);
+
+  if (!canReceiveFunds(payee)) {
+    await repository.recordFrictionTaxReturnResult({
+      tradeId: params.tradeId,
+      nonce,
+      paid: false,
+      error: 'The trader has no payout account that can receive the return-shipping share.',
+    });
+    await repository.flagManualReconciliation({ tradeId: params.tradeId });
+    return false;
+  }
+
+  const payout = await payments.payoutToMerchant({
+    merchantRef: payee!.merchantRef!,
+    amount: params.amountCents,
+    ref: `friction-return:${params.tradeId}`,
+    // Persisted, and reused verbatim on any retry.
+    nonce,
+  });
+
+  if (payout.status !== 'SETTLED') {
+    await repository.recordFrictionTaxReturnResult({
+      tradeId: params.tradeId,
+      nonce,
+      paid: false,
+      error: 'The provider declined the return-shipping payout.',
+    });
+    await repository.flagManualReconciliation({ tradeId: params.tradeId });
+    return false;
+  }
+
+  await repository.recordFrictionTaxReturnResult({
+    tradeId: params.tradeId,
+    nonce,
+    paid: true,
+  });
+  return true;
 }
 
 /** Result of resolving a Condition_Dispute by recorded return (Req 7.5). */
@@ -497,6 +598,20 @@ export async function reportObjectiveFraud(
   const indications: FraudIndication[] = [];
 
   // 2. Full_Capture 100% of the offending hold, bounded retry (Req 8.2, 8.6).
+  //
+  // WHAT THIS LOOP CAN AND CANNOT RECOVER, because it is easy to over-read.
+  //
+  // Every attempt sends the SAME idempotency key (`capture:full:<holdId>`), which is
+  // deliberate — a capture must never be able to run twice. The consequence is that it
+  // only helps against a failure where NOTHING reached the provider (a thrown transport
+  // error, which the binding converts to a FAILED status). Where the provider returned a
+  // definite rejection, that response is cached against the key and attempts 2 and 3
+  // replay the same rejection immediately.
+  //
+  // So this is a transport retry, not a "try until it works" loop, and exhausting it
+  // flags manual reconciliation rather than implying the money is unrecoverable. Do not
+  // "improve" it by varying the key per attempt: that trades a recoverable operator task
+  // for the possibility of capturing a trader's collateral twice.
   let fullCaptureSettled = false;
   let capturedCents = 0;
   let attempts = 0;

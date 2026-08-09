@@ -637,6 +637,36 @@ export function createSupabaseCashSaleRepository(
       return ((data ?? []) as { id: string }[]).map((row) => row.id);
     },
 
+    async listDueRefunds({
+      limit,
+      maxAttempts,
+      currency,
+    }: {
+      limit: number;
+      maxAttempts: number;
+      currency?: string;
+    }) {
+      // A refund that has been queued or has failed, still has an amount, and has a
+      // collection to refund against. Deliberately NOT filtered by sale status: a
+      // partial refund leaves the sale COMPLETED while a full one leaves it REFUNDED,
+      // and both can have a refund that did not land.
+      let query = client
+        .from('cash_sales')
+        .select('id')
+        .in('refund_status', ['PENDING', 'FAILED'])
+        .gt('refund_cents', 0)
+        .not('transfer_id', 'is', null)
+        .lt('refund_attempts', maxAttempts);
+
+      // Same regional scoping as the payout drain, for the same reason.
+      if (currency) query = query.eq('currency', currency.toLowerCase());
+
+      const { data } = await query
+        .order('dispute_resolved_at', { ascending: true, nullsFirst: true })
+        .limit(limit);
+      return ((data ?? []) as { id: string }[]).map((row) => row.id);
+    },
+
     async markPayoutDue(cashSaleId: string) {
       // Delegated to SQL so the nonce is assigned atomically and the same
       // function serves the auto-complete cron, which cannot call this code.

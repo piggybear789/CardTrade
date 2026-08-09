@@ -451,7 +451,11 @@ export class StripeService implements PaymentService, PayerService {
       return {
         captureId: chargeIdOf(intent) ?? params.holdId,
         holdId: params.holdId,
-        amount: intent.amount_received || params.amount,
+        // `??`, not `||`. A captured amount is a FACT REPORTED BY THE PROVIDER, and this
+        // figure is written to `pre_auth_holds.captured_cents` — the record an
+        // arbitrator reads. `||` treats a reported 0 as absent and substitutes what we
+        // asked for, which turns our request into evidence.
+        amount: intent.amount_received ?? params.amount,
         status: intent.status === 'succeeded' ? 'SETTLED' : 'FAILED',
       };
     } catch (err) {
@@ -472,7 +476,9 @@ export class StripeService implements PaymentService, PayerService {
       return {
         captureId: chargeIdOf(intent) ?? holdId,
         holdId,
-        amount: intent.amount_received || intent.amount,
+        // See `partialCapture`: on the fraud path this figure becomes the amount paid
+        // out to the victim, so it must be what the provider says it captured.
+        amount: intent.amount_received ?? intent.amount,
         status: intent.status === 'succeeded' ? 'SETTLED' : 'FAILED',
       };
     } catch (err) {
@@ -1000,13 +1006,41 @@ function chargeIdOf(intent: Stripe.PaymentIntent): string | undefined {
 }
 
 /**
+ * How long a card authorisation is assumed to last when the provider does not say.
+ *
+ * Seven days is Stripe's documented norm for an online card authorisation, and it is
+ * the figure the whole inspection clock is designed around.
+ */
+const ASSUMED_AUTHORISATION_DAYS = 7;
+
+/**
  * When the authorisation lapses, as an ISO-8601 string.
  *
  * Stripe reports this as `capture_before` (a unix timestamp) on the charge's
  * card details. It is only present after the intent is confirmed, and only for
  * card authorisations, which is why {@link PreAuthHold.expiresAt} is optional.
+ *
+ * A MISSING VALUE IS BACKSTOPPED RATHER THAN LEFT NULL, and that is the fix for a real
+ * hole. Both expiry sweeps in `0035_hold_expiry_reconciler.sql` filter
+ * `expires_at is not null`, so a hold recorded with no expiry was never warned about
+ * and never marked EXPIRED — for good. Meanwhile `bothHoldsActive` kept reporting live
+ * collateral, and `inspectionHoldRisk` returns 'safe' when it has no expiry to compare,
+ * so a trade could sit on collateral the provider had already released with nothing
+ * anywhere saying so, and a dispute would find nothing to capture.
+ *
+ * An assumed date can only ever be WRONG EARLY: it makes the system warn and reconcile
+ * sooner than strictly necessary, which is the harmless direction. Reporting no expiry
+ * at all is wrong late, and silently.
  */
 function captureBefore(intent: Stripe.PaymentIntent): string | undefined {
   const seconds = latestCharge(intent)?.payment_method_details?.card?.capture_before;
-  return typeof seconds === 'number' ? new Date(seconds * 1000).toISOString() : undefined;
+  if (typeof seconds === 'number') return new Date(seconds * 1000).toISOString();
+
+  // Only for an authorisation that genuinely exists. An intent that never reached
+  // `requires_capture` has no collateral to expire, and inventing a date for it would
+  // put a phantom row in front of the reconciler.
+  if (intent.status !== 'requires_capture') return undefined;
+
+  const created = typeof intent.created === 'number' ? intent.created * 1000 : Date.now();
+  return new Date(created + ASSUMED_AUTHORISATION_DAYS * 86_400_000).toISOString();
 }

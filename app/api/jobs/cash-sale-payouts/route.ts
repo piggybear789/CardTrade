@@ -72,6 +72,10 @@ async function runPayoutPass(request: Request): Promise<Response> {
     // collected and reported, and the pass still returns 200 when any region drained,
     // because a cron retry of the whole job would re-attempt the ones that worked.
     const totals = { considered: 0, settled: 0, stillOwed: 0 };
+    // Refunds owed to BUYERS, drained on the same pass. They are the mirror image of a
+    // seller release — money the platform holds that belongs to a member — and until
+    // now nothing retried one that failed, which for a partial refund meant never.
+    const refunds = { considered: 0, settled: 0, stillOwed: 0 };
     const failures: string[] = [];
 
     for (const region of operationalRegions()) {
@@ -84,6 +88,17 @@ async function runPayoutPass(request: Request): Promise<Response> {
         totals.considered += result.considered;
         totals.settled += result.settled;
         totals.stillOwed += result.stillOwed;
+
+        // Isolated from the release drain: a refund problem must not stop sellers being
+        // paid, and vice versa.
+        try {
+          const refunded = await orchestrator.processDueRefunds();
+          refunds.considered += refunded.considered;
+          refunds.settled += refunded.settled;
+          refunds.stillOwed += refunded.stillOwed;
+        } catch (error) {
+          console.error(`[jobs] cash-sale refund drain failed for region ${region}`, error);
+        }
       } catch (error) {
         console.error(`[jobs] cash-sale-payouts failed for region ${region}`, error);
         failures.push(region);
@@ -102,6 +117,7 @@ async function runPayoutPass(request: Request): Promise<Response> {
     return Response.json({
       ok: true,
       ...totals,
+      refunds,
       ...(failures.length > 0 ? { failedRegions: failures } : {}),
     });
   } catch (error) {

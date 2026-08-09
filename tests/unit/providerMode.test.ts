@@ -85,4 +85,26 @@ describe('isPaymentDemoEnabled', () => {
   it('can be switched off explicitly even on mock', () => {
     expect(isPaymentDemoEnabled({ ENABLE_PAYMENT_DEMO: 'false' })).toBe(false);
   });
+
+  it('is OFF by default in production, and needs an explicit opt-in', () => {
+    // THE FAIL-OPEN THIS CLOSES. The default used to be "on unless the value is
+    // exactly 'false'", and `isLivePaymentsProvider` is false whenever Stripe is
+    // unconfigured — so a production deployment that lost or mistyped
+    // `STRIPE_SECRET_KEY` silently enabled the demo actions. One of those,
+    // `fireIdentityWebhook`, writes `identity_check_status = 'VERIFIED'` for its own
+    // caller: the gate that unlocks listing, selling and entering trade escrow. A
+    // missing credential must not be what lets every member verify themselves.
+    expect(isPaymentDemoEnabled({ NODE_ENV: 'production' })).toBe(false);
+    expect(
+      isPaymentDemoEnabled({ NODE_ENV: 'production', ENABLE_PAYMENT_DEMO: 'true' }),
+    ).toBe(true);
+  });
+
+  it('stays on by default outside production, where the panels are the point', () => {
+    // Local development and the e2e harness both rely on these panels, and neither has
+    // real money to reach. `playwright.config.ts` sets the opt-in explicitly anyway,
+    // because `next start` runs with NODE_ENV=production.
+    expect(isPaymentDemoEnabled({ NODE_ENV: 'development' })).toBe(true);
+    expect(isPaymentDemoEnabled({ NODE_ENV: 'test' })).toBe(true);
+  });
 });

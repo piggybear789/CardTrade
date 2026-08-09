@@ -1013,3 +1013,557 @@ what an earlier step in this `describe.serial` chain leaves behind on mobile rat
 the shipping step itself. Next move is to dump the action card's own copy at that point -
 the button's disabled REASON is almost certainly rendered next to it and has not yet been
 read.
+
+---
+
+# Round 6 — security, money and data-integrity audit (F51–F69)
+
+Not found by the e2e suite. This round came from reading the authorization surface, the
+money paths and the migrations directly, and from querying the live schema's grants and
+policies read-only. Every finding below was verified against the running database or the
+code before being written down; the DB-level ones are quoted from `pg_policies`,
+`information_schema.column_privileges` and `pg_default_acl`.
+
+The two large existing audits (`ux-audit-findings.md`, and F1–F50 above) cover UX,
+accessibility and functional behaviour. Nothing in this round overlaps them.
+
+## F51 — Every member write grant came from DEFAULT PRIVILEGES, not from any migration (severity 5, FIXED)
+
+**Symptom.** `authenticated` held INSERT, UPDATE and DELETE on every column of every
+table and view in `cardtrade`.
+
+**Cause.** `pg_default_acl` carried `{authenticated=arwd/postgres}` for tables in this
+schema, so every relation inherited member write access at creation. No migration granted
+any of it.
+
+This is why the audit could not be done by reading `supabase/migrations`, and why the
+revoke in `0032_verified_identity_display.sql:28` did not hold: the grants come back with
+the next relation. It is also the root cause of F52, F54 and F55 — those are not four
+mistakes, they are one mistake with four consequences.
+
+**Fix.** `0072` alters the default privileges first, then blanket-revokes writes across
+every relation in the schema, then grants back exactly the member write surface the
+application uses (enumerated from `lib/actions/**`). Order matters: a table added later
+without an explicit grant is now closed by default rather than open by default.
+
+---
+
+## F52 — `public_profiles` was a writable view that bypassed RLS on `profiles` (severity 5, FIXED)
+
+**Symptom.** Any signed-in member could `UPDATE` or `DELETE` **any other member's**
+profile row, and could write `rating` and `rating_count` — columns the `profiles` grant
+allowlist deliberately excludes.
+
+**Cause.** Three things lining up. The view is auto-updatable (single base table); it was
+created without `security_invoker`, so base-table permissions resolve as its OWNER; and
+its owner is `postgres`, which owns `profiles` too — and a table owner bypasses RLS unless
+the table forces it, which it does not. Add F51's inherited write grants and the
+projection became a writable back door onto the table it was meant to protect.
+
+**Fix.** `0072` revokes the writes and leaves SELECT.
+
+**AND THE OBVIOUS FIX WAS WRONG.** The first instinct — and the initial recommendation —
+was `set (security_invoker = true)`. That would have taken the marketplace down: the only
+SELECT policy on `profiles` is `profiles_owner_select` (`auth.uid() = id`), and the
+catalog, seller pages, review lists and offer lists all resolve OTHER members through this
+view. Under invoker rights every one of them returns nothing. The owner-executing SELECT
+is the entire point of a public projection; only the write paths were ever wrong. Checking
+the policy list before applying the fix is what caught it.
+
+---
+
+## F53 — Six SECURITY DEFINER money functions were executable by `anon` (severity 5, FIXED)
+
+**Symptom.** An unauthenticated caller holding only the publishable anon key could, over
+PostgREST: set an arbitrary `refund_cents` on any DISPUTED sale, queue a seller release,
+file a fraud allegation **attributed to a member who never made it**, reopen a refunded
+sale, and insert arbitrary chargeback rows.
+
+**Cause.** These six kept PostgreSQL's default `EXECUTE TO PUBLIC`. Every other RPC in the
+schema is revoked from `public, anon, authenticated` and granted to `service_role` alone
+(0053, 0057, 0064) — so this was six omissions rather than a policy.
+
+The sharpest one is `mark_cash_sale_refund_due(uuid, bigint)` (`0044:66`), which writes
+`refund_cents` with no cap. Seller net is `amount - platform_fee - refund`
+(`cashSaleOrchestrator.ts:1600`), so an internet caller could zero any seller's release.
+`record_trade_fraud_claim` (`0046:57`) takes the claimant as a PARAMETER and checks only
+participation, never `auth.uid()`, so the action-layer guard at `trades.ts:626` was
+bypassable by calling the function directly.
+
+**Fix.** `0072` revokes EXECUTE and grants it to `service_role`. The in-function
+participation and state guards stay: they are defence in depth for the trusted caller,
+not the access control that was missing. `is_admin`, `is_staff` and `is_fraud_banned`
+remain executable deliberately — RLS policies call them as the member.
+
+---
+
+## F54 — Column-level tampering the server actions were carefully preventing (severity 4, FIXED)
+
+Each of these had a correct guard in a Server Action and a direct PATCH straight past it.
+
+| Column | What it defeated |
+| --- | --- |
+| `items.hidden` | `hideItem` is admin-gated and writes via service role; the owner could set it back to `false` and reappear in the catalog |
+| `items.seller_identity_verified` | the trigger-maintained, property-pinned denormalisation of the Identity_Gate |
+| `items.fmv_cents`, `items.status` | `updateItem` exists to enforce `FMV_IMMUTABLE` and `ITEM_NOT_AVAILABLE` |
+| `offers.amount_cents` | `respondToOffer` reads the amount off the row at accept time (`offers.ts:433`) |
+| `offers.offered_by` | it decides who is allowed to accept (`offers.ts:409`) — writing it enabled self-accept |
+| `messages.body`, `.kind`, `.system_event` | INSERT was correctly pinned to `kind = 'USER'` with `sender_id = auth.uid()` (0012); UPDATE was the way around it, in the record an arbitrator reads |
+| `reviews.reviewee_id` | `leaveReview`'s participation, COMPLETED-contract and not-yourself checks are all one-shot, and `profiles.rating` is trigger-maintained from these rows |
+
+**Fix.** `0072` narrows UPDATE to what each flow actually writes: `items` to its six
+LOCATION columns, `offers` to `status`, `messages` to `read_at`, `conversations` to
+`last_message_at`, `notifications` to `read_at`, and `reviews` to nothing at all.
+
+---
+
+## F55 — A member with no profile row could insert themselves as an admin (severity 5, FIXED)
+
+**Symptom.** `insert into cardtrade.profiles (id, is_admin, identity_check_status) values (auth.uid(), true, 'VERIFIED')`.
+
+**Cause.** F51's inherited grants covered INSERT at table scope, i.e. every column,
+including `is_admin`, `is_support`, `identity_check_status` and `merchant_settlements_enabled`.
+`profiles_owner_insert` checks only `auth.uid() = id`, and the primary key stops a member
+inserting over an EXISTING row — so the requirement was a signed-in member whose profile
+row is absent. **Which is not hypothetical:** that is exactly the state F25 was about, and
+it was reached in production.
+
+Found while verifying F54 rather than in the original pass, because narrowing UPDATE made
+it obvious that INSERT had never been narrowed at all.
+
+**Fix.** `0073` revokes member INSERT on `profiles` outright — both provisioning paths
+(`lib/actions/auth.ts`, `lib/auth/ensureProfile.ts`) use the service-role client, so
+nothing needed it — and narrows INSERT on the other six tables to the columns the actions
+name. `messages.kind` and `messages.system_event` are off that list on purpose: column
+INSERT privileges are only checked for columns named in the statement, so the default
+supplies `'USER'` and a forged SYSTEM event is now unwritable by either verb.
+
+---
+
+## F56 — A confirmed fraud finding CHARGED the victim the collateral instead of paying it (severity 5, FIXED)
+
+**Symptom.** On a staff-confirmed Objective_Fraud, the platform captured the offender's
+collateral (correct), then debited the VICTIM's saved card for the same amount, reported
+`transferSettled: true`, and kept both. On a $1,000 trade the victim was out $1,000 and
+the platform held $2,000.
+
+**Cause.** `disputeResolution.ts:488` called
+`requestTransfer({ payerId: victimPayerId, ... })`. `requestTransfer` is a COLLECTION
+primitive: it creates a PaymentIntent against that customer's saved card
+(`StripeService.ts:505`) and, with no `merchantRef`, returns SETTLED as soon as the charge
+succeeds (`:606`). The repository method it depended on was `getTraderPayerId` — a payer
+ref is a saved card, i.e. where money comes FROM. Paying someone needs a destination to
+send money TO.
+
+`payoutCashSaleSeller` documents this exact trap at its own call site: *"Uses
+`payoutToMerchant`, NOT `requestTransfer` — the latter creates a fresh PaymentIntent
+against the payer"*. The fraud path made the mistake the cash path had already learned.
+
+Secondary defect in the same expression: `?? victimTraderId` fell back to a CardTrade
+profile UUID as a Stripe customer id, so the least-prepared victim — no payer on file —
+was the one whose call was most malformed.
+
+**Fix.** `getTraderPayee` replaces `getTraderPayerId` and returns the victim's Connect
+state; the payout goes through `payoutToMerchant` guarded by `canReceiveFunds`. A victim
+with no payout account is a normal, valid state, so it is recoverable: the funds stay in
+the platform balance, `VICTIM_NOT_PAYABLE` is surfaced, and the case is flagged for an
+operator — no fallback charge, ever.
+
+**Test.** `tradeFraudAuthorization.test.ts` now asserts the destination is a connected
+account AND that `requestTransfer` is never called on this path. The second assertion is
+the one that would have caught it: the old code called a real function with plausible
+arguments and got back a status that said it worked.
+
+---
+
+## F57 — A failed collateral release was recorded as a successful one (severity 4, FIXED)
+
+**Symptom.** A trader's collateral could remain a live authorisation against their card
+while the system recorded the hold as `VOIDED` and told them it was released.
+
+**Cause.** `voidHold` reports failure through its `status` field rather than throwing
+(the design, so compensating logic can run). Two call sites discarded it and wrote
+`VOIDED` regardless — `disputeResolution.ts:325` and `:506`. And because
+`expire_lapsed_holds` only sweeps holds still marked `ACTIVE`, the reconciler could never
+find one either: the encumbrance became invisible until the authorisation lapsed on its
+own. `lib/trades/completion.ts:52` had it right all along and is the pattern.
+
+**Fix.** Both sites check the returned status, leave the row ACTIVE when the release did
+not happen (so the expiry reconciler still owns it), and flag manual reconciliation.
+`HOLD_VOID_FAILED` joins the fraud indications.
+
+---
+
+## F58 — A declined card still billed BOTH traders the 5% fee on a trade that never started (severity 4, FIXED)
+
+**Symptom.** One trader's collateral authorisation declines; the trade is cancelled; both
+traders are charged 5% of what they were to receive, with no refund path. On a
+$1,000-each swap, $50 each for nothing.
+
+**Cause.** Ordering plus a swallowed failure. `placeBondsForAgreedTrade` returned
+`ok: true` even when `placeHold` came back FAILED (`tradeProposal.ts:433`), so
+`acceptTradeTerms` skipped its `HOLDS_FAILED` compensation, charged the fee
+(`tradeNegotiation.ts:371`), and only then called `syncHolds` — which does dispatch
+`HOLDS_FAILED` but never calls `refundTradeFees`. The compensation branch's own comment
+reads "No exchange, no fee."
+
+Also: a FAILED placement comes back with an EMPTY `holdId`, which was recorded verbatim,
+so two failed holds on one trade shared a blank `hold_ref` and the compensation's
+per-ref lookups matched nothing.
+
+**Fix.** `placeBondsForAgreedTrade` returns `hold-failed` when any authorisation is not
+ACTIVE, so the caller compensates BEFORE anything is billed; the member-facing message
+names the card decline. Failed rows are recorded under the deterministic ref instead of
+an empty string. The rows are still written before returning the failure, deliberately —
+the compensation voids the holds that DID succeed and can only find them if they exist.
+
+---
+
+## F59 — `proposeTrade` let any verified member force two strangers into escrow (severity 4, FIXED)
+
+**Symptom.** Passing two item ids off the public catalog plus
+`{ onBehalfOfUserId: <victim> }` created a trade neither party proposed, reserved both
+items, and placed a real card authorisation for 100% of FMV on BOTH victims' saved cards —
+with the caller not a party to it. It also skipped the region-compatibility and shopfront
+guards `openTradeNegotiation` applies.
+
+**Cause.** The option existed for `acceptTradeProposal`, removed in 0055 with no
+replacement. Its own doc-comment said the value "must never be threaded through from
+client input" — but every export of a `'use server'` module IS client input. The action
+has no caller anywhere in `app/` or `components/`: dead code that was still a live
+endpoint.
+
+**Fix.** The option is gone and the proposer is always `user.id`. The Identity_Gate loop
+it left behind was checking the caller twice and the actual counterparty never, so that
+is fixed too — the counterparty is now resolved from the item being traded for and gated,
+which is what "entering trade escrow gates BOTH parties" requires.
+
+---
+
+## F60 — A trade bundle could contain items the trader did not own (severity 4, FIXED)
+
+**Symptom.** Two effects, and the second costs real money.
+
+1. **Read escalation.** `items_trade_participant_select` (0071) grants a trade participant
+   SELECT on every item in that trade's `trade_items`. Padding a bundle with arbitrary ids
+   therefore granted read access to any row in `items` — including other members' hidden
+   private-trade items and the RESERVED/SOLD rows the catalog policy withholds.
+2. **Collateral inflation.** Bonds are sized from what each trader RECEIVES, read out of
+   `trade_items`. Padding your own side with strangers' expensive listings inflated the
+   COUNTERPARTY's real card authorisation, for goods you could never deliver, while the
+   exchange panel displayed them as genuinely on offer.
+
+**Cause.** `open_trade_negotiation` validates the two PRIMARY items — the counterpart's for
+owner and availability, the initiator's for owner — and then loops over
+`p_initiator_extra_item_ids` and `p_counterpart_extra_item_ids` inserting whatever it was
+handed (`0053:100-118`). Both arrays come from client input via `openTradeNegotiation`,
+which calls the RPC on the service-role client.
+
+**Fix.** `0074` adds a BEFORE INSERT trigger on `trade_items` enforcing that the item is
+owned by the named trader, is not a shopfront, and is not closed.
+
+**Why a trigger rather than a fix in the RPC.** Ownership is an invariant of the table, not
+of one caller: four migrations (0017, 0021, 0023, 0053) have written these rows, each
+superseding the last, so a per-caller check has to be restated in every future one. It also
+avoids recreating a 300-line function to add two lines, which is its own source of error.
+Availability is deliberately NOT checked — renegotiation rewrites a bundle while the
+primaries are already RESERVED by that very trade, so refusing a non-AVAILABLE item would
+reject the legitimate case. Verified against existing data before applying: 0 of 2 rows
+violate the new invariant.
+
+---
+
+## F61 — The $10 Friction_Tax return share was captured and never paid (severity 3, FIXED)
+
+**Symptom.** Every condition dispute captured $20 from the disputed-against trader and the
+platform kept all of it. The trader who has to post the item back was under-compensated by
+exactly the $10 that Req 7.3 allocates to them.
+
+**Cause.** The split was written to `friction_tax_return_cents` and then read by nothing
+but display code — the member's payouts screen and the arbitration queue's "amount at
+risk". Nothing ever moved the money. "Allocated" had quietly come to mean "paid".
+
+It was invisible to the solvency check as well: custody reconciliation reads only
+`cash_sales`, so a genuine member obligation sitting in the platform balance contributed
+nothing to `heldForMembersCents` — the direction that module's own comment identifies as
+the one that hides an insolvency.
+
+**Fix.** `0075` adds `friction_tax_return_nonce`, `_paid_at` and `_error` to `trades`, and
+`raiseConditionDispute` now pays the share to the RAISING trader via `payoutToMerchant`
+with a persisted nonce. `paid_at` staying NULL is what marks it as still owed, so an
+unpayable trader leaves a visible obligation rather than a silent one.
+
+The raising trader is the payee because they are the one returning the goods. The other $10
+is the platform's fee and correctly stays put.
+
+---
+
+## F62 — Nothing retried a failed Trade_Fee or a failed refund (severity 3, FIXED)
+
+Two instances of the same shape: a failure recorded to a column that no code ever read
+back.
+
+**The fee.** `chargeTradeFees`'s doc-comment says a failed fee "is recorded FAILED for the
+drain job to retry". There was no drain: `trade_fees` was touched only by the charge and
+refund functions in that one module, both of which run once. Every fee that failed — a
+declined card, a transient provider error — was permanently uncollected revenue. The call
+site also discarded the returned `anyFailed`, which is why nobody noticed.
+
+**The refund.** Worse, because the money belongs to a member. A refund the provider
+rejected was recorded FAILED and read by nothing.
+`0045_refund_failure_reopen.sql` reopens a FULL refund so a resolution can be made again,
+but deliberately not a PARTIAL one — so a partial refund that bounced left the Buyer's
+money in the platform balance permanently, while `sellerNetCentsFor` kept subtracting that
+same amount from the Seller's release. Neither party had it and nothing said so.
+
+**Fix.** `drainFailedTradeFees` and `processDueCashSaleRefunds`, both bounded, both
+per-row isolated, both reusing the persisted nonce verbatim so a retry can only replay a
+charge that already succeeded rather than issue a second one. The fee drain rides the
+hourly trade-inspections job; the refund drain rides the cash-sale payout job, isolated so
+a refund problem cannot stop sellers being paid. `MAX_FEE_ATTEMPTS = 8` at hourly cadence
+keeps every retry inside the provider's 24-hour idempotency window, which is the same
+reasoning `MAX_PAYOUT_ATTEMPTS` uses.
+
+---
+
+## F63 — The inspection sweep was unbounded, aborted on one bad row, and misreported what it did (severity 3, FIXED)
+
+**Symptom.** Three defects in one loop, all of which make the timeout fail in the way the
+timeout exists to prevent.
+
+1. **Unbounded.** `select * ... lte(deadline, now)` with no `.limit()`. Each trade makes
+   several provider calls and the route has a wall-clock limit, so a backlog was cut off
+   mid-batch — and the trades after the cut sat in INSPECTION past their deadline with
+   collateral burning toward the ~7-day authorisation limit.
+2. **No isolation.** Nothing in the loop was guarded, so a throw from any write, provider
+   call or notification insert propagated as a 500 and cost the whole queue.
+3. **Dishonest report.** `finalizeCompletedTrade` returned `void` and discarded both
+   outcomes, so the sweep counted the trade `completed` and told both traders in writing
+   that "both collateral holds were released" whether or not any had been.
+
+**Fix.** Bounded at 25 per pass, oldest deadline first, with a `moreDue` flag; per-row
+`try/catch`; `finalizeCompletedTrade` returns what it actually managed, the notification's
+claim is conditional on that, and `needsReconciliation` is reported separately because
+"completed" alone reads as nothing to look at. The cash-sale payout drain already did all
+three and was the model.
+
+---
+
+## F64 — Eight tables' row-level security existed only in the deployed database (severity 3, PARTLY FIXED)
+
+**Symptom.** `conversations`, `messages`, `notifications`, `offers`, `reports`, `reviews`
+and `watchlist` are created by NO migration. `pre_auth_holds` is created (0001) but never
+has `enable row level security` run on it — 0002 enables RLS on four tables and defers the
+collateral table's read policy to "the subsequent migration", which contains no policy.
+
+So the protection on the chat thread, the offer ledger, the review history, the
+notification feed and the COLLATERAL table lived only in the running database. Version
+control described a system where all of it was open.
+
+**This is why F54 went unnoticed.** Nobody reviewing `supabase/migrations` could have seen
+`messages_participant_update`, because it is not there.
+
+**Fix, and its limit.** `0076` records the RLS state as built — enables RLS on all eight
+and declares every policy exactly as the live database has it, idempotently. It does NOT
+invent `create table` DDL for the seven: that would mean guessing types, defaults,
+constraints and indexes, and because it would have to be `if not exists` to be safe, a
+wrong guess would never surface. An unverifiable lie in the migration history is worse than
+a known gap.
+
+**Still open:** a from-scratch `supabase db reset` cannot build this schema. It will now
+fail loudly on `0076` instead of quietly producing a database whose collateral and chat
+tables have no RLS, which is the better failure — but closing it properly means dumping the
+real DDL for those seven tables and verifying it against the live schema.
+
+---
+
+## F65 — The currency guard could never fire, and was never called (severity 2, FIXED)
+
+**Symptom.** `assertMinorUnitSupported` documents itself as "a crash at the seam rather
+than a rounding error in production" for currencies whose minor unit is a thousandth. It
+was neither.
+
+**Cause.** Two independent reasons, which is what made it look fine. `minorUnitDigits`
+returned only 0 or 2 — anything unrecognised fell through to 2 — so the condition
+`digits !== 0 && digits !== 2` was unsatisfiable. And a search across the whole repository
+finds no call site: only the definition, a re-export, and doc-comments referring to it. It
+was a comment describing a protection.
+
+Adding BHD, JOD, KWD, OMR or TND to `REGIONS` would have understated every amount in that
+region by a factor of ten, silently, with the numbers all looking plausible.
+
+**Fix.** `THREE_DECIMAL_CURRENCIES` makes the digit count truthful, and `readStripeConfig`
+calls the assertion on every payment configuration it builds — the point where a region
+becomes the currency every `amount` in `StripeService` is denominated in. Refusing to
+construct that configuration is a loud total failure for one region; the alternative is
+charging real people the wrong amount undetectably.
+
+---
+
+## F66 — The demo actions failed OPEN when Stripe was unconfigured (severity 3, FIXED)
+
+**Symptom.** `isPaymentDemoEnabled` was "on unless the value is exactly `'false'`", and
+`isLivePaymentsProvider` is false whenever Stripe is unconfigured. So a production
+deployment that lost or mistyped `STRIPE_SECRET_KEY` became one where the demo actions were
+live — and `fireIdentityWebhook` writes `identity_check_status = 'VERIFIED'` for its own
+caller, which is the gate that unlocks listing, selling and entering trade escrow. A
+missing credential was the thing that let every member verify themselves.
+
+**Fix.** Unset now means on in development, OFF in production. Development keeps working
+with no configuration, because that is where the panels are useful and there is no real
+money to reach; production requires the explicit opt-in. `playwright.config.ts` already
+sets `ENABLE_PAYMENT_DEMO: 'true'`, which it needs to because `next start` runs with
+`NODE_ENV=production`. Pinned by two new cases in `providerMode.test.ts`.
+
+---
+
+## F67 — A hold with no reported expiry was invisible to both sweeps, permanently (severity 3, FIXED)
+
+**Symptom.** `expiresAt` comes from the charge's `capture_before`, which is documented as
+present only after confirmation and only for card authorisations. When absent, the hold was
+recorded with `expires_at = null` — and both passes in `0035_hold_expiry_reconciler.sql`
+filter `expires_at is not null`. So the hold was never warned about and never marked
+EXPIRED, while `bothHoldsActive` kept reporting live collateral and `inspectionHoldRisk`
+returned `'safe'` because it had no expiry to compare. A trade could sit on collateral the
+provider had already released, with nothing anywhere saying so, and a dispute would find
+nothing to capture.
+
+**Fix.** `captureBefore` backstops a missing value with created + 7 days, but only for an
+intent in `requires_capture` — an intent that never reached an authorisation has no
+collateral to expire, and inventing a date for it would put a phantom row in front of the
+reconciler. An assumed date can only be wrong EARLY, which makes the system reconcile
+sooner than needed; reporting no expiry is wrong late, and silent.
+
+---
+
+## F68 — Smaller items fixed in the same pass (severity 1–2, FIXED)
+
+- **`FRICTION_TAX_CENTS` was declared three times** — in `disputeResolution.ts` (the one
+  actually captured), `payoutReadModel.ts` (what a member is shown) and `arbitration.ts`
+  (the queue's "amount at risk"). Three answers to one money question. Now one module,
+  `domain/dispute/frictionTax.ts`, with the other two importing it.
+- **`intent.amount_received || params.amount`** in both capture paths treated a
+  provider-reported 0 as absent and substituted what we ASKED for — turning our request
+  into the `captured_cents` an arbitrator reads, and on the fraud path into the amount paid
+  to the victim. Now `??`.
+- **`assignArbitrationCase` accepted any `assigneeId`** and wrote it unvalidated. The
+  assignee gains no access (the read policy is `is_staff()`), so the harm was to the queue:
+  cases parked on accounts that cannot work them, indistinguishable from cases in progress.
+  Now checks `is_admin or is_support`.
+- **`getCounterpartyIdentity` interpolated a client id into a PostgREST `or()` filter.** No
+  exploit was found — a later `.eq('id', ...)` rejects a non-UUID — but "a later call
+  happens to reject it" is not a control on the code path that discloses a verified legal
+  name. Now shape-checked first.
+- **`/listings/[id]/edit` was in `config.matcher` but not `PROTECTED_PREFIXES`**, so
+  `isProtected()` was false and neither the sign-in redirect, the fraud-ban redirect nor
+  the onboarding gate ran on a route that mutates. A prefix cannot express it (the variable
+  segment comes first), so `PROTECTED_PATTERNS` now carries the regex.
+- **The bounded `fullCapture` retry loop** sends the same idempotency key each attempt, so
+  after a definite provider rejection attempts 2 and 3 replay the cached rejection
+  instantly. Left as-is deliberately and documented: it is a TRANSPORT retry, and varying
+  the key per attempt would trade a recoverable operator task for the possibility of
+  capturing a trader's collateral twice.
+
+---
+
+## F69 — Known and NOT fixed in this round (OPEN)
+
+Recorded so none of it is mistaken for having been checked and found sound.
+
+1. **UI money conversion hardcodes 100 in about nine components** —
+   `ContractLineItems.tsx:59`, `ItemForm.tsx:228`, and the offer/terms/negotiation dialogs
+   all do `Math.round(dollars * 100)` and `(cents / 100).toFixed(2)` without consulting
+   `minorUnitDigits`. In a JPY region a seller typing `5000` would store 500,000. Latent
+   while AU is the only tradeable region, and the reason it is deferred rather than done is
+   that it wants one shared helper plus nine careful edits with the e2e suite run against
+   them — not a search and replace.
+2. **`formatCents` in `cashSaleOrchestrator.ts:672`** hardcodes `/100` and a bare `$` for
+   the permanent event log and contract chat. Same latency, same fix shape; the module
+   cannot import `lib/format`, so it needs a formatter injected through its deps.
+3. **Attempt counters are read-then-write** (`recordPayoutResult`, `recordRefundResult`,
+   `recordFeeResult`), so two concurrent failures can record the same incremented value.
+   Consequence is over-retrying, not lost money.
+4. **`collectedCents += entry.amountCents`** in `tradeFees.ts` sums what was REQUESTED, not
+   what the provider reported settled, so the returned figure is our belief rather than the
+   provider's fact.
+5. **No total ceiling on a shopfront contract price.** `proposeCashSalePrice` enforces
+   `AGREED_PRICE_MAX`; the line-item path checks only `> 0`, and 50 lines × 999 × the
+   per-line max reaches ~4.995e15 minor units, above which `agreedPriceCents * 500` exceeds
+   2^53 and the fee becomes inexact. Unreachable through the UI, reachable through the
+   action.
+6. **The trade fee base is read live rather than snapshotted** — `items.fmv_cents` is summed
+   at charge time, while the fee disclosed to the trader is derived independently in the UI.
+   A seller editing an FMV between disclosure and the second acceptance changes what the
+   other trader is charged.
+7. **`conversations_participant_update` allows substituting the other participant** and
+   repointing `trade_id` / `cash_sale_id`. `with_check` keeps the caller a participant so
+   there is no read-in, and 0072 narrowed the grant to `last_message_at` — which closes it
+   in practice. The policy is still wider than it needs to be.
+8. **The seven tables still have no `create table` in migrations** — see F64.
+9. **Two Supabase Auth settings** are flagged by the platform advisor and are Dashboard
+   changes, not code: leaked-password protection is disabled, and MFA options are minimal.
+
+After this round the Supabase security advisor reports **no findings against the
+`cardtrade` schema**. The warnings it still returns are all in the `public` schema, which
+belongs to the other project sharing this database — see F27.
+
+---
+
+## F70 — The column-level INSERT grants in 0073 had no effect (severity 4, FIXED)
+
+**A defect introduced by this round's own fix, found by verifying it instead of trusting
+it.** Recorded in full because the failure mode is subtle and will recur.
+
+**Symptom.** After 0073, `has_column_privilege('authenticated','cardtrade.messages','kind','INSERT')`
+was still **true**. So was `items.seller_identity_verified`, `items.seller_rating`,
+`messages.system_event` and `reports.reviewed_by` — every column 0073 was written to
+exclude.
+
+**Cause.** 0072 granted INSERT at TABLE level on `items`, `offers`, `conversations`,
+`messages`, `reviews`, `reports` and `watchlist`. 0073 then granted INSERT on specific
+COLUMNS of those same tables, intending to narrow it. But a table-level grant already
+covers every column, and PostgreSQL stores table-level and column-level grants as separate
+ACL entries — adding a narrower one does not remove the wider one. 0073 changed the
+intent and not the behaviour.
+
+`profiles` escaped only because it took a different route: there the table-level INSERT was
+REVOKED outright, so the escalation 0073 exists to close (self-inserting a row with
+`is_admin = true`, F55) really was closed.
+
+**Fix.** 0077 revokes the table-level INSERT on all seven and restates the column grants,
+so that file is the whole member INSERT surface rather than a diff against two others.
+
+**How it was caught, and the lesson.** Not by review, not by a test, and not by reading the
+migrations — those describe what was intended. By asking the database, per column, whether
+each member flow's privilege matched what it should be. A single query of ~87
+`has_column_privilege` / `has_table_privilege` assertions, half of them positive ("this
+flow must still work") and half negative ("this tampering must not"), found it immediately.
+
+**Worth repeating after ANY change to grants in this schema**, in both directions. The same
+query also found that `reviews_author_delete` is now an inert policy — no code deletes a
+review, so the blanket revoke left the grant off and the policy has nothing to permit. That
+is least privilege rather than a break, and it is left as-is deliberately.
+
+### How the grant changes were verified
+
+Three layers, because the first two cannot see what the third does:
+
+1. **Privilege assertions** (87 checks, above) — proves the ACL surface is exactly the
+   intended shape. This is what caught F70.
+2. **Policy/grant coherence** — every PERMISSIVE write policy in the schema cross-checked
+   against whether `authenticated` holds a matching grant, to find policies the revoke had
+   stranded. Thirteen are now inert; twelve are correct (service-role paths for arbitration
+   and report triage, `webhook_logs` whose policy is `using (false)` anyway, and
+   `profiles` INSERT per F55) and the thirteenth is the reviews note above.
+3. **Functional proof** — all thirteen member writes the application performs, executed
+   `set local role authenticated` with `request.jwt.claims` set, so grants, RLS policies
+   and triggers all applied together, inside a transaction ending in ROLLBACK. All
+   thirteen succeeded; `items.currency` was still derived as `aud` by its trigger and
+   `items.seller_identity_verified` was still set to `true` by its trigger **despite the
+   column no longer being grantable at insert**, which is precisely why excluding it is
+   safe. `messages.kind` came back `'USER'` from the column default, confirming the
+   INSERT policy's `kind = 'USER'` requirement is satisfied without granting the column.
+
+The 0074 trigger was verified the same way, four cases: an owned SINGLE listing is
+ACCEPTED, a foreign item is REFUSED (`trade-item-not-owned`), a shopfront is REFUSED, and
+a closed listing is REFUSED. Both probe transactions were confirmed to have left no rows.

@@ -159,6 +159,19 @@ export function makeCashSaleRepository(options: {
         sale.sellerPayoutAttempts < maxAttempts;
       return owed ? [sale.id] : [];
     },
+    async listDueRefunds({ maxAttempts }) {
+      const sale = state.sale;
+      if (!sale) return [];
+      // Mirrors the SQL predicate: a queued or failed refund with an amount and a
+      // collection to refund against, regardless of the sale's own status — a partial
+      // refund leaves it COMPLETED and a full one leaves it REFUNDED.
+      const owed =
+        (sale.refundStatus === 'PENDING' || sale.refundStatus === 'FAILED') &&
+        (sale.refundCents ?? 0) > 0 &&
+        Boolean(sale.transferId) &&
+        (sale.refundAttempts ?? 0) < maxAttempts;
+      return owed ? [sale.id] : [];
+    },
     async markPayoutDue() {
       if (!state.sale) return null;
       if (state.sale.status !== 'COMPLETED') return state.sale;

@@ -137,6 +137,19 @@ export function createSupabaseDisputeResolutionRepository(
         .eq('id', params.tradeId);
     },
 
+    async recordFrictionTaxReturnResult(params): Promise<void> {
+      // Columns from 0075. `paid_at` staying NULL is what marks the share as still owed,
+      // so it is only ever set on a settled payout.
+      await client
+        .from('trades')
+        .update({
+          friction_tax_return_nonce: params.nonce,
+          friction_tax_return_paid_at: params.paid ? new Date().toISOString() : null,
+          friction_tax_return_error: params.paid ? null : (params.error ?? null),
+        })
+        .eq('id', params.tradeId);
+    },
+
     async recordReturnOverdue(params): Promise<void> {
       await client.from('trades').update({ return_overdue: true }).eq('id', params.tradeId);
     },

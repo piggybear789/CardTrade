@@ -82,6 +82,18 @@ export async function getCounterpartyIdentity(
     return fail('NOT_A_COUNTERPARTY', 'No counterparty was specified.');
   }
 
+  // THE ID IS INTERPOLATED INTO A FILTER GRAMMAR BELOW, SO IT IS VALIDATED FIRST.
+  //
+  // `.or('and(initiator_id.eq.<id>,...)')` is PostgREST's own filter syntax, not a
+  // parameterised query: a value containing its metacharacters is parsed as structure
+  // rather than data. Nothing exploitable was found — the same string is later matched
+  // with `.eq('id', counterpartyId)`, which rejects a non-UUID — but "a later call
+  // happens to reject it" is not a control, and this one decides whether a verified
+  // legal name is disclosed. A shape check makes the guarantee local.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(counterpartyId)) {
+    return fail('PROFILE_NOT_FOUND', 'That member could not be found.');
+  }
+
   const admin = createAdminClient();
 
   // Prove a shared transaction exists before disclosing anything. Either relationship

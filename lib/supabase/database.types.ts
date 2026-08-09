@@ -95,7 +95,8 @@ export type Database = {
            * Self-chosen and unverified, so it is never identity: that is the
            * Identity_Gate plus `merchant_legal_entity_name`.
            */
-          avatar_path: string | null;
+          avatar_path: string | null;
+
           /**
            * Stripe Identity check state (0069). THIS is the Identity_Gate.
            *
@@ -143,7 +144,8 @@ export type Database = {
           onboarding_completed_at?: string | null;
           region_code?: string | null;
 
-          avatar_path?: string | null;
+          avatar_path?: string | null;
+
 
           identity_check_status?: Database['cardtrade']['Enums']['identity_check_status'];
 
@@ -189,7 +191,8 @@ export type Database = {
           onboarding_completed_at?: string | null;
           region_code?: string | null;
 
-          avatar_path?: string | null;
+          avatar_path?: string | null;
+
 
           identity_check_status?: Database['cardtrade']['Enums']['identity_check_status'];
 
@@ -416,6 +419,13 @@ export type Database = {
           delivery_cost_cents: number | null;
           friction_tax_return_cents: number | null;
           friction_tax_platform_cents: number | null;
+          /**
+           * Payout of the return-shipping share (0075). `paid_at` NULL with
+           * `friction_tax_return_cents` set means the money is captured but still owed.
+           */
+          friction_tax_return_nonce: string | null;
+          friction_tax_return_paid_at: string | null;
+          friction_tax_return_error: string | null;
           partial_capture_failed: boolean;
           return_overdue: boolean;
           full_capture_failed: boolean;
@@ -508,6 +518,9 @@ export type Database = {
           delivery_cost_cents?: number | null;
           friction_tax_return_cents?: number | null;
           friction_tax_platform_cents?: number | null;
+          friction_tax_return_nonce?: string | null;
+          friction_tax_return_paid_at?: string | null;
+          friction_tax_return_error?: string | null;
           partial_capture_failed?: boolean;
           return_overdue?: boolean;
           full_capture_failed?: boolean;
@@ -583,6 +596,9 @@ export type Database = {
           fraud_claimed_at?: string | null;
           friction_tax_return_cents?: number | null;
           friction_tax_platform_cents?: number | null;
+          friction_tax_return_nonce?: string | null;
+          friction_tax_return_paid_at?: string | null;
+          friction_tax_return_error?: string | null;
           partial_capture_failed?: boolean;
           return_overdue?: boolean;
           full_capture_failed?: boolean;
@@ -1838,7 +1854,8 @@ export type Database = {
            * Self-chosen and unverified, so it is never identity: that is the
            * Identity_Gate plus `merchant_legal_entity_name`.
            */
-          avatar_path: string | null;
+          avatar_path: string | null;
+
           /**
            * Stripe Identity check state (0069). THIS is the Identity_Gate.
            *

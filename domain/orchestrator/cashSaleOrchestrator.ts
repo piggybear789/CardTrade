@@ -524,6 +524,21 @@ export interface CashSaleRepository {
     maxAttempts: number;
     currency?: string;
   }): Promise<string[]>;
+  /**
+   * Ids of contracts whose refund to the Buyer is owed and still retryable.
+   *
+   * The counterpart of {@link CashSaleRepository.listDuePayouts}, and it did not exist:
+   * a refund that failed at the provider was recorded FAILED and then read by nothing.
+   * `0045_refund_failure_reopen.sql` reopens a FULL refund so a resolution can be made
+   * again, but deliberately not a PARTIAL one — so a partial refund that bounced left
+   * the Buyer's money in the platform balance permanently, with the seller's release
+   * still reduced by it. Silent, and in the platform's favour.
+   */
+  listDueRefunds(params: {
+    limit: number;
+    maxAttempts: number;
+    currency?: string;
+  }): Promise<string[]>;
   /** Record the outcome of a release attempt (Req 4.3, 4.4). */
   recordPayoutResult(params: {
     cashSaleId: string;
@@ -1859,6 +1874,95 @@ export async function processDueCashSalePayouts(
   return { considered: due.length, settled, stillOwed: due.length - settled };
 }
 
+/** Outcome of one refund-retry pass. */
+export interface ProcessDueRefundsResult {
+  considered: number;
+  settled: number;
+  stillOwed: number;
+}
+
+/**
+ * Retry refunds owed to Buyers that have not landed.
+ *
+ * THE COUNTERPART OF THE PAYOUT DRAIN, AND IT WAS MISSING. A refund that the provider
+ * rejected was recorded FAILED and then read by nothing at all — no job, no action, no
+ * admin control. For a PARTIAL refund that is terminal: 0045 reopens only a full one, so
+ * the sale stayed COMPLETED, `refund_cents` stayed set, the Buyer got nothing, and
+ * `sellerNetCentsFor` kept subtracting that same amount from the Seller's release. The
+ * platform ended up holding money that belonged to one of them, with no record that
+ * anything was outstanding.
+ *
+ * Reuses each sale's PERSISTED refund nonce, so a retry can only replay a refund that
+ * actually succeeded rather than issue a second one.
+ *
+ * Per-sale isolation: one dead card must not stop other Buyers being repaid.
+ */
+export async function processDueCashSaleRefunds(
+  deps: CashSaleOrchestratorDeps,
+  params: { limit?: number; maxAttempts?: number } = {},
+): Promise<ProcessDueRefundsResult> {
+  const limit = Math.max(1, Math.min(params.limit ?? 25, 200));
+  const maxAttempts = params.maxAttempts ?? MAX_PAYOUT_ATTEMPTS;
+
+  const due = await deps.repository.listDueRefunds({
+    limit,
+    maxAttempts,
+    currency: deps.payoutRegionCurrency,
+  });
+
+  let settled = 0;
+  for (const cashSaleId of due) {
+    const result = await retryCashSaleRefund(deps, { cashSaleId });
+    if (result) settled += 1;
+  }
+
+  return { considered: due.length, settled, stillOwed: due.length - settled };
+}
+
+/**
+ * Re-attempt one sale's outstanding refund. Returns whether it settled.
+ *
+ * Moves no state other than the refund's own: the dispute outcome has already been
+ * decided and the sale's status already reflects it. This only finishes the money.
+ */
+async function retryCashSaleRefund(
+  deps: CashSaleOrchestratorDeps,
+  params: { cashSaleId: string },
+): Promise<boolean> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return false;
+  if (sale.refundStatus === 'SETTLED') return false;
+
+  const amount = Math.max(Math.trunc(sale.refundCents ?? 0), 0);
+  // `transferId` is the collection being refunded, and the nonce must already exist:
+  // `markRefundDue` assigns it atomically in SQL. Missing either means this row was
+  // never a queued refund, so it is left alone rather than guessed at.
+  if (amount <= 0 || !sale.transferId || !sale.refundNonce) return false;
+
+  const refund = await deps.payments.refundPayment({
+    paymentRef: sale.transferId,
+    amount,
+    nonce: sale.refundNonce,
+    ref: `cash-sale-refund:${sale.id}`,
+  });
+
+  if (refund.status !== 'SETTLED') {
+    await deps.repository.recordRefundResult({
+      cashSaleId: sale.id,
+      status: 'FAILED',
+      error: 'Provider rejected the refund retry',
+    });
+    return false;
+  }
+
+  await deps.repository.recordRefundResult({
+    cashSaleId: sale.id,
+    status: 'SETTLED',
+    refundId: refund.refundId,
+  });
+  return true;
+}
+
 /** Provider failure releases the reserved Item. */
 export async function failCashSale(
   deps: CashSaleOrchestratorDeps,
@@ -2189,6 +2293,11 @@ export interface CashSaleOrchestrator {
     limit?: number;
     maxAttempts?: number;
   }): Promise<ProcessDuePayoutsResult>;
+  /** Retry every refund still owed to a Buyer (Req 4.15). */
+  processDueRefunds(params?: {
+    limit?: number;
+    maxAttempts?: number;
+  }): Promise<ProcessDueRefundsResult>;
   ensureConversation(params: {
     actorId: string;
     cashSaleId: string;
@@ -2230,6 +2339,7 @@ export function createCashSaleOrchestrator(
     payoutSeller: (params) => payoutCashSaleSeller(deps, params),
     resolveDispute: (params) => resolveCashSaleDispute(deps, params),
     processDuePayouts: (params) => processDueCashSalePayouts(deps, params),
+    processDueRefunds: (params) => processDueCashSaleRefunds(deps, params),
     ensureConversation: (params) => ensureCashSaleConversation(deps, params),
     recordShipment: (params) => recordCashSaleShipment(deps, params),
     recordReceipt: (params) => recordCashSaleReceipt(deps, params),

@@ -79,7 +79,9 @@ export function createSupabaseTradeProposalRepository(
     async getItem(itemId: string): Promise<ItemRecord | null> {
       const { data } = await client
         .from('items')
-        .select('id, owner_id, fmv_cents, status')
+        // `listing_kind` is not cosmetic here: it decides whether this item's
+        // `fmv_cents` may be summed into a side value at all (0081).
+        .select('id, owner_id, fmv_cents, status, listing_kind')
         .eq('id', itemId)
         .maybeSingle();
       if (!data) return null;
@@ -88,8 +90,15 @@ export function createSupabaseTradeProposalRepository(
         owner_id: string;
         fmv_cents: number;
         status: ItemRecord['status'];
+        listing_kind: NonNullable<ItemRecord['listingKind']>;
       };
-      return { id: row.id, ownerId: row.owner_id, fmvCents: Number(row.fmv_cents), status: row.status };
+      return {
+        id: row.id,
+        ownerId: row.owner_id,
+        fmvCents: Number(row.fmv_cents),
+        status: row.status,
+        listingKind: row.listing_kind,
+      };
     },
 
     async createTrade(params: CreateTradeParams): Promise<TradeRecord> {
@@ -113,11 +122,23 @@ export function createSupabaseTradeProposalRepository(
 
     async reserveItems(itemIds: string[]): Promise<void> {
       if (itemIds.length === 0) return;
-      await client.from('items').update({ status: 'RESERVED' }).in('id', itemIds);
+      // A SHOPFRONT is never reserved (0064). Several members hold their own
+      // contracts against one binder, and `items_catalog_select` treats
+      // availability as VISIBILITY — so reserving it would delete the binder from
+      // the catalog for everybody else. Filtered here as well as in
+      // `begin_trade_collateral`, because both paths reach the same rows.
+      await client
+        .from('items')
+        .update({ status: 'RESERVED' })
+        .in('id', itemIds)
+        .neq('listing_kind', 'SHOPFRONT');
     },
 
     async restoreItems(itemIds: string[]): Promise<void> {
       if (itemIds.length === 0) return;
+      // Deliberately unfiltered: a binder is already AVAILABLE, so this is a no-op
+      // on one. Excluding it would only mean a future non-shopfront path silently
+      // skipping a restore.
       await client.from('items').update({ status: 'AVAILABLE' }).in('id', itemIds);
     },
 

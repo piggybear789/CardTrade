@@ -133,27 +133,22 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   // a CardTrade operator decides the outcome. The previous copy promised the caller
   // the other trader's deposit, which was both a promise the caller could not be
   // entitled to make and an accurate description of a hole that has since been shut.
+  //
+  // NEITHER USES A BARE CONFIRM ANY MORE (0083). Both now collect the claimant's own
+  // account through `HandoverFailedDialog`, the same surface the never-arrived report
+  // uses, because a dispute that captures $20 from the other trader — and a fraud claim
+  // that can capture their whole collateral — must say what it is about. The Cash_Sale
+  // room has demanded a reason since 0044; these did not, and an arbitrator opening a
+  // trade case got three ids and a timestamp.
   RAISE_DISPUTE: {
     label: 'Raise dispute',
     successMessage: 'Dispute raised. A CardTrade operator will review it.',
     variant: 'outline',
-    confirm: {
-      title: 'Raise a condition dispute?',
-      description:
-        'Use this when the item is not in the condition described. Both deposits stay frozen while a CardTrade operator reviews it. If the dispute is upheld, $20.00 goes from the other trader towards return postage.',
-      confirmLabel: 'Raise dispute',
-    },
   },
   REPORT_FRAUD: {
     label: 'Report fraud',
     successMessage: 'Fraud reported. A CardTrade operator will review it.',
     variant: 'destructive',
-    confirm: {
-      title: 'Report fraud?',
-      description:
-        'Use this for an empty box or a fake item. This freezes both deposits and sends the trade to a CardTrade operator, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged.',
-      confirmLabel: 'Report fraud',
-    },
   },
 };
 
@@ -195,10 +190,15 @@ async function runAction(
       return recordReceipt(tradeId);
     case 'RECORD_ACCEPTANCE':
       return recordAcceptance(tradeId);
+    // RAISE_DISPUTE and REPORT_FRAUD are NOT routed here (0083). Both need the
+    // claimant's own account, so both render their own dialog and call the action
+    // with the reason directly. Reaching this branch would mean a button bypassed
+    // that dialog, which must fail loudly rather than filing a claim with no words.
     case 'RAISE_DISPUTE':
-      return raiseDispute(tradeId);
     case 'REPORT_FRAUD':
-      return reportFraud(tradeId);
+      throw new Error(
+        `${action} must be raised through its dialog so a reason is captured.`,
+      );
   }
 }
 
@@ -271,6 +271,49 @@ export function ActionBar({
       <div className="flex flex-wrap gap-3" role="group" aria-label="Trade actions">
         {actions.map((action) => {
           const config = ACTION_CONFIG[action];
+
+          // Dispute and fraud collect the claimant's account rather than a bare
+          // confirm (0083) — see the note on ACTION_CONFIG.
+          if (action === 'RAISE_DISPUTE') {
+            return (
+              <HandoverFailedDialog
+                key={action}
+                triggerLabel="Raise dispute"
+                triggerVariant="outline"
+                title="Raise a condition dispute"
+                outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while a CardTrade operator reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — the operator decides on what you write here."
+                successMessage={config.successMessage}
+                reasonPlaceholder="e.g. the card was described as Near Mint but has a crease down the front and whitening on all four corners…"
+                onSubmit={async (reason) => {
+                  const result = await raiseDispute(tradeId, reason);
+                  return result.ok
+                    ? { ok: true }
+                    : { ok: false, message: errorMessage(result) };
+                }}
+              />
+            );
+          }
+
+          if (action === 'REPORT_FRAUD') {
+            return (
+              <HandoverFailedDialog
+                key={action}
+                triggerLabel="Report fraud"
+                triggerVariant="destructive"
+                title="Report fraud"
+                outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to a CardTrade operator, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
+                successMessage={config.successMessage}
+                reasonPlaceholder="e.g. the sleeve was sealed but empty; the card fails a light test and the print pattern is wrong…"
+                onSubmit={async (reason) => {
+                  const result = await reportFraud(tradeId, reason);
+                  return result.ok
+                    ? { ok: true }
+                    : { ok: false, message: errorMessage(result) };
+                }}
+              />
+            );
+          }
+
           return (
             <Button
               key={action}

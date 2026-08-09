@@ -21,7 +21,7 @@ const HOLD_STATUS: Record<
   FULLY_CAPTURED: { label: 'Fully captured', tone: 'destructive' },
   FAILED: { label: 'Failed', tone: 'destructive' },
   // Destructive, not secondary: "Released" reads as a good outcome, and this is
-  // the opposite — the escrow window ran out and the collateral is gone.
+  // the opposite — the authorisation window ran out and the collateral is gone.
   EXPIRED: { label: 'Expired — no longer protected', tone: 'destructive' },
 };
 

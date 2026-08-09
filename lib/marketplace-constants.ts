@@ -84,3 +84,14 @@ export const DEAL_EVENT_COMPLETE_MARKED = 'COMPLETE_MARKED';
  * `supabase/migrations/0014_trade_proposals.sql`.
  */
 export const TRADE_PROPOSAL_MESSAGE_MAX = 2000;
+
+
+/**
+ * Bounds for a dispute claim — the raiser's own account of what went wrong.
+ *
+ * Mirrors the CHECK constraints on `cash_sales.dispute_reason` and
+ * `trades.dispute_reason` (0083). Both flows use the same numbers deliberately: a
+ * dispute reads the same in either room, so it must be bounded the same in both.
+ */
+export const DISPUTE_REASON_MIN = 10;
+export const DISPUTE_REASON_MAX = 2000;

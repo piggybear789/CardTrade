@@ -250,46 +250,59 @@ export function ImageGallery({
           <span className="sr-only">{active.alt} failed to load</span>
         </div>
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={active.src}
-          alt={active.alt}
-          // `contain`, not `cover`: a graded collectible must never be cropped —
-          // the slab label and edges are part of what the buyer is inspecting.
-          //
-          // eBay-style zoom: scaling around origin 0,0, the pan is
-          // `-(ZOOM-1) * cursor`, which maps the pointer linearly across the
-          // zoomed overflow — pointer at a frame edge shows that edge of the
-          // image, and the point under the pointer never jumps. Transitions
-          // run on engage/disengage so the zoom animates, but are killed while
-          // panning so the image tracks the pointer exactly (transition lag
-          // during a pan was the old "finicky" feel). `transform` keeps it on
-          // the compositor, so tracking stays smooth.
-          className={cn(
-            'h-full w-full object-contain will-change-transform',
-            zoomPoint ? 'cursor-zoom-out' : 'cursor-zoom-in',
-            panning
-              ? 'transition-none'
-              : 'transition-transform duration-150 ease-out motion-reduce:transition-none',
-          )}
-          // The origin must NEVER change between idle and zoomed frames: it
-          // isn't part of the transition, so removing it on zoom-out snapped
-          // it to the default 50%/50% mid-animation — the visible "flash".
-          style={{
-            transformOrigin: '0 0',
-            ...(zoomPoint
-              ? {
-                  transform: `translate(${-(ZOOM_SCALE - 1) * zoomPoint.x}px, ${
-                    -(ZOOM_SCALE - 1) * zoomPoint.y
-                  }px) scale(${ZOOM_SCALE})`,
-                }
-              : {}),
-          }}
-          draggable={false}
-          onError={() =>
-            setFailedSrcs((prevFailed) => ({ ...prevFailed, [active.src]: true }))
-          }
-        />
+        <>
+          {/* Blurred background fill — same image scaled up behind the contained
+              sharp version, like Facebook Marketplace. Fills the dead space around
+              non-square images with a soft mosaic of the image's own colours. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={active.src}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full scale-110 object-cover blur-lg opacity-90"
+            draggable={false}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={active.src}
+            alt={active.alt}
+            // `contain`, not `cover`: a graded collectible must never be cropped —
+            // the slab label and edges are part of what the buyer is inspecting.
+            //
+            // eBay-style zoom: scaling around origin 0,0, the pan is
+            // `-(ZOOM-1) * cursor`, which maps the pointer linearly across the
+            // zoomed overflow — pointer at a frame edge shows that edge of the
+            // image, and the point under the pointer never jumps. Transitions
+            // run on engage/disengage so the zoom animates, but are killed while
+            // panning so the image tracks the pointer exactly (transition lag
+            // during a pan was the old "finicky" feel). `transform` keeps it on
+            // the compositor, so tracking stays smooth.
+            className={cn(
+              'relative h-full w-full object-contain will-change-transform',
+              zoomPoint ? 'cursor-zoom-out' : 'cursor-zoom-in',
+              panning
+                ? 'transition-none'
+                : 'transition-transform duration-150 ease-out motion-reduce:transition-none',
+            )}
+            // The origin must NEVER change between idle and zoomed frames: it
+            // isn't part of the transition, so removing it on zoom-out snapped
+            // it to the default 50%/50% mid-animation — the visible "flash".
+            style={{
+              transformOrigin: '0 0',
+              ...(zoomPoint
+                ? {
+                    transform: `translate(${-(ZOOM_SCALE - 1) * zoomPoint.x}px, ${
+                      -(ZOOM_SCALE - 1) * zoomPoint.y
+                    }px) scale(${ZOOM_SCALE})`,
+                  }
+                : {}),
+            }}
+            draggable={false}
+            onError={() =>
+              setFailedSrcs((prevFailed) => ({ ...prevFailed, [active.src]: true }))
+            }
+          />
+        </>
       )}
 
       {/* Affordance hint, fading out once the zoom engages so it never sits on

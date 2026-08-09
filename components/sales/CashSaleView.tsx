@@ -60,6 +60,7 @@ import {
   ContractPartyLine,
   ContractProgressRail,
   ContractTimeline,
+  DisputeEvidencePanel,
   useContractConversation,
   useContractFocus,
   type ContractActionTone,
@@ -76,6 +77,7 @@ import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
 import { EditContractItemsDialog } from './EditContractItemsDialog';
 import { ContractLineItemsList, type ContractLine } from './ContractLineItems';
+import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { cashSaleErrorMessage } from './errorCopy';
 import { CashSaleDemoControls } from './CashSaleDemoControls';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
@@ -316,6 +318,14 @@ export interface CashSaleViewProps {
    * goods. Empty for a single-item sale, whose goods are the item snapshot.
    */
   lineItems?: ContractLine[];
+  /**
+   * Participant evidence on file, when this contract is DISPUTED (0082).
+   *
+   * Loaded by the page rather than fetched here: the panel is a tab in the details
+   * inspector, and a client-side fetch would leave it empty on first paint of a
+   * surface whose whole job is to be read.
+   */
+  disputeEvidence?: DisputeEvidenceEntry[];
 }
 
 /**
@@ -372,6 +382,7 @@ function CashSaleRoom({
   trackingRefreshAvailable = false,
   paymentDemoEnabled = false,
   lineItems = [],
+  disputeEvidence = [],
 }: CashSaleViewProps) {
   const router = useRouter();
   const { focusSection } = useContractFocus();
@@ -632,7 +643,7 @@ function CashSaleRoom({
                     type="button"
                     onClick={() => focusSection(CASH_SALE_SECTIONS.terms)}
                   >
-                    Choose a method
+                    Select delivery method
                   </Button>
                 ) : !iAccepted ? (
                   <Button
@@ -940,31 +951,56 @@ function CashSaleRoom({
               still edit; these lines are the contract, and they are frozen once
               payment starts (0064). */}
           {fromShopfront ? (
-            <div className="space-y-3">
-              <ContractLineItemsList lines={lineItems} currency={sale.currency} />
-              {editable ? (
-                <>
-                  <EditContractItemsDialog
-                    cashSaleId={sale.id}
-                    termsVersion={sale.terms_version}
-                    lines={lineItems}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Changing this list re-prices the contract and clears both
-                    acceptances, so you will each need to accept again.
-                  </p>
-                </>
-              ) : null}
-              <p className="text-xs text-muted-foreground">
-                From{' '}
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
+              <div className="flex min-h-0 flex-1 flex-col items-stretch gap-6 md:flex-row">
+                {/* The binder's own photos, snapshotted when the contract opened.
+                    Kept because they are how a buyer recognises what they asked
+                    for — the written terms name the cards, the photos are the
+                    only picture of them anyone has. They do NOT define the goods:
+                    a binder photo shows the whole lot, and the seller can still
+                    edit the live listing, which is why the wording beside them is
+                    the contract and this is a snapshot. */}
+                {itemImages.length > 0 ? (
+                  <div className="min-w-0 md:flex md:flex-1 md:flex-col md:justify-center">
+                    <ImageGallery
+                      images={itemImages.map((src, index) => ({
+                        src,
+                        alt: `${sale.item_title} — image ${index + 1}`,
+                      }))}
+                      title={sale.item_title}
+                      frameClassName="h-full min-h-[18rem] max-h-[26rem] md:min-h-0 md:max-h-[calc(100%-1rem)]"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="flex min-w-0 flex-col gap-3 md:flex-1 md:overflow-y-auto md:overscroll-contain md:pr-1">
+                  <ContractLineItemsList lines={lineItems} currency={sale.currency} />
+                  {editable ? (
+                    <div className="space-y-2">
+                      <EditContractItemsDialog
+                        cashSaleId={sale.id}
+                        termsVersion={sale.terms_version}
+                        lines={lineItems}
+                        currency={sale.currency}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Changing this re-prices the contract and clears both
+                        acceptances, so you will each need to accept again.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <p className="shrink-0 border-t pt-3 text-xs text-muted-foreground">
+                Photos are the snapshot saved when this contract opened. Nothing on{' '}
                 <Link
                   href={`/listings/${sale.item_id}`}
-                  className="underline underline-offset-2 hover:text-foreground"
+                  className="font-medium underline-offset-4 hover:underline"
                 >
                   {sale.item_title}
-                </Link>
-                . Nothing on that listing is held for you — this contract is what
-                you both agreed to.
+                </Link>{' '}
+                is held for you — the wording above is what you both agreed to.
               </p>
             </div>
           ) : (
@@ -1228,6 +1264,39 @@ function CashSaleRoom({
           </div>
         </ContractDetailRow>
 
+        {/* Dispute evidence (0082). Present ONLY while the contract is disputed or
+            has been decided — a Dispute tab on a healthy contract would invite one.
+            Placed before History because it is the live thing being worked on; the
+            timeline is the record behind it. */}
+        {sale.status === 'DISPUTED' || sale.dispute_resolution ? (
+          <ContractDetailRow
+            id={CASH_SALE_SECTIONS.dispute}
+            label="Dispute"
+            explainer="Your account of what happened, with photos or video. Both of you can see everything here, and so can the staff member deciding it."
+            summary={
+              disputeEvidence.length > 0
+                ? `${disputeEvidence.length} submission${disputeEvidence.length === 1 ? '' : 's'}`
+                : 'Nothing submitted yet'
+            }
+          >
+            <DisputeEvidencePanel
+              caseKind="CASH_SALE"
+              caseRef={sale.id}
+              entries={disputeEvidence}
+              disputeReason={sale.dispute_reason}
+              raisedByName={
+                sale.disputed_by
+                  ? sale.disputed_by === myUserId
+                    ? 'you'
+                    : them.name
+                  : null
+              }
+              // The record stays readable after a decision; the form does not.
+              canSubmit={sale.status === 'DISPUTED'}
+            />
+          </ContractDetailRow>
+        ) : null}
+
         {events.length > 0 ? (
           <ContractDetailRow
             id={CASH_SALE_SECTIONS.history}
@@ -1284,10 +1353,8 @@ function CashSaleRoom({
         open={confirming === 'dispute'}
         onOpenChange={(next) => setConfirming(next ? 'dispute' : null)}
         title="Raise a dispute?"
-        // "locked in escrow" replaced with what actually happens: NoDitto is holding
-        // the funds and stops releasing them. Escrow has a specific legal meaning that
-        // implies a segregated arrangement, and these funds sit in the platform's own
-        // balance — so the plainer description is both accurate and less of a claim.
+        // The platform holds funds until resolution — never say "escrow" because it
+        // implies a segregated custodial arrangement that does not exist.
         description="NoDitto keeps holding your payment while the case is reviewed, and the seller is notified immediately. You cannot undo this."
         confirmLabel="Raise dispute"
         confirmVariant="destructive"

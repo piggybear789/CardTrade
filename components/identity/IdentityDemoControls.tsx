@@ -9,7 +9,7 @@
 // purpose — a mock that auto-verified would let local dev walk through a gate
 // production makes you earn, which is the 0060 shape of mistake. With nothing able
 // to drive it forward, though, the gate was permanently shut locally: no listing, no
-// selling, no trade escrow. This is the crank that turns it, and it fires a signed
+// selling, no trade collateral. This is the crank that turns it, and it fires a signed
 // webhook through the real handler rather than writing the column, so the local path
 // is the same translate → map → persist path Stripe's own delivery takes.
 //

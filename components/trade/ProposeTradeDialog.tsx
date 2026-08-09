@@ -138,8 +138,13 @@ export function ProposeTradeDialog({
           <>
             <DialogHeader className="shrink-0 border-b border-border/70 px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
               <DialogTitle>Offer a trade</DialogTitle>
+              {/* On a binder nothing is held even AFTER they accept — every other
+                  listing reserves on acceptance, so saying "until they accept" here
+                  would promise the opposite of what happens. */}
               <DialogDescription>
-                Nothing is reserved until {requested.ownerName} accepts.
+                {requested.isShopfront
+                  ? `Nothing in this listing is held for you. ${requested.ownerName} can still sell the same cards to someone else.`
+                  : `Nothing is reserved until ${requested.ownerName} accepts.`}
               </DialogDescription>
             </DialogHeader>
             <TradeOfferForm

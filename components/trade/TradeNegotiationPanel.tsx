@@ -80,6 +80,12 @@ export interface TradeNegotiationPanelProps {
     deliveryDetails: string | null;
     deliveryCostCents: number | null;
     offerMessage: string | null;
+    /**
+     * What the counterpart is handing over out of a binder (0081). Non-null is what
+     * MAKES this a binder trade, so it doubles as the flag: the field appears on the
+     * counter form only for a trade that has one.
+     */
+    counterpartGoodsDescription: string | null;
   };
 }
 
@@ -121,6 +127,14 @@ export function TradeNegotiationPanel({
     ((terms.deliveryCostCents ?? 0) / 100).toFixed(2),
   );
   const [note, setNote] = useState('');
+  /**
+   * The binder side's goods, seeded from the current terms so a counter about
+   * postage does not read as if the cards were up for renegotiation too.
+   */
+  const isShopfrontTrade = terms.counterpartGoodsDescription !== null;
+  const [counterpartGoods, setCounterpartGoods] = useState(
+    terms.counterpartGoodsDescription ?? '',
+  );
   const [error, setError] = useState<string | null>(null);
 
   const actions = availableActions('NEGOTIATING', viewer);
@@ -130,7 +144,7 @@ export function TradeNegotiationPanel({
     startTransition(async () => {
       const result = await operation();
       if (result.ok) {
-        toast.success(result.escrowStarted ? 'Terms agreed. Collateral is being arranged.' : success);
+        toast.success(result.collateralStarted ? 'Terms agreed. Collateral is being arranged.' : success);
         setCounterOpen(false);
         setDeclineOpen(false);
         router.refresh();
@@ -160,6 +174,10 @@ export function TradeNegotiationPanel({
       }
     }
     const shippingCents = Math.round(Number.parseFloat(deliveryCost || '0') * 100);
+    if (isShopfrontTrade && counterpartGoods.trim() === '') {
+      setError('Say which cards are coming out of the listing.');
+      return;
+    }
 
     const payload: TradeTermsInput = {
       cashAmountCents: cents,
@@ -173,6 +191,7 @@ export function TradeNegotiationPanel({
       deliveryDetails: method === 'DELIVERY' ? deliveryDetails : null,
       deliveryCostCents: method === 'DELIVERY' ? shippingCents : null,
       message: note,
+      counterpartGoodsDescription: isShopfrontTrade ? counterpartGoods.trim() : null,
     };
     run(
       () => proposeTradeTerms(tradeId, termsVersion, payload),
@@ -225,6 +244,30 @@ export function TradeNegotiationPanel({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* First, because on a binder trade it is the substance: what actually
+                changes hands. Changing it voids both acceptances, same as changing
+                the cash. */}
+            {isShopfrontTrade ? (
+              <div className="space-y-2">
+                <Label htmlFor="trade-counterpart-goods">Cards from the listing</Label>
+                <Textarea
+                  id="trade-counterpart-goods"
+                  value={counterpartGoods}
+                  onChange={(event) => setCounterpartGoods(event.target.value)}
+                  maxLength={1000}
+                  rows={3}
+                  aria-describedby="trade-counterpart-goods-hint"
+                />
+                <p
+                  id="trade-counterpart-goods-hint"
+                  className="text-xs text-muted-foreground"
+                >
+                  The listing is a binder or bulk lot, so this is the record of what is
+                  being swapped. It is what an arbitrator reads if the trade goes wrong.
+                </p>
+              </div>
+            ) : null}
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="trade-cash">Cash</Label>

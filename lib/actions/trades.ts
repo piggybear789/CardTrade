@@ -57,7 +57,11 @@ import {
 } from '@/domain/fulfilment';
 import { getTrackingService } from '@/domain/services/tracking';
 import { finalizeCompletedTrade, settleTradeCash } from '@/lib/trades/completion';
-import { DEAL_DELIVERY_COST_MAX } from '@/lib/marketplace-constants';
+import {
+  DEAL_DELIVERY_COST_MAX,
+  DISPUTE_REASON_MAX,
+  DISPUTE_REASON_MIN,
+} from '@/lib/marketplace-constants';
 import type { TablesUpdate } from '@/lib/supabase/database.types';
 import { revalidatePath } from 'next/cache';
 
@@ -237,10 +241,29 @@ export async function proposeTrade(
   // The counterparty is now resolved from the item being traded for.
   const { data: targetItem } = await supabase
     .from('items')
-    .select('owner_id')
+    .select('owner_id, listing_kind')
     .eq('id', counterpartItemId)
     .maybeSingle();
   if (!targetItem) return { ok: false, error: 'item-not-found' };
+
+  // A binder can be traded FOR since 0081, but only through `openTradeNegotiation`,
+  // which collects the statement of which cards come out of it. This path creates the
+  // trade, reserves the goods and authorises both cards in ONE step, so it has no
+  // point at which that statement could be agreed — and a binder trade without it is
+  // a contract whose goods are an inventory title, which is precisely what arbitration
+  // cannot adjudicate. Refused rather than allowed to create one silently.
+  //
+  // This module has no UI caller, but every export of a `'use server'` module is an
+  // endpoint reachable by anyone who learns its id — see the note above about
+  // `onBehalfOfUserId`.
+  if ((targetItem.listing_kind as string) === 'SHOPFRONT') {
+    return {
+      ok: false,
+      error: 'item-unavailable',
+      detail:
+        'This is a binder or bulk listing. Open a trade offer on it so you can say which cards you want.',
+    };
+  }
 
   const callerGate = await readIdentityGate(initiatorId);
   if (!callerGate.satisfied) {
@@ -536,8 +559,18 @@ export async function recordAcceptance(tradeId: string): Promise<LifecycleAction
 // Condition dispute (Req 7.1, 7.5)
 // ---------------------------------------------------------------------------
 
-/** Errors surfaced by the dispute/fraud actions. */
-export type DisputeActionError = AuthError | DisputeResolutionError | 'HOLD_NOT_FOUND';
+/**
+ * Errors surfaced by the dispute/fraud actions.
+ *
+ * `VALIDATION_ERROR` is the action layer's own, not the orchestrator's: a claim that is
+ * too short never reaches the domain, because the domain's job is deciding a dispute
+ * rather than checking a text length.
+ */
+export type DisputeActionError =
+  | AuthError
+  | DisputeResolutionError
+  | 'HOLD_NOT_FOUND'
+  | 'VALIDATION_ERROR';
 
 /**
  * Build the dispute/fraud resolution orchestrator for one trade.
@@ -573,14 +606,39 @@ export type RaiseDisputeActionResult =
  * caller is the raising Trader; the disputed-against Trader (their Counterpart),
  * the DISPUTED transition, and the $20 Friction_Tax partial capture are handled
  * by the dispute orchestrator.
+ *
+ * `reason` is the raiser's own account of what went wrong (0083), and reaches the
+ * arbitration case as "the claim". It is required for the same reason the Cash_Sale
+ * equivalent requires one: a dispute that captures money from the other trader and can
+ * end in a full collateral capture must say what it is about.
  */
-export async function raiseDispute(tradeId: string): Promise<RaiseDisputeActionResult> {
+export async function raiseDispute(
+  tradeId: string,
+  reason: string,
+): Promise<RaiseDisputeActionResult> {
   const guard = await requireParticipant(tradeId);
   if (!guard.ok) return guard;
+
+  const trimmed = reason.trim();
+  if (trimmed.length < DISPUTE_REASON_MIN) {
+    return {
+      ok: false,
+      error: 'VALIDATION_ERROR',
+      detail: `Describe the problem in at least ${DISPUTE_REASON_MIN} characters.`,
+    };
+  }
+  if (trimmed.length > DISPUTE_REASON_MAX) {
+    return {
+      ok: false,
+      error: 'VALIDATION_ERROR',
+      detail: `Keep it under ${DISPUTE_REASON_MAX} characters.`,
+    };
+  }
 
   const result = await buildDisputeOrchestrator(await regionForTrade(tradeId)).raiseConditionDispute({
     tradeId,
     actorId: guard.ctx.userId,
+    reason: trimmed,
   });
   if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
   return {
@@ -636,9 +694,28 @@ export type ClaimFraudActionResult =
  * {@link resolveTradeFraud} in `lib/actions/admin.ts`, which is admin-gated and
  * requires the operator to name the victim explicitly.
  */
-export async function reportFraud(tradeId: string): Promise<ClaimFraudActionResult> {
+export async function reportFraud(
+  tradeId: string,
+  reason: string,
+): Promise<ClaimFraudActionResult> {
   const guard = await requireParticipant(tradeId);
   if (!guard.ok) return guard;
+
+  const trimmed = reason.trim();
+  if (trimmed.length < DISPUTE_REASON_MIN) {
+    return {
+      ok: false,
+      error: 'VALIDATION_ERROR',
+      detail: `Describe what happened in at least ${DISPUTE_REASON_MIN} characters.`,
+    };
+  }
+  if (trimmed.length > DISPUTE_REASON_MAX) {
+    return {
+      ok: false,
+      error: 'VALIDATION_ERROR',
+      detail: `Keep it under ${DISPUTE_REASON_MAX} characters.`,
+    };
+  }
 
   // Move to DISPUTED first, so the Trade is visibly frozen and an operator can see
   // it. Already-disputed trades are fine: `raiseConditionDispute` is a no-op
@@ -646,14 +723,17 @@ export async function reportFraud(tradeId: string): Promise<ClaimFraudActionResu
   const raised = await buildDisputeOrchestrator(await regionForTrade(tradeId)).raiseConditionDispute({
     tradeId,
     actorId: guard.ctx.userId,
+    reason: trimmed,
   });
 
   const admin = createAdminClient();
   const { data: recorded } = await admin.rpc('record_trade_fraud_claim', {
     p_trade_id: tradeId,
     p_claimant_id: guard.ctx.userId,
-    // The claimant's own words. Stored as an allegation, never as fact.
-    p_reason: 'Objective fraud reported by a trader',
+    // The claimant's OWN words (0083). This used to be the literal string 'Objective
+    // fraud reported by a trader', which told an arbitrator only that the button had
+    // been pressed — on the one claim that can capture a trader's full collateral.
+    p_reason: trimmed,
   });
 
   // Only a genuine failure if BOTH the transition and the claim were rejected. An

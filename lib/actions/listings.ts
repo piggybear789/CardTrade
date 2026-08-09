@@ -6,12 +6,12 @@
 // and catalog reads. These are THIN wrappers that combine authentication +
 // Storage image upload + the pure validation/orchestration core.
 //
-// Listing IS gated (Req 14.1): `createItem` requires the Identity_Gate — Connect
-// onboarding APPROVED with settlements enabled. A published listing is an offer to
-// sell for cash and the Seller receives the proceeds, so payout onboarding must
-// exist before the listing does. Previously there was no gate here at all, which
-// let a Seller list, sell, ship, and only then discover at release time that they
-// could not be paid.
+// Listing IS gated (Req 14.1): `createItem` requires the Identity_Gate AND a
+// complete seller identity disclosure (verified name + consent). A published
+// listing is an offer to sell, and the buyer path demands a disclosure before
+// initiating a purchase — so publishing without one creates a dead-end listing
+// that buyers see but cannot act on. Refusing up front converts that silent
+// buyer-side block into an actionable seller-side prompt.
 //
 // The gate also decides whether joining a Trade requires a Bond
 // (`domain/orchestrator/tradeProposal.ts`).
@@ -41,6 +41,7 @@ import {
   type ImageUpload,
 } from '@/lib/storage/itemImages';
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
+import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import { normalizeRegionCode } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { ListingKind } from '@/domain/orchestrator/cashSaleOrchestrator';
@@ -255,6 +256,20 @@ export async function createItem(
       ok: false,
       error: 'not-verified',
       message: identityGateMessage('list', gate.state),
+    };
+  }
+
+  // A listing is an offer to sell. The buyer path requires the seller's identity
+  // disclosure (verified name + consent) before they can initiate a purchase — so
+  // if the disclosure is incomplete, publishing would create a dead-end listing
+  // that buyers can see but never act on. Refuse early with an actionable message.
+  const disclosure = await loadSellerIdentityDisclosure(userId);
+  if (!disclosure) {
+    return {
+      ok: false,
+      error: 'seller-not-verified',
+      message:
+        'Complete your seller profile before listing. Ensure your identity verification is finished and you have consented to identity disclosure.',
     };
   }
 

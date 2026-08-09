@@ -160,6 +160,19 @@
   }
 }
 
+/* Step-complete celebration: a quick scale pulse when a progress step transitions
+   to done. Respects prefers-reduced-motion via the block below. */
+@keyframes step-complete {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.animate-step-complete {
+  animation: step-complete 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

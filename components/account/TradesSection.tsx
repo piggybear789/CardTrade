@@ -1,6 +1,6 @@
 // components/account/TradesSection.tsx
 //
-// The "Trades" section of the Account hub: escrow-backed swaps where the caller
+// The "Trades" section of the Account hub: collateral-backed swaps where the caller
 // is a participant. Each row shows the two items involved (yours vs. theirs by
 // role), the live trade-state badge, and a link to the trade contract at
 // /trades/[id].

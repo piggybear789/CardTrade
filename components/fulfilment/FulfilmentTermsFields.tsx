@@ -169,7 +169,7 @@ export function FulfilmentTermsFields({
               showMap={false}
               placeholder="Search your delivery address"
               error={error === FULFILMENT_FIELD_ERRORS.address ? error : undefined}
-              hint="Only shared with the other party once collateral is locked, and never shown on a map."
+              hint="Shared with the seller only after payment."
               textFallbackPlaceholder="Search your delivery address"
             />
           ) : (

@@ -9,14 +9,18 @@
 // someone else and needs to substitute. This mirrors `proposeCashSalePrice`,
 // which is likewise open to both sides.
 //
-// Saving re-prices the contract from the new lines and clears BOTH acceptances,
-// so each party has to accept again. That is the point rather than a side effect:
-// swapping one card for another of equal value changes what is being bought, and
-// nobody should be bound to goods they did not agree to.
+// Saving re-prices the contract and clears BOTH acceptances, so each party has to
+// accept again. That is the point rather than a side effect: swapping one card for
+// another of equal value changes what is being bought, and nobody should be bound
+// to goods they did not agree to.
 //
-// There is no price field. A shopfront contract's price IS the sum of these
-// lines; a second way to set it would be a second source of truth for the number
-// that gets charged.
+// SAME TWO FIELDS THE BUYER OPENED WITH. This used to be the itemised grid while
+// the buyer's side was already prose, which is exactly the drift
+// `ContractLineItems` exists to prevent: the buyer wrote a sentence and then found
+// their own request rendered back as a spreadsheet to fill in. There is still only
+// one source of truth for the number charged — the price here IS the contract's
+// single line, and `replace_cash_sale_items` re-derives the same sum in SQL and
+// aborts if the two disagree.
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -35,12 +39,12 @@ import {
 } from '@/components/ui/dialog';
 import { updateCashSaleItems } from '@/lib/actions/cashSale';
 import {
-  ContractLineItemsEditor,
-  draftTotalCents,
-  toDraftLines,
-  toLineItemInput,
+  ContractRequestFields,
+  requestTotalCents,
+  toRequestDraft,
+  toRequestLineItems,
   type ContractLine,
-  type DraftLine,
+  type RequestDraft,
 } from '@/components/sales/ContractLineItems';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -58,26 +62,29 @@ export function EditContractItemsDialog({
   cashSaleId,
   termsVersion,
   lines,
+  currency,
 }: {
   cashSaleId: string;
   /** The version being edited; a mismatch means the counterparty got there first. */
   termsVersion: number;
   lines: readonly ContractLine[];
+  /** The contract's own currency (0068), so the price is never shown as guessed. */
+  currency?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<DraftLine[]>(() => toDraftLines(lines));
+  const [draft, setDraft] = useState<RequestDraft>(() => toRequestDraft(lines));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSave() {
-    const next = toLineItemInput(draft);
+    const next = toRequestLineItems(draft);
     if (next.length === 0) {
-      setError('A contract has to cover at least one item.');
+      setError('Describe what this contract covers.');
       return;
     }
-    if (draftTotalCents(draft) <= 0) {
-      setError('The total has to be more than zero.');
+    if (requestTotalCents(draft) <= 0) {
+      setError('The price has to be more than zero.');
       return;
     }
 
@@ -104,7 +111,7 @@ export function EditContractItemsDialog({
         if (next) {
           // Re-seed on open so the editor always starts from the CURRENT contract
           // rather than a stale draft from a previous attempt.
-          setDraft(toDraftLines(lines));
+          setDraft(toRequestDraft(lines));
           setError(null);
         }
       }}
@@ -119,16 +126,21 @@ export function EditContractItemsDialog({
         <DialogHeader>
           <DialogTitle>Change what this contract covers</DialogTitle>
           <DialogDescription>
-            The total is worked out from these items. Saving clears both
-            acceptances, so you will each need to accept the new terms.
+            Saving clears both acceptances, so you will each need to accept the new
+            terms.
           </DialogDescription>
         </DialogHeader>
 
-        <ContractLineItemsEditor
-          lines={draft}
+        <ContractRequestFields
+          value={draft}
           onChange={setDraft}
           disabled={isPending}
           error={error}
+          currency={currency}
+          idPrefix="edit-contract"
+          descriptionLabel="What this contract covers"
+          descriptionHint="Both of you have to accept this wording, and it is what an arbitrator reads if the sale is disputed."
+          priceLabel="Agreed price"
         />
 
         <DialogFooter>

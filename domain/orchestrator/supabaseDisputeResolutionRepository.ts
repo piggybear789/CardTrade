@@ -100,6 +100,11 @@ export function createSupabaseDisputeResolutionRepository(
           dispute_raised_by: params.raisedBy,
           disputed_against: params.disputedAgainst,
           disputed_at: params.at.toISOString(),
+          // Written only when supplied (0083). A second dispute on an already-DISPUTED
+          // trade — which `reportFraud` performs deliberately — must not blank the
+          // reason the first one recorded, so an absent value is omitted rather than
+          // written as null.
+          ...(params.reason ? { dispute_reason: params.reason } : {}),
         })
         .eq('id', params.tradeId);
     },

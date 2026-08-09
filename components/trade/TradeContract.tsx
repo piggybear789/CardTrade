@@ -50,6 +50,7 @@ import { ActionBar } from '@/components/trade/ActionBar';
 import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import { HoldStatus } from '@/components/trade/HoldStatus';
 import { TRADE_FEE_BPS, tradeFeeCentsFor } from '@/domain/trade/tradeFee';
+import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
 import { StateBadge } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
@@ -69,6 +70,7 @@ import {
   ContractPartyLine,
   ContractProgressRail,
   ContractTimeline,
+  DisputeEvidencePanel,
   useContractConversation,
   type ContractActionTone,
   type ContractEvent,
@@ -91,6 +93,7 @@ import type {
   TradeViewerRole,
 } from '@/domain/state-machine/types';
 import type { ReactNode } from 'react';
+import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 
 /**
  * Derive the aggregate TradeFacts snapshot the state machine needs from the live trade
@@ -146,12 +149,20 @@ const STATE_TONE: Partial<Record<TradeState, ContractActionTone>> = {
   FRAUD_RESOLVED: 'danger',
 };
 
-/** One item on either side of the agreed swap. */
+/**
+ * One item on either side of the agreed swap.
+ *
+ * `isShopfront` is load-bearing for money, not presentation: a binder's `fmvCents`
+ * is an indicative "from" price for a whole inventory, so it must never be summed
+ * into a side value. See `resolveTradeSideValues`.
+ */
 export interface TradeGood {
   id: string;
   title: string;
   fmvCents: number;
   imagePath: string | null;
+  /** The listing is a binder or bulk lot (0064), so `fmvCents` is a "from" price. */
+  isShopfront?: boolean;
 }
 
 /** What each side agreed to hand over, resolved on the server. */
@@ -163,8 +174,8 @@ export interface TradeGoods {
   cashDirection: 'incoming' | 'outgoing';
 }
 
-/** Total Fair_Market_Value of one side of the swap, in integer AUD cents. */
-function sideValueCents(items: TradeGood[]): number {
+/** Summed `fmvCents` of one side, before the binder rule is applied. */
+function sideGoodsCents(items: TradeGood[]): number {
   return items.reduce((total, item) => total + item.fmvCents, 0);
 }
 
@@ -231,6 +242,13 @@ export interface TradeContractProps {
    * accepts it as a prop and mounts it in the collapsed detail rows.
    */
   demoPanel?: ReactNode;
+  /**
+   * Participant evidence on file, when this trade is DISPUTED (0082).
+   *
+   * Loaded by the page rather than fetched here — see the matching note on
+   * `CashSaleViewProps`.
+   */
+  disputeEvidence?: DisputeEvidenceEntry[];
 }
 
 /** Banner when cash is waiting on payout setup or a failed transfer. */
@@ -625,6 +643,7 @@ export function TradeContract({
   participants,
   cashReceiverPayoutReady = true,
   demoPanel,
+  disputeEvidence = [],
 }: TradeContractProps) {
   const { trade, holds, transitions, connectionStatus } =
     useTradeRealtime(tradeId);
@@ -682,8 +701,28 @@ export function TradeContract({
   const myUserId = viewerRole === 'INITIATOR' ? initiatorId : counterpartId;
   const theirName = them?.name ?? 'the other trader';
 
-  const yoursValueCents = sideValueCents(goods?.yours ?? []);
-  const theirsValueCents = sideValueCents(goods?.theirs ?? []);
+  // The SAME rule that sizes the collateral and the charged fee. Disclosure has to
+  // agree with the charge — that is the point of disclosing before charging — so this
+  // reads the shared definition rather than summing the two sides itself. On a binder
+  // trade the two sides are equal by construction, which is what the room says.
+  const viewerIsInitiator = viewerRole === 'INITIATOR';
+  const disclosedSides = resolveTradeSideValues({
+    initiatorGoodsCents: sideGoodsCents(
+      (viewerIsInitiator ? goods?.yours : goods?.theirs) ?? [],
+    ),
+    counterpartGoodsCents: sideGoodsCents(
+      (viewerIsInitiator ? goods?.theirs : goods?.yours) ?? [],
+    ),
+    counterpartIsShopfront: ((viewerIsInitiator ? goods?.theirs : goods?.yours) ?? []).some(
+      (item) => item.isShopfront,
+    ),
+  });
+  const yoursValueCents = viewerIsInitiator
+    ? disclosedSides.initiatorSideCents
+    : disclosedSides.counterpartSideCents;
+  const theirsValueCents = viewerIsInitiator
+    ? disclosedSides.counterpartSideCents
+    : disclosedSides.initiatorSideCents;
 
   // Each trader's fee is 5% of what THEY receive, so the viewer's own fee is sized
   // from the other side's bundle plus any cash coming to them. Derived here rather
@@ -838,6 +877,7 @@ export function TradeContract({
                         deliveryDetails: trade.delivery_details,
                         deliveryCostCents: trade.delivery_cost_cents,
                         offerMessage: trade.offer_message,
+                        counterpartGoodsDescription: trade.counterpart_goods_description,
                       }}
                     />
                   ) : null}
@@ -890,6 +930,28 @@ export function TradeContract({
                       : ''
                   }`}
                 >
+                  {/* On a binder trade the listing on the other side is an
+                      inventory, not the goods — so the panel below would show a
+                      binder title and a "from" price where the actual cards belong.
+                      This is the statement of what changes hands, it is part of the
+                      terms, and it is what an arbitrator reads. */}
+                  {trade.counterpart_goods_description ? (
+                    <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                      <p className="font-medium">
+                        {viewerRole === 'INITIATOR'
+                          ? 'Cards you are getting from their listing'
+                          : 'Cards you are giving from your listing'}
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
+                        {trade.counterpart_goods_description}
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        The listing is a binder or bulk lot, so nothing in it is held.
+                        This description is what the two of you agreed to swap.
+                      </p>
+                    </div>
+                  ) : null}
+
                   <ContractExchangePanel
                     sides={[
                       {
@@ -1067,6 +1129,36 @@ export function TradeContract({
                   viewerRole={viewerRole}
                 />
               </ContractDetailRow>
+
+              {/* Dispute evidence (0082). Only while disputed or resolved — see the
+                  matching note in CashSaleView. */}
+              {trade && (trade.state === 'DISPUTED' || trade.state === 'FRAUD_RESOLVED') ? (
+                <ContractDetailRow
+                  id={TRADE_SECTIONS.dispute}
+                  label="Dispute"
+                  explainer="Your account of what happened, with photos or video. Both traders can see everything here, and so can the staff member deciding it."
+                  summary={
+                    disputeEvidence.length > 0
+                      ? `${disputeEvidence.length} submission${disputeEvidence.length === 1 ? '' : 's'}`
+                      : 'Nothing submitted yet'
+                  }
+                >
+                  <DisputeEvidencePanel
+                    caseKind="TRADE"
+                    caseRef={trade.id}
+                    entries={disputeEvidence}
+                    disputeReason={trade.dispute_reason}
+                    raisedByName={
+                      trade.dispute_raised_by
+                        ? trade.dispute_raised_by === myUserId
+                          ? 'you'
+                          : theirName
+                        : null
+                    }
+                    canSubmit={trade.state === 'DISPUTED'}
+                  />
+                </ContractDetailRow>
+              ) : null}
 
               <ContractDetailRow
                 label="History"

@@ -4,7 +4,7 @@
 //
 // WHY IT EXISTS. Collateral is a real card authorisation and lapses after about
 // seven days. A posted trade ships in BOTH directions, so transit plus inspection
-// can outrun that window and the collateral is released mid-trade — the escrow
+// can outrun that window and the collateral is released mid-trade — the safety
 // guarantee gone. Migration 0039 gives DELIVERY trades a 48-hour dispatch
 // deadline and notifies people about it; this is the in-context version, so a
 // trader sees the clock on the contract itself rather than only in a

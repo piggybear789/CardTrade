@@ -14,7 +14,7 @@
 // Steps come from the same pure derivation in `domain/contract` that feeds the action
 // card, so the two can never disagree.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -29,6 +29,35 @@ export interface ContractProgressRailProps {
 export function ContractProgressRail({ steps, className }: ContractProgressRailProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const open = steps.find((step) => step.id === openId) ?? null;
+
+  // Track which steps just completed so we can animate them.
+  const prevStepsRef = useRef<Map<string, ContractStep['status']>>(new Map());
+  const [justCompleted, setJustCompleted] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const prev = prevStepsRef.current;
+    const newlyDone = new Set<string>();
+
+    for (const step of steps) {
+      const prevStatus = prev.get(step.id);
+      // A step that was NOT done and is now done = just completed.
+      if (step.status === 'done' && prevStatus && prevStatus !== 'done') {
+        newlyDone.add(step.id);
+      }
+    }
+
+    // Update the ref for next render.
+    const next = new Map<string, ContractStep['status']>();
+    for (const step of steps) next.set(step.id, step.status);
+    prevStepsRef.current = next;
+
+    if (newlyDone.size > 0) {
+      setJustCompleted(newlyDone);
+      // Clear the animation class after it plays.
+      const timeout = setTimeout(() => setJustCompleted(new Set()), 600);
+      return () => clearTimeout(timeout);
+    }
+  }, [steps]);
 
   if (steps.length === 0) return null;
 
@@ -45,6 +74,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
           const selected = openId === step.id;
           const first = index === 0;
           const last = index === steps.length - 1;
+          const animating = justCompleted.has(step.id);
 
           return (
             <li key={step.id} className="flex min-w-0 flex-1 flex-col items-center">
@@ -55,7 +85,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                 <span
                   aria-hidden
                   className={cn(
-                    'h-px flex-1',
+                    'h-px flex-1 transition-[background-color] duration-500',
                     first ? 'bg-transparent' : done ? 'cardtrade-success-fill' : 'bg-border',
                   )}
                 />
@@ -73,7 +103,8 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                   }`}
                   aria-expanded={selected}
                   className={cn(
-                    'grid size-5 shrink-0 touch-manipulation place-items-center rounded-full border transition-colors',
+                    'grid size-5 shrink-0 touch-manipulation place-items-center rounded-full border',
+                    'transition-all duration-300',
                     // The tick stays 20px visually, but an invisible overlay
                     // stretches the hit area to ~44px for touch guidelines.
                     "relative before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']",
@@ -85,6 +116,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                       'border-destructive/55 bg-destructive/10 text-destructive',
                     !done && !live && !halted && 'border-border bg-card text-muted-foreground',
                     selected && 'ring-2 ring-ring ring-offset-1',
+                    animating && 'animate-step-complete',
                   )}
                 >
                   {done ? (
@@ -104,7 +136,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                 <span
                   aria-hidden
                   className={cn(
-                    'h-px flex-1',
+                    'h-px flex-1 transition-[background-color] duration-500',
                     last
                       ? 'bg-transparent'
                       : steps[index + 1]?.status === 'done'
@@ -116,7 +148,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
 
               <span
                 className={cn(
-                  'mt-1.5 max-w-full truncate px-1 text-xs',
+                  'mt-1.5 max-w-full truncate px-1 text-xs transition-colors duration-300',
                   live
                     ? 'font-semibold text-foreground'
                     : halted

@@ -27,6 +27,8 @@ export const TRADE_SECTIONS = {
   terms: 'contract-terms',
   money: 'contract-money',
   collateral: 'contract-collateral',
+  /** Participant evidence, present only while the trade is DISPUTED (0082). */
+  dispute: 'contract-dispute',
 } as const;
 
 /** Everything the trade plan needs. */

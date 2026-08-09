@@ -106,6 +106,14 @@ export interface DisputeResolutionRepository {
     raisedBy: string;
     disputedAgainst: string;
     at: Date;
+    /**
+     * The raiser's own account of what went wrong (0083).
+     *
+     * Optional so a caller that predates the column still compiles, and null when the
+     * dispute was raised without one. It reaches the arbitration case as "the claim",
+     * which is the only thing a trade dispute previously could not supply.
+     */
+    reason?: string | null;
   }): Promise<void>;
 
   /**
@@ -241,7 +249,7 @@ export type RaiseConditionDisputeResult =
  */
 export async function raiseConditionDispute(
   deps: DisputeResolutionDeps,
-  params: { tradeId: string; actorId: string },
+  params: { tradeId: string; actorId: string; reason?: string | null },
 ): Promise<RaiseConditionDisputeResult> {
   const { orchestrator, repository, payments } = deps;
   const now = deps.now ?? (() => new Date());
@@ -263,12 +271,13 @@ export async function raiseConditionDispute(
     return { ok: false, error: 'NOT_PARTICIPANT' };
   }
 
-  // 2. Record dispute participants (Req 7.1).
+  // 2. Record dispute participants (Req 7.1) and the raiser's own account (0083).
   await repository.recordDisputeParticipants({
     tradeId: trade.id,
     raisedBy: params.actorId,
     disputedAgainst,
     at: now(),
+    reason: params.reason ?? null,
   });
 
   // 3. Request the $20.00 Friction_Tax from the disputed-against Trader's hold (Req 7.2).
@@ -736,6 +745,8 @@ export interface DisputeResolutionOrchestrator {
   raiseConditionDispute(params: {
     tradeId: string;
     actorId: string;
+    /** The raiser's own account of what went wrong (0083). */
+    reason?: string | null;
   }): Promise<RaiseConditionDisputeResult>;
   resolveConditionDispute(params: {
     tradeId: string;

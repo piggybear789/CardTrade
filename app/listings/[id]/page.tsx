@@ -133,10 +133,12 @@ export default async function ItemDetailPage({
 
   // Authenticated non-owners: watch state, own goods for Propose Trade, and
   // public seller profile + identity can load together.
-  // Trades are excluded from a shopfront (0064). Trade collateral is an
-  // authorisation for 100% of FMV, and a shopfront's FMV is the whole binder, so
-  // there is nothing correct to bond until the trade side itemises a side too.
-  const canProposeTrade = Boolean(user && !isOwner && isAvailable && !isShopfront);
+  //
+  // A binder CAN be traded for since 0081. Its own FMV is still never bonded — the
+  // binder side is valued at whatever is offered against it
+  // (`domain/trade/tradeSideValues.ts`) — and the trade states which cards come out
+  // of it, because the listing cannot.
+  const canProposeTrade = Boolean(user && !isOwner && isAvailable);
 
   const [
     initialWatching,
@@ -635,6 +637,7 @@ function ItemActions({
           fmvCents,
           imagePath: itemImagePath,
           ownerName: sellerDisplayName,
+          isShopfront,
         }}
         ownItems={ownItems}
         emphasize={!sellerIdentity}
@@ -812,7 +815,7 @@ function ItemActions({
   }
 
   // Cash buyers need a payment method, not payout onboarding: they are only
-  // refunded to their original card. Trade escrow is different — either member
+  // refunded to their original card. Trade collateral is different — either member
   // could receive fraud restitution, so both must pass the Identity_Gate before
   // a proposal can become a trade.
   //
@@ -842,9 +845,9 @@ function ItemActions({
       ) : (
         <div
             className={
-              // A shopfront drops Trade and Offer, so the row is narrower.
+              // A binder drops Offer only, so the row is one narrower.
               isShopfront
-                ? "grid grid-cols-3 justify-items-center gap-2"
+                ? "grid grid-cols-4 justify-items-center gap-2"
                 : "grid grid-cols-5 justify-items-center gap-2"
             }
             role="group"
@@ -856,11 +859,12 @@ function ItemActions({
               appearance="icon"
               isShopfront={isShopfront}
             />
-            {/* Offers carry one amount against the whole listing, which says
-                nothing on a binder — "$40" for which cards? The request dialog
-                already lets a buyer name items AND a price, so it replaces both
-                Buy and Offer here rather than sitting alongside them. */}
-            {isShopfront ? null : proposeTrade}
+            {proposeTrade}
+            {/* Offers stay off a binder. An offer is one bare amount against the
+                whole listing, which says nothing here — "$40" for which cards? Buy
+                already asks for a written request AND a price, so an Offer control
+                would be a second, worse version of it. Trade is different: it now
+                carries its own statement of what comes out of the binder (0081). */}
             {isShopfront ? null : (
               <MakeOfferDialog
                 itemId={itemId}

@@ -5,7 +5,7 @@
 // Negotiating a Trade inside its own contract room. A Trade now exists from the
 // FIRST offer in state NEGOTIATING, so countering is a versioned terms revision
 // on the Trade rather than a chain of replacement `trade_proposals` rows, and the
-// conversation spans negotiation, escrow and fulfilment without a seam.
+// conversation spans negotiation, collateral and fulfilment without a seam.
 //
 // Thin by convention: authenticate, gate on the Identity_Gate where money can be
 // received, delegate to one SQL function, revalidate. Every guard is repeated in
@@ -29,6 +29,7 @@ import {
   operationalRegions,
 } from '@/domain/services';
 import { placeBondsForAgreedTrade } from '@/domain/orchestrator/tradeProposal';
+import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
@@ -50,7 +51,7 @@ export type TradeNegotiationError =
   | 'bond-failed';
 
 export type TradeNegotiationResult =
-  | { ok: true; trade: TradeRow; escrowStarted: boolean }
+  | { ok: true; trade: TradeRow; collateralStarted: boolean }
   | { ok: false; error: TradeNegotiationError; message?: string };
 
 /** Handover terms as the room's form submits them. */
@@ -58,6 +59,14 @@ export interface TradeTermsInput {
   cashAmountCents: number;
   cashDirection: 'PROPOSER_PAYS' | 'COUNTERPART_PAYS';
   declaredValueCents?: number | null;
+  /**
+   * What the counterpart is handing over, in prose (0081).
+   *
+   * Required when the trade is against a SHOPFRONT, whose listing cannot say, and
+   * refused otherwise. On a counter, null LEAVES the current description alone —
+   * revising the postage must not erase the statement of what is being swapped.
+   */
+  counterpartGoodsDescription?: string | null;
   handoverMethod: 'DELIVERY' | 'IN_PERSON';
   meetingLocation?: string | null;
   meetingLat?: number | null;
@@ -176,8 +185,12 @@ function termsParams(terms: TradeTermsInput) {
     p_delivery_details: inPerson ? null : terms.deliveryDetails?.trim() || null,
     p_delivery_cost_cents: inPerson ? null : terms.deliveryCostCents ?? null,
     p_offer_message: terms.message?.trim() || null,
+    p_counterpart_goods_description: terms.counterpartGoodsDescription?.trim() || null,
   };
 }
+
+/** Length bound for the binder-side goods statement; mirrors the CHECK in 0081. */
+const COUNTERPART_GOODS_MAX_LENGTH = 1000;
 
 /**
  * Counter: revise the terms of a live negotiation.
@@ -231,18 +244,18 @@ export async function proposeTradeTerms(
   });
 
   revalidatePath(`/trades/${tradeId}`);
-  return { ok: true, trade: row, escrowStarted: false };
+  return { ok: true, trade: row, collateralStarted: false };
 }
 
 /**
  * Accept the terms on the table. When this is the SECOND acceptance the trade
- * moves into escrow: Items are reserved and bonds are placed.
+ * moves into collateral: Items are reserved and bonds are placed.
  *
  * The Identity_Gate is checked for BOTH Traders here rather than at the offer,
  * because this is the Commitment_Point — an Objective_Fraud finding pays captured
  * collateral to whichever side was the victim, so either party can receive money
- * and neither may enter escrow without a payout account. Opening and countering
- * an offer stay ungated: nothing is at stake until terms are agreed.
+ * and neither may enter the collateral phase without a payout account. Opening and
+ * countering an offer stay ungated: nothing is at stake until terms are agreed.
  */
 export async function acceptTradeTerms(
   tradeId: string,
@@ -291,7 +304,7 @@ export async function acceptTradeTerms(
     accepted.counterpart_terms_accepted_version === accepted.terms_version;
   if (!bothAccepted) {
     revalidatePath(`/trades/${tradeId}`);
-    return { ok: true, trade: accepted, escrowStarted: false };
+    return { ok: true, trade: accepted, collateralStarted: false };
   }
 
   // Second acceptance: reserve the Items and move to COLLATERAL_PENDING. Guarded
@@ -303,7 +316,7 @@ export async function acceptTradeTerms(
   const started = (startedData as TradeRow[] | null)?.[0];
   if (startError || !started) {
     revalidatePath(`/trades/${tradeId}`);
-    return { ok: true, trade: accepted, escrowStarted: false };
+    return { ok: true, trade: accepted, collateralStarted: false };
   }
 
   // Every trade now bonds BOTH traders (see `resolveTradeBonds`), so a saved card
@@ -343,7 +356,9 @@ export async function acceptTradeTerms(
       message:
         bonds.error === 'payer-not-found'
           ? 'A saved card is needed to place the trade collateral hold. Add one in your profile, then accept again.'
-          : bonds.error === 'hold-failed'
+          : bonds.error === 'side-unvalued'
+            ? 'One side of this trade has no value against it, so there is nothing to hold collateral against. Agree what each side is worth and accept again.'
+            : bonds.error === 'hold-failed'
             ? 'Your card declined the collateral hold, so the trade was not started. ' +
               'Nothing was charged. Try another card and accept again.'
             : 'Collateral could not be arranged, so the trade was not started. Nothing was charged.',
@@ -354,19 +369,33 @@ export async function acceptTradeTerms(
   // Trade_Fee falls due. Charged AFTER bonds so a trade that cannot get collateral
   // never gets billed, and deliberately not allowed to block the exchange — a
   // failed fee is recorded for retry rather than held against the traders.
-  const itemValue = async (traderId: string) => {
+  // The SAME rule the bonds were sized with, deliberately. This used to sum
+  // `fmv_cents` over each side independently, which on a binder means 5% of a whole
+  // inventory's indicative price — a second derivation of a money figure that has to
+  // have exactly one (`domain/trade/tradeSideValues.ts`).
+  const sideGoods = async (traderId: string) => {
     const ids = await itemIdsFor(tradeId, traderId);
-    if (ids.length === 0) return 0;
-    const { data } = await admin.from('items').select('fmv_cents').in('id', ids);
-    return ((data ?? []) as { fmv_cents: number | null }[]).reduce(
-      (sum, row) => sum + Number(row.fmv_cents ?? 0),
-      0,
-    );
+    if (ids.length === 0) return { goodsCents: 0, hasShopfront: false };
+    const { data } = await admin
+      .from('items')
+      .select('fmv_cents, listing_kind')
+      .in('id', ids);
+    const rows = (data ?? []) as { fmv_cents: number | null; listing_kind: string }[];
+    return {
+      goodsCents: rows.reduce((sum, row) => sum + Number(row.fmv_cents ?? 0), 0),
+      hasShopfront: rows.some((row) => row.listing_kind === 'SHOPFRONT'),
+    };
   };
-  const [initiatorGives, counterpartGives] = await Promise.all([
-    itemValue(started.initiator_id),
-    itemValue(started.counterpart_id),
+  const [initiatorSide, counterpartSide] = await Promise.all([
+    sideGoods(started.initiator_id),
+    sideGoods(started.counterpart_id),
   ]);
+  const { initiatorSideCents: initiatorGives, counterpartSideCents: counterpartGives } =
+    resolveTradeSideValues({
+      initiatorGoodsCents: initiatorSide.goodsCents,
+      counterpartGoodsCents: counterpartSide.goodsCents,
+      counterpartIsShopfront: counterpartSide.hasShopfront,
+    });
   // Each trader is charged on what they RECEIVE: the other side's goods, plus any
   // cash coming their way.
   const cash = Number(started.cash_amount_cents ?? 0);
@@ -406,7 +435,7 @@ export async function acceptTradeTerms(
 
   revalidatePath('/trades');
   revalidatePath(`/trades/${tradeId}`);
-  return { ok: true, trade: started, escrowStarted: true };
+  return { ok: true, trade: started, collateralStarted: true };
 }
 
 /** Every Item a given Trader is putting into a Trade. */
@@ -476,7 +505,7 @@ export async function declineTradeOffer(
 
   revalidatePath('/trades');
   revalidatePath(`/trades/${tradeId}`);
-  return { ok: true, trade: row, escrowStarted: false };
+  return { ok: true, trade: row, collateralStarted: false };
 }
 
 /** Result of opening a negotiation from a listing. */
@@ -543,13 +572,25 @@ export async function openTradeNegotiation(input: {
   const admin = createAdminClient();
   const { data: itemRow } = await admin
     .from('items')
-    .select('owner_id, status, listing_kind')
+    .select('owner_id, status, listing_kind, closed_at')
     .eq('id', input.counterpartItemId)
     .maybeSingle();
   const target = itemRow as
-    | { owner_id: string; status: string; listing_kind: string }
+    | {
+        owner_id: string;
+        status: string;
+        listing_kind: string;
+        closed_at: string | null;
+      }
     | null;
-  if (!target || target.status !== 'AVAILABLE') {
+  // Availability means different things by listing kind (0064). A SINGLE listing is
+  // open while AVAILABLE; a binder is permanently AVAILABLE and is open until it is
+  // closed. Testing status alone is what made a binder untradeable.
+  const targetIsShopfront = target?.listing_kind === 'SHOPFRONT';
+  const targetIsOpen = targetIsShopfront
+    ? target?.closed_at === null
+    : target?.status === 'AVAILABLE';
+  if (!target || !targetIsOpen) {
     return {
       ok: false,
       error: 'item-unavailable',
@@ -588,18 +629,32 @@ export async function openTradeNegotiation(input: {
       message: regionMismatchMessage(mismatch),
     };
   }
-  // A SHOPFRONT cannot enter trade escrow (0064). Collateral is an authorisation
-  // for 100% of FMV, and a shopfront's FMV is the whole binder, so bonding it
-  // would demand an authorisation for an inventory rather than for the cards
-  // actually being swapped. It also stays AVAILABLE permanently, so the RPC's own
-  // availability guard would never catch it. Until a trade side can be itemised
-  // the way a Cash_Sale contract now is, this is refused outright.
-  if (target.listing_kind === 'SHOPFRONT') {
+  // A binder CAN be traded for since 0081, but the trade has to say what is coming
+  // out of it — the listing cannot, and arbitration reads the contract and never the
+  // listing. On a SINGLE listing the item IS that statement, so a second free-text
+  // one is refused rather than stored and ignored. Enforced again in SQL, since a
+  // Server Action is reachable by anyone who learns its id.
+  const goods = input.terms.counterpartGoodsDescription?.trim() ?? '';
+  if (targetIsShopfront) {
+    if (goods === '') {
+      return {
+        ok: false,
+        error: 'invalid-terms',
+        message: 'Say which cards you want out of this listing.',
+      };
+    }
+    if (goods.length > COUNTERPART_GOODS_MAX_LENGTH) {
+      return {
+        ok: false,
+        error: 'invalid-terms',
+        message: `Keep what you are asking for under ${COUNTERPART_GOODS_MAX_LENGTH} characters.`,
+      };
+    }
+  } else if (goods !== '') {
     return {
       ok: false,
-      error: 'item-unavailable',
-      message:
-        'This is a binder or bulk listing. Ask the seller for the cards you want as a cash purchase instead.',
+      error: 'invalid-terms',
+      message: 'This listing is a single item, so what is being traded is already set.',
     };
   }
   if (target.owner_id === userId) return { ok: false, error: 'self-trade' };
@@ -641,15 +696,43 @@ export async function openTradeNegotiation(input: {
     ...termsParams(input.terms),
   });
   if (error) {
-    // The one-live-negotiation index is the expected collision here, so name it
-    // rather than reporting a generic failure the member cannot act on.
-    const duplicate = error.message.includes('trades_one_live_negotiation_idx');
+    // Named refusals rather than one generic failure, because each of these is
+    // something the member can actually do something about. The one-live-negotiation
+    // index is the expected collision; the rest are the 0081 guards, which the action
+    // has already checked — reaching them here means a direct call or a race.
+    if (error.message.includes('trades_one_live_negotiation_idx')) {
+      return {
+        ok: false,
+        error: 'rejected',
+        message: 'You already have an open offer on this listing. Continue it in the trade room.',
+      };
+    }
+    if (error.message.includes('shopfront-cannot-be-offered')) {
+      return {
+        ok: false,
+        error: 'invalid-terms',
+        message:
+          'A binder or bulk listing cannot be put up as your side of a trade. Offer the individual cards instead.',
+      };
+    }
+    if (error.message.includes('counterpart-goods-required')) {
+      return {
+        ok: false,
+        error: 'invalid-terms',
+        message: 'Say which cards you want out of this listing.',
+      };
+    }
+    if (error.message.includes('counterpart-item-unavailable')) {
+      return {
+        ok: false,
+        error: 'item-unavailable',
+        message: 'That listing is no longer available to trade for.',
+      };
+    }
     return {
       ok: false,
       error: 'rejected',
-      message: duplicate
-        ? 'You already have an open offer on this listing. Continue it in the trade room.'
-        : 'The offer could not be opened. Please try again.',
+      message: 'The offer could not be opened. Please try again.',
     };
   }
 

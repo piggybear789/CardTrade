@@ -26,6 +26,8 @@ export const CASH_SALE_SECTIONS = {
   terms: 'contract-terms',
   payment: 'contract-payment',
   collateral: 'contract-collateral',
+  /** Participant evidence, present only while the contract is DISPUTED (0082). */
+  dispute: 'contract-dispute',
   history: 'contract-history',
 } as const;
 
@@ -55,7 +57,7 @@ export interface CashSaleStepFacts {
    * For a closed sale: the status it was in immediately before it went terminal,
    * i.e. `from_status` on the event that closed it.
    *
-   * Supplying this is what makes "cancelled at Escrow" exact rather than guessed.
+   * Supplying this is what makes "cancelled at Payment" exact rather than guessed.
    * Once `status` is CANCELLED / FAILED / REFUNDED it no longer says how far the
    * contract got, and every `done` predicate keyed on `status` collapses to false.
    * Omit it and the plan falls back to {@link inferHaltStatus}, which is
@@ -105,7 +107,7 @@ function ownerFor(
 function inferHaltStatus(status: CashSaleStatus): CashSaleStatus {
   if (status === 'REFUNDED') return 'ESCROW_HELD';
   // FAILED means collection was attempted and did not clear; CANCELLED is most
-  // often pre-payment. Both land before escrow, and surviving facts (tracking,
+  // often pre-payment. Both land before payment collection, and surviving facts (tracking,
   // handover confirmations) still promote later steps on their own.
   return 'AGREEMENT';
 }
@@ -145,7 +147,7 @@ function haltOutcome(status: CashSaleStatus): {
  *
  * A CLOSED contract (cancelled, failed, refunded) keeps its full timeline and marks
  * the step it stopped at, rather than collapsing to one "Closed" tick. Seeing that a
- * sale died at Escrow rather than at Terms is most of what you want to know after the
+ * sale died at Payment rather than at Terms is most of what you want to know after the
  * fact, and the collapsed version also rendered a success tick on a contract that had
  * been cancelled.
  *
@@ -192,7 +194,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     action: termsSet
       ? undefined
       : {
-          label: 'Choose a method',
+          label: 'Select delivery method',
           kind: 'focus',
           target: CASH_SALE_SECTIONS.terms,
         },
@@ -224,10 +226,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 3. The buyer's payment is collected in full before anything ships.
   drafts.push({
     id: 'payment',
-    // Six ticks in the delivery branch: 'Payment' sat right on the truncation
-    // budget. 'Escrow' matches the label "Payment clears into escrow".
-    short: 'Escrow',
-    label: 'Payment clears into escrow',
+    short: 'Payment',
+    label: 'Payment collected and held',
     detail:
       viewerRole === 'BUYER'
         ? 'Your payment method is charged and the funds are held by NoDitto.'
@@ -255,8 +255,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       short: 'Review',
       label: 'Dispute under review',
       detail: facts.disputeRaisedByMe
-        ? 'You raised a dispute. Funds stay in escrow while the case is reviewed.'
-        : `${counterpartyName} raised a dispute. Funds stay in escrow while the case is reviewed.`,
+        ? 'You raised a dispute. Funds are held securely while the case is reviewed.'
+        : `${counterpartyName} raised a dispute. Funds are held securely while the case is reviewed.`,
       owner: 'platform',
       done: false,
     });

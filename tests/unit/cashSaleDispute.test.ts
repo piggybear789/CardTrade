@@ -20,46 +20,23 @@ import { describe, expect, it } from 'vitest';
 
 import {
   acceptCashSaleInspection,
-  acceptCashSaleTerms,
-  disputeCashSale,
   initiateCashSale,
-  recordCashSaleReceipt,
-  recordCashSaleShipment,
   resolveCashSaleDispute,
   sellerNetCentsFor,
-  settleCashSale,
-  updateCashSaleTerms,
   type CashSaleOrchestratorDeps,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
 import type { PaymentService } from '@/domain/services/types';
 import {
   BUYER,
   fakeTracking,
-  ITEM,
   makeCashSaleRepository,
   makePayments,
 } from './fakes/cashSaleRepository';
+// The walk to DISPUTED and the fixtures it needs now live in the shared helper; the
+// individual step functions are no longer called from this file.
+import { disputedCashSale, PURCHASE } from './helpers/disputedCashSale';
 
 const OPERATOR = 'admin-1';
-
-const PURCHASE = {
-  buyerId: BUYER.profileId,
-  itemId: ITEM.id,
-  sellerIdentityVersion: 'seller-v1',
-  buyerConfirmedSellerIdentity: true,
-};
-
-const DELIVERY_TERMS = {
-  fulfillmentMethod: 'DELIVERY' as const,
-  shippingCostCents: 1_500,
-  deliveryAddress: {
-    label: '12 Example St, Melbourne VIC 3000',
-    placeId: 'geo:delivery-1',
-    countryCode: 'AU',
-    lat: -37.8136,
-    lng: 144.9631,
-  },
-};
 
 function makeDeps(
   paymentOptions: {
@@ -77,57 +54,10 @@ function makeDeps(
   return { deps, state, calls };
 }
 
-/** Drive a sale all the way to DISPUTED, which is the only resolvable state. */
-async function disputedSale(deps: CashSaleOrchestratorDeps) {
-  const created = await initiateCashSale(deps, PURCHASE);
-  if (!created.ok) throw new Error('setup: could not initiate');
-  const saleId = created.sale.id;
-
-  // Two saves by two parties: postage is the seller's to price, the address is the
-  // buyer's. The seller goes first so the buyer's save leaves postage unchanged,
-  // which is the only way a buyer may carry that field.
-  const priced = await updateCashSaleTerms(deps, {
-    cashSaleId: saleId,
-    actorId: ITEM.ownerId,
-    expectedTermsVersion: created.sale.termsVersion,
-    terms: { ...DELIVERY_TERMS, deliveryAddress: undefined },
-  });
-  if (!priced.ok) throw new Error('setup: could not price postage');
-
-  await updateCashSaleTerms(deps, {
-    cashSaleId: saleId,
-    actorId: BUYER.profileId,
-    expectedTermsVersion: priced.sale.termsVersion,
-    terms: DELIVERY_TERMS,
-  });
-  const sale = await deps.repository.loadCashSale(saleId);
-  if (!sale) throw new Error('setup: sale vanished');
-
-  await acceptCashSaleTerms(deps, {
-    cashSaleId: saleId,
-    actorId: ITEM.ownerId,
-    termsVersion: sale.termsVersion,
-  });
-  await acceptCashSaleTerms(deps, {
-    cashSaleId: saleId,
-    actorId: BUYER.profileId,
-    termsVersion: sale.termsVersion,
-  });
-  await settleCashSale(deps, { cashSaleId: saleId });
-  await recordCashSaleShipment(deps, {
-    cashSaleId: saleId,
-    actorId: ITEM.ownerId,
-    shipment: { carrier: 'Australia Post', trackingNumber: 'AP123456789AU' },
-  });
-  await recordCashSaleReceipt(deps, { cashSaleId: saleId, actorId: BUYER.profileId });
-  const disputed = await disputeCashSale(deps, {
-    cashSaleId: saleId,
-    actorId: BUYER.profileId,
-    reason: 'Arrived with a crease not shown in the listing photos.',
-  });
-  if (!disputed.ok) throw new Error('setup: could not dispute');
-  return disputed.sale;
-}
+// The long, order-sensitive walk to DISPUTED now lives in
+// `helpers/disputedCashSale.ts`, shared with the refund-drain tests so the two cannot
+// drift into testing different states while believing they test the same one.
+const disputedSale = disputedCashSale;
 
 describe('resolveCashSaleDispute', () => {
   it('refunds the buyer in full and ends the sale REFUNDED', async () => {

@@ -7,6 +7,7 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { CashSaleView, type SaleParty } from '@/components/sales/CashSaleView';
+import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
@@ -92,6 +93,16 @@ export default async function CashSalePage({
     unitPriceCents: row.unit_price_cents,
   }));
 
+  // Participant evidence (0082). Only fetched for a contract that has actually been
+  // disputed — every other sale would pay for a query guaranteed to return nothing.
+  // The action is participant-scoped by RLS, so this is safe for either side to call.
+  const disputeEvidence =
+    sale.status === 'DISPUTED' || sale.dispute_resolution
+      ? await getDisputeEvidence('CASH_SALE', sale.id).then((result) =>
+          result.ok ? result.data.entries : [],
+        )
+      : [];
+
   const profileById = new Map(
     (profiles ?? []).map((profile) => [profile.id as string, profile]),
   );
@@ -170,6 +181,7 @@ export default async function CashSalePage({
         trackingRefreshAvailable={isTrackingStatusPollingAvailable()}
         paymentDemoEnabled={isPaymentDemoEnabled()}
         lineItems={lineItems}
+        disputeEvidence={disputeEvidence}
       />
 
       {sale.status === 'COMPLETED' ? (

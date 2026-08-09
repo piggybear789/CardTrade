@@ -31,11 +31,11 @@ import {
 } from '@/components/ui/dialog';
 import { initiateCashSale } from '@/lib/actions/cashSale';
 import {
-  ContractLineItemsEditor,
-  draftTotalCents,
-  emptyLine,
-  toLineItemInput,
-  type DraftLine,
+  ContractRequestFields,
+  emptyRequest,
+  requestTotalCents,
+  toRequestLineItems,
+  type RequestDraft,
 } from '@/components/sales/ContractLineItems';
 
 // Refusal copy lives in `lib/cashSaleErrors.ts` because accepting an Offer opens
@@ -56,9 +56,12 @@ export function BuyButton({
   /**
    * The listing is a browsable inventory rather than one object (0064).
    *
-   * Changes what this control MEANS, so it changes every word on it: the buyer
-   * names the cards they want, the price comes from those lines, and — the part
-   * that must not be glossed — nothing is reserved by opening the contract.
+   * The control stays "Buy now" — it opens a contract on this listing either way,
+   * and a second verb for the same act only made members wonder what the other one
+   * did. What changes is what the contract has to state, because the listing
+   * cannot: the buyer writes what they want out of the binder and names a price,
+   * and that becomes the contract's single line item. The one thing that must not
+   * be glossed is that nothing is reserved by opening it.
    */
   isShopfront?: boolean;
 }) {
@@ -67,7 +70,7 @@ export function BuyButton({
   const [confirmed, setConfirmed] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
+  const [request, setRequest] = useState<RequestDraft>(emptyRequest);
 
   // Payment method status, fetched on dialog open.
   const [paymentLabel, setPaymentLabel] = useState<string | null>(null);
@@ -109,7 +112,7 @@ export function BuyButton({
         itemId,
         sellerIdentityVersion: sellerIdentity.version,
         buyerConfirmedSellerIdentity: true,
-        lineItems: isShopfront ? toLineItemInput(lines) : undefined,
+        lineItems: isShopfront ? toRequestLineItems(request) : undefined,
       });
       if (result.ok) {
         router.push(`/sales/${result.sale.id}`);
@@ -128,13 +131,12 @@ export function BuyButton({
 
   function handleBuy() {
     if (isShopfront) {
-      const requested = toLineItemInput(lines);
-      if (requested.length === 0) {
-        setError('Add at least one card you want from this listing.');
+      if (toRequestLineItems(request).length === 0) {
+        setError('Describe what you want from this listing.');
         return;
       }
-      if (draftTotalCents(lines) <= 0) {
-        setError('Put a price against what you are asking for.');
+      if (requestTotalCents(request) <= 0) {
+        setError('Put a price on what you are asking for.');
         return;
       }
     }
@@ -157,21 +159,17 @@ export function BuyButton({
         if (!next) {
           setConfirmed(false);
           setError(null);
-          setLines([emptyLine()]);
+          setRequest(emptyRequest());
         }
       }}
     >
       <DialogTrigger asChild>
         {appearance === 'icon' ? (
-          <ListingActionIcon
-            icon={ShoppingCart}
-            label={isShopfront ? 'Ask for cards' : 'Buy now'}
-            variant="default"
-          />
+          <ListingActionIcon icon={ShoppingCart} label="Buy now" variant="default" />
         ) : (
           <Button type="button" size="lg" className="flex-1 sm:flex-none">
             <ShoppingCart aria-hidden />
-            {isShopfront ? 'Ask for cards' : 'Buy now'}
+            Buy now
           </Button>
         )}
       </DialogTrigger>
@@ -208,12 +206,10 @@ export function BuyButton({
         ) : showCheckout ? (
           <>
             <DialogHeader>
-              <DialogTitle>
-                {isShopfront ? 'Ask for what you want' : 'Start a purchase contract'}
-              </DialogTitle>
+              <DialogTitle>Start a purchase contract</DialogTitle>
               <DialogDescription>
                 {isShopfront
-                  ? 'List the cards you want and what you would pay. The seller can adjust the list and the price with you before either of you accepts.'
+                  ? 'Say what you want from this listing and what you would pay. The seller can change both with you before either of you accepts, and you pay through Stripe only once you agree.'
                   : 'This reserves the item and opens a private contract with the seller. You pay through Stripe only after you both agree how the item changes hands.'}
               </DialogDescription>
             </DialogHeader>
@@ -233,9 +229,9 @@ export function BuyButton({
                       confirmed.
                     </p>
                   </div>
-                  <ContractLineItemsEditor
-                    lines={lines}
-                    onChange={setLines}
+                  <ContractRequestFields
+                    value={request}
+                    onChange={setRequest}
                     disabled={isPending}
                   />
                 </>
@@ -329,7 +325,7 @@ export function BuyButton({
                 {isPending
                   ? 'Opening contract…'
                   : isShopfront
-                    ? 'Send request and agree terms'
+                    ? 'Open contract and agree terms'
                     : 'Reserve item and agree terms'}
               </Button>
             </DialogFooter>

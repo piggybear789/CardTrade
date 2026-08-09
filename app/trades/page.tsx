@@ -1,6 +1,6 @@
 // app/trades/page.tsx
 //
-// Trades: every 2-way escrow Trade the caller participates in (Req 5, 11, 12).
+// Trades: every 2-way collateral-backed Trade the caller participates in (Req 5, 11, 12).
 // The index for the contract rooms at /trades/[id].
 //
 // There is no longer a separate offer inbox. An offer IS a Trade in NEGOTIATING,

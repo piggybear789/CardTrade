@@ -172,7 +172,7 @@ export default async function ArbitrationQueuePage({
                         <CardTitle className="text-base">
                           <Link
                             href={`/admin/arbitration/${c.kind}/${c.ref}`}
-                            className="underline-offset-4 hover:underline"
+                            className="text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground"
                           >
                             {c.title}
                           </Link>
@@ -212,13 +212,20 @@ export default async function ArbitrationQueuePage({
                     <p className="min-w-0 text-xs text-muted-foreground">
                       {c.parties.map((p) => `${p.role}: ${p.name}`).join(' · ')}
                     </p>
-                    <CaseAssignButton
-                      caseKind={c.kind}
-                      caseRef={c.ref}
-                      assigneeId={c.assigneeId}
-                      assigneeName={c.assigneeName}
-                      viewerId={viewerId}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/admin/arbitration/${c.kind}/${c.ref}`}>
+                          Open case
+                        </Link>
+                      </Button>
+                      <CaseAssignButton
+                        caseKind={c.kind}
+                        caseRef={c.ref}
+                        assigneeId={c.assigneeId}
+                        assigneeName={c.assigneeName}
+                        viewerId={viewerId}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </li>

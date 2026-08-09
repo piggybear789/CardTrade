@@ -1,7 +1,7 @@
 // app/admin/arbitration/loading.tsx
 //
 // The arbitration queue assembles itself from four record types plus assignments, notes
-// and per-case escrow figures, which makes it the heaviest read in the app. Without a
+// and per-case held-funds figures, which makes it the heaviest read in the app. Without a
 // skeleton it shows the generic root placeholder and then jumps, which on a page whose
 // whole job is triage reads as "nothing is waiting".
 //

@@ -213,7 +213,7 @@ export function CashSaleTermsDialog({
         toast.success(
           sale.fulfillment_method
             ? 'Handover terms updated. Both parties must accept the new version.'
-            : 'Handover terms proposed. Both parties must accept before Stripe collects payment.',
+            : 'Handover terms proposed. Both parties must accept to continue.',
         );
         router.refresh();
         setOpen(false);
@@ -242,7 +242,9 @@ export function CashSaleTermsDialog({
           <DialogHeader>
             <DialogTitle>{sale.fulfillment_method ? 'Edit handover terms' : 'Propose handover terms'}</DialogTitle>
             <DialogDescription>
-              Editing creates a new version, so both parties must accept it before Stripe begins collection.
+              {sale.fulfillment_method
+                ? 'Editing creates a new version, so both parties must accept again.'
+                : 'Both parties must accept these terms to proceed.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-5">
@@ -274,11 +276,11 @@ export function CashSaleTermsDialog({
               deliveryCostLabel="Postage on top"
               deliveryCostHint={
                 canEditShippingCost
-                  ? 'Leave at 0 if postage is already included in your asking price. Added to what the buyer pays; the platform fee is charged on the item price only. Tracking is added when you post it.'
-                  : 'Added to the item price in what you pay. The platform fee is charged on the item price only.'
+                  ? 'Added to the buyer total. Fee is on item price only.'
+                  : ''
               }
               deliveryCostOptional
-              deliveryCostReadOnlyNote="only the seller can price postage, since they choose the carrier"
+              deliveryCostReadOnlyNote="only the seller sets postage"
               // The seller receives nothing by post, so only the buyer supplies an
               // address. This is the one place the two flows legitimately differ:
               // a trade posts both ways and asks both traders.
@@ -287,7 +289,7 @@ export function CashSaleTermsDialog({
               onDeliveryAddressChange={
                 canEditDeliveryAddress ? setDeliveryPlace : undefined
               }
-              deliveryAddressReadOnlyNote="Only the buyer can add or replace the delivery address. It is shared with you once Stripe has collected payment."
+              deliveryAddressReadOnlyNote="Only the buyer can set the delivery address."
               error={error}
               disabled={pending}
             />

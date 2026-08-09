@@ -18,9 +18,16 @@
 import { z } from 'zod';
 import { runSchema, type ValidationResult } from './result';
 
-/** Description length bounds for one line, inclusive. */
+/**
+ * Description length bounds for one line, inclusive.
+ *
+ * 1000, not 200 (0080), because a binder request is written as prose rather than
+ * named card by card: "the three Charizards on page 2, both Blastoise, any NM
+ * Pikachu". A truncated statement of what a contract covers is the one thing this
+ * field must never be, since arbitration reads it verbatim.
+ */
 export const LINE_DESCRIPTION_MIN_LENGTH = 1;
-export const LINE_DESCRIPTION_MAX_LENGTH = 200;
+export const LINE_DESCRIPTION_MAX_LENGTH = 1000;
 
 /** Condition label length bounds for one line, inclusive. Optional per line. */
 export const LINE_CONDITION_MAX_LENGTH = 60;

@@ -98,7 +98,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [counterOpen, setCounterOpen] = useState(false);
-  // Accepting opens a binding escrow sale at this price, so confirm first.
+  // Accepting opens a binding sale at this price, so confirm first.
   const [confirmingAccept, setConfirmingAccept] = useState(false);
 
   const imageUrl = itemImageUrl(offer.itemImagePath);
@@ -113,7 +113,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
       if (result.ok) {
         if (action === 'accept') {
           toast.success('Offer accepted — opening the sale…');
-          // The escrow sale has been opened at the agreed price; take the user
+          // The sale has been opened at the agreed price; take the user
           // straight to it.
           if (result.saleId) {
             router.push(`/sales/${result.saleId}`);

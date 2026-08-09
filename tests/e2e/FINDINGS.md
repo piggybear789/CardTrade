@@ -1567,3 +1567,87 @@ Three layers, because the first two cannot see what the third does:
 The 0074 trigger was verified the same way, four cases: an owned SINGLE listing is
 ACCEPTED, a foreign item is REFUSED (`trade-item-not-owned`), a shopfront is REFUSED, and
 a closed listing is REFUSED. Both probe transactions were confirmed to have left no rows.
+
+---
+
+# Round 7 — closing the test-coverage holes the audit exposed
+
+The audit found twelve defects and the suite caught none of them. That is the more
+important finding than any individual bug, so this round added coverage where there was
+none. Suite went from 33 files / 388 tests to 41 / 447.
+
+## Why the gap existed, in one line
+
+Everything in `tests/unit/**` ran against fakes, so nothing could see a grant, a policy, or
+a scheduled job. The layers that move money — the provider binding, the webhook front door,
+the two retry drains, the inspection sweep — were reachable only through e2e, which needs a
+build and real signups and therefore is not run per change.
+
+## What was added
+
+| Area | File | Tests |
+| --- | --- | --- |
+| Grants, RPC exposure, default privileges | `tests/database/grants.test.ts` | 3 (87 assertions) |
+| RLS enabled, inert policies, restrictive fraud ban | `tests/database/policies.test.ts` | 3 |
+| Trade condition dispute (friction tax + release) | `tests/unit/tradeConditionDispute.test.ts` | 7 |
+| Cash-sale refund drain | `tests/unit/cashSaleRefundDrain.test.ts` | 6 |
+| Trade fee drain | `tests/unit/tradeFeeDrain.test.ts` | 7 |
+| Inspection sweep | `tests/unit/tradeInspectionSweep.test.ts` | 9 |
+| Webhook authentication | `tests/unit/webhookAuthentication.test.ts` | 8 |
+| Contract line items + SQL agreement | `tests/unit/cashSaleLineItems.test.ts` | 16 |
+
+Three enabling changes:
+
+- **A `database` vitest project.** Runs catalog queries over the Management API — the same
+  channel `scripts/apply-sql.mjs` uses — because grants cannot be asserted any other way.
+  Read-only by convention, and it SKIPS without `SUPABASE_PAT` so a machine with no token
+  gets a green run rather than a red one. `npm run test:db` runs it alone.
+- **`server-only` aliased** in `vitest.config.ts` to the package's own empty entry. Its
+  default export THROWS on import, so every `server-only` module — the sweeps, the
+  lifecycle store, the repositories — was untestable: the import failed before any
+  assertion ran. Next resolves the `react-server` condition to an empty module; vitest does
+  not.
+- **`tests/unit/fakes/supabaseChain.ts`** for the two modules that build queries inline
+  rather than through a repository. It throws on an unqueued result, because a fake that
+  invents an empty result set makes a sweep that processes zero rows look healthy.
+
+## Every fix was mutation-checked
+
+A passing test proves nothing on its own, so each fixed behaviour was reverted and the
+suite re-run to confirm the right test fails and nothing else does:
+
+| Reverted behaviour | Result |
+| --- | --- |
+| Discard `voidHold`'s status again (F57) | 1 failure, the release-refused test |
+| Make the friction-tax payout a no-op that reports success (F61) | 3 failures, led by the payout assertion |
+| Unconditional "both collateral holds were released" (F63) | 1 failure, the honesty test |
+| `catch` rethrows instead of isolating (F63) | 2 failures, both isolation tests |
+| Regenerate the fee nonce instead of reusing it (F62) | 1 failure, the nonce test |
+| Signature check always passes (Req 10.1) | 3 failures, all authenticity tests |
+| One grant expectation flipped | names the flow, column, privilege and direction |
+
+Every production file touched for a mutation was confirmed byte-identical to its committed
+version afterwards with `git diff --numstat`.
+
+## Two things the tests themselves got wrong
+
+Worth recording, because in both cases the database corrected me:
+
+1. The anon-executable `SECURITY DEFINER` assertion initially failed on ten TRIGGER
+   functions. PostgREST cannot expose a function returning `trigger`, calling one directly
+   raises, and trigger firing does not consult `EXECUTE` at all — so they are not an API
+   surface. Narrowed with the reasoning in place, rather than by revoking things
+   needlessly.
+2. `reviews_author_delete` turned out to be an inert policy: no code deletes a review, so
+   the blanket revoke left no grant behind it. That is least privilege rather than a break,
+   and it is now pinned in `KNOWN_INERT_POLICIES` so the fourteenth inert policy fails the
+   test instead of quietly breaking a feature.
+
+## Still not covered
+
+- `StripeService` — the real provider binding. No new money path has executed once, even
+  against test keys. `scripts/smoke-stripe-test.ts` is the tool and it is still unrun.
+- The repository half of the friction-tax payout: `recordFrictionTaxReturnResult` writing
+  the 0075 columns is unverified. The orchestrator decision logic is tested; the SQL is not.
+- The remaining Server Actions (~20 modules), covered only by e2e.
+- The nine items in F69, unchanged.

@@ -33,6 +33,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { ChoiceTile } from '@/components/ui/choice-tile';
+import { Textarea } from '@/components/ui/textarea';
 import { DialogFooter } from '@/components/ui/dialog';
 import { DialogRow } from '@/components/ui/dialog-row';
 import { OwnItemsPickerDialog } from '@/components/trade/OwnItemsPickerDialog';
@@ -102,6 +103,15 @@ export type TradeOfferRequested = {
   fmvCents: number;
   imagePath: string | null;
   ownerName: string;
+  /**
+   * The listing is a binder or bulk lot rather than one object (0064).
+   *
+   * Two consequences, both about value. Its `fmvCents` is an indicative "from"
+   * price for the whole inventory, so it must not appear as what this trader is
+   * giving; and the trade has to state which cards are coming out of it, because
+   * the listing cannot.
+   */
+  isShopfront?: boolean;
 };
 
 export interface TradeOfferFormProps {
@@ -150,6 +160,13 @@ export function TradeOfferForm({
   /** Face to face or postage — details (place, cost, tracking) are set in the room. */
   const [handover, setHandover] = useState<HandoverMethod | null>(null);
 
+  /**
+   * What you want out of a binder, written in prose (0081). Empty on a single
+   * listing, where the item itself is the statement of what is being traded.
+   */
+  const isShopfront = requested.isShopfront === true;
+  const [wantedGoods, setWantedGoods] = useState('');
+
   const { cashDirection, message } = terms;
   const cashAmountCents = dollarsToCents(terms.cashDollars);
   const declaredValueCents = dollarsToCents(terms.valueDollars);
@@ -167,9 +184,13 @@ export function TradeOfferForm({
   const youGiveTotalCents =
     offeredGoodsValueCents +
     (cashDirection === 'PROPOSER_PAYS' ? cashAmountCents : 0);
+  // The binder rule, shown so it is not a surprise at the Commitment_Point: a binder
+  // side is worth whatever is put up against it, because there is no determinate
+  // figure for "some cards out of a binder" and its listed price is the whole lot.
+  // Mirrors `resolveTradeSideValues`, which is what actually sizes the collateral.
+  const theyGiveGoodsCents = isShopfront ? offeredGoodsValueCents : requested.fmvCents;
   const theyGiveTotalCents =
-    requested.fmvCents +
-    (cashDirection === 'COUNTERPART_PAYS' ? cashAmountCents : 0);
+    theyGiveGoodsCents + (cashDirection === 'COUNTERPART_PAYS' ? cashAmountCents : 0);
   const differenceCents = youGiveTotalCents - theyGiveTotalCents;
 
   function removeSelectedItem(itemId: string) {
@@ -178,7 +199,11 @@ export function TradeOfferForm({
 
   /** Everything on your side of the table, for the count on the legend. */
   const offeredCount = selectedItemIds.length + (unlisted ? 1 : 0);
-  const canSubmit = !isPending && offeredCount > 0 && handover !== null;
+  const canSubmit =
+    !isPending &&
+    offeredCount > 0 &&
+    handover !== null &&
+    (!isShopfront || wantedGoods.trim() !== '');
 
   /** One-line summary of the optional terms, shown on the collapsed disclosure. */
   const termsSummary = useMemo(() => {
@@ -199,6 +224,20 @@ export function TradeOfferForm({
     setError(null);
     if (handover === null) {
       setError(ERROR_MESSAGES['invalid-handover']);
+      return;
+    }
+    if (isShopfront && wantedGoods.trim() === '') {
+      setError('Say which cards you want out of this listing.');
+      return;
+    }
+    // An unlisted item normally borrows the requested listing's price as its
+    // assumed value. Against a binder that price is the whole inventory, and the
+    // offering side is what the binder side gets valued at — so it has to be a real
+    // figure, stated here, rather than inherited from a "from" price.
+    if (isShopfront && unlisted && declaredValueCents <= 0) {
+      setError(
+        'Set what your side is worth in Payment Terms. A binder has no single price to match against.',
+      );
       return;
     }
     const [primaryItemId, ...extraItemIds] = selectedItemIds;
@@ -240,6 +279,7 @@ export function TradeOfferForm({
           declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
           handoverMethod: handover,
           message,
+          counterpartGoodsDescription: isShopfront ? wantedGoods.trim() : null,
         },
         offer: unlisted
           ? {
@@ -296,10 +336,44 @@ export function TradeOfferForm({
           </p>
           <p className="truncate font-semibold">{requested.title}</p>
         </div>
-        <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">
-          {formatAud(requested.fmvCents)}
-        </span>
+        {/* A binder's price is an indicative "from" for the whole lot, so showing it
+            here as what this trader gives would overstate their side by an order of
+            magnitude. The running total below states the real figure. */}
+        {isShopfront ? (
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+            binder or bulk
+          </span>
+        ) : (
+          <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">
+            {formatAud(requested.fmvCents)}
+          </span>
+        )}
       </section>
+
+      {/* What is coming out of the binder. The trade has to say, because the listing
+          cannot — and this is what an arbitrator reads if it goes wrong. */}
+      {isShopfront ? (
+        <fieldset className="min-w-0 space-y-2">
+          <legend className="text-sm font-medium">
+            What you want
+            <span className="ml-1 text-destructive" aria-hidden>
+              *
+            </span>
+          </legend>
+          <Textarea
+            value={wantedGoods}
+            onChange={(event) => setWantedGoods(event.target.value)}
+            maxLength={1000}
+            rows={3}
+            placeholder="The two Charizards on page 2 and any NM Blastoise."
+            aria-describedby="wanted-goods-hint"
+          />
+          <p id="wanted-goods-hint" className="text-xs text-muted-foreground">
+            Nothing here is held for you. You can both revise this in the trade room,
+            and changing it means you each accept again.
+          </p>
+        </fieldset>
+      ) : null}
 
       {/* Your side: one list of everything you are putting up, listed or not.
           min-w-0: fieldsets default to min-width:min-content, which refuses to
@@ -456,6 +530,12 @@ export function TradeOfferForm({
             {formatAud(theyGiveTotalCents)}
           </span>
         </div>
+        {isShopfront ? (
+          <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
+            A binder has no single price, so their side is valued at what you put up.
+            That is the figure both of you hold collateral against.
+          </p>
+        ) : null}
         <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
           {differenceCents === 0
             ? 'Even on the stated terms.'
@@ -525,8 +605,14 @@ export function TradeOfferForm({
         onOpenChange={setTermsDialogOpen}
         terms={terms}
         counterpartName={requested.ownerName}
+        // Never seed from a binder's price: it is the whole inventory's "from"
+        // figure, and this field is what values the trader's OWN side.
         valuePlaceholder={(
-          (goodsValueCents > 0 ? goodsValueCents : requested.fmvCents) / 100
+          (goodsValueCents > 0
+            ? goodsValueCents
+            : isShopfront
+              ? 0
+              : requested.fmvCents) / 100
         ).toFixed(2)}
         onSave={setTerms}
       />

@@ -392,6 +392,8 @@ export type Database = {
           dispute_raised_by: string | null;
           disputed_against: string | null;
           disputed_at: string | null;
+          /** The disputing trader's own words (0083). Mirrors cash_sales.dispute_reason. */
+          dispute_reason: string | null;
           fraud_victim_id: string | null;
           /** Fraud ALLEGED by a trader (0046). Not a finding: see fraud_victim_id. */
           fraud_claimed_by: string | null;
@@ -446,8 +448,18 @@ export type Database = {
           counterpart_terms_accepted_at: string | null;
           /** The opening note, and each counter's note. */
           offer_message: string | null;
-          /** Agreed value basis for bond sizing. */
+          /**
+           * What the proposer SAYS their side is worth. Self-declared, so it never
+           * sizes a bond — see the column comment in 0015 and
+           * `domain/trade/tradeSideValues.ts`, which is where side values come from.
+           */
           declared_value_cents: number | null;
+          /**
+           * What the counterpart is handing over, in prose, when their listing is a
+           * SHOPFRONT and so cannot say (0081). Null on a SINGLE listing. Part of the
+           * terms: revising it voids both acceptances.
+           */
+          counterpart_goods_description: string | null;
           cancelled_by: string | null;
           cancel_reason: string | null;
           cancelled_at: string | null;
@@ -468,6 +480,7 @@ export type Database = {
           counterpart_terms_accepted_at?: string | null;
           offer_message?: string | null;
           declared_value_cents?: number | null;
+          counterpart_goods_description?: string | null;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
@@ -500,6 +513,7 @@ export type Database = {
           dispute_raised_by?: string | null;
           disputed_against?: string | null;
           disputed_at?: string | null;
+          dispute_reason?: string | null;
           fraud_victim_id?: string | null;
           fraud_claimed_by?: string | null;
           fraud_claimed_against?: string | null;
@@ -556,6 +570,7 @@ export type Database = {
           counterpart_terms_accepted_at?: string | null;
           offer_message?: string | null;
           declared_value_cents?: number | null;
+          counterpart_goods_description?: string | null;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
@@ -588,6 +603,7 @@ export type Database = {
           dispute_raised_by?: string | null;
           disputed_against?: string | null;
           disputed_at?: string | null;
+          dispute_reason?: string | null;
           conversation_id?: string | null;
           fraud_victim_id?: string | null;
           fraud_claimed_by?: string | null;
@@ -1812,6 +1828,44 @@ export type Database = {
         };
         Relationships: [];
       };
+      /**
+       * Participant-submitted dispute evidence (0082). Append-only: statements and
+       * media a party files on a DISPUTED contract. Readable by both participants and
+       * by staff — deliberately mutual, because deciding against someone on material
+       * they never saw is not a process anyone can trust.
+       */
+      dispute_evidence: {
+        Row: {
+          id: string;
+          /** CASH_SALE or TRADE. Same addressing as `arbitration_notes`. */
+          case_kind: 'CASH_SALE' | 'TRADE';
+          case_ref: string;
+          author_id: string;
+          statement: string;
+          /** Object paths in the private `dispute-evidence` bucket. */
+          media_paths: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          case_kind: 'CASH_SALE' | 'TRADE';
+          case_ref: string;
+          author_id: string;
+          statement: string;
+          media_paths?: string[];
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          case_kind?: 'CASH_SALE' | 'TRADE';
+          case_ref?: string;
+          author_id?: string;
+          statement?: string;
+          media_paths?: string[];
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       public_profiles: {
@@ -1984,6 +2038,12 @@ export type Database = {
           p_delivery_details?: string | null;
           p_delivery_cost_cents?: number | null;
           p_offer_message?: string | null;
+          /**
+           * Required when the counterpart's listing is a SHOPFRONT, refused otherwise
+           * (0081). The RPC raises `counterpart-goods-required` /
+           * `counterpart-goods-not-applicable` rather than guessing.
+           */
+          p_counterpart_goods_description?: string | null;
         };
         Returns: Database['cardtrade']['Tables']['trades']['Row'];
       };
@@ -2004,6 +2064,12 @@ export type Database = {
           p_delivery_details?: string | null;
           p_delivery_cost_cents?: number | null;
           p_offer_message?: string | null;
+          /**
+           * A counter may revise what comes out of the binder. Null LEAVES the current
+           * description in place (0081) — a counter about postage must not erase the
+           * statement of what is being swapped.
+           */
+          p_counterpart_goods_description?: string | null;
         };
         Returns: Database['cardtrade']['Tables']['trades']['Row'][];
       };

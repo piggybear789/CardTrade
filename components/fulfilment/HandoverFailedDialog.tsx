@@ -61,6 +61,14 @@ export interface HandoverFailedDialogProps {
   successMessage?: string;
   /** Placeholder for the description field. */
   reasonPlaceholder?: string;
+  /**
+   * Trigger button variant.
+   *
+   * Defaults to `destructive`, which suits the never-arrived and fraud reports. A
+   * condition dispute passes `outline` — the three claims carry very different
+   * consequences and the buttons should not look identical.
+   */
+  triggerVariant?: 'outline' | 'destructive' | 'default' | 'secondary' | 'ghost';
 }
 
 export function HandoverFailedDialog({
@@ -70,6 +78,7 @@ export function HandoverFailedDialog({
   outcomeDescription,
   successMessage = 'Reported — the contract is now frozen for review.',
   reasonPlaceholder = 'e.g. they did not show up, the item was not what was agreed, the parcel never arrived…',
+  triggerVariant = 'destructive',
 }: HandoverFailedDialogProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -129,7 +138,7 @@ export function HandoverFailedDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="destructive" size="sm">
+        <Button type="button" variant={triggerVariant} size="sm">
           <AlertTriangle className="size-3.5" aria-hidden />
           {triggerLabel}
         </Button>

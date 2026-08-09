@@ -24,6 +24,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /** What the caller receives when the form is submitted. */
 export interface ShipmentInput {
@@ -46,6 +53,20 @@ export interface RecordShipmentDialogProps {
   recipientAddressKnown?: boolean;
 }
 
+/** Australian carriers most commonly used for collectibles postage. */
+const CARRIERS = [
+  { value: 'Australia Post', label: 'Australia Post' },
+  { value: 'StarTrack', label: 'StarTrack' },
+  { value: 'Sendle', label: 'Sendle' },
+  { value: 'Aramex', label: 'Aramex' },
+  { value: 'Couriers Please', label: 'Couriers Please' },
+  { value: 'DHL', label: 'DHL' },
+  { value: 'FedEx', label: 'FedEx' },
+  { value: 'TNT', label: 'TNT' },
+  { value: 'UPS', label: 'UPS' },
+  { value: 'Other', label: 'Other' },
+] as const;
+
 /** Tracking numbers vary wildly; two characters is the only safe floor. */
 const TRACKING_MIN = 2;
 
@@ -58,27 +79,29 @@ export function RecordShipmentDialog({
   recipientAddressKnown = true,
 }: RecordShipmentDialogProps) {
   const [carrier, setCarrier] = useState('');
+  const [customCarrier, setCustomCarrier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
 
   // Reset on close so a cancelled attempt does not prefill the next one.
   useEffect(() => {
     if (open) return;
     setCarrier('');
+    setCustomCarrier('');
     setTrackingNumber('');
   }, [open]);
 
+  const resolvedCarrier = carrier === 'Other' ? customCarrier.trim() : carrier;
   const canSubmit =
-    carrier.trim() !== '' && trackingNumber.trim().length >= TRACKING_MIN;
+    resolvedCarrier !== '' && trackingNumber.trim().length >= TRACKING_MIN;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Record shipment</DialogTitle>
           <DialogDescription>
-            Add the carrier and tracking number for what you are sending
-            {recipientName ? ` to ${recipientName}` : ''}. The carrier confirming
-            delivery is what starts the inspection window — your own word does not.
+            Add tracking for what you are sending
+            {recipientName ? ` to ${recipientName}` : ''}.
           </DialogDescription>
         </DialogHeader>
 
@@ -92,35 +115,69 @@ export function RecordShipmentDialog({
           </p>
         ) : null}
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
           <div className="space-y-2">
-            <Label htmlFor="ship-carrier">
-              Carrier
-              <span className="text-destructive" aria-hidden>
-                {' '}
-                *
-              </span>
-            </Label>
-            <Input
-              id="ship-carrier"
-              value={carrier}
-              onChange={(event) => setCarrier(event.target.value)}
-              placeholder="e.g. Australia Post"
-              autoComplete="off"
-              disabled={pending}
-              required
-            />
+            <Label htmlFor="ship-carrier">Carrier</Label>
+            <Select value={carrier} onValueChange={setCarrier} disabled={pending}>
+              <SelectTrigger id="ship-carrier">
+                <SelectValue placeholder="Select carrier" />
+              </SelectTrigger>
+              <SelectContent>
+                {CARRIERS.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          {carrier === 'Other' ? (
+            <div className="space-y-2">
+              <Label htmlFor="ship-carrier-custom">Carrier name</Label>
+              <Input
+                id="ship-carrier-custom"
+                value={customCarrier}
+                onChange={(event) => setCustomCarrier(event.target.value)}
+                placeholder="Carrier name"
+                autoComplete="off"
+                disabled={pending}
+                required
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="ship-tracking">Tracking number</Label>
+              <Input
+                id="ship-tracking"
+                value={trackingNumber}
+                onChange={(event) => setTrackingNumber(event.target.value)}
+                placeholder="Tracking number"
+                autoComplete="off"
+                disabled={pending}
+                required
+              />
+            </div>
+          )}
+          <Button
+            disabled={pending || !canSubmit}
+            aria-busy={pending}
+            onClick={() =>
+              onSubmit({
+                carrier: resolvedCarrier,
+                trackingNumber: trackingNumber.trim(),
+              })
+            }
+            className="shrink-0"
+          >
+            {pending ? 'Saving…' : 'Record'}
+          </Button>
+        </div>
+
+        {carrier === 'Other' ? (
           <div className="space-y-2">
-            <Label htmlFor="ship-tracking">
-              Tracking number
-              <span className="text-destructive" aria-hidden>
-                {' '}
-                *
-              </span>
-            </Label>
+            <Label htmlFor="ship-tracking-other">Tracking number</Label>
             <Input
-              id="ship-tracking"
+              id="ship-tracking-other"
               value={trackingNumber}
               onChange={(event) => setTrackingNumber(event.target.value)}
               placeholder="Tracking number"
@@ -129,27 +186,16 @@ export function RecordShipmentDialog({
               required
             />
           </div>
-        </div>
+        ) : null}
 
-        <DialogFooter>
+        <DialogFooter className="sm:justify-start">
           <Button
             variant="ghost"
+            size="sm"
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
             Cancel
-          </Button>
-          <Button
-            disabled={pending || !canSubmit}
-            aria-busy={pending}
-            onClick={() =>
-              onSubmit({
-                carrier: carrier.trim(),
-                trackingNumber: trackingNumber.trim(),
-              })
-            }
-          >
-            {pending ? 'Saving…' : 'Record shipment'}
           </Button>
         </DialogFooter>
       </DialogContent>

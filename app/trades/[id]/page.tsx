@@ -18,6 +18,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { TradeContract } from '@/components/trade/TradeContract';
+import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { DemoPanel } from '@/components/trade/DemoPanel';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -120,7 +121,10 @@ export default async function TradePage({
 
   const { data: goodsRows } = await supabase
     .from('items')
-    .select('id, title, fmv_cents, image_paths')
+    // `listing_kind` decides whether this item's `fmv_cents` may be summed into a
+    // side value at all (0081). Without it the room would disclose a fee sized on a
+    // whole binder while charging one sized on the bundle.
+    .select('id, title, fmv_cents, image_paths, listing_kind')
     .in(
       'id',
       sides.map((entry) => entry.itemId),
@@ -133,6 +137,7 @@ export default async function TradePage({
         title: (row.title as string) ?? 'Item',
         fmvCents: (row.fmv_cents as number) ?? 0,
         imagePath: ((row.image_paths as string[] | null) ?? [])[0] ?? null,
+        isShopfront: (row.listing_kind as string) === 'SHOPFRONT',
       },
     ]),
   );
@@ -172,6 +177,15 @@ export default async function TradePage({
     );
     cashReceiverPayoutReady = canReceiveFunds(receiver);
   }
+
+  // Participant evidence (0082). Only fetched for a trade that has actually been
+  // disputed — every other trade would pay for a query guaranteed to return nothing.
+  const disputeEvidence =
+    trade.state === 'DISPUTED' || trade.state === 'FRAUD_RESOLVED'
+      ? await getDisputeEvidence('TRADE', trade.id).then((result) =>
+          result.ok ? result.data.entries : [],
+        )
+      : [];
 
   // Post-transaction review affordance: once the trade is COMPLETED, either
   // participant may review the other trader (unless already reviewed).
@@ -230,6 +244,7 @@ export default async function TradePage({
         demoPanel={
           isPaymentDemoEnabled() ? <DemoPanel tradeId={trade.id} /> : null
         }
+        disputeEvidence={disputeEvidence}
       />
       {reviewSection}
     </MarketplaceShell>

@@ -23,6 +23,10 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireStaff, type StaffGateError } from '@/lib/staffGate';
 import {
+  getDisputeEvidenceForStaff,
+  type DisputeEvidenceEntry,
+} from '@/lib/actions/disputeEvidence';
+import {
   buildQueue,
   type ArbitrationCase,
   type ArbitrationCaseKind,
@@ -106,6 +110,16 @@ export type ArbitrationResolution =
       counterpart: { id: string; name: string; bondCents: number };
       fraudClaimedById: string | null;
       frictionTaxCents: number;
+      /**
+       * What the counterpart was handing over out of a binder listing (0081), null on
+       * a single listing.
+       *
+       * Present for the same reason `cash_sale_items` is: arbitration reads the
+       * contract and never the listing, and a binder's title names an inventory. Without
+       * it a disputed binder trade gives staff two party names and a dollar figure with
+       * no way to adjudicate "she sent the wrong card".
+       */
+      counterpartGoodsDescription: string | null;
     }
   | {
       kind: 'CHARGEBACK';
@@ -135,6 +149,14 @@ export interface ArbitrationCaseDetail {
   resolution: ArbitrationResolution | null;
   /** Where the underlying contract lives, so staff can read it as the parties do. */
   contractHref: string | null;
+  /**
+   * What each party filed about the dispute (0082).
+   *
+   * Empty for a CHARGEBACK, which has no contract room for a party to file from.
+   * This is the material the decision is supposed to rest on, so it is part of the
+   * detail payload rather than a separate client fetch.
+   */
+  evidence: readonly DisputeEvidenceEntry[];
   /** True when the viewer may also moderate. */
   viewerIsAdmin: boolean;
   viewerId: string;
@@ -188,7 +210,7 @@ export async function getArbitrationQueue(): Promise<
     admin
       .from('trades')
       .select(
-        'id, initiator_id, counterpart_id, disputed_at, dispute_raised_by, fraud_claimed_by, fraud_claim_reason',
+        'id, initiator_id, counterpart_id, disputed_at, dispute_raised_by, dispute_reason, fraud_claimed_by, fraud_claim_reason',
       )
       .eq('state', 'DISPUTED'),
     admin
@@ -301,7 +323,14 @@ export async function getArbitrationQueue(): Promise<
         (trade.fraud_claimed_by as string | null) ??
         (trade.dispute_raised_by as string | null) ??
         null,
-      claim: (trade.fraud_claim_reason as string | null) ?? null,
+      // The claimant's own words, preferring the fraud allegation when there is one
+      // (0083). A plain condition dispute previously had nothing to show here, because
+      // `trades` had no reason column and only a fraud claim carried text — so an
+      // arbitrator opening a condition case read an empty claim panel.
+      claim:
+        (trade.fraud_claim_reason as string | null) ??
+        (trade.dispute_reason as string | null) ??
+        null,
       parties: [
         {
           id: trade.initiator_id as string,
@@ -440,12 +469,22 @@ export async function getArbitrationCase(
               : null
           : null;
 
+  // Participant statements and media (0082). A CHARGEBACK has no contract room for a
+  // party to file from, so it is skipped rather than queried for nothing.
+  const evidence =
+    kind === 'CHARGEBACK'
+      ? []
+      : await getDisputeEvidenceForStaff(kind, ref).then((result) =>
+          result.ok ? result.data.entries : [],
+        );
+
   return ok({
     case: found,
     notes,
     timeline,
     resolution,
     contractHref,
+    evidence,
     viewerIsAdmin: gate.ctx.isAdmin,
     viewerId: gate.ctx.userId,
   });
@@ -486,7 +525,9 @@ async function readResolution(
     const { data } = await admin
       .from('trades')
       .select(
-        'id, initiator_id, counterpart_id, fraud_claimed_by, friction_tax_platform_cents, friction_tax_return_cents',
+        // `counterpart_goods_description` (0081): on a binder trade this is the only
+        // record of what was actually being swapped, and the listing cannot supply it.
+        'id, initiator_id, counterpart_id, fraud_claimed_by, friction_tax_platform_cents, friction_tax_return_cents, counterpart_goods_description',
       )
       .eq('id', ref)
       .maybeSingle();
@@ -518,6 +559,8 @@ async function readResolution(
       // A trade that has already settled a Friction_Tax reports its own figure; one
       // that has not falls back to the standard $20 (Req 7.3).
       frictionTaxCents: settled > 0 ? settled : FRICTION_TAX_CENTS,
+      counterpartGoodsDescription:
+        (data.counterpart_goods_description as string | null) ?? null,
     };
   }
 

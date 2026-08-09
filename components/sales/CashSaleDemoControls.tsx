@@ -3,9 +3,9 @@
 // components/sales/CashSaleDemoControls.tsx
 //
 // Demo-only controls for simulating the Stripe payment settlement webhook that
-// advances a Cash_Sale from PAYMENT_PENDING to ESCROW_HELD (or FAILED). Collapsed
-// by default and labelled as hackathon / test mode so they never read as
-// production payment steps.
+// advances a Cash_Sale from PAYMENT_PENDING to ESCROW_HELD (funds confirmed)
+// or FAILED. Collapsed by default and labelled as hackathon / test mode so they
+// never read as production payment steps.
 
 import { useState, useTransition } from 'react';
 import { ChevronDown, ChevronUp, FlaskConical, Loader2 } from 'lucide-react';

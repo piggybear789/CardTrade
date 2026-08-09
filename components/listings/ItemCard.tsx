@@ -59,8 +59,21 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
         </Link>
 
         <div className="auction-stage pointer-events-none relative aspect-[5/6] overflow-hidden rounded-xl border border-white/10 p-[7%] shadow-market transition-[shadow,transform] duration-150 group-hover:shadow-auction group-active:scale-[0.98]">
+          {/* Blurred background — same image scaled to fill, behind the contained
+              sharp version. Gives a Facebook Marketplace-style mosaic fill instead
+              of dead space around non-square images. */}
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 z-0 h-full w-full scale-110 object-cover blur-lg opacity-90"
+              loading="lazy"
+            />
+          ) : null}
           <div
-            className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.09),transparent_52%)]"
+            className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.09),transparent_52%)]"
             aria-hidden="true"
           />
           {imageUrl ? (
@@ -203,8 +216,19 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
       </Link>
 
       <div className="auction-stage pointer-events-none relative aspect-[4/5] w-full overflow-hidden p-[7%]">
+        {/* Blurred background — same image scaled to fill for a mosaic effect. */}
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 z-0 h-full w-full scale-110 object-cover blur-lg opacity-90"
+            loading="lazy"
+          />
+        ) : null}
         <div
-          className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.08),transparent_52%)]"
+          className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.08),transparent_52%)]"
           aria-hidden="true"
         />
         {imageUrl ? (

@@ -174,7 +174,7 @@ export function ContractChat({
               <p className="max-w-56 text-sm leading-5 text-muted-foreground">{emptyHint}</p>
             </div>
           ) : (
-            messages.map((message) => {
+            messages.map((message, index) => {
               // Contract events are mirrored into the thread as SYSTEM messages:
               // same table, same ordering, but centred and unattributed.
               if (message.kind === 'SYSTEM') {
@@ -187,8 +187,23 @@ export function ContractChat({
                 );
               }
               const mine = message.sender_id === currentUserId;
+              const senderName = mine ? 'You' : counterpartyName;
+              // Show the name when the previous message was from a different sender
+              // or is a system message (i.e. start of a new run from this person).
+              const prev = index > 0 ? messages[index - 1] : null;
+              const showName =
+                !prev ||
+                prev.kind === 'SYSTEM' ||
+                prev.sender_id !== message.sender_id;
+              const time = new Date(message.created_at);
+              const timeLabel = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
               return (
-                <div key={message.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+                <div key={message.id} className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
+                  {showName ? (
+                    <span className={cn('mb-0.5 px-1 text-[11px] font-medium text-muted-foreground')}>
+                      {senderName}
+                    </span>
+                  ) : null}
                   <div
                     className={cn(
                       'max-w-[82%] rounded-2xl px-3 py-2 text-sm',
@@ -199,6 +214,9 @@ export function ContractChat({
                   >
                     <p className="whitespace-pre-wrap break-words">{message.body}</p>
                   </div>
+                  <span className={cn('mt-0.5 px-1 text-[10px] text-muted-foreground/60')}>
+                    {timeLabel}
+                  </span>
                 </div>
               );
             })

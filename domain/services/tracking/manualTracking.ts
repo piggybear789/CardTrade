@@ -15,10 +15,22 @@ const TRACKING_URLS: Record<string, (number: string) => string> = {
     `https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(number)}`,
   auspost: (number) =>
     `https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(number)}`,
+  startrack: (number) =>
+    `https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(number)}`,
+  sendle: (number) =>
+    `https://track.sendle.com/tracking?ref=${encodeURIComponent(number)}`,
+  aramex: (number) =>
+    `https://www.aramex.com/au/en/track/shipment?q=${encodeURIComponent(number)}`,
+  'couriers please': (number) =>
+    `https://www.couriersplease.com.au/tools-track?con=${encodeURIComponent(number)}`,
   dhl: (number) =>
     `https://www.dhl.com/au-en/home/tracking.html?tracking-id=${encodeURIComponent(number)}`,
   fedex: (number) =>
     `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(number)}`,
+  tnt: (number) =>
+    `https://www.tnt.com/express/en_au/site/tracking.html?searchType=con&cons=${encodeURIComponent(number)}`,
+  ups: (number) =>
+    `https://www.ups.com/track?tracknum=${encodeURIComponent(number)}`,
 };
 
 /** Normalize manually supplied tracking details and provide a carrier URL. */

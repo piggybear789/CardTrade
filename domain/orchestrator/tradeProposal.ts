@@ -28,6 +28,7 @@
 
 import type { PaymentService, PreAuthHold } from '../services/types';
 import { resolveTradeBonds, type BondPolicy } from '../bond/bondPolicy';
+import { resolveTradeSideValues, tradeSidesAreValued } from '../trade/tradeSideValues';
 import type { RunSideEffects, TradeRecord } from './tradeOrchestrator';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,16 @@ export interface ItemRecord {
   /** Fair_Market_Value in integer AUD cents. Used to size bonds, not to gate acceptance. */
   fmvCents: number;
   status: ItemStatus;
+  /**
+   * SINGLE or SHOPFRONT (0064).
+   *
+   * Load-bearing for money: a SHOPFRONT's `fmvCents` is an indicative "from" price
+   * for a whole inventory, so it must never be summed into a side value. See
+   * `resolveTradeSideValues`. Optional so an older repository that does not select
+   * the column still type-checks; it then reads as SINGLE, which is what every
+   * pre-0064 row is.
+   */
+  listingKind?: 'SINGLE' | 'SHOPFRONT';
 }
 
 /** Parameters for creating the Trade aggregate (Req 5.1). */
@@ -276,13 +287,17 @@ export async function proposeTrade(
     return { ok: false, error: 'item-unavailable' };
   }
 
-  // What the Counterpart receives: the initiator's whole bundle.
-  const initiatorSideCents = extraItems.reduce(
-    (sum, entry) => sum + (entry?.fmvCents ?? 0),
-    initiatorItem.fmvCents,
-  );
-  // What the initiator receives: the Counterpart's listed Item.
-  const counterpartSideCents = counterpartItem.fmvCents;
+  // What each Trader receives. The binder rule lives in `resolveTradeSideValues`
+  // and is applied here as well as on the negotiated path, because summing a
+  // SHOPFRONT's `fmvCents` would bond a whole inventory.
+  const { initiatorSideCents, counterpartSideCents } = resolveTradeSideValues({
+    initiatorGoodsCents: extraItems.reduce(
+      (sum, entry) => sum + (entry?.fmvCents ?? 0),
+      initiatorItem.fmvCents,
+    ),
+    counterpartGoodsCents: counterpartItem.fmvCents,
+    counterpartIsShopfront: counterpartItem.listingKind === 'SHOPFRONT',
+  });
 
   const { initiatorBondCents: proposerBond, counterpartBondCents: counterpartBond } =
     resolveTradeBonds({
@@ -372,6 +387,12 @@ export type PlaceAgreedBondsResult =
         | 'item-not-found'
         | 'payer-not-found'
         /**
+         * A side is worth nothing, so there is no figure to collateralise against.
+         * Reachable on a binder trade, whose side inherits its value from the other
+         * one (0081) — see `tradeSidesAreValued`.
+         */
+        | 'side-unvalued'
+        /**
          * The provider refused at least one collateral authorisation — typically a
          * card decline. Reported as a FAILURE so the caller runs the HOLDS_FAILED
          * compensation before anything is billed; see the note in the placement loop.
@@ -406,19 +427,37 @@ export async function placeBondsForAgreedTrade(
   ]);
   if (!initiator || !counterpart) return { ok: false, error: 'profile-not-found' };
 
-  const sumFmv = async (itemIds: string[]): Promise<number | null> => {
+  const loadSide = async (
+    itemIds: string[],
+  ): Promise<{ goodsCents: number; hasShopfront: boolean } | null> => {
     const items = await Promise.all(itemIds.map((id) => repository.getItem(id)));
     if (items.some((item) => item === null)) return null;
-    return items.reduce((sum, item) => sum + (item?.fmvCents ?? 0), 0);
+    return {
+      goodsCents: items.reduce((sum, item) => sum + (item?.fmvCents ?? 0), 0),
+      hasShopfront: items.some((item) => item?.listingKind === 'SHOPFRONT'),
+    };
   };
 
-  const [initiatorSideCents, counterpartSideCents] = await Promise.all([
-    sumFmv(params.initiatorItemIds),
-    sumFmv(params.counterpartItemIds),
+  const [initiatorSide, counterpartSide] = await Promise.all([
+    loadSide(params.initiatorItemIds),
+    loadSide(params.counterpartItemIds),
   ]);
-  if (initiatorSideCents === null || counterpartSideCents === null) {
+  if (!initiatorSide || !counterpartSide) {
     return { ok: false, error: 'item-not-found' };
   }
+
+  const sides = resolveTradeSideValues({
+    initiatorGoodsCents: initiatorSide.goodsCents,
+    counterpartGoodsCents: counterpartSide.goodsCents,
+    counterpartIsShopfront: counterpartSide.hasShopfront,
+  });
+  // A binder side inherits its value from the other side, so a bundle worth nothing
+  // would collateralise a trade at zero — escrow with nothing behind it. Refused
+  // rather than confirmed as "no bond needed".
+  if (!tradeSidesAreValued(sides)) {
+    return { ok: false, error: 'side-unvalued' };
+  }
+  const { initiatorSideCents, counterpartSideCents } = sides;
 
   const { initiatorBondCents, counterpartBondCents } = resolveTradeBonds({
     initiator: { verified: initiator.verified, fmvCents: counterpartSideCents },

@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run",
+    "test:db": "vitest --run --project database",
     "test:e2e": "playwright test",
     "test:e2e:build": "node scripts/e2e/build-for-e2e.mjs",
     "test:e2e:prod": "node scripts/e2e/run-prod.mjs",

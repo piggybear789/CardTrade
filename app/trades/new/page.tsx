@@ -123,18 +123,29 @@ export default async function NewTradePage({
   // caller's own. A privately offered item cannot be the target of an offer.
   const { data: requestedRow } = await supabase
     .from('items')
-    .select('id, owner_id, title, fmv_cents, image_paths, status, hidden')
+    .select(
+      'id, owner_id, title, fmv_cents, image_paths, status, hidden, listing_kind, closed_at',
+    )
     .eq('id', counterpartItemId)
     .maybeSingle();
   const requested = requestedRow as
     | (Pick<ItemRow, 'id' | 'owner_id' | 'title' | 'fmv_cents' | 'image_paths' | 'status'> & {
         hidden: boolean | null;
+        listing_kind: 'SINGLE' | 'SHOPFRONT';
+        closed_at: string | null;
       })
     | null;
 
+  // A binder is permanently AVAILABLE and is open for business until it is CLOSED,
+  // so testing status alone would reject every one of them (0064, 0081).
+  const requestedIsShopfront = requested?.listing_kind === 'SHOPFRONT';
+  const requestedIsOpen = requestedIsShopfront
+    ? requested?.closed_at === null
+    : requested?.status === 'AVAILABLE';
+
   if (
     !requested ||
-    requested.status !== 'AVAILABLE' ||
+    !requestedIsOpen ||
     // A counter answers an existing offer, whose goods may be privately held.
     (requested.hidden && !counterOfProposalId) ||
     requested.owner_id === user.id
@@ -164,8 +175,9 @@ export default async function NewTradePage({
     .select('*')
     .eq('owner_id', user.id)
     .eq('status', 'AVAILABLE')
-    // A shopfront cannot go INTO a trade either: its FMV is a whole binder, so
-    // the other trader would be bonded against an inventory (0064).
+    // A binder still cannot go INTO a trade. It can be traded FOR (0081), where it
+    // is valued at whatever is offered against it — but as the OFFERING side there
+    // would be no figure to derive that from, only an inventory's "from" price.
     .eq('listing_kind', 'SINGLE')
     .order('created_at', { ascending: false });
 
@@ -182,6 +194,7 @@ export default async function NewTradePage({
           ownerName:
             (ownerRow?.display_name as string | undefined)?.trim() ||
             'The other trader',
+          isShopfront: requestedIsShopfront,
         }}
         ownItems={(ownItemsData ?? []) as ItemRow[]}
         counterOfProposalId={counterOfProposalId ?? null}

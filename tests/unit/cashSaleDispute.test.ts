@@ -272,9 +272,17 @@ describe('resolveCashSaleDispute', () => {
 
     // Recorded against the OPERATOR, not a participant: the audit trail has to say
     // who made a call that moved someone else's money.
+    //
+    // `objectContaining` because the recorded event also carries the from/to statuses
+    // (needed by the 0084 withdrawal path, which reads the pre-dispute status back out
+    // of this log). The assertion is about the event code and the actor, so it should
+    // not fail every time another audit field is added.
     expect(state.events).toEqual(
       expect.arrayContaining([
-        { event: 'DISPUTE_RESOLVED_REFUND_BUYER', actorId: OPERATOR },
+        expect.objectContaining({
+          event: 'DISPUTE_RESOLVED_REFUND_BUYER',
+          actorId: OPERATOR,
+        }),
       ]),
     );
   });

@@ -230,9 +230,28 @@ export interface CashSaleRecord {
    */
   sellerPayoutNonce: string | null;
   sellerPayoutAttempts: number;
+  /**
+   * Who raised the live dispute, or `null` when none is open (0084).
+   *
+   * Load-bearing for authorisation, not display: withdrawing a dispute is restricted
+   * to its raiser, and this is what that guard compares against. Cleared when a
+   * dispute is withdrawn, so a contract with a `null` here is genuinely undisputed
+   * even though the audit trail still records that a dispute happened.
+   */
+  disputedBy: string | null;
   /** Operator decision on a dispute, or `null` while none has been made. */
   disputeResolution: CashSaleDisputeOutcome | null;
   disputeResolvedAt: string | null;
+  /**
+   * Who recorded the resolution — an operator, or since 0084 the CONCEDING PARTY.
+   *
+   * The column has existed since 0044 but was never surfaced, because until a party
+   * could settle their own dispute the answer was always "an operator" and the field
+   * carried no information. It does now: this is the only thing that distinguishes
+   * "an arbitrator ruled" from "the buyer chose to release", and the two mean very
+   * different things to anyone reading the contract afterwards.
+   */
+  disputeResolvedBy: string | null;
   /** Amount returned to the Buyer, in cents. Subtracted from the Seller release. */
   refundCents: Cents;
   refundStatus: CashSalePayoutStatus;
@@ -492,6 +511,31 @@ export interface CashSaleRepository {
     actorId: string;
     reason: string;
     disputedAt: string;
+  }): Promise<CashSaleRecord | null>;
+  /**
+   * The status the contract held immediately BEFORE its current dispute, read from
+   * the `DISPUTE_RAISED` audit row, or `null` when no such row exists.
+   *
+   * A withdrawal has to put the contract back where it was, and a cash sale can be
+   * disputed from four different statuses (`ESCROW_HELD`, `IN_TRANSIT`, `HANDOVER`,
+   * `INSPECTION`). Guessing one would either skip a step the parties still owe each
+   * other or reopen one they had finished, so the origin is read rather than assumed.
+   * The audit row is written in the same orchestrator call that raises the dispute,
+   * so it exists for anything disputed after 0008.
+   */
+  disputeOriginStatus(cashSaleId: string): Promise<CashSaleStatus | null>;
+  /**
+   * Return a disputed contract to `restoreStatus` and clear the claim.
+   *
+   * Guarded on BOTH the current status and `disputed_by`, so the update matches
+   * nothing unless the caller is still the raiser of a still-live dispute — a
+   * concurrent staff resolution therefore wins rather than being overwritten.
+   */
+  withdrawDispute(params: {
+    cashSaleId: string;
+    actorId: string;
+    restoreStatus: CashSaleStatus;
+    withdrawnAt: string;
   }): Promise<CashSaleRecord | null>;
   /**
    * Resolve or create the participant-only conversation for a contract and link
@@ -2261,6 +2305,180 @@ export async function disputeCashSale(
   return { ok: true, sale: updated };
 }
 
+/**
+ * Withdraw a dispute the caller raised themselves (0084).
+ *
+ * ONLY THE RAISER, and that is the whole safety argument. Withdrawing drops a claim
+ * and hands the contract back to its normal course, so the actor is giving up their
+ * own leverage and can affect nobody else's position. The accused party must NOT be
+ * able to call this — that would be deciding the case in their own favour, which is
+ * exactly what `resolveDispute` was removed from the trade surface for.
+ *
+ * NO MONEY MOVES, on any path. A cash dispute captures nothing when it is raised: the
+ * Buyer's payment was already collected into the platform balance at the Commitment
+ * Point, and disputing only freezes the release. So a withdrawal is a status change
+ * and nothing else. (This is precisely why the trade side has no equivalent yet — a
+ * Condition_Dispute captures $20 from the counterparty and pays $10 to the raiser
+ * before anyone can change their mind, and neither leg is reversible through the
+ * payment seam.)
+ *
+ * THE CLAIM IS NOT ERASED. `disputed_at` / `disputed_by` / `dispute_reason` are
+ * cleared so the contract is genuinely undisputed again, but the `DISPUTE_RAISED`
+ * audit row, the withdrawal row, and every `dispute_evidence` submission all survive.
+ * A member who raises and drops disputes repeatedly leaves a trail.
+ */
+export async function withdrawCashSaleDispute(
+  deps: CashSaleOrchestratorDeps,
+  params: { actorId: string; cashSaleId: string },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (!participantRole(sale, params.actorId)) {
+    return { ok: false, error: 'NOT_PARTICIPANT' };
+  }
+  if (sale.status !== 'DISPUTED') {
+    return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+  // Decided already. Checked before the raiser guard so an arbitrated case reports
+  // "already decided" rather than the misleading "not yours to withdraw".
+  if (sale.disputeResolution) {
+    return {
+      ok: false,
+      error: 'INVALID_STATE',
+      detail: 'This dispute has already been decided.',
+    };
+  }
+  if (!sale.disputedBy || sale.disputedBy !== params.actorId) {
+    return {
+      ok: false,
+      error: 'NOT_PERMITTED',
+      detail: 'Only the person who raised the dispute can withdraw it.',
+    };
+  }
+
+  const restoreStatus = await deps.repository.disputeOriginStatus(sale.id);
+  // REFUSE rather than pick a default. Every candidate status implies a different set
+  // of outstanding obligations, so an arbitrary one could mark goods as inspected that
+  // never arrived. Staff resolution still works, so refusing strands nobody.
+  if (!restoreStatus) {
+    return {
+      ok: false,
+      error: 'INVALID_STATE',
+      detail:
+        'This dispute cannot be withdrawn because the contract state before it was raised is not on record. Support can still resolve it.',
+    };
+  }
+
+  const updated = await deps.repository.withdrawDispute({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    restoreStatus,
+    withdrawnAt: currentIso(deps),
+  });
+  if (!updated) return { ok: false, error: 'INVALID_STATE' };
+
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    event: 'DISPUTE_WITHDRAWN',
+    fromStatus: 'DISPUTED',
+    toStatus: updated.status,
+  });
+  return { ok: true, sale: updated };
+}
+
+/** The outcomes a party may impose on themselves (0084). */
+export type PartySettlementOutcome = Extract<
+  CashSaleDisputeOutcome,
+  'RELEASE_SELLER' | 'REFUND_BUYER'
+>;
+
+/**
+ * Settle a dispute by CONCEDING it (0084).
+ *
+ * THE RULE IS "CONCEDE, DO NOT DECIDE", and the role check below is the entire
+ * mechanism. Each party may choose exactly one outcome, and it is the one that costs
+ * them:
+ *
+ *   Buyer  -> RELEASE_SELLER  gives up their claim on the money; the Seller is paid.
+ *   Seller -> REFUND_BUYER    gives up the sale; the Buyer is refunded in full.
+ *
+ * Neither is a finding against anybody, so neither needs an arbitrator. This is the
+ * distinction that makes it safe to reinstate a participant-callable resolution at all:
+ * `resolveDispute` was removed from the trade surface because it let a party capture
+ * money FROM the other one, and nothing here can move money TOWARD the caller.
+ *
+ * PARTIAL_REFUND IS DELIBERATELY NOT AVAILABLE. A partial is a number the other side
+ * has to agree to, which needs the two-sided acceptance the terms flow uses; offered
+ * as a single click it would be one party imposing a figure. Staff keep that outcome.
+ *
+ * EXECUTION IS DELEGATED, NOT REIMPLEMENTED. This validates who may ask for what and
+ * then calls `resolveCashSaleDispute`, so the refund, the nonce, the release, the
+ * listing sync and the notification all run through the single existing money path.
+ * `dispute_resolved_by` therefore records the conceding party, which is the honest
+ * audit trail.
+ */
+export async function settleCashSaleDisputeAsParty(
+  deps: CashSaleOrchestratorDeps,
+  params: {
+    actorId: string;
+    cashSaleId: string;
+    outcome: PartySettlementOutcome;
+  },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  const role = participantRole(sale, params.actorId);
+  if (!role) return { ok: false, error: 'NOT_PARTICIPANT' };
+  if (sale.status !== 'DISPUTED') {
+    return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+  if (sale.disputeResolution) {
+    return {
+      ok: false,
+      error: 'INVALID_STATE',
+      detail: 'This dispute has already been decided.',
+    };
+  }
+
+  // The concession rule. Anything else is a decision against the counterparty.
+  const permitted: PartySettlementOutcome =
+    role === 'BUYER' ? 'RELEASE_SELLER' : 'REFUND_BUYER';
+  if (params.outcome !== permitted) {
+    return {
+      ok: false,
+      error: 'NOT_PERMITTED',
+      detail:
+        role === 'BUYER'
+          ? 'A buyer can release the payment to the seller, but cannot award themselves a refund. Support decides a contested outcome.'
+          : 'A seller can refund the buyer in full, but cannot release their own payment. Support decides a contested outcome.',
+    };
+  }
+
+  const settled = await resolveCashSaleDispute(deps, {
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    outcome: params.outcome,
+  });
+  if (!settled.ok) return settled;
+
+  // A second audit row, on top of the DISPUTE_RESOLVED_* one the money path writes.
+  // That code cannot say WHO decided, and "the buyer chose to release" versus "an
+  // arbitrator ruled" is the distinction a reader of this contract most needs.
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    event: 'DISPUTE_SETTLED_BY_PARTY',
+    fromStatus: 'DISPUTED',
+    toStatus: settled.sale.status,
+    detail:
+      params.outcome === 'RELEASE_SELLER'
+        ? 'The buyer released the payment to the seller.'
+        : 'The seller refunded the buyer in full.',
+  });
+  return settled;
+}
+
 export interface CashSaleOrchestrator {
   initiateCashSale(params: InitiateCashSaleParams): Promise<CashSaleResult>;
   updateTerms(params: {
@@ -2333,6 +2551,17 @@ export interface CashSaleOrchestrator {
     cashSaleId: string;
     reason: string;
   }): Promise<CashSaleResult>;
+  /** Drop a dispute the caller raised, returning the contract to its prior status (0084). */
+  withdrawDispute(params: {
+    actorId: string;
+    cashSaleId: string;
+  }): Promise<CashSaleResult>;
+  /** End a dispute by conceding it — buyer releases, or seller refunds in full (0084). */
+  settleDisputeAsParty(params: {
+    actorId: string;
+    cashSaleId: string;
+    outcome: PartySettlementOutcome;
+  }): Promise<CashSaleResult>;
 }
 
 /** Bind the pure lifecycle operations to injected services. */
@@ -2360,5 +2589,7 @@ export function createCashSaleOrchestrator(
     confirmHandover: (params) => confirmCashSaleHandover(deps, params),
     cancelAgreement: (params) => cancelCashSaleAgreement(deps, params),
     raiseDispute: (params) => disputeCashSale(deps, params),
+    withdrawDispute: (params) => withdrawCashSaleDispute(deps, params),
+    settleDisputeAsParty: (params) => settleCashSaleDisputeAsParty(deps, params),
   };
 }

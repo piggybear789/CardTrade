@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
@@ -72,6 +72,7 @@ import {
   ContractTimeline,
   DisputeEvidencePanel,
   useContractConversation,
+  useContractFocus,
   type ContractActionTone,
   type ContractEvent,
   type ContractExchangeItem,
@@ -633,8 +634,22 @@ function TradeTermsRow({
 /**
  * The live Trade Contract view. Bootstrapped with the participants + viewer role from
  * the server; all live state comes from the realtime hook.
+ *
+ * SPLIT FROM ITS PROVIDER, matching `CashSaleView`. The room used to render
+ * `ContractFocusProvider` itself, which meant anything in this component calling
+ * `useContractFocus` read the default context instead of the provider's — and that
+ * default is a deliberate no-op, so a focus button would have compiled, rendered, and
+ * silently done nothing. The provider has to sit ABOVE the consumer.
  */
-export function TradeContract({
+export function TradeContract(props: TradeContractProps) {
+  return (
+    <ContractFocusProvider>
+      <TradeContractRoom {...props} />
+    </ContractFocusProvider>
+  );
+}
+
+function TradeContractRoom({
   tradeId,
   initiatorId,
   counterpartId,
@@ -645,6 +660,7 @@ export function TradeContract({
   demoPanel,
   disputeEvidence = [],
 }: TradeContractProps) {
+  const { focusSection } = useContractFocus();
   const { trade, holds, transitions, connectionStatus } =
     useTradeRealtime(tradeId);
 
@@ -772,7 +788,7 @@ export function TradeContract({
   const step = currentStep(steps);
 
   return (
-    <ContractFocusProvider>
+    <>
       {/* Height budget for the room, declared once — see the note in
           CashSaleView for the 8.25rem breakdown (4rem header + 4.25rem section
           padding, because `lg:pb-10` overrides `lg:py-7`'s bottom). At `lg` this
@@ -896,6 +912,22 @@ export function TradeContract({
                         addresses.theirs !== null
                       }
                     />
+                  ) : null}
+
+                  {/* BOTH TRADERS GET A WAY IN — see the matching note in
+                      CashSaleView. In DISPUTED the ActionBar offers only "Report
+                      fraud", which is an escalation, so without this the accused
+                      trader's only visible control was to counter-accuse. */}
+                  {trade.state === 'DISPUTED' ? (
+                    <Button
+                      type="button"
+                      onClick={() => focusSection(TRADE_SECTIONS.dispute)}
+                    >
+                      <ShieldAlert aria-hidden />
+                      {trade.dispute_raised_by === myUserId
+                        ? 'Review the dispute'
+                        : 'Respond to the dispute'}
+                    </Button>
                   ) : null}
 
                   {trade.state === 'FRAUD_RESOLVED' ? (
@@ -1136,6 +1168,7 @@ export function TradeContract({
                 <ContractDetailRow
                   id={TRADE_SECTIONS.dispute}
                   label="Dispute"
+                  variant="destructive"
                   explainer="Your account of what happened, with photos or video. Both traders can see everything here, and so can the staff member deciding it."
                   summary={
                     disputeEvidence.length > 0
@@ -1187,6 +1220,6 @@ export function TradeContract({
           </>
         )}
       </div>
-    </ContractFocusProvider>
+    </>
   );
 }

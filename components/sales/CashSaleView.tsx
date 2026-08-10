@@ -35,6 +35,7 @@ import {
   Loader2,
   PackageCheck,
   Pencil,
+  ShieldAlert,
   Truck,
 } from 'lucide-react';
 import { PlaceMap } from '@/components/location';
@@ -77,6 +78,7 @@ import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
 import { EditContractItemsDialog } from './EditContractItemsDialog';
 import { ContractLineItemsList, type ContractLine } from './ContractLineItems';
+import { CashSaleDisputeResolution } from './CashSaleDisputeResolution';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { cashSaleErrorMessage } from './errorCopy';
 import { CashSaleDemoControls } from './CashSaleDemoControls';
@@ -907,14 +909,24 @@ function CashSaleRoom({
               </>
             ) : null}
 
-            {/* The reason a dispute was raised belongs with the dispute. */}
-            {sale.status === 'DISPUTED' && sale.dispute_reason ? (
-              <p className="rounded-md border bg-background/60 p-2 text-xs">
-                <span className="font-medium">Reason given: </span>
-                <span className="whitespace-pre-wrap break-words">
-                  {sale.dispute_reason}
-                </span>
-              </p>
+            {/* BOTH PARTIES GET A WAY IN. A disputed contract used to offer the
+                viewer nothing but a sentence saying it was under review, with the
+                Dispute tab the only place to act and no signpost to it — so the
+                accused party in particular had no visible route to answer.
+
+                This replaces an echo of `dispute_reason` that sat here. The reason
+                is the first thing the Dispute tab shows, and the tab is one click
+                away, so printing it twice only widened the card. */}
+            {sale.status === 'DISPUTED' ? (
+              <Button
+                type="button"
+                onClick={() => focusSection(CASH_SALE_SECTIONS.dispute)}
+              >
+                <ShieldAlert aria-hidden />
+                {sale.disputed_by === myUserId
+                  ? 'Review the dispute'
+                  : 'Respond to the dispute'}
+              </Button>
             ) : null}
 
             {sale.status === 'CANCELLED' || sale.status === 'FAILED' ? (
@@ -1272,6 +1284,7 @@ function CashSaleRoom({
           <ContractDetailRow
             id={CASH_SALE_SECTIONS.dispute}
             label="Dispute"
+            variant="destructive"
             explainer="Your account of what happened, with photos or video. Both of you can see everything here, and so can the staff member deciding it."
             summary={
               disputeEvidence.length > 0
@@ -1293,6 +1306,20 @@ function CashSaleRoom({
               }
               // The record stays readable after a decision; the form does not.
               canSubmit={sale.status === 'DISPUTED'}
+              // Withdraw / concede (0084). Only while the case is genuinely open —
+              // once `dispute_resolution` is set the outcome stands, and the failed
+              // refund path in 0045 is the only thing that reopens one.
+              resolution={
+                sale.status === 'DISPUTED' && !sale.dispute_resolution ? (
+                  <CashSaleDisputeResolution
+                    cashSaleId={sale.id}
+                    iAmBuyer={iAmBuyer}
+                    iRaisedIt={sale.disputed_by === myUserId}
+                    amountCents={sale.amount_cents}
+                    counterpartyName={them.name}
+                  />
+                ) : null
+              }
             />
           </ContractDetailRow>
         ) : null}

@@ -137,8 +137,10 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     sellerPayoutRef: row.seller_payout_ref ?? null,
     sellerPayoutNonce: row.seller_payout_nonce ?? null,
     sellerPayoutAttempts: Number(row.seller_payout_attempts ?? 0),
+    disputedBy: row.disputed_by ?? null,
     disputeResolution: (row.dispute_resolution ?? null) as CashSaleRecord['disputeResolution'],
     disputeResolvedAt: row.dispute_resolved_at ?? null,
+    disputeResolvedBy: row.dispute_resolved_by ?? null,
     refundCents: Number(row.refund_cents ?? 0),
     refundStatus: (row.refund_status ?? 'NOT_DUE') as CashSalePayoutStatus,
     refundRef: row.refund_ref ?? null,
@@ -597,6 +599,46 @@ export function createSupabaseCashSaleRepository(
         .eq('id', cashSaleId)
         .maybeSingle();
       return refreshed ? toCashSale(refreshed as CashSaleRow) : toCashSale(data as CashSaleRow);
+    },
+
+    async disputeOriginStatus(cashSaleId: string) {
+      // NEWEST row wins: a contract can be disputed, withdrawn and disputed again, and
+      // the status to restore is the one before the LATEST claim.
+      const { data } = await client
+        .from('cash_sale_events')
+        .select('from_status')
+        .eq('cash_sale_id', cashSaleId)
+        .eq('event', 'DISPUTE_RAISED')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data?.from_status as CashSaleRecord['status'] | null) ?? null;
+    },
+
+    async withdrawDispute({ cashSaleId, actorId, restoreStatus, withdrawnAt }) {
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          status: restoreStatus,
+          disputed_by: null,
+          dispute_reason: null,
+          disputed_at: null,
+          updated_at: withdrawnAt,
+        })
+        .eq('id', cashSaleId)
+        // BOTH guards matter, and they are the concurrency story. `status` stops a
+        // withdrawal landing on a sale an arbitrator resolved a moment ago, and
+        // `disputed_by` stops the accused party withdrawing a claim against them even
+        // if the orchestrator guard were ever bypassed. A mismatch matches no row, so
+        // the caller gets a refusal instead of a silent overwrite.
+        .eq('status', 'DISPUTED')
+        .eq('disputed_by', actorId)
+        // Never reverse a decision that has already been recorded — that is what the
+        // failed-refund reopen path in 0045 is for, and it is not this.
+        .is('dispute_resolution', null)
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
     },
 
     async attachConversation({ cashSaleId, actorId }) {

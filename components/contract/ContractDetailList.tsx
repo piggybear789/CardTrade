@@ -45,6 +45,8 @@ export interface ContractDetailRowProps {
   id?: string;
   /** When true, this row is selected by default on mount. */
   defaultOpen?: boolean;
+  /** Colour variant for the tab label. `destructive` renders in red. */
+  variant?: 'default' | 'destructive';
   /** Current value shown beneath the selected tab. */
   summary?: ReactNode;
   /** Contextual edit control for this detail. */
@@ -195,6 +197,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             {rows.map((row, index) => {
             const selected = index === activeIndex;
             const explainer = row.props.explainer?.trim();
+            const isDestructive = row.props.variant === 'destructive';
             return (
               <div
                 key={rowKey(row, index)}
@@ -222,7 +225,9 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                     'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-xs font-medium transition-colors',
                     explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
                     'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                    selected ? 'text-foreground' : 'text-muted-foreground',
+                    isDestructive
+                      ? 'text-destructive'
+                      : selected ? 'text-foreground' : 'text-muted-foreground',
                   )}
                 >
                   {row.props.label}

@@ -24,7 +24,17 @@ export interface FakeState {
   item: ItemRecord;
   /** Contract line items (0064). Populated only for a SHOPFRONT contract. */
   lineItems: CashSaleLineItem[];
-  events: { event: string; actorId: string | null }[];
+  /**
+   * `fromStatus` / `toStatus` are recorded because `disputeOriginStatus` reads the
+   * status to restore back out of this log, exactly as the SQL repository does — so a
+   * withdrawal test exercises the real lookup rather than a shortcut field.
+   */
+  events: {
+    event: string;
+    actorId: string | null;
+    fromStatus?: CashSaleRecord['status'] | null;
+    toStatus?: CashSaleRecord['status'] | null;
+  }[];
   payerRefs: Record<string, string>;
 }
 
@@ -144,10 +154,13 @@ export function makeCashSaleRepository(options: {
         ...state.sale,
         disputeResolution: outcome,
         disputeResolvedAt: resolvedAt,
+        // Persisted rather than discarded: since 0084 a resolution can come from a
+        // CONCEDING PARTY as well as from an operator, so "who decided this" is the
+        // field that tells those two apart. The SQL repository has always written it.
+        disputeResolvedBy: resolvedBy,
         status,
         ...(status === 'COMPLETED' ? { completedAt: resolvedAt } : {}),
       };
-      void resolvedBy;
       return state.sale;
     },
     async listDuePayouts({ maxAttempts }) {
@@ -232,7 +245,9 @@ export function makeCashSaleRepository(options: {
         itemId: params.itemId,
         itemTitle: state.item.title ?? 'Test item',
         fromShopfront: shopfront,
+        disputedBy: null,
         disputeResolution: null,
+        disputeResolvedBy: null,
         disputeResolvedAt: null,
         refundCents: 0,
         refundStatus: 'NOT_DUE',
@@ -514,11 +529,40 @@ export function makeCashSaleRepository(options: {
       void cancelledAt;
       return state.sale;
     },
-    async raiseDispute({ disputedAt }) {
+    async raiseDispute({ actorId, disputedAt }) {
       const sale = state.sale;
-      if (!sale || sale.status !== 'INSPECTION') return null;
-      state.sale = { ...sale, status: 'DISPUTED' };
+      // The four statuses the SQL `.in(...)` guard allows, not just INSPECTION — a
+      // withdrawal has to restore whichever one the contract came from, so the fake
+      // has to be able to reach them.
+      const DISPUTABLE: CashSaleRecord['status'][] = [
+        'INSPECTION',
+        'IN_TRANSIT',
+        'HANDOVER',
+        'ESCROW_HELD',
+      ];
+      if (!sale || !DISPUTABLE.includes(sale.status)) return null;
+      state.sale = { ...sale, status: 'DISPUTED', disputedBy: actorId };
       void disputedAt;
+      return state.sale;
+    },
+    async disputeOriginStatus() {
+      // Newest DISPUTE_RAISED wins, mirroring the `order(...).limit(1)` in SQL.
+      for (let i = state.events.length - 1; i >= 0; i -= 1) {
+        const entry = state.events[i];
+        if (entry.event === 'DISPUTE_RAISED') return entry.fromStatus ?? null;
+      }
+      return null;
+    },
+    async withdrawDispute({ actorId, restoreStatus, withdrawnAt }) {
+      const sale = state.sale;
+      // Every guard the SQL update carries, so a test can prove the accused party and
+      // a decided case are both refused.
+      if (!sale) return null;
+      if (sale.status !== 'DISPUTED') return null;
+      if (sale.disputedBy !== actorId) return null;
+      if (sale.disputeResolution) return null;
+      state.sale = { ...sale, status: restoreStatus, disputedBy: null };
+      void withdrawnAt;
       return state.sale;
     },
     async attachConversation() {
@@ -530,8 +574,8 @@ export function makeCashSaleRepository(options: {
     async setItemStatus({ status }) {
       state.item = { ...state.item, status };
     },
-    async logEvent({ event, actorId }) {
-      state.events.push({ event, actorId });
+    async logEvent({ event, actorId, fromStatus, toStatus }) {
+      state.events.push({ event, actorId, fromStatus, toStatus });
     },
   };
 

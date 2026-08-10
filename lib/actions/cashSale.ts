@@ -16,6 +16,7 @@ import type {
   CashSaleLineItem,
   CashSaleRecord,
   CashSaleTermsInput,
+  PartySettlementOutcome,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
 import type { CashSaleLineItemInput } from '@/domain/validation/cashSaleLineItems';
 
@@ -376,5 +377,51 @@ export async function disputeCashSale(
   if (!userId) return { ok: false, error: 'not-authenticated' };
   return actionResult(
     await orchestrator().raiseDispute({ actorId: userId, cashSaleId, reason }),
+  );
+}
+
+/**
+ * Withdraw a dispute the caller raised (0084).
+ *
+ * The raiser-only rule is enforced in the orchestrator against `disputed_by`, not
+ * here, because an exported Server Action is reachable by anyone who learns its id —
+ * so the authorisation has to sit with the data, not with whichever UI called it.
+ */
+export async function withdrawCashSaleDispute(
+  cashSaleId: string,
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  if (!cashSaleId) return { ok: false, error: 'invalid-terms' };
+  return actionResult(
+    await orchestrator().withdrawDispute({ actorId: userId, cashSaleId }),
+  );
+}
+
+/**
+ * End a dispute by conceding it (0084).
+ *
+ * A Buyer may only release the Seller; a Seller may only refund the Buyer in full.
+ * Both move money, so the outcome is re-validated against the caller's role in the
+ * orchestrator — this function's own check only rejects values that are not
+ * settlement outcomes at all, so a malformed call fails before touching the payment
+ * seam.
+ */
+export async function settleCashSaleDispute(
+  cashSaleId: string,
+  outcome: PartySettlementOutcome,
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  if (!cashSaleId) return { ok: false, error: 'invalid-terms' };
+  if (outcome !== 'RELEASE_SELLER' && outcome !== 'REFUND_BUYER') {
+    return {
+      ok: false,
+      error: 'invalid-terms',
+      message: 'A partial refund has to be agreed by both sides, so support decides it.',
+    };
+  }
+  return actionResult(
+    await orchestrator().settleDisputeAsParty({ actorId: userId, cashSaleId, outcome }),
   );
 }

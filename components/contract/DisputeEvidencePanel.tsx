@@ -20,18 +20,23 @@
 //      same reasoning as the staff notes composer. The UI states this plainly rather
 //      than letting someone discover it after the fact.
 //
+// NO CARD CHROME OF ITS OWN. This mounts inside a `ContractDetailRow` tabpanel, which
+// already draws the bordered card and the "Dispute" tab header. An outer card and a
+// second heading here would read as a panel inside a panel.
+//
 // The panel owns no server action of its own beyond the evidence ones: raising or
 // resolving a dispute stays with each room, because the two flows freeze and settle
 // differently.
 
-import { useRef, useState, useTransition } from 'react';
+import { useRef, useState, useTransition, type ReactNode } from 'react';
 import Image from 'next/image';
 import {
-  FileVideo,
-  ImageIcon,
+  Eye,
+  FileText,
   Loader2,
+  Lock,
   Paperclip,
-  Send,
+  SendHorizontal,
   ShieldAlert,
   X,
 } from 'lucide-react';
@@ -51,8 +56,6 @@ import {
   isVideoPath,
 } from '@/lib/storage/disputeEvidenceShared';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { formatContractDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -67,6 +70,18 @@ export interface DisputeEvidencePanelProps {
   raisedByName?: string | null;
   /** False once the case is decided: the record stays readable, the form goes away. */
   canSubmit?: boolean;
+  /**
+   * Room-specific controls for ending the dispute without an arbitrator — withdraw,
+   * or concede (0084).
+   *
+   * A SLOT RATHER THAN BUILT IN, for the reason `components/fulfilment` gives: this
+   * panel is shared by both contract rooms, and the two flows end a dispute
+   * differently. A cash sale can be withdrawn or conceded because raising it moved no
+   * money; a trade Condition_Dispute has already captured $20 from the counterparty
+   * and paid $10 to the raiser, so it has no safe equivalent yet. Owning the buttons
+   * here would mean this component knowing which flow it is in.
+   */
+  resolution?: ReactNode;
 }
 
 /** One attachment, rendered as a thumbnail or a video frame. */
@@ -75,7 +90,7 @@ function MediaTile({ path, url }: { path: string; url: string | null }) {
 
   if (!url) {
     return (
-      <div className="grid aspect-square place-items-center rounded-md border border-dashed bg-muted/30 text-muted-foreground">
+      <div className="grid aspect-square place-items-center rounded-lg border border-dashed bg-muted/40 text-muted-foreground">
         <span className="px-2 text-center text-[10px] leading-tight">
           Attachment unavailable
         </span>
@@ -91,7 +106,7 @@ function MediaTile({ path, url }: { path: string; url: string | null }) {
         src={url}
         controls
         preload="metadata"
-        className="aspect-square w-full rounded-md border bg-black object-contain"
+        className="aspect-square w-full rounded-lg border bg-black object-contain"
       />
     );
   }
@@ -101,7 +116,7 @@ function MediaTile({ path, url }: { path: string; url: string | null }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group relative block aspect-square overflow-hidden rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative block aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {/* Unoptimised: these are signed, short-lived URLs on a private bucket, so the
           image optimiser cannot cache them and would only add a hop that expires. */}
@@ -121,7 +136,7 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
   return (
     <li
       className={cn(
-        'rounded-lg border p-3',
+        'rounded-xl border px-4 py-3',
         entry.mine ? 'border-gold/40 bg-gold/5' : 'bg-card',
       )}
     >
@@ -129,7 +144,7 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
         <p className="text-sm font-semibold">
           {entry.mine ? 'Your statement' : entry.authorName}
         </p>
-        <span className="text-[11px] tabular-nums text-muted-foreground">
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">
           {formatContractDateTime(entry.createdAt) ?? entry.createdAt}
         </span>
       </div>
@@ -154,6 +169,7 @@ export function DisputeEvidencePanel({
   disputeReason,
   raisedByName,
   canSubmit = true,
+  resolution,
 }: DisputeEvidencePanelProps) {
   const [statement, setStatement] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -164,7 +180,9 @@ export function DisputeEvidencePanel({
 
   const busy = uploading || isPending;
   const trimmed = statement.trim();
-  const ready = trimmed.length >= EVIDENCE_STATEMENT_MIN && !busy;
+  const longEnough = trimmed.length >= EVIDENCE_STATEMENT_MIN;
+  const ready = longEnough && !busy;
+  const remaining = EVIDENCE_STATEMENT_MAX - statement.length;
 
   function pickFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(event.target.files ?? []);
@@ -214,16 +232,18 @@ export function DisputeEvidencePanel({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {/* The claim that opened the case. Shown first because everything below is a
           response to it. */}
       {disputeReason ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="size-4 shrink-0 text-destructive" aria-hidden />
-            <p className="text-sm font-semibold">Why this is in dispute</p>
+        <div className="rounded-xl border border-destructive/25 bg-destructive/[0.06] p-4">
+          <div className="flex items-center gap-2 text-destructive">
+            <ShieldAlert className="size-4 shrink-0" aria-hidden />
+            <h3 className="text-xs font-semibold uppercase tracking-wide">
+              Why this is in dispute
+            </h3>
           </div>
-          <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed">
+          <p className="mt-2 whitespace-pre-line break-words text-pretty text-base font-medium leading-relaxed">
             {disputeReason}
           </p>
           {raisedByName ? (
@@ -234,9 +254,15 @@ export function DisputeEvidencePanel({
         </div>
       ) : null}
 
+      {/* Ending it without staff, where the flow allows it. ABOVE the evidence form on
+          purpose: a member who has already decided to drop the claim or settle should
+          not have to scroll past a "write your statement" composer to find out they
+          can. */}
+      {resolution}
+
       {/* The record. Both sides, chronological. */}
-      <section aria-labelledby="evidence-heading" className="space-y-3">
-        <div>
+      <section aria-labelledby="evidence-heading">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <h3 id="evidence-heading" className="text-sm font-semibold">
             Evidence on file
             {entries.length > 0 ? (
@@ -245,18 +271,28 @@ export function DisputeEvidencePanel({
               </span>
             ) : null}
           </h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Both of you can see everything here, and so can the staff member deciding it.
-          </p>
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Eye className="size-3.5 shrink-0" aria-hidden />
+            Visible to both parties &amp; staff
+          </span>
         </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Everything submitted here is shared with the other party and the staff member
+          deciding the case.
+        </p>
 
         {entries.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-            Nothing has been submitted yet. Whoever explains what happened first gives
-            staff something to work from.
-          </p>
+          <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/40 px-6 py-8 text-center">
+            <div className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <FileText className="size-4" aria-hidden />
+            </div>
+            <p className="text-sm font-medium">Nothing submitted yet</p>
+            <p className="max-w-sm text-pretty text-xs text-muted-foreground">
+              Explain with details to help arbitration.
+            </p>
+          </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="mt-4 space-y-3">
             {entries.map((entry) => (
               <EvidenceEntry key={entry.id} entry={entry} />
             ))}
@@ -268,117 +304,147 @@ export function DisputeEvidencePanel({
           goes, because filing into a closed decision is not a thing that should appear
           to work. */}
       {canSubmit ? (
-        <section aria-labelledby="submit-heading" className="space-y-3 border-t pt-4">
-          <div>
-            <h3 id="submit-heading" className="text-sm font-semibold">
-              Add your account
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Submissions are final and cannot be edited or removed. Add another if you
-              have more to say.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="evidence-statement">What happened, in your words</Label>
-            <Textarea
-              id="evidence-statement"
-              value={statement}
-              onChange={(event) => setStatement(event.target.value)}
-              maxLength={EVIDENCE_STATEMENT_MAX}
-              rows={5}
-              placeholder="What you sent or received, what condition it was in, what dates matter, and anything the tracking or photos show."
-              disabled={busy}
-              aria-describedby="evidence-statement-count"
-            />
-            <p
-              id="evidence-statement-count"
-              className="text-right text-[11px] tabular-nums text-muted-foreground"
-            >
-              {trimmed.length}/{EVIDENCE_STATEMENT_MAX}
-            </p>
-          </div>
-
-          {/* Attachments. Photos and video of the goods, packaging, or tracking. */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="evidence-files">
-                Photos or video{' '}
-                <span className="font-normal text-muted-foreground">(optional)</span>
-              </Label>
-              <span className="text-[11px] text-muted-foreground">
-                {files.length}/{EVIDENCE_FILES_MAX}
-              </span>
-            </div>
-            <input
-              ref={fileInputRef}
-              id="evidence-files"
-              type="file"
-              accept={EVIDENCE_ACCEPT}
-              multiple
-              onChange={pickFiles}
-              disabled={busy || files.length >= EVIDENCE_FILES_MAX}
-              className="sr-only"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={busy || files.length >= EVIDENCE_FILES_MAX}
-            >
-              <Paperclip className="size-3.5" aria-hidden />
-              Attach files
-            </Button>
-
-            {files.length > 0 ? (
-              <ul className="space-y-1.5">
-                {files.map((file, index) => (
-                  <li
-                    key={`${file.name}-${index}`}
-                    className="flex items-center gap-2 rounded-md border bg-muted/20 px-2.5 py-1.5 text-xs"
-                  >
-                    {file.type.startsWith('video/') ? (
-                      <FileVideo className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    ) : (
-                      <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <section aria-labelledby="submit-heading">
+          <h3 id="submit-heading" className="text-sm font-semibold">
+            Add your account
+          </h3>
+          {/* Stated BEFORE the field, not after submitting. Finality is the surprising
+              part of this form and the header note explains why it is deliberate. */}
+          <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="size-3.5 shrink-0" aria-hidden />
+            Submissions are final. Add another entry if you have more to say.
+          </p>
+          <form
+            className="mt-4 space-y-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (ready) void submit();
+            }}
+          >
+            <div>
+              <label
+                htmlFor="evidence-statement"
+                className="mb-1.5 block text-sm font-medium"
+              >
+                What happened, in your words
+              </label>
+              {/* The count lives inside the field's own border rather than floating
+                  under it, so the control reads as one object. */}
+              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+                <textarea
+                  id="evidence-statement"
+                  value={statement}
+                  maxLength={EVIDENCE_STATEMENT_MAX}
+                  onChange={(event) => setStatement(event.target.value)}
+                  rows={4}
+                  placeholder="What you sent or received, its condition, the dates that matter, and anything the tracking or photos show."
+                  disabled={busy}
+                  aria-describedby="evidence-statement-count"
+                  className="block w-full resize-y bg-transparent px-3.5 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
+                />
+                <div className="flex items-center justify-end border-t px-3.5 py-2">
+                  <span
+                    id="evidence-statement-count"
+                    className={cn(
+                      'font-mono text-xs tabular-nums',
+                      remaining < 100 ? 'text-destructive' : 'text-muted-foreground',
                     )}
-                    <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {(file.size / (1024 * 1024)).toFixed(1)} MB
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index)}
-                      disabled={busy}
-                      className="shrink-0 rounded-sm p-0.5 text-muted-foreground hover:text-destructive focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label={`Remove ${file.name}`}
+                  >
+                    {statement.length.toLocaleString()}/
+                    {EVIDENCE_STATEMENT_MAX.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Attachments. Photos and video of the goods, packaging, or tracking. */}
+            <div>
+              <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                <label htmlFor="evidence-files" className="text-sm font-medium">
+                  Photos or video{' '}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </label>
+                <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                  {files.length}/{EVIDENCE_FILES_MAX}
+                </span>
+              </div>
+
+              {files.length > 0 ? (
+                <ul className="mb-3 flex flex-wrap gap-2">
+                  {files.map((file, index) => (
+                    <li
+                      key={`${file.name}-${index}`}
+                      className="inline-flex max-w-full items-center gap-1.5 rounded-lg border bg-muted/60 py-1 pl-2.5 pr-1 text-xs"
                     >
-                      <X className="size-3.5" aria-hidden />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <span className="truncate">{file.name}</span>
+                      <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
+                        {(file.size / (1024 * 1024)).toFixed(1)} MB
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        disabled={busy}
+                        className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <X className="size-3.5" aria-hidden />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              <input
+                ref={fileInputRef}
+                id="evidence-files"
+                type="file"
+                accept={EVIDENCE_ACCEPT}
+                multiple
+                onChange={pickFiles}
+                disabled={busy || files.length >= EVIDENCE_FILES_MAX}
+                className="sr-only"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={busy || files.length >= EVIDENCE_FILES_MAX}
+              >
+                <Paperclip className="size-4" aria-hidden />
+                Attach files
+              </Button>
+            </div>
+
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
             ) : null}
-          </div>
 
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
-
-          <Button type="button" onClick={submit} disabled={!ready} aria-busy={busy}>
-            {busy ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Send className="size-4" aria-hidden />
-            )}
-            {uploading ? 'Uploading…' : isPending ? 'Submitting…' : 'Submit evidence'}
-          </Button>
+            <div className="flex flex-wrap items-center gap-3 border-t pt-5">
+              <Button type="submit" disabled={!ready} aria-busy={busy}>
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <SendHorizontal className="size-4" aria-hidden />
+                )}
+                {uploading ? 'Uploading…' : isPending ? 'Submitting…' : 'Submit evidence'}
+              </Button>
+              {/* Says WHY the button is disabled. The minimum is a real server-side
+                  rule, so "add your account" alone would be misleading once a member
+                  has typed two words and the button is still dead. */}
+              {!busy && !longEnough ? (
+                <p className="text-xs text-muted-foreground">
+                  {trimmed.length === 0
+                    ? 'Add your account before submitting.'
+                    : `At least ${EVIDENCE_STATEMENT_MIN} characters.`}
+                </p>
+              ) : null}
+            </div>
+          </form>
         </section>
       ) : (
-        <p className="border-t pt-4 text-sm text-muted-foreground">
+        <p className="border-t pt-5 text-sm text-muted-foreground">
           This case has been decided, so no further evidence can be added.
         </p>
       )}

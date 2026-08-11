@@ -1,0 +1,82 @@
+name: cardtrade
+description: CardTrade — peer-to-peer collectibles marketplace with trustless escrow.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^3.3.2
+  riverpod_annotation: ^4.0.3
+
+  # Navigation
+  go_router: ^17.4.0
+
+  # Supabase
+  supabase_flutter: ^2.5.0
+
+  # Payments
+  flutter_stripe: ^13.1.0
+
+  # Data Classes
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
+
+  # UI
+  google_fonts: ^8.2.1
+  flutter_svg: ^2.0.10+1
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  flutter_staggered_grid_view: ^0.7.0
+  photo_view: ^0.15.0
+  smooth_page_indicator: ^2.0.1
+
+  # Forms & Validation
+  flutter_form_builder: ^10.3.0+2
+  form_builder_validators: ^11.3.0
+
+  # Utilities
+  path: ^1.9.0
+  intl: ^0.20.2
+  timeago: ^3.7.0
+  url_launcher: ^6.3.0
+  image_picker: ^1.1.2
+  image_cropper: ^12.2.1
+  share_plus: ^13.3.0
+  flutter_local_notifications: ^22.3.0
+  path_provider: ^2.1.3
+  connectivity_plus: ^7.3.1
+
+  # HTTP
+  http: ^1.2.2
+
+  # Icons
+  lucide_icons: ^0.257.0
+
+  # Storage
+  flutter_secure_storage: ^11.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Code Generation
+  build_runner: ^2.4.11
+  freezed: ^3.2.6-dev.1
+  json_serializable: ^6.8.0
+  riverpod_generator: ^4.0.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/images/empty_states/
+
+

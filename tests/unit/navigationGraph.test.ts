@@ -189,3 +189,109 @@ describe('navigation graph', () => {
     );
   });
 });
+
+// ─── Mobile Route Parity ────────────────────────────────────────────────────
+
+const flutterRouterPath = path.join(repoRoot, 'flutter_app', 'lib', 'router', 'router.dart');
+
+/**
+ * Parse GoRouter paths from router.dart.
+ * Matches: `path: '/some/path'` and `path: '/some/:param'`
+ */
+function parseMobileRoutes(): string[] {
+  const source = readFileSync(flutterRouterPath, 'utf8');
+  const paths: string[] = [];
+  const pattern = /path:\s*(?:AppRoutes\.\w+|'([^']*)')/g;
+
+  // Also resolve AppRoutes constants
+  const constantPattern = /static const (\w+)\s*=\s*'([^']*)'/g;
+  const constants: Record<string, string> = {};
+  for (const match of source.matchAll(constantPattern)) {
+    constants[match[1]] = match[2];
+  }
+
+  // Find all GoRoute path: declarations
+  const routePattern = /path:\s*(?:AppRoutes\.(\w+)|'([^']*)')/g;
+  for (const match of source.matchAll(routePattern)) {
+    const resolved = match[1] ? constants[match[1]] : match[2];
+    if (resolved) paths.push(resolved);
+  }
+
+  return [...new Set(paths)];
+}
+
+/**
+ * Normalize a web route to a comparable form:
+ * - Strip route groups: (auth)/sign-in → /sign-in
+ * - Keep dynamic segments as-is
+ */
+function normalizeWebRoute(route: string): string {
+  return route;
+}
+
+/**
+ * Map mobile route → equivalent web route.
+ * The mobile app uses slightly different path conventions in some places.
+ */
+const MOBILE_TO_WEB_EQUIVALENCE: Record<string, string> = {
+  '/home': '/listings',             // Mobile catalog is /home, web is /listings
+  '/auth/sign-in': '/sign-in',
+  '/auth/sign-up': '/sign-up',
+  '/listings/edit/:id': '/listings/[id]/edit',
+};
+
+/**
+ * Web routes that are deliberately NOT on mobile, with reasons.
+ * Admin and arbitration are staff surfaces. Others have stated reasons.
+ */
+const WEB_ONLY_ALLOWLIST: Record<string, string> = {
+  '/': 'Marketing landing page — mobile opens to /home (catalog)',
+  '/admin': 'Staff-only admin surface',
+  '/admin/arbitration': 'Staff-only dispute arbitration',
+  '/admin/arbitration/[kind]/[ref]': 'Staff-only arbitration case detail',
+  '/account-suspended': 'Handled via error state in the auth flow',
+  '/onboarding': 'Identity and payout onboarding handled via WebHandoff',
+  '/auth/callback': 'OAuth provider redirect — mobile uses deep links via Supabase Auth',
+};
+
+describe('mobile route parity', () => {
+  const mobileRoutes = parseMobileRoutes();
+  const webRoutes = uniqueRoutes;
+
+  it('parsed mobile routes from router.dart', () => {
+    expect(mobileRoutes.length).toBeGreaterThan(10);
+  });
+
+  it('every web user-facing route has a mobile equivalent or is allowlisted', () => {
+    const mobileRouteSet = new Set(mobileRoutes);
+    // Build a reverse map: web → mobile equivalents
+    const webToMobile = new Map<string, string>();
+    for (const [mobile, web] of Object.entries(MOBILE_TO_WEB_EQUIVALENCE)) {
+      webToMobile.set(web, mobile);
+    }
+
+    const missing = webRoutes.filter((route) => {
+      // Skip API routes
+      if (route.startsWith('/api/')) return false;
+      // Skip allowlisted
+      if (WEB_ONLY_ALLOWLIST[route]) return false;
+      // Direct match (normalizing dynamic segments)
+      const normalized = route.replace(/\[(\w+)\]/g, ':$1');
+      if (mobileRouteSet.has(route) || mobileRouteSet.has(normalized)) return false;
+      // Check reverse equivalence map
+      if (webToMobile.has(route) && mobileRouteSet.has(webToMobile.get(route)!)) return false;
+      return true;
+    });
+
+    expect(
+      missing,
+      `Web routes missing from mobile (add them or allowlist with a reason):\n${missing.join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('allowlist entries have stated reasons', () => {
+    for (const [route, reason] of Object.entries(WEB_ONLY_ALLOWLIST)) {
+      expect(reason.length, `${route} allowlist reason is empty`).toBeGreaterThan(5);
+    }
+  });
+});

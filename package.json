@@ -18,6 +18,9 @@
     "test:e2e:prod": "node scripts/e2e/run-prod.mjs",
     "test:e2e:clean": "tsx scripts/e2e/cleanup-test-data.ts",
     "test:e2e:killserver": "node scripts/e2e/kill-dev-server.mjs",
+    "audit:mobile": "tsx scripts/mobile-api-audit.ts",
+    "generate:dart-vocab": "tsx scripts/generate-dart-vocabulary.ts",
+    "smoke:mobile": "tsx --env-file=.env.local scripts/smoke-mobile-api.ts",
     "ux-review:capture": "playwright test --config=playwright.ux-review.config.ts"
   },
   "dependencies": {

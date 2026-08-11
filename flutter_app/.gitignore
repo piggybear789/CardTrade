@@ -1,0 +1,36 @@
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.metadata
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+*.swp
+.vscode/
+
+# Platform
+ios/Pods/
+ios/.symlinks/
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# Generated
+*.freezed.dart
+*.g.dart
+
+# Environment (NEVER commit real keys)
+config/dev.env
+config/staging.env
+config/prod.env
+!config/prod.env.example
+
+# OS
+.DS_Store
+Thumbs.db

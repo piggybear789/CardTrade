@@ -95,10 +95,8 @@ export default async function ProfilePage({
         description="Your profile, verification, and payment settings."
       />
 
-      <div className="mx-auto w-full max-w-2xl space-y-6">
-
-      {/* HEADER STRIP */}
-      <div className="flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center sm:gap-6">
+      {/* HEADER STRIP — full width */}
+      <div className="mb-6 flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center sm:gap-6">
         <AvatarUploadField
           avatarPath={profile.avatar_path}
           displayName={profile.display_name}
@@ -121,8 +119,8 @@ export default async function ProfilePage({
         </div>
       </div>
 
-      {/* READINESS WIDGET */}
-      <Card className="border-gold/20 bg-gold/[0.03]">
+      {/* READINESS WIDGET — full width */}
+      <Card className="mb-6 border-gold/20 bg-gold/[0.03]">
         <CardContent className="p-4">
           <h3 className="mb-3 text-sm font-semibold">Ready to trade?</h3>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -166,77 +164,85 @@ export default async function ProfilePage({
         </CardContent>
       </Card>
 
-      {/* STACKED CARDS */}
-      <div className="space-y-5">
-        {/* Social Links */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Social Links</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SocialLinksEditor initialLinks={socialRow?.social_links as Record<string, string> | null} />
-          </CardContent>
-        </Card>
+      {/* TWO-COLUMN GRID — socials + payment on left, identity + payouts on right.
+          Stacks on mobile. */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* LEFT COLUMN */}
+        <div className="space-y-5">
+          {/* Social Links */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Social Links</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SocialLinksEditor initialLinks={socialRow?.social_links as Record<string, string> | null} />
+            </CardContent>
+          </Card>
 
-        {/* Payment Method */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Payment Method</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {paymentMethod?.hasPaymentMethod ? (
-              <p className="text-sm">
-                <span className="font-medium">
-                  {paymentMethod.label ?? 'Card saved'}
-                </span>{' '}
-                <span className="text-muted-foreground">
-                  — for purchases and trade collateral
-                </span>
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No card saved yet. Required for purchases and trade collateral.
-              </p>
-            )}
-            <AddPaymentMethodDialog
-              trigger={
-                <Button type="button" variant="outline" size="sm">
-                  <CreditCard aria-hidden />
-                  {paymentMethod?.hasPaymentMethod ? 'Replace card' : 'Add card'}
-                </Button>
-              }
+          {/* Payment Method */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Payment Method</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {paymentMethod?.hasPaymentMethod ? (
+                <p className="text-sm">
+                  <span className="font-medium">
+                    {paymentMethod.label ?? 'Card saved'}
+                  </span>{' '}
+                  <span className="text-muted-foreground">
+                    — for purchases and trade collateral
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No card saved yet. Required for purchases and trade collateral.
+                </p>
+              )}
+              <AddPaymentMethodDialog
+                trigger={
+                  <Button type="button" variant="outline" size="sm">
+                    <CreditCard aria-hidden />
+                    {paymentMethod?.hasPaymentMethod ? 'Replace card' : 'Add card'}
+                  </Button>
+                }
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="space-y-5">
+          {/* Identity Verification */}
+          {identity.ok ? (
+            <IdentityCheckCard
+              status={identity.data.status}
+              verifiedName={identity.data.verifiedName}
+              returnPath="/profile"
             />
-          </CardContent>
-        </Card>
+          ) : null}
 
-        {/* Identity Verification */}
-        {identity.ok ? (
-          <IdentityCheckCard
-            status={identity.data.status}
-            verifiedName={identity.data.verifiedName}
-            returnPath="/profile"
-          />
-        ) : null}
+          {paymentDemoEnabled && identity.ok && identity.data.status !== 'VERIFIED' ? (
+            <IdentityDemoControls />
+          ) : null}
 
-        {paymentDemoEnabled && identity.ok && identity.data.status !== 'VERIFIED' ? (
-          <IdentityDemoControls />
-        ) : null}
+          {/* Payout Account */}
+          {payoutContext.ok ? (
+            <PayoutOnboarding context={payoutContext.data} />
+          ) : null}
+        </div>
+      </div>
 
-        {/* Payout Account */}
-        {payoutContext.ok ? (
-          <PayoutOnboarding context={payoutContext.data} />
-        ) : null}
-
-        {/* Payout History */}
-        {payoutDashboard.ok ? (
+      {/* PAYOUT HISTORY — full width below the grid */}
+      {payoutDashboard.ok ? (
+        <div className="mt-6">
           <PayoutsDashboard
             model={payoutDashboard.data.model}
             destination={payoutDashboard.data.destination}
             scope={scope}
           />
-        ) : null}
-      </div>
-      </div>
+        </div>
+      ) : null}
     </MarketplaceShell>
   );
 }

@@ -95,8 +95,10 @@ export default async function ProfilePage({
         description="Your profile, verification, and payment settings."
       />
 
+      <div className="mx-auto w-full max-w-2xl space-y-6">
+
       {/* HEADER STRIP */}
-      <div className="mb-6 flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center sm:gap-6">
+      <div className="flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center sm:gap-6">
         <AvatarUploadField
           avatarPath={profile.avatar_path}
           displayName={profile.display_name}
@@ -120,7 +122,7 @@ export default async function ProfilePage({
       </div>
 
       {/* READINESS WIDGET */}
-      <Card className="mb-6 border-gold/20 bg-gold/[0.03]">
+      <Card className="border-gold/20 bg-gold/[0.03]">
         <CardContent className="p-4">
           <h3 className="mb-3 text-sm font-semibold">Ready to trade?</h3>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -233,6 +235,7 @@ export default async function ProfilePage({
             scope={scope}
           />
         ) : null}
+      </div>
       </div>
     </MarketplaceShell>
   );

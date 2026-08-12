@@ -15,6 +15,9 @@ import { searchCatalog } from '@/lib/actions/listings';
 import { createClient } from '@/lib/supabase/server';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 // Reads the authenticated user's session, so render dynamically.
 export const dynamic = 'force-dynamic';
 
@@ -196,7 +199,6 @@ export default async function HomePage() {
           </div>
         </section>
       </main>
-
       <footer className="border-t border-white/10">
         <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 text-sm md:grid-cols-[1fr_auto] md:items-start lg:px-24">
           <div className="max-w-xl">

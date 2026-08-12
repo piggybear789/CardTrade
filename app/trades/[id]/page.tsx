@@ -29,6 +29,9 @@ import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
 import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { TradeViewerRole } from '@/domain/state-machine/types';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 // Reads the authenticated user's session, so it must render dynamically.
 export const dynamic = 'force-dynamic';
 

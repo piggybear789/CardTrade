@@ -64,6 +64,9 @@ import type { PlacePrecision } from "@/lib/location/types";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 // The page reads the signed-in user's cookies and reflects live availability,
 // so it must render dynamically (never statically prerendered).
 export const dynamic = "force-dynamic";

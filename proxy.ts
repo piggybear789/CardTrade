@@ -48,7 +48,7 @@ function isProtected(pathname: string): boolean {
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Start with a pass-through response; cookie writes below re-bind it so the
   // refreshed session is propagated to the browser.
   let response = NextResponse.next({ request });

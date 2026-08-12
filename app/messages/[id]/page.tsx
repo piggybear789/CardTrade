@@ -16,6 +16,9 @@ import { getConversation } from '@/lib/actions/messages';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { ChatThread } from '@/components/messages/ChatThread';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 // Reads the authenticated user's session, so it must render dynamically.
 export const dynamic = 'force-dynamic';
 

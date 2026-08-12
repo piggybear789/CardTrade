@@ -8,6 +8,9 @@ import { Toaster } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import './globals.css';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 // Plus Jakarta Sans for headings and body — rounder, friendlier geometry than
 // Geist while still professional. Geist Mono stays for labels and ledger data.
 const plusJakarta = Plus_Jakarta_Sans({

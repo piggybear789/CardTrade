@@ -22,6 +22,9 @@ import {
   SectionLoadError,
 } from '@/components/layout/SectionHeader';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 // Reads the signed-in user's session + live conversation state, so it must
 // render dynamically (never statically prerendered).
 export const dynamic = 'force-dynamic';
@@ -61,13 +64,11 @@ export default async function MessagesPage() {
           }
         />
       </div>
-
       {!result.ok ? (
         <div className="mb-5">
           <SectionLoadError label="conversations" />
         </div>
       ) : null}
-
       {conversations.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="size-6" aria-hidden="true" />}
@@ -96,13 +97,13 @@ export default async function MessagesPage() {
                 >
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    (<img
                       src={thumb}
                       alt=""
                       width={96}
                       height={96}
                       className="size-12 shrink-0 rounded-md object-cover"
-                    />
+                    />)
                   ) : (
                     <span
                       className={`flex size-12 shrink-0 items-center justify-center rounded-md ${c.dispute ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}

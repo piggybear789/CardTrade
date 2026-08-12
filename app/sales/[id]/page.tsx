@@ -18,6 +18,9 @@ import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/database.types';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 export const metadata = {
   title: 'Purchase contract · NoDitto',
 };
@@ -185,7 +188,6 @@ export default async function CashSalePage({
         lineItems={lineItems}
         disputeEvidence={disputeEvidence}
       />
-
       {sale.status === 'COMPLETED' ? (
         <div className="mt-6 flex flex-col items-stretch gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -206,7 +208,6 @@ export default async function CashSalePage({
           )}
         </div>
       ) : null}
-
     </MarketplaceShell>
   );
 }

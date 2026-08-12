@@ -9,6 +9,9 @@ import { ShieldAlert } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 export default function AccountSuspendedPage() {
   return (
     <main className="flex min-h-[80vh] items-center justify-center px-4 py-12">

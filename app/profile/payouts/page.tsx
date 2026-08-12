@@ -21,6 +21,9 @@ import { SectionHeader } from '@/components/layout/SectionHeader';
 import { resolveScope } from '@/components/layout/SectionFilter';
 import { EmptyState } from '@/components/ui/empty-state';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 export const metadata = {
   title: 'Selling & Payouts · NoDitto',
   description: 'Stripe Connect setup, payout readiness, and money release history.',

@@ -29,6 +29,9 @@ import type {
   ItemRow,
 } from '@/lib/actions/listings';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
 // Reflects live ratings / listings, so it must render dynamically.
 export const dynamic = 'force-dynamic';
 

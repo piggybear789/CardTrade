@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
     String(body.itemId ?? ''),
     Number(body.amountCents ?? 0),
     body.message != null ? String(body.message) : undefined,
+    String(body.sellerIdentityVersion ?? ''),
+    Boolean(body.buyerConfirmedSellerIdentity),
   );
   return NextResponse.json(result);
 }

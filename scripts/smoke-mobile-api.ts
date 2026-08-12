@@ -88,7 +88,7 @@ async function main(): Promise<void> {
   });
   assert(!authError, `sign-in failed: ${authError?.message}`);
   assert(authData.session, 'no session returned');
-  const token = authData.session.accessToken;
+  const token = authData.session.access_token;
   ok(`signed in as ${TEST_EMAIL}`);
 
   // ─── Listings ─────────────────────────────────────────────────────────────

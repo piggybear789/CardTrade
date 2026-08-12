@@ -201,6 +201,8 @@ export interface TradeParty {
   verified: boolean;
   rating: number | null;
   ratingCount: number;
+  /** Optional social media handles keyed by platform slug (0085). */
+  socialLinks?: Record<string, string> | null;
 }
 
 /**
@@ -215,6 +217,7 @@ function toContractParty(party: TradeParty): ContractParty {
     verified: party.verified,
     rating: party.rating,
     ratingCount: party.ratingCount,
+    socialLinks: party.socialLinks,
     // No value stat. Each side's value was appearing three times over: in the
     // header's `money` line, in this chip, and again on every item row beneath it.
     // The item rows are the authoritative place — they attribute value to the thing

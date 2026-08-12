@@ -23,6 +23,7 @@ import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
+import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import type {
   CatalogItem,
   CatalogSeller,
@@ -63,7 +64,7 @@ export default async function SellerProfilePage({
   const { data: sellerRow } = await supabase
     .from('public_profiles')
     .select(
-      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path',
+      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links',
     )
     .eq('id', id)
     .maybeSingle();
@@ -171,6 +172,7 @@ export default async function SellerProfilePage({
             ) : (
               <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
             )}
+            <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
           </div>
           </div>
 

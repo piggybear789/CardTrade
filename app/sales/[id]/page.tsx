@@ -67,7 +67,7 @@ export default async function CashSalePage({
   ] = await Promise.all([
     supabase
       .from('public_profiles')
-      .select('id, display_name, rating, rating_count, is_verified, avatar_path')
+      .select('id, display_name, rating, rating_count, is_verified, avatar_path, social_links')
       .in('id', [sale.buyer_id, sale.seller_id]),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.buyer_id }),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.seller_id }),
@@ -148,6 +148,7 @@ export default async function CashSalePage({
             identityVerifiedAt: sale.seller_identity_verified_at,
           }
         : {}),
+      socialLinks: (profile?.social_links as Record<string, string> | null) ?? null,
     };
   };
 

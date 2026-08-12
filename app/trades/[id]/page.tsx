@@ -87,7 +87,7 @@ export default async function TradePage({
   // Req 2.1): reputation only, never merchant/compliance detail.
   const { data: partyRows } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified, avatar_path')
+    .select('id, display_name, rating, rating_count, is_verified, avatar_path, social_links')
     .in('id', [trade.initiator_id, trade.counterpart_id]);
   const partyById = new Map((partyRows ?? []).map((row) => [row.id as string, row]));
   const partyFor = (id: string) => {
@@ -98,6 +98,7 @@ export default async function TradePage({
       verified: Boolean(row?.is_verified),
       rating: row?.rating == null ? null : Number(row.rating),
       ratingCount: (row?.rating_count as number | null) ?? 0,
+      socialLinks: (row?.social_links as Record<string, string> | null) ?? null,
     };
   };
   const participants = {

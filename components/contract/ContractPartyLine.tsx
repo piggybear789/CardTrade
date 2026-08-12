@@ -14,6 +14,7 @@ import { ChevronDown, ShieldCheck, Star, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ContractParty } from './types';
 import { Avatar } from '@/components/ui/avatar';
+import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 
 /** One party, collapsed to a name plus its two trust signals. */
 function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
@@ -157,6 +158,7 @@ function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
       </div>
 
       <ContractPartyStats party={party} className="pt-3" />
+      {party.socialLinks ? <SocialLinksDisplay socialLinks={party.socialLinks} compact /> : null}
     </section>
   );
 }

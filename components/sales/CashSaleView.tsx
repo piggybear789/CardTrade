@@ -128,6 +128,8 @@ export interface SaleParty {
   legalEntityName?: string | null;
   registrationNumber?: string | null;
   identityVerifiedAt?: string | null;
+  /** Optional social media handles keyed by platform slug (0085). */
+  socialLinks?: Record<string, string> | null;
 }
 
 function messageFor(result: Extract<CashSaleActionResult, { ok: false }>): string {
@@ -217,6 +219,7 @@ function toContractParty(party: SaleParty): ContractParty {
     stats,
     legalEntityName: party.legalEntityName,
     registrationNumber: party.registrationNumber,
+    socialLinks: party.socialLinks,
   };
 }
 

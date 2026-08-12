@@ -251,14 +251,13 @@ export function DisputeEvidencePanel({
               Raised by {raisedByName}. This is a claim, not a finding.
             </p>
           ) : null}
+          {resolution ? (
+            <div className="mt-4 border-t border-destructive/15 pt-4">
+              {resolution}
+            </div>
+          ) : null}
         </div>
       ) : null}
-
-      {/* Ending it without staff, where the flow allows it. ABOVE the evidence form on
-          purpose: a member who has already decided to drop the claim or settle should
-          not have to scroll past a "write your statement" composer to find out they
-          can. */}
-      {resolution}
 
       {/* The record. Both sides, chronological. */}
       <section aria-labelledby="evidence-heading">

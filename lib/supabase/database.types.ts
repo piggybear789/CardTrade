@@ -110,6 +110,8 @@ export type Database = {
           fraud_banned_at: string | null;
           fraud_banned_by: string | null;
           fraud_ban_trade_id: string | null;
+          /** Optional social media handles keyed by platform slug (0085). */
+          social_links: Record<string, string> | null;
           created_at: string;
           updated_at: string;
         };
@@ -157,6 +159,7 @@ export type Database = {
           fraud_banned_at?: string | null;
           fraud_banned_by?: string | null;
           fraud_ban_trade_id?: string | null;
+          social_links?: Record<string, string> | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -204,6 +207,7 @@ export type Database = {
           fraud_banned_at?: string | null;
           fraud_banned_by?: string | null;
           fraud_ban_trade_id?: string | null;
+          social_links?: Record<string, string> | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1920,6 +1924,8 @@ export type Database = {
           identity_check_session_id: string | null;
           identity_check_verified_at: string | null;
           identity_check_name: string | null;
+          /** Optional social media handles keyed by platform slug (0085). */
+          social_links: Record<string, string> | null;
         };
         Relationships: [];
       };

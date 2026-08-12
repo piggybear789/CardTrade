@@ -66,6 +66,8 @@ export interface ContractParty {
   /** Provider-approved legal identity, when the flow snapshots one. */
   legalEntityName?: string | null;
   registrationNumber?: string | null;
+  /** Optional social media handles keyed by platform slug (0085). */
+  socialLinks?: Record<string, string> | null;
 }
 
 /**

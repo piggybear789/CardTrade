@@ -90,16 +90,13 @@ export function CashSaleDisputeResolution({
   const busy = (which: Exclude<Pending, null>) => isPending && running === which;
 
   return (
-    <section
-      aria-labelledby="dispute-resolution-heading"
-      className="rounded-xl border bg-muted/30 p-4"
-    >
-      <h3 id="dispute-resolution-heading" className="text-sm font-semibold">
+    <div aria-labelledby="dispute-resolution-heading">
+      <h4 id="dispute-resolution-heading" className="text-xs font-semibold">
         End this without support
-      </h3>
+      </h4>
       <p className="mt-1 text-xs text-muted-foreground">
-        Faster than waiting for a decision, and available while the case is open. You can
-        only choose an outcome that costs you — anything in between is decided by support.
+        You can only choose an outcome that costs you — anything in between is decided by
+        support.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -178,6 +175,6 @@ export function CashSaleDisputeResolution({
           )
         }
       />
-    </section>
+    </div>
   );
 }

@@ -1,56 +1,68 @@
 // app/profile/page.tsx
 //
-// Compact personal-account surface. Stripe Connect setup and money movement live
-// exclusively on /profile/payouts so this page does not duplicate payout UI.
+// Unified account surface (Option B): header strip, readiness widget, stacked
+// cards. Merges the former /profile and /profile/payouts into a single page so
+// a member never has to hunt across tabs for their own settings.
 
 import { redirect } from 'next/navigation';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, ShieldCheck, Wallet } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
-import { AccountTabs } from '@/components/account/AccountTabs';
+import { getPayoutSetupContext } from '@/lib/actions/merchant';
+import { getPayoutsDashboard } from '@/lib/actions/payouts';
+import { getIdentityCheckState } from '@/lib/actions/identity';
+import { isPaymentDemoEnabled } from '@/domain/services';
+import { IdentityCheckCard } from '@/components/identity/IdentityCheckCard';
+import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
+import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
+import { PayoutOnboarding } from '@/components/profile/PayoutOnboarding';
+import { PayoutsDashboard } from '@/components/payouts/PayoutsDashboard';
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
+import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
+import { SocialLinksEditor } from '@/components/profile/SocialLinksEditor';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionHeader } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
+import { resolveScope } from '@/components/layout/SectionFilter';
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-
+export const metadata = { title: 'Account · NoDitto' };
 export const dynamic = 'force-dynamic';
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string | string[] }>;
+}) {
+  const { show } = await searchParams;
+  const scope = resolveScope(show);
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/sign-in?redirectTo=/profile');
 
-  if (!user) {
-    redirect('/sign-in?redirectTo=/profile');
-  }
+  const [profileResult, paymentMethodResult, identity, payoutContext, payoutDashboard] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('display_name, contact_email, avatar_path, region_code, social_links')
+      .eq('id', user.id)
+      .single(),
+    getPaymentMethodStatus(),
+    getIdentityCheckState(),
+    getPayoutSetupContext(),
+    getPayoutsDashboard(),
+  ]);
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('display_name, contact_email, avatar_path')
-    .eq('id', user.id)
-    .single();
-
-  if (error || !profile) {
+  const profile = profileResult.data;
+  if (!profile) {
     return (
-      <MarketplaceShell title="Profile" center>
+      <MarketplaceShell title="Account" center>
         <EmptyState
           title="Profile unavailable"
-          description="We could not load your account details. Reload to try again."
+          description="Could not load your account."
           action={{ label: 'Try again', href: '/profile' }}
           compact
         />
@@ -58,90 +70,122 @@ export default async function ProfilePage() {
     );
   }
 
-  const paymentMethodResult = await getPaymentMethodStatus();
   const paymentMethod = paymentMethodResult.ok ? paymentMethodResult.data : null;
+  const paymentDemoEnabled = isPaymentDemoEnabled();
+
+  const identityDone = identity.ok && identity.data.status === 'VERIFIED';
+  const paymentDone = Boolean(paymentMethod?.hasPaymentMethod);
+  const payoutDone = payoutContext.ok && payoutContext.data.state.merchantStatus === 'APPROVED';
 
   return (
-    <MarketplaceShell title="Profile">
+    <MarketplaceShell title="Account">
+      <IdentityReturnRefresh />
       <SectionHeader
-        title="Profile"
-        description="Your public name, contact details, and payment method."
+        title="Account"
+        description="Your profile, verification, and payment settings."
       />
-      <AccountTabs />
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Your details</CardTitle>
-            <CardDescription>What other members see when they trade with you.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {/* AVATAR WITH ITS OWN EDIT AFFORDANCE.
-                The common profile pattern: a large avatar with a camera/pencil
-                overlay or an adjacent change link, so the member can act on it
-                without opening a separate dialog. `AvatarUploadField` saves on
-                pick, so there is no form-submit step — clicking and choosing a file
-                is the whole interaction. */}
-            <AvatarUploadField
+      {/* HEADER STRIP */}
+      <div className="mb-6 flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center sm:gap-6">
+        <AvatarUploadField
+          avatarPath={profile.avatar_path}
+          displayName={profile.display_name}
+          hideHint
+        />
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-xl font-semibold">{profile.display_name}</h2>
+            <EditProfileDialog
               avatarPath={profile.avatar_path}
               displayName={profile.display_name}
-              hideHint
+              contactEmail={profile.contact_email}
             />
+          </div>
+          <p className="text-sm text-muted-foreground">{profile.contact_email}</p>
+          {profile.region_code ? (
+            <p className="text-xs text-muted-foreground">Region: {profile.region_code}</p>
+          ) : null}
+          <SocialLinksDisplay socialLinks={profile.social_links as Record<string, string> | null} compact />
+        </div>
+      </div>
 
-            {/* FIELDS AS A SIMPLE LIST rather than a definition list grid. The
-                dl/dt/dd + uppercase tracking pattern mimicked a credentials panel,
-                which added visual weight to two pieces of information a member reads
-                once. A labeled list is lighter and leaves room to grow. */}
-            <div className="space-y-3 border-t pt-4">
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Display name</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold">{profile.display_name}</p>
-                </div>
-                <div className="flex min-w-0 items-baseline gap-4">
-                  <div className="min-w-0 text-right">
-                    <p className="text-xs text-muted-foreground">Contact email</p>
-                    <p className="mt-0.5 truncate text-sm font-semibold">{profile.contact_email}</p>
-                  </div>
-                  <EditProfileDialog
-                    avatarPath={profile.avatar_path}
-                    displayName={profile.display_name}
-                    contactEmail={profile.contact_email}
-                  />
-                </div>
+      {/* READINESS WIDGET */}
+      <Card className="mb-6 border-gold/20 bg-gold/[0.03]">
+        <CardContent className="p-4">
+          <h3 className="mb-3 text-sm font-semibold">Ready to trade?</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck
+                className={`size-5 ${identityDone ? 'text-trust' : 'text-muted-foreground'}`}
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium">Identity</p>
+                <p className="text-xs text-muted-foreground">
+                  {identityDone ? 'Verified' : 'Not verified'}
+                </p>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <CreditCard
+                className={`size-5 ${paymentDone ? 'text-trust' : 'text-muted-foreground'}`}
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium">Payment</p>
+                <p className="text-xs text-muted-foreground">
+                  {paymentDone ? 'Card saved' : 'No card'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Wallet
+                className={`size-5 ${payoutDone ? 'text-trust' : 'text-muted-foreground'}`}
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium">Payouts</p>
+                <p className="text-xs text-muted-foreground">
+                  {payoutDone ? 'Connected' : 'Not set up'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* STACKED CARDS */}
+      <div className="space-y-5">
+        {/* Social Links */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Social Links</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SocialLinksEditor initialLinks={profile.social_links as Record<string, string> | null} />
           </CardContent>
         </Card>
 
+        {/* Payment Method */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Card for Buying & Trade Holds</CardTitle>
-            <CardDescription>
-              Used for purchases and temporary trade collateral holds. Card details stay with Stripe.
-            </CardDescription>
+            <CardTitle className="text-lg">Payment Method</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {paymentMethod?.hasPaymentMethod ? (
-              <div className="aspect-[1.586/1] w-full max-w-xs rounded-2xl bg-foreground p-5 text-background shadow-sm">
-                <div className="flex items-start justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">NoDitto</p>
-                  <CreditCard className="size-5 opacity-80" aria-hidden />
-                </div>
-                <div className="mt-8 h-7 w-10 rounded-md bg-background/20" aria-hidden />
-                <div className="mt-6">
-                  <p className="text-xs uppercase tracking-wide opacity-60">Purchases & collateral</p>
-                  <p className="mt-1 truncate text-base font-semibold tracking-wide">
-                    {paymentMethod.label ?? 'Card saved with Stripe'}
-                  </p>
-                </div>
-              </div>
+              <p className="text-sm">
+                <span className="font-medium">
+                  {paymentMethod.label ?? 'Card saved'}
+                </span>{' '}
+                <span className="text-muted-foreground">
+                  — for purchases and trade collateral
+                </span>
+              </p>
             ) : (
-              <p className="rounded-md border border-dashed bg-card p-3 text-sm text-muted-foreground">
-                No purchase or collateral card saved yet.
+              <p className="text-sm text-muted-foreground">
+                No card saved yet. Required for purchases and trade collateral.
               </p>
             )}
-
             <AddPaymentMethodDialog
               trigger={
                 <Button type="button" variant="outline" size="sm">
@@ -152,6 +196,33 @@ export default async function ProfilePage() {
             />
           </CardContent>
         </Card>
+
+        {/* Identity Verification */}
+        {identity.ok ? (
+          <IdentityCheckCard
+            status={identity.data.status}
+            verifiedName={identity.data.verifiedName}
+            returnPath="/profile"
+          />
+        ) : null}
+
+        {paymentDemoEnabled && identity.ok && identity.data.status !== 'VERIFIED' ? (
+          <IdentityDemoControls />
+        ) : null}
+
+        {/* Payout Account */}
+        {payoutContext.ok ? (
+          <PayoutOnboarding context={payoutContext.data} />
+        ) : null}
+
+        {/* Payout History */}
+        {payoutDashboard.ok ? (
+          <PayoutsDashboard
+            model={payoutDashboard.data.model}
+            destination={payoutDashboard.data.destination}
+            scope={scope}
+          />
+        ) : null}
       </div>
     </MarketplaceShell>
   );

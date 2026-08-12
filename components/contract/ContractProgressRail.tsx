@@ -85,8 +85,16 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                 <span
                   aria-hidden
                   className={cn(
-                    'h-px flex-1 transition-[background-color] duration-500',
-                    first ? 'bg-transparent' : done ? 'cardtrade-success-fill' : 'bg-border',
+                    'h-[3px] flex-1 rounded-full transition-[background-color] duration-500',
+                    first
+                      ? 'bg-transparent'
+                      : done
+                        ? 'bg-trust/60'
+                        : live
+                          ? 'bg-gold/60'
+                          : halted
+                            ? 'bg-destructive/50'
+                            : 'bg-border',
                   )}
                 />
                 <button
@@ -111,7 +119,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     'hover:border-foreground/40 hover:text-foreground',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     done && 'cardtrade-success-chip',
-                    live && 'border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
+                    live && 'animate-step-active border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
                     halted &&
                       'border-destructive/55 bg-destructive/10 text-destructive',
                     !done && !live && !halted && 'border-border bg-card text-muted-foreground',
@@ -136,12 +144,16 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                 <span
                   aria-hidden
                   className={cn(
-                    'h-px flex-1 transition-[background-color] duration-500',
+                    'h-[3px] flex-1 rounded-full transition-[background-color] duration-500',
                     last
                       ? 'bg-transparent'
                       : steps[index + 1]?.status === 'done'
-                        ? 'cardtrade-success-fill'
-                        : 'bg-border',
+                        ? 'bg-trust/60'
+                        : steps[index + 1]?.status === 'active'
+                          ? 'bg-gold/60'
+                          : steps[index + 1]?.status === 'halted'
+                            ? 'bg-destructive/50'
+                            : 'bg-border',
                   )}
                 />
               </div>

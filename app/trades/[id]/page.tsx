@@ -16,6 +16,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 
+import { ContractBackLink } from '@/components/contract/ContractBackLink';
 import { createClient } from '@/lib/supabase/server';
 import { TradeContract } from '@/components/trade/TradeContract';
 import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
@@ -233,6 +234,7 @@ export default async function TradePage({
 
   return (
     <MarketplaceShell title="Trade">
+      <ContractBackLink fallbackHref="/trades" />
       <TradeContract
         tradeId={trade.id}
         initiatorId={trade.initiator_id}

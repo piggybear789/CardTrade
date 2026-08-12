@@ -7,6 +7,7 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { CashSaleView, type SaleParty } from '@/components/sales/CashSaleView';
+import { ContractBackLink } from '@/components/contract/ContractBackLink';
 import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -171,6 +172,7 @@ export default async function CashSalePage({
     <MarketplaceShell
       title={sale.buyer_id === user.id ? 'Purchase' : 'Sale'}
     >
+      <ContractBackLink fallbackHref="/purchases" />
       <CashSaleView
         initialSale={sale}
         myUserId={user.id}

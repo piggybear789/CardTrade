@@ -28,6 +28,7 @@
 // content stays reachable either way.
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -79,11 +80,12 @@ function MarqueeTile({
                 className="absolute inset-0 h-full w-full scale-110 object-cover opacity-[0.05] blur-xl"
                 loading="lazy"
               />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={imageUrl}
                 alt=""
-                className="relative h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                fill
+                sizes="(max-width: 640px) 11rem, (max-width: 1024px) 12.5rem, 13.5rem"
+                className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                 loading="lazy"
               />
             </>

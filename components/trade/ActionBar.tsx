@@ -38,6 +38,7 @@ import {
   RecordShipmentDialog,
   type ShipmentInput,
 } from '@/components/fulfilment';
+import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDialog';
 import { availableActions } from '@/domain/state-machine/actions';
 import type {
   TradeAction,
@@ -268,7 +269,7 @@ export function ActionBar({
 
   return (
     <>
-      <div className="flex flex-wrap gap-3" role="group" aria-label="Trade actions">
+      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3" role="group" aria-label="Trade actions">
         {actions.map((action) => {
           const config = ACTION_CONFIG[action];
 
@@ -284,6 +285,7 @@ export function ActionBar({
                 outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while a CardTrade operator reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — the operator decides on what you write here."
                 successMessage={config.successMessage}
                 reasonPlaceholder="e.g. the card was described as Near Mint but has a crease down the front and whitening on all four corners…"
+                evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
                 onSubmit={async (reason) => {
                   const result = await raiseDispute(tradeId, reason);
                   return result.ok
@@ -304,6 +306,7 @@ export function ActionBar({
                 outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to a CardTrade operator, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
                 successMessage={config.successMessage}
                 reasonPlaceholder="e.g. the sleeve was sealed but empty; the card fails a light test and the print pattern is wrong…"
+                evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
                 onSubmit={async (reason) => {
                   const result = await reportFraud(tradeId, reason);
                   return result.ok
@@ -314,10 +317,30 @@ export function ActionBar({
             );
           }
 
+          if (action === 'RECORD_ACCEPTANCE') {
+            return (
+              <AcceptWithPhotoDialog
+                key={action}
+                onAccept={async () => {
+                  const result = await recordAcceptance(tradeId);
+                  if (result.ok) toast.success(config.successMessage);
+                  else toast.error(errorMessage(result));
+                  return result;
+                }}
+                evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
+                triggerLabel="Accept item"
+                title="Accept what you received"
+                description="Optionally photograph the item as you received it. This becomes your baseline evidence if a dispute arises later."
+                successMessage={config.successMessage}
+              />
+            );
+          }
+
           return (
             <Button
               key={action}
               variant={config.variant}
+              className="w-full sm:w-auto"
               onClick={() => handleClick(action)}
               disabled={isPending}
               aria-busy={isPending}
@@ -353,6 +376,7 @@ export function ActionBar({
                 ? 'e.g. they did not turn up at the agreed time and have not replied…'
                 : 'e.g. tracking says delivered but nothing arrived; the box was empty…'
             }
+            evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
             onSubmit={async (reason) => {
               const result = await reportTradeHandoverFailed(tradeId, reason);
               return result.ok

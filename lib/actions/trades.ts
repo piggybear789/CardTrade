@@ -64,6 +64,8 @@ import {
 } from '@/lib/marketplace-constants';
 import type { TablesUpdate } from '@/lib/supabase/database.types';
 import { revalidatePath } from 'next/cache';
+import { createNotification } from '@/lib/notifications/createNotification';
+import { emailNotify } from '@/lib/email';
 
 // ---------------------------------------------------------------------------
 // Shared result shapes
@@ -360,6 +362,41 @@ export type LifecycleActionResult =
   | { ok: true; state: TradeState; transitioned: boolean }
   | ActionFailure<LifecycleError>;
 
+/** Map a lifecycle action to its notification content (title + body + link). */
+function lifecycleNotification(
+  action: LifecycleAction,
+  tradeId: string,
+): { title: string; body: string; link: string } | null {
+  switch (action) {
+    case 'shipment':
+      return {
+        title: 'Your trade partner shipped',
+        body: 'They marked their parcel as sent. Watch for delivery.',
+        link: `/trades/${tradeId}`,
+      };
+    case 'receipt':
+      return {
+        title: 'Your parcel was received',
+        body: 'The other trader confirmed your parcel arrived.',
+        link: `/trades/${tradeId}`,
+      };
+    case 'acceptance':
+      return {
+        title: 'Inspection passed',
+        body: 'The other trader approved what they received.',
+        link: `/trades/${tradeId}`,
+      };
+    case 'handover':
+      return {
+        title: 'Handover confirmed',
+        body: 'The other trader confirmed the in-person exchange.',
+        link: `/trades/${tradeId}`,
+      };
+    default:
+      return null;
+  }
+}
+
 /**
  * Record one leg of a lifecycle action for the caller and, once both Traders
  * have acted, dispatch the aggregate transition (Req 6.1-6.8).
@@ -452,6 +489,23 @@ async function recordLifecycle(
   const event = deriveEvent(write.trade.state, factsFromTrade(write.trade));
   if (!event) {
     revalidatePath(`/trades/${tradeId}`);
+
+    // Best-effort notification to the counterpart.
+    const recipientId = trade.initiator_id === userId
+      ? trade.counterpart_id as string
+      : trade.initiator_id as string;
+    const note = lifecycleNotification(action, tradeId);
+    if (note) {
+      await createNotification({ userId: recipientId, type: 'TRADE', ...note });
+    }
+    if (action === 'shipment') {
+      void emailNotify.itemShipped({
+        userId: recipientId,
+        contractType: 'trade',
+        contractId: tradeId,
+      });
+    }
+
     return { ok: true, state: write.trade.state, transitioned: false };
   }
 
@@ -470,6 +524,23 @@ async function recordLifecycle(
   }
 
   revalidatePath(`/trades/${tradeId}`);
+
+  // Best-effort notification to the counterpart.
+  const recipientId = trade.initiator_id === userId
+    ? trade.counterpart_id as string
+    : trade.initiator_id as string;
+  const note = lifecycleNotification(action, tradeId);
+  if (note) {
+    await createNotification({ userId: recipientId, type: 'TRADE', ...note });
+  }
+  if (action === 'shipment') {
+    void emailNotify.itemShipped({
+      userId: recipientId,
+      contractType: 'trade',
+      contractId: tradeId,
+    });
+  }
+
   return { ok: true, state: result.trade.state, transitioned: true };
 }
 
@@ -641,6 +712,24 @@ export async function raiseDispute(
     reason: trimmed,
   });
   if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
+
+  // Best-effort notification to the counterpart.
+  const recipientId = guard.ctx.trade.initiator_id === guard.ctx.userId
+    ? guard.ctx.trade.counterpart_id as string
+    : guard.ctx.trade.initiator_id as string;
+  await createNotification({
+    userId: recipientId,
+    type: 'TRADE',
+    title: 'Dispute raised',
+    body: 'A dispute has been filed on your trade. Please respond with your account.',
+    link: `/trades/${tradeId}`,
+  });
+  void emailNotify.disputeRaised({
+    userId: recipientId,
+    contractType: 'trade',
+    contractId: tradeId,
+  });
+
   return {
     ok: true,
     state: result.trade.state,
@@ -976,6 +1065,19 @@ export async function reportTradeHandoverFailed(
     .eq('id', tradeId);
 
   revalidatePath(`/trades/${tradeId}`);
+
+  // Best-effort notification to the counterpart.
+  const recipientId = trade.initiator_id === userId
+    ? trade.counterpart_id as string
+    : trade.initiator_id as string;
+  await createNotification({
+    userId: recipientId,
+    type: 'TRADE',
+    title: 'Problem reported',
+    body: 'The other trader reported a problem with the exchange.',
+    link: `/trades/${tradeId}`,
+  });
+
   return { ok: true, state: result.trade.state };
 }
 

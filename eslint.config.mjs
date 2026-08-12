@@ -40,10 +40,25 @@ export default [
   },
 
   // Next.js: the App Router correctness rules plus Core Web Vitals.
-  nextPlugin.flatConfig.coreWebVitals,
+  {
+    plugins: { '@next/next': nextPlugin },
+    rules: {
+      ...Object.fromEntries(
+        Object.entries(nextPlugin.configs?.['core-web-vitals']?.rules ?? nextPlugin.configs?.recommended?.rules ?? {}).map(
+          ([key, value]) => [key.startsWith('@next/next/') ? key : `@next/next/${key}`, value]
+        )
+      ),
+    },
+  },
 
-  // React Hooks: `recommended-latest` is the flat-config entry in v5.
-  reactHooks.configs['recommended-latest'],
+  // React Hooks: rules-of-hooks and exhaustive-deps.
+  {
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
 
   {
     files: ['**/*.{ts,tsx}'],

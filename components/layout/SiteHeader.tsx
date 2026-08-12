@@ -146,8 +146,8 @@ export async function SiteHeader() {
               </Button>
             </>
           ) : (
-            <nav aria-label="Account" className="hidden items-center gap-1 lg:flex">
-              <Button asChild variant="ghost" size="sm">
+            <nav aria-label="Account" className="flex items-center gap-1">
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
                 <SignInLink>Sign in</SignInLink>
               </Button>
               <Button
@@ -155,7 +155,10 @@ export async function SiteHeader() {
                 size="sm"
                 className="border-gold bg-gold text-obsidian hover:bg-gold/90"
               >
-                <SignInLink target="/sign-up">Get started</SignInLink>
+                <SignInLink target="/sign-up">
+                  <span className="hidden sm:inline">Get started</span>
+                  <span className="sm:hidden">Sign up</span>
+                </SignInLink>
               </Button>
             </nav>
           )}

@@ -19,6 +19,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { sweepTradeInspections } from '@/lib/trades/inspectionSweep';
+import { sweepCashSaleInspections } from '@/lib/trades/cashSaleInspectionSweep';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 
 /** Never prerender or cache a job that moves money. */
@@ -62,6 +63,15 @@ async function runSweep(request: Request): Promise<Response> {
   try {
     const result = await sweepTradeInspections();
 
+    // Cash sale inspection notifications: the pg_cron function completes the sale
+    // but cannot send in-app or email notifications, so this pass handles them.
+    let cashSales: Awaited<ReturnType<typeof sweepCashSaleInspections>> | null = null;
+    try {
+      cashSales = await sweepCashSaleInspections();
+    } catch (error) {
+      console.error('[jobs] cash-sale-inspection sweep failed', error);
+    }
+
     // The Trade_Fee retry rides along on this pass rather than on a route of its own.
     // It is trade-scoped, hourly is the cadence its attempt budget assumes, and a
     // second cron entry is a second thing to forget to configure. Isolated so a
@@ -74,7 +84,7 @@ async function runSweep(request: Request): Promise<Response> {
       console.error('[jobs] trade-fee drain failed', error);
     }
 
-    return Response.json({ ok: true, ...result, fees });
+    return Response.json({ ok: true, ...result, cashSales, fees });
   } catch (error) {
     console.error('[jobs] trade-inspections failed', error);
     return Response.json({ ok: false, error: 'Inspection pass failed' }, { status: 500 });

@@ -19,6 +19,7 @@ import 'server-only';
 
 import { createNotification } from '@/lib/notifications/createNotification';
 import { formatAud } from '@/lib/format';
+import { emailNotify } from '@/lib/email';
 import type { PayoutNotifier } from '@/domain/orchestrator/cashSaleOrchestrator';
 
 /** Member-safe headline and body per failure cause. */
@@ -56,6 +57,11 @@ export function createPayoutNotifier(): PayoutNotifier {
           `Your proceeds for "${itemTitle}" are on their way. ` +
           'It can take up to four business days to appear in your account.',
         link: `/sales/${cashSaleId}`,
+      });
+      void emailNotify.payoutSettled({
+        userId: sellerId,
+        amountFormatted: formatAud(netCents),
+        contractId: cashSaleId,
       });
     },
 

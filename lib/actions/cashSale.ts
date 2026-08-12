@@ -10,6 +10,8 @@ import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabas
 import { getPaymentService } from '@/domain/services';
 
 import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
+import { createNotification } from '@/lib/notifications/createNotification';
+import { emailNotify } from '@/lib/email';
 
 import type {
   CashSaleError,
@@ -167,7 +169,22 @@ export async function initiateCashSale(
     agreedPriceCents: input.agreedPriceCents,
     lineItems,
   });
-  return actionResult(result);
+  const actionRes = actionResult(result);
+  if (actionRes.ok) {
+    await createNotification({
+      userId: actionRes.sale.sellerId,
+      type: 'SALE',
+      title: 'New purchase request',
+      body: 'A buyer wants to purchase from your listing.',
+      link: `/sales/${actionRes.sale.id}`,
+    });
+    void emailNotify.newPurchaseRequest({
+      userId: actionRes.sale.sellerId,
+      itemTitle: actionRes.sale.itemTitle ?? 'your listing',
+      contractId: actionRes.sale.id,
+    });
+  }
+  return actionRes;
 }
 
 /**
@@ -194,7 +211,7 @@ export async function updateCashSaleItems(
     return { ok: false, error: 'invalid-terms', message: validated.message };
   }
 
-  return actionResult(
+  const result = actionResult(
     await orchestrator().replaceLineItems({
       actorId: userId,
       cashSaleId,
@@ -202,6 +219,19 @@ export async function updateCashSaleItems(
       lineItems: validated.value,
     }),
   );
+  if (result.ok) {
+    const recipientId = result.sale.buyerId === userId
+      ? result.sale.sellerId
+      : result.sale.buyerId;
+    await createNotification({
+      userId: recipientId,
+      type: 'SALE',
+      title: 'Contract items changed',
+      body: 'The items in this contract were updated. Review and re-accept.',
+      link: `/sales/${result.sale.id}`,
+    });
+  }
+  return result;
 }
 
 /**
@@ -242,7 +272,7 @@ export async function updateCashSaleTerms(
   if (!cashSaleId || !Number.isInteger(expectedTermsVersion) || !terms) {
     return { ok: false, error: 'invalid-terms' };
   }
-  return actionResult(
+  const result = actionResult(
     await orchestrator().updateTerms({
       actorId: userId,
       cashSaleId,
@@ -250,6 +280,19 @@ export async function updateCashSaleTerms(
       terms,
     }),
   );
+  if (result.ok) {
+    const recipientId = result.sale.buyerId === userId
+      ? result.sale.sellerId
+      : result.sale.buyerId;
+    await createNotification({
+      userId: recipientId,
+      type: 'SALE',
+      title: 'Terms updated',
+      body: 'The contract terms were revised. Review and re-accept to continue.',
+      link: `/sales/${result.sale.id}`,
+    });
+  }
+  return result;
 }
 
 /**
@@ -266,7 +309,7 @@ export async function proposeCashSalePrice(
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
 
-  return actionResult(
+  const result = actionResult(
     await orchestrator().proposePrice({
       actorId: userId,
       cashSaleId,
@@ -274,6 +317,19 @@ export async function proposeCashSalePrice(
       agreedPriceCents,
     }),
   );
+  if (result.ok) {
+    const recipientId = result.sale.buyerId === userId
+      ? result.sale.sellerId
+      : result.sale.buyerId;
+    await createNotification({
+      userId: recipientId,
+      type: 'SALE',
+      title: 'Price proposed',
+      body: 'A new price was proposed for your contract.',
+      link: `/sales/${cashSaleId}`,
+    });
+  }
+  return result;
 }
 
 /** Accept exactly the terms version shown; second acceptance starts payment. */
@@ -283,9 +339,22 @@ export async function acceptCashSaleTerms(
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  return actionResult(
+  const result = actionResult(
     await orchestrator().acceptTerms({ actorId: userId, cashSaleId, termsVersion }),
   );
+  if (result.ok) {
+    const recipientId = result.sale.buyerId === userId
+      ? result.sale.sellerId
+      : result.sale.buyerId;
+    await createNotification({
+      userId: recipientId,
+      type: 'SALE',
+      title: 'Terms accepted',
+      body: 'The other party accepted the contract terms.',
+      link: `/sales/${cashSaleId}`,
+    });
+  }
+  return result;
 }
 /** Open (or resolve) the participant chat for a contract (Req 4.2). */
 export async function ensureCashSaleConversation(
@@ -305,13 +374,28 @@ export async function recordCashSaleShipment(
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  return actionResult(
+  const result = actionResult(
     await orchestrator().recordShipment({
       actorId: userId,
       cashSaleId,
       shipment: { carrier, trackingNumber },
     }),
   );
+  if (result.ok) {
+    await createNotification({
+      userId: result.sale.buyerId,
+      type: 'SALE',
+      title: 'Item shipped',
+      body: 'The seller has shipped your item.',
+      link: `/sales/${cashSaleId}`,
+    });
+    void emailNotify.itemShipped({
+      userId: result.sale.buyerId,
+      contractType: 'sale',
+      contractId: cashSaleId,
+    });
+  }
+  return result;
 }
 
 export async function recordCashSaleReceipt(
@@ -319,9 +403,19 @@ export async function recordCashSaleReceipt(
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  return actionResult(
+  const result = actionResult(
     await orchestrator().recordReceipt({ actorId: userId, cashSaleId }),
   );
+  if (result.ok) {
+    await createNotification({
+      userId: result.sale.sellerId,
+      type: 'SALE',
+      title: 'Item received',
+      body: 'The buyer confirmed receipt of your item.',
+      link: `/sales/${cashSaleId}`,
+    });
+  }
+  return result;
 }
 
 /**
@@ -343,9 +437,19 @@ export async function acceptCashSaleInspection(
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  return actionResult(
+  const result = actionResult(
     await orchestrator().acceptInspection({ actorId: userId, cashSaleId }),
   );
+  if (result.ok) {
+    await createNotification({
+      userId: result.sale.sellerId,
+      type: 'SALE',
+      title: 'Inspection approved',
+      body: 'The buyer approved the item. Your payout is being processed.',
+      link: `/sales/${cashSaleId}`,
+    });
+  }
+  return result;
 }
 
 export async function confirmCashSaleHandover(
@@ -353,9 +457,22 @@ export async function confirmCashSaleHandover(
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  return actionResult(
+  const result = actionResult(
     await orchestrator().confirmHandover({ actorId: userId, cashSaleId }),
   );
+  if (result.ok) {
+    const recipientId = result.sale.buyerId === userId
+      ? result.sale.sellerId
+      : result.sale.buyerId;
+    await createNotification({
+      userId: recipientId,
+      type: 'SALE',
+      title: 'Handover confirmed',
+      body: 'The other party confirmed the in-person exchange.',
+      link: `/sales/${result.sale.id}`,
+    });
+  }
+  return result;
 }
 
 export async function cancelCashSaleAgreement(
@@ -364,9 +481,22 @@ export async function cancelCashSaleAgreement(
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  return actionResult(
+  const result = actionResult(
     await orchestrator().cancelAgreement({ actorId: userId, cashSaleId, reason }),
   );
+  if (result.ok) {
+    const recipientId = result.sale.buyerId === userId
+      ? result.sale.sellerId
+      : result.sale.buyerId;
+    await createNotification({
+      userId: recipientId,
+      type: 'SALE',
+      title: 'Contract cancelled',
+      body: 'The other party cancelled the contract.',
+      link: `/sales/${cashSaleId}`,
+    });
+  }
+  return result;
 }
 
 export async function disputeCashSale(
@@ -375,9 +505,27 @@ export async function disputeCashSale(
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  return actionResult(
+  const result = actionResult(
     await orchestrator().raiseDispute({ actorId: userId, cashSaleId, reason }),
   );
+  if (result.ok) {
+    const recipientId = result.sale.buyerId === userId
+      ? result.sale.sellerId
+      : result.sale.buyerId;
+    await createNotification({
+      userId: recipientId,
+      type: 'SALE',
+      title: 'Dispute raised',
+      body: 'A dispute has been raised on your contract. Please respond.',
+      link: `/sales/${cashSaleId}`,
+    });
+    void emailNotify.disputeRaised({
+      userId: recipientId,
+      contractType: 'sale',
+      contractId: cashSaleId,
+    });
+  }
+  return result;
 }
 
 /**

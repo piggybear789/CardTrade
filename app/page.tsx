@@ -60,7 +60,7 @@ export default async function HomePage() {
               listings that actually exist — the hero stays clean copy and CTAs. */}
           <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-24 sm:pt-28 lg:px-24 lg:pt-36">
             <div className="mx-auto max-w-2xl text-center">
-              <p className="market-label text-ditto/80">Safety-first trading</p>
+              <p className="market-label text-ditto">Safety-first trading</p>
               <h1 className="mt-5 text-balance font-display text-5xl font-semibold leading-[1.02] tracking-[-0.04em] text-parchment sm:text-6xl lg:text-7xl">
                 A marketplace without{' '}
                 <span className="text-parchment/45">imposters.</span>
@@ -72,7 +72,7 @@ export default async function HomePage() {
                 <br />
                 Zero tolerance for imposters or fraudulent activity.
               </p>
-              <div className="mt-10 flex items-center justify-center gap-3">
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
                 <Button
                   asChild
                   size="lg"

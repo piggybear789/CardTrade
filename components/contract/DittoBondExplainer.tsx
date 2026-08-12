@@ -20,7 +20,10 @@ import {
   ArrowRight,
   CheckCircle2,
   CreditCard,
+  Package,
+  Search,
   ShieldAlert,
+  ShieldCheck,
   Timer,
 } from 'lucide-react';
 
@@ -124,6 +127,7 @@ function MoneyStage({
   index,
   title,
   where,
+  icon,
   tone = 'neutral',
   last = false,
   children,
@@ -132,43 +136,45 @@ function MoneyStage({
   title: string;
   /** Where the buyer's money physically is during this stage. */
   where: string;
+  /** Lucide icon name for the stage marker. */
+  icon?: 'credit-card' | 'package' | 'search' | 'check-circle';
   tone?: 'neutral' | 'success';
   /** Suppresses the connector beneath the final stage. */
   last?: boolean;
   children: ReactNode;
 }) {
+  const IconComponent = icon
+    ? { 'credit-card': CreditCard, 'package': Package, 'search': Search, 'check-circle': CheckCircle2 }[icon]
+    : null;
+
   return (
     <li className="flex gap-3 sm:gap-4">
-      {/* Marker rail. The connector is drawn here rather than as a border on the
-          text column so it lines up with the centre of the numbered marker. */}
       <div className="flex flex-col items-center">
         <span
           className={cn(
-            'grid size-8 shrink-0 place-items-center rounded-full border text-sm font-semibold',
+            'grid size-8 shrink-0 place-items-center rounded-full border',
             tone === 'success'
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
               : 'border-border bg-background text-foreground',
           )}
           aria-hidden
         >
-          {index}
+          {IconComponent ? <IconComponent className="size-4" /> : index}
         </span>
         {last ? null : <span className="mt-1 w-px flex-1 bg-border" aria-hidden />}
       </div>
 
       <div className={cn('min-w-0 flex-1', last ? 'pb-0' : 'pb-5')}>
         <p className="text-sm font-semibold leading-tight">{title}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{children}</p>
-        <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-xs">
+        <p className="mt-1 text-sm text-muted-foreground">{children}</p>
+        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs">
           <span className="font-medium uppercase tracking-wide text-muted-foreground">
             Money
           </span>
           <span
             className={cn(
               'font-medium',
-              tone === 'success'
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : 'text-foreground',
+              tone === 'success' ? 'text-emerald-700' : 'text-foreground',
             )}
           >
             {where}
@@ -202,51 +208,45 @@ function MoneyStage({
 export function CashSaleProtectionExplainer() {
   return (
     <div className="space-y-5">
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        Your payment is collected up front and held by NoDitto — not passed
-        straight to the seller. They are paid only after you have the item and are
-        happy with it.
+      <p className="text-sm text-muted-foreground">
+        Your payment is held by NoDitto until you&apos;re happy — the seller
+        is never paid directly.
       </p>
 
       <ol className="list-none">
-        <MoneyStage index={1} title="You pay" where="Leaves your card, held by NoDitto">
-          Stripe collects the agreed item price plus any delivery cost. Paying is
-          what commits the sale, so there is nothing else for you to put down.
+        <MoneyStage index={1} title="You pay" where="Held by NoDitto" icon="credit-card">
+          Stripe collects the item price + delivery. This commits the sale.
         </MoneyStage>
 
-        <MoneyStage index={2} title="The seller sends the item" where="Still held by NoDitto">
-          The seller can see the sale is paid for, which is what gives them the
-          confidence to post. They have not received any of it yet.
+        <MoneyStage index={2} title="Seller ships" where="Held by NoDitto" icon="package">
+          They can see it&apos;s paid — that&apos;s their signal to post.
         </MoneyStage>
 
-        <MoneyStage
-          index={3}
-          title="You check it over"
-          where="Still held by NoDitto"
-        >
-          You get an inspection window once it arrives. If the item is not what was
-          agreed, raise a dispute inside that window and the money stays put while
-          it is reviewed.
+        <MoneyStage index={3} title="You inspect" where="Held by NoDitto" icon="search">
+          Check the item when it arrives. Dispute within the window if
+          something&apos;s wrong.
         </MoneyStage>
 
         <MoneyStage
           index={4}
-          title="The sale resolves"
-          where="Released to the seller, or refunded to you"
+          title="Resolved"
+          where="Released to seller, or refunded to you"
+          icon="check-circle"
           tone="success"
           last
         >
-          When you accept — or the inspection window closes without a dispute — the
-          seller is paid. If it is refunded instead, it goes back to the original
-          card you paid with.
+          Accept or let the window close → seller is paid. Dispute → money
+          stays frozen for review.
         </MoneyStage>
       </ol>
 
-      <p className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
-        <span className="font-medium text-foreground">Every seller is verified.</span>{' '}
-        Publishing a listing requires a Stripe identity check — a photo ID and a
-        selfie — so the person you are buying from is identifiable and can be pursued.
-      </p>
+      <div className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">Every seller is verified</span>{' '}
+          — photo ID + selfie via Stripe before they can list anything.
+        </p>
+      </div>
     </div>
   );
 }

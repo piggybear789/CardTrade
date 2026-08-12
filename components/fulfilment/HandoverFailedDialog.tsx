@@ -32,6 +32,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { uploadDisputeEvidence } from '@/lib/storage/uploadDisputeEvidence';
+import { submitDisputeEvidence, type DisputeCaseKind } from '@/lib/actions/disputeEvidence';
 
 /** Bounds the reason text, matching the server-side guard. */
 const REASON_MAX = 1000;
@@ -69,6 +71,15 @@ export interface HandoverFailedDialogProps {
    * consequences and the buttons should not look identical.
    */
   triggerVariant?: 'outline' | 'destructive' | 'default' | 'secondary' | 'ghost';
+  /**
+   * When provided, evidence files are uploaded to Supabase Storage and formally
+   * attached to the dispute case via `submitDisputeEvidence` after `onSubmit`
+   * transitions the contract into DISPUTED state.
+   *
+   * Optional for backwards compatibility — when absent, filenames are still noted in
+   * the reason text as a fallback record.
+   */
+  evidenceContext?: { caseKind: DisputeCaseKind; caseRef: string };
 }
 
 export function HandoverFailedDialog({
@@ -79,6 +90,7 @@ export function HandoverFailedDialog({
   successMessage = 'Reported — the contract is now frozen for review.',
   reasonPlaceholder = 'e.g. they did not show up, the item was not what was agreed, the parcel never arrived…',
   triggerVariant = 'destructive',
+  evidenceContext,
 }: HandoverFailedDialogProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -113,25 +125,59 @@ export function HandoverFailedDialog({
       return;
     }
 
-    // Filenames are noted in the reason as a record that evidence was supplied.
-    // Uploading the files themselves to Storage and attaching their paths to the
-    // case is the obvious next step and is deliberately not faked here.
+    // Filenames are noted in the reason as a fallback record regardless of whether the
+    // real upload succeeds — arbitration always has something to reference.
     const proofNote =
       proofFiles.length > 0
         ? `\n\n[Evidence attached: ${proofFiles.map((f) => f.name).join(', ')}]`
         : '';
 
     startTransition(async () => {
+      // Step 1: Upload files to Storage BEFORE onSubmit so the bytes are in the bucket
+      // even if the subsequent attach call fails. This only puts objects into the bucket
+      // under the caller's prefix — no state check is needed at this point.
+      let uploadedPaths: string[] = [];
+      if (proofFiles.length > 0 && evidenceContext) {
+        const uploadResult = await uploadDisputeEvidence(proofFiles);
+        if (!uploadResult.ok) {
+          setInlineError(uploadResult.message);
+          toast.error(uploadResult.message);
+          return;
+        }
+        uploadedPaths = uploadResult.paths;
+      }
+
+      // Step 2: Freeze/dispute the contract via the injected action.
       const result = await onSubmit(trimmed + proofNote);
-      if (result.ok) {
-        toast.success(successMessage);
-        setOpen(false);
-        setReason('');
-        setProofFiles([]);
+      if (!result.ok) {
+        setInlineError(result.message);
+        toast.error(result.message);
         return;
       }
-      setInlineError(result.message);
-      toast.error(result.message);
+
+      // Step 3: Formally attach the evidence to the now-disputed contract. This call
+      // requires DISPUTED state, which onSubmit just established. If it fails, the
+      // dispute is already raised and the files are already in the bucket — warn rather
+      // than fail the whole flow.
+      if (uploadedPaths.length > 0 && evidenceContext) {
+        const attachResult = await submitDisputeEvidence({
+          caseKind: evidenceContext.caseKind,
+          caseRef: evidenceContext.caseRef,
+          statement: trimmed,
+          mediaPaths: uploadedPaths,
+        });
+        if (!attachResult.ok) {
+          toast.warning(
+            'The dispute was raised, but the evidence could not be attached. ' +
+              'You can add it from the contract room.',
+          );
+        }
+      }
+
+      toast.success(successMessage);
+      setOpen(false);
+      setReason('');
+      setProofFiles([]);
     });
   }
 

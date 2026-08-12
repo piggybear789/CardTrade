@@ -30,6 +30,7 @@ import { getPaymentService } from '@/domain/services';
 import { regionForCurrency } from '@/lib/regionBinding';
 import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment';
 import { finalizeCompletedTrade, type TradeRow } from './completion';
+import { emailNotify } from '@/lib/email';
 
 /** How long before the deadline both traders are nudged, in hours. */
 const WARNING_LEAD_HOURS = 24;
@@ -222,6 +223,18 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
         .update({ inspection_warned_at: new Date().toISOString() })
         .eq('id', row.id);
       result.warned += 1;
+      void emailNotify.inspectionDeadlineWarning({
+        userId: row.initiator_id as string,
+        contractType: 'trade',
+        contractId: row.id as string,
+        hoursRemaining: 24,
+      });
+      void emailNotify.inspectionDeadlineWarning({
+        userId: row.counterpart_id as string,
+        contractType: 'trade',
+        contractId: row.id as string,
+        hoursRemaining: 24,
+      });
     } catch (err) {
       console.warn(`[trades] inspection warning failed for trade ${row.id}:`, err);
     }

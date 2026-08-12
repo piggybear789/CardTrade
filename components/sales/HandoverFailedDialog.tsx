@@ -38,6 +38,7 @@ export function HandoverFailedDialog({
     <SharedHandoverFailedDialog
       triggerLabel={triggerLabel}
       title="Report handover failed"
+      evidenceContext={{ caseKind: 'CASH_SALE', caseRef: cashSaleId }}
       // States what actually happens, not what we hope happens. This previously
       // promised "the buyer is refunded", which was untrue in two ways: nothing
       // refunded automatically, and a refund is only one of three outcomes.

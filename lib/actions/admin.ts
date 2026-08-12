@@ -42,6 +42,8 @@ import { getPaymentService, operationalRegions } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { normalizeRegionCode, regionCurrency } from '@/domain/region';
 import type { Enums } from '@/lib/supabase/database.types';
+import { createNotification } from '@/lib/notifications/createNotification';
+import { emailNotify } from '@/lib/email';
 
 /**
  * Admin action error codes.
@@ -425,6 +427,26 @@ export async function resolveTradeConditionDispute(
   revalidatePath('/admin/arbitration');
   revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
   revalidatePath(`/trades/${tradeId}`);
+
+  // Notify both traders of the resolution.
+  const trade = result.trade;
+  await createNotification({
+    userId: trade.initiator_id as string,
+    type: 'TRADE',
+    title: 'Dispute resolved',
+    body: 'A CardTrade operator reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
+    link: `/trades/${tradeId}`,
+  });
+  await createNotification({
+    userId: trade.counterpart_id as string,
+    type: 'TRADE',
+    title: 'Dispute resolved',
+    body: 'A CardTrade operator reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
+    link: `/trades/${tradeId}`,
+  });
+  void emailNotify.disputeRaised({ userId: trade.initiator_id as string, contractType: 'trade', contractId: tradeId });
+  void emailNotify.disputeRaised({ userId: trade.counterpart_id as string, contractType: 'trade', contractId: tradeId });
+
   return { ok: true, data: { id: tradeId, state: result.trade.state } };
 }
 
@@ -504,6 +526,27 @@ export async function resolveTradeFraud(
   revalidatePath('/admin/arbitration');
   revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
   revalidatePath(`/trades/${tradeId}`);
+
+  // Notify both traders of the fraud resolution.
+  const outcome = result.outcome;
+  const victimUserId = victimId;
+  const offenderId = outcome.offendingTraderId as string;
+
+  await createNotification({
+    userId: victimUserId,
+    type: 'TRADE',
+    title: 'Fraud confirmed — you are being compensated',
+    body: 'A CardTrade operator confirmed objective fraud. The offender\'s collateral is being released to you.',
+    link: `/trades/${tradeId}`,
+  });
+  await createNotification({
+    userId: offenderId,
+    type: 'TRADE',
+    title: 'Fraud confirmed — your account is permanently suspended',
+    body: 'A CardTrade operator confirmed objective fraud on your trade. Your collateral has been captured.',
+    link: `/trades/${tradeId}`,
+  });
+
   return { ok: true, data: { id: tradeId, state: result.outcome.trade.state } };
 }
 

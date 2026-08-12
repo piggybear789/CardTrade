@@ -19,13 +19,13 @@
     --muted-foreground: 32 8% 40%;
     --accent: 41 41% 87%;
     --accent-foreground: 30 11% 10%;
-    --destructive: 2 67% 45%;
+    --destructive: 4 80% 50%;
     --destructive-foreground: 42 33% 96%;
     --border: 36 18% 78%;
-    --input: 36 18% 72%;
+    --input: 36 18% 62%;
     --ring: 41 52% 48%;
-    --trust: 173 80% 30%;
-    --gold: 41 52% 48%;
+    --trust: 173 80% 26%;
+    --gold: 41 52% 38%;
     --ditto: 282 62% 62%;
     --obsidian: 30 9% 4%;
     --charcoal: 30 8% 14%;
@@ -95,7 +95,7 @@
   }
 
   .market-search input::placeholder {
-    color: hsl(var(--primary-foreground) / 0.48);
+    color: hsl(var(--primary-foreground) / 0.58);
   }
 
   .market-search > svg {
@@ -171,6 +171,26 @@
 
 .animate-step-complete {
   animation: step-complete 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Gentle pulse on the active progress rail step — draws the eye without being
+   distracting. The ring expands and fades, like a radar ping. */
+@keyframes step-active-ping {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.animate-step-active {
+  position: relative;
+}
+
+.animate-step-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid hsl(var(--gold));
+  animation: step-active-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 /* Landing-page listing marquee.

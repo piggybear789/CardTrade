@@ -163,6 +163,15 @@ export function CatalogInfiniteGrid({
       {/* Sentinel + status — mobile only; desktop uses the page nav below. */}
       <div className="lg:hidden">
         <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
+        {hasMore && !loadingMore && !error ? (
+          <button
+            type="button"
+            onClick={() => void loadMoreRef.current({ force: true })}
+            className="mt-2 w-full rounded-lg border border-border/70 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Load more listings
+          </button>
+        ) : null}
         <div className="flex flex-col items-center gap-2 py-6" aria-live="polite">
           {loadingMore ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -83,6 +83,7 @@ import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { cashSaleErrorMessage } from './errorCopy';
 import { CashSaleDemoControls } from './CashSaleDemoControls';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
+import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDialog';
 
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { formatMoney, formatContractDateTime, itemImageUrl } from '@/lib/format';
@@ -628,7 +629,7 @@ function CashSaleRoom({
                 alongside the rest of the counterparty context. */}
 
             {isLegacy ? (
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href={`/listings/${sale.item_id}`}>Go to the listing</Link>
               </Button>
             ) : null}
@@ -643,6 +644,7 @@ function CashSaleRoom({
                 {!termsSet ? (
                   <Button
                     type="button"
+                    className="w-full"
                     onClick={() => focusSection(CASH_SALE_SECTIONS.terms)}
                   >
                     Select delivery method
@@ -650,6 +652,7 @@ function CashSaleRoom({
                 ) : !iAccepted ? (
                   <Button
                     type="button"
+                    className="w-full"
                     disabled={isPending || !deliveryReady}
                     aria-busy={busy('accept')}
                     onClick={() =>
@@ -672,9 +675,8 @@ function CashSaleRoom({
                 ) : null}
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="self-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:self-end"
+                  variant="destructive"
+                  className="w-full"
                   aria-haspopup="dialog"
                   disabled={isPending}
                   onClick={() => setConfirming('cancel')}
@@ -708,6 +710,7 @@ function CashSaleRoom({
                 </div>
                 <Button
                   type="button"
+                  className="w-full sm:w-auto"
                   disabled={
                     !carrier.trim() || trackingNumber.trim().length < 2 || isPending
                   }
@@ -774,9 +777,10 @@ function CashSaleRoom({
 
             {/* Confirm receipt (buyer, shipping branch). */}
             {sale.status === 'IN_TRANSIT' && iAmBuyer ? (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
+                  className="w-full sm:w-auto"
                   disabled={isPending}
                   aria-busy={busy('receive')}
                   onClick={() =>
@@ -799,9 +803,10 @@ function CashSaleRoom({
 
             {/* Mutual handover (in-person branch). */}
             {sale.status === 'HANDOVER' ? (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
+                  className="w-full sm:w-auto"
                   disabled={
                     isPending ||
                     Boolean(
@@ -858,25 +863,17 @@ function CashSaleRoom({
 
                 {iAmBuyer ? (
                   <div className="space-y-2">
-                    <Button
-                      type="button"
-                      disabled={isPending}
-                      aria-busy={busy('inspect')}
-                      onClick={() =>
-                        run(
-                          'inspect',
-                          () => acceptCashSaleInspection(sale.id),
-                          'Purchase completed.',
-                        )
-                      }
-                    >
-                      {busy('inspect') ? (
-                        <Loader2 className="animate-spin" aria-hidden />
-                      ) : (
-                        <Check aria-hidden />
-                      )}
-                      Accept the item
-                    </Button>
+                    <AcceptWithPhotoDialog
+                      onAccept={async () => {
+                        const result = await acceptCashSaleInspection(sale.id);
+                        return { ok: result.ok };
+                      }}
+                      evidenceContext={{ caseKind: 'CASH_SALE', caseRef: sale.id }}
+                      triggerLabel="Accept the item"
+                      title="Accept and complete purchase"
+                      description="Optionally photograph what you received. This becomes your baseline evidence if a dispute arises later."
+                      successMessage="Purchase completed."
+                    />
                     <details className="text-xs">
                       <summary className="cursor-pointer text-muted-foreground underline-offset-4 hover:underline">
                         Something wrong?
@@ -930,7 +927,7 @@ function CashSaleRoom({
             ) : null}
 
             {sale.status === 'CANCELLED' || sale.status === 'FAILED' ? (
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href="/listings">Browse listings</Link>
               </Button>
             ) : null}

@@ -59,6 +59,7 @@ export interface AddPaymentMethodFormProps {
 export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) {
   const [session, setSession] = useState<SetupSession | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +72,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retryCount]);
 
   const stripePromise = useMemo(
     () =>
@@ -83,9 +84,22 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
   if (configError) {
     return (
-      <p role="alert" className="text-sm text-destructive">
-        {configError}
-      </p>
+      <div className="space-y-3">
+        <p role="alert" className="text-sm text-destructive">
+          {configError}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setConfigError(null);
+            setRetryCount((c) => c + 1);
+          }}
+        >
+          Try again
+        </Button>
+      </div>
     );
   }
 

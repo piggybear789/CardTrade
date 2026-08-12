@@ -1,15 +1,27 @@
 // domain/services/tracking/index.ts
-// Current tracking binding; swap this one factory when a carrier API is chosen.
+//
+// Tracking service factory. Uses Ship24 when SHIP24_API_KEY is set, falls back
+// to the manual provider (URL generation only, no polling).
 
 import { ManualTrackingService } from './manualTracking';
+import { Ship24TrackingService } from './ship24Tracking';
 import type { TrackingService } from './types';
+
+let _cached: TrackingService | null = null;
 
 /** Return the configured shipment tracking service. */
 export function getTrackingService(): TrackingService {
-  return new ManualTrackingService();
+  if (_cached) return _cached;
+  const apiKey = process.env.SHIP24_API_KEY;
+  if (apiKey) {
+    _cached = new Ship24TrackingService(apiKey);
+  } else {
+    _cached = new ManualTrackingService();
+  }
+  return _cached;
 }
 
-/** Whether the configured provider can safely refresh a carrier status. */
+/** Whether the configured provider can poll carrier status. */
 export function isTrackingStatusPollingAvailable(): boolean {
   return typeof getTrackingService().fetchStatus === 'function';
 }

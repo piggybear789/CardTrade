@@ -24,6 +24,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { validateRegistrationCredentials } from '@/domain/validation';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { type ActionResult, fail, ok } from './result';
+import { authLimiter } from '@/lib/rateLimiters';
+import { rateLimitIdentifier } from '@/lib/rateLimit';
 
 /** Typed failure codes for {@link signUp}. */
 export type SignUpError =
@@ -73,6 +75,12 @@ export async function signUp(
   email: string,
   password: string,
 ): Promise<ActionResult<SignUpData, SignUpError>> {
+  const identifier = await rateLimitIdentifier();
+  const { allowed } = await authLimiter.check(identifier);
+  if (!allowed) {
+    return fail('VALIDATION', 'Too many attempts. Please wait a minute and try again.');
+  }
+
   // 1. Syntactic validation (Req 1.1, 1.3).
   const validation = validateRegistrationCredentials({ email, password });
   if (!validation.ok) {
@@ -146,6 +154,12 @@ export async function signIn(
   email: string,
   password: string,
 ): Promise<ActionResult<{ userId: string }, SignInError>> {
+  const identifier = await rateLimitIdentifier();
+  const { allowed } = await authLimiter.check(identifier);
+  if (!allowed) {
+    return fail('VALIDATION', 'Too many attempts. Please wait a minute and try again.');
+  }
+
   const validation = validateRegistrationCredentials({ email, password });
   if (!validation.ok) {
     return fail('VALIDATION', validation.message, validation.field);

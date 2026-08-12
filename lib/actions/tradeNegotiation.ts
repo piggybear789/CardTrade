@@ -22,6 +22,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { emailNotify } from '@/lib/email';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
 import {
   getPaymentService,
@@ -745,6 +746,11 @@ export async function openTradeNegotiation(input: {
     title: 'Trade offer received',
     body: 'Someone opened a trade offer on one of your listings.',
     link: `/trades/${trade.id}`,
+  });
+
+  void emailNotify.tradeOfferReceived({
+    userId: target.owner_id as string,
+    contractId: trade.id,
   });
 
   revalidatePath('/trades');

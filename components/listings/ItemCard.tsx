@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { BadgeX, ImageOff, Lock, MapPin, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
@@ -77,18 +78,19 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             aria-hidden="true"
           />
           {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt={item.title}
-              width={512}
-              height={512}
-              className={cn(
-                'relative z-10 h-full w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)]',
-                unavailableLabel && 'grayscale-[35%]',
-              )}
-              loading="lazy"
-            />
+            <div className={cn(
+              'relative z-10 h-full w-full',
+              unavailableLabel && 'grayscale-[35%]',
+            )}>
+              <Image
+                src={imageUrl}
+                alt={item.title}
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)]"
+                loading="lazy"
+              />
+            </div>
           ) : (
             <div className="relative z-10 flex h-full w-full items-center justify-center text-parchment/45">
               <ImageOff className="size-9" aria-hidden="true" />
@@ -225,18 +227,19 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
           aria-hidden="true"
         />
         {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt={item.title}
-            width={512}
-            height={640}
-            className={cn(
-              'relative z-10 h-full w-full object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]',
-              unavailableLabel && 'grayscale-[35%]',
-            )}
-            loading="lazy"
-          />
+          <div className={cn(
+            'relative z-10 h-full w-full',
+            unavailableLabel && 'grayscale-[35%]',
+          )}>
+            <Image
+              src={imageUrl}
+              alt={item.title}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.58)]"
+              loading="lazy"
+            />
+          </div>
         ) : (
           <div className="relative z-10 flex h-full w-full items-center justify-center text-parchment/45">
             <ImageOff className="size-10" aria-hidden="true" />

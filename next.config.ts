@@ -1,7 +1,34 @@
+// Environment variables used by this config and related integrations:
+// - NEXT_BUILD_DIR: optional scratch directory for `next build` (avoids EPERM on Windows)
+
 import type { NextConfig } from 'next';
+
+// Content-Security-Policy directives. Kept as an array for readability; joined
+// into a single header value at build time.
+const cspDirectives = [
+  "default-src 'self'",
+  // Next.js runtime requires unsafe-inline and unsafe-eval for its script
+  // injection and hot-reload in development. Stripe Elements and Google Maps
+  // load from their own origins.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com",
+  // Tailwind injects styles at runtime; unsafe-inline is required.
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://images.pokemontcg.io https://images.scrydex.com https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com",
+  "font-src 'self'",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com",
+  // Stripe Elements and Payment Element render inside iframes; Google Maps
+  // embed does too.
+  "frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com https://maps.google.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+];
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Suppress the X-Powered-By: Next.js header — leaks framework version info.
+  poweredByHeader: false,
   // Lets a production build run without fighting a `next dev` server for `.next`.
   // On Windows the dev server holds `.next/trace` open, so `next build` dies with
   // EPERM before it compiles anything — which reads like a code failure and is not
@@ -9,6 +36,34 @@ const nextConfig: NextConfig = {
   //   $env:NEXT_BUILD_DIR='.next-build'; npm run build
   // Unset (the normal case, including on Vercel) it is the default `.next`.
   distDir: process.env.NEXT_BUILD_DIR || '.next',
+  async headers() {
+    return [
+      {
+        // Apply security headers to every route.
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+          },
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
+          {
+            // Vercel sets HSTS at the edge, but defence in depth for any
+            // non-Vercel deployment or proxied path.
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives.join('; '),
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       {
@@ -39,9 +94,16 @@ const nextConfig: NextConfig = {
         hostname: 'images.scrydex.com',
         pathname: '/pokemon/**',
       },
+      {
+        // Supabase Storage — item images, profile avatars, dispute evidence.
+        // Routed through next/image so Vercel's edge CDN caches transformed
+        // copies globally rather than every request hitting ap-northeast-1.
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
 };
 
 export default nextConfig;
-

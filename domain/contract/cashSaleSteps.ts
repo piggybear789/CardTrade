@@ -182,7 +182,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 1. Somebody proposes how the item changes hands. Either party may.
   drafts.push({
     id: 'terms',
-    short: 'Terms',
+    short: 'Discuss Terms',
     label: 'Propose handover terms',
     detail: termsSet
       ? isDelivery
@@ -203,7 +203,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 2. Both sides accept the SAME version. Money moves only then.
   drafts.push({
     id: 'accept',
-    short: 'Accept',
+    short: 'Accept Terms',
     label: 'Review and accept the proposal',
     detail: !termsSet
       ? 'Available once handover terms have been proposed.'
@@ -267,7 +267,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     // 4a. Shipping branch: the seller sends, the buyer confirms arrival.
     drafts.push({
       id: 'ship',
-      short: 'Ship',
+      short: 'Delivery',
       label: 'Seller ships with tracking',
       detail: hasTracking
         ? 'Tracking recorded.'
@@ -286,8 +286,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
 
     drafts.push({
       id: 'receive',
-      // Six ticks in the delivery branch: 'Delivered' truncated on mobile.
-      short: 'Arrive',
+      // Six ticks in the delivery branch: keep short for mobile.
+      short: 'Received',
       label: 'Buyer confirms the item arrived',
       detail:
         viewerRole === 'BUYER'
@@ -304,9 +304,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     // 4b. In-person branch: a single mutual confirmation.
     drafts.push({
       id: 'handover',
-      // Rail shorts must survive a five-tick rail on a 320px screen (~6
-      // characters); 'Handover' truncated to 'Handov…'.
-      short: 'Meet',
+      // Rail shorts must survive a five-tick rail on a 320px screen.
+      short: 'Delivery',
       label: 'Both confirm the handover',
       detail:
         myHandoverConfirmed && theirHandoverConfirmed
@@ -333,7 +332,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 5. The buyer's inspection window closes the contract and releases funds.
   drafts.push({
     id: 'inspect',
-    short: 'Done',
+    short: '',
     label: 'Buyer accepts the item',
     detail:
       viewerRole === 'BUYER'

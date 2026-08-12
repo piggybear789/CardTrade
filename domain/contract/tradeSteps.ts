@@ -156,7 +156,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       id: 'handover',
       // Rail shorts must survive a five-tick rail on a 320px screen (~6
       // characters); 'Handover' truncates to 'Handov…'.
-      short: 'Meet',
+      short: 'Delivery',
       label: 'Meet and swap',
       detail: symmetricDetail(
         handover,
@@ -199,7 +199,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     drafts.push(
       {
         id: 'ship',
-        short: 'Send',
+        short: 'Delivery',
         label: 'Both traders post with tracking',
         detail: symmetricDetail(
           shipped,
@@ -217,7 +217,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       },
       {
         id: 'receive',
-        short: 'Arrive',
+        short: 'Received',
         label: 'Both parcels arrive',
         detail: symmetricDetail(
           received,
@@ -239,7 +239,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   drafts.push(
     {
       id: 'accept',
-      short: 'Accept',
+      short: 'Accept Terms',
       label: 'Both traders accept what they got',
       detail: symmetricDetail(
         accepted,
@@ -258,7 +258,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     {
       id: 'release',
       // Terminal tick reads 'Done' in every flow.
-      short: 'Done',
+      short: '',
       label: 'Both holds released',
       detail: 'Neither card is charged once the swap completes.',
       owner: 'platform',

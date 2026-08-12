@@ -47,7 +47,10 @@ export function ContractHeader({
       <CardContent className="space-y-2.5 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           {/* The page shell renders the route <h1>; this is the contract's own title. */}
-          <h2 className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight">
+          <h2
+            className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight"
+            title={title}
+          >
             {title}
           </h2>
           {money ? (

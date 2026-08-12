@@ -47,7 +47,7 @@ export default async function ProfilePage({
   const [profileResult, paymentMethodResult, identity, payoutContext, payoutDashboard] = await Promise.all([
     supabase
       .from('profiles')
-      .select('display_name, contact_email, avatar_path, region_code, social_links')
+      .select('display_name, contact_email, avatar_path, region_code')
       .eq('id', user.id)
       .single(),
     getPaymentMethodStatus(),
@@ -55,6 +55,16 @@ export default async function ProfilePage({
     getPayoutSetupContext(),
     getPayoutsDashboard(),
   ]);
+
+  // social_links column may not exist until migration 0085 is applied.
+  // Query separately so its absence doesn't break the entire page.
+  const { data: socialRow } = await supabase
+    .from('profiles')
+    .select('social_links')
+    .eq('id', user.id)
+    .maybeSingle()
+    .then((res) => res)
+    .catch(() => ({ data: null }));
 
   const profile = profileResult.data;
   if (!profile) {
@@ -105,7 +115,7 @@ export default async function ProfilePage({
           {profile.region_code ? (
             <p className="text-xs text-muted-foreground">Region: {profile.region_code}</p>
           ) : null}
-          <SocialLinksDisplay socialLinks={profile.social_links as Record<string, string> | null} compact />
+          <SocialLinksDisplay socialLinks={socialRow?.social_links as Record<string, string> | null} compact />
         </div>
       </div>
 
@@ -162,7 +172,7 @@ export default async function ProfilePage({
             <CardTitle className="text-lg">Social Links</CardTitle>
           </CardHeader>
           <CardContent>
-            <SocialLinksEditor initialLinks={profile.social_links as Record<string, string> | null} />
+            <SocialLinksEditor initialLinks={socialRow?.social_links as Record<string, string> | null} />
           </CardContent>
         </Card>
 

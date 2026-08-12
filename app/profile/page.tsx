@@ -13,7 +13,6 @@ import { getPayoutSetupContext } from '@/lib/actions/merchant';
 import { getPayoutsDashboard } from '@/lib/actions/payouts';
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { isPaymentDemoEnabled } from '@/domain/services';
-import { IdentityCheckCard } from '@/components/identity/IdentityCheckCard';
 import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { PayoutOnboarding } from '@/components/profile/PayoutOnboarding';
@@ -24,7 +23,6 @@ import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDi
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import { SocialLinksEditor } from '@/components/profile/SocialLinksEditor';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionHeader } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -57,14 +55,17 @@ export default async function ProfilePage({
   ]);
 
   // social_links column may not exist until migration 0085 is applied.
-  // Query separately so its absence doesn't break the entire page.
-  const { data: socialRow } = await supabase
-    .from('profiles')
-    .select('social_links')
-    .eq('id', user.id)
-    .maybeSingle()
-    .then((res) => res)
-    .catch(() => ({ data: null }));
+  let socialLinks: Record<string, string> | null = null;
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('social_links')
+      .eq('id', user.id)
+      .maybeSingle();
+    socialLinks = (data?.social_links as Record<string, string> | null) ?? null;
+  } catch {
+    // Column doesn't exist yet — safe to ignore.
+  }
 
   const profile = profileResult.data;
   if (!profile) {
@@ -95,16 +96,16 @@ export default async function ProfilePage({
         description="Your profile, verification, and payment settings."
       />
 
-      {/* HEADER STRIP — full width */}
-      <div className="mb-6 flex flex-col gap-4 rounded-xl border bg-card p-5 sm:flex-row sm:items-center sm:gap-6">
+      {/* HEADER — avatar + name + quick status */}
+      <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
         <AvatarUploadField
           avatarPath={profile.avatar_path}
           displayName={profile.display_name}
           hideHint
         />
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-xl font-semibold">{profile.display_name}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">{profile.display_name}</h2>
             <EditProfileDialog
               avatarPath={profile.avatar_path}
               displayName={profile.display_name}
@@ -112,130 +113,103 @@ export default async function ProfilePage({
             />
           </div>
           <p className="text-sm text-muted-foreground">{profile.contact_email}</p>
-          {profile.region_code ? (
-            <p className="text-xs text-muted-foreground">Region: {profile.region_code}</p>
-          ) : null}
-          <SocialLinksDisplay socialLinks={socialRow?.social_links as Record<string, string> | null} compact />
-        </div>
-      </div>
-
-      {/* READINESS WIDGET — full width */}
-      <Card className="mb-6 border-gold/20 bg-gold/[0.03]">
-        <CardContent className="p-4">
-          <h3 className="mb-3 text-sm font-semibold">Ready to trade?</h3>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck
-                className={`size-5 ${identityDone ? 'text-trust' : 'text-muted-foreground'}`}
-                aria-hidden
-              />
-              <div>
-                <p className="text-sm font-medium">Identity</p>
-                <p className="text-xs text-muted-foreground">
-                  {identityDone ? 'Verified' : 'Not verified'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <CreditCard
-                className={`size-5 ${paymentDone ? 'text-trust' : 'text-muted-foreground'}`}
-                aria-hidden
-              />
-              <div>
-                <p className="text-sm font-medium">Payment</p>
-                <p className="text-xs text-muted-foreground">
-                  {paymentDone ? 'Card saved' : 'No card'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Wallet
-                className={`size-5 ${payoutDone ? 'text-trust' : 'text-muted-foreground'}`}
-                aria-hidden
-              />
-              <div>
-                <p className="text-sm font-medium">Payouts</p>
-                <p className="text-xs text-muted-foreground">
-                  {payoutDone ? 'Connected' : 'Not set up'}
-                </p>
-              </div>
-            </div>
+          <SocialLinksDisplay socialLinks={socialLinks} compact />
+          {/* Inline readiness badges */}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${identityDone ? 'bg-trust/10 text-trust' : 'bg-muted text-muted-foreground'}`}>
+              <ShieldCheck className="size-3" aria-hidden />
+              {identityDone ? 'Verified' : 'Unverified'}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${paymentDone ? 'bg-trust/10 text-trust' : 'bg-muted text-muted-foreground'}`}>
+              <CreditCard className="size-3" aria-hidden />
+              {paymentDone ? 'Card saved' : 'No card'}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${payoutDone ? 'bg-trust/10 text-trust' : 'bg-muted text-muted-foreground'}`}>
+              <Wallet className="size-3" aria-hidden />
+              {payoutDone ? 'Payouts active' : 'Payouts not set up'}
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* TWO-COLUMN GRID — socials + payment on left, identity + payouts on right.
-          Stacks on mobile. */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* LEFT COLUMN */}
-        <div className="space-y-5">
-          {/* Social Links */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Social Links</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SocialLinksEditor initialLinks={socialRow?.social_links as Record<string, string> | null} />
-            </CardContent>
-          </Card>
+      {/* SETTINGS SECTIONS — each a bordered row, not a card */}
+      <div className="divide-y rounded-xl border">
+        {/* Social Links */}
+        <details className="group" open>
+          <summary className="flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
+            Social Links
+            <span className="text-xs font-normal text-muted-foreground group-open:hidden">Edit</span>
+          </summary>
+          <div className="border-t px-5 pb-5 pt-3">
+            <SocialLinksEditor initialLinks={socialLinks} />
+          </div>
+        </details>
 
-          {/* Payment Method */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Payment Method</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {paymentMethod?.hasPaymentMethod ? (
-                <p className="text-sm">
-                  <span className="font-medium">
-                    {paymentMethod.label ?? 'Card saved'}
-                  </span>{' '}
-                  <span className="text-muted-foreground">
-                    — for purchases and trade collateral
-                  </span>
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No card saved yet. Required for purchases and trade collateral.
-                </p>
-              )}
-              <AddPaymentMethodDialog
-                trigger={
-                  <Button type="button" variant="outline" size="sm">
-                    <CreditCard aria-hidden />
-                    {paymentMethod?.hasPaymentMethod ? 'Replace card' : 'Add card'}
-                  </Button>
-                }
-              />
-            </CardContent>
-          </Card>
+        {/* Payment Method */}
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <p className="text-sm font-semibold">Payment Method</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {paymentMethod?.hasPaymentMethod
+                ? `${paymentMethod.label ?? 'Card saved'} — purchases & collateral`
+                : 'No card saved yet'}
+            </p>
+          </div>
+          <AddPaymentMethodDialog
+            trigger={
+              <Button type="button" variant="outline" size="sm">
+                {paymentMethod?.hasPaymentMethod ? 'Replace' : 'Add card'}
+              </Button>
+            }
+          />
         </div>
 
-        {/* RIGHT COLUMN */}
-        <div className="space-y-5">
-          {/* Identity Verification */}
-          {identity.ok ? (
-            <IdentityCheckCard
-              status={identity.data.status}
-              verifiedName={identity.data.verifiedName}
-              returnPath="/profile"
-            />
-          ) : null}
+        {/* Identity */}
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <p className="text-sm font-semibold">Identity Verification</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {identityDone
+                ? `Verified as ${identity.ok ? identity.data.verifiedName ?? 'confirmed' : 'confirmed'}`
+                : 'Required to list, sell, or trade'}
+            </p>
+          </div>
+          {identity.ok && identity.data.status !== 'VERIFIED' ? (
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a href="/profile#identity">Verify now</a>
+            </Button>
+          ) : (
+            <span className="rounded-full bg-trust/10 px-2.5 py-0.5 text-xs font-medium text-trust">Verified</span>
+          )}
+        </div>
 
-          {paymentDemoEnabled && identity.ok && identity.data.status !== 'VERIFIED' ? (
-            <IdentityDemoControls />
-          ) : null}
-
-          {/* Payout Account */}
-          {payoutContext.ok ? (
-            <PayoutOnboarding context={payoutContext.data} />
+        {/* Payout Account */}
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <p className="text-sm font-semibold">Payout Account</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {payoutDone
+                ? 'Connected via Stripe — ready to receive'
+                : 'Set up to receive sale proceeds'}
+            </p>
+          </div>
+          {!payoutDone && payoutContext.ok ? (
+            <PayoutOnboarding context={payoutContext.data} compact />
+          ) : payoutDone ? (
+            <span className="rounded-full bg-trust/10 px-2.5 py-0.5 text-xs font-medium text-trust">Connected</span>
           ) : null}
         </div>
       </div>
 
-      {/* PAYOUT HISTORY — full width below the grid */}
+      {paymentDemoEnabled && identity.ok && identity.data.status !== 'VERIFIED' ? (
+        <div className="mt-4">
+          <IdentityDemoControls />
+        </div>
+      ) : null}
+
+      {/* Payout History */}
       {payoutDashboard.ok ? (
-        <div className="mt-6">
+        <div className="mt-8">
           <PayoutsDashboard
             model={payoutDashboard.data.model}
             destination={payoutDashboard.data.destination}

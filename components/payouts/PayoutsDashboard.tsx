@@ -196,11 +196,11 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
     return (
       <section aria-labelledby="balance-heading">
         <h3 id="balance-heading" className="sr-only">
-          Releasing now
+          Pending payouts
         </h3>
         <Card className="h-full">
           <CardHeader className="pb-3">
-            <CardDescription>Releasing now</CardDescription>
+            <CardDescription>Owed to you</CardDescription>
             <CardTitle className="text-4xl tabular-nums">{formatAud(0)}</CardTitle>
             <CardDescription>
               No funds are queued for release yet. Releases happen automatically after a sale resolves.
@@ -219,12 +219,12 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
   return (
     <section aria-labelledby="balance-heading" className="h-full">
       <h3 id="balance-heading" className="sr-only">
-        Releasing now
+        Pending payouts
       </h3>
 
       <Card className="h-full">
         <CardHeader className="pb-3">
-          <CardDescription>Releasing now</CardDescription>
+          <CardDescription>Owed to you</CardDescription>
           <CardTitle className="text-3xl tabular-nums">
             {formatAud(model.releasingNowCents)}
           </CardTitle>

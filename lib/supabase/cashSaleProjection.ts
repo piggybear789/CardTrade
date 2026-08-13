@@ -24,6 +24,15 @@ export const CASH_SALE_PUBLIC_SELECT = [
   'seller_payout_error', 'dispute_resolution', 'dispute_resolved_at',
   'dispute_resolved_by', 'refund_cents', 'refund_status', 'refund_ref',
   'refund_nonce', 'refund_error', 'refund_attempts',
+  // 0088. The RETURN leg, kept fully separate from the outbound tracking columns
+  // above so a return event cannot overwrite the original delivery record that the
+  // first inspection — and any arbitration — reads. Both legs are needed here: the
+  // room shows the buyer where to post and the seller what is coming back, and the
+  // deadline drives the countdown.
+  'return_tracking_carrier', 'return_tracking_number', 'return_tracking_status',
+  'return_tracking_url', 'return_carrier_delivered_at', 'return_shipped_at',
+  'return_deadline_at', 'return_warned_at', 'return_disputed_at',
+  'return_dispute_reason',
   // 0064. Drives the contract room's whole reading of itself: a shopfront
   // contract shows its line items instead of the listing snapshot, and prices
   // from those lines rather than from a directly proposed figure.

@@ -28,9 +28,19 @@ export const CASH_SALE_STATUS_MAP: ContractStatusMap<CashSaleStatus> = {
   CANCELLED: { label: 'Cancelled', tone: 'outline' },
   FAILED: { label: 'Stripe failed', tone: 'destructive' },
   REFUNDED: { label: 'Refunded', tone: 'outline' },
+  // Return-conditional refund (0088). Labelled from the RETURN's point of view rather
+  // than the refund's, because that is the outstanding action — "Refund pending" would
+  // read as though the money were the thing being waited on, when it is the parcel.
+  RETURN_PENDING: { label: 'Return required', tone: 'destructive' },
+  RETURN_IN_TRANSIT: { label: 'Return in transit', tone: 'default' },
 };
 
-/** Statuses where the contract is closed and no action remains. */
+/**
+ * Statuses where the contract is closed and no action remains.
+ *
+ * The two return statuses are deliberately ABSENT: a return-conditional refund is
+ * mid-flight, with a deadline and an action owed by the Buyer.
+ */
 export const CASH_SALE_TERMINAL_STATUSES: ReadonlySet<CashSaleStatus> = new Set([
   'COMPLETED',
   'CANCELLED',

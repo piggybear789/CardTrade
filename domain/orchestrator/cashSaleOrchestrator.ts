@@ -45,7 +45,21 @@ export type CashSaleStatus =
   | 'DISPUTED'
   | 'CANCELLED'
   | 'FAILED'
-  | 'REFUNDED';
+  | 'REFUNDED'
+  /**
+   * A full refund was awarded on goods the Buyer holds, so the money waits on the
+   * goods coming back (0088).
+   *
+   * `RETURN_PENDING`    — the Buyer must dispatch the item by `return_deadline_at`.
+   * `RETURN_IN_TRANSIT` — the return is with a carrier; carrier-confirmed delivery
+   *                       to the Seller releases the refund automatically.
+   *
+   * NEITHER IS TERMINAL, and the Item stays RESERVED for both. Relisting before the
+   * return lands would advertise goods that are in transit — the unfulfillable
+   * listing 0064 exists to prevent.
+   */
+  | 'RETURN_PENDING'
+  | 'RETURN_IN_TRANSIT';
 
 /**
  * Platform fee rate in basis points (1 bp = 0.01%), so 500 bp = 5% of the

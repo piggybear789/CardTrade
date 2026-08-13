@@ -49,7 +49,10 @@ export type CashSaleStatus =
   | 'DISPUTED'
   | 'CANCELLED'
   | 'FAILED'
-  | 'REFUNDED';
+  | 'REFUNDED'
+  /** Return-conditional refund in progress (0088). See `bucketFor` for treatment. */
+  | 'RETURN_PENDING'
+  | 'RETURN_IN_TRANSIT';
 
 /** `cash_sales.seller_payout_status`. */
 export type ReleaseStatus = 'NOT_DUE' | 'PENDING' | 'SETTLED' | 'FAILED';
@@ -198,6 +201,17 @@ export function sellerNetCents(sale: {
 export function bucketFor(sale: SellerCashSaleInput): PayoutBucket {
   if (sale.releaseStatus === 'SETTLED') return 'NONE';
   if (sale.status === 'DISPUTED') return 'AT_RISK';
+  // A return-conditional refund is AT_RISK, not NONE and not UPCOMING (0088).
+  //
+  // The Seller is not owed this money — a full refund was awarded against them — but
+  // the outcome is not final either: if the Buyer never dispatches, the lapsed return
+  // goes back to arbitration, which may still release to the Seller. Reporting it as
+  // NONE would make the figure vanish from the dashboard while the case is live, and
+  // UPCOMING would show it as proceeds they are on track to receive. AT_RISK is the
+  // bucket that means "implicated and undecided", which is exactly the position.
+  if (sale.status === 'RETURN_PENDING' || sale.status === 'RETURN_IN_TRANSIT') {
+    return 'AT_RISK';
+  }
   if (sale.releaseStatus === 'PENDING' || sale.releaseStatus === 'FAILED') {
     return 'RELEASING';
   }

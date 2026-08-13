@@ -724,7 +724,19 @@ export type Database = {
           received_at: string | null;
           inspection_accepted_at: string | null;
           carrier_delivered_at: string | null;
-          inspection_deadline_at: string | null;
+          /** Return-conditional refund leg (0088). Separate from the outbound
+              columns above so a return event cannot overwrite the original
+              delivery record that inspection and arbitration depend on. */
+          return_tracking_carrier: string | null;
+          return_tracking_number: string | null;
+          return_tracking_status: string | null;
+          return_tracking_url: string | null;
+          return_carrier_delivered_at: string | null;
+          return_shipped_at: string | null;
+          return_deadline_at: string | null;
+          return_warned_at: string | null;
+          return_disputed_at: string | null;
+          return_dispute_reason: string | null;          inspection_deadline_at: string | null;
           auto_completed: boolean;
           buyer_handover_confirmed_at: string | null;
           seller_handover_confirmed_at: string | null;
@@ -824,7 +836,16 @@ export type Database = {
           received_at?: string | null;
           inspection_accepted_at?: string | null;
           carrier_delivered_at?: string | null;
-          inspection_deadline_at?: string | null;
+          return_tracking_carrier?: string | null;
+          return_tracking_number?: string | null;
+          return_tracking_status?: string | null;
+          return_tracking_url?: string | null;
+          return_carrier_delivered_at?: string | null;
+          return_shipped_at?: string | null;
+          return_deadline_at?: string | null;
+          return_warned_at?: string | null;
+          return_disputed_at?: string | null;
+          return_dispute_reason?: string | null;          inspection_deadline_at?: string | null;
           auto_completed?: boolean;
           buyer_handover_confirmed_at?: string | null;
           seller_handover_confirmed_at?: string | null;
@@ -906,7 +927,16 @@ export type Database = {
           received_at?: string | null;
           inspection_accepted_at?: string | null;
           carrier_delivered_at?: string | null;
-          inspection_deadline_at?: string | null;
+          return_tracking_carrier?: string | null;
+          return_tracking_number?: string | null;
+          return_tracking_status?: string | null;
+          return_tracking_url?: string | null;
+          return_carrier_delivered_at?: string | null;
+          return_shipped_at?: string | null;
+          return_deadline_at?: string | null;
+          return_warned_at?: string | null;
+          return_disputed_at?: string | null;
+          return_dispute_reason?: string | null;          inspection_deadline_at?: string | null;
           auto_completed?: boolean;
           buyer_handover_confirmed_at?: string | null;
           seller_handover_confirmed_at?: string | null;
@@ -2251,7 +2281,16 @@ export type Database = {
         | 'DISPUTED'
         | 'CANCELLED'
         | 'FAILED'
-        | 'REFUNDED';
+        | 'REFUNDED'
+        /**
+         * Return-conditional refund (0088). A full refund was awarded on goods the
+         * buyer holds, so the refund waits on the goods coming back.
+         *
+         * Neither is terminal, and the Item stays RESERVED throughout — relisting
+         * before the return arrives would advertise goods in transit.
+         */
+        | 'RETURN_PENDING'
+        | 'RETURN_IN_TRANSIT';
       /**
        * EXPIRED (0034) is distinct from VOIDED: the provider released the
        * collateral because the authorisation window lapsed, so the escrow

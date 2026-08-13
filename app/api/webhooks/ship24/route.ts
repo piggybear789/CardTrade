@@ -3,16 +3,63 @@
 // Receives Ship24 webhook notifications when tracking status changes.
 // The critical event is `delivered` — that starts the inspection clock.
 //
-// Ship24 does NOT sign webhooks with HMAC. Authentication is by:
-//   1. The webhook URL being secret (only configured in Ship24 dashboard)
-//   2. Verifying the tracking number exists in our system before acting
+// WHY THIS ENDPOINT IS AUTHENTICATED, AND WHY URL SECRECY WAS NOT ENOUGH.
+// A forged `delivered` event is a MONEY path, not just bad data: it sets
+// `carrier_delivered_at`, which starts the buyer's inspection window, and when that
+// window lapses the sweep auto-completes the sale and pays the seller. So an
+// attacker able to POST here could start the clock on goods that never shipped and
+// have the platform pay out when the buyer misses a deadline they never knew began.
 //
-// Safe to replay: the downstream sync functions are idempotent (they use
-// monotonic writes — a delivery timestamp once set is never unset).
+// This route previously relied on the URL being secret plus the tracking number
+// existing in our system. Neither is a credential: the path is a fixed, guessable
+// string, and tracking numbers are disclosed to the counterparty in the contract
+// room and are frequently sequential per carrier.
+//
+// Ship24 does not sign its webhooks (no HMAC), so the credential is a shared secret
+// carried on the request — set `SHIP24_WEBHOOK_SECRET` and append `?token=<secret>`
+// to the webhook URL configured in the Ship24 dashboard. A `x-webhook-token` header
+// is accepted too, for providers or proxies that strip query strings.
+//
+// FAILS CLOSED when the secret is unset, matching the money-moving job routes
+// (`JOBS_SECRET`) rather than the signature-verified Stripe route. An
+// unauthenticated endpoint that can trigger a payout is worse than tracking that
+// does not update: the manual "not received" path still protects the buyer, and a
+// silently-open door does not.
+//
+// Safe to replay: the downstream writes are monotonic (a delivery timestamp once
+// set is never unset), so a duplicate authentic delivery is a no-op.
+
+import { timingSafeEqual } from 'node:crypto';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
+
+/** Compare two secrets without leaking length or content through timing. */
+function secretMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  // timingSafeEqual throws on a length mismatch, which would itself be a leak.
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+/**
+ * Pull the presented secret from either the query string or a header.
+ *
+ * Query string first because that is what a provider with no header support can
+ * configure; the header is the tidier option where it is available.
+ */
+function presentedToken(request: Request): string | null {
+  const fromHeader = request.headers.get('x-webhook-token')?.trim();
+  if (fromHeader) return fromHeader;
+  try {
+    const token = new URL(request.url).searchParams.get('token')?.trim();
+    return token || null;
+  } catch {
+    return null;
+  }
+}
 
 interface Ship24WebhookEvent {
   trackings: Array<{
@@ -32,6 +79,24 @@ interface Ship24WebhookEvent {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const expected = process.env.SHIP24_WEBHOOK_SECRET?.trim();
+  if (!expected) {
+    // Fail closed. Never accept an unauthenticated event that can start a payout
+    // clock. Logged as an error because this is a misconfiguration, not traffic.
+    console.error(
+      '[ship24-webhook] SHIP24_WEBHOOK_SECRET is not configured; refusing delivery events.',
+    );
+    return Response.json(
+      { ok: false, error: 'Webhook secret is not configured' },
+      { status: 503 },
+    );
+  }
+
+  const token = presentedToken(request);
+  if (!token || !secretMatches(token, expected)) {
+    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   let payload: Ship24WebhookEvent;
   try {
     payload = await request.json();

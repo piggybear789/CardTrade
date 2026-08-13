@@ -67,7 +67,11 @@ function buildRawMessage(input: SendEmailInput): string {
   const parts = [
     `--${boundary}`,
     'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 7bit',
+    // 8bit, NOT 7bit. The templates contain em- and en-dashes, which are multi-byte
+    // in UTF-8, and `TextEncoder` below emits those octets as-is. Declaring 7bit
+    // (all octets 0-127, per RFC 2045 §2.7) while sending bytes above 127 is a lie
+    // a strict relay in the delivery chain may reject or mangle. SES accepts 8bit.
+    'Content-Transfer-Encoding: 8bit',
     '',
     input.text,
   ];
@@ -76,7 +80,7 @@ function buildRawMessage(input: SendEmailInput): string {
     parts.push(
       `--${boundary}`,
       'Content-Type: text/html; charset=UTF-8',
-      'Content-Transfer-Encoding: 7bit',
+      'Content-Transfer-Encoding: 8bit',
       '',
       input.html,
     );

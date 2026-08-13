@@ -17,7 +17,7 @@
 // row was missing could not finish at all, which made it a locked door rather than a
 // wizard. Browsing needs no profile, so leaving is a legitimate choice; the footer
 // offers the catalog and sign-out, and `onboarding_completed_at` still gates every
-// protected route (see `middleware.ts`).
+// protected route (see `proxy.ts`).
 //
 // "Verify Identity" REDIRECTS TO THE PROVIDER, it does not route to /profile. It
 // used to push `/profile#identity` — a page with no such anchor — where the member

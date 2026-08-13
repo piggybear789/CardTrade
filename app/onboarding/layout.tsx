@@ -41,7 +41,7 @@ export default async function OnboardingLayout({ children }: { children: ReactNo
     data: { user },
   } = await supabase.auth.getUser();
 
-  // No redirect on a missing user: `middleware.ts` owns that decision for this route,
+  // No redirect on a missing user: `proxy.ts` owns that decision for this route,
   // and duplicating it here would create a second place to keep in step.
   if (user) {
     const metadata = (user.user_metadata ?? {}) as {

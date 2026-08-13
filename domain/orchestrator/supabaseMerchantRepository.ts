@@ -31,7 +31,10 @@ const MERCHANT_COLUMNS =
   'merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, ' +
   'merchant_organisation_type, merchant_identity_version, ' +
   'merchant_identity_disclosure_consented_at, merchant_identity_verified_at, ' +
-  'identity_check_status, identity_check_name, identity_check_verified_at';
+  // Required by `canReceiveFunds`. Omitting it reads as `undefined`, which passes
+  // the ban check silently — this repository feeds the TRADE cash settlement, so
+  // that would mean paying a permanently banned trader.
+  'identity_check_status, identity_check_name, identity_check_verified_at, fraud_banned_at';
 
 interface MerchantRow {
   id: string;
@@ -52,6 +55,7 @@ interface MerchantRow {
   identity_check_status: string | null;
   identity_check_name: string | null;
   identity_check_verified_at: string | null;
+  fraud_banned_at: string | null;
 }
 
 /** Map a DB row (snake_case) to the domain {@link MerchantRecord}. */
@@ -75,6 +79,7 @@ function toMerchantRecord(row: MerchantRow): MerchantRecord {
     identityCheckStatus: (row.identity_check_status as MerchantRecord['identityCheckStatus']) ?? undefined,
     identityCheckName: row.identity_check_name,
     identityCheckVerifiedAt: row.identity_check_verified_at,
+    fraudBannedAt: row.fraud_banned_at,
   };
 }
 

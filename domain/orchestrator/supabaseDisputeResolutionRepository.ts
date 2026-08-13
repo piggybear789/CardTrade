@@ -68,7 +68,7 @@ export function createSupabaseDisputeResolutionRepository(
       const { data } = await client
         .from('profiles')
         .select(
-          'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_live_enabled, merchant_transactions_enabled',
+          'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_live_enabled, merchant_transactions_enabled, fraud_banned_at',
         )
         .eq('id', traderId)
         .maybeSingle();
@@ -78,11 +78,17 @@ export function createSupabaseDisputeResolutionRepository(
         merchant_settlements_enabled: boolean | null;
         merchant_live_enabled: boolean | null;
         merchant_transactions_enabled: boolean | null;
+        fraud_banned_at: string | null;
       } | null;
       if (!row) return null;
       // Only the payout facts are read. Identity fields are deliberately absent:
       // `canReceiveFunds` does not consult them, and this module holds no identity
       // data by design (see the module header).
+      //
+      // `fraud_banned_at` IS a payout fact and `canReceiveFunds` does consult it, so
+      // it must be selected here. Leaving it out would read as `undefined` and pass
+      // the ban check silently, which on this path means paying captured collateral
+      // to a permanently banned account.
       return {
         profileId: traderId,
         merchantRef: row.merchant_ref,
@@ -90,6 +96,7 @@ export function createSupabaseDisputeResolutionRepository(
         liveEnabled: Boolean(row.merchant_live_enabled),
         transactionsEnabled: Boolean(row.merchant_transactions_enabled),
         settlementsEnabled: Boolean(row.merchant_settlements_enabled),
+        fraudBannedAt: row.fraud_banned_at,
       };
     },
 

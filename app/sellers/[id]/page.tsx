@@ -64,7 +64,7 @@ export default async function SellerProfilePage({
   const { data: sellerRow } = await supabase
     .from('public_profiles')
     .select(
-      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links',
+      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links, bio',
     )
     .eq('id', id)
     .maybeSingle();
@@ -173,6 +173,17 @@ export default async function SellerProfilePage({
               <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
             )}
             <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
+            {/* MEMBER-AUTHORED, so it is presented as their words and nothing more.
+                Deliberately NOT inside the DittoShield disclosure block below, which
+                carries provider-verified facts — putting self-written copy there
+                would borrow that block's credibility for text anyone can type.
+                `whitespace-pre-line` keeps intentional line breaks; `break-words`
+                stops an unbroken 280-character string widening the layout. */}
+            {sellerRow.bio ? (
+              <p className="max-w-prose whitespace-pre-line break-words text-pretty text-sm leading-relaxed text-muted-foreground">
+                {sellerRow.bio as string}
+              </p>
+            ) : null}
           </div>
           </div>
 

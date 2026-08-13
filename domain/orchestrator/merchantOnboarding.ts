@@ -257,10 +257,30 @@ export function deriveMerchantStatus(merchant: {
  * Whether a User can currently be paid. Used by the Cash_Sale gate: a seller
  * whose settlements are not enabled cannot receive funds, so the sale must not
  * be initiated (there is no way to hold the money for them).
+ *
+ * A FRAUD BAN IS A PAYABILITY FACT, so it is checked HERE rather than at each
+ * call site. `settleTradeCash` (the trade cash leg) and the dispute-resolution
+ * victim payout both consulted only the Connect columns, so a permanently banned
+ * account with settlements still enabled could be paid through either — the
+ * Cash_Sale path was the only one carrying its own explicit ban guard.
+ *
+ * EVERY REPOSITORY BUILDING A `MerchantRecord` FOR A PAYOUT DECISION MUST SELECT
+ * `fraud_banned_at`. An omitted column reads as `undefined`, which passes this
+ * check silently — the failure mode is a guard that looks present and does
+ * nothing. All three production readers select it: the Cash_Sale payee, the
+ * merchant repository, and the dispute-resolution trader payee.
+ *
+ * The Cash_Sale orchestrator still keeps its own earlier ban check, because it
+ * returns the distinct `SELLER_FRAUD_BANNED` error and records a FAILED payout;
+ * this predicate only answers yes/no.
  */
 export function canReceiveFunds(merchant: MerchantRecord | null): boolean {
   return Boolean(
-    merchant && merchant.merchantRef && merchant.merchantStatus === 'APPROVED' && merchant.settlementsEnabled,
+    merchant &&
+      merchant.merchantRef &&
+      merchant.merchantStatus === 'APPROVED' &&
+      merchant.settlementsEnabled &&
+      !merchant.fraudBannedAt,
   );
 }
 

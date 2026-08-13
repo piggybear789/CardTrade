@@ -1929,6 +1929,13 @@ export type Database = {
           identity_check_name: string | null;
           /** Optional social media handles keyed by platform slug (0085). */
           social_links: Record<string, string> | null;
+          /**
+           * Member-authored bio (0086, exposed on the view by 0087).
+           *
+           * Free text the member wrote about themselves — NOT part of the identity
+           * disclosure and never provider-verified. Render it as untrusted copy.
+           */
+          bio: string | null;
         };
         Relationships: [];
       };

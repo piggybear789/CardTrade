@@ -265,6 +265,40 @@ describe('canReceiveFunds', () => {
     ).toBe(false);
     expect(canReceiveFunds(null)).toBe(false);
   });
+
+  // A fraud ban is a PAYABILITY fact, checked in `canReceiveFunds` rather than at
+  // each call site. Before this, only the Cash_Sale path carried its own ban guard,
+  // so the trade cash leg (`settleTradeCash`) and the dispute victim payout would
+  // both pay a permanently banned account whose Connect columns still looked fine.
+  it('refuses a fraud-banned account even when Connect looks fully enabled', () => {
+    const payable = {
+      merchantRef: 'mch_1',
+      merchantStatus: 'APPROVED' as const,
+      settlementsEnabled: true,
+    };
+
+    expect(canReceiveFunds(baseRecord(payable))).toBe(true);
+    expect(
+      canReceiveFunds(baseRecord({ ...payable, fraudBannedAt: '2026-01-01T00:00:00.000Z' })),
+    ).toBe(false);
+  });
+
+  // The guard reads `fraudBannedAt`, so a repository that does not SELECT
+  // `fraud_banned_at` yields `undefined` and passes silently — a guard that looks
+  // present and does nothing. This pins the two states that matter: absent (not
+  // banned, payable) and present (banned, refused). If a reader stops selecting the
+  // column its records land in the first case, so the accompanying repository tests
+  // are what catch that; this documents why the distinction is load-bearing.
+  it('treats an absent ban timestamp as not banned', () => {
+    const payable = {
+      merchantRef: 'mch_1',
+      merchantStatus: 'APPROVED' as const,
+      settlementsEnabled: true,
+    };
+
+    expect(canReceiveFunds(baseRecord({ ...payable, fraudBannedAt: null }))).toBe(true);
+    expect(canReceiveFunds(baseRecord({ ...payable, fraudBannedAt: undefined }))).toBe(true);
+  });
 });
 
 describe('submitMerchantOnboarding', () => {

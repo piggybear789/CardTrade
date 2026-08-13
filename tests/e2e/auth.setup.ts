@@ -4,7 +4,7 @@
 // session as a storageState file, so the 26 downstream specs authenticate by
 // loading a cookie jar instead of re-submitting the sign-in form 100+ times.
 // @supabase/ssr keeps the session in cookies (not localStorage), and
-// middleware.ts refreshes+rewrites those cookies on every protected
+// proxy.ts refreshes+rewrites those cookies on every protected
 // navigation, so a stored session behaves exactly like a real browser's
 // cookie jar for as long as this suite runs.
 import { test as setup, expect } from '@playwright/test';

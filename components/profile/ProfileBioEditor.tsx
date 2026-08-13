@@ -2,96 +2,79 @@
 
 // components/profile/ProfileBioEditor.tsx
 //
-// Inline bio/description editor. Shows as plain text until clicked, then
-// becomes an editable textarea. Saves on blur or explicit save.
+// The bio is always an editable textarea rather than a click-to-reveal control.
+// The previous version rendered as plain text until clicked, which gave an empty
+// bio no affordance at all — a line of placeholder italics that did not look
+// interactive. A field that looks like a field needs no discovery.
+//
+// Saves explicitly. Auto-saving prose on blur means a half-written sentence
+// becomes your public bio the moment focus moves.
 
-import { useState, useTransition, useRef } from 'react';
+import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Pencil } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 
 import { updateBio } from '@/lib/actions/profile';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
+/** Matches the server-side cap in `updateBio`. */
 const BIO_MAX = 280;
 
 export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
-  const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState(initialBio);
   const [isPending, startTransition] = useTransition();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [justSaved, setJustSaved] = useState(false);
 
-  function startEditing() {
-    setEditing(true);
-    setTimeout(() => textareaRef.current?.focus(), 0);
-  }
+  const dirty = bio.trim() !== initialBio.trim();
 
   function save() {
-    if (bio.trim() === initialBio.trim()) {
-      setEditing(false);
-      return;
-    }
     startTransition(async () => {
       const result = await updateBio(bio.trim() || null);
-      if (result.ok) {
-        toast.success('Bio updated.');
-        setEditing(false);
-      } else {
-        toast.error('Could not save.');
+      if (!result.ok) {
+        toast.error(result.message ?? 'Your bio could not be saved.');
+        return;
       }
+      setJustSaved(true);
+      toast.success('Bio saved.');
+      window.setTimeout(() => setJustSaved(false), 2000);
     });
-  }
-
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={startEditing}
-        className="group flex w-full items-start gap-2 rounded-md text-left"
-      >
-        <p className={`min-h-[1.5rem] flex-1 text-sm ${bio ? 'text-foreground' : 'text-muted-foreground italic'}`}>
-          {bio || 'Add a short bio...'}
-        </p>
-        <Pencil className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
-      </button>
-    );
   }
 
   return (
     <div className="space-y-2">
       <Textarea
-        ref={textareaRef}
         value={bio}
-        onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
-        placeholder="Tell other traders about yourself..."
+        onChange={(event) => setBio(event.target.value.slice(0, BIO_MAX))}
+        placeholder="Tell other collectors what you trade, how you pack, how fast you post…"
         rows={3}
         maxLength={BIO_MAX}
         disabled={isPending}
-        className="resize-none text-sm"
+        aria-describedby="bio-counter"
+        className="resize-none"
       />
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{bio.length}/{BIO_MAX}</span>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => { setBio(initialBio); setEditing(false); }}
-            disabled={isPending}
-          >
-            Cancel
-          </Button>
+      <div className="flex items-center justify-between gap-3">
+        {/* Not a live region: it updates on every keystroke, which would make a
+            screen reader interrupt the user continuously as they type. */}
+        <span id="bio-counter" className="font-mono text-xs text-muted-foreground">
+          {bio.length}/{BIO_MAX}
+        </span>
+        {dirty || justSaved ? (
           <Button
             type="button"
             size="sm"
             onClick={save}
-            disabled={isPending}
+            disabled={isPending || !dirty}
             aria-busy={isPending}
           >
-            {isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
-            Save
+            {isPending ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : justSaved ? (
+              <Check aria-hidden />
+            ) : null}
+            {justSaved && !dirty ? 'Saved' : 'Save bio'}
           </Button>
-        </div>
+        ) : null}
       </div>
     </div>
   );

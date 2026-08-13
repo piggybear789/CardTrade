@@ -2,8 +2,16 @@
 
 // components/profile/SocialLinksEditor.tsx
 //
-// Modern social links editor. Each platform is a compact row with an icon,
-// platform label, and inline input. Feels like a settings panel, not a form.
+// One row per platform inside a single divided card: fixed-width platform name, a
+// dimmed `@`, then a borderless input that fills the rest. The row itself carries
+// the border, so six handles read as one control rather than six stacked boxes.
+//
+// HANDLES, NOT URLS. Only the username is stored; `domain/social/socialLinks.ts`
+// builds the canonical profile URL. That is what stops a member pasting a link to
+// somewhere other than the profile they are claiming.
+//
+// The save button appears only once something differs from what is stored, so the
+// resting state of an untouched form has no call to action in it.
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -20,74 +28,94 @@ export function SocialLinksEditor({
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    for (const p of SOCIAL_PLATFORMS) {
-      init[p.slug] = initialLinks?.[p.slug] ?? '';
+    for (const platform of SOCIAL_PLATFORMS) {
+      init[platform.slug] = initialLinks?.[platform.slug] ?? '';
     }
     return init;
   });
   const [isPending, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
-  function handleSave() {
+  // Compared against what is STORED, not against the last save, so reverting an
+  // edit by hand correctly hides the button again.
+  const dirty = SOCIAL_PLATFORMS.some(
+    (platform) =>
+      (values[platform.slug] ?? '').trim() !== (initialLinks?.[platform.slug] ?? ''),
+  );
+
+  function save() {
     startTransition(async () => {
-      const entries = SOCIAL_PLATFORMS
-        .map((p) => ({ slug: p.slug, handle: values[p.slug] ?? '' }))
-        .filter((e) => e.handle.trim().length > 0);
+      const entries = SOCIAL_PLATFORMS.map((platform) => ({
+        slug: platform.slug,
+        handle: values[platform.slug] ?? '',
+      })).filter((entry) => entry.handle.trim().length > 0);
+
       const result = await updateSocialLinks(entries);
-      if (result.ok) {
-        setSaved(true);
-        toast.success('Social links saved.');
-        setTimeout(() => setSaved(false), 2000);
-      } else {
-        toast.error(result.message ?? 'Could not save.');
+      if (!result.ok) {
+        toast.error(result.message ?? 'Those links could not be saved.');
+        return;
       }
+      setJustSaved(true);
+      toast.success('Social links saved.');
+      window.setTimeout(() => setJustSaved(false), 2000);
     });
   }
 
-  const hasChanges = SOCIAL_PLATFORMS.some(
-    (p) => (values[p.slug]?.trim() ?? '') !== (initialLinks?.[p.slug] ?? ''),
-  );
-
   return (
-    <div className="space-y-4">
-      <div className="divide-y rounded-lg border">
-        {SOCIAL_PLATFORMS.map((platform) => (
-          <div
-            key={platform.slug}
-            className="flex items-center gap-3 px-3 py-2.5"
-          >
-            <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">
-              {platform.label}
-            </span>
-            <span className="text-sm text-muted-foreground">@</span>
-            <input
-              type="text"
-              placeholder="username"
-              value={values[platform.slug]}
-              onChange={(e) =>
-                setValues((v) => ({ ...v, [platform.slug]: e.target.value }))
-              }
-              disabled={isPending}
-              className="min-w-0 flex-1 border-0 bg-transparent py-0 text-sm font-medium outline-none placeholder:text-muted-foreground/50 focus:outline-none"
-            />
-          </div>
-        ))}
+    <div className="space-y-3">
+      <div className="divide-y overflow-hidden rounded-xl border bg-card">
+        {SOCIAL_PLATFORMS.map((platform) => {
+          const inputId = `social-${platform.slug}`;
+          return (
+            <div key={platform.slug} className="flex items-center gap-1">
+              {/* A real <label>, not a bare span: the input has no visible border
+                  of its own, so the platform name is the only thing identifying it. */}
+              <label
+                htmlFor={inputId}
+                className="w-24 shrink-0 cursor-text px-4 py-3 text-sm text-muted-foreground sm:w-28"
+              >
+                {platform.label}
+              </label>
+              <span className="shrink-0 text-sm text-muted-foreground/60" aria-hidden>
+                @
+              </span>
+              <input
+                id={inputId}
+                type="text"
+                inputMode="text"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="username"
+                value={values[platform.slug] ?? ''}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    [platform.slug]: event.target.value,
+                  }))
+                }
+                disabled={isPending}
+                className="min-w-0 flex-1 bg-transparent py-3 pr-4 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/50 focus-visible:outline-none disabled:opacity-65"
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {hasChanges ? (
+      {dirty || justSaved ? (
         <Button
           type="button"
           size="sm"
-          onClick={handleSave}
-          disabled={isPending}
+          onClick={save}
+          disabled={isPending || !dirty}
           aria-busy={isPending}
         >
           {isPending ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : saved ? (
-            <Check className="size-4" aria-hidden />
+            <Loader2 className="animate-spin" aria-hidden />
+          ) : justSaved ? (
+            <Check aria-hidden />
           ) : null}
-          {saved ? 'Saved' : 'Save changes'}
+          {justSaved && !dirty ? 'Saved' : 'Save links'}
         </Button>
       ) : null}
     </div>

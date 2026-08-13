@@ -112,6 +112,7 @@ export type Database = {
           fraud_ban_trade_id: string | null;
           /** Optional social media handles keyed by platform slug (0085). */
           social_links: Record<string, string> | null;
+          bio: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -160,6 +161,7 @@ export type Database = {
           fraud_banned_by?: string | null;
           fraud_ban_trade_id?: string | null;
           social_links?: Record<string, string> | null;
+          bio?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -208,6 +210,7 @@ export type Database = {
           fraud_banned_by?: string | null;
           fraud_ban_trade_id?: string | null;
           social_links?: Record<string, string> | null;
+          bio?: string | null;
           created_at?: string;
           updated_at?: string;
         };

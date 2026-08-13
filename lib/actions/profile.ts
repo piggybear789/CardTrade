@@ -34,6 +34,30 @@ export type UpdateProfileError =
 export interface ProfileUpdateFields {
   displayName: string;
   contactEmail: string;
+  /** Optional short bio (max 280 chars). Pass null to clear. */
+  bio?: string | null;
+}
+
+/**
+ * Update just the bio field. Lighter than `updateProfile` for the inline editor.
+ */
+export async function updateBio(
+  bio: string | null,
+): Promise<ActionResult<null, UpdateProfileError>> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to update your bio.');
+
+  const trimmed = bio?.trim()?.slice(0, 280) ?? null;
+  const { error } = await supabase
+    .from('profiles')
+    .update({ bio: trimmed })
+    .eq('id', user.id);
+
+  if (error) return fail('UPDATE_FAILED', 'Could not save your bio.');
+  revalidatePath('/profile');
+  revalidatePath(`/sellers/${user.id}`);
+  return ok(null);
 }
 
 /** The persisted profile shape returned on success. */
@@ -73,9 +97,17 @@ export async function updateProfile(
   const { displayName, contactEmail } = validation.value;
 
   // 3. Persist to the caller's own Profile — RLS enforces ownership (Req 1.6).
+  const patch: { display_name: string; contact_email: string; bio?: string | null } = {
+    display_name: displayName,
+    contact_email: contactEmail,
+  };
+  if ('bio' in fields) {
+    patch.bio = fields.bio?.trim()?.slice(0, 280) ?? null;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
-    .update({ display_name: displayName, contact_email: contactEmail })
+    .update(patch)
     .eq('id', user.id)
     .select('id, display_name, contact_email')
     .single();

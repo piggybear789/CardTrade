@@ -2,54 +2,34 @@
 
 // components/account/AccountTabs.tsx
 //
-// Tab strip across the account-area routes (Req 1.2).
-//
-// A client component only because it needs `usePathname` to mark the current
-// route. Marking is `aria-current="page"` rather than styling alone, so the
-// active tab is announced rather than merely looking different.
+// Tab strip for the account settings page. Uses a `?tab=` query parameter
+// rather than separate routes so both tabs share one page and one data fetch.
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-
 import { cn } from '@/lib/utils';
 
-interface AccountTab {
-  href: string;
-  label: string;
-}
+const TABS = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'payments', label: 'Payments' },
+] as const;
 
-/**
- * The account-area routes, in the order they are presented.
- *
- * Deliberately short: this strip is for settings-level surfaces the Member
- * manages, not the transactional sections (sales, purchases, offers) that live in
- * the workspace rail.
- */
-const TABS: readonly AccountTab[] = [
-  { href: '/profile', label: 'Profile' },
-  { href: '/profile/payouts', label: 'Payouts' },
-];
-
-export function AccountTabs() {
-  const pathname = usePathname();
-
+export function AccountTabs({ activeTab }: { activeTab: string }) {
   return (
-    <nav aria-label="Account sections" className="mb-6">
-      <ul className="flex flex-wrap items-center gap-2">
+    <nav aria-label="Account sections" className="mb-6 border-b">
+      <ul className="flex gap-1">
         {TABS.map((tab) => {
-          // Exact match, so /profile does not also light up on /profile/payouts.
-          const active = pathname === tab.href;
+          const active = activeTab === tab.id;
           return (
-            <li key={tab.href}>
+            <li key={tab.id}>
               <Link
-                href={tab.href}
+                href={tab.id === 'profile' ? '/profile' : `/profile?tab=${tab.id}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors active:opacity-70',
+                  'inline-flex items-center border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   active
-                    ? 'bg-foreground text-background'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    ? 'border-foreground text-foreground'
+                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
                 )}
               >
                 {tab.label}

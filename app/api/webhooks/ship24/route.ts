@@ -32,6 +32,8 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
+import { getPaymentService } from '@/domain/services';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,23 +128,73 @@ export async function POST(request: Request): Promise<Response> {
       ? new Date(tracking.events[0].occurrenceDatetime).toISOString()
       : new Date().toISOString();
 
-    // Find matching cash sales (by tracking_number column).
-    const { data: sales } = await admin
+    // WHICH LEG IS THIS? A return-conditional refund (0088) gives a sale a SECOND
+    // shipment, and the two are matched on different columns and applied by different
+    // functions. That separation is what stops a return event overwriting the outbound
+    // delivery record that the original inspection and any arbitration read back.
+    //
+    // Both are attempted, because one tracking number could in principle be the
+    // outbound leg of one sale and the return leg of another; each query is scoped by
+    // its own column AND its own status set, so neither can pick up the other's sale.
+
+    // --- OUTBOUND leg: starts the buyer's inspection clock ---
+    const { data: outbound } = await admin
       .from('cash_sales')
       .select('id')
       .eq('tracking_number', trackingNumber)
       .in('status', ['IN_TRANSIT', 'ESCROW_HELD'])
       .limit(5);
 
-    for (const sale of sales ?? []) {
+    for (const sale of outbound ?? []) {
       try {
+        // `p_delivered_at`, NOT `p_carrier_delivered_at`. The latter is the COLUMN
+        // name; the function's parameter is the former, and passing the wrong one
+        // means PostgREST cannot resolve the overload — so this silently confirmed
+        // nothing until it was corrected.
         await admin.rpc('apply_cash_sale_tracking', {
           p_cash_sale_id: sale.id,
           p_tracking_status: 'DELIVERED',
-          p_carrier_delivered_at: deliveredAt,
+          p_delivered_at: deliveredAt,
         });
       } catch (err: unknown) {
-        console.error(`[ship24-webhook] apply_cash_sale_tracking failed for ${sale.id}:`, err);
+        console.error(`[ship24-webhook] outbound delivery failed for ${sale.id}:`, err);
+      }
+    }
+
+    // --- RETURN leg: releases the refund ---
+    const { data: returning } = await admin
+      .from('cash_sales')
+      .select('id')
+      .eq('return_tracking_number', trackingNumber)
+      .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT'])
+      .limit(5);
+
+    for (const sale of returning ?? []) {
+      try {
+        // Stamps `return_carrier_delivered_at` and queues the refund, atomically and
+        // monotonically — a duplicate carrier event cannot queue a second refund.
+        await admin.rpc('apply_cash_sale_return_tracking', {
+          p_cash_sale_id: sale.id,
+          p_tracking_status: 'DELIVERED',
+          p_delivered_at: deliveredAt,
+        });
+
+        // Then close the sale and restore the listing. Deliberately a separate step
+        // in TypeScript: the status change and the ITEM change belong to the
+        // orchestrator, and `finalizeReturnedCashSale` re-reads the row and re-checks
+        // every guard, so it is safe to call even if the RPC above did nothing.
+        const result = await createDefaultCashSaleOrchestrator({
+          payments: getPaymentService(),
+        }).finalizeReturn({ cashSaleId: sale.id });
+        if (!result.ok) {
+          // Expected for a contested return, which an operator must decide. Logged at
+          // info level rather than error because it is a designed outcome.
+          console.info(
+            `[ship24-webhook] return for ${sale.id} not closed: ${result.error}`,
+          );
+        }
+      } catch (err: unknown) {
+        console.error(`[ship24-webhook] return delivery failed for ${sale.id}:`, err);
       }
     }
 

@@ -66,6 +66,31 @@ export const emailNotify = {
     }
   },
 
+  async returnDeadlineWarning(params: {
+    userId: string;
+    contractId: string;
+    hoursRemaining: number;
+  }) {
+    try {
+      const recipient = await resolveRecipient(params.userId);
+      if (!recipient) return;
+      const template = templates.returnDeadlineWarning({
+        recipientName: recipient.name,
+        contractId: params.contractId,
+        hoursRemaining: params.hoursRemaining,
+      });
+      await sendEmail({
+        to: recipient.email,
+        ...template,
+        // Same thread as the rest of the sale, so the return sits in the conversation
+        // the parties already have rather than starting a new one.
+        threadId: threadFor('sale', params.contractId),
+      });
+    } catch (err) {
+      console.warn('[email] returnDeadlineWarning failed:', err);
+    }
+  },
+
   async disputeRaised(params: {
     userId: string;
     contractType: 'sale' | 'trade';

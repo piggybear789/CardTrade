@@ -734,7 +734,8 @@ export type Database = {
           return_carrier_delivered_at: string | null;
           return_shipped_at: string | null;
           return_deadline_at: string | null;
-          return_warned_at: string | null;
+          return_lapsed_at: string | null;
+      return_warned_at: string | null;
           return_disputed_at: string | null;
           return_dispute_reason: string | null;          inspection_deadline_at: string | null;
           auto_completed: boolean;
@@ -843,7 +844,8 @@ export type Database = {
           return_carrier_delivered_at?: string | null;
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
-          return_warned_at?: string | null;
+          return_lapsed_at?: string | null;
+      return_warned_at?: string | null;
           return_disputed_at?: string | null;
           return_dispute_reason?: string | null;          inspection_deadline_at?: string | null;
           auto_completed?: boolean;
@@ -934,7 +936,8 @@ export type Database = {
           return_carrier_delivered_at?: string | null;
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
-          return_warned_at?: string | null;
+          return_lapsed_at?: string | null;
+      return_warned_at?: string | null;
           return_disputed_at?: string | null;
           return_dispute_reason?: string | null;          inspection_deadline_at?: string | null;
           auto_completed?: boolean;
@@ -2143,6 +2146,24 @@ export type Database = {
         Returns: Database['cardtrade']['Tables']['trades']['Row'][];
       };
       apply_cash_sale_tracking: {
+        Args: {
+          p_cash_sale_id: string;
+          p_tracking_status: string;
+          p_delivered_at?: string;
+        };
+        Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      /**
+       * Records a carrier update for the RETURN leg of a return-conditional refund
+       * (0088).
+       *
+       * Distinct from `apply_cash_sale_tracking` on purpose: it writes only the
+       * `return_*` columns, so a return event can never overwrite the outbound
+       * delivery record the original inspection and any arbitration read. A
+       * DELIVERED status queues the refund; it is monotonic, so a duplicate carrier
+       * event cannot queue it twice.
+       */
+      apply_cash_sale_return_tracking: {
         Args: {
           p_cash_sale_id: string;
           p_tracking_status: string;

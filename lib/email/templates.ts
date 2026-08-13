@@ -43,6 +43,30 @@ export function inspectionDeadlineWarning(params: {
   return { subject, text, html };
 }
 
+/**
+ * Nudge the Buyer before the RETURN dispatch deadline (0088).
+ *
+ * Deliberately does NOT say the refund will be lost, because it will not be — a lapsed
+ * return goes to a human rather than being settled on a timer (0089). Overstating the
+ * consequence to force action would be a lie told for convenience.
+ */
+export function returnDeadlineWarning(params: {
+  recipientName: string;
+  contractId: string;
+  hoursRemaining: number;
+}) {
+  const link = `${SITE_URL}/sales/${params.contractId}`;
+  const subject = `Action needed: ${params.hoursRemaining}h to post your return`;
+  const text = `Hi ${params.recipientName},\n\nYour refund is waiting on the item coming back. Please post it and add the tracking number within ${params.hoursRemaining} hours.\n\nIf you miss the deadline our team reviews the case rather than closing it automatically, but it will take longer to resolve.\n\nAdd tracking here: ${link}\n\n— ${BRAND}`;
+  const html = wrap(`
+<h2 style="font-size:20px;margin:0 0 16px;">Post your return soon</h2>
+<p>Hi ${params.recipientName},</p>
+<p>Your refund is waiting on the item coming back. Please post it and add the tracking number within <strong>${params.hoursRemaining} hours</strong>.</p>
+<p style="margin:24px 0;">${button(link, 'Add return tracking')}</p>
+<p style="font-size:13px;color:#666;">Your refund is released automatically once the carrier confirms it arrived. If you miss the deadline our team reviews the case rather than closing it automatically.</p>`);
+  return { subject, text, html };
+}
+
 export function disputeRaised(params: {
   recipientName: string;
   contractType: 'sale' | 'trade';

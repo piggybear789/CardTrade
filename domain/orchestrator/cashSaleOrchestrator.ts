@@ -2943,6 +2943,35 @@ export interface CashSaleOrchestrator {
     cashSaleId: string;
     outcome: PartySettlementOutcome;
   }): Promise<CashSaleResult>;
+
+  /**
+   * Record the Buyer posting the goods back (0088).
+   *
+   * Buyer-only and once-only: replacing a recorded carrier after the fact would let
+   * the leg the refund depends on be swapped for another.
+   */
+  recordReturnShipment(params: {
+    cashSaleId: string;
+    actorId: string;
+    carrier: string;
+    trackingNumber: string;
+  }): Promise<CashSaleResult>;
+
+  /**
+   * Close a confirmed return: refund the Buyer and put the listing back on sale.
+   *
+   * Takes NO actor. Only a carrier confirmation reaches this, never a member action —
+   * that is the whole guarantee, since a party's word about a parcel is not evidence
+   * it arrived. Refuses on a return the Seller has contested.
+   */
+  finalizeReturn(params: { cashSaleId: string }): Promise<CashSaleResult>;
+
+  /** Seller contests a return (wrong item, empty box, never arrived). */
+  disputeReturn(params: {
+    cashSaleId: string;
+    actorId: string;
+    reason: string;
+  }): Promise<CashSaleResult>;
 }
 
 /** Bind the pure lifecycle operations to injected services. */
@@ -2972,5 +3001,10 @@ export function createCashSaleOrchestrator(
     raiseDispute: (params) => disputeCashSale(deps, params),
     withdrawDispute: (params) => withdrawCashSaleDispute(deps, params),
     settleDisputeAsParty: (params) => settleCashSaleDisputeAsParty(deps, params),
+    // The return leg (0088). `finalizeReturn` is reached from the Ship24 webhook and
+    // from the sweep, never from a member action — only a carrier closes a return.
+    recordReturnShipment: (params) => recordCashSaleReturnShipment(deps, params),
+    finalizeReturn: (params) => finalizeReturnedCashSale(deps, params),
+    disputeReturn: (params) => disputeCashSaleReturn(deps, params),
   };
 }

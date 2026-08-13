@@ -1,11 +1,13 @@
 // app/profile/page.tsx
 //
-// Account settings — two tabs (Profile / Payments).
-// Layout: section title + description on the left, content on the right.
-// Reference: Ofspace-style settings with clear section dividers.
+// Account settings — two tabs.
+//   Profile tab: looks like YOUR profile page (preview of what others see + edit controls)
+//   Payments tab: clean settings rows for card + payouts
+//
+// Profile = visual, Payments = functional.
 
 import { redirect } from 'next/navigation';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, MapPin, ShieldCheck } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -31,29 +33,6 @@ import { resolveScope } from '@/components/layout/SectionFilter';
 
 export const metadata = { title: 'Settings · NoDitto' };
 export const dynamic = 'force-dynamic';
-
-/** A settings section: fixed-width label left, content right, all left-aligned. */
-function SettingsRow({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-3 border-b py-7 last:border-b-0 sm:flex-row sm:gap-0">
-      <div className="w-full shrink-0 sm:w-56">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {description ? (
-          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
-      <div className="min-w-0 max-w-lg">{children}</div>
-    </div>
-  );
-}
 
 export default async function ProfilePage({
   searchParams,
@@ -96,6 +75,7 @@ export default async function ProfilePage({
 
   const paymentMethod = paymentMethodResult.ok ? paymentMethodResult.data : null;
   const paymentDemoEnabled = isPaymentDemoEnabled();
+  const identityDone = identity.ok && identity.data.status === 'VERIFIED';
 
   return (
     <MarketplaceShell title="Settings">
@@ -111,32 +91,30 @@ export default async function ProfilePage({
       <AccountTabs activeTab={activeTab} />
 
       {activeTab === 'profile' ? (
-        <div>
-          {/* Profile Details */}
-          <SettingsRow
-            title="Profile Details"
-            description="Your public identity on NoDitto. Other traders see your name and avatar."
-          >
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
-              <AvatarUploadField
-                avatarPath={profile.avatar_path}
-                displayName={profile.display_name}
-                hideHint
-              />
-              <div className="min-w-0 flex-1 space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Display Name</label>
-                    <p className="mt-1 rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
-                      {profile.display_name}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Email</label>
-                    <p className="mt-1 rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                      {profile.contact_email}
-                    </p>
-                  </div>
+        <div className="max-w-2xl space-y-8">
+          {/* PROFILE CARD — preview of what others see */}
+          <section className="overflow-hidden rounded-xl border">
+            {/* Banner area */}
+            <div className="h-20 bg-gradient-to-r from-gold/20 via-gold/10 to-transparent" />
+
+            {/* Avatar + info */}
+            <div className="px-6 pb-6">
+              <div className="-mt-10 flex items-end gap-4">
+                <div className="rounded-full border-4 border-card bg-card">
+                  <AvatarUploadField
+                    avatarPath={profile.avatar_path}
+                    displayName={profile.display_name}
+                    hideHint
+                  />
+                </div>
+                <div className="flex min-w-0 flex-1 items-center gap-3 pb-1">
+                  <h2 className="truncate text-xl font-semibold">{profile.display_name}</h2>
+                  {identityDone ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-trust/10 px-2 py-0.5 text-xs font-medium text-trust">
+                      <ShieldCheck className="size-3" aria-hidden />
+                      Verified
+                    </span>
+                  ) : null}
                 </div>
                 <EditProfileDialog
                   avatarPath={profile.avatar_path}
@@ -144,30 +122,37 @@ export default async function ProfilePage({
                   contactEmail={profile.contact_email}
                 />
               </div>
+
+              {/* Bio */}
+              <div className="mt-4">
+                <ProfileBioEditor initialBio={(profile.bio as string | null) ?? ''} />
+              </div>
+
+              {/* Meta row: email, region */}
+              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                <span>{profile.contact_email}</span>
+                {profile.region_code ? (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="size-3.5" aria-hidden />
+                    {profile.region_code}
+                  </span>
+                ) : null}
+              </div>
             </div>
-          </SettingsRow>
+          </section>
 
-          {/* Bio */}
-          <SettingsRow
-            title="About"
-            description="A short bio shown on your public seller profile."
-          >
-            <ProfileBioEditor initialBio={(profile.bio as string | null) ?? ''} />
-          </SettingsRow>
-
-          {/* Social Links */}
-          <SettingsRow
-            title="Social Links"
-            description="Link your socials so other traders can find you."
-          >
+          {/* SOCIAL LINKS */}
+          <section>
+            <h3 className="mb-3 text-sm font-semibold">Social Links</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Visible on your seller profile and in contract rooms.
+            </p>
             <SocialLinksEditor initialLinks={(profile.social_links as Record<string, string> | null) ?? null} />
-          </SettingsRow>
+          </section>
 
-          {/* Identity */}
-          <SettingsRow
-            title="Identity Verification"
-            description="Photo ID + selfie via Stripe. Required to list, sell, or trade."
-          >
+          {/* IDENTITY VERIFICATION */}
+          <section>
+            <h3 className="mb-3 text-sm font-semibold">Identity Verification</h3>
             {identity.ok ? (
               <IdentityCheckCard
                 status={identity.data.status}
@@ -184,105 +169,84 @@ export default async function ProfilePage({
                 <IdentityDemoControls />
               </div>
             ) : null}
-          </SettingsRow>
-
-          {/* Region */}
-          <SettingsRow
-            title="Trading Region"
-            description="The region your contracts are scoped to."
-          >
-            {profile.region_code ? (
-              <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
-                {profile.region_code}
-              </p>
-            ) : (
-              <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                No region set. Complete onboarding to set your trading region.
-              </p>
-            )}
-          </SettingsRow>
+          </section>
         </div>
       ) : (
-        /* PAYMENTS TAB */
-        <div>
+        /* PAYMENTS TAB — clean settings rows */
+        <div className="max-w-2xl">
           {/* Payment Method */}
-          <SettingsRow
-            title="Payment Method"
-            description="Card on file for purchases and trade collateral holds. Details stay with Stripe."
-          >
-            {paymentMethod?.hasPaymentMethod ? (
-              <div className="space-y-3">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Card</label>
-                    <p className="mt-1 rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
-                      {paymentMethod.label ?? 'Card saved'}
-                    </p>
+          <div className="border-b py-7">
+            <h3 className="text-sm font-semibold">Payment Method</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Card on file for purchases and trade collateral holds.
+            </p>
+            <div className="mt-4">
+              {paymentMethod?.hasPaymentMethod ? (
+                <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="size-5 text-muted-foreground" aria-hidden />
+                    <span className="text-sm font-medium">{paymentMethod.label ?? 'Card saved'}</span>
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Used for</label>
-                    <p className="mt-1 rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                      Purchases & collateral
-                    </p>
-                  </div>
+                  <AddPaymentMethodDialog
+                    trigger={
+                      <Button type="button" variant="ghost" size="sm">
+                        Replace
+                      </Button>
+                    }
+                  />
                 </div>
-                <AddPaymentMethodDialog
-                  trigger={
-                    <Button type="button" variant="outline" size="sm">
-                      <CreditCard className="size-4" aria-hidden />
-                      Replace card
-                    </Button>
-                  }
-                />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                  No card saved yet. Add one to make purchases or enter trade escrow.
-                </p>
-                <AddPaymentMethodDialog
-                  trigger={
-                    <Button type="button" variant="outline" size="sm">
-                      <CreditCard className="size-4" aria-hidden />
-                      Add card
-                    </Button>
-                  }
-                />
-              </div>
-            )}
-          </SettingsRow>
+              ) : (
+                <div className="flex items-center justify-between rounded-lg border border-dashed px-4 py-4">
+                  <span className="text-sm text-muted-foreground">No card saved yet</span>
+                  <AddPaymentMethodDialog
+                    trigger={
+                      <Button type="button" variant="outline" size="sm">
+                        Add card
+                      </Button>
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Payout Account */}
-          <SettingsRow
-            title="Payout Account"
-            description="Where your sale proceeds are sent. Connected via Stripe."
-          >
-            {payoutContext.ok ? (
-              <PayoutOnboarding context={payoutContext.data} />
-            ) : (
-              <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                Payout setup unavailable.
-              </p>
-            )}
-          </SettingsRow>
+          <div className="border-b py-7">
+            <h3 className="text-sm font-semibold">Payout Account</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Where your sale proceeds are sent. Connected via Stripe.
+            </p>
+            <div className="mt-4">
+              {payoutContext.ok ? (
+                <PayoutOnboarding context={payoutContext.data} />
+              ) : (
+                <p className="rounded-lg border border-dashed px-4 py-4 text-center text-sm text-muted-foreground">
+                  Payout setup unavailable.
+                </p>
+              )}
+            </div>
+          </div>
 
           {/* Payout History */}
-          <SettingsRow
-            title="Payout History"
-            description="Your settled and pending payouts."
-          >
-            {payoutDashboard.ok ? (
-              <PayoutsDashboard
-                model={payoutDashboard.data.model}
-                destination={payoutDashboard.data.destination}
-                scope={scope}
-              />
-            ) : (
-              <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                No payout history yet. Complete a sale to see your first payout here.
-              </p>
-            )}
-          </SettingsRow>
+          <div className="py-7">
+            <h3 className="text-sm font-semibold">Payout History</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Your settled and pending payouts.
+            </p>
+            <div className="mt-4">
+              {payoutDashboard.ok ? (
+                <PayoutsDashboard
+                  model={payoutDashboard.data.model}
+                  destination={payoutDashboard.data.destination}
+                  scope={scope}
+                />
+              ) : (
+                <p className="rounded-lg border border-dashed px-4 py-4 text-center text-sm text-muted-foreground">
+                  No payout history yet. Complete a sale to see your first payout here.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </MarketplaceShell>

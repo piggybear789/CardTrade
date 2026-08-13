@@ -321,6 +321,8 @@ export type CashSaleError =
   | 'INVALID_STATE'
   /** The Seller release could not be settled; platform is holding their funds. */
   | 'PAYOUT_FAILED'
+  /** The Seller is permanently fraud-banned; their money is forfeit. */
+  | 'SELLER_FRAUD_BANNED'
   /** A dispute refund was rejected by the provider; the sale stays DISPUTED. */
   | 'REFUND_FAILED'
   /** A PARTIAL_REFUND amount was zero, negative, or the whole collected amount. */
@@ -1551,6 +1553,28 @@ export async function payoutCashSaleSeller(
   const wasAlreadyFailed = current.sellerPayoutStatus === 'FAILED';
 
   const payee = await deps.repository.loadSellerPayee(sale.sellerId);
+
+  // A fraud-banned seller must NEVER be paid. Unlike `canReceiveFunds`, which is
+  // recoverable (the seller can finish onboarding), a fraud ban is permanent and
+  // the money belongs to the victim or the platform. Record the failure but do NOT
+  // notify — there is nothing for them to fix, and the account-suspended page is
+  // the only surface they see.
+  if (payee?.fraudBannedAt) {
+    await deps.repository.recordPayoutResult({
+      cashSaleId: sale.id,
+      status: 'FAILED',
+      error: 'Seller is fraud-banned',
+    });
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: null,
+      event: 'SELLER_PAYOUT_FAILED',
+      fromStatus: sale.status,
+      toStatus: sale.status,
+    });
+    return { ok: false, error: 'SELLER_FRAUD_BANNED' };
+  }
+
   if (!canReceiveFunds(payee)) {
     // The funds stay in the platform balance and the sale stays payable. This is
     // recoverable: once the Seller finishes payout onboarding, the queued release

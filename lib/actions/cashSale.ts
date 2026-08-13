@@ -119,6 +119,18 @@ function mapError(error: CashSaleError): CashSaleActionError {
     // distinction between "collection failed" and "release failed" is not
     // actionable. The queued retry and the operator alert carry the detail.
     PAYOUT_FAILED: 'transfer-failed',
+    // A fraud-banned Seller's release (0059). Shares the transfer-failed surface
+    // with PAYOUT_FAILED, and deliberately gets NO distinct member-facing code.
+    //
+    // THREE REASONS IT MUST NOT READ AS SOMETHING TO FIX. The orchestrator states
+    // that this money belongs to the victim or the platform, so there is no action
+    // that recovers it — unlike SELLER_NOT_PAYABLE, which resolves itself once
+    // onboarding finishes. The orchestrator also deliberately does NOT notify on
+    // this path. And the banned account cannot reach any contract surface anyway:
+    // `proxy.ts` redirects it to /account-suspended, which is the only screen it
+    // sees. Accordingly this code is also absent from CASH_SALE_REFUSAL_COPY,
+    // whose header records that operator-side failures are excluded on purpose.
+    SELLER_FRAUD_BANNED: 'transfer-failed',
     // Dispute resolution (0044). These are surfaced distinctly because, unlike a
     // release failure, an operator resolving a dispute CAN act on each one: retry,
     // correct the amount, or check that funds were ever collected.

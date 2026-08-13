@@ -66,6 +66,12 @@ export interface MerchantRecord {
   /** Name Stripe Identity read off the document, when it accepted one. */
   identityCheckName?: string | null;
   identityCheckVerifiedAt?: string | null;
+  /**
+   * Non-null when the member is permanently banned for confirmed fraud (0059).
+   * A banned seller must never be paid, regardless of whether their settlements
+   * are active — the money belongs to the victim or the platform, not them.
+   */
+  fraudBannedAt?: string | null;
 }
 
 /**

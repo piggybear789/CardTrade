@@ -30,6 +30,7 @@ import {
   buildQueue,
   type ArbitrationCase,
   type ArbitrationCaseKind,
+  type ArbitrationCaseSituation,
   type ArbitrationGoodsLine,
   type TriagedCase,
 } from '@/domain/arbitration/arbitrationCase';
@@ -81,6 +82,35 @@ export interface ArbitrationNote {
   authorName: string;
   body: string;
   createdAt: string;
+}
+
+/**
+ * One tracking leg of a Cash_Sale, as staff need to see it.
+ *
+ * BOTH legs — outbound and return — are contract evidence during arbitration, because
+ * the outbound proves the goods reached the buyer and the return proves whether they
+ * came back. Neither carrier nor tracking number is PII (they identify a parcel, not a
+ * person), so they are safe to show staff.
+ */
+export interface ArbitrationShipmentLeg {
+  carrier: string | null;
+  trackingNumber: string | null;
+  shippedAt: string | null;
+  carrierDeliveredAt: string | null;
+}
+
+/**
+ * Both shipment legs plus the return-specific fields staff triage on.
+ */
+export interface ArbitrationShipmentEvidence {
+  outbound: ArbitrationShipmentLeg;
+  returnLeg: ArbitrationShipmentLeg;
+  /** Seller's reason for contesting the return. Null when not contested. */
+  returnDisputeReason: string | null;
+  /** When the seller contested. Null when not contested. */
+  returnDisputedAt: string | null;
+  /** When the sweep marked the return as lapsed. Null when not lapsed. */
+  returnLapsedAt: string | null;
 }
 
 /**
@@ -157,6 +187,13 @@ export interface ArbitrationCaseDetail {
    * detail payload rather than a separate client fetch.
    */
   evidence: readonly DisputeEvidenceEntry[];
+  /**
+   * Shipment tracking for both legs of a Cash_Sale: the outbound delivery and the
+   * return (0088). Null for trades and chargebacks, which have separate tracking.
+   * An arbitrator MUST see both legs when deciding a return dispute, because the
+   * outbound confirms goods were delivered and the return shows whether they came back.
+   */
+  shipment: ArbitrationShipmentEvidence | null;
   /** True when the viewer may also moderate. */
   viewerIsAdmin: boolean;
   viewerId: string;
@@ -196,7 +233,7 @@ export async function getArbitrationQueue(): Promise<
 
   const admin = createAdminClient();
 
-  const [sales, trades, chargebacks, assignments, noteCounts] = await Promise.all([
+  const [sales, trades, chargebacks, returnCases, assignments, noteCounts] = await Promise.all([
     admin
       .from('cash_sales')
       .select(
@@ -217,6 +254,16 @@ export async function getArbitrationQueue(): Promise<
       .from('charge_disputes')
       .select('id, amount_cents, opened_at, evidence_due_by, profile_id, cash_sale_id, trade_id, reason')
       .is('closed_at', null),
+    // 0088/0089: return-contested and return-lapsed Cash_Sales. These are NOT in
+    // status DISPUTED — they are in RETURN_PENDING or RETURN_IN_TRANSIT and surface
+    // as separate situations so staff can tell them apart from condition disputes.
+    admin
+      .from('cash_sales')
+      .select(
+        'id, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
+      )
+      .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT'])
+      .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null'),
     admin.from('arbitration_assignments').select('case_kind, case_ref, assignee_id'),
     admin.from('arbitration_notes').select('case_kind, case_ref'),
   ]);
@@ -250,6 +297,7 @@ export async function getArbitrationQueue(): Promise<
 
   const ids: string[] = [];
   for (const s of sales.data ?? []) ids.push(s.buyer_id as string, s.seller_id as string);
+  for (const r of returnCases.data ?? []) ids.push(r.buyer_id as string, r.seller_id as string);
   for (const t of trades.data ?? []) ids.push(t.initiator_id as string, t.counterpart_id as string);
   for (const c of chargebacks.data ?? []) if (c.profile_id) ids.push(c.profile_id as string);
   // Assignees resolve through the same lookup as parties. They are staff, not parties,
@@ -272,6 +320,9 @@ export async function getArbitrationQueue(): Promise<
     cases.push({
       kind: 'CASH_SALE',
       ref: id,
+      situation: (sale as Record<string, unknown>).fraud_claimed_by
+        ? 'FRAUD_DISPUTE'
+        : 'CONDITION_DISPUTE',
       title: (sale.item_title as string | null) ?? 'Untitled item',
       goods: toGoodsLines(sale.cash_sale_items),
       // The whole collected amount is what the outcome decides: it either goes back
@@ -303,6 +354,65 @@ export async function getArbitrationQueue(): Promise<
     });
   }
 
+  // 0088/0089: return-contested and return-lapsed Cash_Sales surface as their own
+  // situations. They use the same `CASH_SALE` kind and ref so the detail page reads
+  // the same underlying row, but their `openedAt` clock is the return-specific
+  // timestamp rather than `disputed_at`.
+  for (const rc of returnCases.data ?? []) {
+    const id = rc.id as string;
+    const returnDisputedAt = (rc.return_disputed_at as string | null) ?? null;
+    const returnLapsedAt = (rc.return_lapsed_at as string | null) ?? null;
+    // A sale can be BOTH contested and lapsed (seller contests after the buyer also
+    // fails to post). Contested takes precedence: a human already said "something is
+    // wrong", so it is the claim that matters.
+    const situation: ArbitrationCaseSituation = returnDisputedAt
+      ? 'RETURN_CONTESTED'
+      : 'RETURN_LAPSED';
+    const net = sellerNetCentsFor({
+      amountCents: Number(rc.amount_cents ?? 0),
+      platformFeeCents: Number(rc.platform_fee_cents ?? 0),
+      refundCents: Number(rc.refund_cents ?? 0),
+    });
+    cases.push({
+      kind: 'CASH_SALE',
+      ref: id,
+      situation,
+      title: (rc.item_title as string | null) ?? 'Untitled item',
+      goods: toGoodsLines(rc.cash_sale_items),
+      amountAtRiskCents: Number(rc.amount_cents ?? 0),
+      // SLA clock: for a contested return, the seller's dispute timestamp is when the
+      // case started waiting. For a lapsed return, `return_lapsed_at` is the moment the
+      // sweep flagged it. Both are ISO-8601, both drive priority exactly like
+      // `disputed_at` does for a condition dispute.
+      openedAt: situation === 'RETURN_CONTESTED' ? returnDisputedAt : returnLapsedAt,
+      raisedById: situation === 'RETURN_CONTESTED' ? (rc.seller_id as string) : null,
+      claim:
+        situation === 'RETURN_CONTESTED'
+          ? ((rc.return_dispute_reason as string | null) ?? null)
+          : 'The buyer did not post the return within the deadline.',
+      parties: [
+        {
+          id: rc.buyer_id as string,
+          name: nameFor(rc.buyer_id as string),
+          stakeCents: Number(rc.amount_cents ?? 0),
+          role: 'Buyer',
+        },
+        {
+          id: rc.seller_id as string,
+          name: nameFor(rc.seller_id as string),
+          stakeCents: net,
+          role: 'Seller',
+        },
+      ],
+      assigneeId: assigneeOf.get(`CASH_SALE:${id}`) ?? null,
+      assigneeName: assigneeNameFor(assigneeOf.get(`CASH_SALE:${id}`) ?? null),
+      noteCount: noteCountOf.get(`CASH_SALE:${id}`) ?? 0,
+      hasHardDeadline: false,
+      deadlineAt: null,
+      fraudAlleged: false,
+    });
+  }
+
   for (const trade of trades.data ?? []) {
     const id = trade.id as string;
     const bonds = bondOf.get(id) ?? new Map<string, number>();
@@ -311,6 +421,7 @@ export async function getArbitrationQueue(): Promise<
     cases.push({
       kind: 'TRADE',
       ref: id,
+      situation: Boolean(trade.fraud_claimed_by) ? 'FRAUD_DISPUTE' : 'CONDITION_DISPUTE',
       title: `${nameFor(trade.initiator_id as string)} ⇄ ${nameFor(trade.counterpart_id as string)}`,
       // A trade's goods live in `trade_items` and are not itemised on the trade
       // itself; the exchange panel in the trade room is the place that shows them.
@@ -359,6 +470,7 @@ export async function getArbitrationQueue(): Promise<
     cases.push({
       kind: 'CHARGEBACK',
       ref: id,
+      situation: 'CHARGEBACK',
       title: 'Chargeback',
       // A chargeback is a bank reversal against a payer, not a claim about goods.
       goods: [],
@@ -478,6 +590,38 @@ export async function getArbitrationCase(
           result.ok ? result.data.entries : [],
         );
 
+  // 0088: shipment tracking for both legs of a Cash_Sale. An arbitrator deciding a
+  // return dispute must see whether the outbound arrived and whether the return did.
+  let shipment: ArbitrationShipmentEvidence | null = null;
+  if (kind === 'CASH_SALE') {
+    const { data: shipRow } = await admin
+      .from('cash_sales')
+      .select(
+        'tracking_carrier, tracking_number, shipped_at, carrier_delivered_at, return_tracking_carrier, return_tracking_number, return_shipped_at, return_carrier_delivered_at, return_disputed_at, return_dispute_reason, return_lapsed_at',
+      )
+      .eq('id', ref)
+      .maybeSingle();
+    if (shipRow) {
+      shipment = {
+        outbound: {
+          carrier: (shipRow.tracking_carrier as string | null) ?? null,
+          trackingNumber: (shipRow.tracking_number as string | null) ?? null,
+          shippedAt: (shipRow.shipped_at as string | null) ?? null,
+          carrierDeliveredAt: (shipRow.carrier_delivered_at as string | null) ?? null,
+        },
+        returnLeg: {
+          carrier: (shipRow.return_tracking_carrier as string | null) ?? null,
+          trackingNumber: (shipRow.return_tracking_number as string | null) ?? null,
+          shippedAt: (shipRow.return_shipped_at as string | null) ?? null,
+          carrierDeliveredAt: (shipRow.return_carrier_delivered_at as string | null) ?? null,
+        },
+        returnDisputeReason: (shipRow.return_dispute_reason as string | null) ?? null,
+        returnDisputedAt: (shipRow.return_disputed_at as string | null) ?? null,
+        returnLapsedAt: (shipRow.return_lapsed_at as string | null) ?? null,
+      };
+    }
+  }
+
   return ok({
     case: found,
     notes,
@@ -485,6 +629,7 @@ export async function getArbitrationCase(
     resolution,
     contractHref,
     evidence,
+    shipment,
     viewerIsAdmin: gate.ctx.isAdmin,
     viewerId: gate.ctx.userId,
   });

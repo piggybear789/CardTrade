@@ -585,3 +585,172 @@ export async function settleCashSaleDispute(
     await orchestrator().settleDisputeAsParty({ actorId: userId, cashSaleId, outcome }),
   );
 }
+
+// ---------------------------------------------------------------------------
+// Return-conditional refund actions (0088)
+// ---------------------------------------------------------------------------
+
+/** Input for {@link saveCashSaleReturnAddress}. */
+export interface ReturnAddressInput {
+  label: string;
+  placeId?: string | null;
+  countryCode?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+/**
+ * Save (or update) the Seller's return address for a return-conditional refund.
+ *
+ * Written to `cash_sale_return_details`, a sibling table that the Buyer can read
+ * ONLY while a return is owed (RETURN_PENDING / RETURN_IN_TRANSIT). The address is
+ * disclosed once the Buyer needs to post; it is never visible before a dispute or
+ * after the sale closes.
+ *
+ * Upsert is deliberate: the Seller correcting a typo is an update, not a delete-and-
+ * recreate, and the migration explicitly does NOT grant DELETE.
+ */
+export async function saveCashSaleReturnAddress(
+  cashSaleId: string,
+  address: ReturnAddressInput,
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  if (!cashSaleId) return { ok: false, error: 'invalid-terms' };
+
+  const label = address.label?.trim();
+  if (!label || label.length < 1 || label.length > 2000) {
+    return { ok: false, error: 'invalid-terms', message: 'A return address is required.' };
+  }
+
+  // Validate the sale is in a return state and the caller is the seller.
+  const supabase = await createClient();
+  const { data: sale } = await supabase
+    .from('cash_sales')
+    .select('id, buyer_id, seller_id, status')
+    .eq('id', cashSaleId)
+    .maybeSingle();
+  if (!sale) return { ok: false, error: 'cash-sale-not-found' };
+  if (sale.seller_id !== userId) return { ok: false, error: 'not-permitted' };
+  if (sale.status !== 'RETURN_PENDING' && sale.status !== 'RETURN_IN_TRANSIT') {
+    return { ok: false, error: 'invalid-state', message: 'No return is in progress.' };
+  }
+
+  // Upsert via the cookie-bound client (RLS checks seller_id = auth.uid()).
+  const { error } = await supabase.from('cash_sale_return_details').upsert(
+    {
+      cash_sale_id: cashSaleId,
+      seller_id: userId,
+      address_label: label,
+      place_id: address.placeId?.trim() || null,
+      country_code: address.countryCode || null,
+      latitude: address.lat ?? null,
+      longitude: address.lng ?? null,
+    },
+    { onConflict: 'cash_sale_id' },
+  );
+  if (error) {
+    return { ok: false, error: 'invalid-terms', message: 'Could not save the return address.' };
+  }
+
+  revalidatePath(`/sales/${cashSaleId}`);
+
+  // Notify the buyer that a return address is now available.
+  await createNotification({
+    userId: sale.buyer_id,
+    type: 'SALE',
+    title: 'Return address provided',
+    body: 'The seller added a return address. You can now post the item back.',
+    link: `/sales/${cashSaleId}`,
+  });
+
+  // Return the sale record via the orchestrator for result shape consistency.
+  // syncTracking is a read-back that happens to refresh carrier state.
+  const result = actionResult(
+    await orchestrator().syncTracking({ actorId: userId, cashSaleId }),
+  );
+  // Even if sync fails (no tracking yet), the address save itself succeeded.
+  if (!result.ok) {
+    return { ok: true, sale: { id: cashSaleId } as CashSaleRecord };
+  }
+  return result;
+}
+
+/**
+ * Record the Buyer posting the return shipment (0088).
+ *
+ * Buyer-only and once-only. Registers the shipment with the tracking provider so a
+ * carrier confirmation can arrive on its own and release the refund without either
+ * party asserting anything. Mirrors {@link recordCashSaleShipment} for the outbound
+ * leg.
+ */
+export async function recordCashSaleReturnShipment(
+  cashSaleId: string,
+  carrier: string,
+  trackingNumber: string,
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  const result = actionResult(
+    await orchestrator().recordReturnShipment({
+      actorId: userId,
+      cashSaleId,
+      carrier,
+      trackingNumber,
+    }),
+  );
+  if (result.ok) {
+    // Notify the seller that the return is on its way.
+    await createNotification({
+      userId: result.sale.sellerId,
+      type: 'SALE',
+      title: 'Return shipped',
+      body: 'The buyer has posted the item back to you.',
+      link: `/sales/${cashSaleId}`,
+    });
+    void emailNotify.itemShipped({
+      userId: result.sale.sellerId,
+      contractType: 'sale',
+      contractId: cashSaleId,
+    });
+  }
+  return result;
+}
+
+/**
+ * The Seller contests a return — it arrived empty, damaged, or never came (0088).
+ *
+ * Freezes the automatic refund and hands the case back to arbitration. CAPTURES AND
+ * RELEASES NOTHING by itself. Mirrors {@link disputeCashSale} for the main sale
+ * dispute.
+ */
+export async function disputeCashSaleReturn(
+  cashSaleId: string,
+  reason: string,
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  const result = actionResult(
+    await orchestrator().disputeReturn({
+      actorId: userId,
+      cashSaleId,
+      reason,
+    }),
+  );
+  if (result.ok) {
+    // Notify the buyer that their return is being contested.
+    await createNotification({
+      userId: result.sale.buyerId,
+      type: 'SALE',
+      title: 'Return disputed',
+      body: 'The seller has contested the return. The case is back with support.',
+      link: `/sales/${cashSaleId}`,
+    });
+    void emailNotify.disputeRaised({
+      userId: result.sale.buyerId,
+      contractType: 'sale',
+      contractId: cashSaleId,
+    });
+  }
+  return result;
+}

@@ -63,6 +63,7 @@ export default async function CashSalePage({
     buyerStats,
     sellerStats,
     { data: deliveryDetails },
+    { data: returnDetails },
     { data: lineItemRows },
   ] = await Promise.all([
     supabase
@@ -76,6 +77,14 @@ export default async function CashSalePage({
     supabase
       .from('cash_sale_delivery_details')
       .select('address_label, place_id, country_code, latitude, longitude')
+      .eq('cash_sale_id', sale.id)
+      .maybeSingle(),
+    // The seller's return address, when a return-conditional refund is running
+    // (0088). RLS scopes it to the two participants. Like the delivery address it is
+    // deliberately not Realtime — the sale row's own event is what changes.
+    supabase
+      .from('cash_sale_return_details')
+      .select('address_label')
       .eq('cash_sale_id', sale.id)
       .maybeSingle(),
     // What this contract covers (0064). Participant-scoped by RLS, and empty for
@@ -188,6 +197,7 @@ export default async function CashSalePage({
         paymentDemoEnabled={isPaymentDemoEnabled()}
         lineItems={lineItems}
         disputeEvidence={disputeEvidence}
+        returnAddress={returnDetails ?? null}
       />
       {sale.status === 'COMPLETED' ? (
         <div className="mt-6 flex flex-col items-stretch gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">

@@ -23,6 +23,7 @@ import { getArbitrationQueue } from '@/lib/actions/arbitration';
 import {
   ARBITRATION_SLA_HOURS,
   DEADLINE_WARNING_HOURS,
+  SITUATION_LABEL,
   filterQueue,
   resolveQueueScope,
   summariseQueue,
@@ -170,7 +171,7 @@ export default async function ArbitrationQueuePage({
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant={priority.variant}>{priority.label}</Badge>
-                        <Badge variant="outline">{CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
+                        <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
                         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
                         <CardTitle className="text-base">
                           <Link

@@ -53,6 +53,10 @@ export interface CashSaleStepFacts {
   theirHandoverConfirmed: boolean;
   /** Set while the sale is DISPUTED, for the dispute step's detail line. */
   disputeRaisedByMe?: boolean;
+  /** True once the buyer has recorded a return carrier and tracking number (0088). */
+  hasReturnTracking?: boolean;
+  /** True when the seller has contested the return (0088). */
+  returnDisputed?: boolean;
   /**
    * For a closed sale: the status it was in immediately before it went terminal,
    * i.e. `from_status` on the event that closed it.
@@ -81,12 +85,22 @@ const FUNDS_CLEARED: ReadonlySet<CashSaleStatus> = new Set<CashSaleStatus>([
   'INSPECTION',
   'COMPLETED',
   'DISPUTED',
+  'RETURN_PENDING',
+  'RETURN_IN_TRANSIT',
 ]);
 
 /** Statuses reached only after the item is with the buyer. */
 const WITH_BUYER: ReadonlySet<CashSaleStatus> = new Set<CashSaleStatus>([
   'INSPECTION',
   'COMPLETED',
+  'RETURN_PENDING',
+  'RETURN_IN_TRANSIT',
+]);
+
+/** Statuses where a return-conditional refund is in flight (0088). */
+const RETURNING: ReadonlySet<CashSaleStatus> = new Set<CashSaleStatus>([
+  'RETURN_PENDING',
+  'RETURN_IN_TRANSIT',
 ]);
 
 /** Resolve a role-owned step to the viewer's perspective. */
@@ -339,12 +353,48 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
         ? 'Accept to release the funds, or raise a dispute. Accepts automatically when the window closes.'
         : `Funds are released once ${counterpartyName} accepts, or the inspection window closes.`,
     owner: ownerFor('BUYER', viewerRole),
-    done: status === 'COMPLETED',
+    done: status === 'COMPLETED' || RETURNING.has(status),
     action:
       viewerRole === 'BUYER' && status === 'INSPECTION'
         ? { label: 'Accept or dispute', kind: 'focus', target: CASH_SALE_SECTIONS.actions }
         : undefined,
   });
+
+  // 6. Return leg (0088). Shown only when the dispute resolved with a return-
+  //    conditional refund. The buyer posts the item back; the refund releases
+  //    automatically on carrier-confirmed delivery to the seller.
+  if (!closed && RETURNING.has(status)) {
+    const returnDisputedNow = facts.returnDisputed ?? false;
+
+    drafts.push({
+      id: 'return-ship',
+      short: 'Return',
+      label: 'Buyer posts the item back',
+      detail: returnDisputedNow
+        ? 'The seller contested this return. The case is back with support.'
+        : facts.hasReturnTracking
+          ? 'Return tracking recorded. Refund releases on carrier-confirmed delivery.'
+          : viewerRole === 'BUYER'
+            ? 'Add the return carrier and tracking number once you have posted it.'
+            : `${counterpartyName} posts the item back with tracking.`,
+      owner: returnDisputedNow ? 'platform' : ownerFor('BUYER', viewerRole),
+      done: facts.hasReturnTracking || status === 'RETURN_IN_TRANSIT',
+      action:
+        !returnDisputedNow && viewerRole === 'BUYER' && status === 'RETURN_PENDING'
+          ? { label: 'Add return tracking', kind: 'focus', target: CASH_SALE_SECTIONS.actions }
+          : undefined,
+    });
+
+    drafts.push({
+      id: 'return-refund',
+      short: '',
+      label: 'Refund released',
+      detail:
+        'The refund releases automatically once a carrier confirms the return reached the seller.',
+      owner: 'platform',
+      done: false,
+    });
+  }
 
   return closed
     ? sequenceHaltedSteps(drafts, haltOutcome(facts.status))

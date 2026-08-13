@@ -51,6 +51,18 @@ export interface RecordShipmentDialogProps {
    * false the dialog says so rather than letting someone post to nowhere.
    */
   recipientAddressKnown?: boolean;
+  /**
+   * Copy overrides for the RETURN leg (0088), where the same carrier capture is
+   * reached by the Buyer sending goods BACK.
+   *
+   * Overrides rather than a second component: the carrier list, the "Other" branch
+   * and the tracking floor are the parts that matter and duplicating them would let
+   * the two drift. Only the words differ, and they must — "Record shipment" on a
+   * return would read as if the buyer were sending the wrong parcel.
+   */
+  title?: string;
+  description?: string;
+  submitLabel?: string;
 }
 
 /** Australian carriers most commonly used for collectibles postage. */
@@ -77,6 +89,9 @@ export function RecordShipmentDialog({
   pending = false,
   recipientName,
   recipientAddressKnown = true,
+  title,
+  description,
+  submitLabel,
 }: RecordShipmentDialogProps) {
   const [carrier, setCarrier] = useState('');
   const [customCarrier, setCustomCarrier] = useState('');
@@ -98,10 +113,14 @@ export function RecordShipmentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Record shipment</DialogTitle>
+          <DialogTitle>{title ?? 'Record shipment'}</DialogTitle>
           <DialogDescription>
-            Add tracking for what you are sending
-            {recipientName ? ` to ${recipientName}` : ''}.
+            {description ?? (
+              <>
+                Add tracking for what you are sending
+                {recipientName ? ` to ${recipientName}` : ''}.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -169,7 +188,7 @@ export function RecordShipmentDialog({
             }
             className="shrink-0"
           >
-            {pending ? 'Saving…' : 'Record'}
+            {pending ? 'Saving…' : (submitLabel ?? 'Record')}
           </Button>
         </div>
 

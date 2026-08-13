@@ -47,6 +47,7 @@ function makeCase(overrides: Partial<ArbitrationCase> = {}): ArbitrationCase {
   return {
     kind: 'CASH_SALE',
     ref: 'case-1',
+    situation: 'CONDITION_DISPUTE',
     title: 'A disputed sale',
     goods: [],
     amountAtRiskCents: 12_000,

@@ -1161,6 +1161,63 @@ export type Database = {
         ];
       };
       /**
+       * Seller return address for a return-conditional refund (0088).
+       *
+       * Readable by the buyer ONLY while a return is owed (RETURN_PENDING /
+       * RETURN_IN_TRANSIT). The seller may insert and update but not delete.
+       */
+      cash_sale_return_details: {
+        Row: {
+          cash_sale_id: string;
+          seller_id: string;
+          address_label: string;
+          place_id: string | null;
+          country_code: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          cash_sale_id: string;
+          seller_id: string;
+          address_label: string;
+          place_id?: string | null;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          cash_sale_id?: string;
+          seller_id?: string;
+          address_label?: string;
+          place_id?: string | null;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cash_sale_return_details_pkey';
+            columns: ['cash_sale_id'];
+            isOneToOne: true;
+            referencedRelation: 'cash_sales';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_sale_return_details_seller_id_fkey';
+            columns: ['seller_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      /**
        * Protected postal addresses for a posted trade (0057).
        *
        * TWO rows per trade, keyed `(trade_id, trader_id)`, because a swap posts in

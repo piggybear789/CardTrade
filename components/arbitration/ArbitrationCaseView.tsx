@@ -16,16 +16,19 @@ import {
   ExternalLink,
   FileText,
   Gavel,
+  Package,
+  RotateCcw,
   Scale,
   Users,
 } from 'lucide-react';
 
-import type { ArbitrationCaseDetail } from '@/lib/actions/arbitration';
+import type { ArbitrationCaseDetail, ArbitrationShipmentLeg } from '@/lib/actions/arbitration';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { isVideoPath } from '@/lib/storage/disputeEvidenceShared';
 import {
   ARBITRATION_SLA_HOURS,
   DEADLINE_WARNING_HOURS,
+  SITUATION_LABEL,
   type ArbitrationPriority,
 } from '@/domain/arbitration/arbitrationCase';
 import { CaseNoteComposer } from '@/components/arbitration/CaseNoteComposer';
@@ -133,8 +136,55 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
   );
 }
 
+/** One tracking leg (outbound or return), rendered as a compact evidence row. */
+function ShipmentLeg({ label, leg }: { label: string; leg: ArbitrationShipmentLeg }) {
+  const hasData = leg.carrier || leg.trackingNumber || leg.shippedAt || leg.carrierDeliveredAt;
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label.includes('Return') ? (
+          <RotateCcw className="size-3 shrink-0" aria-hidden />
+        ) : (
+          <Package className="size-3 shrink-0" aria-hidden />
+        )}
+        {label}
+      </p>
+      {hasData ? (
+        <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          {leg.carrier ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">Carrier</dt>
+              <dd>{leg.carrier}</dd>
+            </div>
+          ) : null}
+          {leg.trackingNumber ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">Tracking</dt>
+              <dd className="break-all">{leg.trackingNumber}</dd>
+            </div>
+          ) : null}
+          {leg.shippedAt ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">Shipped</dt>
+              <dd>{formatContractDateTime(leg.shippedAt) ?? leg.shippedAt}</dd>
+            </div>
+          ) : null}
+          {leg.carrierDeliveredAt ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">Carrier confirmed delivery</dt>
+              <dd>{formatContractDateTime(leg.carrierDeliveredAt) ?? leg.carrierDeliveredAt}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : (
+        <p className="mt-1.5 text-sm italic text-muted-foreground">Not recorded.</p>
+      )}
+    </div>
+  );
+}
+
 export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail }) {
-  const { case: c, notes, timeline, resolution, evidence } = detail;
+  const { case: c, notes, timeline, resolution, evidence, shipment } = detail;
   const priority = PRIORITY_STYLE[c.priority];
   const overdue = c.ageHours >= ARBITRATION_SLA_HOURS;
 
@@ -162,7 +212,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
       {/* Status strip */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-4 py-3">
         <Badge variant={priority.variant}>{priority.label}</Badge>
-        <Badge variant="outline">{CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
+        <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
         <span className="mx-1 hidden text-border sm:inline">|</span>
         <span
@@ -260,6 +310,50 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               )}
             </CardContent>
           </Card>
+
+          {/* Shipment evidence — both legs of a Cash_Sale (0088). Shows whether
+              the outbound arrived and whether the return was posted/delivered. */}
+          {shipment ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Package className="size-4 text-muted-foreground" aria-hidden />
+                  <CardTitle className="text-base">Shipment evidence</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ShipmentLeg label="Outbound (seller → buyer)" leg={shipment.outbound} />
+                <ShipmentLeg label="Return (buyer → seller)" leg={shipment.returnLeg} />
+                {shipment.returnDisputedAt ? (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-destructive">
+                      Seller contested return · {formatContractDateTime(shipment.returnDisputedAt) ?? shipment.returnDisputedAt}
+                    </p>
+                    {shipment.returnDisputeReason ? (
+                      <blockquote className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed">
+                        &ldquo;{shipment.returnDisputeReason}&rdquo;
+                      </blockquote>
+                    ) : (
+                      <p className="mt-2 text-sm italic text-muted-foreground">
+                        No reason was recorded.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+                {shipment.returnLapsedAt ? (
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                      Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      The buyer did not post the return within the deadline. This is a triage
+                      signal only — it must never auto-release money to the seller.
+                    </p>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
 
           {/* What was bought */}
           {c.goods.length > 0 ? (

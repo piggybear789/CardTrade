@@ -79,6 +79,7 @@ import { CashSaleTermsDialog } from './CashSaleTermsDialog';
 import { EditContractItemsDialog } from './EditContractItemsDialog';
 import { ContractLineItemsList, type ContractLine } from './ContractLineItems';
 import { CashSaleDisputeResolution } from './CashSaleDisputeResolution';
+import { CashSaleReturnPanel } from './CashSaleReturnPanel';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { cashSaleErrorMessage } from './errorCopy';
 import { CashSaleDemoControls } from './CashSaleDemoControls';
@@ -332,6 +333,14 @@ export interface CashSaleViewProps {
    * surface whose whole job is to be read.
    */
   disputeEvidence?: DisputeEvidenceEntry[];
+  /**
+   * The Seller's return address, when a return-conditional refund is running (0088).
+   *
+   * Loaded by the page for the same reason as the delivery address: it is RLS-gated
+   * and lives in a sibling table, so the room cannot read it itself. Null until the
+   * seller has given one, which is the state the buyer's post button waits on.
+   */
+  returnAddress?: { address_label: string | null } | null;
 }
 
 /**
@@ -389,6 +398,7 @@ function CashSaleRoom({
   paymentDemoEnabled = false,
   lineItems = [],
   disputeEvidence = [],
+  returnAddress = null,
 }: CashSaleViewProps) {
   const router = useRouter();
   const { focusSection } = useContractFocus();
@@ -927,6 +937,27 @@ function CashSaleRoom({
                   ? 'Review the dispute'
                   : 'Respond to the dispute'}
               </Button>
+            ) : null}
+
+            {/* The return leg (0088). Rendered inside the action card because the
+                thing the viewer must do next IS the return — posting it, or giving
+                the buyer somewhere to post it to. */}
+            {sale.status === 'RETURN_PENDING' || sale.status === 'RETURN_IN_TRANSIT' ? (
+              <CashSaleReturnPanel
+                cashSaleId={sale.id}
+                status={sale.status}
+                viewerIsBuyer={iAmBuyer}
+                amountCents={sale.amount_cents}
+                currency={sale.currency}
+                returnAddressLabel={returnAddress?.address_label ?? null}
+                returnDeadlineAt={sale.return_deadline_at}
+                returnTrackingCarrier={sale.return_tracking_carrier}
+                returnTrackingNumber={sale.return_tracking_number}
+                returnDisputedAt={sale.return_disputed_at}
+                returnDisputeReason={sale.return_dispute_reason}
+                returnLapsedAt={sale.return_lapsed_at}
+                counterpartyName={them.name}
+              />
             ) : null}
 
             {sale.status === 'CANCELLED' || sale.status === 'FAILED' ? (

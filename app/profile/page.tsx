@@ -140,19 +140,21 @@ export default async function ProfilePage({
       {/* Reconciles a return from Stripe's hosted identity flow. Renders nothing. */}
       <IdentityReturnRefresh />
 
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em]">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your account settings and preferences.
-        </p>
-      </header>
+      {/* ONE CENTRED COLUMN for the whole surface — heading, tabs and content.
+          `mx-auto` centres the COLUMN; text inside it stays left-aligned. Capping
+          the width matters on a settings form: measured across a full desktop
+          viewport, a short label sits at one edge and its control at the other.
+          The heading and tabs share the column so all three left edges line up. */}
+      <div className="mx-auto w-full max-w-2xl">
+        <header className="mb-6">
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your account settings and preferences.
+          </p>
+        </header>
 
-      <AccountTabs activeTab={activeTab} />
+        <AccountTabs activeTab={activeTab} />
 
-      {/* One column, capped for readability. A settings form measured in full
-          viewport width puts a 24-character label at one end of the screen and its
-          control at the other. */}
-      <div className="max-w-2xl">
         {activeTab === 'profile' ? (
           <div className="space-y-8">
             {/* Picture + identity fields. The avatar saves on pick, so there is no

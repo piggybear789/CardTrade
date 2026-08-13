@@ -229,7 +229,11 @@ export default async function ProfilePage({
                 <SettingsRow
                   icon={CreditCard}
                   title={paymentMethod?.label ?? 'Card saved with Stripe'}
-                  subtitle="Charged for purchases; authorised (not charged) for trade collateral."
+                  subtitle={
+                    paymentMethod?.expiry
+                      ? `Expires ${paymentMethod.expiry} · charged for purchases, authorised (not charged) for trade collateral.`
+                      : 'Charged for purchases; authorised (not charged) for trade collateral.'
+                  }
                   trailing={
                     <AddPaymentMethodDialog
                       trigger={

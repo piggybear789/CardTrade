@@ -51,6 +51,7 @@ import type {
   PreAuthHold,
   RefundResult,
   TransferResult,
+  SavedInstrumentDetails,
   VaultedInstrument,
 } from '../types';
 import type { StripeConfig } from './config';
@@ -328,6 +329,45 @@ export class StripeService implements PaymentService, PayerService {
       brand: method.card?.brand,
       last4: method.card?.last4,
     };
+  }
+
+  /**
+   * Read a saved card's display metadata (Req 4.13 display path).
+   *
+   * OWNERSHIP IS VERIFIED, not assumed. `paymentMethods.retrieve` will happily
+   * return any instrument in the account, so the customer on the returned object
+   * is compared against `payerId` — without that, a caller who guessed a `pm_...`
+   * id could read another member's card brand and expiry.
+   *
+   * Returns null rather than throwing when the card is gone: a member who removed
+   * their card is a normal state, not a provider failure.
+   */
+  async describeInstrument(params: {
+    payerId: string;
+    sourceId: string;
+  }): Promise<SavedInstrumentDetails | null> {
+    try {
+      const method = await this.stripe.paymentMethods.retrieve(params.sourceId);
+      const owner =
+        typeof method.customer === 'string' ? method.customer : method.customer?.id;
+      if (owner !== params.payerId) return null;
+      if (!method.card) return null;
+
+      return {
+        // Title-cased here so callers never have to, and so the label reads
+        // "Visa" rather than Stripe's lowercase "visa".
+        brand: method.card.brand
+          ? method.card.brand.charAt(0).toUpperCase() + method.card.brand.slice(1)
+          : undefined,
+        last4: method.card.last4 ?? undefined,
+        expMonth: method.card.exp_month ?? undefined,
+        expYear: method.card.exp_year ?? undefined,
+      };
+    } catch {
+      // A retrieve failure is not worth surfacing on a settings page: the stored
+      // label still renders, just without the expiry line.
+      return null;
+    }
   }
 
   // --- Collateral holds ----------------------------------------------------

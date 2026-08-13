@@ -158,7 +158,17 @@ export function CashSaleDisputeResolution({
         description={
           iAmBuyer
             ? `This ends the dispute and pays ${counterpartyName} for the item. You keep what you received. This cannot be undone, and you will not be able to dispute this contract again.`
-            : `This ends the dispute and returns the full ${formatAud(amountCents)} to ${counterpartyName}. The listing goes back on sale. This cannot be undone.`
+            : // SAYS WHAT THE PLATFORM DOES AND DOES NOT DO. This previously read
+              // "The listing goes back on sale", which described the database write
+              // and left the seller to assume the goods come back with it. Nothing
+              // in this flow asks the buyer to return anything, and no return is
+              // tracked — so a refund on goods the buyer already holds is a
+              // write-off, and the relisted item is one the seller may not have.
+              // Saying so is the difference between a decision and a surprise.
+              `This ends the dispute and returns the full ${formatAud(amountCents)} to ${counterpartyName}. ` +
+              `They are NOT required to send the item back, and NoDitto does not arrange or track a return — ` +
+              `if you want it returned, agree that with them in the chat first. ` +
+              `Your listing goes back on sale, so only relist if you still have the item. This cannot be undone.`
         }
         confirmLabel={iAmBuyer ? 'Release the payment' : 'Refund in full'}
         confirmVariant="destructive"

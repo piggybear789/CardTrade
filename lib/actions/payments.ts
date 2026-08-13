@@ -203,6 +203,14 @@ export interface PaymentMethodStatus {
   hasPaymentMethod: boolean;
   /** Display label like "Visa •••• 4242". Null when no method exists. */
   label: string | null;
+  /**
+   * Expiry as `MM/YY`, read LIVE from the provider and never stored.
+   *
+   * Null whenever it could not be read — no card, a provider that does not
+   * implement the read, or a failed call. Callers must treat it as optional
+   * decoration: the label alone already identifies the card.
+   */
+  expiry: string | null;
 }
 
 /**
@@ -223,12 +231,36 @@ export async function getPaymentMethodStatus(): Promise<
   const admin = createAdminClient();
   const { data } = await admin
     .from('profiles')
-    .select('payment_source_id, payment_method_label')
+    .select('payment_source_id, payment_method_label, payer_id')
     .eq('id', user.id)
     .maybeSingle();
 
   const hasPaymentMethod = Boolean(data?.payment_source_id);
   const label = (data?.payment_method_label as string | null) ?? null;
 
-  return ok({ hasPaymentMethod, label });
+  // Expiry is read LIVE and never persisted — see `describeInstrument` on the seam
+  // for why (the steering doc forbids instrument fields like expiry in a table).
+  //
+  // BEST-EFFORT BY DESIGN. This is decoration on a settings row, so a provider
+  // outage must not fail the page or block the rest of the status. Anything that
+  // goes wrong — no payer, no source, a provider without the method, a thrown
+  // request — leaves `expiry` null and the label still renders.
+  let expiry: string | null = null;
+  const payerId = (data?.payer_id as string | null) ?? null;
+  const sourceId = (data?.payment_source_id as string | null) ?? null;
+  if (payerId && sourceId) {
+    try {
+      const payments = getPaymentService();
+      const details = await payments.describeInstrument?.({ payerId, sourceId });
+      if (details?.expMonth && details.expYear) {
+        const month = String(details.expMonth).padStart(2, '0');
+        const year = String(details.expYear).slice(-2);
+        expiry = `${month}/${year}`;
+      }
+    } catch {
+      // Deliberately silent: see above.
+    }
+  }
+
+  return ok({ hasPaymentMethod, label, expiry });
 }

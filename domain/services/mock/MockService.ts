@@ -44,6 +44,7 @@ import type {
   RefundResult,
   SignedWebhookEnvelope,
   TransferResult,
+  SavedInstrumentDetails,
   VaultedInstrument,
   WebhookEmitter,
   WebhookEvent,
@@ -462,6 +463,27 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
       sourceId: `src_${shortHash(`${params.payerId}:${params.setupId}`)}`,
       brand: 'visa',
       last4: '4242',
+    };
+  }
+
+  /**
+   * Report the simulated card's display metadata.
+   *
+   * Deterministic, like the rest of this service: the same payer always sees the
+   * same card. The expiry is derived rather than hardcoded so the mock card never
+   * silently becomes an EXPIRED card as real time passes — a fixed '2028' would
+   * eventually make local dev look broken for no reason.
+   */
+  async describeInstrument(params: {
+    payerId: string;
+    sourceId: string;
+  }): Promise<SavedInstrumentDetails | null> {
+    if (!params.sourceId) return null;
+    return {
+      brand: 'Visa',
+      last4: '4242',
+      expMonth: 9,
+      expYear: new Date().getUTCFullYear() + 2,
     };
   }
 

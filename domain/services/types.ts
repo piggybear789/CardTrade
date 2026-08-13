@@ -282,6 +282,26 @@ export interface VaultedInstrument {
   last4?: string;
 }
 
+/**
+ * Display metadata for an already-vaulted instrument, read live from the provider.
+ *
+ * DISPLAY ONLY, AND DELIBERATELY NOT PERSISTED. Every field here is safe to show —
+ * none is sensitive authentication data — but `expMonth`/`expYear` are named in the
+ * steering doc's list of instrument fields that must not reach a table, a schema, a
+ * form payload or component state. They exist on this type so a settings page can
+ * render "Expires 09/28" from a live read, and nowhere else.
+ */
+export interface SavedInstrumentDetails {
+  /** e.g. `Visa`, `Mastercard`. Already title-cased by the binding. */
+  brand?: string;
+  /** Last four digits. */
+  last4?: string;
+  /** Expiry month, 1-12. */
+  expMonth?: number;
+  /** Four-digit expiry year. */
+  expYear?: number;
+}
+
 // The retired payer-gate types lived here: `KycResult`, `IdentityCheckSession`
 // and `VerifiedIdentitySummary`. All three are gone along with the separate
 // verification gate — that gate was a SECOND opinion about identity running beside
@@ -572,6 +592,27 @@ export interface PaymentService {
     payerId: string;
     setupId: string;
   }): Promise<VaultedInstrument>;
+  /**
+   * Read a vaulted instrument's DISPLAY metadata back from the provider.
+   *
+   * WHY THIS IS A READ AND NOT A STORED COLUMN. Expiry is explicitly on the list
+   * of payer instrument fields the Stripe steering doc forbids putting in a table,
+   * a schema, an action payload or component state. Fetching it for display at
+   * render time keeps that rule intact: nothing is persisted and nothing is
+   * accepted from the client. It also cannot go stale, which a stored copy would
+   * once Stripe's card-updater refreshes an expiring card.
+   *
+   * Implementations MUST verify the instrument belongs to `payerId`, for the same
+   * reason `completeInstrumentSetup` does: otherwise a caller could read someone
+   * else's card details by guessing an id.
+   *
+   * Returns null when the instrument no longer exists at the provider — a deleted
+   * card is not an error, it is a member with no saved method.
+   */
+  describeInstrument?(params: {
+    payerId: string;
+    sourceId: string;
+  }): Promise<SavedInstrumentDetails | null>;
   /**
    * Open a sub-merchant so a User can be paid (Cash_Sale seller, fraud victim).
    * Optional on the contract: a provider without a platform/marketplace model

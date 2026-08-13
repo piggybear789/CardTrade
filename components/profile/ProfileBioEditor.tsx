@@ -47,11 +47,14 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
         value={bio}
         onChange={(event) => setBio(event.target.value.slice(0, BIO_MAX))}
         placeholder="Tell other collectors what you trade, how you pack, how fast you post…"
-        rows={3}
+        // Roomy by default. At three rows a 280-character bio scrolled inside its own
+        // field while typing, which hides the start of what you wrote; five fits the
+        // full cap without scrolling at this width.
+        rows={5}
         maxLength={BIO_MAX}
         disabled={isPending}
         aria-describedby="bio-counter"
-        className="resize-none"
+        className="resize-y"
       />
       <div className="flex items-center justify-between gap-3">
         {/* Not a live region: it updates on every keystroke, which would make a

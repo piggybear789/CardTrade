@@ -174,22 +174,9 @@ export default async function ProfilePage({
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
                     <SectionLabel>Display name</SectionLabel>
-                    {/* Name, verified pill and Edit on ONE line. Edit was a separate
-                        row under the email, which orphaned it from the field it edits
-                        and made the card a row taller than it needed to be. */}
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="text-sm font-medium">{profile.display_name}</p>
-                      {identityVerified ? (
-                        <StatusPill tone="verified" icon={ShieldCheck}>
-                          Verified
-                        </StatusPill>
-                      ) : null}
-                      <EditProfileDialog
-                        avatarPath={profile.avatar_path}
-                        displayName={profile.display_name}
-                        contactEmail={profile.contact_email}
-                      />
-                    </div>
+                    <p className="mt-1 truncate text-sm font-medium">
+                      {profile.display_name}
+                    </p>
                   </div>
                   <div>
                     <SectionLabel>Email</SectionLabel>
@@ -197,6 +184,25 @@ export default async function ProfilePage({
                       {profile.contact_email}
                     </p>
                   </div>
+                </div>
+
+                {/* STATUS AND ACTION IN THE CORNER, not on the name line. Three items
+                    inline after the display name made that one row carry the value, a
+                    status and a control, so none of them read as primary — and a long
+                    name pushed the control off the end. A fixed corner also means the
+                    Edit affordance sits in the same place regardless of name length or
+                    whether the verified pill is present at all. */}
+                <div className="flex shrink-0 items-center gap-2">
+                  {identityVerified ? (
+                    <StatusPill tone="verified" icon={ShieldCheck}>
+                      Verified
+                    </StatusPill>
+                  ) : null}
+                  <EditProfileDialog
+                    avatarPath={profile.avatar_path}
+                    displayName={profile.display_name}
+                    contactEmail={profile.contact_email}
+                  />
                 </div>
               </div>
             </div>

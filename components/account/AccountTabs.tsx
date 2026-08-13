@@ -23,14 +23,21 @@ export function AccountTabs({ activeTab }: { activeTab: string }) {
                 href={tab.id === 'profile' ? '/profile' : `/profile?tab=${tab.id}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center border-b-2 pb-3 text-sm font-medium transition-colors',
+                  'relative inline-flex items-center px-1 pb-3 text-sm font-medium transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  active
-                    ? 'border-foreground text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                  active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 {tab.label}
+                {/* Indicator as an absolutely-positioned bar rather than a
+                    `border-b`, so it can be thicker than the nav's own hairline and
+                    carry a rounded cap without shifting the label. */}
+                {active ? (
+                  <span
+                    className="absolute inset-x-0 -bottom-px h-0.5 rounded-t-full bg-gold"
+                    aria-hidden
+                  />
+                ) : null}
               </Link>
             </li>
           );

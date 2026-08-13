@@ -165,6 +165,7 @@ export default async function ProfilePage({
                   avatarPath={profile.avatar_path}
                   displayName={profile.display_name}
                   hideHint
+                  compact
                 />
                 <div className="min-w-0 flex-1 space-y-4">
                   <div>
@@ -219,7 +220,12 @@ export default async function ProfilePage({
                   trailing={
                     <AddPaymentMethodDialog
                       trigger={
-                        <Button type="button" variant="outline" size="sm">
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-sm font-medium no-underline hover:underline"
+                        >
                           Replace
                         </Button>
                       }

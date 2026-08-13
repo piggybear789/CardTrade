@@ -251,15 +251,14 @@ export function PayoutOnboarding({
       <CardContent className="space-y-3">
         {state.merchantStatus === 'APPROVED' && !needsPayoutCompletion ? (
           <div className="space-y-3">
-            <div className="flex gap-3 rounded-lg border px-3 py-2.5">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
-              <div className="min-w-0 space-y-0.5 text-sm leading-snug">
-                <p className="font-medium text-foreground">This is what buyers may see</p>
-                <p className="text-muted-foreground">
-                  Your provider-reported name may be disclosed to a buyer for an agreed sale.
-                  NoDitto never shows your address or bank details.
-                </p>
-              </div>
+            {/* PLAIN TEXT, NO NESTED BOX — see the same note in IdentityCheckCard.
+                The card is the container; this note does not need a second one. */}
+            <div className="space-y-0.5 text-sm leading-snug">
+              <p className="font-medium text-foreground">This is what buyers may see</p>
+              <p className="text-muted-foreground">
+                Your provider-reported name may be disclosed to a buyer for an agreed sale.
+                NoDitto never shows your address or bank details.
+              </p>
             </div>
             <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
               <div className="min-w-0">

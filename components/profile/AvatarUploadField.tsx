@@ -16,7 +16,7 @@
 // member navigates away. Onboarding also has no save button of its own for this.
 
 import * as React from 'react';
-import { Loader2, Trash2, Upload } from 'lucide-react';
+import { Camera, Loader2, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -34,6 +34,17 @@ export interface AvatarUploadFieldProps {
   disabled?: boolean;
   /** Hides the explanatory line where the surrounding surface already says it. */
   hideHint?: boolean;
+  /**
+   * Render the picker as a small camera badge on the avatar instead of a labelled
+   * button beside it.
+   *
+   * NOT the default, deliberately. Onboarding shows this field to someone who has
+   * never seen the app, where an explicit "Add a picture" button is worth the
+   * space; a 24px glyph is far less discoverable. Settings is the opposite case —
+   * the member came looking for it, and a full-width button beside a 64px avatar
+   * dominates a row that is meant to be secondary to the name and email beside it.
+   */
+  compact?: boolean;
 }
 
 export function AvatarUploadField({
@@ -42,6 +53,7 @@ export function AvatarUploadField({
   onChange,
   disabled = false,
   hideHint = false,
+  compact = false,
 }: AvatarUploadFieldProps) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [path, setPath] = React.useState<string | null>(avatarPath);
@@ -87,6 +99,66 @@ export function AvatarUploadField({
 
   const isBusy = busy !== null;
   const controlsDisabled = disabled || isBusy;
+
+  // Declared once and rendered by whichever branch runs below. `accept` is
+  // advisory only; the bucket and the server both enforce the real allowlist,
+  // because a signed upload never passes through our server.
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept={ALLOWED_AVATAR_TYPES.join(',')}
+      onChange={handleFile}
+      className="sr-only"
+      tabIndex={-1}
+      aria-hidden="true"
+    />
+  );
+
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center gap-1.5">
+        <div className="relative">
+          <Avatar avatarPath={path} displayName={displayName} size="xl" />
+          {/* The badge IS the picker. `aria-label` carries the whole meaning here,
+              since the glyph is the only visible content — without it a screen
+              reader announces an unlabelled button. */}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={controlsDisabled}
+            aria-busy={busy === 'upload'}
+            aria-label={path ? 'Change picture' : 'Add a picture'}
+            className="absolute -bottom-0.5 -right-0.5 grid size-7 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors hover:bg-primary/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-65"
+          >
+            {busy === 'upload' ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Camera className="size-3.5" aria-hidden />
+            )}
+          </button>
+        </div>
+
+        {/* Kept, even though the reference has no equivalent: dropping it would
+            remove the only way to delete a picture already uploaded. Rendered as a
+            quiet text link so it does not reintroduce the button this variant
+            exists to remove. */}
+        {path ? (
+          <button
+            type="button"
+            onClick={handleClear}
+            disabled={controlsDisabled}
+            aria-busy={busy === 'clear'}
+            className="rounded-sm text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-65"
+          >
+            {busy === 'clear' ? 'Removing…' : 'Remove'}
+          </button>
+        ) : null}
+
+        {fileInput}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-4">
@@ -137,17 +209,7 @@ export function AvatarUploadField({
         )}
       </div>
 
-      {/* `accept` is advisory only; the bucket and the server both enforce the
-          real allowlist, because a signed upload never passes through our server. */}
-      <input
-        ref={inputRef}
-        type="file"
-        accept={ALLOWED_AVATAR_TYPES.join(',')}
-        onChange={handleFile}
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden="true"
-      />
+      {fileInput}
     </div>
   );
 }

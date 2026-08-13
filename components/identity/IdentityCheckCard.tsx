@@ -79,18 +79,19 @@ export function IdentityCheckCard({
 
   const body =
     status === 'VERIFIED' ? (
-      <div className="flex gap-3 rounded-lg border px-3 py-2.5">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
-        <div className="min-w-0 space-y-0.5 text-sm leading-snug">
-          <p className="font-medium text-foreground">
-            {verifiedName ? `Verified as ${verifiedName}` : 'Your identity is verified'}
-          </p>
-          <p className="text-muted-foreground">
-            {/* Says exactly what a buyer sees and nothing more. Address and document
-                numbers are never disclosed — only the name on the document. */}
-            Buyers you have an agreed sale or trade with may be shown this name.
-          </p>
-        </div>
+      // PLAIN TEXT, NO NESTED BOX. This was a bordered panel carrying its own copy
+      // of the header's shield, so one fact rendered as a card inside a card and the
+      // inner box outweighed the heading that introduced it. The card is already the
+      // container; its content does not need a second one.
+      <div className="space-y-0.5 text-sm leading-snug">
+        <p className="font-medium text-foreground">
+          {verifiedName ? `Verified as ${verifiedName}` : 'Your identity is verified'}
+        </p>
+        <p className="text-muted-foreground">
+          {/* Says exactly what a buyer sees and nothing more. Address and document
+              numbers are never disclosed — only the name on the document. */}
+          Buyers you have an agreed sale or trade with may be shown this name.
+        </p>
       </div>
     ) : (
       <div className="space-y-4">

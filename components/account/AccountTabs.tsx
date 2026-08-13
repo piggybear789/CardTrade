@@ -2,8 +2,7 @@
 
 // components/account/AccountTabs.tsx
 //
-// Tab strip for the account settings page. Uses a `?tab=` query parameter
-// rather than separate routes so both tabs share one page and one data fetch.
+// Underline tab strip for account settings. Uses `?tab=` query parameter.
 
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -15,8 +14,8 @@ const TABS = [
 
 export function AccountTabs({ activeTab }: { activeTab: string }) {
   return (
-    <nav aria-label="Account sections" className="mb-6 border-b">
-      <ul className="flex gap-1">
+    <nav aria-label="Account sections" className="mb-8 border-b">
+      <ul className="-mb-px flex gap-6">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -25,11 +24,11 @@ export function AccountTabs({ activeTab }: { activeTab: string }) {
                 href={tab.id === 'profile' ? '/profile' : `/profile?tab=${tab.id}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  'inline-flex items-center border-b-2 pb-3 text-sm font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   active
                     ? 'border-foreground text-foreground'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >
                 {tab.label}

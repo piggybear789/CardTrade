@@ -32,7 +32,7 @@ import { resolveScope } from '@/components/layout/SectionFilter';
 export const metadata = { title: 'Settings · NoDitto' };
 export const dynamic = 'force-dynamic';
 
-/** A settings section: title + description on left, content on right. */
+/** A settings section: fixed-width label left, content right, all left-aligned. */
 function SettingsRow({
   title,
   description,
@@ -43,14 +43,14 @@ function SettingsRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-4 border-b py-8 last:border-b-0 sm:grid-cols-[280px_1fr] sm:gap-8">
-      <div className="min-w-0">
+    <div className="flex flex-col gap-3 border-b py-7 last:border-b-0 sm:flex-row sm:gap-0">
+      <div className="w-full shrink-0 sm:w-56">
         <h3 className="text-sm font-semibold">{title}</h3>
         {description ? (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0 max-w-lg">{children}</div>
     </div>
   );
 }

@@ -53,7 +53,6 @@ export function EditProfileDialog({
           initialDisplayName={displayName}
           initialContactEmail={contactEmail}
           initialAvatarPath={avatarPath}
-          embedded
           onSaved={() => setOpen(false)}
         />
       </DialogContent>

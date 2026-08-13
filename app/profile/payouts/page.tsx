@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function PayoutsRedirect() {
-  redirect('/profile?tab=payments');
+  redirect('/profile?tab=payouts');
 }

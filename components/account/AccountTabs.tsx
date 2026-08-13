@@ -1,15 +1,14 @@
 'use client';
 
 // components/account/AccountTabs.tsx
-//
-// Underline tab strip for account settings. Uses `?tab=` query parameter.
 
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 const TABS = [
   { id: 'profile', label: 'Profile' },
-  { id: 'payments', label: 'Payments' },
+  { id: 'verification', label: 'Verification' },
+  { id: 'payouts', label: 'Payouts' },
 ] as const;
 
 export function AccountTabs({ activeTab }: { activeTab: string }) {

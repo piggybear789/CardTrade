@@ -1,10 +1,7 @@
 // app/profile/page.tsx
 //
-// Account settings — two tabs.
-//   Profile tab: looks like YOUR profile page (preview of what others see + edit controls)
-//   Payments tab: clean settings rows for card + payouts
-//
-// Profile = visual, Payments = functional.
+// Account settings — three tabs: Profile, Verification, Payouts.
+// Full width, profile-preview style for Profile tab.
 
 import { redirect } from 'next/navigation';
 import { CreditCard, MapPin, ShieldCheck } from 'lucide-react';
@@ -41,7 +38,7 @@ export default async function ProfilePage({
 }) {
   const { show, tab } = await searchParams;
   const scope = resolveScope(show);
-  const activeTab = tab === 'payments' ? 'payments' : 'profile';
+  const activeTab = tab === 'verification' ? 'verification' : tab === 'payouts' ? 'payouts' : 'profile';
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -90,16 +87,14 @@ export default async function ProfilePage({
 
       <AccountTabs activeTab={activeTab} />
 
+      {/* ═══════════ PROFILE TAB ═══════════ */}
       {activeTab === 'profile' ? (
-        <div className="max-w-2xl space-y-8">
-          {/* PROFILE CARD — preview of what others see */}
+        <div className="space-y-8">
+          {/* Profile preview card */}
           <section className="overflow-hidden rounded-xl border">
-            {/* Banner area */}
-            <div className="h-20 bg-gradient-to-r from-gold/20 via-gold/10 to-transparent" />
-
-            {/* Avatar + info */}
+            <div className="h-24 bg-gradient-to-r from-gold/20 via-gold/10 to-transparent" />
             <div className="px-6 pb-6">
-              <div className="-mt-10 flex items-end gap-4">
+              <div className="-mt-12 flex items-end gap-4">
                 <div className="rounded-full border-4 border-card bg-card">
                   <AvatarUploadField
                     avatarPath={profile.avatar_path}
@@ -123,12 +118,10 @@ export default async function ProfilePage({
                 />
               </div>
 
-              {/* Bio */}
               <div className="mt-4">
                 <ProfileBioEditor initialBio={(profile.bio as string | null) ?? ''} />
               </div>
 
-              {/* Meta row: email, region */}
               <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span>{profile.contact_email}</span>
                 {profile.region_code ? (
@@ -141,114 +134,126 @@ export default async function ProfilePage({
             </div>
           </section>
 
-          {/* SOCIAL LINKS */}
+          {/* Social Links */}
           <section>
-            <h3 className="mb-3 text-sm font-semibold">Social Links</h3>
+            <h3 className="mb-1 text-sm font-semibold">Social Links</h3>
             <p className="mb-4 text-xs text-muted-foreground">
               Visible on your seller profile and in contract rooms.
             </p>
             <SocialLinksEditor initialLinks={(profile.social_links as Record<string, string> | null) ?? null} />
           </section>
 
-          {/* IDENTITY VERIFICATION */}
+          {/* Payment Method — belongs in Profile since it's about your buying identity */}
           <section>
-            <h3 className="mb-3 text-sm font-semibold">Identity Verification</h3>
+            <h3 className="mb-1 text-sm font-semibold">Payment Method</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Card on file for purchases and trade collateral holds.
+            </p>
+            {paymentMethod?.hasPaymentMethod ? (
+              <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="size-5 text-muted-foreground" aria-hidden />
+                  <span className="text-sm font-medium">{paymentMethod.label ?? 'Card saved'}</span>
+                </div>
+                <AddPaymentMethodDialog
+                  trigger={<Button type="button" variant="ghost" size="sm">Replace</Button>}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-between rounded-lg border border-dashed px-4 py-4">
+                <span className="text-sm text-muted-foreground">No card saved yet</span>
+                <AddPaymentMethodDialog
+                  trigger={<Button type="button" variant="outline" size="sm">Add card</Button>}
+                />
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+
+      {/* ═══════════ VERIFICATION TAB ═══════════ */}
+      {activeTab === 'verification' ? (
+        <div className="space-y-8">
+          <section>
+            <h3 className="mb-1 text-sm font-semibold">Identity Verification</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Photo ID + selfie via Stripe. Required to list, sell, or trade.
+            </p>
             {identity.ok ? (
               <IdentityCheckCard
                 status={identity.data.status}
                 verifiedName={identity.data.verifiedName}
-                returnPath="/profile"
+                returnPath="/profile?tab=verification"
               />
             ) : (
-              <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                Verification status unavailable.
-              </p>
+              <div className="rounded-lg border border-dashed px-4 py-6 text-center">
+                <p className="text-sm text-muted-foreground">Verification status unavailable.</p>
+              </div>
             )}
             {paymentDemoEnabled && identity.ok && identity.data.status !== 'VERIFIED' ? (
-              <div className="mt-3">
+              <div className="mt-4">
                 <IdentityDemoControls />
               </div>
             ) : null}
           </section>
-        </div>
-      ) : (
-        /* PAYMENTS TAB — clean settings rows */
-        <div className="max-w-2xl">
-          {/* Payment Method */}
-          <div className="border-b py-7">
-            <h3 className="text-sm font-semibold">Payment Method</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Card on file for purchases and trade collateral holds.
-            </p>
-            <div className="mt-4">
-              {paymentMethod?.hasPaymentMethod ? (
-                <div className="flex items-center justify-between rounded-lg border px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <CreditCard className="size-5 text-muted-foreground" aria-hidden />
-                    <span className="text-sm font-medium">{paymentMethod.label ?? 'Card saved'}</span>
-                  </div>
-                  <AddPaymentMethodDialog
-                    trigger={
-                      <Button type="button" variant="ghost" size="sm">
-                        Replace
-                      </Button>
-                    }
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center justify-between rounded-lg border border-dashed px-4 py-4">
-                  <span className="text-sm text-muted-foreground">No card saved yet</span>
-                  <AddPaymentMethodDialog
-                    trigger={
-                      <Button type="button" variant="outline" size="sm">
-                        Add card
-                      </Button>
-                    }
-                  />
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Payout Account */}
-          <div className="border-b py-7">
-            <h3 className="text-sm font-semibold">Payout Account</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+          <section>
+            <h3 className="mb-1 text-sm font-semibold">Trading Region</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
+              The region your contracts are scoped to. Set during onboarding.
+            </p>
+            {profile.region_code ? (
+              <div className="inline-flex items-center gap-2 rounded-lg border px-4 py-3">
+                <MapPin className="size-4 text-muted-foreground" aria-hidden />
+                <span className="text-sm font-medium">{profile.region_code}</span>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed px-4 py-4 text-center">
+                <p className="text-sm text-muted-foreground">No region set. Complete onboarding to configure.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+
+      {/* ═══════════ PAYOUTS TAB ═══════════ */}
+      {activeTab === 'payouts' ? (
+        <div className="space-y-8">
+          <section>
+            <h3 className="mb-1 text-sm font-semibold">Payout Account</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
               Where your sale proceeds are sent. Connected via Stripe.
             </p>
-            <div className="mt-4">
-              {payoutContext.ok ? (
-                <PayoutOnboarding context={payoutContext.data} />
-              ) : (
-                <p className="rounded-lg border border-dashed px-4 py-4 text-center text-sm text-muted-foreground">
-                  Payout setup unavailable.
-                </p>
-              )}
-            </div>
-          </div>
+            {payoutContext.ok ? (
+              <PayoutOnboarding context={payoutContext.data} />
+            ) : (
+              <div className="rounded-lg border border-dashed px-4 py-6 text-center">
+                <p className="text-sm text-muted-foreground">Payout setup unavailable.</p>
+              </div>
+            )}
+          </section>
 
-          {/* Payout History */}
-          <div className="py-7">
-            <h3 className="text-sm font-semibold">Payout History</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+          <section>
+            <h3 className="mb-1 text-sm font-semibold">Payout History</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
               Your settled and pending payouts.
             </p>
-            <div className="mt-4">
-              {payoutDashboard.ok ? (
-                <PayoutsDashboard
-                  model={payoutDashboard.data.model}
-                  destination={payoutDashboard.data.destination}
-                  scope={scope}
-                />
-              ) : (
-                <p className="rounded-lg border border-dashed px-4 py-4 text-center text-sm text-muted-foreground">
+            {payoutDashboard.ok ? (
+              <PayoutsDashboard
+                model={payoutDashboard.data.model}
+                destination={payoutDashboard.data.destination}
+                scope={scope}
+              />
+            ) : (
+              <div className="rounded-lg border border-dashed px-4 py-6 text-center">
+                <p className="text-sm text-muted-foreground">
                   No payout history yet. Complete a sale to see your first payout here.
                 </p>
-              )}
-            </div>
-          </div>
+              </div>
+            )}
+          </section>
         </div>
-      )}
+      ) : null}
     </MarketplaceShell>
   );
 }

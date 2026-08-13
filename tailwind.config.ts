@@ -84,13 +84,18 @@ const config: Config = {
           "Arial",
           "sans-serif",
         ],
+        // ONE TYPEFACE. `mono` is kept as a NAME so any stray `font-mono` still
+        // resolves, but it points at the same Plus Jakarta stack — the app loads no
+        // monospace face. Reintroducing one here would put two families back on
+        // screen, which is the thing this consolidation removed.
         mono: [
-          "var(--font-geist-mono)",
-          "ui-monospace",
-          "SFMono-Regular",
-          "Menlo",
-          "Consolas",
-          "monospace",
+          "var(--font-plus-jakarta)",
+          "ui-sans-serif",
+          "system-ui",
+          "Segoe UI",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
         ],
       },
       // SPACING RHYTHM, named by intent rather than by size.

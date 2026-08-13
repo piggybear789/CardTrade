@@ -18,9 +18,10 @@ import { cn } from '@/lib/utils';
 /**
  * Eyebrow label above a settings group.
  *
- * Reuses the existing `market-label` component class (mono, uppercase, tracked)
- * rather than re-specifying those three properties, so the account pages speak
- * the same typographic language as the rest of the app.
+ * Reuses the existing `market-label` component class (uppercase, tracked) rather
+ * than re-specifying those properties, so the account pages speak the same
+ * typographic language as the rest of the app. That class is single-family sans —
+ * see the note on it in `globals.css`.
  */
 export function SectionLabel({
   children,
@@ -91,7 +92,7 @@ export function StatusPill({
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1',
-        'font-mono text-[0.6875rem] font-medium',
+        'text-[0.6875rem] font-medium',
         TONE_CLASS[tone],
       )}
     >
@@ -218,7 +219,8 @@ export function StatTile({
         <IconMedallion icon={icon} tone={tone} />
         <p className="min-w-0 text-xs text-muted-foreground">{label}</p>
       </div>
-      {/* `display-value` is the existing ledger-figure class (mono, tabular). */}
+      {/* `display-value` is the existing ledger-figure class: sans, bold, with
+          tabular figures so columns of money align. */}
       <p className="display-value mt-3 text-xl">{value}</p>
       {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
     </div>

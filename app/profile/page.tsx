@@ -158,25 +158,37 @@ export default async function ProfilePage({
         {activeTab === 'profile' ? (
           <div className="space-y-8">
             {/* Picture + identity fields. The avatar saves on pick, so there is no
-                form-submit step to coordinate here. */}
+                form-submit step to coordinate here.
+                `items-start` + a matching top offset on the avatar: the avatar and the
+                first eyebrow label must share a top edge, which centring broke — a
+                64px circle beside two stacked fields centres itself against their
+                combined height and floats below the label it belongs to. */}
             <div className="rounded-xl border bg-card p-5">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+              <div className="flex items-start gap-5">
                 <AvatarUploadField
                   avatarPath={profile.avatar_path}
                   displayName={profile.display_name}
                   hideHint
                   compact
                 />
-                <div className="min-w-0 flex-1 space-y-4">
+                <div className="min-w-0 flex-1 space-y-3">
                   <div>
                     <SectionLabel>Display name</SectionLabel>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {/* Name, verified pill and Edit on ONE line. Edit was a separate
+                        row under the email, which orphaned it from the field it edits
+                        and made the card a row taller than it needed to be. */}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="text-sm font-medium">{profile.display_name}</p>
                       {identityVerified ? (
                         <StatusPill tone="verified" icon={ShieldCheck}>
                           Verified
                         </StatusPill>
                       ) : null}
+                      <EditProfileDialog
+                        avatarPath={profile.avatar_path}
+                        displayName={profile.display_name}
+                        contactEmail={profile.contact_email}
+                      />
                     </div>
                   </div>
                   <div>
@@ -185,11 +197,6 @@ export default async function ProfilePage({
                       {profile.contact_email}
                     </p>
                   </div>
-                  <EditProfileDialog
-                    avatarPath={profile.avatar_path}
-                    displayName={profile.display_name}
-                    contactEmail={profile.contact_email}
-                  />
                 </div>
               </div>
             </div>

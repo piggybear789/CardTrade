@@ -144,7 +144,7 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
         <p className="text-sm font-semibold">
           {entry.mine ? 'Your statement' : entry.authorName}
         </p>
-        <span className="font-mono text-xs tabular-nums text-muted-foreground">
+        <span className="text-xs tabular-nums text-muted-foreground">
           {formatContractDateTime(entry.createdAt) ?? entry.createdAt}
         </span>
       </div>
@@ -345,7 +345,7 @@ export function DisputeEvidencePanel({
                   <span
                     id="evidence-statement-count"
                     className={cn(
-                      'font-mono text-xs tabular-nums',
+                      'text-xs tabular-nums',
                       remaining < 100 ? 'text-destructive' : 'text-muted-foreground',
                     )}
                   >
@@ -363,7 +363,7 @@ export function DisputeEvidencePanel({
                   Photos or video{' '}
                   <span className="font-normal text-muted-foreground">(optional)</span>
                 </label>
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                <span className="text-xs tabular-nums text-muted-foreground">
                   {files.length}/{EVIDENCE_FILES_MAX}
                 </span>
               </div>
@@ -376,7 +376,7 @@ export function DisputeEvidencePanel({
                       className="inline-flex max-w-full items-center gap-1.5 rounded-lg border bg-muted/60 py-1 pl-2.5 pr-1 text-xs"
                     >
                       <span className="truncate">{file.name}</span>
-                      <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
                         {(file.size / (1024 * 1024)).toFixed(1)} MB
                       </span>
                       <button

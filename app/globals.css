@@ -73,9 +73,13 @@
 
   /* Eyebrow labels and ledger figures speak in mono; everything else is
      Geist Sans. */
+  /* ONE TYPEFACE APP-WIDE. These were `font-mono` (Geist Mono) while body copy
+     was Plus Jakarta Sans, so any surface pairing a label with a sentence showed
+     two families at once. Uppercase + tracking already does the work of making a
+     label read as a label; a second family was never carrying that distinction. */
   .cardtrade-eyebrow,
   .market-label {
-    @apply font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em];
+    @apply font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.12em];
   }
 
   .cardtrade-eyebrow {
@@ -115,8 +119,12 @@
     background: hsl(var(--parchment));
   }
 
+  /* Sans, not mono — same single-typeface rule as the labels above. The COLUMN
+     ALIGNMENT that mattered here comes from `tabular-nums`, which is a font
+     FEATURE rather than a family, so money still lines up digit-for-digit
+     without a second typeface. */
   .display-value {
-    @apply font-mono font-bold tabular-nums tracking-[-0.01em];
+    @apply font-sans font-bold tabular-nums tracking-[-0.01em];
     font-variant-numeric: lining-nums tabular-nums;
   }
 

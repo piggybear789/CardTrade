@@ -56,7 +56,7 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
       <div className="flex items-center justify-between gap-3">
         {/* Not a live region: it updates on every keystroke, which would make a
             screen reader interrupt the user continuously as they type. */}
-        <span id="bio-counter" className="font-mono text-xs text-muted-foreground">
+        <span id="bio-counter" className="text-xs text-muted-foreground">
           {bio.length}/{BIO_MAX}
         </span>
         {dirty || justSaved ? (

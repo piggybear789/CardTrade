@@ -1,24 +1,25 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
-import { GeistMono } from 'geist/font/mono';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { Toaster } from '@/components/ui/sonner';
-import { cn } from '@/lib/utils';
 import './globals.css';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
-// Plus Jakarta Sans for headings and body — rounder, friendlier geometry than
-// Geist while still professional. Geist Mono stays for labels and ledger data.
+// ONE TYPEFACE. Plus Jakarta Sans for everything — headings, body, eyebrow labels
+// and ledger figures alike. Geist Mono was previously loaded for labels and money,
+// which meant two families on any surface pairing a label with a sentence. Column
+// alignment for money is preserved by `tabular-nums` in `.display-value`, a font
+// FEATURE that does not need a second family. Nothing references `font-mono` now,
+// so loading it was a download for no rendered glyphs.
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-plus-jakarta',
   display: 'swap',
 });
-const geistMono = GeistMono;
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
 
@@ -76,7 +77,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(plusJakarta.variable, geistMono.variable)}
+      className={plusJakarta.variable}
     >
       <head>
         <link rel="preconnect" href="https://images.pokemontcg.io" />

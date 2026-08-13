@@ -119,6 +119,17 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     inspectionAcceptedAt: row.inspection_accepted_at,
     carrierDeliveredAt: row.carrier_delivered_at,
     inspectionDeadlineAt: row.inspection_deadline_at,
+    // Return leg (0088), kept separate from the outbound fields above.
+    returnTrackingCarrier: row.return_tracking_carrier,
+    returnTrackingNumber: row.return_tracking_number,
+    returnTrackingUrl: row.return_tracking_url,
+    returnTrackingStatus: row.return_tracking_status,
+    returnShippedAt: row.return_shipped_at,
+    returnCarrierDeliveredAt: row.return_carrier_delivered_at,
+    returnDeadlineAt: row.return_deadline_at,
+    returnWarnedAt: row.return_warned_at,
+    returnDisputedAt: row.return_disputed_at,
+    returnDisputeReason: row.return_dispute_reason,
     autoCompleted: row.auto_completed,
     buyerHandoverConfirmedAt: row.buyer_handover_confirmed_at,
     sellerHandoverConfirmedAt: row.seller_handover_confirmed_at,
@@ -783,7 +794,8 @@ export function createSupabaseCashSaleRepository(
       outcome: CashSaleDisputeOutcome;
       resolvedBy: string;
       resolvedAt: string;
-      status: 'COMPLETED' | 'REFUNDED';
+      status: 'COMPLETED' | 'REFUNDED' | 'RETURN_PENDING';
+      returnDeadlineAt?: string;
     }) {
       const { data } = await client
         .from('cash_sales')
@@ -793,12 +805,83 @@ export function createSupabaseCashSaleRepository(
           dispute_resolved_at: params.resolvedAt,
           status: params.status,
           ...(params.status === 'COMPLETED' ? { completed_at: params.resolvedAt } : {}),
+          // Only set when entering the return flow; a COMPLETED or directly REFUNDED
+          // resolution has no return and must not carry a deadline that a sweep would
+          // then act on.
+          ...(params.status === 'RETURN_PENDING' && params.returnDeadlineAt
+            ? { return_deadline_at: params.returnDeadlineAt }
+            : {}),
         })
         .eq('id', params.cashSaleId)
         // Conditional on the expected state, so two operators resolving the same
         // dispute concurrently means the second update matches nothing rather than
         // overwriting the first decision.
         .eq('status', 'DISPUTED')
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async recordReturnShipment(params: {
+      cashSaleId: string;
+      carrier: string;
+      trackingNumber: string;
+      trackingUrl: string | null;
+      trackingStatus: string | null;
+      shippedAt: string;
+    }) {
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          status: 'RETURN_IN_TRANSIT',
+          return_tracking_carrier: params.carrier,
+          return_tracking_number: params.trackingNumber,
+          return_tracking_url: params.trackingUrl,
+          return_tracking_status: params.trackingStatus,
+          return_shipped_at: params.shippedAt,
+        })
+        .eq('id', params.cashSaleId)
+        // Only from RETURN_PENDING, and only once: `.is(return_shipped_at, null)`
+        // makes a second submission match nothing rather than replacing the carrier
+        // already on record, which arbitration may be relying on.
+        .eq('status', 'RETURN_PENDING')
+        .is('return_shipped_at', null)
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async recordReturnFinalised(params: { cashSaleId: string }) {
+      const { data } = await client
+        .from('cash_sales')
+        .update({ status: 'REFUNDED' })
+        .eq('id', params.cashSaleId)
+        // Guarded so a duplicate carrier event cannot re-close a closed sale, and so
+        // a contested return (which an operator must decide) is never auto-closed.
+        .eq('status', 'RETURN_IN_TRANSIT')
+        .not('return_carrier_delivered_at', 'is', null)
+        .is('return_disputed_at', null)
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async recordReturnDispute(params: {
+      cashSaleId: string;
+      reason: string;
+      disputedAt: string;
+    }) {
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          return_disputed_at: params.disputedAt,
+          return_dispute_reason: params.reason,
+        })
+        .eq('id', params.cashSaleId)
+        // Once only: a Seller cannot overwrite their own earlier account of what was
+        // wrong with the return, for the same reason dispute evidence is append-only.
+        .is('return_disputed_at', null)
+        .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT'])
         .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;

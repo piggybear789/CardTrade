@@ -226,6 +226,26 @@ export interface CashSaleRecord {
   carrierDeliveredAt: string | null;
   /** When an untouched INSPECTION contract completes on its own. */
   inspectionDeadlineAt: string | null;
+  /**
+   * The RETURN leg of a return-conditional refund (0088).
+   *
+   * Kept entirely separate from the outbound `tracking*` fields above: a return event
+   * must never overwrite the delivery record that the original inspection — and any
+   * arbitration — reads back.
+   */
+  returnTrackingCarrier: string | null;
+  returnTrackingNumber: string | null;
+  returnTrackingUrl: string | null;
+  returnTrackingStatus: string | null;
+  returnShippedAt: string | null;
+  /** Carrier-confirmed delivery of the return TO THE SELLER. Releases the refund. */
+  returnCarrierDeliveredAt: string | null;
+  /** When the Buyer must have DISPATCHED the return by. */
+  returnDeadlineAt: string | null;
+  returnWarnedAt: string | null;
+  /** Set when the Seller contests the return; freezes the automatic refund. */
+  returnDisputedAt: string | null;
+  returnDisputeReason: string | null;
   autoCompleted: boolean;
   buyerHandoverConfirmedAt: string | null;
   sellerHandoverConfirmedAt: string | null;
@@ -622,15 +642,52 @@ export interface CashSaleRepository {
     error?: string;
   }): Promise<CashSaleRecord | null>;
   /**
-   * Persist the operator's decision and the resulting terminal status. Only a
-   * DISPUTED sale transitions, so a concurrent second resolution is a no-op.
+   * Persist the operator's decision and the resulting status. Only a DISPUTED sale
+   * transitions, so a concurrent second resolution is a no-op.
+   *
+   * `RETURN_PENDING` is a full refund that is WAITING ON THE GOODS (0088): the
+   * decision is recorded, but the money does not move and the Item is not relisted
+   * until the return is carrier-confirmed.
    */
   recordDisputeResolution(params: {
     cashSaleId: string;
     outcome: CashSaleDisputeOutcome;
     resolvedBy: string;
     resolvedAt: string;
-    status: 'COMPLETED' | 'REFUNDED';
+    status: 'COMPLETED' | 'REFUNDED' | 'RETURN_PENDING';
+    /** Dispatch deadline, set only when entering RETURN_PENDING. */
+    returnDeadlineAt?: string;
+  }): Promise<CashSaleRecord | null>;
+  /**
+   * Stamp the Buyer's return shipment and move RETURN_PENDING -> RETURN_IN_TRANSIT.
+   *
+   * Guarded so it applies at most once and only from RETURN_PENDING: a second
+   * submission, or one arriving after the case went back to arbitration, must not
+   * overwrite the recorded carrier. Returns null when nothing matched.
+   */
+  recordReturnShipment(params: {
+    cashSaleId: string;
+    carrier: string;
+    trackingNumber: string;
+    trackingUrl: string | null;
+    trackingStatus: string | null;
+    shippedAt: string;
+  }): Promise<CashSaleRecord | null>;
+  /**
+   * Close a return-conditional refund: RETURN_IN_TRANSIT -> REFUNDED.
+   *
+   * Separate from the refund itself, which SQL queued when the carrier confirmed.
+   * Guarded on the current status so a duplicate carrier event cannot re-close a
+   * sale that already closed.
+   */
+  recordReturnFinalised(params: {
+    cashSaleId: string;
+  }): Promise<CashSaleRecord | null>;
+  /** Record the Seller contesting a return, freezing the automatic refund. */
+  recordReturnDispute(params: {
+    cashSaleId: string;
+    reason: string;
+    disputedAt: string;
   }): Promise<CashSaleRecord | null>;
   setItemStatus(params: { itemId: string; status: ItemStatus }): Promise<void>;
   logEvent(params: {
@@ -1736,6 +1793,18 @@ export async function resolveCashSaleDispute(
     outcome: CashSaleDisputeOutcome;
     /** Required for PARTIAL_REFUND; ignored otherwise. */
     refundCents?: Cents;
+    /**
+     * Override the derived return requirement on a REFUND_BUYER outcome (0088).
+     *
+     * Omitted, `returnRequiredForRefund` decides. An operator needs both overrides:
+     * `false` when the goods are worthless or were never really delivered (an empty
+     * box is recorded as delivered), and `true` when the record does not show a
+     * delivery but the Buyer has the goods anyway.
+     *
+     * Ignored for every other outcome — PARTIAL_REFUND exists precisely so the Buyer
+     * KEEPS the item, and RELEASE_SELLER moves no goods at all.
+     */
+    requireReturn?: boolean;
   },
 ): Promise<CashSaleResult> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
@@ -1763,6 +1832,21 @@ export async function resolveCashSaleDispute(
     // Nothing was ever collected, so there is nothing to send back. Refusing is
     // safer than reporting a refund that cannot happen.
     return { ok: false, error: 'NOTHING_TO_REFUND' };
+  }
+
+  // RETURN-CONDITIONAL REFUND (0088). A full refund on goods the Buyer holds waits
+  // for the goods, so this returns BEFORE any money moves and before the Item is
+  // relisted. Both of those happen in `finalizeReturnedCashSale`, once a carrier has
+  // confirmed the return reached the Seller.
+  //
+  // Ordering is goods-first because the platform already holds the funds: the Buyer
+  // is no worse off than they were a moment ago, while refunding first would put the
+  // entire loss on the Seller with no recourse. Their protection is that the refund
+  // then releases AUTOMATICALLY on carrier confirmation — the Seller cannot sit on it.
+  const fullRefund = params.outcome === 'REFUND_BUYER';
+  const requireReturn = params.requireReturn ?? returnRequiredForRefund(sale);
+  if (fullRefund && requireReturn) {
+    return beginCashSaleReturn(deps, sale, params);
   }
 
   const queued = await deps.repository.markRefundDue({
@@ -1808,6 +1892,265 @@ export async function resolveCashSaleDispute(
   });
 
   return completeResolvedDispute(deps, sale, params, refundTarget);
+}
+
+/**
+ * How long the Buyer has to DISPATCH a return, in days (0088).
+ *
+ * A dispatch deadline, not an arrival one: the Buyer controls handing a parcel to a
+ * carrier and cannot control how long it then takes. Judging them on arrival would
+ * penalise them for the carrier's performance.
+ */
+export const RETURN_DISPATCH_DAYS = 7;
+
+/**
+ * Whether a full refund on this sale must wait for the goods to come back (0088).
+ *
+ * DERIVED, NOT ASKED. The question is only ever "did the goods reach the Buyer", and
+ * the contract already records that four different ways depending on the fulfilment
+ * method:
+ *
+ *   - a carrier confirmed delivery (`carrierDeliveredAt`)
+ *   - the Buyer confirmed receipt themselves (`receivedAt`)
+ *   - the Buyer already accepted at inspection (`inspectionAcceptedAt`)
+ *   - both parties confirmed an in-person handover
+ *
+ * Any of those means a return is owed. None of them means the goods never arrived —
+ * the lost-parcel and never-shipped cases — so the refund goes out immediately,
+ * because there is nothing to send back.
+ *
+ * Deliberately does NOT read the pre-dispute status: that is only available through a
+ * repository call (`disputeOriginStatus`), and every signal needed is already on the
+ * record. A pure function over the record is also what lets this be property-tested.
+ *
+ * An arbitrator can override in either direction, because "delivered" and "the Buyer
+ * has something worth returning" are different claims — an empty box is recorded as
+ * delivered. That override is a parameter on the resolve call, not a change here.
+ */
+export function returnRequiredForRefund(sale: CashSaleRecord): boolean {
+  return Boolean(
+    sale.carrierDeliveredAt ||
+      sale.receivedAt ||
+      sale.inspectionAcceptedAt ||
+      (sale.buyerHandoverConfirmedAt && sale.sellerHandoverConfirmedAt),
+  );
+}
+
+/**
+ * Record a full-refund decision that waits on the goods, entering RETURN_PENDING.
+ *
+ * MOVES NO MONEY AND DOES NOT RELIST. That is the entire point: the decision is
+ * recorded, the dispatch clock starts, and both the refund and the relist wait for
+ * {@link finalizeReturnedCashSale}. Relisting here would advertise goods about to be
+ * in transit — the unfulfillable listing 0064 exists to prevent — so the Item stays
+ * RESERVED throughout.
+ */
+async function beginCashSaleReturn(
+  deps: CashSaleOrchestratorDeps,
+  sale: CashSaleRecord,
+  params: { actorId: string; outcome: CashSaleDisputeOutcome },
+): Promise<CashSaleResult> {
+  const now = currentIso(deps);
+  const deadline = new Date(
+    new Date(now).getTime() + RETURN_DISPATCH_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const updated = await deps.repository.recordDisputeResolution({
+    cashSaleId: sale.id,
+    outcome: params.outcome,
+    resolvedBy: params.actorId,
+    resolvedAt: now,
+    status: 'RETURN_PENDING',
+    returnDeadlineAt: deadline,
+  });
+  if (!updated) return { ok: false, error: 'INVALID_STATE' };
+
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    event: 'RETURN_REQUIRED',
+    fromStatus: 'DISPUTED',
+    toStatus: 'RETURN_PENDING',
+    detail: `Refund approved. Buyer must dispatch the return by ${deadline}.`,
+  });
+
+  return { ok: true, sale: updated };
+}
+
+/**
+ * The Buyer handed the return to a carrier: RETURN_PENDING -> RETURN_IN_TRANSIT.
+ *
+ * Registers the shipment with the tracking provider so a carrier confirmation can
+ * arrive on its own and release the refund without either party asserting anything.
+ * Only the Buyer may call it — they are the one posting.
+ */
+export async function recordCashSaleReturnShipment(
+  deps: CashSaleOrchestratorDeps,
+  params: {
+    cashSaleId: string;
+    actorId: string;
+    carrier: string;
+    trackingNumber: string;
+  },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (sale.buyerId !== params.actorId) return { ok: false, error: 'NOT_PERMITTED' };
+  if (sale.status !== 'RETURN_PENDING') {
+    return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+
+  const carrier = params.carrier.trim();
+  const trackingNumber = params.trackingNumber.trim();
+  // Same two-character floor as the outbound leg: tracking formats vary far too much
+  // between carriers for anything stricter to be correct.
+  if (!carrier || trackingNumber.length < 2) {
+    return {
+      ok: false,
+      error: 'INVALID_TERMS',
+      detail: 'Carrier and tracking number are required.',
+    };
+  }
+
+  const registered = await deps.tracking?.registerShipment({ carrier, trackingNumber });
+
+  const updated = await deps.repository.recordReturnShipment({
+    cashSaleId: sale.id,
+    carrier: registered?.carrier ?? carrier,
+    trackingNumber: registered?.trackingNumber ?? trackingNumber,
+    trackingUrl: registered?.trackingUrl ?? null,
+    trackingStatus: registered?.status ?? null,
+    shippedAt: currentIso(deps),
+  });
+  // Null means the guarded update matched nothing: already recorded, or the status
+  // moved on while this was in flight.
+  if (!updated) return { ok: false, error: 'ALREADY_RECORDED' };
+
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    event: 'RETURN_SHIPPED',
+    fromStatus: 'RETURN_PENDING',
+    toStatus: 'RETURN_IN_TRANSIT',
+    detail: `${carrier} ${trackingNumber}`,
+  });
+
+  return { ok: true, sale: updated };
+}
+
+/**
+ * Close a return-conditional refund once a carrier confirmed the return arrived.
+ *
+ * WHY THIS IS NOT PART OF THE REFUND DRAIN. `retryCashSaleRefund` documents that it
+ * "moves no state other than the refund's own", and that is worth keeping — it runs
+ * against sales whose status already reflects a decision. This is the one case where
+ * the money landing is ALSO a state change and an Item change, so it gets its own
+ * function rather than bending that one.
+ *
+ * THE RELIST HAPPENS ONLY HERE, because this is the first moment the Seller
+ * demonstrably has the goods back.
+ *
+ * Idempotent: the status guard in `recordReturnFinalised` means a duplicate carrier
+ * event cannot close a sale twice, and the refund is deduplicated by its nonce.
+ */
+export async function finalizeReturnedCashSale(
+  deps: CashSaleOrchestratorDeps,
+  params: { cashSaleId: string },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+
+  // Already closed — idempotent success.
+  if (sale.status === 'REFUNDED') return { ok: true, sale };
+  if (sale.status !== 'RETURN_IN_TRANSIT') {
+    return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+  // A carrier confirmation is the ONLY thing that closes this, never a party's word.
+  if (!sale.returnCarrierDeliveredAt) {
+    return { ok: false, error: 'INVALID_STATE', detail: 'Return not carrier-confirmed' };
+  }
+  // The Seller contesting the return freezes the close; an operator decides instead.
+  if (sale.returnDisputedAt) {
+    return { ok: false, error: 'INVALID_STATE', detail: 'Return is contested' };
+  }
+
+  const updated = await deps.repository.recordReturnFinalised({ cashSaleId: sale.id });
+  if (!updated) return { ok: false, error: 'INVALID_STATE' };
+
+  // Only now does the Seller have the goods back, so only now may it be sold again.
+  await syncListingStatus(deps, sale, 'AVAILABLE');
+
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: null,
+    event: 'RETURN_COMPLETED',
+    fromStatus: 'RETURN_IN_TRANSIT',
+    toStatus: 'REFUNDED',
+    detail: 'Return confirmed by carrier. Refund released and listing restored.',
+  });
+
+  await notifyQuietly(deps, (notifier) =>
+    notifier.disputeResolved({
+      buyerId: sale.buyerId,
+      sellerId: sale.sellerId,
+      cashSaleId: sale.id,
+      itemTitle: sale.itemTitle,
+      outcome: 'REFUND_BUYER',
+      refundCents: Math.max(sale.refundCents ?? sale.amountCents, 0),
+      // A full refund leaves the Seller nothing, by definition of the outcome.
+      sellerNetCents: 0,
+    }),
+  );
+
+  return { ok: true, sale: updated };
+}
+
+/**
+ * The Seller contests a return — it arrived empty, damaged, or never came.
+ *
+ * Freezes the automatic refund and hands the case back to arbitration. CAPTURES AND
+ * RELEASES NOTHING by itself, following `HANDOVER_FAILED` on the trade side: a
+ * contested return has not been shown to be anyone's fault, and a self-serve control
+ * that moves money toward whoever pressed it is the shape this codebase removed once
+ * already.
+ */
+export async function disputeCashSaleReturn(
+  deps: CashSaleOrchestratorDeps,
+  params: { cashSaleId: string; actorId: string; reason: string },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (sale.sellerId !== params.actorId) return { ok: false, error: 'NOT_PERMITTED' };
+  if (sale.status !== 'RETURN_IN_TRANSIT' && sale.status !== 'RETURN_PENDING') {
+    return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+
+  const reason = params.reason.trim();
+  if (reason.length < 10) {
+    return {
+      ok: false,
+      error: 'INVALID_TERMS',
+      detail: 'Describe what is wrong with the return.',
+    };
+  }
+
+  const updated = await deps.repository.recordReturnDispute({
+    cashSaleId: sale.id,
+    reason,
+    disputedAt: currentIso(deps),
+  });
+  if (!updated) return { ok: false, error: 'INVALID_STATE' };
+
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    event: 'RETURN_DISPUTED',
+    fromStatus: sale.status,
+    toStatus: sale.status,
+    detail: reason,
+  });
+
+  return { ok: true, sale: updated };
 }
 
 /**

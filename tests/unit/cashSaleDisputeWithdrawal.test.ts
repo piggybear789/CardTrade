@@ -174,7 +174,11 @@ describe('settleCashSaleDisputeAsParty', () => {
     expect(result.sale.disputeResolvedBy ?? null).toBe(BUYER.profileId);
   });
 
-  it('lets the seller refund the buyer in full', async () => {
+  // A Seller conceding a full refund goes through the RETURN flow too (0088), and
+  // that is in their favour: conceding the money no longer means writing off the item
+  // as well. The concession is still real and still irreversible — they cannot undo
+  // it — it just no longer hands over both the goods and the cash.
+  it('lets the seller concede a full refund, which waits on the return', async () => {
     const { deps, calls, state } = makeDeps();
     const sale = await disputedCashSale(deps);
 
@@ -186,9 +190,11 @@ describe('settleCashSaleDisputeAsParty', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.sale.status).toBe('REFUNDED');
-    expect(calls.refunds).toHaveLength(1);
-    // The seller gave up the sale, so nothing is released to them.
+    expect(result.sale.status).toBe('RETURN_PENDING');
+    expect(result.sale.returnDeadlineAt).toBeTruthy();
+    // Money waits for the goods, so no refund has been attempted yet.
+    expect(calls.refunds).toHaveLength(0);
+    // The seller gave up the sale, so nothing is released to them either.
     expect(calls.payouts).toHaveLength(0);
     expect(state.events.map((e) => e.event)).toContain('DISPUTE_SETTLED_BY_PARTY');
   });
@@ -247,7 +253,7 @@ describe('settleCashSaleDisputeAsParty', () => {
     expect(calls.payouts).toHaveLength(0);
   });
 
-  it('refuses once already settled, so a double submit cannot pay twice', async () => {
+  it('refuses once already settled, so a double submit cannot settle twice', async () => {
     const { deps, calls } = makeDeps();
     const sale = await disputedCashSale(deps);
 
@@ -265,6 +271,15 @@ describe('settleCashSaleDisputeAsParty', () => {
     });
 
     expect(second.ok).toBe(false);
-    expect(calls.refunds).toHaveLength(1);
+    // The concession stands from the FIRST call and the second changes nothing.
+    const current = await deps.repository.loadCashSale(sale.id);
+    expect(current?.status).toBe('RETURN_PENDING');
+    expect(current?.disputeResolution).toBe('REFUND_BUYER');
+    // Asserts zero, not one, and that is the point post-0088: this outcome now waits
+    // for the returned goods, so NO refund has been attempted at this stage by either
+    // call. The double-submit protection being tested is that the second call cannot
+    // re-resolve — previously observable as "only one refund", and now as "the state
+    // did not move and no payment was attempted at all".
+    expect(calls.refunds).toHaveLength(0);
   });
 });

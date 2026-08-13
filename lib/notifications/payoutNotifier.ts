@@ -101,10 +101,9 @@ export function createPayoutNotifier(): PayoutNotifier {
           seller: {
             title: 'Dispute resolved — buyer refunded',
             body:
-              `The dispute over "${itemTitle}" was resolved in the buyer's favour and they were ` +
-              'refunded, so no proceeds are owed. Your listing has been returned to the catalog — ' +
-              'relist it only if you still have the item, as a refund does not require the buyer ' +
-              'to send it back.',
+              `The dispute over "${itemTitle}" was resolved in the buyer's favour, so no ` +
+              'proceeds are owed. If they had the item, it has been returned to you and ' +
+              'your listing is back in the catalog.',
           },
         },
         PARTIAL_REFUND: {

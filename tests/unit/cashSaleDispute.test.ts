@@ -60,7 +60,11 @@ function makeDeps(
 const disputedSale = disputedCashSale;
 
 describe('resolveCashSaleDispute', () => {
-  it('refunds the buyer in full and ends the sale REFUNDED', async () => {
+  // The shared fixture takes the sale through `recordCashSaleReceipt`, so the Buyer
+  // demonstrably HAS the goods. Since 0088 a full refund in that position waits for
+  // them to come back rather than paying out immediately — see
+  // `.kiro/specs/return-refunds/requirements.md`.
+  it('makes a full refund wait on the return when the buyer has the goods', async () => {
     const { deps, state, calls } = makeDeps();
     const sale = await disputedSale(deps);
 
@@ -68,6 +72,34 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // No `requireReturn` on purpose: this asserts the DERIVATION picks the return
+      // flow up from the record, which is the behaviour that matters. Passing the
+      // override here would test the override instead.
+    });
+
+    expect(result.ok).toBe(true);
+    expect(state.sale?.status).toBe('RETURN_PENDING');
+    expect(state.sale?.disputeResolution).toBe('REFUND_BUYER');
+    // A dispatch deadline is what the sweep later acts on.
+    expect(state.sale?.returnDeadlineAt).toBeTruthy();
+    // NO MONEY MOVED and NOTHING WAS RELISTED. Both wait for the carrier to confirm
+    // the return reached the seller; relisting now would advertise goods in transit.
+    expect(calls.refunds).toHaveLength(0);
+    expect(calls.payouts).toHaveLength(0);
+    expect(state.item.status).not.toBe('AVAILABLE');
+  });
+
+  // The lost-parcel and never-shipped cases, plus an operator override for an empty
+  // box: there is nothing to send back, so the refund goes out at once.
+  it('refunds immediately and relists when no return is required', async () => {
+    const { deps, state, calls } = makeDeps();
+    const sale = await disputedSale(deps);
+
+    const result = await resolveCashSaleDispute(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'REFUND_BUYER',
+      requireReturn: false,
     });
 
     expect(result.ok).toBe(true);
@@ -136,6 +168,10 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
 
     expect(result).toMatchObject({ ok: false, error: 'REFUND_FAILED' });
@@ -154,6 +190,10 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
     const firstNonce = state.sale?.refundNonce;
 
@@ -161,6 +201,10 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
 
     expect(firstNonce).toBeTruthy();
@@ -177,11 +221,19 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
     const second = await resolveCashSaleDispute(deps, {
       cashSaleId: sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
 
     expect(second.ok).toBe(true);
@@ -227,6 +279,10 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: created.sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
 
     expect(result).toMatchObject({ ok: false, error: 'INVALID_STATE' });
@@ -238,6 +294,10 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: 'nope',
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
     expect(result).toMatchObject({ ok: false, error: 'CASH_SALE_NOT_FOUND' });
   });
@@ -268,6 +328,10 @@ describe('resolveCashSaleDispute', () => {
       cashSaleId: sale.id,
       actorId: OPERATOR,
       outcome: 'REFUND_BUYER',
+      // Exercises the refund MECHANICS, so it takes the direct path rather than the
+      // return flow (0088). Without this the sale would stop at RETURN_PENDING and
+      // no refund would be attempted for this test to observe.
+      requireReturn: false,
     });
 
     // Recorded against the OPERATOR, not a participant: the audit trail has to say

@@ -146,7 +146,7 @@ export function makeCashSaleRepository(options: {
       return state.sale;
     },
 
-    async recordDisputeResolution({ outcome, resolvedBy, resolvedAt, status }) {
+    async recordDisputeResolution({ outcome, resolvedBy, resolvedAt, status, returnDeadlineAt }) {
       if (!state.sale) return null;
       // Conditional on DISPUTED, matching the repository's `.eq('status', ...)`.
       if (state.sale.status !== 'DISPUTED') return null;
@@ -160,6 +160,52 @@ export function makeCashSaleRepository(options: {
         disputeResolvedBy: resolvedBy,
         status,
         ...(status === 'COMPLETED' ? { completedAt: resolvedAt } : {}),
+        ...(status === 'RETURN_PENDING' && returnDeadlineAt
+          ? { returnDeadlineAt }
+          : {}),
+      };
+      return state.sale;
+    },
+    // Return-conditional refunds (0088). Each mirrors the guards its SQL counterpart
+    // applies, so a test cannot pass on a transition the database would refuse.
+    async recordReturnShipment({ carrier, trackingNumber, trackingUrl, trackingStatus, shippedAt }) {
+      if (!state.sale) return null;
+      if (state.sale.status !== 'RETURN_PENDING') return null;
+      // Matches `.is('return_shipped_at', null)`: once only.
+      if (state.sale.returnShippedAt) return null;
+      state.sale = {
+        ...state.sale,
+        status: 'RETURN_IN_TRANSIT',
+        returnTrackingCarrier: carrier,
+        returnTrackingNumber: trackingNumber,
+        returnTrackingUrl: trackingUrl,
+        returnTrackingStatus: trackingStatus,
+        returnShippedAt: shippedAt,
+      };
+      return state.sale;
+    },
+    async recordReturnFinalised() {
+      if (!state.sale) return null;
+      if (state.sale.status !== 'RETURN_IN_TRANSIT') return null;
+      // Matches the SQL guards: carrier-confirmed and not contested.
+      if (!state.sale.returnCarrierDeliveredAt) return null;
+      if (state.sale.returnDisputedAt) return null;
+      state.sale = { ...state.sale, status: 'REFUNDED' };
+      return state.sale;
+    },
+    async recordReturnDispute({ reason, disputedAt }) {
+      if (!state.sale) return null;
+      if (state.sale.returnDisputedAt) return null;
+      if (
+        state.sale.status !== 'RETURN_PENDING' &&
+        state.sale.status !== 'RETURN_IN_TRANSIT'
+      ) {
+        return null;
+      }
+      state.sale = {
+        ...state.sale,
+        returnDisputedAt: disputedAt,
+        returnDisputeReason: reason,
       };
       return state.sale;
     },
@@ -288,7 +334,16 @@ export function makeCashSaleRepository(options: {
         inspectionAcceptedAt: null,
         carrierDeliveredAt: null,
         inspectionDeadlineAt: null,
-        autoCompleted: false,
+        returnTrackingCarrier: null,
+        returnTrackingNumber: null,
+        returnTrackingUrl: null,
+        returnTrackingStatus: null,
+        returnShippedAt: null,
+        returnCarrierDeliveredAt: null,
+        returnDeadlineAt: null,
+        returnWarnedAt: null,
+        returnDisputedAt: null,
+        returnDisputeReason: null,        autoCompleted: false,
         buyerHandoverConfirmedAt: null,
         sellerHandoverConfirmedAt: null,
         completedAt: null,
@@ -492,7 +547,16 @@ export function makeCashSaleRepository(options: {
         trackingStatus: 'DELIVERED',
         carrierDeliveredAt: delivered,
         inspectionDeadlineAt: deadline,
-        ...(sale.status === 'IN_TRANSIT'
+        returnTrackingCarrier: null,
+        returnTrackingNumber: null,
+        returnTrackingUrl: null,
+        returnTrackingStatus: null,
+        returnShippedAt: null,
+        returnCarrierDeliveredAt: null,
+        returnDeadlineAt: null,
+        returnWarnedAt: null,
+        returnDisputedAt: null,
+        returnDisputeReason: null,        ...(sale.status === 'IN_TRANSIT'
           ? { status: 'INSPECTION' as const, receivedAt: sale.receivedAt ?? delivered }
           : {}),
       };

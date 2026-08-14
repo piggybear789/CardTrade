@@ -53,14 +53,21 @@ export default async function ConversationPage({
 
   return (
     <MarketplaceShell title="Messages">
-      <ChatThread
-        conversationId={conversation.id}
-        currentUserId={user.id}
-        otherName={other.displayName}
-        otherAvatarPath={other.avatarPath}
-        item={item}
-        trade={trade}
-      />
+      {/* Fixed-height wrapper so the ChatThread can scroll rather than growing the page.
+          On desktop the shell's own h-[calc(100dvh-...)] constrains it already; on
+          mobile nothing else does, and a min-h-0 + flex-1 child inside an unconstrained
+          parent just stretches to content height. This bridges the gap without changing
+          the shell for every other page. */}
+      <div className="flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom))] min-h-0 flex-col lg:h-auto lg:flex-1">
+        <ChatThread
+          conversationId={conversation.id}
+          currentUserId={user.id}
+          otherName={other.displayName}
+          otherAvatarPath={other.avatarPath}
+          item={item}
+          trade={trade}
+        />
+      </div>
     </MarketplaceShell>
   );
 }

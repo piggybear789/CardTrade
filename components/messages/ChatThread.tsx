@@ -128,7 +128,7 @@ export function ChatThread({
   return (
     <section
       aria-label="Conversation"
-      className="flex h-[min(36rem,calc(100dvh-12rem-env(safe-area-inset-bottom)))] w-full flex-col lg:h-[min(40rem,calc(100dvh-10rem))]"
+      className="flex min-h-0 w-full flex-1 flex-col"
     >
       {/* Header: back button + other participant + optional item context. */}
       <header className="flex items-center justify-between gap-4 border-b pb-4">

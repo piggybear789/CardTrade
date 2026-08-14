@@ -250,6 +250,7 @@ export type Database = {
            * The only verification flag on items: the duplicate `seller_verified`
            * column was dropped in 0049.
            */
+          seller_fraud_banned: boolean;
           seller_identity_verified: boolean;
           location_label: string | null;
           location_place_id: string | null;
@@ -292,6 +293,7 @@ export type Database = {
           image_paths: string[];
           hidden?: boolean;
           seller_rating?: number | null;
+          seller_fraud_banned?: boolean;
           seller_identity_verified?: boolean;
           location_label?: string | null;
           location_place_id?: string | null;
@@ -317,6 +319,7 @@ export type Database = {
           image_paths?: string[];
           hidden?: boolean;
           seller_rating?: number | null;
+          seller_fraud_banned?: boolean;
           seller_identity_verified?: boolean;
           location_label?: string | null;
           location_place_id?: string | null;

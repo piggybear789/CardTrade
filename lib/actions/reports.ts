@@ -110,7 +110,11 @@ async function insertReport(
       target_id: targetId,
       reason,
       details,
-      status: 'OPEN',
+      // `status` is DELIBERATELY not set. It defaults to OPEN in the schema, and 0094
+      // revoked it from the member INSERT grant: it is the moderation queue's own state,
+      // and while a member could only ever have pre-resolved their OWN report out of the
+      // queue, writing a workflow column they do not own is not theirs to do. Sending it
+      // here would now fail the insert outright.
     })
     .select('*')
     .single();

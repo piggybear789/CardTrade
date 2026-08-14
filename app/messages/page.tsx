@@ -123,32 +123,38 @@ export default async function MessagesPage() {
                     <div className="flex items-center justify-between gap-2">
                       {/* Beside the NAME, not in the leading square — that square is
                           the item thumbnail, which is what a member recognises a
-                          marketplace conversation by. */}
+                          marketplace conversation by.
+                          The SUBJECT sits inline after the name rather than on its own
+                          line below it: the name and what it is about are one fact, and
+                          stacking them pushed the message preview down and made every row
+                          taller for no gain. The name keeps priority when space is tight —
+                          it truncates last, because two conversations about one item are
+                          told apart by who they are with. */}
                       <p className="flex min-w-0 items-center gap-1.5 font-medium">
                         <Avatar
                           avatarPath={c.other.avatarPath}
                           displayName={name}
                           size="xs"
                         />
-                        <span className="truncate">{name}</span>
+                        <span className="max-w-[60%] truncate">{name}</span>
+                        {c.dispute ? (
+                          <span className="truncate text-xs font-medium text-destructive">
+                            Dispute: {c.dispute.itemTitle}
+                          </span>
+                        ) : c.trade ? (
+                          <span className="truncate text-xs font-normal text-muted-foreground">
+                            Trade
+                          </span>
+                        ) : c.item ? (
+                          <span className="truncate text-xs font-normal text-muted-foreground">
+                            Re: {c.item.title}
+                          </span>
+                        ) : null}
                       </p>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         {time}
                       </span>
                     </div>
-                    {c.dispute ? (
-                      <p className="truncate text-xs font-medium text-destructive">
-                        Dispute: {c.dispute.itemTitle}
-                      </p>
-                                        ) : c.trade ? (
-                      <p className="truncate text-xs text-muted-foreground">
-                        Trade
-                      </p>
-                    ) : c.item ? (
-                      <p className="truncate text-xs text-muted-foreground">
-                        Re: {c.item.title}
-                      </p>
-                    ) : null}
                     <p
                       className={
                         c.unreadCount > 0

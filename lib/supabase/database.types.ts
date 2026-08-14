@@ -726,6 +726,7 @@ export type Database = {
           shipped_at: string | null;
           received_at: string | null;
           inspection_accepted_at: string | null;
+          inspection_warned_at: string | null;
           carrier_delivered_at: string | null;
           /** Return-conditional refund leg (0088). Separate from the outbound
               columns above so a return event cannot overwrite the original
@@ -839,6 +840,7 @@ export type Database = {
           shipped_at?: string | null;
           received_at?: string | null;
           inspection_accepted_at?: string | null;
+          inspection_warned_at?: string | null;
           carrier_delivered_at?: string | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
@@ -931,6 +933,7 @@ export type Database = {
           shipped_at?: string | null;
           received_at?: string | null;
           inspection_accepted_at?: string | null;
+          inspection_warned_at?: string | null;
           carrier_delivered_at?: string | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;

@@ -82,6 +82,13 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
   }
 
   // 2. Warn the buyer 24h before the inspection window closes.
+  //
+  // DEDUPED ON `inspection_warned_at`. This ran hourly with nothing recording that it had
+  // already fired, so one sale sent the buyer up to 24 identical notifications and 24
+  // identical emails, each claiming the window closes "within 24 hours". Repeated
+  // identical sends are also how mailbox providers decide a sender is spam, which puts
+  // the messages a member genuinely must receive at risk. Three sibling warnings in this
+  // codebase already stamp themselves; this was the one that did not.
   const nowIso = new Date().toISOString();
   const warnBefore = new Date(Date.now() + WARNING_LEAD_HOURS * HOUR_MS).toISOString();
   const { data: closing } = await admin
@@ -89,6 +96,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
     .select('id, buyer_id')
     .eq('status', 'INSPECTION')
     .is('inspection_accepted_at', null)
+    .is('inspection_warned_at', null)
     .not('inspection_deadline_at', 'is', null)
     .gt('inspection_deadline_at', nowIso)
     .lte('inspection_deadline_at', warnBefore)
@@ -109,6 +117,13 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         contractId: sale.id as string,
         hoursRemaining: 24,
       });
+      // Stamped AFTER the send, so a failed send is retried next pass rather than being
+      // silently recorded as warned.
+      await admin
+        .from('cash_sales')
+        .update({ inspection_warned_at: nowIso })
+        .eq('id', sale.id)
+        .is('inspection_warned_at', null);
       result.warned += 1;
     } catch (err) {
       console.warn(`[cash-sale-sweep] warning failed for ${sale.id}:`, err);

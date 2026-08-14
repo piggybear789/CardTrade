@@ -267,10 +267,28 @@ async function dispatchEvent(
           : {}),
       };
 
-      const { error } = await admin
-        .from('profiles')
-        .update(patch)
-        .eq('id', targetProfileId);
+      // MONOTONIC ON THE STATUS TOO, not just the name.
+      //
+      // A FAILED write was unconditional, so a `requires_input` event for a stale or
+      // misrouted session could overwrite VERIFIED — silently un-verifying a trading
+      // member, unpublishing every listing they have via the denormalisation trigger, and
+      // blocking the buy path against them, with nothing to tell them why.
+      //
+      // `beginIdentityCheck` already refuses to start a new session for a verified member,
+      // so the stored session should always be the one that verified them — but "should"
+      // is doing a lot of work there, and this event is routable by profile id from
+      // provider metadata. The guard makes the database refuse the regression outright.
+      //
+      // Applied ONLY to the failing branch: a VERIFIED event arriving for a verified
+      // member is a harmless re-confirmation, and may legitimately carry a name the first
+      // one lacked. Written as a conditional builder rather than one `.or()` expression
+      // because the column is NOT NULL with a 'NONE' default, so a plain `.neq` is exact —
+      // and a money-adjacent guard should be readable at a glance.
+      let update = admin.from('profiles').update(patch).eq('id', targetProfileId);
+      if (!verified) {
+        update = update.neq('identity_check_status', 'VERIFIED');
+      }
+      const { error } = await update;
 
       return { outcome: error ? 'FAILURE' : 'SUCCESS', tradeId: null };
     }

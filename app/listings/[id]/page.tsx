@@ -216,6 +216,29 @@ export default async function ItemDetailPage({
   let activeSaleId: string | null = null;
   let activeTradeId: string | null = null;
   let openContracts: { id: string; buyerName: string; amountCents: number }[] = [];
+  // THE VIEWER'S OWN LIVE CONTRACT on this item, if they have one.
+  //
+  // Both queries below are gated on `isOwner`, so a BUYER got nothing and the page offered
+  // them Buy Now on a listing they already had a contract for. On a SINGLE listing that
+  // click fails on `cash_sales_one_active_per_item`; on a binder it fails on
+  // `cash_sales_one_active_per_shopfront_buyer`. Either way the buyer reads a constraint
+  // violation instead of being taken to the contract they already have.
+  //
+  // Read for any signed-in non-owner, and RLS scopes it to their own rows.
+  let myContractId: string | null = null;
+  if (user && !isOwner) {
+    const { data: mine } = await supabase
+      .from("cash_sales")
+      .select("id")
+      .eq("item_id", item.id)
+      .eq("buyer_id", user.id)
+      .not("status", "in", '("COMPLETED","CANCELLED","FAILED","REFUNDED")')
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    myContractId = mine?.id ?? null;
+  }
+
   // A shopfront has MANY live contracts by design, so the owner gets the whole
   // list; a single listing has at most one and only while RESERVED.
   if (isOwner && isShopfront) {
@@ -490,6 +513,7 @@ export default async function ItemDetailPage({
                 openContracts={openContracts}
                 initialWatching={initialWatching}
                 ownItems={ownItems}
+                myContractId={myContractId}
               />
 
               <section
@@ -577,6 +601,7 @@ function ItemActions({
   openContracts,
   initialWatching,
   ownItems,
+  myContractId,
 }: {
   itemId: string;
   itemTitle: string;
@@ -606,6 +631,8 @@ function ItemActions({
   openContracts: { id: string; buyerName: string; amountCents: number }[];
   initialWatching: boolean;
   ownItems: ItemRow[];
+  /** The viewer's own live contract on this item, if any. */
+  myContractId: string | null;
 }) {
   const watchReport =
     isAuthenticated && !isOwner ? (
@@ -766,6 +793,38 @@ function ItemActions({
         </Button>
         <CopyTradeLink itemId={itemId} />
         <DeleteListingDialog itemId={itemId} itemTitle={itemTitle} />
+      </div>
+    );
+  }
+
+  // THE VIEWER ALREADY HAS A CONTRACT ON THIS ITEM. Checked BEFORE the availability
+  // branch, because that is exactly the case where a SINGLE listing is RESERVED — and
+  // showing this buyer "Not Available" about goods they are currently buying would be the
+  // least useful thing on the page. It also comes before the buy and trade affordances,
+  // since both would fail on a uniqueness constraint they cannot see or fix.
+  if (myContractId) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-dashed px-4 py-5">
+          <p className="text-base font-semibold">You have a contract on this</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isShopfront
+              ? "You already have an open contract with this seller for items from this listing. Add anything else to that contract rather than starting a second one."
+              : "You are already buying this item. Everything about the purchase lives on the contract."}
+          </p>
+        </div>
+        <Button asChild className="w-full">
+          <Link href={`/sales/${myContractId}`}>Go to your contract</Link>
+        </Button>
+        {watchReport ? (
+          <div
+            className="grid grid-cols-2 justify-items-center gap-2"
+            role="group"
+            aria-label="Listing actions"
+          >
+            {watchReport}
+          </div>
+        ) : null}
       </div>
     );
   }

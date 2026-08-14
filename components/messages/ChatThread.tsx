@@ -152,26 +152,31 @@ export function ChatThread({
             />
           ) : null}
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold tracking-tight">
-              {displayName}
-            </h2>
-            {trade ? (
-              <Link
-                href={`/trades/${trade.id}`}
-                className="block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
-              >
-                Trade contract
-              </Link>
-            ) : item ? (
-              <Link
-                href={`/listings/${item.id}`}
-                className="block truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
-              >
-                Re: {item.title}
-              </Link>
-            ) : (
-              <p className="text-sm text-muted-foreground">Direct message</p>
-            )}
+            {/* Name and subject on ONE line. They are one fact — who this is with and
+                what it is about — and stacking them made the header taller while pushing
+                the messages down. The subject stays a link; only its position changed. */}
+            <div className="flex min-w-0 items-baseline gap-2">
+              <h2 className="max-w-[55%] truncate text-lg font-semibold tracking-tight">
+                {displayName}
+              </h2>
+              {trade ? (
+                <Link
+                  href={`/trades/${trade.id}`}
+                  className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  Trade contract
+                </Link>
+              ) : item ? (
+                <Link
+                  href={`/listings/${item.id}`}
+                  className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  Re: {item.title}
+                </Link>
+              ) : (
+                <p className="truncate text-sm text-muted-foreground">Direct message</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -186,9 +191,14 @@ export function ChatThread({
         ) : null}
       </header>
 
-      {/* Message list (scrollable). */}
+      {/* Message list (scrollable).
+          `min-h-0` IS LOAD-BEARING. A flex item defaults to `min-height: auto`, which
+          refuses to shrink below its content — so `flex-1` + `overflow-y-auto` alone grows
+          the container to fit every message instead of scrolling, and the thread simply
+          could not be scrolled. `ContractChat` already had `min-h-0 flex-1` on its
+          equivalent wrapper and worked, which is what identified this. */}
       <div
-        className="flex-1 space-y-3 overflow-y-auto overscroll-contain py-4"
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4"
         role="log"
         aria-label={`Conversation with ${displayName}`}
         aria-live="polite"

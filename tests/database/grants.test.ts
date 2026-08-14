@@ -100,7 +100,11 @@ const MUST_WORK: GrantCheck[] = [
   { flow: 'review: leave names reviewee', table: 'reviews', column: 'reviewee_id', privilege: 'INSERT', allowed: true },
   { flow: 'review: leave names contract', table: 'reviews', column: 'source_id', privilege: 'INSERT', allowed: true },
   { flow: 'report: file reason', table: 'reports', column: 'reason', privilege: 'INSERT', allowed: true },
-  { flow: 'report: file sets OPEN', table: 'reports', column: 'status', privilege: 'INSERT', allowed: true },
+  // DENIED since 0094, and the action no longer sends it. `status` is the moderation
+  // queue's own state: it defaults to OPEN, so nothing needs to write it, and granting it
+  // let a member file a report pre-marked ACTIONED — which only ever removed their OWN
+  // report from the queue, but is still a workflow column they do not own.
+  { flow: 'report: cannot set its own status', table: 'reports', column: 'status', privilege: 'INSERT', allowed: false },
 
   // Reads the product depends on. A revoke that broke these would empty the catalog.
   { flow: 'read: catalog', table: 'items', privilege: 'SELECT', allowed: true },

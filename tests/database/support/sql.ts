@@ -77,30 +77,54 @@ export function databaseTestsEnabled(): boolean {
  * not run must never be mistaken for a query that found no problems — that would turn
  * this whole file into a test that always passes.
  */
+/** How many times a rate-limited request is retried before giving up. */
+const RATE_LIMIT_RETRIES = 5;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function query<T = Record<string, unknown>>(sql: string): Promise<T[]> {
   const creds = credentials();
   if (!creds) throw new Error('database tests are not configured; guard with databaseTestsEnabled()');
 
-  const response = await fetch(
-    `https://api.supabase.com/v1/projects/${creds.projectRef}/database/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${creds.pat}`,
-        'Content-Type': 'application/json',
+  // RETRY ON 429, WITH BACKOFF.
+  //
+  // The Management API rate-limits, and these tests legitimately issue many statements —
+  // building fixtures, asserting, tearing down. Without this a throttled request throws
+  // and reads EXACTLY like a failed assertion: the report says the catalog policy or the
+  // refund guard is broken when nothing is wrong with either. That is the worst possible
+  // failure mode for a suite whose whole purpose is telling the truth about money.
+  //
+  // Retried only on 429. Every other non-2xx is a real error and must surface at once.
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(
+      `https://api.supabase.com/v1/projects/${creds.projectRef}/database/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${creds.pat}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: sql }),
       },
-      body: JSON.stringify({ query: sql }),
-    },
-  );
+    );
 
-  const text = await response.text();
-  if (!response.ok) {
-    // The token itself is never included in the message.
-    throw new Error(`Management API ${response.status}: ${text.slice(0, 500)}`);
+    const text = await response.text();
+
+    if (response.status === 429 && attempt < RATE_LIMIT_RETRIES) {
+      // 1s, 2s, 4s, 8s, 16s. Long enough to outlast a short window without turning a
+      // genuine outage into a silent hang — the attempt budget bounds the total wait.
+      await sleep(1000 * 2 ** attempt);
+      continue;
+    }
+
+    if (!response.ok) {
+      // The token itself is never included in the message.
+      throw new Error(`Management API ${response.status}: ${text.slice(0, 500)}`);
+    }
+
+    const parsed = JSON.parse(text) as T[];
+    return Array.isArray(parsed) ? parsed : [];
   }
-
-  const parsed = JSON.parse(text) as T[];
-  return Array.isArray(parsed) ? parsed : [];
 }
 
 /** Escape a single-quoted SQL literal. Inputs here are hard-coded identifiers. */

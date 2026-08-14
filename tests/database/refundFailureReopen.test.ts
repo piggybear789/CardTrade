@@ -16,86 +16,42 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { databaseTestsEnabled, query } from './support/sql';
+import {
+  createCashSaleFixture,
+  destroyCashSaleFixtures,
+  type CashSaleFixture,
+} from './support/cashSaleFixture';
 
 const enabled = databaseTestsEnabled();
 
-/** Rows created per test, torn down even when an expectation throws. */
-let saleIds: string[] = [];
-/** Items whose status this test changed, restored alongside the rows. */
-let itemIds: string[] = [];
+let fixtures: CashSaleFixture[] = [];
 
 /**
- * The state under test, as column overrides on a cloned row.
+ * A settled full refund, differing by ONE field.
  *
- * A finalised return and a plain disputed refund differ by ONE field —
- * `return_carrier_delivered_at` — which is the entire point of the fix, so the two
- * scenarios are built from one place with that as the only variable.
+ * `return_carrier_delivered_at` is the entire subject of the fix — a carrier saying the
+ * goods reached the seller is what makes reopening wrong — so the two scenarios are built
+ * from one place with that as the only variable.
  */
-function overridesFor(returned: boolean): Record<string, string> {
-  return {
-    id: 'gen_random_uuid()',
+async function bouncedRefund(returned: boolean): Promise<CashSaleFixture> {
+  const fixture = await createCashSaleFixture({
     status: `'REFUNDED'`,
     dispute_resolution: `'REFUND_BUYER'`,
     dispute_resolved_at: 'now()',
-    refund_cents: '10000',
     refund_status: `'SETTLED'`,
+    // A FULL refund equals what was collected. Taken from the cloned row rather than a
+    // literal, because `cash_sales_amount_components` ties the money columns together and
+    // an invented figure either violates it or quietly means something else.
+    refund_cents: 'source.amount_cents',
     refund_nonce: `'refund:test-' || gen_random_uuid()::text`,
     refund_error: 'null',
     refund_attempts: '0',
     transfer_id: `'transfer-test'`,
     seller_payout_status: `'NOT_DUE'`,
     return_carrier_delivered_at: returned ? 'now()' : 'null',
-  };
-}
-
-async function scenario(returned: boolean): Promise<string> {
-  // CLONE A WHOLE REAL ROW, with the column list read from the database rather than
-  // written here. `cash_sales` carries denormalised NOT NULL columns (item_title among
-  // them) that this test has no business knowing about, and hard-coding the list would
-  // break it every time one is added.
-  const columns = await query<{ column_name: string }>(`
-    select column_name from information_schema.columns
-    where table_schema = 'cardtrade' and table_name = 'cash_sales'
-      and is_generated = 'NEVER'
-    order by ordinal_position
-  `);
-
-  // THE CLONE NEEDS AN ITEM WITH NO LIVE CONTRACT. `cash_sales_one_active_per_item`
-  // forbids two active sales on one SINGLE listing, and the dispute case deliberately
-  // ends in DISPUTED — which is active. Reusing the source row's item would collide with
-  // the source itself, which is a fixture problem rather than anything about the fix.
-  const free = await query<{ id: string }>(`
-    select item.id from cardtrade.items item
-    where item.listing_kind = 'SINGLE'
-      and not exists (
-        select 1 from cardtrade.cash_sales sale
-        where sale.item_id = item.id
-          and sale.status not in ('COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED')
-      )
-    limit 1
-  `);
-  if (free.length === 0) throw new Error('no item without a live contract to test against');
-
-  const overrides: Record<string, string> = {
-    ...overridesFor(returned),
-    item_id: `'${free[0].id}'`,
-  };
-  const names = columns.map((c) => c.column_name);
-  const values = names.map((name) => overrides[name] ?? `source.${name}`);
-
-  const rows = await query<{ id: string; item_id: string }>(`
-    insert into cardtrade.cash_sales (${names.join(', ')})
-    select ${values.join(', ')}
-    from cardtrade.cash_sales source
-    limit 1
-    returning id, item_id
-  `);
-  if (rows.length === 0) throw new Error('no fixture sale to clone');
-  saleIds.push(rows[0].id);
-  itemIds.push(rows[0].item_id);
-  // The reopen re-reserves the item, so start from AVAILABLE to make that observable.
-  await query(`update cardtrade.items set status = 'AVAILABLE' where id = '${rows[0].item_id}'`);
-  return rows[0].id;
+  });
+  fixtures.push(fixture);
+  return fixture;
 }
 
 async function readSale(id: string) {
@@ -115,25 +71,16 @@ async function readSale(id: string) {
 
 describe.skipIf(!enabled)('record_cash_sale_refund_failure', () => {
   afterEach(async () => {
-    for (const id of saleIds) {
-      await query(`delete from cardtrade.cash_sale_events where cash_sale_id = '${id}'`);
-      await query(`delete from cardtrade.cash_sales where id = '${id}'`);
-    }
-    // The reopen branch re-reserves the item. Put it back, or a later browse test sees
-    // a listing this test quietly took out of the catalog.
-    for (const id of itemIds) {
-      await query(`update cardtrade.items set status = 'AVAILABLE' where id = '${id}'`);
-    }
-    saleIds = [];
-    itemIds = [];
+    await destroyCashSaleFixtures(fixtures);
+    fixtures = [];
   });
 
   it('reopens a bounced dispute refund, which is what 0045 is for', async () => {
-    const id = await scenario(false);
+    const { saleId } = await bouncedRefund(false);
 
-    await query(`select cardtrade.record_cash_sale_refund_failure('${id}', 'bank returned it')`);
+    await query(`select cardtrade.record_cash_sale_refund_failure('${saleId}', 'bank returned it')`);
 
-    const sale = await readSale(id);
+    const sale = await readSale(saleId);
     // Unchanged behaviour: the remedy failed and nothing physical moved, so the case is
     // decided again from scratch.
     expect(sale.status).toBe('DISPUTED');
@@ -143,11 +90,11 @@ describe.skipIf(!enabled)('record_cash_sale_refund_failure', () => {
   }, 30_000);
 
   it('does NOT reopen a bounced refund once the goods came back', async () => {
-    const id = await scenario(true);
+    const { saleId } = await bouncedRefund(true);
 
-    await query(`select cardtrade.record_cash_sale_refund_failure('${id}', 'bank returned it')`);
+    await query(`select cardtrade.record_cash_sale_refund_failure('${saleId}', 'bank returned it')`);
 
-    const sale = await readSale(id);
+    const sale = await readSale(saleId);
     // THE FINDING STANDS. Only the payment failed.
     expect(sale.status).toBe('REFUNDED');
     expect(sale.dispute_resolution).toBe('REFUND_BUYER');
@@ -159,28 +106,26 @@ describe.skipIf(!enabled)('record_cash_sale_refund_failure', () => {
   }, 30_000);
 
   it('leaves the relisted item alone when the goods came back', async () => {
-    const id = await scenario(true);
+    const { saleId, itemId } = await bouncedRefund(true);
 
-    await query(`select cardtrade.record_cash_sale_refund_failure('${id}', 'bank returned it')`);
+    await query(`select cardtrade.record_cash_sale_refund_failure('${saleId}', 'bank returned it')`);
 
-    const rows = await query<{ status: string }>(`
-      select item.status from cardtrade.items item
-      join cardtrade.cash_sales sale on sale.item_id = item.id
-      where sale.id = '${id}'
-    `);
+    const rows = await query<{ status: string }>(
+      `select status from cardtrade.items where id = '${itemId}'`,
+    );
     // Re-reserving would pull a seller's live listing out of the catalog over a payment
     // problem, for goods they are holding.
     expect(rows[0].status).toBe('AVAILABLE');
   }, 30_000);
 
   it('records the failure under a name that does not imply an open dispute', async () => {
-    const id = await scenario(true);
+    const { saleId } = await bouncedRefund(true);
 
-    await query(`select cardtrade.record_cash_sale_refund_failure('${id}', null)`);
+    await query(`select cardtrade.record_cash_sale_refund_failure('${saleId}', null)`);
 
     const rows = await query<{ event: string }>(`
       select event from cardtrade.cash_sale_events
-      where cash_sale_id = '${id}' order by created_at desc limit 1
+      where cash_sale_id = '${saleId}' order by created_at desc limit 1
     `);
     expect(rows[0].event).toBe('RETURN_REFUND_FAILED');
   }, 30_000);

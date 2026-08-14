@@ -615,14 +615,16 @@ describe('cash sale — price renegotiation', () => {
     if (!created.ok) throw new Error('setup failed');
     const withTerms = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
     if (!withTerms.ok) throw new Error('setup failed');
+    // The BUYER accepts first, so this asserts the thing that actually matters: a
+    // seller's discount does not silently keep the buyer's consent to the old number.
     await acceptCashSaleTerms(deps, {
-      actorId: ITEM.ownerId,
+      actorId: BUYER.profileId,
       cashSaleId: created.sale.id,
       termsVersion: withTerms.sale.termsVersion,
     });
 
     const repriced = await proposeCashSalePrice(deps, {
-      actorId: BUYER.profileId,
+      actorId: ITEM.ownerId,
       cashSaleId: created.sale.id,
       expectedTermsVersion: withTerms.sale.termsVersion,
       agreedPriceCents: 8_000,
@@ -635,9 +637,38 @@ describe('cash sale — price renegotiation', () => {
       // Repricing re-derives the percentage fee from the NEW price.
       8_000 + platformFeeCentsFor(8_000) + DELIVERY_TERMS.shippingCostCents,
     );
-    expect(repriced.sale.sellerTermsAcceptedVersion).toBeNull();
+    // Cleared, so nothing can be charged on a number the buyer never agreed to. This is
+    // what makes a private discount safe rather than merely convenient — and it applies
+    // to a price CUT too, because a buyer is entitled to know what they are paying.
+    expect(repriced.sale.buyerTermsAcceptedVersion).toBeNull();
     expect(repriced.sale.termsVersion).toBe(withTerms.sale.termsVersion + 1);
     expect(calls.transfers).toHaveLength(0);
+  });
+
+  // THE XIANYU ASYMMETRY. The seller can discount privately; the buyer cannot edit what
+  // they are about to be charged. Their channel is an Offer before the contract, or
+  // asking in the chat — a request, not a write.
+  it('refuses a buyer changing the price, and says where to ask instead', async () => {
+    const { deps } = makeDeps();
+    const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
+    if (!created.ok) throw new Error('setup failed');
+
+    const result = await proposeCashSalePrice(deps, {
+      actorId: BUYER.profileId,
+      cashSaleId: created.sale.id,
+      expectedTermsVersion: created.sale.termsVersion,
+      agreedPriceCents: 1,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    // NOT_PERMITTED rather than NOT_PARTICIPANT: they are on the contract, they just do
+    // not own this field, and the two need different things said to them.
+    expect(result.error).toBe('NOT_PERMITTED');
+
+    // And the price is untouched — the refusal is not merely cosmetic.
+    const current = await deps.repository.loadCashSale(created.sale.id);
+    expect(current?.agreedPriceCents).toBe(created.sale.agreedPriceCents);
   });
 
   it('rejects a non-participant, an invalid price, and a stale version', async () => {
@@ -653,13 +684,13 @@ describe('cash sale — price renegotiation', () => {
       agreedPriceCents: 5_000,
     });
     const invalid = await proposeCashSalePrice(deps, {
-      actorId: BUYER.profileId,
+      actorId: ITEM.ownerId,
       cashSaleId: created.sale.id,
       expectedTermsVersion: version,
       agreedPriceCents: 0,
     });
     const stale = await proposeCashSalePrice(deps, {
-      actorId: BUYER.profileId,
+      actorId: ITEM.ownerId,
       cashSaleId: created.sale.id,
       expectedTermsVersion: version + 5,
       agreedPriceCents: 5_000,
@@ -675,7 +706,10 @@ describe('cash sale — price renegotiation', () => {
     const { saleId, version } = await agreeAndPay(deps);
 
     const result = await proposeCashSalePrice(deps, {
-      actorId: BUYER.profileId,
+      // The SELLER, so this exercises the payment lock rather than stopping at the
+      // seller-only permission guard. The lock is the point: once money has been
+      // collected, not even the party who owns this field may move it.
+      actorId: ITEM.ownerId,
       cashSaleId: saleId,
       expectedTermsVersion: version,
       agreedPriceCents: 1_000,

@@ -1263,7 +1263,13 @@ function CashSaleRoom({
                 is the sum of its line items, so "Change items" in the Items row
                 is the only way it moves (0064). Offering both would be two
                 sources of truth for the number being charged. */}
-            {editable && !fromShopfront ? (
+            {/* SELLER ONLY. The seller owns the goods and is the one who can discount
+                them, which is how second-hand marketplaces generally work. A buyer
+                asks in the chat, or makes an Offer before the contract exists — both
+                are requests rather than edits to the number they will be charged.
+                The orchestrator refuses a buyer regardless; this stops us showing a
+                control that would only fail. */}
+            {editable && !fromShopfront && !iAmBuyer ? (
               <div className="mt-3 flex justify-end">
                 <CashSalePriceDialog
                   cashSaleId={sale.id}

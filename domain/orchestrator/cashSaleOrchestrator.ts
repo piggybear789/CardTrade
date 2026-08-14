@@ -1331,6 +1331,32 @@ export async function proposeCashSalePrice(
   if (!participantRole(sale, params.actorId)) {
     return { ok: false, error: 'NOT_PARTICIPANT' };
   }
+  // THE SELLER SETS THE PRICE, AND ONLY THE SELLER.
+  //
+  // A private per-contract discount is a normal thing to want — it is how Xianyu and
+  // most second-hand marketplaces work — and this contract already had the machinery for
+  // it, because `agreed_price_cents` lives on the SALE and not on the listing. What it
+  // did not have was the asymmetry: any participant could write this number, so a buyer
+  // could unilaterally edit the amount they were about to be charged.
+  //
+  // That is not a negotiation. It only looked survivable because changing the price
+  // voids both acceptances, so the seller would have had to accept the new number — but
+  // "the other party can undo it" is a poor substitute for "they cannot do it", and it
+  // put a buyer-authored figure into the field the fee and the total are derived from.
+  //
+  // The buyer's channel to ask for a lower price already exists and is deliberately a
+  // REQUEST rather than an edit: an Offer before the contract, and the written request
+  // plus price the buy flow collects. Neither writes the contract by itself.
+  //
+  // Distinct from NOT_PARTICIPANT above on purpose: a stranger and a buyer are told
+  // different things because they need to do different things next.
+  if (sale.sellerId !== params.actorId) {
+    return {
+      ok: false,
+      error: 'NOT_PERMITTED',
+      detail: 'Only the seller can change the price. Ask them in the chat.',
+    };
+  }
   // A shopfront contract's price IS the sum of its lines. Letting it also be set
   // directly would create two sources of truth for the same number and allow a
   // total that does not match the goods it is meant to pay for.

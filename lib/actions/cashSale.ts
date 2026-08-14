@@ -330,14 +330,22 @@ export async function proposeCashSalePrice(
     }),
   );
   if (result.ok) {
-    const recipientId = result.sale.buyerId === userId
-      ? result.sale.sellerId
-      : result.sale.buyerId;
+    // Always the buyer: only the seller can reach this, so the recipient is not in
+    // question any more and deriving it from the actor would just be a way to get it
+    // wrong later. The copy states the consequence, because voiding the acceptances is
+    // the part a buyer will otherwise discover as a broken-looking contract.
     await createNotification({
-      userId: recipientId,
+      userId: result.sale.buyerId,
       type: 'SALE',
-      title: 'Price proposed',
-      body: 'A new price was proposed for your contract.',
+      title: 'The seller changed the price',
+      // NO FIGURE HERE, deliberately. `CashSaleRecord` carries no currency field, and
+      // the only way to print an amount from here would be `formatAud`, which is a
+      // deprecated alias — hardcoding AUD into a money string is precisely the
+      // "charged in one currency, displayed in another" bug the region work exists to
+      // prevent. The contract room formats it correctly, so send them there.
+      body:
+        'The item price on your contract has changed. Both acceptances were cleared, so '
+        + 'review the new terms and accept again if you are happy with them.',
       link: `/sales/${cashSaleId}`,
     });
   }

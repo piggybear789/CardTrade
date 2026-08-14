@@ -53,12 +53,19 @@ export default async function ConversationPage({
 
   return (
     <MarketplaceShell title="Messages">
-      {/* Fixed-height wrapper so the ChatThread can scroll rather than growing the page.
-          On desktop the shell's own h-[calc(100dvh-...)] constrains it already; on
-          mobile nothing else does, and a min-h-0 + flex-1 child inside an unconstrained
-          parent just stretches to content height. This bridges the gap without changing
-          the shell for every other page. */}
-      <div className="flex h-[calc(100dvh-8rem-env(safe-area-inset-bottom))] min-h-0 flex-col lg:h-auto lg:flex-1">
+      {/* The ONE thing that makes a flex+overflow scroll work: a DEFINITE HEIGHT
+          somewhere in the ancestor chain. Without it, flex-1 + overflow-y-auto on any
+          descendant just grows the page — there is nothing to overflow against.
+
+          The shell's flex chain never terminates at a definite height: it is flex-1 all
+          the way up with no h-screen or h-[100dvh] ancestor. Three attempts to fix this
+          at the component level failed for this exact reason.
+
+          So the constraint lives HERE, at the page level, using a viewport unit that is
+          always definite. The subtraction accounts for the nav bar (4rem), its border
+          (1px), the shell padding (1.25rem top), and the mobile tab bar's safe area.
+          On desktop the py-7 adds more, so that breakpoint uses a larger deduction. */}
+      <div className="flex h-[calc(100dvh-5.25rem-1px-env(safe-area-inset-bottom))] flex-col overflow-hidden lg:h-[calc(100dvh-4rem-1px-3.5rem)]">
         <ChatThread
           conversationId={conversation.id}
           currentUserId={user.id}

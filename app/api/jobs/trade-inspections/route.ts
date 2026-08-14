@@ -18,7 +18,10 @@
 
 import { timingSafeEqual } from 'node:crypto';
 
-import { sweepTradeInspections } from '@/lib/trades/inspectionSweep';
+import {
+  flagStaleCollateralTrades,
+  sweepTradeInspections,
+} from '@/lib/trades/inspectionSweep';
 import { sweepCashSaleInspections } from '@/lib/trades/cashSaleInspectionSweep';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 
@@ -84,7 +87,18 @@ async function runSweep(request: Request): Promise<Response> {
       console.error('[jobs] trade-fee drain failed', error);
     }
 
-    return Response.json({ ok: true, ...result, cashSales, fees });
+    // Trades stuck in COLLATERAL_PENDING. Detection only, no provider calls, and
+    // isolated for the same reason as the fee drain: a problem finding stale trades must
+    // never cost the half of this job that releases collateral. Rides this schedule
+    // because a second cron entry is a second thing to forget to configure.
+    let stale: Awaited<ReturnType<typeof flagStaleCollateralTrades>> | null = null;
+    try {
+      stale = await flagStaleCollateralTrades();
+    } catch (error) {
+      console.error('[jobs] stale-collateral flagging failed', error);
+    }
+
+    return Response.json({ ok: true, ...result, cashSales, fees, stale });
   } catch (error) {
     console.error('[jobs] trade-inspections failed', error);
     return Response.json({ ok: false, error: 'Inspection pass failed' }, { status: 500 });

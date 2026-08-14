@@ -51,6 +51,28 @@ const HOUR_MS = 3_600_000;
  */
 const MAX_TRADES_PER_PASS = 25;
 
+/**
+ * How long a trade may sit in COLLATERAL_PENDING before a human is told.
+ *
+ * COLLATERAL_PENDING is a MOMENT, not a phase. `placeBondsForAgreedTrade` authorises
+ * both cards and `syncHolds` reads the results back immediately and dispatches
+ * HOLDS_CONFIRMED or HOLDS_FAILED, all in one request. A trade should pass through in
+ * seconds.
+ *
+ * If it does not — the process died between placing the holds and syncing them, or the
+ * read-back failed — the state machine has no other exit: HOLDS_FAILED loops back to
+ * COLLATERAL_PENDING rather than terminating. The trade then sits with two live
+ * authorisations against two members' cards and nothing advancing it. The only thing
+ * that eventually noticed was `expire_lapsed_holds`, roughly SEVEN DAYS later when the
+ * authorisations lapsed of their own accord.
+ *
+ * An hour is generous for something that should take seconds, and on an hourly schedule
+ * it means a stuck trade is surfaced within two hours instead of a week. Nothing is
+ * moved or reversed here — money on hold is not money lost, and guessing which way a
+ * half-finished authorisation should resolve is exactly the decision a human should make.
+ */
+const STALE_COLLATERAL_HOURS = 1;
+
 /** Outcome of one pass. */
 export interface TradeInspectionSweepResult {
   /** Trades completed because their window closed. */
@@ -241,4 +263,51 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
   }
 
   return result;
+}
+
+/**
+ * Flag trades stuck in COLLATERAL_PENDING for a human.
+ *
+ * SEPARATE FROM THE SWEEP ABOVE, on purpose. That one finishes trades whose inspection
+ * window closed and makes provider calls to do it; this one only reads and flags. Bolting
+ * it on would have put a detection pass inside a function whose wall-clock budget belongs
+ * to money movement, and — the reason it is visible in the tests — every existing sweep
+ * test would have had to grow an expectation for a query it does not care about. A test
+ * harness objecting that loudly is usually describing a design problem, not an
+ * inconvenience.
+ *
+ * Called from the same hourly job, so this adds no new schedule.
+ */
+export async function flagStaleCollateralTrades(): Promise<{ flagged: number }> {
+  const admin = createAdminClient();
+  const staleBefore = new Date(
+    Date.now() - STALE_COLLATERAL_HOURS * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data: stale } = await admin
+    .from('trades')
+    .select('id')
+    .eq('state', 'COLLATERAL_PENDING')
+    .eq('manual_reconciliation', false)
+    .lt('updated_at', staleBefore)
+    .limit(MAX_TRADES_PER_PASS);
+
+  let flagged = 0;
+  for (const row of (stale ?? []) as Array<{ id: string }>) {
+    try {
+      await admin
+        .from('trades')
+        .update({ manual_reconciliation: true })
+        .eq('id', row.id)
+        // Only if STILL stuck: a trade that advanced between the read and this write
+        // must not be flagged, or the queue fills with cases that fixed themselves.
+        .eq('state', 'COLLATERAL_PENDING')
+        .eq('manual_reconciliation', false);
+      flagged += 1;
+    } catch (err) {
+      console.warn(`[trades] stale-collateral flag failed for trade ${row.id}:`, err);
+    }
+  }
+
+  return { flagged };
 }

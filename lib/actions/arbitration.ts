@@ -38,7 +38,7 @@ import {
   returnRequiredForRefund,
   sellerNetCentsFor,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
+import { frictionTaxChargeableCents } from '@/domain/dispute/frictionTax';
 import { type ActionResult, fail, ok } from './result';
 
 /** Shape of the embedded `cash_sale_items` rows on a disputed-sale read. */
@@ -442,8 +442,15 @@ export async function getArbitrationQueue(): Promise<
       // itself; the exchange panel in the trade room is the place that shows them.
       goods: [],
       // A fraud finding captures one full collateral, so the larger of the two is what
-      // the outcome can move. A condition finding moves only the Friction_Tax.
-      amountAtRiskCents: Math.max(initiatorBond, counterpartBond, FRICTION_TAX_CENTS),
+      // the outcome can move. A condition finding moves only the Friction_Tax — CAPPED by
+      // the collateral it comes from, because a tax cannot exceed the authorisation
+      // backing it. Using the flat $20 reported four times the truth on a $5 trade, and
+      // this figure is what staff triage on.
+      amountAtRiskCents: Math.max(
+        initiatorBond,
+        counterpartBond,
+        frictionTaxChargeableCents(Math.max(initiatorBond, counterpartBond)),
+      ),
       openedAt: (trade.disputed_at as string | null) ?? null,
       raisedById:
         (trade.fraud_claimed_by as string | null) ??
@@ -732,9 +739,19 @@ async function readResolution(
         bondCents: partyFor(counterpartId)?.stakeCents ?? 0,
       },
       fraudClaimedById: (data.fraud_claimed_by as string | null) ?? null,
-      // A trade that has already settled a Friction_Tax reports its own figure; one
-      // that has not falls back to the standard $20 (Req 7.3).
-      frictionTaxCents: settled > 0 ? settled : FRICTION_TAX_CENTS,
+      // A trade that has already settled a Friction_Tax reports its own figure; one that
+      // has not quotes what COULD be taken — capped by the smaller collateral, since the
+      // tax comes out of one trader's hold and cannot exceed it. Quoting the flat $20 on
+      // a low-value trade told staff a number the capture could never reach.
+      frictionTaxCents:
+        settled > 0
+          ? settled
+          : frictionTaxChargeableCents(
+              Math.min(
+                partyFor(initiatorId)?.stakeCents ?? 0,
+                partyFor(counterpartId)?.stakeCents ?? 0,
+              ),
+            ),
       counterpartGoodsDescription:
         (data.counterpart_goods_description as string | null) ?? null,
     };

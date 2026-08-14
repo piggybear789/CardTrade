@@ -27,10 +27,12 @@
 // All monetary amounts are integer AUD cents.
 
 import type { Cents, PaymentService, PreAuthHold } from '../services/types';
+// Only the two helpers are USED here. The three amount constants are still re-exported
+// further down for existing importers, but this module no longer reads them directly —
+// the capped amount and the derived split are the only correct way to reach them now.
 import {
-  FRICTION_TAX_CENTS,
-  FRICTION_TAX_PLATFORM_FEE_CENTS,
-  FRICTION_TAX_RETURN_SHIPPING_CENTS,
+  allocateFrictionTax,
+  frictionTaxChargeableCents,
 } from '../dispute/frictionTax';
 import { canReceiveFunds, type MerchantRecord } from './merchantOnboarding';
 import type { OrchestratorError, TradeOrchestrator, TradeRecord } from './tradeOrchestrator';
@@ -287,9 +289,21 @@ export async function raiseConditionDispute(
     return { ok: false, error: 'HOLD_NOT_FOUND', detail: disputedAgainst };
   }
 
+  // CAPPED AT WHAT WAS AUTHORISED. A trade on a $5 item holds $5, and requesting the
+  // full $20 made Stripe refuse the capture outright — so every dispute on a low-value
+  // trade failed, froze, and looked transient. See `frictionTaxChargeableCents`.
+  const chargeable = frictionTaxChargeableCents(disputedHold.amountCents);
+  if (chargeable <= 0) {
+    // No collateral to take from at all. The dispute still stands — it is a claim about
+    // goods, not a payment — but there is nothing to capture and pretending otherwise
+    // would record a settled tax that never moved.
+    await repository.recordPartialCaptureFailure({ tradeId: trade.id });
+    return { ok: true, trade, disputedAgainst, frictionTaxSettled: false };
+  }
+
   const capture = await payments.partialCapture({
     holdId: disputedHold.holdRef,
-    amount: FRICTION_TAX_CENTS,
+    amount: chargeable,
   });
 
   // 4a. Failed to settle -> keep DISPUTED, holds locked, record indication (Req 7.6).
@@ -298,11 +312,12 @@ export async function raiseConditionDispute(
     return { ok: true, trade, disputedAgainst, frictionTaxSettled: false };
   }
 
-  // 4b. Settled -> allocate $10 return shipping + $10 platform fee (Req 7.3).
-  const allocation: FrictionTaxAllocation = {
-    returnShippingCents: FRICTION_TAX_RETURN_SHIPPING_CENTS,
-    platformFeeCents: FRICTION_TAX_PLATFORM_FEE_CENTS,
-  };
+  // 4b. Allocate return shipping first, then the platform fee (Req 7.3).
+  //
+  // Derived from `capture.amount` — what the provider ACTUALLY took — not from the
+  // constants. On a short capture the shares must still sum to the money collected, or
+  // step 4c pays out more than was ever received.
+  const allocation: FrictionTaxAllocation = allocateFrictionTax(capture.amount);
   await repository.recordFrictionTaxCapture({
     tradeId: trade.id,
     holdRef: disputedHold.holdRef,

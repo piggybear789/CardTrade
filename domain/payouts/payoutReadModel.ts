@@ -32,7 +32,7 @@
 // on purpose, but a second copy of the Friction_Tax amount is exactly the kind of
 // duplication that makes a member's screen disagree with what was charged.
 
-import { FRICTION_TAX_CENTS } from '../dispute/frictionTax';
+import { frictionTaxChargeableCents, FRICTION_TAX_CENTS } from '../dispute/frictionTax';
 
 /** Integer AUD cents. */
 export type Cents = number;
@@ -455,7 +455,12 @@ export function derivePayoutReadModel(input: PayoutReadModelInput): PayoutReadMo
           ? Math.max(Math.trunc(trade.counterpartBondCents), 0)
           : Math.max(Math.trunc(trade.myBondCents), 0)
         : trade.frictionTaxApplied
-          ? FRICTION_TAX_CENTS
+          // CAPPED BY THE BOND IT WAS TAKEN FROM. A Friction_Tax cannot exceed the
+          // authorisation it is captured from, and collateral is bounded by the goods'
+          // value — so a $5 trade yields a $5 tax, not $20. Printing the constant here
+          // put the exact "member's screen disagrees with what was charged" mismatch on
+          // this file that its own header warns against.
+          ? frictionTaxChargeableCents(trade.myBondCents)
           : Math.max(Math.trunc(trade.myBondCents), 0),
       open: !fraud,
       occurredAt: trade.createdAt,

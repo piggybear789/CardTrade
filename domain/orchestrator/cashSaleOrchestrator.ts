@@ -2336,6 +2336,25 @@ export async function resolveCashSaleReturnCase(
   }
 
   if (params.outcome === 'RELEASE_SELLER') {
+    // THE BUYER MAY ALREADY HAVE THE MONEY. Refuse rather than pay the seller too.
+    //
+    // A contested return can be reached with the refund already SETTLED: the carrier
+    // confirmation queues it, and a seller contesting moments later freezes the close
+    // but not a payment already made. Standing that refund down to NOT_DUE and
+    // releasing would pay BOTH sides in full out of one collection, with the platform
+    // absorbing the difference.
+    //
+    // Reported as a refusal with a specific reason rather than silently doing half of
+    // it, because an operator has to know the money already went before deciding
+    // anything else. Their remaining remedy is recovery, not a second release.
+    if (sale.refundStatus === 'SETTLED') {
+      return {
+        ok: false,
+        error: 'INVALID_STATE',
+        detail: 'The buyer has already been refunded, so nothing can be released',
+      };
+    }
+
     // The Buyer keeps the goods, so the Item is SOLD rather than relisted, and the
     // refund queued on entry must be stood down before anything is released.
     //

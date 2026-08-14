@@ -713,7 +713,19 @@ export function createSupabaseCashSaleRepository(
         .in('refund_status', ['PENDING', 'FAILED'])
         .gt('refund_cents', 0)
         .not('transfer_id', 'is', null)
-        .lt('refund_attempts', maxAttempts);
+        .lt('refund_attempts', maxAttempts)
+        // A CONTESTED RETURN IS FROZEN, AND THE FREEZE HAS TO REACH HERE TOO (0088).
+        //
+        // `disputeCashSaleReturn` stops the automatic close, but the refund may already
+        // have been queued by the carrier confirmation that arrived moments earlier. A
+        // drain that ignores the contest would settle it on the next hourly pass,
+        // paying the buyer while an operator was still deciding whether the return was
+        // real — and if they then found for the seller, both sides would have been paid.
+        //
+        // The one place this must NOT apply is a refund an operator has since decided
+        // to release: `resolveCashSaleReturnCase` performs that refund directly rather
+        // than waiting for the drain, so nothing is stranded by excluding it here.
+        .is('return_disputed_at', null);
 
       // Same regional scoping as the payout drain, for the same reason.
       if (currency) query = query.eq('currency', currency.toLowerCase());

@@ -443,6 +443,34 @@ describe('resolveCashSaleReturnCase', () => {
     expect(calls.payouts).toHaveLength(1);
   });
 
+  // DOUBLE-PAYMENT PROTECTION. The narrow race this closes: a carrier confirmation
+  // queues the refund, the seller contests moments later, the hourly drain settles the
+  // refund anyway, and staff then release to the seller — paying both sides in full out
+  // of one collection. Two independent guards now stop it, and this pins the second.
+  it('refuses to release to the seller once the buyer has been refunded', async () => {
+    const { deps, calls } = makeDeps();
+    const sale = await contested(deps);
+
+    // Simulate the drain having settled the refund while the case was contested.
+    await deps.repository.recordRefundResult({
+      cashSaleId: sale.id,
+      status: 'SETTLED',
+      refundId: 'refund-already-gone',
+    });
+
+    const result = await resolveCashSaleReturnCase(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'RELEASE_SELLER',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe('INVALID_STATE');
+    // THE ASSERTION THAT MATTERS: nobody was paid a second time.
+    expect(calls.payouts).toHaveLength(0);
+  });
+
   it('cannot be resolved twice', async () => {
     const { deps, calls } = makeDeps();
     const sale = await contested(deps);

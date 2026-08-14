@@ -27,7 +27,66 @@
 // Pure module: no I/O, no Supabase, no provider types. Integer AUD cents throughout.
 
 /** Integer AUD cents. */
+import type { CashSaleStatus } from './payoutReadModel';
+
 export type Cents = number;
+
+/**
+ * Whether the Buyer's money is sitting in the platform balance, per status.
+ *
+ * A RECORD, NOT A LIST, and that is the entire point. The action layer previously held
+ * this as an array with `satisfies readonly Enums<'cash_sale_status'>[]`, which checks
+ * that every member is a REAL status but never that every status is a member. So when
+ * 0088 added `RETURN_PENDING` and `RETURN_IN_TRANSIT` — two states whose defining
+ * property is that the Buyer's full payment is STILL HELD while the goods travel back —
+ * they were simply absent, and nothing failed.
+ *
+ * That understated what the platform owes, which is the one direction this module warns
+ * about: the check would have agreed with itself and reported SOLVENT while short. Keyed
+ * on the union, it cannot be under-filled — a new status is a compile error until someone
+ * decides which side of the line it falls on.
+ *
+ * It lives HERE rather than beside the query that uses it for two reasons: this is where
+ * the meaning of "held" is defined, and `lib/actions/admin.ts` is a `'use server'` module
+ * that may only export async functions, so a classification declared there is unreachable
+ * from a test.
+ */
+export const MONEY_COLLECTED: Record<CashSaleStatus, boolean> = {
+  // Nothing collected yet: no contract money exists to be owed.
+  AGREEMENT: false,
+  // In flight at the provider. Deliberately NOT counted: until collection is confirmed
+  // the platform holds nothing, and counting it would invent an obligation.
+  PAYMENT_PENDING: false,
+  // Collected and held against delivery.
+  ESCROW_HELD: true,
+  HANDOVER: true,
+  IN_TRANSIT: true,
+  INSPECTION: true,
+  // Still held until the seller's payout SETTLES. `heldForSale` subtracts settled
+  // payouts, so counting the whole collected amount here is correct.
+  COMPLETED: true,
+  DISPUTED: true,
+  // Same shape on the buyer's side: held until the refund settles.
+  REFUNDED: true,
+  // A FULL REFUND WAITING ON THE GOODS (0088). The decision is recorded and NO money has
+  // moved, so the Buyer's entire payment is still held and owed to them. Missing these
+  // two is the bug this Record exists to prevent.
+  RETURN_PENDING: true,
+  RETURN_IN_TRANSIT: true,
+  // Nothing was ever collected.
+  CANCELLED: false,
+  FAILED: false,
+};
+
+/**
+ * The statuses whose collected money counts toward what members are owed.
+ *
+ * Derived from {@link MONEY_COLLECTED} rather than written out, so the query and the
+ * classification cannot drift.
+ */
+export const COLLECTED_SALE_STATUSES: readonly CashSaleStatus[] = (
+  Object.keys(MONEY_COLLECTED) as CashSaleStatus[]
+).filter((status) => MONEY_COLLECTED[status]);
 
 /**
  * One Cash_Sale's contribution to what the platform is holding.

@@ -34,6 +34,7 @@ import type { CashSaleDisputeOutcome } from '@/domain/orchestrator/cashSaleOrche
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
 import { createDefaultDisputeResolutionOrchestrator } from '@/domain/orchestrator/supabaseDisputeResolutionRepository';
 import {
+  COLLECTED_SALE_STATUSES,
   reconcileCustody,
   type CustodyPosition,
   type HeldSaleInput,
@@ -656,16 +657,10 @@ async function regionForCashSale(cashSaleId: string): Promise<string> {
   return DEFAULT_CONFIG_REGION;
 }
 
-/** Statuses in which the Buyer's money has been COLLECTED into the platform balance. */
-const COLLECTED_SALE_STATUSES = [
-  'ESCROW_HELD',
-  'IN_TRANSIT',
-  'HANDOVER',
-  'INSPECTION',
-  'COMPLETED',
-  'DISPUTED',
-  'REFUNDED',
-] as const satisfies readonly Enums<'cash_sale_status'>[];
+// The classification and the derived list live in domain/payouts/custodyReconciliation.ts,
+// where the meaning of "held" is defined. A 'use server' module may only export async
+// functions, so a Record declared here would be unreachable from a test - and this is
+// exactly the kind of list that needs one.
 
 /**
  * Reconcile what the platform owes members against what the provider says it holds.

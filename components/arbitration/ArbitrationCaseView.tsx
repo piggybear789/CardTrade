@@ -547,6 +547,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       amountCents={resolution.amountCents}
                       platformFeeCents={resolution.platformFeeCents}
                       buyerHasGoods={resolution.buyerHasGoods}
+                      openChargebackRef={resolution.openChargebackRef}
                     />
                   )}
                 </div>

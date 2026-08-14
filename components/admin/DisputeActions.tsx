@@ -54,6 +54,16 @@ export interface DisputeActionsProps {
    * happen. When true, a full refund waits on the item coming back.
    */
   buyerHasGoods?: boolean;
+  /**
+   * Provider reference of an OPEN chargeback on this same sale, if any.
+   *
+   * The buyer has gone to their bank AND an operator is about to refund from the platform
+   * balance. Stripe caps total reversals at the original charge, so nobody is paid twice —
+   * but the platform eats a dispute fee for a refund it did not need to issue, and a
+   * refund attempted after the reversal lands just fails, which reads as a provider fault
+   * rather than the predictable collision it is.
+   */
+  openChargebackRef?: string | null;
 }
 
 /** Resolve one disputed sale. */
@@ -62,6 +72,7 @@ export function DisputeActions({
   amountCents,
   platformFeeCents,
   buyerHasGoods = false,
+  openChargebackRef = null,
 }: DisputeActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [partialDollars, setPartialDollars] = useState('');
@@ -129,6 +140,24 @@ export function DisputeActions({
         <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
+
+      {/* THE BUYER HAS ALREADY GONE TO THEIR BANK. Stated before the outcome buttons,
+          because it changes which outcome makes sense: refunding here pays a dispute fee
+          for money the issuer is reversing anyway. Not a block — an operator may have a
+          reason, and the chargeback may yet be won — but they should not learn about it
+          from a failed refund. */}
+      {openChargebackRef ? (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm"
+        >
+          <span className="font-semibold">A chargeback is open on this sale.</span>{' '}
+          The buyer disputed the payment with their bank ({openChargebackRef}). The issuer
+          may reverse it regardless of what you decide here, and refunding as well costs a
+          dispute fee without paying the buyer any more than they will already receive.
+          Check the chargeback case before refunding.
+        </p>
+      ) : null}
 
       {/* The override, shown ONLY when the record says the buyer has the goods —
           otherwise there is nothing to override and the control would be noise. This

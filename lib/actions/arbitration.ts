@@ -147,6 +147,17 @@ export type ArbitrationResolution =
       returnConfirmed: boolean;
       /** The dispatch deadline passed unposted (0089), so staff are deciding it. */
       returnLapsed: boolean;
+      /**
+       * An OPEN chargeback exists against this same sale.
+       *
+       * Surfaced because the two remedies collide: the buyer has gone to their bank AND
+       * the operator is about to refund from the platform balance. Stripe caps total
+       * reversals at the original charge, so the buyer cannot literally be paid twice —
+       * but the platform still eats a dispute fee for a refund it did not need to issue,
+       * and a refund attempted after the reversal lands simply fails, which reads as a
+       * provider fault rather than the predictable consequence it is.
+       */
+      openChargebackRef: string | null;
     }
   | {
       kind: 'TRADE';
@@ -671,6 +682,17 @@ async function readResolution(
   triaged: TriagedCase,
 ): Promise<ArbitrationResolution | null> {
   if (kind === 'CASH_SALE') {
+    // An OPEN chargeback on this same sale, read alongside the sale itself so the
+    // operator is warned BEFORE they choose an outcome rather than discovering it when a
+    // refund fails. Closed disputes are excluded: a settled one is history, not a
+    // collision.
+    const { data: openChargeback } = await admin
+      .from('charge_disputes')
+      .select('dispute_ref')
+      .eq('cash_sale_id', ref)
+      .is('closed_at', null)
+      .maybeSingle();
+
     const { data } = await admin
       .from('cash_sales')
       // ONE STRING LITERAL, deliberately long. Supabase infers the row type from the
@@ -701,6 +723,7 @@ async function readResolution(
       }),
       returnConfirmed: Boolean(data.return_carrier_delivered_at),
       returnLapsed: Boolean(data.return_lapsed_at),
+      openChargebackRef: openChargeback?.dispute_ref ?? null,
     };
   }
 

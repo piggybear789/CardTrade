@@ -334,10 +334,70 @@ export async function retryCashSalePayout(
  * The refund is attempted BEFORE the sale leaves DISPUTED, so a provider refusal
  * leaves a retryable dispute rather than a "resolved" sale whose money never moved.
  */
+/**
+ * Decide a STALLED return — contested by the seller, or never posted (0088/0089).
+ *
+ * A separate action from `resolveCashSaleDispute` because it answers a different
+ * question: not who was right about the goods, but whether an already-decided refund's
+ * condition was met. Staff-gated for the same reason as every other resolution.
+ */
+export async function resolveCashSaleReturnCase(
+  cashSaleId: string,
+  outcome: 'REFUND_BUYER' | 'RELEASE_SELLER',
+): Promise<AdminActionResult<{ id: string; status: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+
+  const orchestrator = createDefaultCashSaleOrchestrator({
+    payments: getPaymentService(await regionForCashSale(cashSaleId)),
+  });
+  const result = await orchestrator.resolveReturnCase({
+    cashSaleId,
+    actorId: gate.ctx.userId,
+    outcome,
+  });
+
+  if (!result.ok) {
+    return {
+      // The admin surface has its own error vocabulary, so an orchestrator code is
+      // reported as a generic failure with a specific MESSAGE rather than leaked
+      // through a union it does not belong to.
+      ok: false,
+      error: 'persistence-error',
+      message:
+        result.error === 'REFUND_FAILED'
+          ? 'The provider refused the refund. It stays queued and can be retried.'
+          : result.error === 'INVALID_STATE'
+            ? 'That return is not waiting on a decision.'
+            : 'That return could not be resolved.',
+    };
+  }
+
+  revalidatePath('/admin/arbitration');
+  revalidatePath(`/sales/${cashSaleId}`);
+  return { ok: true, data: { id: result.sale.id, status: result.sale.status } };
+}
+
 export async function resolveCashSaleDispute(
   cashSaleId: string,
   outcome: CashSaleDisputeOutcome,
   refundCents?: number,
+  /**
+   * Override whether a full refund waits on the goods coming back (0088).
+   *
+   * Left undefined, the orchestrator DERIVES it from the record, which is right
+   * almost always. The override exists for the case the record cannot express: a
+   * parcel the carrier marked delivered that contained the wrong item, or nothing at
+   * all. There is no item to send back, so demanding a return would strand the
+   * buyer's money on a condition they cannot satisfy.
+   *
+   * It is deliberately available in BOTH directions. Forcing a return ON matters when
+   * a buyer's "it never arrived" is contradicted by evidence the operator can see and
+   * the columns cannot.
+   */
+  requireReturn?: boolean,
 ): Promise<AdminActionResult<{ id: string; status: string; refundCents: number }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
@@ -354,6 +414,7 @@ export async function resolveCashSaleDispute(
     actorId: gate.ctx.userId,
     outcome,
     refundCents,
+    requireReturn,
   });
 
   if (!result.ok) {

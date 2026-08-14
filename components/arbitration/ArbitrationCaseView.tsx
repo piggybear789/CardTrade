@@ -33,6 +33,7 @@ import {
 } from '@/domain/arbitration/arbitrationCase';
 import { CaseNoteComposer } from '@/components/arbitration/CaseNoteComposer';
 
+import { ReturnCaseActions } from '@/components/admin/ReturnCaseActions';
 import { DisputeActions } from '@/components/admin/DisputeActions';
 import { TradeDisputeActions } from '@/components/admin/TradeDisputeActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -528,11 +529,26 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       {formatAud(resolution.refundCents)} already refunded.
                     </p>
                   ) : null}
-                  <DisputeActions
-                    cashSaleId={resolution.cashSaleId}
-                    amountCents={resolution.amountCents}
-                    platformFeeCents={resolution.platformFeeCents}
-                  />
+                  {/* A sale sitting in a RETURN state needs the return decision, not
+                      the merits decision — the merits were already decided when the
+                      refund was made conditional. Rendering DisputeActions here would
+                      give staff a button that reports success and does nothing. */}
+                  {resolution.status === 'RETURN_PENDING'
+                  || resolution.status === 'RETURN_IN_TRANSIT' ? (
+                    <ReturnCaseActions
+                      cashSaleId={resolution.cashSaleId}
+                      amountCents={resolution.amountCents}
+                      returnConfirmed={resolution.returnConfirmed}
+                      reason={resolution.returnLapsed ? 'LAPSED' : 'CONTESTED'}
+                    />
+                  ) : (
+                    <DisputeActions
+                      cashSaleId={resolution.cashSaleId}
+                      amountCents={resolution.amountCents}
+                      platformFeeCents={resolution.platformFeeCents}
+                      buyerHasGoods={resolution.buyerHasGoods}
+                    />
+                  )}
                 </div>
               ) : resolution.kind === 'TRADE' ? (
                 <div className="space-y-3">

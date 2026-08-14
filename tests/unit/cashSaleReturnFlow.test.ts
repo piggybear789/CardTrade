@@ -22,10 +22,12 @@ import {
   finalizeReturnedCashSale,
   recordCashSaleReturnShipment,
   resolveCashSaleDispute,
+  resolveCashSaleReturnCase,
   returnRequiredForRefund,
   RETURN_DISPATCH_DAYS,
   type CashSaleOrchestratorDeps,
   type CashSaleRecord,
+  type ReturnRequiredFacts,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
 import {
   BUYER,
@@ -68,13 +70,16 @@ describe('returnRequiredForRefund', () => {
   // Each of these is a different way the record says "the buyer has it", and they
   // matter separately because they come from different fulfilment paths: a carrier
   // confirmation and a mutual handover never both appear on one sale.
-  const base = {
+  //
+  // No cast: `returnRequiredForRefund` takes exactly these five fields, so the test
+  // states its input honestly rather than pretending to hold a whole sale.
+  const base: ReturnRequiredFacts = {
     carrierDeliveredAt: null,
     receivedAt: null,
     inspectionAcceptedAt: null,
     buyerHandoverConfirmedAt: null,
     sellerHandoverConfirmedAt: null,
-  } as unknown as CashSaleRecord;
+  };
 
   it('requires a return once a carrier confirmed delivery', () => {
     expect(returnRequiredForRefund({ ...base, carrierDeliveredAt: 'x' })).toBe(true);
@@ -257,6 +262,70 @@ describe('finalizeReturnedCashSale', () => {
     expect(state.item.status).toBe('AVAILABLE');
   });
 
+  // THE TEST THAT WAS MISSING, AND THE BUG IT WOULD HAVE CAUGHT.
+  //
+  // Every other test here asserts STATUS. This asserts MONEY. The first version of
+  // this flow set REFUNDED, relisted the item, and never paid anyone: the refund was
+  // queued by a stored procedure guarded on `status = 'DISPUTED'`, which matches
+  // nothing from a return state. Twenty-one status assertions passed against a buyer
+  // who posted their goods back and got nothing.
+  //
+  // Assert the payment, not the paperwork.
+  it('actually refunds the buyer — not just marks the sale REFUNDED', async () => {
+    const { deps, calls } = makeDeps();
+    const sale = await returnPending(deps);
+    await inTransitAndDelivered(deps, sale.id);
+
+    const result = await finalizeReturnedCashSale(deps, { cashSaleId: sale.id });
+
+    expect(result.ok).toBe(true);
+    // The money moved, for the full amount, exactly once.
+    expect(calls.refunds).toHaveLength(1);
+    expect(calls.refunds[0].amount).toBe(sale.amountCents);
+    // And it is recorded as settled, so reconciliation can see it landed.
+    const current = await deps.repository.loadCashSale(sale.id);
+    expect(current?.refundStatus).toBe('SETTLED');
+    expect(current?.refundNonce).toBeTruthy();
+  });
+
+  it('does not pay twice when a duplicate carrier event arrives', async () => {
+    const { deps, calls } = makeDeps();
+    const sale = await returnPending(deps);
+    await inTransitAndDelivered(deps, sale.id);
+
+    await finalizeReturnedCashSale(deps, { cashSaleId: sale.id });
+    await finalizeReturnedCashSale(deps, { cashSaleId: sale.id });
+
+    // One refund, two events. The provider nonce would also deduplicate, but relying
+    // on that alone means shipping a double-spend and trusting Stripe to catch it.
+    expect(calls.refunds).toHaveLength(1);
+  });
+
+  it('leaves the sale open and unlisted when the provider rejects the refund', async () => {
+    const { repository, state } = makeCashSaleRepository();
+    const { payments, calls } = makePayments({ refundStatus: 'FAILED' });
+    const deps: CashSaleOrchestratorDeps = {
+      repository,
+      payments: payments as unknown as PaymentService,
+      tracking: fakeTracking,
+    };
+    const sale = await returnPending(deps);
+    await inTransitAndDelivered(deps, sale.id);
+
+    const result = await finalizeReturnedCashSale(deps, { cashSaleId: sale.id });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe('REFUND_FAILED');
+    expect(calls.refunds).toHaveLength(1);
+    // NOT REFUNDED and NOT RELISTED. Claiming either while the buyer has no money is
+    // the failure this ordering exists to prevent; the drain retries instead.
+    const current = await deps.repository.loadCashSale(sale.id);
+    expect(current?.status).toBe('RETURN_IN_TRANSIT');
+    expect(current?.refundStatus).toBe('FAILED');
+    expect(state.item.status).not.toBe('AVAILABLE');
+  });
+
   it('is idempotent, so a duplicate carrier event cannot close it twice', async () => {
     const { deps } = makeDeps();
     const sale = await returnPending(deps);
@@ -288,6 +357,111 @@ describe('finalizeReturnedCashSale', () => {
     expect(result.ok).toBe(false);
     // Frozen for an operator: nothing refunded, nothing relisted.
     expect(state.item.status).not.toBe('AVAILABLE');
+  });
+});
+
+describe('resolveCashSaleReturnCase', () => {
+  /** A return the seller has contested — the state that had no way out. */
+  async function contested(deps: CashSaleOrchestratorDeps) {
+    const sale = await returnPending(deps);
+    await recordCashSaleReturnShipment(deps, {
+      cashSaleId: sale.id,
+      actorId: BUYER.profileId,
+      carrier: 'Australia Post',
+      trackingNumber: 'RET1',
+    });
+    const contestResult = await disputeCashSaleReturn(deps, {
+      cashSaleId: sale.id,
+      actorId: SELLER,
+      reason: 'The parcel arrived with nothing inside it.',
+    });
+    if (!contestResult.ok) throw new Error('setup: could not contest');
+    return sale;
+  }
+
+  it('refuses a return that is running normally — only stalled cases need staff', async () => {
+    const { deps } = makeDeps();
+    const sale = await returnPending(deps);
+
+    const result = await resolveCashSaleReturnCase(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'REFUND_BUYER',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe('INVALID_STATE');
+  });
+
+  it('can refund the buyer on a contested return', async () => {
+    const { deps, calls } = makeDeps();
+    const sale = await contested(deps);
+
+    const result = await resolveCashSaleReturnCase(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'REFUND_BUYER',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.sale.status).toBe('REFUNDED');
+    expect(calls.refunds).toHaveLength(1);
+  });
+
+  // The listing must not reappear on an operator's word alone. Relisting goods the
+  // seller may not have is what migration 0064 exists to prevent.
+  it('does not relist when no carrier confirmed the goods arrived', async () => {
+    const { deps, state } = makeDeps();
+    const sale = await contested(deps);
+
+    await resolveCashSaleReturnCase(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'REFUND_BUYER',
+    });
+
+    expect(state.item.status).not.toBe('AVAILABLE');
+  });
+
+  it('can release to the seller, and pays them through the ordinary path', async () => {
+    const { deps, calls } = makeDeps();
+    const sale = await contested(deps);
+
+    const result = await resolveCashSaleReturnCase(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'RELEASE_SELLER',
+    });
+
+    expect(result.ok).toBe(true);
+    // The buyer keeps the goods, so the item is SOLD rather than relisted.
+    expect(calls.refunds).toHaveLength(0);
+    // Released through payoutCashSaleSeller, which is what keeps canReceiveFunds and
+    // the fraud-ban check in the path rather than around it.
+    expect(calls.payouts).toHaveLength(1);
+  });
+
+  it('cannot be resolved twice', async () => {
+    const { deps, calls } = makeDeps();
+    const sale = await contested(deps);
+
+    await resolveCashSaleReturnCase(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'REFUND_BUYER',
+    });
+    const second = await resolveCashSaleReturnCase(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'RELEASE_SELLER',
+    });
+
+    expect(second.ok).toBe(false);
+    // AND CRUCIALLY: the second call, asking for the OPPOSITE outcome, paid nobody.
+    expect(calls.refunds).toHaveLength(1);
+    expect(calls.payouts).toHaveLength(0);
   });
 });
 

@@ -130,6 +130,7 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     returnWarnedAt: row.return_warned_at,
     returnDisputedAt: row.return_disputed_at,
     returnDisputeReason: row.return_dispute_reason,
+    returnLapsedAt: row.return_lapsed_at,
     autoCompleted: row.auto_completed,
     buyerHandoverConfirmedAt: row.buyer_handover_confirmed_at,
     sellerHandoverConfirmedAt: row.seller_handover_confirmed_at,
@@ -839,6 +840,12 @@ export function createSupabaseCashSaleRepository(
           return_tracking_url: params.trackingUrl,
           return_tracking_status: params.trackingStatus,
           return_shipped_at: params.shippedAt,
+          // A LATE RETURN IS STILL A RETURN. 0089 promised the lapse flag clears
+          // itself and nothing implemented that, so a case that resolved on its own
+          // would have sat in the arbitration queue permanently, sending staff to
+          // investigate settled cases. Cleared in the same write that records the
+          // shipment, so the two cannot disagree.
+          return_lapsed_at: null,
         })
         .eq('id', params.cashSaleId)
         // Only from RETURN_PENDING, and only once: `.is(return_shipped_at, null)`
@@ -846,6 +853,32 @@ export function createSupabaseCashSaleRepository(
         // already on record, which arbitration may be relying on.
         .eq('status', 'RETURN_PENDING')
         .is('return_shipped_at', null)
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async recordReturnCaseResolution(params: {
+      cashSaleId: string;
+      status: 'REFUNDED' | 'COMPLETED';
+      resolvedBy: string;
+      resolvedAt: string;
+    }) {
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          status: params.status,
+          dispute_resolved_by: params.resolvedBy,
+          dispute_resolved_at: params.resolvedAt,
+          // The case leaves the arbitration queue whichever way it went.
+          return_lapsed_at: null,
+        })
+        .eq('id', params.cashSaleId)
+        // Only from a return state, so this cannot be used to close anything else.
+        // Deliberately WITHOUT the contested and carrier-confirmed guards that
+        // recordReturnFinalised carries: staff resolving the case are the authority
+        // those guards defer to.
+        .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT'])
         .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;

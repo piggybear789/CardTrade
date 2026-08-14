@@ -123,7 +123,18 @@ export function makeCashSaleRepository(options: {
     // nonce, so a test can assert a retried resolution does not refund twice.
     async markRefundDue({ amountCents }) {
       if (!state.sale) return null;
-      if (state.sale.status !== 'DISPUTED') return state.sale;
+      // MIRRORS THE SQL IN 0090, and the reason this comment exists is that it did not.
+      // The fake carried only the DISPUTED guard, faithfully reproducing a real bug in
+      // `mark_cash_sale_refund_due`, so both copies agreed that a confirmed return
+      // queued no refund and the suite passed. Two states owe a refund: an operator
+      // deciding directly, and a carrier confirming returned goods arrived.
+      if (
+        state.sale.status !== 'DISPUTED'
+        && state.sale.status !== 'RETURN_PENDING'
+        && state.sale.status !== 'RETURN_IN_TRANSIT'
+      ) {
+        return state.sale;
+      }
       if (state.sale.refundStatus !== 'NOT_DUE') return state.sale;
       state.sale = {
         ...state.sale,
@@ -181,6 +192,26 @@ export function makeCashSaleRepository(options: {
         returnTrackingUrl: trackingUrl,
         returnTrackingStatus: trackingStatus,
         returnShippedAt: shippedAt,
+        // Mirrors the SQL: a late return clears its own lapse flag.
+        returnLapsedAt: null,
+      };
+      return state.sale;
+    },
+    async recordReturnCaseResolution({ status, resolvedBy, resolvedAt }) {
+      if (!state.sale) return null;
+      // No contested/carrier guards: staff are the authority those guards defer to.
+      if (
+        state.sale.status !== 'RETURN_PENDING' &&
+        state.sale.status !== 'RETURN_IN_TRANSIT'
+      ) {
+        return null;
+      }
+      state.sale = {
+        ...state.sale,
+        status,
+        disputeResolvedBy: resolvedBy,
+        disputeResolvedAt: resolvedAt,
+        returnLapsedAt: null,
       };
       return state.sale;
     },
@@ -343,7 +374,8 @@ export function makeCashSaleRepository(options: {
         returnDeadlineAt: null,
         returnWarnedAt: null,
         returnDisputedAt: null,
-        returnDisputeReason: null,        autoCompleted: false,
+        returnDisputeReason: null,
+        returnLapsedAt: null,        autoCompleted: false,
         buyerHandoverConfirmedAt: null,
         sellerHandoverConfirmedAt: null,
         completedAt: null,
@@ -556,7 +588,8 @@ export function makeCashSaleRepository(options: {
         returnDeadlineAt: null,
         returnWarnedAt: null,
         returnDisputedAt: null,
-        returnDisputeReason: null,        ...(sale.status === 'IN_TRANSIT'
+        returnDisputeReason: null,
+        returnLapsedAt: null,        ...(sale.status === 'IN_TRANSIT'
           ? { status: 'INSPECTION' as const, receivedAt: sale.receivedAt ?? delivered }
           : {}),
       };

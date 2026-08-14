@@ -46,6 +46,14 @@ export interface DisputeActionsProps {
   amountCents: number;
   /** Platform fee already computed on the sale, for the effect summary. */
   platformFeeCents: number;
+  /**
+   * Whether the record shows the Buyer actually received the goods (0088).
+   *
+   * Derived server-side by the same rule the orchestrator uses, and passed in rather
+   * than re-derived here so the operator is shown the outcome that will ACTUALLY
+   * happen. When true, a full refund waits on the item coming back.
+   */
+  buyerHasGoods?: boolean;
 }
 
 /** Resolve one disputed sale. */
@@ -53,14 +61,21 @@ export function DisputeActions({
   cashSaleId,
   amountCents,
   platformFeeCents,
+  buyerHasGoods = false,
 }: DisputeActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [partialDollars, setPartialDollars] = useState('');
   const [confirming, setConfirming] = useState<CashSaleDisputeOutcome | null>(null);
+  // Operator override: "there is nothing to send back". Off by default, so the
+  // record's own account of events wins unless someone deliberately overrides it.
+  const [nothingToReturn, setNothingToReturn] = useState(false);
 
   const partialCents = Math.round(Number.parseFloat(partialDollars || '0') * 100);
   const partialValid =
     Number.isFinite(partialCents) && partialCents > 0 && partialCents < amountCents;
+
+  /** Whether a full refund will route through the return flow as things stand. */
+  const willRequireReturn = buyerHasGoods && !nothingToReturn;
 
   const sellerNet = (refund: number) =>
     Math.max(Math.max(amountCents - platformFeeCents, 0) - refund, 0);
@@ -69,7 +84,12 @@ export function DisputeActions({
   function effectOf(outcome: CashSaleDisputeOutcome): string {
     switch (outcome) {
       case 'REFUND_BUYER':
-        return `${formatAud(amountCents)} goes back to the buyer. The seller receives nothing and the listing returns to the catalog.`;
+        // SUPERSEDED BY 0088. This used to promise the money moved and the listing
+        // relisted immediately, which is now only true when nothing has to come back.
+        // An operator deciding a case has to be told which of the two they are doing.
+        return willRequireReturn
+          ? `The buyer must post the item back first. ${formatAud(amountCents)} is refunded automatically once the carrier confirms it reached the seller, and the listing returns to the catalog at that point. Nothing moves now.`
+          : `${formatAud(amountCents)} goes back to the buyer immediately. The seller receives nothing and the listing returns to the catalog.`;
       case 'PARTIAL_REFUND':
         return `${formatAud(partialCents)} goes back to the buyer, who keeps the item. ${formatAud(sellerNet(partialCents))} is released to the seller.`;
       case 'RELEASE_SELLER':
@@ -83,6 +103,10 @@ export function DisputeActions({
         cashSaleId,
         outcome,
         outcome === 'PARTIAL_REFUND' ? partialCents : undefined,
+        // Only meaningful on a full refund, and only sent when the operator has
+        // actually overridden — otherwise the orchestrator derives it, which is the
+        // behaviour that protects a seller nobody is paying attention to.
+        outcome === 'REFUND_BUYER' && nothingToReturn ? false : undefined,
       );
       setConfirming(null);
       if (result.ok) {
@@ -105,6 +129,32 @@ export function DisputeActions({
         <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
+
+      {/* The override, shown ONLY when the record says the buyer has the goods —
+          otherwise there is nothing to override and the control would be noise. This
+          is the empty-box case: the carrier confirmed a delivery, so the derivation
+          says "make them return it", but the operator can see there was nothing in
+          the parcel to return. Without this, the buyer's refund waits on a condition
+          they cannot satisfy. */}
+      {buyerHasGoods ? (
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={nothingToReturn}
+            onChange={(event) => setNothingToReturn(event.target.checked)}
+            disabled={isPending}
+            className="mt-0.5 size-4 shrink-0 accent-destructive"
+          />
+          <span>
+            There is nothing to send back
+            <span className="block text-muted-foreground">
+              Tick this if the parcel was empty, held the wrong item, or never actually
+              reached the buyer despite the carrier marking it delivered. A full refund
+              then pays out immediately instead of waiting on a return.
+            </span>
+          </span>
+        </label>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button

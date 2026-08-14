@@ -246,6 +246,8 @@ export interface CashSaleRecord {
   /** Set when the Seller contests the return; freezes the automatic refund. */
   returnDisputedAt: string | null;
   returnDisputeReason: string | null;
+  /** Set by the sweep when a dispatch deadline passed unposted (0089). Triage only. */
+  returnLapsedAt: string | null;
   autoCompleted: boolean;
   buyerHandoverConfirmedAt: string | null;
   sellerHandoverConfirmedAt: string | null;
@@ -682,6 +684,21 @@ export interface CashSaleRepository {
    */
   recordReturnFinalised(params: {
     cashSaleId: string;
+  }): Promise<CashSaleRecord | null>;
+  /**
+   * Close a STALLED return because STAFF said so (0088/0089).
+   *
+   * Separate from `recordReturnFinalised`, which refuses a contested return on
+   * purpose: the automatic path must never close a case a seller has challenged. An
+   * operator IS the authority those guards defer to, so their decision needs a write
+   * that does not carry them. Two methods rather than a flag, because a boolean that
+   * skips safety checks is one refactor away from being passed by the carrier path.
+   */
+  recordReturnCaseResolution(params: {
+    cashSaleId: string;
+    status: 'REFUNDED' | 'COMPLETED';
+    resolvedBy: string;
+    resolvedAt: string;
   }): Promise<CashSaleRecord | null>;
   /** Record the Seller contesting a return, freezing the automatic refund. */
   recordReturnDispute(params: {
@@ -1927,7 +1944,24 @@ export const RETURN_DISPATCH_DAYS = 7;
  * has something worth returning" are different claims — an empty box is recorded as
  * delivered. That override is a parameter on the resolve call, not a change here.
  */
-export function returnRequiredForRefund(sale: CashSaleRecord): boolean {
+/**
+ * The five fields this decision reads, and nothing more.
+ *
+ * Narrowed from `CashSaleRecord` on purpose: the arbitration console needs the SAME
+ * answer from a small projection, and the alternative was either restating the rule
+ * there — two definitions of when money waits on goods — or selecting sixty columns to
+ * satisfy a function that touches five.
+ */
+export type ReturnRequiredFacts = Pick<
+  CashSaleRecord,
+  | 'carrierDeliveredAt'
+  | 'receivedAt'
+  | 'inspectionAcceptedAt'
+  | 'buyerHandoverConfirmedAt'
+  | 'sellerHandoverConfirmedAt'
+>;
+
+export function returnRequiredForRefund(sale: ReturnRequiredFacts): boolean {
   return Boolean(
     sale.carrierDeliveredAt ||
       sale.receivedAt ||
@@ -2074,6 +2108,75 @@ export async function finalizeReturnedCashSale(
     return { ok: false, error: 'INVALID_STATE', detail: 'Return is contested' };
   }
 
+  // ISSUE THE REFUND BEFORE MOVING THE STATE, and issue it HERE rather than trusting
+  // the SQL that queued it.
+  //
+  // This function used to do neither: it set REFUNDED, relisted the item, and left the
+  // money to `apply_cash_sale_return_tracking`, which queued it through
+  // `mark_cash_sale_refund_due` — a function guarded on `status = 'DISPUTED'` that
+  // therefore matched nothing from a return state. The refund was never queued, the
+  // drain had nothing to find, and the contract said Refunded to a buyer who was never
+  // paid. Migration 0090 widened the guard; this makes the money path visible in the
+  // orchestrator rather than depending on a stored procedure two layers away.
+  //
+  // `markRefundDue` is idempotent on `refund_status = 'NOT_DUE'`, so calling it after
+  // the RPC already did is a no-op that returns the existing nonce. That is what makes
+  // the webhook's queue-then-finalise sequence safe rather than merely lucky.
+  const refundTarget = Math.max(sale.refundCents || sale.amountCents, 0);
+  const queued = await deps.repository.markRefundDue({
+    cashSaleId: sale.id,
+    amountCents: refundTarget,
+  });
+  const current = queued ?? sale;
+  const nonce = current.refundNonce;
+  if (!nonce) {
+    return { ok: false, error: 'REFUND_FAILED', detail: 'Missing refund nonce' };
+  }
+
+  // No collected payment means there is nothing to refund, which on a sale that
+  // reached a return is a data fault rather than a member-facing outcome. Reported as
+  // a failure so it retries and surfaces, never swallowed into a REFUNDED sale.
+  if (!sale.transferId) {
+    return { ok: false, error: 'REFUND_FAILED', detail: 'No collected payment to refund' };
+  }
+
+  // Only attempt the provider call if the money has not already gone. A duplicate
+  // carrier event reaching here after a settled refund must close the sale, not pay
+  // twice — and the nonce alone should not be the only thing standing in the way.
+  if (current.refundStatus !== 'SETTLED') {
+    const refund = await deps.payments.refundPayment({
+      paymentRef: sale.transferId,
+      amount: refundTarget,
+      nonce,
+      ref: `cash-sale-return-refund:${sale.id}`,
+    });
+
+    if (refund.status !== 'SETTLED') {
+      await deps.repository.recordRefundResult({
+        cashSaleId: sale.id,
+        status: 'FAILED',
+        error: 'Provider rejected the refund',
+      });
+      await deps.repository.logEvent({
+        cashSaleId: sale.id,
+        actorId: null,
+        event: 'RETURN_REFUND_FAILED',
+        fromStatus: sale.status,
+        toStatus: sale.status,
+      });
+      // DELIBERATELY STILL RETURN_IN_TRANSIT and NOT relisted. A provider refusal is
+      // retryable by the drain, and moving to REFUNDED here would claim the buyer had
+      // their money back when they do not.
+      return { ok: false, error: 'REFUND_FAILED', detail: refund.reason };
+    }
+
+    await deps.repository.recordRefundResult({
+      cashSaleId: sale.id,
+      status: 'SETTLED',
+      refundId: refund.refundId ?? null,
+    });
+  }
+
   const updated = await deps.repository.recordReturnFinalised({ cashSaleId: sale.id });
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
 
@@ -2187,6 +2290,185 @@ function resolveRefundAmount(
  * keeps the item either way — and leave it SOLD, with the release queued so the
  * Seller is paid whatever remains.
  */
+/**
+ * Resolve a return that stalled — contested by the Seller, or never posted (0088/0089).
+ *
+ * THIS EXISTS BECAUSE THERE WAS NO WAY OUT. `resolveCashSaleDispute` refuses anything
+ * that is not DISPUTED, and worse, a sale in the return flow already carries a
+ * `disputeResolution` from entering it — so that function's idempotency guard reported
+ * SUCCESS and did nothing at all. An operator would have pressed a button, been told
+ * the case was resolved, and left the money frozen forever. Both parties would have
+ * waited on a decision that had silently not been made.
+ *
+ * Deliberately NOT a widening of `resolveCashSaleDispute`. That function decides the
+ * MERITS — who was right about the goods. This decides whether an already-decided
+ * refund's CONDITION was met, which is a different question with the same two answers,
+ * and its idempotency guard is load-bearing exactly as it is.
+ *
+ * The two outcomes:
+ *
+ *   REFUND_BUYER    The return stands. Refund now. The Item relists ONLY if a carrier
+ *                   confirmed it arrived — an operator overriding a contested return
+ *                   in the buyer's favour does not prove the Seller has the goods.
+ *   RELEASE_SELLER  The return does not stand: never posted, empty box, wrong item.
+ *                   The Buyer keeps what they have and the Seller is paid, through the
+ *                   same release path a normal completion uses — so `canReceiveFunds`
+ *                   still applies and a fraud-banned Seller is still refused.
+ */
+export async function resolveCashSaleReturnCase(
+  deps: CashSaleOrchestratorDeps,
+  params: {
+    cashSaleId: string;
+    actorId: string;
+    outcome: 'REFUND_BUYER' | 'RELEASE_SELLER';
+  },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (sale.status !== 'RETURN_PENDING' && sale.status !== 'RETURN_IN_TRANSIT') {
+    return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+  // Only a STALLED return needs an operator. A return running normally resolves
+  // itself when the carrier confirms it, and letting staff pre-empt that would be a
+  // second, manual way to move the same money.
+  if (!sale.returnDisputedAt && !sale.returnLapsedAt) {
+    return { ok: false, error: 'INVALID_STATE', detail: 'Return is not stalled' };
+  }
+
+  if (params.outcome === 'RELEASE_SELLER') {
+    // The Buyer keeps the goods, so the Item is SOLD rather than relisted, and the
+    // refund queued on entry must be stood down before anything is released.
+    //
+    // Deliberately NOT routed through `completeResolvedDispute`: that helper writes
+    // through `recordDisputeResolution`, which is guarded to DISPUTED and would refuse
+    // silently from here. The release itself still goes through
+    // `payoutCashSaleSeller`, which is the point — `canReceiveFunds` and the fraud-ban
+    // check stay in the path rather than being reimplemented beside it.
+    await deps.repository.recordRefundResult({
+      cashSaleId: sale.id,
+      status: 'NOT_DUE',
+    });
+
+    const updated = await deps.repository.recordReturnCaseResolution({
+      cashSaleId: sale.id,
+      status: 'COMPLETED',
+      resolvedBy: params.actorId,
+      resolvedAt: currentIso(deps),
+    });
+    if (!updated) return { ok: false, error: 'INVALID_STATE' };
+
+    await syncListingStatus(deps, sale, 'SOLD');
+
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: params.actorId,
+      event: 'RETURN_CASE_RESOLVED_RELEASE_SELLER',
+      fromStatus: sale.status,
+      toStatus: 'COMPLETED',
+      detail: 'Return did not stand. Buyer keeps the item; proceeds released.',
+    });
+
+    await notifyQuietly(deps, (notifier) =>
+      notifier.disputeResolved({
+        buyerId: sale.buyerId,
+        sellerId: sale.sellerId,
+        cashSaleId: sale.id,
+        itemTitle: sale.itemTitle,
+        outcome: 'RELEASE_SELLER',
+        refundCents: 0,
+        sellerNetCents: sellerNetCentsFor({ ...updated, refundCents: 0 }),
+      }),
+    );
+
+    const released = await payoutCashSaleSeller(deps, { cashSaleId: sale.id });
+    if (released.ok) return released;
+    // A failed release does not un-resolve the case: the decision stands and the
+    // release retries through the ordinary drain.
+    const refreshed = await deps.repository.loadCashSale(sale.id);
+    return { ok: true, sale: refreshed ?? updated };
+  }
+
+  // REFUND_BUYER. Reuse the ordinary drain rather than issuing a second refund path:
+  // it reuses the persisted nonce, so this cannot double-pay a refund that a carrier
+  // event already settled.
+  const refundTarget = Math.max(sale.refundCents || sale.amountCents, 0);
+  if (!sale.transferId) {
+    return { ok: false, error: 'NOTHING_TO_REFUND' };
+  }
+
+  const queued = await deps.repository.markRefundDue({
+    cashSaleId: sale.id,
+    amountCents: refundTarget,
+  });
+  const current = queued ?? sale;
+  const nonce = current.refundNonce;
+  if (!nonce) {
+    return { ok: false, error: 'REFUND_FAILED', detail: 'Missing refund nonce' };
+  }
+
+  if (current.refundStatus !== 'SETTLED') {
+    const refund = await deps.payments.refundPayment({
+      paymentRef: sale.transferId,
+      amount: refundTarget,
+      nonce,
+      ref: `cash-sale-return-refund:${sale.id}`,
+    });
+    if (refund.status !== 'SETTLED') {
+      await deps.repository.recordRefundResult({
+        cashSaleId: sale.id,
+        status: 'FAILED',
+        error: 'Provider rejected the refund',
+      });
+      return { ok: false, error: 'REFUND_FAILED', detail: refund.reason };
+    }
+    await deps.repository.recordRefundResult({
+      cashSaleId: sale.id,
+      status: 'SETTLED',
+      refundId: refund.refundId ?? null,
+    });
+  }
+
+  const updated = await deps.repository.recordReturnCaseResolution({
+    cashSaleId: sale.id,
+    status: 'REFUNDED',
+    resolvedBy: params.actorId,
+    resolvedAt: currentIso(deps),
+  });
+  if (!updated) return { ok: false, error: 'INVALID_STATE' };
+
+  // RELIST ONLY ON EVIDENCE. A carrier confirmation means the Seller demonstrably has
+  // the goods; an operator finding for the Buyer on a contested return does not, and
+  // relisting then would advertise something nobody can post (0064).
+  if (sale.returnCarrierDeliveredAt) {
+    await syncListingStatus(deps, sale, 'AVAILABLE');
+  }
+
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.actorId,
+    event: 'RETURN_CASE_RESOLVED_REFUND_BUYER',
+    fromStatus: sale.status,
+    toStatus: 'REFUNDED',
+    detail: sale.returnCarrierDeliveredAt
+      ? 'Return confirmed. Refund released and listing restored.'
+      : 'Operator found for the buyer. Refund released; listing NOT restored.',
+  });
+
+  await notifyQuietly(deps, (notifier) =>
+    notifier.disputeResolved({
+      buyerId: sale.buyerId,
+      sellerId: sale.sellerId,
+      cashSaleId: sale.id,
+      itemTitle: sale.itemTitle,
+      outcome: 'REFUND_BUYER',
+      refundCents: refundTarget,
+      sellerNetCents: 0,
+    }),
+  );
+
+  return { ok: true, sale: updated };
+}
+
 async function completeResolvedDispute(
   deps: CashSaleOrchestratorDeps,
   sale: CashSaleRecord,
@@ -2898,6 +3180,12 @@ export interface CashSaleOrchestrator {
     actorId: string;
     outcome: CashSaleDisputeOutcome;
     refundCents?: number;
+    /**
+     * Override the return requirement on a full refund (0088). Undefined derives it
+     * from the record, which is correct unless the operator can see something the
+     * columns cannot — an empty or wrong parcel the carrier marked delivered.
+     */
+    requireReturn?: boolean;
   }): Promise<CashSaleResult>;
   /** Retry every release still owed (Req 4.3). */
   processDuePayouts(params?: {
@@ -2972,6 +3260,19 @@ export interface CashSaleOrchestrator {
     actorId: string;
     reason: string;
   }): Promise<CashSaleResult>;
+
+  /**
+   * Staff decide a STALLED return - contested or never posted (0088/0089).
+   *
+   * The only way out of those two states. Without it an operator pressing resolve
+   * was told the case was settled while nothing happened, because the sale already
+   * carried a dispute resolution from entering the return.
+   */
+  resolveReturnCase(params: {
+    cashSaleId: string;
+    actorId: string;
+    outcome: 'REFUND_BUYER' | 'RELEASE_SELLER';
+  }): Promise<CashSaleResult>;
 }
 
 /** Bind the pure lifecycle operations to injected services. */
@@ -3006,5 +3307,6 @@ export function createCashSaleOrchestrator(
     recordReturnShipment: (params) => recordCashSaleReturnShipment(deps, params),
     finalizeReturn: (params) => finalizeReturnedCashSale(deps, params),
     disputeReturn: (params) => disputeCashSaleReturn(deps, params),
+    resolveReturnCase: (params) => resolveCashSaleReturnCase(deps, params),
   };
 }

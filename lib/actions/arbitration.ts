@@ -34,7 +34,10 @@ import {
   type ArbitrationGoodsLine,
   type TriagedCase,
 } from '@/domain/arbitration/arbitrationCase';
-import { sellerNetCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import {
+  returnRequiredForRefund,
+  sellerNetCentsFor,
+} from '@/domain/orchestrator/cashSaleOrchestrator';
 import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
 import { type ActionResult, fail, ok } from './result';
 
@@ -132,6 +135,18 @@ export type ArbitrationResolution =
       /** Set when a refund was attempted and the provider refused: retry is safe. */
       refundStatus: string | null;
       status: string;
+      /**
+       * Whether the record shows the Buyer received the goods (0088).
+       *
+       * Decides whether a full refund waits on a return. Derived here with the same
+       * rule the orchestrator applies, so the operator is shown the outcome that will
+       * actually happen rather than a guess.
+       */
+      buyerHasGoods: boolean;
+      /** A carrier confirmed the returned goods reached the seller (0088). */
+      returnConfirmed: boolean;
+      /** The dispatch deadline passed unposted (0089), so staff are deciding it. */
+      returnLapsed: boolean;
     }
   | {
       kind: 'TRADE';
@@ -651,7 +666,10 @@ async function readResolution(
   if (kind === 'CASH_SALE') {
     const { data } = await admin
       .from('cash_sales')
-      .select('id, status, amount_cents, platform_fee_cents, refund_cents, refund_status')
+      // ONE STRING LITERAL, deliberately long. Supabase infers the row type from the
+      // literal, so splitting this across concatenated parts collapses `data` to
+      // GenericStringError and every field read below stops type-checking.
+      .select('id, status, amount_cents, platform_fee_cents, refund_cents, refund_status, carrier_delivered_at, received_at, inspection_accepted_at, buyer_handover_confirmed_at, seller_handover_confirmed_at, return_carrier_delivered_at, return_lapsed_at')
       .eq('id', ref)
       .maybeSingle();
     if (!data) return null;
@@ -663,6 +681,19 @@ async function readResolution(
       platformFeeCents: Number(data.platform_fee_cents ?? 0),
       refundCents: Number(data.refund_cents ?? 0),
       refundStatus: (data.refund_status as string | null) ?? null,
+      // The SAME rule the orchestrator applies, imported rather than restated so the
+      // console cannot promise one outcome while the money path takes another.
+      buyerHasGoods: returnRequiredForRefund({
+        carrierDeliveredAt: (data.carrier_delivered_at as string | null) ?? null,
+        receivedAt: (data.received_at as string | null) ?? null,
+        inspectionAcceptedAt: (data.inspection_accepted_at as string | null) ?? null,
+        buyerHandoverConfirmedAt:
+          (data.buyer_handover_confirmed_at as string | null) ?? null,
+        sellerHandoverConfirmedAt:
+          (data.seller_handover_confirmed_at as string | null) ?? null,
+      }),
+      returnConfirmed: Boolean(data.return_carrier_delivered_at),
+      returnLapsed: Boolean(data.return_lapsed_at),
     };
   }
 

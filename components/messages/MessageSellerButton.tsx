@@ -116,10 +116,10 @@ export function MessageSellerButton({
   if (variant === 'inline') {
     return (
       <div className="space-y-2">
-        <div className="rounded-lg border bg-muted/40 p-3">
+        <div className="rounded-lg border bg-muted/40 p-cozy">
           <label
             htmlFor="message-seller-input"
-            className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground"
+            className="mb-2 flex items-center gap-tight text-body font-medium text-foreground"
           >
             <MessageCircle className="size-4 text-muted-foreground" aria-hidden />
             Send seller a message
@@ -150,7 +150,7 @@ export function MessageSellerButton({
           </form>
         </div>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-body text-destructive">
             {error}
           </p>
         )}
@@ -178,7 +178,7 @@ export function MessageSellerButton({
       </Button>
 
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       )}

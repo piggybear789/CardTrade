@@ -160,7 +160,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
 
               <span
                 className={cn(
-                  'mt-1.5 max-w-full truncate px-1 text-xs transition-colors duration-300',
+                  'mt-1.5 max-w-full truncate px-1 text-meta transition-colors duration-300',
                   live
                     ? 'font-semibold text-foreground'
                     : halted
@@ -179,7 +179,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
 
       {open ? (
         <p
-          className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+          className="mt-2 rounded-md border bg-muted/30 px-cozy py-snug text-meta text-muted-foreground"
           aria-live="polite"
         >
           <span className="font-medium text-foreground">{open.label}</span>

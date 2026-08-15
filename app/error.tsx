@@ -38,7 +38,7 @@ export default function Error({
         and if it keeps happening, head back to the marketplace.
       </p>
       {error.digest ? (
-        <p className="mt-4 font-mono text-xs text-muted-foreground">
+        <p className="mt-4 font-mono text-meta text-muted-foreground">
           Reference: {error.digest}
         </p>
       ) : null}

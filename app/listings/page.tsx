@@ -211,7 +211,7 @@ export default async function ListingsPage({
             <div className="min-w-0">
               <h2
                 id="catalog-heading"
-                className="text-balance text-lg font-semibold tracking-[-0.025em] sm:text-2xl"
+                className="text-balance text-subhead font-semibold tracking-[-0.025em] sm:text-head"
               >
                 {resultTitle}
               </h2>
@@ -222,7 +222,7 @@ export default async function ListingsPage({
                   deliver. The count is still reachable as static text under the
                   labelled region, and `app/listings/loading.tsx` covers the
                   in-flight state. */}
-              <p className="mt-0.5 text-sm text-muted-foreground">
+              <p className="mt-0.5 text-body text-muted-foreground">
                 {COUNT_FORMATTER.format(total)}{' '}
                 {total === 1 ? 'collectible' : 'collectibles'} available
               </p>
@@ -289,7 +289,7 @@ export default async function ListingsPage({
                 )}
                 {/* Also not a live region — same reason as the result count above:
                     paging is a navigation, so this element is rebuilt, not updated. */}
-                <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                <span className="text-body font-medium tabular-nums text-muted-foreground">
                   Page {currentPage} of {totalPages}
                 </span>
                 {!hasMore ? (

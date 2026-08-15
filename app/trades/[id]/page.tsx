@@ -215,13 +215,13 @@ export default async function TradePage({
     reviewSection = (
       <div className="mt-6 flex flex-col items-stretch gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium">Rate this trade</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-body font-medium">Rate this trade</p>
+          <p className="text-meta text-muted-foreground">
             Share how it went with {counterpartyName}.
           </p>
         </div>
         {existingReview ? (
-          <span className="text-sm text-muted-foreground sm:shrink-0">
+          <span className="text-body text-muted-foreground sm:shrink-0">
             Reviewed
           </span>
         ) : (

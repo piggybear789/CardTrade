@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { BadgeX, ImageOff, Lock, MapPin, Star } from 'lucide-react';
+import { BadgeX, ImageOff, Lock, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -101,7 +101,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             <span className="absolute inset-0 z-20 flex items-center justify-center bg-black/45">
               <Badge
                 variant="secondary"
-                className="gap-1 border-white/20 bg-black/75 px-2.5 py-1 text-[0.6875rem] text-parchment shadow-sm backdrop-blur hover:bg-black/75"
+                className="gap-1 border-white/20 bg-black/75 px-snug py-1 text-meta text-parchment shadow-sm backdrop-blur hover:bg-black/75"
               >
                 <Lock className="size-3" aria-hidden="true" />
                 {unavailableLabel}
@@ -113,40 +113,65 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
               itemId={item.id}
               initialWatching={initialWatching}
               variant="icon"
-              className="pointer-events-auto absolute right-2.5 top-2.5 z-30 border border-white/15 bg-black/55 text-parchment hover:bg-black/75"
+              className="pointer-events-auto absolute right-snug top-snug z-30 border border-white/15 bg-black/55 text-parchment hover:bg-black/75"
             />
           ) : null}
         </div>
 
-        <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col pt-2.5">
-          {/* Sizes come off the scale (`text-sm` / `text-base` / `text-xs`) rather
-              than one-off bracket values. Metadata was 10px here, rising to 11px at
-              `sm` — under the ~12px floor where text stops being comfortable, on the
-              densest grid in the app, for the seller name and rating a buyer scans
-              before clicking. Contrast was never the problem; size was. */}
-          <h3 className="line-clamp-2 text-sm font-normal leading-snug text-foreground">
-            {item.title}
+        <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col pt-snug">
+          {/* Sizes come off the scale (`text-body` / `text-subhead` / `text-meta`)
+              rather than one-off bracket values. Metadata was 10px here, rising to
+              11px at `sm` — under the ~12px floor where text stops being comfortable,
+              on the densest grid in the app, for the seller name a buyer scans before
+              clicking. Contrast was never the problem; size was.
+
+              The proportions follow the reference marketplace: an unemphasised
+              two-line description, then the PRICE as the loudest thing in the tile,
+              then quiet grey chrome. The title is deliberately `font-normal` — when
+              the title and the price are both bold, the tile has no focal point. */}
+          <h3 className="line-clamp-2 min-h-[2lh] text-body font-normal leading-snug text-foreground">
+            {item.description}
           </h3>
-          <p className="mt-1 text-base font-semibold leading-tight text-foreground">
-            {isShopfront ? (
-              <span className="mr-1 text-xs font-normal text-muted-foreground">
-                from
+
+          {/* PRICE AND DEMAND ON ONE LINE. The want-count belongs beside the figure
+              it qualifies: "$1,200 — 12 people watching" is one thought, and a buyer
+              reads the number as evidence about the price. `items-baseline` so the
+              small grey count sits on the price's baseline rather than its box, which
+              is what stops it looking dropped. */}
+          <div className="mt-tight flex min-w-0 items-baseline gap-snug">
+            <p className="min-w-0 text-subhead font-semibold leading-tight text-foreground">
+              {isShopfront ? (
+                <span className="mr-1 text-meta font-normal text-muted-foreground">
+                  from
+                </span>
+              ) : null}
+              {formatAud(item.fmv_cents)}
+            </p>
+            {/* Hidden at zero rather than shown as "0 watching", which reads as a
+                verdict on the listing. `watch_count` is denormalised by 0097 because
+                `watchlist` is owner-scoped by RLS — see the note on the column. */}
+            {item.watch_count > 0 ? (
+              <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
+                {item.watch_count} watching
               </span>
             ) : null}
-            {formatAud(item.fmv_cents)}
-          </p>
-          {item.location_label ? (
-            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="size-3 shrink-0" aria-hidden="true" />
-              <span className="truncate">{item.location_label}</span>
-            </p>
-          ) : null}
+          </div>
 
+          {/* SELLER: identity on the left, assurance pushed to the far right.
+              `justify-between` rather than a trailing margin, so the verified mark
+              lands on the tile's right edge on every card regardless of how long the
+              display name is — a ragged trust signal is one a buyer stops trusting.
+
+              The title slot above is height-reserved (`min-h-[2lh]`) because
+              `line-clamp-2` renders one line or two. Without it, and with this row
+              pinned by `mt-auto`, that variance collected into a single gap: measured
+              across one row it ran 33px, 57px and 81px between the price and this
+              line on adjacent tiles, for what reads as the same join. */}
           {seller ? (
-            <div className="mt-auto flex min-w-0 items-center gap-1.5 pt-1.5">
+            <div className="mt-auto flex min-w-0 items-center justify-between gap-snug pt-snug">
               <Link
                 href={`/sellers/${seller.id}`}
-                className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
+                className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-tight"
               >
                 {/* `xs` because this is the densest grid in the app — big enough to
                     recognise a familiar seller, small enough not to compete with the
@@ -156,9 +181,18 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                   displayName={seller.displayName}
                   size="xs"
                 />
-                <span className="truncate text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+                <span className="truncate text-meta text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                   {seller.displayName ?? 'Unknown seller'}
                 </span>
+              </Link>
+
+              <span className="flex shrink-0 items-center gap-tight">
+                {seller.rating != null ? (
+                  <span className="flex items-center gap-tight text-meta tabular-nums text-muted-foreground">
+                    <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
+                    {seller.rating.toFixed(1)}
+                  </span>
+                ) : null}
                 {/* ONE MARK, not two. This rendered a payee tick and an identity
                     shield side by side on the claim that they meant different things
                     — "can be paid" versus "a provider checked their ID". Since the
@@ -182,13 +216,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                     aria-label="Unverified seller"
                   />
                 ) : null}
-              </Link>
-              {seller.rating != null ? (
-                <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">
-                  <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
-                  {seller.rating.toFixed(1)}
-                </span>
-              ) : null}
+              </span>
             </div>
           ) : null}
         </div>
@@ -262,37 +290,50 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
             itemId={item.id}
             initialWatching={initialWatching}
             variant="icon"
-            className="pointer-events-auto absolute right-3 top-3 z-30 border border-white/15 bg-black/55 text-parchment hover:bg-black/75"
+            className="pointer-events-auto absolute right-cozy top-cozy z-30 border border-white/15 bg-black/55 text-parchment hover:bg-black/75"
           />
         ) : null}
       </div>
 
-      <div className="pointer-events-none relative flex flex-1 flex-col px-4 pb-4 pt-3.5">
-        <h3 className="line-clamp-2 text-sm font-normal leading-snug text-foreground">
-          {item.title}
+      <div className="pointer-events-none relative flex flex-1 flex-col px-group pb-group pt-cozy">
+        <h3 className="line-clamp-2 min-h-[2lh] text-body font-normal leading-snug text-foreground">
+          {item.description}
         </h3>
-        <p className="mt-1.5 text-lg font-semibold leading-tight text-foreground">
-          {isShopfront ? (
-            <span className="mr-1 text-xs font-normal text-muted-foreground">from</span>
-          ) : null}
-          {formatAud(item.fmv_cents)}
-        </p>
-        {item.location_label ? (
-          <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{item.location_label}</span>
+        <div className="mt-tight flex min-w-0 items-baseline gap-snug">
+          <p className="min-w-0 text-subhead font-semibold leading-tight text-foreground">
+            {isShopfront ? (
+              <span className="mr-1 text-meta font-normal text-muted-foreground">from</span>
+            ) : null}
+            {formatAud(item.fmv_cents)}
           </p>
-        ) : null}
-
+          {item.watch_count > 0 ? (
+            <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
+              {item.watch_count} watching
+            </span>
+          ) : null}
+        </div>
+        {/* Same structure as the catalog variant — see the fuller notes there. Price
+            and want-count on one line, seller identity left and assurance far right,
+            no location. The two treatments stay in step deliberately: they are the
+            same tile at two densities, and they had already drifted once. */}
         {seller ? (
-          <div className="mt-auto flex items-center gap-1.5 pt-2.5">
+          <div className="mt-auto flex min-w-0 items-center justify-between gap-snug pt-snug">
             <Link
               href={`/sellers/${seller.id}`}
-              className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-1.5"
+              className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-tight"
             >
-              <span className="truncate text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+              <span className="truncate text-meta text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                 {seller.displayName ?? 'Unknown seller'}
               </span>
+            </Link>
+
+            <span className="flex shrink-0 items-center gap-tight">
+              {seller.rating != null ? (
+                <span className="flex items-center gap-tight text-meta tabular-nums text-muted-foreground">
+                  <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
+                  {seller.rating.toFixed(1)}
+                </span>
+              ) : null}
               {/* One mark — see the note on the compact layout above. */}
               <IdentityBadge
                 verified={seller.isVerified}
@@ -308,13 +349,7 @@ export function ItemCard({ item, variant = 'default', initialWatching }: ItemCar
                   aria-label="Unverified seller"
                 />
               ) : null}
-            </Link>
-            {seller.rating != null ? (
-              <span className="flex shrink-0 items-center gap-0.5 text-xs tabular-nums text-muted-foreground">
-                <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
-                {seller.rating.toFixed(1)}
-              </span>
-            ) : null}
+            </span>
           </div>
         ) : null}
       </div>

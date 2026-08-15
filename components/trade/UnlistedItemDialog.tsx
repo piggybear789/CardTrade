@@ -26,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -66,7 +65,6 @@ export const UNLISTED_IMAGES_MAX = 10;
  * owns because it is stated once for the whole side.
  */
 export interface UnlistedItemDraft {
-  title: string;
   description: string;
   category: string;
   condition: string;
@@ -75,7 +73,6 @@ export interface UnlistedItemDraft {
 
 /** An empty draft, used when opening the dialog to add rather than edit. */
 const EMPTY_DRAFT: UnlistedItemDraft = {
-  title: '',
   description: '',
   category: '',
   condition: '',
@@ -85,7 +82,6 @@ const EMPTY_DRAFT: UnlistedItemDraft = {
 /** True when a draft has everything `createPrivateTradeItem` requires. */
 export function isUnlistedDraftComplete(draft: UnlistedItemDraft): boolean {
   return (
-    draft.title.trim() !== '' &&
     draft.description.trim() !== '' &&
     draft.category !== '' &&
     draft.condition !== '' &&
@@ -165,7 +161,7 @@ export function UnlistedItemDialog({
             Describe an item you hold but have never listed, and put it up in this
             trade.
           </DialogDescription>
-          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+          <p className="flex items-start gap-snug text-body text-muted-foreground">
             <Lock className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden="true" />
             <span>
               Only {counterpartName} sees this, and only inside this trade. It is
@@ -175,27 +171,18 @@ export function UnlistedItemDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* No Title field, matching the listing form: the short label is derived
+              from this description by `deriveItemTitle`. A trader states what the card
+              is once, and arbitration still gets a stable label on the contract. */}
           <div className="space-y-2">
-            <Label htmlFor="unlisted-title">Title</Label>
-            <Input
-              id="unlisted-title"
-              value={draft.title}
-              onChange={(e) => set('title', e.target.value)}
-              maxLength={120}
-              autoComplete="off"
-              placeholder="1999 Charizard, holo…"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="unlisted-description">Description</Label>
+            <Label htmlFor="unlisted-description">Describe the item</Label>
             <Textarea
               id="unlisted-description"
               value={draft.description}
               onChange={(e) => set('description', e.target.value)}
               maxLength={2000}
               rows={3}
-              placeholder="Condition details, grading, anything they should know…"
+              placeholder="1999 Charizard holo, condition details, grading, anything they should know…"
             />
           </div>
 
@@ -240,7 +227,7 @@ export function UnlistedItemDialog({
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium leading-none" id="unlisted-photos-label">
+            <p className="text-body font-medium leading-none" id="unlisted-photos-label">
               Photos
               <span className="ml-1.5 font-normal text-muted-foreground">
                 {draft.images.length} of {UNLISTED_IMAGES_MAX}
@@ -283,7 +270,7 @@ export function UnlistedItemDialog({
                       focus ring on the tile rather than the hidden input. */}
                   <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground ring-offset-background transition-colors hover:border-solid hover:bg-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2">
                     <ImagePlus aria-hidden="true" className="size-5" />
-                    <span className="text-[0.6875rem] font-medium">Add</span>
+                    <span className="text-meta font-medium">Add</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -302,7 +289,7 @@ export function UnlistedItemDialog({
               )}
             </ul>
 
-            <p className="text-xs text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               {draft.images.length < UNLISTED_IMAGES_MIN
                 ? `At least ${UNLISTED_IMAGES_MIN} photo. They are the evidence base if this trade is ever disputed.`
                 : 'The first photo is the one they see first.'}

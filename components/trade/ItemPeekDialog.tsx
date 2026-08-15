@@ -85,13 +85,13 @@ export function ItemPeekDialog({
             frameClassName="h-[min(55dvh,26rem)] w-full"
           />
         ) : (
-          <p className="flex items-center gap-2 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+          <p className="flex items-center gap-snug rounded-lg border border-dashed p-6 text-body text-muted-foreground">
             <ImageOff className="size-4 shrink-0" aria-hidden />
             No photos were attached to this item.
           </p>
         )}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-snug">
           {item.condition ? (
             <Badge variant="secondary">Condition: {item.condition}</Badge>
           ) : null}
@@ -104,7 +104,7 @@ export function ItemPeekDialog({
         </div>
 
         {item.description ? (
-          <p className="whitespace-pre-line break-words text-sm leading-6 text-muted-foreground">
+          <p className="whitespace-pre-line break-words text-body leading-6 text-muted-foreground">
             {item.description}
           </p>
         ) : null}

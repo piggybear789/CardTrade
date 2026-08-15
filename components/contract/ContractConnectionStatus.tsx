@@ -22,7 +22,7 @@ export function ContractConnectionStatus({
   return (
     <span
       className={cn(
-        'flex items-center gap-1.5 text-xs text-destructive',
+        'flex items-center gap-tight text-meta text-destructive',
         className,
       )}
       role="status"

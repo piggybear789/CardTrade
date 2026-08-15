@@ -119,14 +119,14 @@ export function PlacePicker({
           ) : null}
           <input
             id={id}
-            className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
+            className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-body text-muted-foreground"
             value=""
             disabled
             readOnly
             placeholder="Address search unavailable"
             aria-describedby={errorId}
           />
-          <p id={errorId} role="alert" className="text-sm text-destructive">
+          <p id={errorId} role="alert" className="text-body text-destructive">
             Address search is not configured on this deployment, so a verified
             address cannot be entered. This step needs a Google Maps API key.
           </p>
@@ -144,7 +144,7 @@ export function PlacePicker({
         ) : null}
         <input
           id={id}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-body"
           value={textOnly}
           disabled={disabled}
           placeholder={textFallbackPlaceholder ?? 'Suburb or meeting place'}
@@ -170,12 +170,12 @@ export function PlacePicker({
           }}
         />
         {hint && !error ? (
-          <p id={hintId} className="text-xs text-muted-foreground">
+          <p id={hintId} className="text-body text-muted-foreground">
             {hint} Address search unavailable until a Google Maps API key is configured.
           </p>
         ) : null}
         {error ? (
-          <p id={errorId} role="alert" className="text-sm text-destructive">
+          <p id={errorId} role="alert" className="text-body text-destructive">
             {error}
           </p>
         ) : null}
@@ -232,12 +232,12 @@ export function PlacePicker({
       ) : null}
 
       {hint && !error ? (
-        <p id={hintId} className="text-xs text-muted-foreground">
+        <p id={hintId} className="text-body text-muted-foreground">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} role="alert" className="text-sm text-destructive">
+        <p id={errorId} role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}

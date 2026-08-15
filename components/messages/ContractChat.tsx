@@ -118,14 +118,14 @@ export function ContractChat({
           separately banded the panel, and with only 3 points of lightness
           between `--card` and `--background` the tints read as dirt, not depth.
           Depth comes from the bubbles instead. */}
-      <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
+      <header className="flex items-center justify-between gap-3 border-b px-group py-cozy">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
             <Send className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">{title}</h2>
-            <p className="truncate text-xs text-muted-foreground">
+            <h2 className="text-body font-semibold">{title}</h2>
+            <p className="truncate text-meta text-muted-foreground">
               With {counterpartyName}
             </p>
           </div>
@@ -133,7 +133,7 @@ export function ContractChat({
         <div className="flex shrink-0 items-center gap-3">
           {connectionStatus === 'error' ? (
             <span
-              className="flex items-center gap-1.5 text-xs text-destructive"
+              className="flex items-center gap-tight text-meta text-destructive"
               role="status"
             >
               <span className="size-2 rounded-full bg-destructive" aria-hidden />
@@ -143,7 +143,7 @@ export function ContractChat({
           {contractHref ? (
             <Link
               href={contractHref}
-              className="inline-flex touch-manipulation items-center gap-1 rounded-sm text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="inline-flex touch-manipulation items-center gap-1 rounded-sm text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Open Conversation
               <ExternalLink className="size-3" aria-hidden />
@@ -164,14 +164,14 @@ export function ContractChat({
           // carrying on down the page, and the reader had to lift and re-swipe
           // outside the log to continue. The two panes stack at the same
           // breakpoint, so they must make the same choice.
-          className="h-full space-y-3 overflow-y-auto p-3 lg:overscroll-contain"
+          className="h-full space-y-3 overflow-y-auto p-cozy lg:overscroll-contain"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"
         >
           {messages.length === 0 ? (
             <div className="grid h-full place-items-center text-center">
-              <p className="max-w-56 text-sm leading-5 text-muted-foreground">{emptyHint}</p>
+              <p className="max-w-56 text-body leading-5 text-muted-foreground">{emptyHint}</p>
             </div>
           ) : (
             messages.map((message, index) => {
@@ -180,7 +180,7 @@ export function ContractChat({
               if (message.kind === 'SYSTEM') {
                 return (
                   <div key={message.id} className="flex justify-center">
-                    <p className="max-w-[92%] break-words rounded-2xl border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs leading-4 text-muted-foreground">
+                    <p className="max-w-[92%] break-words rounded-2xl border border-dashed bg-muted/40 px-cozy py-tight text-center text-meta leading-4 text-muted-foreground">
                       {message.body}
                     </p>
                   </div>
@@ -200,13 +200,13 @@ export function ContractChat({
               return (
                 <div key={message.id} className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
                   {showName ? (
-                    <span className={cn('mb-0.5 px-1 text-[11px] font-medium text-muted-foreground')}>
+                    <span className={cn('mb-0.5 px-1 text-meta font-medium text-muted-foreground')}>
                       {senderName}
                     </span>
                   ) : null}
                   <div
                     className={cn(
-                      'max-w-[82%] rounded-2xl px-3 py-2 text-sm',
+                      'max-w-[82%] rounded-2xl px-3 py-2 text-body',
                       mine
                         ? 'rounded-br-sm bg-primary text-primary-foreground'
                         : 'rounded-bl-sm bg-muted text-foreground',
@@ -214,7 +214,7 @@ export function ContractChat({
                   >
                     <p className="whitespace-pre-wrap break-words">{message.body}</p>
                   </div>
-                  <span className={cn('mt-0.5 px-1 text-[10px] text-muted-foreground/60')}>
+                  <span className={cn('mt-0.5 px-1 text-meta text-muted-foreground/60')}>
                     {timeLabel}
                   </span>
                 </div>
@@ -226,14 +226,14 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full bg-primary px-cozy py-2 text-meta font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <ArrowDown className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}
           </button>
         ) : null}
       </div>
-      <form onSubmit={submit} className="border-t p-3">
+      <form onSubmit={submit} className="border-t p-cozy">
         <label htmlFor={`contract-chat-${conversationId}`} className="sr-only">
           Write a message
         </label>
@@ -279,7 +279,7 @@ export function ContractChat({
           </Button>
         </div>
         {error ? (
-          <p role="alert" className="mt-2 text-xs text-destructive">
+          <p role="alert" className="mt-2 text-body text-destructive">
             {error}
           </p>
         ) : null}

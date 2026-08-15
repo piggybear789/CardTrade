@@ -201,6 +201,30 @@ describe('sellerIdentityDisclosure', () => {
     expect(disclosure?.legalEntityName).toBe('Jane Q Collector');
   });
 
+  // THE PROVENANCE FLAG IS A TRUTHFULNESS GUARD, not a convenience. The disclosure
+  // collapses two sources into one `legalEntityName`, and before this flag existed
+  // the UI could not tell them apart — so the buy dialog labelled a name the seller
+  // typed as their "Verified name". These two tests pin both directions, because a
+  // flag that is always true (or always false) reads as passing while restoring
+  // exactly the claim it was added to prevent.
+  it('reports the name as document-verified when it came off a document', () => {
+    const disclosure = sellerIdentityDisclosure(
+      approved({ identityCheckName: 'Jane Q Collector' }),
+    );
+
+    expect(disclosure?.nameIsDocumentVerified).toBe(true);
+  });
+
+  it('reports a grandfathered fallback name as NOT document-verified', () => {
+    // No `identityCheckName`, so the disclosure falls back to whatever Connect held.
+    // `submitMerchantOnboarding` seeds that from the member's own `display_name`, so
+    // this value may be a self-chosen handle and must never be labelled a real name.
+    const disclosure = sellerIdentityDisclosure(approved({ identityCheckName: null }));
+
+    expect(disclosure?.legalEntityName).toBe('Jane Collector');
+    expect(disclosure?.nameIsDocumentVerified).toBe(false);
+  });
+
   it('withholds a disclosure without a provider-verified legal name', () => {
     expect(sellerIdentityDisclosure(approved({ legalEntityName: null }))).toBeNull();
   });

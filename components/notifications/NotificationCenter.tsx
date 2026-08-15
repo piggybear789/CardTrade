@@ -108,21 +108,21 @@ export function NotificationCenter({
                   <span className="flex items-baseline justify-between gap-2">
                     <span
                       className={cn(
-                        'truncate text-sm',
+                        'truncate text-body',
                         unread ? 'font-semibold' : 'font-medium',
                       )}
                     >
                       {n.title}
                     </span>
                     <span
-                      className="shrink-0 text-xs text-muted-foreground"
+                      className="shrink-0 text-meta text-muted-foreground"
                       suppressHydrationWarning
                     >
                       {formatRelativeTime(n.created_at)}
                     </span>
                   </span>
                   {n.body && (
-                    <span className="mt-0.5 block break-words text-sm text-muted-foreground">
+                    <span className="mt-0.5 block break-words text-body text-muted-foreground">
                       {n.body}
                     </span>
                   )}

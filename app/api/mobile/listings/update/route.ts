@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await updateItem(itemId, {
-    title: String(input.title ?? ''),
     description: String(input.description ?? ''),
     category: String(input.category ?? ''),
     condition: String(input.condition ?? ''),

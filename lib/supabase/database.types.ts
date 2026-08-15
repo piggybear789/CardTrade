@@ -252,6 +252,14 @@ export type Database = {
            */
           seller_fraud_banned: boolean;
           seller_identity_verified: boolean;
+          /**
+           * How many members have saved this listing (0097). Denormalised onto items
+           * and kept by a trigger on `watchlist`, because `watchlist` is scoped to its
+           * own owner by RLS — counting it through a member's client returns only that
+           * member's rows, which answers 0 or 1 on every listing while looking like a
+           * working aggregate.
+           */
+          watch_count: number;
           location_label: string | null;
           location_place_id: string | null;
           location_lat: number | null;

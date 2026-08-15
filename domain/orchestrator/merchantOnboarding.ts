@@ -86,6 +86,24 @@ export interface SellerIdentityDisclosure {
   sellerId: string;
   version: string;
   legalEntityName: string;
+  /**
+   * Whether `legalEntityName` came off a government document.
+   *
+   * THE TWO SOURCES ARE NOT INTERCHANGEABLE AND CALLERS MUST NOT GUESS.
+   * `legalEntityName` is `identityCheckName ?? legalEntityName`: the first is
+   * Stripe Identity's `verified_outputs`, the second is whatever Connect held,
+   * which for a member grandfathered by 0069 is the name they typed — and
+   * `submitMerchantOnboarding` seeds that from `profiles.display_name`. So the
+   * field can legitimately hold a self-chosen handle.
+   *
+   * This flag exists because the disclosure previously collapsed both into one
+   * string and discarded which was used, leaving the UI unable to tell them
+   * apart — so a label reading "verified name" asserted a document check over a
+   * value the seller had typed themselves. Gate any copy claiming a real,
+   * document-checked identity on this being `true`; `false` may only be
+   * described as self-stated.
+   */
+  nameIsDocumentVerified: boolean;
   tradingName: string | null;
   organisationType: string | null;
   verifiedAt: string;
@@ -132,6 +150,11 @@ export function sellerIdentityDisclosure(
     return null;
   }
 
+  // Which of the two the line above actually took. Reported rather than inferred,
+  // because it is the difference between a document-checked name and one the
+  // seller typed, and only this function can still see it.
+  const nameIsDocumentVerified = merchant.identityCheckName != null;
+
   return {
     sellerId: merchant.profileId,
     // Derived when absent rather than required. The version is OUR bookkeeping —
@@ -142,6 +165,7 @@ export function sellerIdentityDisclosure(
     // it stable per verification and changes it if the provider re-verifies.
     version: identityVersionFor(merchant),
     legalEntityName,
+    nameIsDocumentVerified,
     tradingName: merchant.tradingName ?? null,
     organisationType: merchant.organisationType ?? null,
     verifiedAt,

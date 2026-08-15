@@ -55,9 +55,9 @@ export function FulfilmentMethodChoice({
   legend = 'How the goods change hands',
 }: FulfilmentMethodChoiceProps) {
   return (
-    <fieldset className="space-y-2" disabled={disabled}>
-      <legend className="text-sm font-medium">{legend}</legend>
-      <div className="grid grid-cols-2 gap-1.5">
+    <fieldset className="space-y-snug" disabled={disabled}>
+      <legend className="text-body font-medium">{legend}</legend>
+      <div className="grid grid-cols-2 gap-tight">
         {OPTIONS.map((option) => (
           <ChoiceTile
             key={option.value}

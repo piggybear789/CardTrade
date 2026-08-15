@@ -101,7 +101,7 @@ export function SocialLinksDisplay({
 
   return (
     <div
-      className={cn('flex flex-wrap items-center', compact ? 'gap-2' : 'gap-3', className)}
+      className={cn('flex flex-wrap items-center', compact ? 'gap-snug' : 'gap-cozy', className)}
     >
       {links.map((link) => {
         const icon = (
@@ -109,7 +109,7 @@ export function SocialLinksDisplay({
         );
         const shared = cn(
           'inline-flex items-center gap-1 rounded-sm text-muted-foreground',
-          compact ? 'text-xs' : 'text-sm',
+          compact ? 'text-meta' : 'text-body',
         );
 
         // No URL: show the handle without pretending it is navigable.

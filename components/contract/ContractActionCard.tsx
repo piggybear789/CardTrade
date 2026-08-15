@@ -53,20 +53,20 @@ export function ContractActionCard({
 }: ContractActionCardProps) {
   return (
     <Card className={cn(TONE[tone], className)}>
-      <CardContent className="grid h-full gap-4 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <CardContent className="grid h-full gap-group p-group md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div className="min-w-0 space-y-1">
-          <h3 className="text-pretty text-lg font-semibold leading-tight tracking-tight">
+          <h3 className="text-pretty text-subhead font-semibold leading-tight tracking-tight">
             {title ?? step?.label ?? 'This contract is finished'}
           </h3>
           {detail ?? step?.detail ? (
-            <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
+            <p className="max-w-3xl text-body text-muted-foreground">
               {detail ?? step?.detail}
             </p>
           ) : null}
         </div>
 
         {children ? (
-          <div className="flex min-w-0 flex-col gap-2 md:max-w-[40rem] md:items-end">
+          <div className="flex min-w-0 flex-col gap-snug md:max-w-[40rem] md:items-end">
             {children}
           </div>
         ) : null}

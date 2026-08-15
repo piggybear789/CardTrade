@@ -90,7 +90,7 @@ export function OwnItemsPickerDialog({
             onChange={(event) => setQuery(event.target.value)}
           />
           {draftIds.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               {draftIds.length} selected
             </p>
           ) : null}
@@ -98,7 +98,7 @@ export function OwnItemsPickerDialog({
 
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3 [scrollbar-gutter:stable] sm:px-6">
           {filtered.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="py-6 text-center text-body text-muted-foreground">
               No listings match.
             </p>
           ) : (
@@ -109,7 +109,7 @@ export function OwnItemsPickerDialog({
                   <li key={item.id}>
                     <label
                       className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-md border p-2.5 text-sm transition-colors',
+                        'flex cursor-pointer items-center gap-cozy rounded-md border p-snug text-body transition-colors',
                         'has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring',
                         checked && 'border-primary bg-primary/5',
                       )}

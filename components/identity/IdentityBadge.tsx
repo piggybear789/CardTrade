@@ -89,7 +89,7 @@ export function IdentityBadge({
       }
     >
       <ShieldCheck style={{ width: size, height: size, minWidth: size }} aria-hidden />
-      {!iconOnly && <span className="text-xs">{label}</span>}
+      {!iconOnly && <span className="text-meta">{label}</span>}
     </span>
   );
 }

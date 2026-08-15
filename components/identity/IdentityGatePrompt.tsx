@@ -116,15 +116,15 @@ export function IdentityGatePrompt({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <p className="text-sm text-muted-foreground">
+    <div className="space-y-group">
+      <div className="space-y-tight">
+        <p className="text-body text-muted-foreground">
           {resuming
             ? `Your identity check is not finished yet, so you cannot ${blockedAction} for the moment. Continue when you are ready.`
             : `Verify your identity to ${blockedAction}. It takes one step and needs a photo ID — no bank details.`}
         </p>
         {state === 'NOT_APPROVED' ? (
-          <p className="flex gap-2 text-sm text-destructive">
+          <p className="flex gap-snug text-body text-destructive">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
             {/* Retryable. A document check fails for a blurry photo far more often
                 than for anything sinister. */}
@@ -133,7 +133,7 @@ export function IdentityGatePrompt({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-snug">
         <Button type="button" onClick={handleStart} disabled={isPending} aria-busy={isPending}>
           {isPending ? (
             <Loader2 className="animate-spin" aria-hidden />
@@ -151,14 +151,14 @@ export function IdentityGatePrompt({
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}
-      {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
+      {notice ? <p className="text-body text-muted-foreground">{notice}</p> : null}
 
       {/* Req 4.8-4.12: continuing is the consent, so it is stated here. */}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         Stripe checks a photo ID and a selfie on its own pages — NoDitto never sees the
         document. You agree that the name on it can be shown to someone you have an
         agreed sale or trade with.

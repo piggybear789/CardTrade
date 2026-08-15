@@ -196,13 +196,13 @@ export function HandoverFailedDialog({
             <DialogDescription>{outcomeDescription}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <div className="space-y-group py-4">
+            <div className="flex items-start gap-cozy rounded-lg border border-destructive/30 bg-destructive/5 p-cozy">
               <AlertTriangle
                 className="mt-0.5 size-4 shrink-0 text-destructive"
                 aria-hidden
               />
-              <div className="space-y-1 text-xs">
+              <div className="space-y-tight text-body">
                 <p className="font-semibold text-destructive">
                   False reports have consequences
                 </p>
@@ -214,7 +214,7 @@ export function HandoverFailedDialog({
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="handover-failed-reason">What happened?</Label>
               <Textarea
                 id="handover-failed-reason"
@@ -225,14 +225,14 @@ export function HandoverFailedDialog({
                 rows={4}
                 disabled={isPending}
               />
-              <p className="text-right text-xs text-muted-foreground">
+              <p className="text-right text-meta text-muted-foreground">
                 {reason.length}/{REASON_MAX}
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label>Evidence (optional)</Label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-body text-muted-foreground">
                 Attach up to {MAX_EVIDENCE_FILES} photos — damaged packaging,
                 screenshots, the item you received.
               </p>
@@ -289,7 +289,7 @@ export function HandoverFailedDialog({
             </div>
 
             {inlineError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {inlineError}
               </p>
             ) : null}

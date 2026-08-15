@@ -161,8 +161,8 @@ export function ReportDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
+          <div className="space-y-group py-4">
+            <div className="space-y-snug">
               <Label htmlFor="report-reason">Reason</Label>
               <Select value={reason} onValueChange={setReason}>
                 <SelectTrigger id="report-reason">
@@ -178,7 +178,7 @@ export function ReportDialog({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="report-details">Details (optional)</Label>
               <Textarea
                 id="report-details"
@@ -188,13 +188,13 @@ export function ReportDialog({
                 maxLength={DETAILS_MAX}
                 rows={3}
               />
-              <p className="text-right text-xs text-muted-foreground">
+              <p className="text-right text-meta text-muted-foreground">
                 {details.length}/{DETAILS_MAX}
               </p>
             </div>
 
             {inlineError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {inlineError}
               </p>
             ) : null}

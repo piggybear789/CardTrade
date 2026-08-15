@@ -49,27 +49,27 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
   }
 
   return (
-    <ul role="list" className="space-y-3">
+    <ul role="list" className="space-y-cozy">
       {trades.map((trade) => {
         const { yours, theirs } = tradePairLabel(trade);
         return (
           <li key={trade.id}>
-            <Card className="p-3">
+            <Card className="p-cozy">
               <Link
                 href={`/trades/${trade.id}`}
-                className="flex items-center gap-4 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex items-center gap-group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground">
                   <ArrowLeftRight className="size-5" aria-hidden />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 break-words text-sm font-medium">
+                  <p className="line-clamp-2 break-words text-body font-medium">
                     Your item {yours}
                     <span className="mx-1.5 text-muted-foreground">↔</span>
                     Their item {theirs}
                   </p>
-                  <p className="mt-0.5 text-xs capitalize text-muted-foreground">
+                  <p className="mt-0.5 text-meta capitalize text-muted-foreground">
                     You are the {trade.role}
                   </p>
                 </div>

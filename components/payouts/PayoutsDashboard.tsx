@@ -155,7 +155,7 @@ export interface PayoutsDashboardProps {
 
 export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboardProps) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-section">
       <BalanceSummary model={model} />
       <ActiveSalesSummary model={model} />
       {/* ONE payout destination card, not two.
@@ -201,13 +201,13 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
         <Card className="h-full">
           <CardHeader className="pb-3">
             <CardDescription>Owed to you</CardDescription>
-            <CardTitle className="text-4xl tabular-nums">{formatAud(0)}</CardTitle>
+            <CardTitle className="text-display tabular-nums">{formatAud(0)}</CardTitle>
             <CardDescription>
               No funds are queued for release yet. Releases happen automatically after a sale resolves.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               Net proceeds are released automatically after a sale resolves.
             </p>
           </CardContent>
@@ -225,35 +225,35 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
       <Card className="h-full">
         <CardHeader className="pb-3">
           <CardDescription>Owed to you</CardDescription>
-          <CardTitle className="text-3xl tabular-nums">
+          <CardTitle className="text-head tabular-nums">
             {formatAud(model.releasingNowCents)}
           </CardTitle>
           <CardDescription>
             Queued and released automatically.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <dl className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="space-y-group">
+          <dl className="grid gap-group sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+              <dt className="text-meta uppercase tracking-wide text-muted-foreground">
                 Upcoming
               </dt>
-              <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+              <dd className="mt-0.5 text-lead font-semibold tabular-nums">
                 {formatAud(model.upcomingProceedsCents)}
               </dd>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 text-body text-muted-foreground">
                 Pending until the buyer accepts or inspection closes.
               </p>
             </div>
             {model.atRiskProceedsCents > 0 ? (
               <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                <dt className="text-meta uppercase tracking-wide text-muted-foreground">
                   Under dispute
                 </dt>
-                <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+                <dd className="mt-0.5 text-lead font-semibold tabular-nums">
                   {formatAud(model.atRiskProceedsCents)}
                 </dd>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="mt-0.5 text-body text-muted-foreground">
                   Counted in neither figure above while an outcome is owed. See
                   disputes below.
                 </p>
@@ -261,12 +261,12 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
             ) : null}
           </dl>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             All figures are net of the 5% platform fee. Shipping is a pass-through.
           </p>
 
           {model.hasBlockedRelease ? (
-            <p className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            <p className="flex items-start gap-snug rounded-lg border border-destructive/40 bg-destructive/10 p-cozy text-body text-destructive">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>
                 Part of this is blocked. The reason and what fixes it are listed
@@ -293,19 +293,19 @@ function DestinationAccountSummary({
 
   const card = (
     <Card className={compact ? 'h-full' : undefined}>
-      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+      <CardContent className="flex flex-col gap-cozy p-group sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-cozy">
           <span className="grid size-10 shrink-0 place-items-center rounded-md border bg-muted/30">
             <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
           </span>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold">
+            <div className="flex flex-wrap items-center gap-snug">
+              <p className="text-body font-semibold">
                 {destination.verifiedName ?? 'Stripe payout account'}
               </p>
               <Badge variant={copy.variant}>{copy.badge}</Badge>
             </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-body text-muted-foreground">
               {destination.state === 'VERIFIED'
                 ? 'Bank account on file with Stripe · releases are automatic'
                 : copy.detail}
@@ -328,11 +328,11 @@ function DestinationAccountSummary({
 
   return (
     <section aria-labelledby="destination-heading">
-      <h3 id="destination-heading" className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <h3 id="destination-heading" className="mb-cozy text-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Where your money goes
       </h3>
       {card}
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="mt-snug text-body text-muted-foreground">
         Bank details are held by Stripe. NoDitto never receives or stores them.
       </p>
     </section>
@@ -344,7 +344,7 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
 
   return (
     <section aria-labelledby="active-sales-heading">
-      <h3 id="active-sales-heading" className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <h3 id="active-sales-heading" className="mb-cozy text-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Active sales
       </h3>
       {!hasActivity ? (
@@ -358,31 +358,31 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
         />
       ) : (
         <Card>
-          <CardContent className="space-y-3 pt-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="text-sm font-medium">Sales in progress</p>
-              <p className="text-sm font-semibold tabular-nums">
+          <CardContent className="space-y-cozy pt-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-snug">
+              <p className="text-body font-medium">Sales in progress</p>
+              <p className="text-body font-semibold tabular-nums">
                 {formatAud(model.upcomingProceedsCents + model.releasingNowCents)}
               </p>
             </div>
             {model.releasing.length > 0 ? (
               <ul className="divide-y rounded-md border">
                 {model.releasing.map((sale) => (
-                  <li key={sale.cashSaleId} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <li key={sale.cashSaleId} className="flex items-center justify-between gap-cozy px-cozy py-snug">
                     <Link
                       href={`/sales/${sale.cashSaleId}`}
-                      className="min-w-0 truncate text-sm font-medium underline-offset-4 hover:underline"
+                      className="min-w-0 truncate text-body font-medium underline-offset-4 hover:underline"
                     >
                       {sale.itemTitle}
                     </Link>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    <span className="shrink-0 text-body font-semibold tabular-nums">
                       {formatAud(sale.netCents)}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body text-muted-foreground">
                 Buyer payment is pending while delivery and inspection are underway.
               </p>
             )}
@@ -405,7 +405,7 @@ function TransferHistory({
 
   return (
     <section aria-labelledby="history-heading">
-      <h3 id="history-heading" className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <h3 id="history-heading" className="mb-cozy text-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Transfer history
       </h3>
 
@@ -438,10 +438,10 @@ function TransferHistory({
           compact
         />
       ) : (
-        <ol className="space-y-3">
+        <ol className="space-y-cozy">
           {shown.map((entry) => (
-            <li key={entry.id} className="border-l-2 border-border pl-4">
-              <p className="text-sm">
+            <li key={entry.id} className="border-l-2 border-border pl-group">
+              <p className="text-body">
                 {historySentence(entry)}
                 {entry.kind === 'SENT' ? (
                   <span className="font-medium">
@@ -451,18 +451,18 @@ function TransferHistory({
                 ) : null}
               </p>
               {entry.kind === 'FAILED' && entry.failureCause ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="mt-0.5 text-body text-muted-foreground">
                   {FAILURE_COPY[entry.failureCause].summary}
                 </p>
               ) : null}
-              <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted-foreground">
+              <div className="mt-0.5 flex flex-wrap items-center gap-snug">
+                <span className="text-meta text-muted-foreground">
                   {formatRelativeTime(entry.occurredAt)}
                 </span>
                 {entry.cashSaleId ? (
                   <Link
                     href={`/sales/${entry.cashSaleId}`}
-                    className="text-xs underline underline-offset-2 hover:text-foreground"
+                    className="text-meta underline underline-offset-2 hover:text-foreground"
                   >
                     View sale
                   </Link>
@@ -479,8 +479,8 @@ function TransferHistory({
 function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
   return (
     <section aria-labelledby="arbitration-heading">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h3 id="arbitration-heading" className="text-xl font-semibold">
+      <div className="mb-group flex flex-wrap items-center gap-snug">
+        <h3 id="arbitration-heading" className="text-subhead font-semibold">
           Disputes affecting your money
         </h3>
         {model.atRiskProceedsCents > 0 ? (
@@ -496,7 +496,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
           compact
         />
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-group">
           {model.arbitrations.map((record) => {
             const href = record.cashSaleId
               ? `/sales/${record.cashSaleId}`
@@ -507,17 +507,17 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
               <li key={record.id}>
                 <Card>
                   <CardHeader className="pb-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-snug">
+                      <div className="flex flex-wrap items-center gap-snug">
                         <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                        <CardTitle className="text-base">
+                        <CardTitle className="text-lead">
                           {ARBITRATION_LABEL[record.kind]}
                         </CardTitle>
                         <Badge variant={record.open ? 'destructive' : 'secondary'}>
                           {record.open ? 'Open' : 'Closed'}
                         </Badge>
                       </div>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      <span className="shrink-0 text-body font-semibold tabular-nums">
                         {formatAud(record.amountCents)}
                       </span>
                     </div>
@@ -530,22 +530,22 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
                         : ''}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-snug">
                     {record.reason ? (
-                      <p className="whitespace-pre-line break-words rounded-md border bg-muted/40 p-2 text-xs">
+                      <p className="whitespace-pre-line break-words rounded-md border bg-muted/40 p-snug text-meta">
                         {record.reason}
                       </p>
                     ) : null}
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-snug">
                       {record.occurredAt ? (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-meta text-muted-foreground">
                           {formatRelativeTime(record.occurredAt)}
                         </span>
                       ) : null}
                       {href ? (
                         <Link
                           href={href}
-                          className="text-xs underline underline-offset-2 hover:text-foreground"
+                          className="text-meta underline underline-offset-2 hover:text-foreground"
                         >
                           View contract
                         </Link>
@@ -560,7 +560,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
       )}
 
       {model.atRiskProceedsCents > 0 ? (
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-cozy text-body text-muted-foreground">
           An amount at risk appears in neither &ldquo;Releasing now&rdquo; nor
           &ldquo;Upcoming&rdquo; while an outcome is owed.
         </p>

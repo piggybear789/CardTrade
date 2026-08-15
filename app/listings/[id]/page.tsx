@@ -27,6 +27,7 @@ import {
 
 import { getItem, type ItemRow } from "@/lib/actions/listings";
 import { getWatchCount, isWatching } from "@/lib/actions/watchlist";
+import { deriveItemTitle } from "@/domain/validation";
 import { createClient } from "@/lib/supabase/server";
 import { readIdentityGate } from "@/lib/identityGate";
 import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
@@ -361,9 +362,20 @@ export default async function ItemDetailPage({
             <div className="space-y-6">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.025em] sm:text-2xl lg:text-3xl">
-                    {item.title}
-                  </h2>
+                  {/* THE DESCRIPTION IS THE LISTING'S NAME. There is no separate
+                      title to render: a seller writes one piece of prose and
+                      `deriveItemTitle` reduces it to the short label that contracts,
+                      emails, notifications and arbitration carry. Showing both put
+                      the opening of the description on the page twice.
+
+                      The heading is screen-reader-only rather than removed. A
+                      2000-character `h2` is not a heading, but dropping the heading
+                      entirely would leave the page with no label in the
+                      accessibility tree and no outline for search results. */}
+                  <h2 className="sr-only">{deriveItemTitle(item.description)}</h2>
+                  <p className="min-w-0 whitespace-pre-line break-words text-body leading-relaxed text-foreground">
+                    {item.description}
+                  </p>
                   <Badge
                     variant={statusBadge.variant}
                     aria-label={`Availability: ${statusBadge.label}`}
@@ -372,7 +384,7 @@ export default async function ItemDetailPage({
                   </Badge>
                 </div>
 
-                <p className="text-3xl font-semibold tabular-nums tracking-tight">
+                <p className="text-head font-semibold tabular-nums tracking-tight">
                   {formatAud(item.fmv_cents)}
                 </p>
 
@@ -380,7 +392,7 @@ export default async function ItemDetailPage({
                   <Badge variant="secondary">{item.category}</Badge>
                   <Badge variant="outline">{item.condition}</Badge>
                   {watchCount > 0 ? (
-                    <span className="inline-flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 text-body tabular-nums text-muted-foreground">
                       <Heart
                         className="size-4 fill-destructive text-destructive"
                         aria-hidden="true"
@@ -408,11 +420,11 @@ export default async function ItemDetailPage({
                     />
                     <div className="flex min-w-0 items-center gap-1">
                       {isOwner ? (
-                        <p className="truncate text-sm font-semibold">You</p>
+                        <p className="truncate text-body font-semibold">You</p>
                       ) : (
                         <Link
                           href={`/sellers/${item.owner_id}`}
-                          className="truncate text-sm font-semibold underline-offset-2 hover:underline"
+                          className="truncate text-body font-semibold underline-offset-2 hover:underline"
                         >
                           {sellerRow?.display_name ?? "Unknown seller"}
                         </Link>
@@ -436,7 +448,7 @@ export default async function ItemDetailPage({
                         rating={sellerRow?.rating ?? null}
                         count={sellerRow?.rating_count ?? undefined}
                         size={12}
-                        className="text-xs"
+                        className="text-meta"
                       />
                     ) : (
                       <Link
@@ -448,7 +460,7 @@ export default async function ItemDetailPage({
                           rating={sellerRow?.rating ?? null}
                           count={sellerRow?.rating_count ?? undefined}
                           size={12}
-                          className="text-xs"
+                          className="text-meta"
                         />
                       </Link>
                     )}
@@ -457,15 +469,27 @@ export default async function ItemDetailPage({
                   {/* Inline identity disclosure — visible to buyers so they know
                   who they're transacting with (Req 4.8). */}
                   {sellerIdentity && !isOwner ? (
-                    <dl className="mt-1.5 space-y-0.5 border-t border-border/70 pt-1.5 text-xs leading-snug">
-                      <div className="flex min-w-0 gap-1.5">
-                        <dt className="shrink-0 text-muted-foreground">Legal</dt>
+                    <dl className="mt-tight space-y-tight border-t border-border/70 pt-tight text-meta leading-snug">
+                      {/* "Real name" ONLY when a government document backs it.
+                          `legalEntityName` is `identityCheckName ?? legalEntityName`,
+                          and the fallback is seeded from the seller's own
+                          `display_name` for members grandfathered by 0069 — so on
+                          those rows this value is a self-chosen handle, and calling
+                          it a real name would assert a document check that never
+                          happened. `nameIsDocumentVerified` is the only thing that
+                          can tell the two apart; do not label this from the value. */}
+                      <div className="flex min-w-0 gap-tight">
+                        <dt className="shrink-0 text-muted-foreground">
+                          {sellerIdentity.nameIsDocumentVerified
+                            ? 'Real name'
+                            : 'Stated name'}
+                        </dt>
                         <dd className="min-w-0 break-words font-medium">
                           {sellerIdentity.legalEntityName}
                         </dd>
                       </div>
                       {sellerIdentity.tradingName ? (
-                        <div className="flex min-w-0 gap-1.5">
+                        <div className="flex min-w-0 gap-tight">
                           <dt className="shrink-0 text-muted-foreground">
                             Trading as
                           </dt>
@@ -476,7 +500,7 @@ export default async function ItemDetailPage({
                       ) : null}
                       <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5">
                         {sellerIdentity.organisationType ? (
-                          <div className="flex min-w-0 gap-1.5">
+                          <div className="flex min-w-0 gap-tight">
                             <dt className="shrink-0 text-muted-foreground">
                               Type
                             </dt>
@@ -516,17 +540,8 @@ export default async function ItemDetailPage({
                 myContractId={myContractId}
               />
 
-              <section
-                aria-labelledby="description-heading"
-                className="space-y-2"
-              >
-                <h2 id="description-heading" className="text-sm font-medium">
-                  Description
-                </h2>
-                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground">
-                  {item.description}
-                </p>
-              </section>
+              {/* No Description section — the description is rendered at the top as
+                  the listing's name. It was previously shown in both places. */}
 
               {item.location_label ||
               (item.location_lat != null && item.location_lng != null) ? (
@@ -534,7 +549,7 @@ export default async function ItemDetailPage({
                   aria-labelledby="location-heading"
                   className="space-y-2"
                 >
-                  <h2 id="location-heading" className="text-sm font-medium">
+                  <h2 id="location-heading" className="text-body font-medium">
                     Based near
                   </h2>
                   {/* A listing pin is a locality, never a street address — the
@@ -679,7 +694,7 @@ function ItemActions({
     ) : null;
 
   const tradeGateNotice = disabledTradeReason ? (
-    <p className="text-center text-xs leading-relaxed text-muted-foreground">
+    <p className="text-center text-body leading-relaxed text-muted-foreground">
       {disabledTradeReason}
     </p>
   ) : null;
@@ -691,7 +706,7 @@ function ItemActions({
   const regionGateNotice = regionNotice ? (
     <p
       role="status"
-      className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-center text-xs leading-relaxed text-muted-foreground"
+      className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-center text-body leading-relaxed text-muted-foreground"
     >
       {regionNotice}
     </p>
@@ -709,21 +724,21 @@ function ItemActions({
           {openContracts.length > 0 ? (
             <div className="space-y-3 rounded-lg border border-gold/40 bg-gold/5 p-4">
               <div>
-                <p className="text-base font-semibold">
+                <p className="text-lead font-semibold">
                   {openContracts.length} open{" "}
                   {openContracts.length === 1 ? "contract" : "contracts"}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-body text-muted-foreground">
                   Nothing here is reserved. Check what each buyer has asked for
                   before you accept, so you don&apos;t promise the same card twice.
                 </p>
               </div>
-              <ul className="space-y-1.5">
+              <ul className="space-y-tight">
                 {openContracts.map((contract) => (
                   <li key={contract.id}>
                     <Link
                       href={`/sales/${contract.id}`}
-                      className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+                      className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-body transition-colors hover:bg-muted/50"
                     >
                       <span className="min-w-0 truncate">{contract.buyerName}</span>
                       <span className="shrink-0 font-medium">
@@ -736,8 +751,8 @@ function ItemActions({
             </div>
           ) : (
             <div className="rounded-lg border border-dashed px-4 py-4">
-              <p className="text-base font-semibold">No open contracts</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="text-lead font-semibold">No open contracts</p>
+              <p className="mt-1 text-body text-muted-foreground">
                 Buyers will ask for the cards they want, then you agree a price
                 with each of them.
               </p>
@@ -767,8 +782,8 @@ function ItemActions({
       return (
         <div className="space-y-3 rounded-lg border border-gold/40 bg-gold/5 p-4">
           <div>
-            <p className="text-base font-semibold">Under Contract</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-lead font-semibold">Under Contract</p>
+            <p className="mt-1 text-body text-muted-foreground">
               This item is in an active {activeSaleId ? "sale" : "trade"}. Manage
               it from the contract room.
             </p>
@@ -806,8 +821,8 @@ function ItemActions({
     return (
       <div className="space-y-4">
         <div className="rounded-lg border border-dashed px-4 py-5">
-          <p className="text-base font-semibold">You have a contract on this</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-lead font-semibold">You have a contract on this</p>
+          <p className="mt-1 text-body text-muted-foreground">
             {isShopfront
               ? "You already have an open contract with this seller for items from this listing. Add anything else to that contract rather than starting a second one."
               : "You are already buying this item. Everything about the purchase lives on the contract."}
@@ -834,10 +849,10 @@ function ItemActions({
     return (
       <div className="space-y-4">
         <div className="rounded-lg border border-dashed px-4 py-5">
-          <p className="text-base font-semibold">
+          <p className="text-lead font-semibold">
             {isShopfront ? "Closed" : "Not Available"}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-body text-muted-foreground">
             {isShopfront
               ? "This seller has closed the listing, so it is not taking new requests."
               : "This item is not currently available for purchase or trade."}
@@ -861,8 +876,8 @@ function ItemActions({
     return (
       <div className="space-y-3 rounded-lg border border-dashed px-4 py-5">
         <div>
-          <p className="text-base font-semibold">Sign In to Continue</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-lead font-semibold">Sign In to Continue</p>
+          <p className="mt-1 text-body text-muted-foreground">
             Sign in to buy this item or propose a trade.
           </p>
         </div>
@@ -888,8 +903,8 @@ function ItemActions({
       {!sellerIdentity ? (
         <div className="space-y-3 rounded-lg border border-dashed px-4 py-4">
           <div>
-            <p className="text-base font-semibold">Payout setup needed</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-lead font-semibold">Payout setup needed</p>
+            <p className="mt-1 text-body text-muted-foreground">
               This seller cannot accept a cash purchase or start a trade
               until their payout setup is complete. You can message them in the
               meantime.

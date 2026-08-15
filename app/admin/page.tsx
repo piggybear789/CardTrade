@@ -315,7 +315,7 @@ export default async function AdminPage({
 
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 id="payouts-heading" className="text-xl font-semibold">
+              <h3 id="payouts-heading" className="text-subhead font-semibold">
                 Seller releases owed
               </h3>
               {owedPayouts.length > 0 && (
@@ -327,7 +327,7 @@ export default async function AdminPage({
             {owedPayouts.length > 0 && <DrainPayoutsButton />}
           </div>
 
-          <p className="mb-4 text-sm text-muted-foreground">
+          <p className="mb-4 text-body text-muted-foreground">
             Money the platform is holding that already belongs to a seller — the owner is
             settled and only the transfer is outstanding. An hourly job drains this on its
             own; anything sitting here is stuck.
@@ -354,11 +354,11 @@ export default async function AdminPage({
                             <Badge variant={failed ? 'destructive' : 'secondary'}>
                               {sale.seller_payout_status}
                             </Badge>
-                            <CardTitle className="text-base">
+                            <CardTitle className="text-lead">
                               {formatAud(net)} to {nameFor(sale.seller_id)}
                             </CardTitle>
                           </div>
-                          <span className="shrink-0 text-xs text-muted-foreground">
+                          <span className="shrink-0 text-meta text-muted-foreground">
                             completed {formatRelativeTime(sale.completed_at)}
                           </span>
                         </div>
@@ -373,7 +373,7 @@ export default async function AdminPage({
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        <dl className="grid grid-cols-1 gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                        <dl className="grid grid-cols-1 gap-1 text-meta text-muted-foreground sm:grid-cols-2">
                           <div>
                             <dt className="inline font-medium text-foreground">Attempts: </dt>
                             <dd className="inline">{sale.seller_payout_attempts}</dd>
@@ -409,13 +409,13 @@ export default async function AdminPage({
       {tab === 'reports' ? (
         <section aria-labelledby="reports-heading">
           <div className="mb-4 flex items-center gap-2">
-            <h3 id="reports-heading" className="text-xl font-semibold">
+            <h3 id="reports-heading" className="text-subhead font-semibold">
               Community reports
             </h3>
             {openReports > 0 && <Badge>{openReports} open</Badge>}
           </div>
 
-          <p className="mb-4 text-sm text-muted-foreground">
+          <p className="mb-4 text-body text-muted-foreground">
             Members reporting a listing or another member. Actioning one hides content or
             flags an account; it never moves money.
           </p>
@@ -451,9 +451,9 @@ export default async function AdminPage({
                             <Badge variant={STATUS_VARIANT[report.status] ?? 'default'}>
                               {report.status}
                             </Badge>
-                            <CardTitle className="text-base">{report.reason}</CardTitle>
+                            <CardTitle className="text-lead">{report.reason}</CardTitle>
                           </div>
-                          <span className="shrink-0 text-xs text-muted-foreground">
+                          <span className="shrink-0 text-meta text-muted-foreground">
                             {formatRelativeTime(report.created_at)}
                           </span>
                         </div>
@@ -469,11 +469,11 @@ export default async function AdminPage({
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {report.details ? (
-                          <p className="whitespace-pre-line break-words text-sm text-foreground">
+                          <p className="whitespace-pre-line break-words text-body text-foreground">
                             {report.details}
                           </p>
                         ) : (
-                          <p className="text-sm italic text-muted-foreground">
+                          <p className="text-body italic text-muted-foreground">
                             No additional details provided.
                           </p>
                         )}
@@ -485,7 +485,7 @@ export default async function AdminPage({
                             targetId={report.target_id}
                           />
                         ) : (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-meta text-muted-foreground">
                             Reviewed {formatRelativeTime(report.reviewed_at)}.
                           </p>
                         )}
@@ -502,13 +502,13 @@ export default async function AdminPage({
       {tab === 'reconciliation' ? (
         <section aria-labelledby="trades-heading">
           <div className="mb-4 flex items-center gap-2">
-            <h3 id="trades-heading" className="text-xl font-semibold">
+            <h3 id="trades-heading" className="text-subhead font-semibold">
               Flagged trades
             </h3>
             {flaggedTrades > 0 && <Badge variant="secondary">{flaggedTrades}</Badge>}
           </div>
 
-          <p className="mb-4 text-sm text-muted-foreground">
+          <p className="mb-4 text-body text-muted-foreground">
             Trades where a capture or release exhausted its automatic retries, so the
             provider and our records may disagree. Reconcile in the Stripe dashboard, then
             clear the flag.
@@ -532,7 +532,7 @@ export default async function AdminPage({
                           <Badge variant="destructive">Manual reconciliation</Badge>
                           <Badge variant="outline">{trade.state}</Badge>
                         </div>
-                        <span className="shrink-0 text-xs text-muted-foreground">
+                        <span className="shrink-0 text-meta text-muted-foreground">
                           {formatRelativeTime(trade.created_at)}
                         </span>
                       </div>
@@ -546,7 +546,7 @@ export default async function AdminPage({
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <dl className="grid grid-cols-1 gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                      <dl className="grid grid-cols-1 gap-1 text-meta text-muted-foreground sm:grid-cols-2">
                         <div>
                           <dt className="inline font-medium text-foreground">Initiator: </dt>
                           <dd className="inline">{nameFor(trade.initiator_id)}</dd>

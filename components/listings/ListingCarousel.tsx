@@ -90,18 +90,18 @@ function MarqueeTile({
               />
             </>
           ) : (
-            <div className="grid h-full place-items-center px-3 text-center text-[11px] leading-tight text-parchment/25">
+            <div className="grid h-full place-items-center px-cozy text-center text-meta leading-tight text-parchment/25">
               No photo
             </div>
           )}
 
           {/* Title and price. Always visible so visitors can scan the inventory
               at a glance without hovering. */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent px-3 pb-2.5 pt-7">
-            <p className="truncate text-xs font-medium leading-tight text-parchment">
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent px-cozy pb-snug pt-7">
+            <p className="truncate text-meta font-medium leading-tight text-parchment">
               {item.title}
             </p>
-            <p className="mt-0.5 text-xs tabular-nums text-gold">
+            <p className="mt-tight text-meta tabular-nums text-gold">
               {isShopfront ? 'from ' : ''}
               {formatAud(item.fmv_cents)}
             </p>
@@ -129,7 +129,7 @@ export function ListingCarousel({ items }: { items: CatalogItem[] }) {
     <div className="overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]">
       <div
         className={cn(
-          'flex w-max gap-2.5 sm:gap-3',
+          'flex w-max gap-snug sm:gap-cozy',
           // The animation lives on the flex track, so both halves move as one.
           'motion-safe:animate-listing-marquee will-change-transform',
           // Pause while a pointer is over the row or a tile has focus — a link that
@@ -140,7 +140,7 @@ export function ListingCarousel({ items }: { items: CatalogItem[] }) {
           'motion-reduce:w-full motion-reduce:overflow-x-auto',
         )}
       >
-        <ul className="flex gap-2.5 sm:gap-3" aria-label="Recent listings">
+        <ul className="flex gap-snug sm:gap-cozy" aria-label="Recent listings">
           {tiles.map((item, index) => (
             <MarqueeTile key={`a-${index}-${item.id}`} item={item} cloned={false} />
           ))}
@@ -148,7 +148,7 @@ export function ListingCarousel({ items }: { items: CatalogItem[] }) {
         {/* The seamless half. Same tiles, invisible to assistive tech and skipped by the
             keyboard — see the header note. Hidden outright when motion is reduced, where
             there is no loop for it to complete. */}
-        <ul className="flex gap-2.5 motion-reduce:hidden sm:gap-3" aria-hidden="true">
+        <ul className="flex gap-snug motion-reduce:hidden sm:gap-cozy" aria-hidden="true">
           {tiles.map((item, index) => (
             <MarqueeTile key={`b-${index}-${item.id}`} item={item} cloned />
           ))}

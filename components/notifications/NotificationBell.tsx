@@ -119,12 +119,12 @@ export function NotificationBell({
         className="flex max-h-[min(28rem,var(--radix-popover-content-available-height,28rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg p-0 shadow-lg"
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-2.5">
-          <p className="text-sm font-semibold">Notifications</p>
+          <p className="text-body font-semibold">Notifications</p>
           <button
             type="button"
             onClick={handleMarkAll}
             disabled={isPending || unreadCount === 0}
-            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-meta text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           >
             {isPending ? (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -137,7 +137,7 @@ export function NotificationBell({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {visible.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            <div className="px-4 py-10 text-center text-body text-muted-foreground">
               You&apos;re all caught up.
             </div>
           ) : (
@@ -165,21 +165,21 @@ export function NotificationBell({
                         <span className="flex items-baseline justify-between gap-2">
                           <span
                             className={cn(
-                              'truncate text-sm',
+                              'truncate text-body',
                               unread ? 'font-semibold' : 'font-medium',
                             )}
                           >
                             {n.title}
                           </span>
                           <span
-                            className="shrink-0 text-xs text-muted-foreground"
+                            className="shrink-0 text-meta text-muted-foreground"
                             suppressHydrationWarning
                           >
                             {formatRelativeTime(n.created_at)}
                           </span>
                         </span>
                         {n.body && (
-                          <span className="mt-0.5 line-clamp-2 block break-words text-xs text-muted-foreground">
+                          <span className="mt-0.5 line-clamp-2 block break-words text-meta text-muted-foreground">
                             {n.body}
                           </span>
                         )}

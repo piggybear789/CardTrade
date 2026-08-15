@@ -76,14 +76,14 @@ export function ReturnCaseActions({
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
+    <div className="space-y-cozy">
+      <p className="text-body text-muted-foreground">
         {reason === 'CONTESTED'
           ? 'The seller says the return did not arrive as expected. Decide whether it counts.'
           : 'The buyer did not post the return before the deadline. Decide whether the refund still stands.'}
       </p>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-snug">
         <Button
           type="button"
           size="sm"

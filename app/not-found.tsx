@@ -34,7 +34,7 @@ export default function NotFound() {
           <Link href="/">Back to home</Link>
         </Button>
       </div>
-      <p className="mt-10 inline-flex items-center gap-2 text-xs text-muted-foreground">
+      <p className="mt-10 inline-flex items-center gap-2 text-meta text-muted-foreground">
         <ShieldCheck className="size-4 text-trust" aria-hidden="true" />
         Every trade on NoDitto shows collateral terms and DittoShield identity status.
       </p>

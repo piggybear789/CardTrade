@@ -28,11 +28,11 @@ export function SectionHeader({
   return (
     <header className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
+        <h2 className="text-balance text-head font-semibold tracking-[-0.025em]">
           {title}
         </h2>
         {description ? (
-          <p className="mt-1.5 text-pretty text-sm text-muted-foreground">
+          <p className="mt-1.5 text-pretty text-body text-muted-foreground">
             {description}
           </p>
         ) : null}
@@ -54,7 +54,7 @@ export function SectionLoadError({ label }: { label: string }) {
   return (
     <p
       role="alert"
-      className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+      className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-body text-destructive"
     >
       We couldn&apos;t load your {label} right now. Reload the page to try again.
     </p>

@@ -42,7 +42,7 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-snug">
       <Textarea
         value={bio}
         onChange={(event) => setBio(event.target.value.slice(0, BIO_MAX))}
@@ -56,10 +56,10 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
         aria-describedby="bio-counter"
         className="resize-y"
       />
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-cozy">
         {/* Not a live region: it updates on every keystroke, which would make a
             screen reader interrupt the user continuously as they type. */}
-        <span id="bio-counter" className="text-xs text-muted-foreground">
+        <span id="bio-counter" className="text-meta text-muted-foreground">
           {bio.length}/{BIO_MAX}
         </span>
         {dirty || justSaved ? (

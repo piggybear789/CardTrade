@@ -231,7 +231,7 @@ export function CashSaleTermsDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {hideTrigger ? null : (
         <DialogTrigger asChild>
-          <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5">
+          <Button type="button" variant="outline" size="sm" className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5">
             <Pencil aria-hidden />
             Edit
           </Button>
@@ -247,7 +247,7 @@ export function CashSaleTermsDialog({
                 : 'Both parties must accept these terms to proceed.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-5">
+          <div className="space-y-group py-5">
             {/* Same picker and same fields as the trade room. They used to be a
                 `Select` here and a pair of tiles there, with different validation
                 behind each — which is how the trade room ended up accepting a
@@ -297,7 +297,7 @@ export function CashSaleTermsDialog({
             {error &&
             error !== FULFILMENT_FIELD_ERRORS.meeting &&
             error !== FULFILMENT_FIELD_ERRORS.address ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {error}
               </p>
             ) : null}

@@ -202,13 +202,13 @@ export default async function CashSalePage({
       {sale.status === 'COMPLETED' ? (
         <div className="mt-6 flex flex-col items-stretch gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-medium">Rate this transaction</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-body font-medium">Rate this transaction</p>
+            <p className="text-meta text-muted-foreground">
               Share how it went with {counterparty.name}.
             </p>
           </div>
           {existingReview ? (
-            <span className="shrink-0 text-sm text-muted-foreground">Reviewed</span>
+            <span className="shrink-0 text-body text-muted-foreground">Reviewed</span>
           ) : (
             <LeaveReviewDialog
               revieweeId={counterpartyId}

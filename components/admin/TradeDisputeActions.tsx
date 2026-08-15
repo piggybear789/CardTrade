@@ -91,14 +91,14 @@ export function TradeDisputeActions({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-border/70 bg-muted/30 p-3">
-      <p className="flex items-center gap-2 text-sm font-medium">
+    <div className="space-y-group rounded-lg border border-border/70 bg-muted/30 p-cozy">
+      <p className="flex items-center gap-snug text-body font-medium">
         <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
 
       {fraudClaimedById ? (
-        <p className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+        <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-meta text-destructive">
           <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
             {parties.find((p) => p.id === fraudClaimedById)?.name ?? 'A trader'} has
@@ -119,15 +119,15 @@ export function TradeDisputeActions({
           {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
           Resolve as condition dispute
         </Button>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-meta text-muted-foreground">
           Captures {formatAud(frictionTaxCents)} from the disputed-against trader and
           releases the rest. The trade completes.
         </p>
       </div>
 
-      <div className="space-y-2 border-t border-border/70 pt-3">
-        <Label className="text-xs">Or resolve as objective fraud — who was defrauded?</Label>
-        <div className="flex flex-wrap gap-2">
+      <div className="space-y-snug border-t border-border/70 pt-cozy">
+        <Label className="text-meta">Or resolve as objective fraud — who was defrauded?</Label>
+        <div className="flex flex-wrap gap-snug">
           {parties.map((party) => {
             const selected = victimId === party.id;
             return (
@@ -138,7 +138,7 @@ export function TradeDisputeActions({
                 aria-pressed={selected}
                 onClick={() => setVictimId(selected ? null : party.id)}
                 className={cn(
-                  'rounded-md border px-3 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+                  'rounded-md border px-cozy py-1.5 text-left text-meta transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
                   selected
                     ? 'border-primary bg-primary/10 font-semibold text-foreground'
                     : 'border-border text-foreground/85 hover:bg-muted',
@@ -162,7 +162,7 @@ export function TradeDisputeActions({
         >
           Resolve as fraud
         </Button>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-meta text-muted-foreground">
           Captures the other trader&apos;s collateral in full and pays it to whoever you
           select. Terminal and irreversible.
         </p>

@@ -116,18 +116,18 @@ export function CashSaleReturnPanel({
   // showing "post it back" or a countdown underneath would contradict it.
   if (returnDisputedAt) {
     return (
-      <section className="space-y-2 border-t pt-6">
-        <h3 className="flex items-center gap-2 font-semibold">
+      <section className="space-y-snug border-t pt-6">
+        <h3 className="flex items-center gap-snug font-semibold">
           <RotateCcw className="size-4 text-destructive" aria-hidden="true" />
           Return under review
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           {viewerIsBuyer
             ? `${counterpartyName} reported a problem with the return, so your ${amount} refund is on hold while our team reviews it. Nothing has been paid out either way.`
             : `You reported a problem with this return. Our team is reviewing it and no money moves until they decide.`}
         </p>
         {returnDisputeReason ? (
-          <p className="text-sm">
+          <p className="text-body">
             <span className="text-muted-foreground">Reported: </span>
             {returnDisputeReason}
           </p>
@@ -137,13 +137,13 @@ export function CashSaleReturnPanel({
   }
 
   return (
-    <section className="space-y-4 border-t pt-6">
+    <section className="space-y-group border-t pt-6">
       <div className="space-y-1">
-        <h3 className="flex items-center gap-2 font-semibold">
+        <h3 className="flex items-center gap-snug font-semibold">
           <RotateCcw className="size-4 text-gold" aria-hidden="true" />
           {inTransit ? 'Return on its way' : 'Return needed before the refund'}
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           {/* States the CONDITION on the money in one sentence, for both parties. */}
           {inTransit
             ? viewerIsBuyer
@@ -159,7 +159,7 @@ export function CashSaleReturnPanel({
           standing at a post office, not after. Unreimbursed is a policy decision
           (D2) and stating it plainly is the only honest way to charge it. */}
       {viewerIsBuyer && !inTransit ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Return postage is at your cost and is not refunded. Use a tracked service —
           the refund depends on the carrier confirming delivery, so an untracked parcel
           cannot release it.
@@ -183,7 +183,7 @@ export function CashSaleReturnPanel({
       {/* Seller: capture the return address. Shown until one exists, then read-only —
           removing it mid-return would strip the buyer of where to post. */}
       {!viewerIsBuyer && !returnAddressLabel ? (
-        <div className="space-y-3">
+        <div className="space-y-cozy">
           <PlacePicker
             precision="exact"
             value={address}
@@ -200,14 +200,14 @@ export function CashSaleReturnPanel({
       ) : null}
 
       {returnAddressLabel ? (
-        <p className="text-sm">
+        <p className="text-body">
           <span className="text-muted-foreground">Return address: </span>
           {returnAddressLabel}
         </p>
       ) : null}
 
       {returnTrackingNumber ? (
-        <p className="text-sm">
+        <p className="text-body">
           <span className="text-muted-foreground">Return tracking: </span>
           {returnTrackingCarrier ? `${returnTrackingCarrier} · ` : ''}
           {returnTrackingNumber}
@@ -215,7 +215,7 @@ export function CashSaleReturnPanel({
       ) : null}
 
       {returnLapsedAt ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           The return deadline passed, so our team is reviewing this case. It closes on
           its own if the item is posted and arrives.
         </p>

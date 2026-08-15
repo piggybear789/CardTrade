@@ -109,28 +109,42 @@ const config: Config = {
       //
       // Reach for these when the question is "how far apart do these belong?"
       // rather than "how many pixels?".
+      // See `.kiro/specs/design-system/typography-spacing.md` for the mapping rules.
       spacing: {
         tight: "0.25rem", // icon to its label
         snug: "0.5rem", // within one component
-        group: "1rem", // between related components
+        cozy: "0.75rem", // dense rows, nested groups, compact padding
+        group: "1rem", // standard card padding; between related components
         section: "2rem", // between sections
         region: "4rem", // between major page regions
       },
-      // TYPE SCALE. Five levels with size AND weight/leading paired, so a component
-      // picks a level instead of inventing a size. Replaces one-off bracket values
-      // like text-[0.8125rem] / text-[0.9375rem] / text-[0.625rem], which had put
-      // four distinct undocumented sizes on a single card.
+      // TYPE SCALE — six levels, and the ONE place a text size is decided.
+      // Mapping rules and reasoning: `.kiro/specs/design-system/typography-spacing.md`.
       //
-      // `meta` is floored at 0.75rem on purpose: metadata was rendering at 10px in
-      // the catalog grid, which is under the size where text stays comfortable —
-      // and it was carrying the seller name and rating, the two things a buyer
-      // scans before clicking.
+      // These tokens deliberately set size and LINE-HEIGHT ONLY, not weight. Pairing
+      // weight with size reads well in a config file and fails in practice: 649 call
+      // sites carry their own `font-medium` / `font-semibold` / `font-bold`, and a
+      // fontSize utility that also emits `font-weight` collides with them at equal
+      // specificity — resolved by CSS source order, which the component author cannot
+      // see. Weight stays an explicit utility so every token is a safe drop-in.
+      //
+      // `body` is 0.875rem because that is what the app actually uses (316 `text-sm`
+      // call sites). It was 0.9375rem, which would have nudged nearly every sentence
+      // in the product by 1px on adoption for no stated reason.
+      //
+      // `meta` is floored at 0.75rem on purpose, and is for CHROME only — badges,
+      // timestamps, counts, dense cells. It is NOT "smaller subtext": subtext is
+      // de-emphasised by colour (`text-muted-foreground`), never by size, which is
+      // what stopped one line of helper text rendering at 12px on one card and 14px
+      // on the next. Muted foreground is 40% lightness, and at 12px it was carrying
+      // disclosure copy and form help.
       fontSize: {
-        meta: ["0.75rem", { lineHeight: "1.4", fontWeight: "400" }],
-        body: ["0.9375rem", { lineHeight: "1.6", fontWeight: "400" }],
-        subhead: ["1.125rem", { lineHeight: "1.4", fontWeight: "600" }],
-        head: ["1.5rem", { lineHeight: "1.25", fontWeight: "600" }],
-        display: ["2.5rem", { lineHeight: "1.08", fontWeight: "600" }],
+        meta: ["0.75rem", { lineHeight: "1.4" }],
+        body: ["0.875rem", { lineHeight: "1.6" }],
+        lead: ["1rem", { lineHeight: "1.5" }],
+        subhead: ["1.125rem", { lineHeight: "1.4" }],
+        head: ["1.5rem", { lineHeight: "1.25" }],
+        display: ["2rem", { lineHeight: "1.1" }],
       },
       boxShadow: {
         market:

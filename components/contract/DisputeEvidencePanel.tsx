@@ -136,23 +136,23 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
   return (
     <li
       className={cn(
-        'rounded-xl border px-4 py-3',
+        'rounded-xl border px-group py-cozy',
         entry.mine ? 'border-gold/40 bg-gold/5' : 'bg-card',
       )}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold">
+      <div className="flex flex-wrap items-baseline justify-between gap-snug">
+        <p className="text-body font-semibold">
           {entry.mine ? 'Your statement' : entry.authorName}
         </p>
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span className="text-meta tabular-nums text-muted-foreground">
           {formatContractDateTime(entry.createdAt) ?? entry.createdAt}
         </span>
       </div>
-      <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed">
+      <p className="mt-1.5 whitespace-pre-line break-words text-body">
         {entry.statement}
       </p>
       {entry.media.length > 0 ? (
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <div className="mt-cozy grid grid-cols-3 gap-snug sm:grid-cols-4">
           {entry.media.map((media) => (
             <MediaTile key={media.path} path={media.path} url={media.url} />
           ))}
@@ -236,23 +236,23 @@ export function DisputeEvidencePanel({
       {/* The claim that opened the case. Shown first because everything below is a
           response to it. */}
       {disputeReason ? (
-        <div className="rounded-xl border border-destructive/25 bg-destructive/[0.06] p-4">
-          <div className="flex items-center gap-2 text-destructive">
+        <div className="rounded-xl border border-destructive/25 bg-destructive/[0.06] p-group">
+          <div className="flex items-center gap-snug text-destructive">
             <ShieldAlert className="size-4 shrink-0" aria-hidden />
-            <h3 className="text-xs font-semibold uppercase tracking-wide">
+            <h3 className="text-meta font-semibold uppercase tracking-wide">
               Why this is in dispute
             </h3>
           </div>
-          <p className="mt-2 whitespace-pre-line break-words text-pretty text-base font-medium leading-relaxed">
+          <p className="mt-2 whitespace-pre-line break-words text-pretty text-lead font-medium">
             {disputeReason}
           </p>
           {raisedByName ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">
+            <p className="mt-1.5 text-meta text-muted-foreground">
               Raised by {raisedByName}. This is a claim, not a finding.
             </p>
           ) : null}
           {resolution ? (
-            <div className="mt-4 border-t border-destructive/15 pt-4">
+            <div className="mt-group border-t border-destructive/15 pt-group">
               {resolution}
             </div>
           ) : null}
@@ -261,8 +261,8 @@ export function DisputeEvidencePanel({
 
       {/* The record. Both sides, chronological. */}
       <section aria-labelledby="evidence-heading">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h3 id="evidence-heading" className="text-sm font-semibold">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-cozy gap-y-1">
+          <h3 id="evidence-heading" className="text-body font-semibold">
             Evidence on file
             {entries.length > 0 ? (
               <span className="ml-1.5 font-normal text-muted-foreground">
@@ -270,28 +270,28 @@ export function DisputeEvidencePanel({
               </span>
             ) : null}
           </h3>
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-tight text-meta text-muted-foreground">
             <Eye className="size-3.5 shrink-0" aria-hidden />
             Visible to both parties &amp; staff
           </span>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-body text-muted-foreground">
           Everything submitted here is shared with the other party and the staff member
           deciding the case.
         </p>
 
         {entries.length === 0 ? (
-          <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/40 px-6 py-8 text-center">
+          <div className="mt-group flex flex-col items-center justify-center gap-snug rounded-xl border border-dashed bg-muted/40 px-section py-section text-center">
             <div className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <FileText className="size-4" aria-hidden />
             </div>
-            <p className="text-sm font-medium">Nothing submitted yet</p>
-            <p className="max-w-sm text-pretty text-xs text-muted-foreground">
+            <p className="text-body font-medium">Nothing submitted yet</p>
+            <p className="max-w-sm text-pretty text-meta text-muted-foreground">
               Explain with details to help arbitration.
             </p>
           </div>
         ) : (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-group space-y-cozy">
             {entries.map((entry) => (
               <EvidenceEntry key={entry.id} entry={entry} />
             ))}
@@ -304,12 +304,12 @@ export function DisputeEvidencePanel({
           to work. */}
       {canSubmit ? (
         <section aria-labelledby="submit-heading">
-          <h3 id="submit-heading" className="text-sm font-semibold">
+          <h3 id="submit-heading" className="text-body font-semibold">
             Add your account
           </h3>
           {/* Stated BEFORE the field, not after submitting. Finality is the surprising
               part of this form and the header note explains why it is deliberate. */}
-          <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <p className="mt-1 inline-flex items-center gap-tight text-meta text-muted-foreground">
             <Lock className="size-3.5 shrink-0" aria-hidden />
             Submissions are final. Add another entry if you have more to say.
           </p>
@@ -323,7 +323,7 @@ export function DisputeEvidencePanel({
             <div>
               <label
                 htmlFor="evidence-statement"
-                className="mb-1.5 block text-sm font-medium"
+                className="mb-1.5 block text-body font-medium"
               >
                 What happened, in your words
               </label>
@@ -339,13 +339,13 @@ export function DisputeEvidencePanel({
                   placeholder="What you sent or received, its condition, the dates that matter, and anything the tracking or photos show."
                   disabled={busy}
                   aria-describedby="evidence-statement-count"
-                  className="block w-full resize-y bg-transparent px-3.5 py-3 text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
+                  className="block w-full resize-y bg-transparent px-3.5 py-cozy text-body placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
                 />
-                <div className="flex items-center justify-end border-t px-3.5 py-2">
+                <div className="flex items-center justify-end border-t px-3.5 py-snug">
                   <span
                     id="evidence-statement-count"
                     className={cn(
-                      'text-xs tabular-nums',
+                      'text-meta tabular-nums',
                       remaining < 100 ? 'text-destructive' : 'text-muted-foreground',
                     )}
                   >
@@ -358,22 +358,22 @@ export function DisputeEvidencePanel({
 
             {/* Attachments. Photos and video of the goods, packaging, or tracking. */}
             <div>
-              <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                <label htmlFor="evidence-files" className="text-sm font-medium">
+              <div className="mb-1.5 flex items-baseline justify-between gap-cozy">
+                <label htmlFor="evidence-files" className="text-body font-medium">
                   Photos or video{' '}
                   <span className="font-normal text-muted-foreground">(optional)</span>
                 </label>
-                <span className="text-xs tabular-nums text-muted-foreground">
+                <span className="text-meta tabular-nums text-muted-foreground">
                   {files.length}/{EVIDENCE_FILES_MAX}
                 </span>
               </div>
 
               {files.length > 0 ? (
-                <ul className="mb-3 flex flex-wrap gap-2">
+                <ul className="mb-cozy flex flex-wrap gap-snug">
                   {files.map((file, index) => (
                     <li
                       key={`${file.name}-${index}`}
-                      className="inline-flex max-w-full items-center gap-1.5 rounded-lg border bg-muted/60 py-1 pl-2.5 pr-1 text-xs"
+                      className="inline-flex max-w-full items-center gap-tight rounded-lg border bg-muted/60 py-1 pl-snug pr-1 text-meta"
                     >
                       <span className="truncate">{file.name}</span>
                       <span className="shrink-0 tabular-nums text-muted-foreground">
@@ -415,12 +415,12 @@ export function DisputeEvidencePanel({
             </div>
 
             {error ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {error}
               </p>
             ) : null}
 
-            <div className="flex flex-wrap items-center gap-3 border-t pt-5">
+            <div className="flex flex-wrap items-center gap-cozy border-t pt-5">
               <Button type="submit" disabled={!ready} aria-busy={busy}>
                 {busy ? (
                   <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -433,7 +433,7 @@ export function DisputeEvidencePanel({
                   rule, so "add your account" alone would be misleading once a member
                   has typed two words and the button is still dead. */}
               {!busy && !longEnough ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   {trimmed.length === 0
                     ? 'Add your account before submitting.'
                     : `At least ${EVIDENCE_STATEMENT_MIN} characters.`}
@@ -443,7 +443,7 @@ export function DisputeEvidencePanel({
           </form>
         </section>
       ) : (
-        <p className="border-t pt-5 text-sm text-muted-foreground">
+        <p className="border-t pt-5 text-body text-muted-foreground">
           This case has been decided, so no further evidence can be added.
         </p>
       )}

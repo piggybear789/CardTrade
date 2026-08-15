@@ -84,8 +84,8 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
   if (configError) {
     return (
-      <div className="space-y-3">
-        <p role="alert" className="text-sm text-destructive">
+      <div className="space-y-cozy">
+        <p role="alert" className="text-body text-destructive">
           {configError}
         </p>
         <Button
@@ -105,7 +105,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
   if (!session) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <p className="flex items-center gap-snug text-body text-muted-foreground">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         Loading secure card entry…
       </p>
@@ -178,14 +178,14 @@ function CardSetupFields({
   const busy = isPending || !ready;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-group">
       <PaymentElement
         onReady={() => setReady(true)}
         options={{ layout: 'tabs', fields: { billingDetails: { name: 'auto' } } }}
       />
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}
@@ -234,8 +234,8 @@ function SimulatedCardSetup({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2">
-      <div className="rounded-lg border border-dashed px-3 py-2.5 text-sm" role="note">
+    <form onSubmit={handleSubmit} className="space-y-snug">
+      <div className="rounded-lg border border-dashed px-cozy py-snug text-body" role="note">
         <p className="font-medium text-foreground">Simulated card entry</p>
         <p className="text-muted-foreground">
           No payment provider is configured, so saving adds a demo card (Visa
@@ -244,7 +244,7 @@ function SimulatedCardSetup({
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}
@@ -259,7 +259,7 @@ function SimulatedCardSetup({
 
 function ProcessorNote() {
   return (
-    <p className="flex items-start justify-center gap-1.5 text-center text-[0.6875rem] leading-relaxed text-muted-foreground">
+    <p className="flex items-start justify-center gap-tight text-center text-meta leading-relaxed text-muted-foreground">
       <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
       <span>
         Payments processed by{' '}

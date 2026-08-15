@@ -74,7 +74,7 @@ export function CashSalePriceDialog({
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+          className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
         >
           <Pencil aria-hidden />
           Edit
@@ -89,8 +89,8 @@ export function CashSalePriceDialog({
               is charged until you agree on the new number.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-5">
-            <div className="space-y-2">
+          <div className="space-y-group py-5">
+            <div className="space-y-snug">
               <Label htmlFor="sale-price">Item price</Label>
               <MoneyInput
                 id="sale-price"
@@ -100,13 +100,13 @@ export function CashSalePriceDialog({
                 onChange={(event) => setPrice(event.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Currently {formatMoney(agreedPriceCents, currency)}. Shipping and the platform fee
                 are shown separately.
               </p>
             </div>
             {error ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {error}
               </p>
             ) : null}

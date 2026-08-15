@@ -46,7 +46,7 @@ export function Logo({ className }: { className?: string }) {
       {/* Always show the wordmark — the header keeps the logo cluster at its
           natural width so the name is not squeezed out by flex-1 siblings. */}
       <span
-        className="truncate font-display text-lg font-semibold tracking-[-0.025em] sm:text-xl"
+        className="truncate font-display text-subhead font-semibold tracking-[-0.025em]"
         translate="no"
       >
         NoDitto

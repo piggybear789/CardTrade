@@ -156,25 +156,25 @@ export function ChatThread({
                 what it is about — and stacking them made the header taller while pushing
                 the messages down. The subject stays a link; only its position changed. */}
             <div className="flex min-w-0 items-baseline gap-2">
-              <h2 className="max-w-[55%] truncate text-lg font-semibold tracking-tight">
+              <h2 className="max-w-[55%] truncate text-subhead font-semibold tracking-tight">
                 {displayName}
               </h2>
               {trade ? (
                 <Link
                   href={`/trades/${trade.id}`}
-                  className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+                  className="truncate text-body text-muted-foreground underline-offset-4 hover:underline"
                 >
                   Trade contract
                 </Link>
               ) : item ? (
                 <Link
                   href={`/listings/${item.id}`}
-                  className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+                  className="truncate text-body text-muted-foreground underline-offset-4 hover:underline"
                 >
                   Re: {item.title}
                 </Link>
               ) : (
-                <p className="truncate text-sm text-muted-foreground">Direct message</p>
+                <p className="truncate text-body text-muted-foreground">Direct message</p>
               )}
             </div>
           </div>
@@ -182,7 +182,7 @@ export function ChatThread({
 
         {connectionStatus === 'error' ? (
           <span
-            className="flex shrink-0 items-center gap-1.5 text-xs text-destructive"
+            className="flex shrink-0 items-center gap-tight text-meta text-destructive"
             role="status"
           >
             <span className="inline-block size-2 rounded-full bg-destructive" aria-hidden />
@@ -204,7 +204,7 @@ export function ChatThread({
         aria-live="polite"
       >
         {messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-8 text-center text-body text-muted-foreground">
             No messages yet. Say hello to start the conversation.
           </p>
         ) : (
@@ -212,8 +212,8 @@ export function ChatThread({
             // A mirrored contract event: centred, unattributed, still in order.
             if (message.kind === 'SYSTEM') {
               return (
-                <div key={message.id} className="flex justify-center">
-                  <p className="max-w-[85%] break-words rounded-full border border-dashed bg-muted/40 px-3 py-1.5 text-center text-xs text-muted-foreground">
+                  <div key={message.id} className="flex justify-center">
+                  <p className="max-w-[85%] break-words rounded-full border border-dashed bg-muted/40 px-cozy py-tight text-center text-meta text-muted-foreground">
                     {message.body}
                   </p>
                 </div>
@@ -240,7 +240,7 @@ export function ChatThread({
                 )}
                 <div
                   className={cn(
-                    'max-w-[75%] rounded-2xl px-4 py-2 text-sm',
+                    'max-w-[75%] rounded-2xl px-4 py-2 text-body',
                     isMine
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground',
@@ -251,7 +251,7 @@ export function ChatThread({
                     dateTime={message.created_at}
                     suppressHydrationWarning
                     className={cn(
-                      'mt-1 block text-[0.7rem]',
+                      'mt-1 block text-meta',
                       isMine
                         ? 'text-primary-foreground/70'
                         : 'text-muted-foreground',
@@ -296,7 +296,7 @@ export function ChatThread({
           </Button>
         </div>
         {error && (
-          <p id="composer-error" role="alert" className="mt-2 text-sm text-destructive">
+          <p id="composer-error" role="alert" className="mt-2 text-body text-destructive">
             {error}
           </p>
         )}

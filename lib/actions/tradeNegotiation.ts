@@ -546,7 +546,6 @@ export async function openTradeNegotiation(input: {
     | { kind: 'existing'; itemId: string }
     | {
         kind: 'private';
-        title: string;
         description: string;
         category: string;
         condition: string;
@@ -670,7 +669,6 @@ export async function openTradeNegotiation(input: {
     initiatorItemId = input.offer.itemId;
   } else {
     const created = await createPrivateTradeItem({
-      title: input.offer.title,
       description: input.offer.description,
       category: input.offer.category,
       condition: input.offer.condition,

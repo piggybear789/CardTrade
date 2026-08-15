@@ -83,7 +83,7 @@ export function OffersSection({
   }
 
   return (
-    <ul role="list" className="space-y-3">
+    <ul role="list" className="space-y-cozy">
       {offers.map((offer) => (
         <li key={offer.offerId}>
           <OfferRow offer={offer} />
@@ -140,8 +140,8 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
   }
 
   return (
-    <Card className="p-3">
-      <div className="flex items-start gap-4">
+    <Card className="p-cozy">
+      <div className="flex items-start gap-group">
         {/* Thumbnail */}
         <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
           {imageUrl ? (
@@ -161,23 +161,23 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="truncate text-sm font-medium">{title}</p>
+          <div className="flex items-start justify-between gap-snug">
+            <p className="truncate text-body font-medium">{title}</p>
             <Badge variant={status.variant} className="shrink-0">
               {status.label}
             </Badge>
           </div>
-          <p className="mt-0.5 text-lg font-bold tabular-nums tracking-tight">
+          <p className="mt-0.5 text-lead font-bold tabular-nums tracking-tight">
             {formatAud(offer.amountCents)}
           </p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 truncate text-meta text-muted-foreground">
             {roleLabel} · with {counterparty}
             {offer.offeredByMe ? ' · your offer' : ''}
           </p>
 
           {/* Inline actions when it's the caller's turn. */}
           {(offer.isMyTurn || offer.canWithdraw) && (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-snug">
               {offer.isMyTurn && (
                 <>
                   <Button
@@ -315,8 +315,8 @@ function CounterOfferDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
+          <div className="space-y-group py-4">
+            <div className="space-y-snug">
               <Label htmlFor={`counter-amount-${offerId}`}>Your counter</Label>
               <MoneyInput
                 id={`counter-amount-${offerId}`}
@@ -329,7 +329,7 @@ function CounterOfferDialog({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor={`counter-message-${offerId}`}>Message (optional)</Label>
               <Textarea
                 id={`counter-message-${offerId}`}
@@ -342,7 +342,7 @@ function CounterOfferDialog({
             </div>
 
             {inlineError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {inlineError}
               </p>
             ) : null}

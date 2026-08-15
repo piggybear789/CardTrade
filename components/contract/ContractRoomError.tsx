@@ -35,7 +35,7 @@ export function ContractRoomError({
         description="Something went wrong loading this contract room. Try again, or go back to your list."
         compact
       />
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+      <div className="mt-5 flex flex-col gap-snug sm:flex-row sm:justify-center">
         <Button type="button" onClick={reset}>
           Try Again
         </Button>

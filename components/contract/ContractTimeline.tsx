@@ -89,15 +89,15 @@ export function ContractTimeline({
   className,
 }: ContractTimelineProps) {
   if (events.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
+    return <p className="text-body text-muted-foreground">{emptyLabel}</p>;
   }
 
   return (
-    <ol className={cn('space-y-3', className)} aria-label={ariaLabel}>
+    <ol className={cn('space-y-cozy', className)} aria-label={ariaLabel}>
       {events.map((event) => {
         const tone = classifyEvent(event.event);
         return (
-          <li key={event.id} className="flex items-start gap-3 text-sm">
+          <li key={event.id} className="flex items-start gap-cozy text-body">
             <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
               <EventIcon tone={tone} />
             </span>
@@ -105,7 +105,7 @@ export function ContractTimeline({
               <p className="font-medium leading-5">
                 {humanise(event.event)}
                 {myUserId && event.actor_id === myUserId ? (
-                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                  <span className="ml-1.5 text-meta font-normal text-muted-foreground">
                     (you)
                   </span>
                 ) : null}
@@ -113,7 +113,7 @@ export function ContractTimeline({
               {event.detail ? (
                 <p className="mt-0.5 break-words text-muted-foreground">{event.detail}</p>
               ) : null}
-              <p className="mt-0.5 text-xs text-muted-foreground/70">
+              <p className="mt-0.5 text-meta text-muted-foreground/70">
                 {formatContractDateTime(event.created_at)}
               </p>
             </div>

@@ -71,6 +71,7 @@ export async function MarketplaceShell({
   primaryAction,
   filters,
   center = false,
+  flush = false,
   children,
 }: {
   /**
@@ -100,6 +101,15 @@ export async function MarketplaceShell({
    * Long-form content should stay top-aligned so it reads from the top.
    */
   center?: boolean;
+  /**
+   * The page fills the viewport and must not scroll outside its own internal area.
+   *
+   * Removes bottom padding and adds `overflow-hidden` to the content section so the
+   * shell cannot push its children past the viewport edge. Used by pages like the
+   * message thread where only one internal region scrolls and a second scrollbar on
+   * the document body is incorrect.
+   */
+  flush?: boolean;
   children: ReactNode;
 }) {
   const supabase = await createClient();
@@ -164,7 +174,7 @@ export async function MarketplaceShell({
               the viewport — a permanent hairline page scroll. */}
           <div className="flex flex-col lg:sticky lg:top-[calc(4rem+1px+env(safe-area-inset-top))] lg:-mx-1 lg:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] lg:gap-6 lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:py-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="hidden lg:block">
-              <h1 className="text-balance font-display text-3xl font-semibold tracking-[-0.03em]">
+              <h1 className="text-balance font-display text-head font-semibold tracking-[-0.03em]">
                 {title}
               </h1>
               {primaryAction ? <div className="mt-4">{primaryAction}</div> : null}
@@ -189,10 +199,55 @@ export async function MarketplaceShell({
             // shell prints no header, so it carries the inset the old mobile
             // title block used to provide.
             'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-5 sm:px-6 lg:w-auto lg:px-7 lg:py-7 xl:px-8',
+            // `min-h-0` IS THE WHOLE FIX for a full-viewport page, and its absence here
+            // was the single break in an otherwise complete shrink chain. `body`,
+            // `#main-content`, the PageShell `<main>`, the row, the inner wrapper and the
+            // ChatThread all carry it; this section did not. A flex item defaults to
+            // `min-height: auto` and refuses to shrink below its content, so no descendant
+            // scroll container could ever be constrained — the section grew the document
+            // instead, which is exactly the second scrollbar.
+            //
+            // Applied only when `flush`, because a normal long page must still grow and
+            // let the body scroll.
+            flush && 'min-h-0 overflow-hidden',
+            // AND A DEFINITE CEILING, which `min-h-0` alone cannot supply. `<body>` is
+            // `min-h-dvh` — a MINIMUM — so its own height is content-derived. In a column
+            // flex container sized by its content there is no free space to distribute, so
+            // every `flex-1` descendant resolves to its CONTENT height no matter how many
+            // `min-h-0`s the chain carries: `min-h-0` grants permission to shrink, it does
+            // not impose a size. A long thread therefore grew <body> past the viewport,
+            // pushed the composer below this section's clip boundary, and scrolled the
+            // document instead of the message list — the exact symptom.
+            //
+            // `max-h`, not `h`: `flex-1` is `flex: 1 1 0%`, and that basis overrides
+            // `height` as the flex base size, whereas `max-height` clamps after flex
+            // sizing. So a short thread still stretches to fill the column, and only a
+            // long one stops at the viewport edge.
+            //
+            // The subtrahends are real chrome, not round numbers: the header is `h-16`
+            // (4rem) + its 1px bottom border + the top safe-area inset, and the mobile hub
+            // bar is `h-14` (3.5rem) + its 1px top border + the bottom inset. The rail
+            // computes its own height from the same header terms, and for the same reason.
+            flush &&
+              (showMobileNav
+                ? 'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] lg:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'
+                : 'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'),
             // Leave room for the fixed mobile hub bar when it is mounted.
-            showMobileNav
-              ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-10'
-              : 'pb-10',
+            //
+            // A flush page takes ORDINARY bottom padding, and this is a reversal worth
+            // stating: it used to take `pb-0` because, with no ceiling on the section,
+            // bottom padding was height added on top of a child already sized to fill the
+            // viewport, so it pushed content out of view. The `max-h` above changed that.
+            // Tailwind sets `box-sizing: border-box`, so padding now comes OUT of the
+            // capped height rather than adding to it — it shortens the scroll area by
+            // exactly itself and gives the composer breathing room instead of welding it
+            // to the viewport edge. The mobile hub bar is already subtracted from the cap,
+            // so this is clearance from the bar, not a substitute for it.
+            flush
+              ? 'pb-4 lg:pb-7'
+              : showMobileNav
+                ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-10'
+                : 'pb-10',
             center && 'justify-center',
           )}
         >

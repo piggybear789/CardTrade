@@ -117,7 +117,7 @@ export function AvatarUploadField({
 
   if (compact) {
     return (
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-col items-center gap-tight">
         <div className="relative">
           <Avatar avatarPath={path} displayName={displayName} size="xl" />
           {/* The badge IS the picker. `aria-label` carries the whole meaning here,
@@ -149,7 +149,7 @@ export function AvatarUploadField({
             onClick={handleClear}
             disabled={controlsDisabled}
             aria-busy={busy === 'clear'}
-            className="rounded-sm text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-65"
+            className="rounded-sm text-meta text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-65"
           >
             {busy === 'clear' ? 'Removing…' : 'Remove'}
           </button>
@@ -161,11 +161,11 @@ export function AvatarUploadField({
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-group">
       <Avatar avatarPath={path} displayName={displayName} size="xl" />
 
-      <div className="min-w-0 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-0 space-y-snug">
+        <div className="flex flex-wrap items-center gap-snug">
           <Button
             type="button"
             variant="outline"
@@ -202,7 +202,7 @@ export function AvatarUploadField({
         </div>
 
         {hideHint ? null : (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Optional. PNG, JPEG, or WebP, up to 2 MB. Shown next to your name on
             listings and in chats — it is not used to verify you.
           </p>

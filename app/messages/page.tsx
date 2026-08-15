@@ -130,7 +130,7 @@ export default async function MessagesPage() {
                           taller for no gain. The name keeps priority when space is tight —
                           it truncates last, because two conversations about one item are
                           told apart by who they are with. */}
-                      <p className="flex min-w-0 items-center gap-1.5 font-medium">
+                      <p className="flex min-w-0 items-center gap-tight font-medium">
                         <Avatar
                           avatarPath={c.other.avatarPath}
                           displayName={name}
@@ -138,28 +138,28 @@ export default async function MessagesPage() {
                         />
                         <span className="max-w-[60%] truncate">{name}</span>
                         {c.dispute ? (
-                          <span className="truncate text-xs font-medium text-destructive">
+                          <span className="truncate text-meta font-medium text-destructive">
                             Dispute: {c.dispute.itemTitle}
                           </span>
                         ) : c.trade ? (
-                          <span className="truncate text-xs font-normal text-muted-foreground">
+                          <span className="truncate text-meta font-normal text-muted-foreground">
                             Trade
                           </span>
                         ) : c.item ? (
-                          <span className="truncate text-xs font-normal text-muted-foreground">
+                          <span className="truncate text-meta font-normal text-muted-foreground">
                             Re: {c.item.title}
                           </span>
                         ) : null}
                       </p>
-                      <span className="shrink-0 text-xs text-muted-foreground">
+                      <span className="shrink-0 text-meta text-muted-foreground">
                         {time}
                       </span>
                     </div>
                     <p
                       className={
                         c.unreadCount > 0
-                          ? 'truncate text-sm font-medium text-foreground'
-                          : 'truncate text-sm text-muted-foreground'
+                          ? 'truncate text-body font-medium text-foreground'
+                          : 'truncate text-body text-muted-foreground'
                       }
                     >
                       {preview}

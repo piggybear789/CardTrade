@@ -25,7 +25,7 @@ function NavGroupSkeleton() {
   return (
     <div className="flex flex-col gap-4 lg:gap-5">
       {NAV_GROUPS.map((rows, groupIndex) => (
-        <div key={groupIndex} className="space-y-0.5">
+        <div key={groupIndex} className="space-y-tight">
           <Skeleton className="mb-1.5 hidden h-3 w-16 lg:block" />
           {Array.from({ length: rows }, (_, rowIndex) => (
             <Skeleton key={rowIndex} className="h-9 w-full rounded-lg" />

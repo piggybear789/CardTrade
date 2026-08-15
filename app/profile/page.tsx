@@ -147,8 +147,8 @@ export default async function ProfilePage({
           The heading and tabs share the column so all three left edges line up. */}
       <div className="mx-auto w-full max-w-2xl">
         <header className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Settings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-head font-semibold tracking-[-0.02em]">Settings</h1>
+          <p className="mt-1 text-body text-muted-foreground">
             Manage your account settings and preferences.
           </p>
         </header>
@@ -174,13 +174,13 @@ export default async function ProfilePage({
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
                     <SectionLabel>Display name</SectionLabel>
-                    <p className="mt-1 truncate text-sm font-medium">
+                    <p className="mt-1 truncate text-body font-medium">
                       {profile.display_name}
                     </p>
                   </div>
                   <div>
                     <SectionLabel>Email</SectionLabel>
-                    <p className="mt-1 truncate text-sm text-muted-foreground">
+                    <p className="mt-1 truncate text-body text-muted-foreground">
                       {profile.contact_email}
                     </p>
                   </div>
@@ -241,7 +241,7 @@ export default async function ProfilePage({
                           type="button"
                           variant="link"
                           size="sm"
-                          className="h-auto p-0 text-sm font-medium no-underline hover:underline"
+                          className="h-auto p-0 text-body font-medium no-underline hover:underline"
                         >
                           Replace
                         </Button>
@@ -399,7 +399,7 @@ export default async function ProfilePage({
                     </Button>
                   }
                 >
-                  <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+                  <p className="flex items-start gap-2 text-body leading-relaxed text-muted-foreground">
                     <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                     A payout attempt is refused until Stripe reports your account can
                     receive transfers. Your money stays held rather than being returned.

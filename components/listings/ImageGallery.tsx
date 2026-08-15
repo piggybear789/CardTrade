@@ -312,7 +312,7 @@ export function ImageGallery({
         <p
           aria-hidden="true"
           className={cn(
-            'pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full border border-white/20 bg-black/65 px-2.5 py-1 text-xs font-medium text-white/90 shadow-sm backdrop-blur transition-opacity duration-200',
+            'pointer-events-none absolute bottom-3 left-3 flex items-center gap-tight rounded-full border border-white/20 bg-black/65 px-snug py-1 text-meta font-medium text-white/90 shadow-sm backdrop-blur transition-opacity duration-200',
             zoomPoint ? 'opacity-0' : 'opacity-100',
           )}
         >
@@ -324,7 +324,7 @@ export function ImageGallery({
 
       {images.length > 1 && (
         <nav
-          className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-white/20 bg-black/65 px-1 py-0.5 shadow-sm backdrop-blur"
+          className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-white/20 bg-black/65 px-1 py-tight shadow-sm backdrop-blur"
           aria-label="Image navigation"
         >
           <button
@@ -336,7 +336,7 @@ export function ImageGallery({
             <ChevronLeft className="size-4" aria-hidden />
           </button>
           <span
-            className="min-w-[3ch] text-center text-xs font-medium tabular-nums text-white/90"
+            className="min-w-[3ch] text-center text-meta font-medium tabular-nums text-white/90"
             aria-live="polite"
             aria-atomic="true"
           >

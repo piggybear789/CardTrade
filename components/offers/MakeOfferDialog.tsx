@@ -159,7 +159,7 @@ export function MakeOfferDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="min-w-0 rounded-md border bg-muted/30 p-3 text-sm">
+            <div className="min-w-0 rounded-md border bg-muted/30 p-cozy text-body">
               <p className="font-medium">DittoShield verified seller</p>
               {sellerIdentity.tradingName ? (
                 <p className="break-words">{sellerIdentity.tradingName}</p>
@@ -169,7 +169,7 @@ export function MakeOfferDialog({
               </p>
             </div>
 
-            <label className="flex items-start gap-3 text-sm">
+            <label className="flex items-start gap-3 text-body">
               <input
                 type="checkbox"
                 checked={confirmedSeller}
@@ -194,7 +194,7 @@ export function MakeOfferDialog({
                 required
               />
               {fmvCents && fmvCents > 0 ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   Listed at {formatAud(fmvCents)}.
                 </p>
               ) : null}
@@ -213,7 +213,7 @@ export function MakeOfferDialog({
             </div>
 
             {inlineError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {inlineError}
               </p>
             ) : null}

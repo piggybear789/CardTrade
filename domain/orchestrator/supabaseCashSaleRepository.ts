@@ -140,6 +140,20 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
       sellerId: row.seller_id,
       version: row.seller_identity_version ?? '',
       legalEntityName: row.seller_legal_entity_name ?? '',
+      // FALSE BECAUSE THE SNAPSHOT DOES NOT RECORD PROVENANCE, not because this
+      // seller's name was self-stated. `cash_sales` freezes
+      // `seller_legal_entity_name` alone, with no column saying which of the two
+      // sources it came from, so the honest value here is "cannot prove a document
+      // check" — and the conservative direction is the safe one, since the failure
+      // mode of `true` is telling a buyer a government document backs a name the
+      // seller typed.
+      //
+      // Nothing renders a claim from this today: `ContractPartyLine` prints the name
+      // bare, with no "verified"/"real" label. If the contract room ever needs to
+      // make that claim, this needs a real `seller_identity_name_document_verified`
+      // snapshot column plus its entry in `CASH_SALE_PUBLIC_SELECT` — do not soften
+      // it to `true` here instead.
+      nameIsDocumentVerified: false,
       tradingName: row.seller_trading_name,
       organisationType: row.seller_organisation_type,
       verifiedAt: row.seller_identity_verified_at ?? '',

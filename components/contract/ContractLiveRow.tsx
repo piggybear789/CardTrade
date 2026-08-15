@@ -38,11 +38,11 @@ export function ContractLiveRow({
   const [pane, setPane] = useState<MobilePane>('details');
 
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col gap-4', className)}>
+    <div className={cn('flex min-h-0 flex-1 flex-col gap-group', className)}>
       <Card className="shrink-0 overflow-hidden border-border/90 shadow-sm">
         <div className="[&>*]:rounded-none [&>*]:border-0 [&>*]:shadow-none">{action}</div>
         {progress ? (
-          <div className="border-t border-border/80 bg-card px-4 py-3 sm:px-5">
+          <div className="border-t border-border/80 bg-card px-group py-cozy">
             {progress}
           </div>
         ) : null}
@@ -50,7 +50,7 @@ export function ContractLiveRow({
 
       {/* Mobile: one pane at a time, thumb-friendly tab switch. */}
       <MobileOnly>
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-cozy">
           <div
             role="tablist"
             aria-label="Contract workspace"
@@ -64,7 +64,7 @@ export function ContractLiveRow({
               aria-selected={pane === 'details'}
               onClick={() => setPane('details')}
               className={cn(
-                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 pane === 'details'
                   ? 'bg-card font-semibold text-foreground shadow-sm'
                   : 'font-medium text-muted-foreground',
@@ -81,7 +81,7 @@ export function ContractLiveRow({
               aria-selected={pane === 'chat'}
               onClick={() => setPane('chat')}
               className={cn(
-                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 pane === 'chat'
                   ? 'bg-card font-semibold text-foreground shadow-sm'
                   : 'font-medium text-muted-foreground',
@@ -131,7 +131,7 @@ export function ContractLiveRow({
           and left `h-full` children (the item image) resolving against an
           over-tall box. */}
       <DesktopOnly>
-        <div className="min-h-0 flex-1 gap-4 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
+        <div className="min-h-0 flex-1 gap-group lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)]">
           <div className="min-h-0 min-w-0 overflow-y-auto [&>*]:h-full">{children}</div>
           <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto [&>*]:h-full">
             {conversation}

@@ -139,11 +139,11 @@ export function AcceptWithPhotoDialog({
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={isPending}
-              className="flex w-full flex-col items-center gap-2 rounded-lg border-2 border-dashed border-input p-6 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/30"
+              className="flex w-full flex-col items-center gap-snug rounded-lg border-2 border-dashed border-input p-section text-muted-foreground transition-colors hover:border-ring hover:bg-muted/30"
             >
               <Camera className="size-8" aria-hidden />
-              <span className="text-sm font-medium">Take or upload a photo</span>
-              <span className="text-xs">Optional — helps if there's a dispute later</span>
+              <span className="text-body font-medium">Take or upload a photo</span>
+              <span className="text-body">Optional — helps if there's a dispute later</span>
             </button>
           )}
 

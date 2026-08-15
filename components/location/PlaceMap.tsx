@@ -60,7 +60,7 @@ export function PlaceMap({
     return (
       <div
         className={cn(
-          'flex items-center justify-center rounded-lg border border-dashed bg-muted/40 text-sm text-muted-foreground',
+          'flex items-center justify-center rounded-lg border border-dashed bg-muted/40 text-body text-muted-foreground',
           'h-14',
           className,
         )}
@@ -82,19 +82,19 @@ export function PlaceMap({
       return (
         <div
           className={cn(
-            'flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3',
+            'flex items-center gap-3 rounded-lg border bg-muted/30 px-group py-cozy',
             className,
           )}
         >
           <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          <span className="min-w-0 flex-1 truncate text-body font-medium">
             {label ?? 'Unknown location'}
           </span>
           <a
             href={externalUrl!}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold underline-offset-4 hover:underline"
+            className="inline-flex shrink-0 items-center gap-1 text-body font-semibold underline-offset-4 hover:underline"
           >
             Open in Maps
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
@@ -122,7 +122,7 @@ export function PlaceMap({
           />
         </a>
         {label ? (
-          <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+          <div className="flex items-center justify-between gap-3 border-t px-cozy py-snug text-body">
             <span className="min-w-0 truncate text-muted-foreground">{label}</span>
             <a
               href={externalUrl!}
@@ -146,7 +146,7 @@ export function PlaceMap({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center gap-2 rounded-lg border bg-muted/40 p-4 text-center text-sm',
+          'flex flex-col items-center justify-center gap-2 rounded-lg border bg-muted/40 p-4 text-center text-body',
           'h-32',
           className,
         )}
@@ -156,7 +156,7 @@ export function PlaceMap({
           href={externalUrl!}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold underline-offset-4 hover:underline"
+          className="inline-flex items-center gap-tight text-body font-semibold underline-offset-4 hover:underline"
         >
           Open in Maps
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
@@ -178,7 +178,7 @@ export function PlaceMap({
         />
       </div>
       {label ? (
-        <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+        <div className="flex items-center justify-between gap-3 border-t px-cozy py-snug text-body">
           <span className="min-w-0 truncate text-muted-foreground">{label}</span>
           <a
             href={externalUrl!}

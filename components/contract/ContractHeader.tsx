@@ -44,29 +44,29 @@ export function ContractHeader({
 
   return (
     <Card className={cn('border-border/90 shadow-sm', className)}>
-      <CardContent className="space-y-2.5 p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <CardContent className="space-y-snug p-group">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-group gap-y-1">
           {/* The page shell renders the route <h1>; this is the contract's own title. */}
           <h2
-            className="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight"
+            className="min-w-0 flex-1 truncate text-subhead font-semibold tracking-tight"
             title={title}
           >
             {title}
           </h2>
           {money ? (
-            <p className="display-value shrink-0 text-base">{money}</p>
+            <p className="display-value shrink-0 text-lead">{money}</p>
           ) : null}
         </div>
 
         {parties || status || degraded ? (
           <div
             className={cn(
-              'flex flex-wrap items-center justify-between gap-x-4 gap-y-2',
-              'border-t pt-2',
+              'flex flex-wrap items-center justify-between gap-x-group gap-y-snug',
+              'border-t pt-snug',
             )}
           >
             <div className="min-w-0 flex-1">{parties}</div>
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-cozy">
               {degraded && connectionStatus ? (
                 <ContractConnectionStatus status={connectionStatus} />
               ) : null}

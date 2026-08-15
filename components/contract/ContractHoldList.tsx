@@ -42,11 +42,11 @@ export function ContractHoldList({
   className,
 }: ContractHoldListProps) {
   if (holds.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
+    return <p className="text-body text-muted-foreground">{emptyLabel}</p>;
   }
 
   return (
-    <ul className={cn('space-y-3', className)} aria-label={ariaLabel}>
+    <ul className={cn('space-y-cozy', className)} aria-label={ariaLabel}>
       {holds.map((hold) => {
         const status = HOLD_STATUS[hold.status] ?? {
           label: hold.status.toLowerCase().replace(/_/g, ' '),
@@ -55,11 +55,11 @@ export function ContractHoldList({
         return (
           <li
             key={hold.id}
-            className="flex items-center justify-between gap-4 rounded-md border bg-background p-3"
+            className="flex items-center justify-between gap-group rounded-md border bg-background p-cozy"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{hold.label}</p>
-              <p className="text-sm tabular-nums text-muted-foreground">
+              <p className="truncate text-body font-medium">{hold.label}</p>
+              <p className="text-body tabular-nums text-muted-foreground">
                 {formatAud(hold.amountCents)}
                 {hold.capturedCents && hold.capturedCents > 0 ? (
                   <span> · {formatAud(hold.capturedCents)} captured</span>

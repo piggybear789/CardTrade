@@ -56,7 +56,7 @@ export function ContractConversationPanel({
 
   return (
     <Card className="grid flex-1 place-items-center">
-      <CardContent className="pt-6 text-center text-sm text-muted-foreground">
+      <CardContent className="pt-6 text-center text-body text-muted-foreground">
         {failed ? (
           <>
             Chat could not be opened.
@@ -74,7 +74,7 @@ export function ContractConversationPanel({
             ) : null}
           </>
         ) : (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-snug">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             Opening chat…
           </span>

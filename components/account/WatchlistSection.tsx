@@ -38,7 +38,7 @@ export function WatchlistSection({ items }: { items: WatchlistEntry[] }) {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-group min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
       {sorted.map((item) => (
         <ItemCard key={item.id} item={item} />
       ))}

@@ -72,7 +72,7 @@ export function InspectionCountdown({
   return (
     <div
       className={cn(
-        'rounded-lg border px-4 py-3 text-sm',
+        'rounded-lg border px-group py-cozy text-body',
         alarming
           ? 'border-destructive/40 bg-destructive/5'
           : 'border-dashed border-gold/50 bg-gold/10',
@@ -80,7 +80,7 @@ export function InspectionCountdown({
       )}
       role={alarming ? 'alert' : undefined}
     >
-      <p className="flex items-center gap-2 font-medium">
+      <p className="flex items-center gap-snug font-medium">
         {alarming ? (
           <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden />
         ) : (
@@ -94,7 +94,7 @@ export function InspectionCountdown({
           : `You have already acted. ${expiryConsequence}`}
       </p>
       {collateralLapsesFirst ? (
-        <p className="mt-2 text-xs text-destructive">
+        <p className="mt-2 text-body text-destructive">
           The collateral authorisation on this trade expires before the inspection
           window closes. Raise a dispute now rather than later: after the
           authorisation lapses there is nothing left to capture.

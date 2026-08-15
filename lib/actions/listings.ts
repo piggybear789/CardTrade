@@ -30,6 +30,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createDefaultItemOrchestrator } from '@/domain/orchestrator/supabaseItemRepository';
 import {
   validateItemSubmission,
+  deriveItemTitle,
   IMAGES_MIN,
   IMAGES_MAX,
 } from '@/domain/validation';
@@ -79,7 +80,12 @@ export interface ItemLocationInput {
 
 /** Fields accepted when creating an Item (images are uploaded, then validated). */
 export interface CreateItemInput {
-  title: string;
+  /**
+   * The listing's only prose. There is NO `title` field: the short label the rest of
+   * the platform needs is derived from this by `deriveItemTitle`, so a seller states
+   * what they are selling once. Asking twice produced two versions of the same fact
+   * and a card that showed the weaker one.
+   */
   description: string;
   category: string;
   condition: string;
@@ -105,7 +111,7 @@ export interface CreateItemInput {
 
 /** Fields accepted when updating an Item. Images may mix kept paths + new uploads. */
 export interface UpdateItemInput {
-  title: string;
+  /** See `CreateItemInput.description` — the title is derived, never supplied. */
   description: string;
   category: string;
   condition: string;
@@ -285,10 +291,16 @@ export async function createItem(
     };
   }
 
+  // The short label the contract layer needs, derived from the seller's prose rather
+  // than collected as a second field. Computed ONCE here and reused by both
+  // validation passes and the insert, so the value that was checked is the value that
+  // is stored.
+  const derivedTitle = deriveItemTitle(input.description);
+
   // Pre-validate the text/number fields using placeholder image paths so an
   // invalid title/description/category/condition/fmv is caught before upload.
   const preValidation = validateItemSubmission({
-    title: input.title,
+    title: derivedTitle,
     description: input.description,
     category: input.category,
     condition: input.condition,
@@ -319,7 +331,7 @@ export async function createItem(
 
   // Final validation over the real submission (with uploaded paths).
   const validated = validateItemSubmission({
-    title: input.title,
+    title: derivedTitle,
     description: input.description,
     category: input.category,
     condition: input.condition,
@@ -409,9 +421,14 @@ export async function createPrivateTradeItem(
     };
   }
 
+  // A private trade item is never browsed, but it still reaches arbitration through
+  // `trades.counterpart_goods_description` and the trade contract, so it needs the
+  // same short label every other item carries.
+  const derivedTitle = deriveItemTitle(input.description);
+
   // Validate text/number fields against placeholder paths before uploading.
   const preValidation = validateItemSubmission({
-    title: input.title,
+    title: derivedTitle,
     description: input.description,
     category: input.category,
     condition: input.condition,
@@ -440,7 +457,7 @@ export async function createPrivateTradeItem(
   }
 
   const validated = validateItemSubmission({
-    title: input.title,
+    title: derivedTitle,
     description: input.description,
     category: input.category,
     condition: input.condition,
@@ -504,6 +521,11 @@ export async function updateItem(
     return { ok: false, error: 'not-authenticated' };
   }
 
+  // Re-derived on every edit, so the label tracks the prose it came from. An edit
+  // that rewrites the description therefore renames the listing — which is correct,
+  // because the description IS the listing's name now.
+  const derivedTitle = deriveItemTitle(input.description);
+
   // Resolve images: keep existing string paths, upload any new binary/base64.
   const admin = createAdminClient();
   const keptPaths: string[] = [];
@@ -561,7 +583,7 @@ export async function updateItem(
     itemId,
     actorId: userId,
     update: {
-      title: input.title,
+      title: derivedTitle,
       description: input.description,
       category: input.category,
       condition: input.condition,

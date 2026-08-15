@@ -198,7 +198,7 @@ export function TradeHandoverTermsEditor({
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+          className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
         >
           <Pencil aria-hidden />
           {triggerLabel}
@@ -242,7 +242,7 @@ export function TradeHandoverTermsEditor({
           {error &&
           error !== FULFILMENT_FIELD_ERRORS.meeting &&
           error !== FULFILMENT_FIELD_ERRORS.address ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-body text-destructive">
               {error}
             </p>
           ) : null}

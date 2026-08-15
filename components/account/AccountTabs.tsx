@@ -14,7 +14,7 @@ const TABS = [
 export function AccountTabs({ activeTab }: { activeTab: string }) {
   return (
     <nav aria-label="Account sections" className="mb-8 border-b">
-      <ul className="-mb-px flex gap-6">
+      <ul className="-mb-px flex gap-section">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -23,7 +23,7 @@ export function AccountTabs({ activeTab }: { activeTab: string }) {
                 href={tab.id === 'profile' ? '/profile' : `/profile?tab=${tab.id}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative inline-flex items-center px-1 pb-3 text-sm font-medium transition-colors',
+                  'relative inline-flex items-center px-tight pb-cozy text-body font-medium transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}

@@ -206,7 +206,7 @@ export function TradeNegotiationPanel({
           them again here made the action card a summary with buttons attached
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-snug">
         {actions.includes('ACCEPT_TERMS') ? (
           <Button
             disabled={isPending}
@@ -243,12 +243,12 @@ export function TradeNegotiationPanel({
               again before any collateral is placed.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-group py-group">
             {/* First, because on a binder trade it is the substance: what actually
                 changes hands. Changing it voids both acceptances, same as changing
                 the cash. */}
             {isShopfrontTrade ? (
-              <div className="space-y-2">
+              <div className="space-y-snug">
                 <Label htmlFor="trade-counterpart-goods">Cards from the listing</Label>
                 <Textarea
                   id="trade-counterpart-goods"
@@ -260,7 +260,7 @@ export function TradeNegotiationPanel({
                 />
                 <p
                   id="trade-counterpart-goods-hint"
-                  className="text-xs text-muted-foreground"
+                  className="text-body text-muted-foreground"
                 >
                   The listing is a binder or bulk lot, so this is the record of what is
                   being swapped. It is what an arbitrator reads if the trade goes wrong.
@@ -268,8 +268,8 @@ export function TradeNegotiationPanel({
               </div>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid gap-cozy sm:grid-cols-2">
+              <div className="space-y-snug">
                 <Label htmlFor="trade-cash">Cash</Label>
                 <MoneyInput
                   id="trade-cash"
@@ -277,7 +277,7 @@ export function TradeNegotiationPanel({
                   onChange={(event) => setCash(event.target.value)}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-snug">
                 <Label htmlFor="trade-direction">Who pays</Label>
                 <Select
                   value={direction}
@@ -294,7 +294,7 @@ export function TradeNegotiationPanel({
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="trade-method">Handover</Label>
               <Select value={method} onValueChange={(value) => setMethod(value as typeof method)}>
                 <SelectTrigger id="trade-method">
@@ -319,7 +319,7 @@ export function TradeNegotiationPanel({
                   hint="Use a public spot both of you can find. Choose a suggestion to confirm the pin."
                   textFallbackPlaceholder="A public, agreed meeting point"
                 />
-                <div className="space-y-2">
+                <div className="space-y-snug">
                   <Label htmlFor="trade-meeting-at">Meeting time</Label>
                   <Input
                     id="trade-meeting-at"
@@ -332,7 +332,7 @@ export function TradeNegotiationPanel({
               </>
             ) : (
               <>
-                <div className="space-y-2">
+                <div className="space-y-snug">
                   <Label htmlFor="trade-postage">Postage cost</Label>
                   <MoneyInput
                     id="trade-postage"
@@ -340,7 +340,7 @@ export function TradeNegotiationPanel({
                     onChange={(event) => setDeliveryCost(event.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-snug">
                   <Label htmlFor="trade-delivery">Postage details</Label>
                   <Textarea
                     id="trade-delivery"
@@ -352,7 +352,7 @@ export function TradeNegotiationPanel({
               </>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="trade-note">Note</Label>
               <Textarea
                 id="trade-note"
@@ -362,7 +362,7 @@ export function TradeNegotiationPanel({
               />
             </div>
             {error ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {error}
               </p>
             ) : null}

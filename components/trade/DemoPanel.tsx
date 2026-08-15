@@ -88,7 +88,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode
             </span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
+            <span className="mt-0.5 block text-meta text-muted-foreground">
               Simulated payments — not live Stripe
             </span>
           </span>
@@ -101,17 +101,17 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
       </button>
 
       {open ? (
-        <div id="demo-panel-body" className="space-y-4 px-4 pb-4">
-          <p className="text-sm text-muted-foreground">
+        <div id="demo-panel-body" className="space-y-group px-group pb-group">
+          <p className="text-body text-muted-foreground">
             Payments are simulated in this build. These controls fire the
             collateral webhooks Stripe would otherwise deliver, exercising the
             real webhook code path. Shipping, receipt, acceptance, disputes, and
             fraud are handled by your actions above.
           </p>
 
-          <div className="space-y-3">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="space-y-cozy">
+            <div className="flex flex-col gap-tight">
+              <div className="flex flex-col gap-snug sm:flex-row">
                 <Button
                   onClick={() => fire('confirm-holds')}
                   disabled={isPending}
@@ -130,7 +130,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
                   Fail collateral holds
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Confirming advances Collateral Pending → Collateral Locked;
                 failing cancels the pending collateral.
               </p>

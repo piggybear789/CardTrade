@@ -68,7 +68,7 @@ export function CaseNoteComposer({ caseKind, caseRef }: CaseNoteComposerProps) {
 
   return (
     <form
-      className="space-y-2"
+      className="space-y-snug"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -86,8 +86,8 @@ export function CaseNoteComposer({ caseKind, caseRef }: CaseNoteComposerProps) {
         aria-describedby={`${fieldId}-help`}
         disabled={isPending}
       />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p id={`${fieldId}-help`} className="text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-snug">
+        <p id={`${fieldId}-help`} className="text-meta text-muted-foreground">
           Notes cannot be edited or deleted once saved.{' '}
           <span className="tabular-nums">
             {trimmed.length}/{MAX_NOTE_LENGTH}

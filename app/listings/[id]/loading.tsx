@@ -48,7 +48,7 @@ export default function ItemDetailLoading() {
               {/* Icon action row — above description, matching ItemActions. */}
               <div className="grid grid-cols-5 justify-items-center gap-1 sm:gap-2">
                 {Array.from({ length: 5 }, (_, index) => (
-                  <div key={index} className="flex flex-col items-center gap-1.5">
+                  <div key={index} className="flex flex-col items-center gap-tight">
                     <Skeleton className="size-12 rounded-full" />
                     <Skeleton className="h-3 w-14" />
                   </div>

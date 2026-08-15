@@ -231,8 +231,11 @@ test.describe('Identity gate', () => {
       page.getByText(/Verify your identity before you publish a listing/),
     ).toBeVisible();
 
-    // The form itself must NOT be present.
-    await expect(page.getByLabel('Title')).toHaveCount(0);
+    // The form itself must NOT be present. Probed on the description field, which is
+    // now the listing form's only prose input — there is no Title field to look for.
+    await expect(
+      page.getByLabel(/Describe what you are selling/),
+    ).toHaveCount(0);
   });
 
   test('an unverified member is refused when entering trade escrow', async ({

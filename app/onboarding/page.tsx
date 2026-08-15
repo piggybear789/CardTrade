@@ -238,7 +238,7 @@ export default function OnboardingPage() {
               an `aria-label` on a plain <div> has no role to attach to and is not
               reliably announced. */}
           {step !== 'welcome' ? (
-            <div className="mb-2 flex items-center justify-center gap-1.5">
+            <div className="mb-2 flex items-center justify-center gap-tight">
               <span className="sr-only">
                 Step {progressIndex + 1} of {PROGRESS_STEPS.length}
               </span>
@@ -258,7 +258,7 @@ export default function OnboardingPage() {
           {step === 'welcome' ? (
             <div className="space-y-6">
               <DialogHeader className="space-y-2 pr-0 text-center">
-                <DialogTitle className="text-2xl">Welcome to NoDitto</DialogTitle>
+                <DialogTitle className="text-head">Welcome to NoDitto</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
                   Two ways to transact, both designed to protect both sides.
                 </DialogDescription>
@@ -269,10 +269,10 @@ export default function OnboardingPage() {
                   className="rounded-xl border bg-muted/25 p-4"
                   aria-labelledby="eligibility-onboarding-title"
                 >
-                  <h2 id="eligibility-onboarding-title" className="text-sm font-semibold">
+                  <h2 id="eligibility-onboarding-title" className="text-body font-semibold">
                     All Sellers and Traders Are Verified Through Stripe
                   </h2>
-                  <p className="mt-1 text-pretty text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-1 text-pretty text-body leading-relaxed text-muted-foreground">
                     Sellers and traders pass a Stripe identity check — a photo ID and a selfie — before they can list, sell, or enter a trade. Bank details are collected separately, only when there is money to pay out. Confirmed fraud permanently bans the responsible individual.
                   </p>
                 </section>
@@ -281,10 +281,10 @@ export default function OnboardingPage() {
                   className="rounded-xl border bg-muted/25 p-4"
                   aria-labelledby="cash-sale-onboarding-title"
                 >
-                  <h2 id="cash-sale-onboarding-title" className="text-sm font-semibold">
+                  <h2 id="cash-sale-onboarding-title" className="text-body font-semibold">
                     Buy & Sell with Payment Protection
                   </h2>
-                  <p className="mt-1 text-pretty text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-1 text-pretty text-body leading-relaxed text-muted-foreground">
                     Buyer pays upfront; NoDitto holds the proceeds until delivery and inspection resolve, then pays the seller.
                   </p>
                 </section>
@@ -293,10 +293,10 @@ export default function OnboardingPage() {
                   className="rounded-xl border bg-muted/25 p-4"
                   aria-labelledby="trade-onboarding-title"
                 >
-                  <h2 id="trade-onboarding-title" className="text-sm font-semibold">
+                  <h2 id="trade-onboarding-title" className="text-body font-semibold">
                     Trade with Collateral
                   </h2>
-                  <p className="mt-1 text-pretty text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-1 text-pretty text-body leading-relaxed text-muted-foreground">
                     Both parties agree on a trade value, backed by a temporary card authorization on each side. No cash changes hands - holds are released after a successful trade is confirmed.
                   </p>
                 </section>
@@ -312,7 +312,7 @@ export default function OnboardingPage() {
           {step === 'username' ? (
             <div className="space-y-6">
               <DialogHeader className="space-y-2 pr-0 text-center">
-                <DialogTitle className="text-2xl">Choose your username</DialogTitle>
+                <DialogTitle className="text-head">Choose your username</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
                   This is how other members see you.  
                 </DialogDescription>
@@ -338,7 +338,7 @@ export default function OnboardingPage() {
                   aria-describedby={error ? 'name-error' : undefined}
                 />
                 {error ? (
-                  <p id="name-error" role="alert" className="text-sm text-destructive">
+                  <p id="name-error" role="alert" className="text-body text-destructive">
                     {error}
                   </p>
                 ) : null}
@@ -356,7 +356,7 @@ export default function OnboardingPage() {
               >
                 <p
                   id="onboarding-avatar-label"
-                  className="text-sm font-medium leading-none"
+                  className="text-body font-medium leading-none"
                 >
                   Profile picture{' '}
                   <span className="font-normal text-muted-foreground">(optional)</span>
@@ -367,7 +367,7 @@ export default function OnboardingPage() {
                   onChange={setAvatarPath}
                   hideHint
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   Helps members recognise you. You can add or change it any time from
                   your profile.
                 </p>
@@ -394,7 +394,7 @@ export default function OnboardingPage() {
           {step === 'region' ? (
             <div className="space-y-6">
               <DialogHeader className="space-y-2 pr-0 text-center">
-                <DialogTitle className="text-2xl">Where are you trading from?</DialogTitle>
+                <DialogTitle className="text-head">Where are you trading from?</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
                   Deals are completed within one region, so postage, currency and
                   payouts all stay local.
@@ -424,7 +424,7 @@ export default function OnboardingPage() {
                     </span>
                     <span>
                       <span className="block font-medium">{region.label}</span>
-                      <span className="block text-sm text-muted-foreground">
+                      <span className="block text-body text-muted-foreground">
                         Buy, sell and trade in {region.currency.toUpperCase()} with
                         other members in {region.label}.
                       </span>
@@ -438,7 +438,7 @@ export default function OnboardingPage() {
                   button, which reads as a broken page.
                 */}
                 {regionChoices.length === 0 ? (
-                  <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  <p className="rounded-lg border border-dashed p-4 text-body text-muted-foreground">
                     No regions are open for deals right now. Please try again shortly —
                     you can still browse listings in the meantime.
                   </p>
@@ -451,13 +451,13 @@ export default function OnboardingPage() {
                 and sends the member to support. Finding that out later would feel
                 like a bug.
               */}
-              <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
+              <p className="text-pretty text-body leading-relaxed text-muted-foreground">
                 This is tied to your payout account, so it is not something you can
                 switch later on your own. You can still browse listings in any region.
               </p>
 
               {error ? (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="text-body text-destructive">
                   {error}
                 </p>
               ) : null}
@@ -489,7 +489,7 @@ export default function OnboardingPage() {
           {step === 'intent' ? (
             <div className="space-y-6">
               <DialogHeader className="space-y-2 pr-0 text-center">
-                <DialogTitle className="text-2xl">What brings you here?</DialogTitle>
+                <DialogTitle className="text-head">What brings you here?</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
                   You can always do both later. This only gets your first path ready.
                 </DialogDescription>
@@ -511,7 +511,7 @@ export default function OnboardingPage() {
                   </span>
                   <span>
                     <span className="block font-medium">I want to buy</span>
-                    <span className="block text-sm text-muted-foreground">
+                    <span className="block text-body text-muted-foreground">
                       Browse and purchase collectibles from other members.
                     </span>
                   </span>
@@ -532,7 +532,7 @@ export default function OnboardingPage() {
                   </span>
                   <span>
                     <span className="block font-medium">I want to sell or trade</span>
-                    <span className="block text-sm text-muted-foreground">
+                    <span className="block text-body text-muted-foreground">
                       List items, accept offers, and get paid securely.
                     </span>
                   </span>
@@ -540,7 +540,7 @@ export default function OnboardingPage() {
               </div>
 
               {error ? (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="text-body text-destructive">
                   {error}
                 </p>
               ) : null}
@@ -577,7 +577,7 @@ export default function OnboardingPage() {
                 on a later screen.
               */}
               {intent === 'seller' ? (
-                <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
+                <p className="text-pretty text-body leading-relaxed text-muted-foreground">
                   Continuing opens Stripe, which checks a photo ID and a selfie on its own
                   pages — NoDitto never sees the document. You agree that the name on it can
                   be shown to someone you have an agreed sale or trade with. Bank details
@@ -590,7 +590,7 @@ export default function OnboardingPage() {
           {step === 'card-setup' ? (
             <div className="space-y-6">
               <DialogHeader className="space-y-2 pr-0 text-center">
-                <DialogTitle className="text-2xl">Add a payment card</DialogTitle>
+                <DialogTitle className="text-head">Add a payment card</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
                   A saved card lets you buy instantly or back a trade with collateral.
                   You can always add one later from your profile.
@@ -628,7 +628,7 @@ export default function OnboardingPage() {
                 <ArrowRight className="ml-1.5 size-3.5" aria-hidden />
               </Link>
             </Button>
-            <p className="text-center text-xs text-muted-foreground">
+            <p className="text-center text-meta text-muted-foreground">
               You can finish this any time. Selling, buying and trading need it
               completed;{' '}
               <button

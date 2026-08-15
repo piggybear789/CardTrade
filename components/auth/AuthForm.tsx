@@ -193,7 +193,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {/* The auth pages have no shell-provided heading, so the card title is
             the page's single h1. CardTitle renders a div, so use a semantic
             heading carrying the same styling. */}
-        <h1 className="text-2xl font-semibold leading-none tracking-tight">
+        <h1 className="text-head font-semibold leading-none tracking-tight">
           {copy.title}
         </h1>
         <CardDescription>{copy.description}</CardDescription>
@@ -219,7 +219,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             <p
               id={formErrorId}
               role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              className="rounded-md bg-destructive/10 px-3 py-2 text-body text-destructive"
             >
               {bannerError}
             </p>
@@ -229,7 +229,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
           <div className="flex items-center gap-3" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">or</span>
+            <span className="text-meta uppercase tracking-wide text-muted-foreground">or</span>
             <span className="h-px flex-1 bg-border" />
           </div>
 
@@ -249,7 +249,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               aria-describedby={fieldErrors.email ? emailErrorId : undefined}
             />
             {fieldErrors.email ? (
-              <p id={emailErrorId} role="alert" className="text-sm text-destructive">
+              <p id={emailErrorId} role="alert" className="text-body text-destructive">
                 {fieldErrors.email}
               </p>
             ) : null}
@@ -269,7 +269,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
             />
             {fieldErrors.password ? (
-              <p id={passwordErrorId} role="alert" className="text-sm text-destructive">
+              <p id={passwordErrorId} role="alert" className="text-body text-destructive">
                 {fieldErrors.password}
               </p>
             ) : null}
@@ -280,7 +280,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <Button type="submit" className="w-full" disabled={isPending || !isReady} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             {copy.switchPrompt}{" "}
             <Link
               href={withRedirect(copy.switchHref, destination)}

@@ -114,15 +114,15 @@ export function DeliveryAddressPanel({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-md border bg-muted/20 px-3 py-2.5">
-        <div className="flex items-start justify-between gap-3">
+    <div className="space-y-cozy">
+      <div className="rounded-md border bg-muted/20 px-cozy py-snug">
+        <div className="flex items-start justify-between gap-cozy">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <p className="flex items-center gap-tight text-meta font-medium text-muted-foreground">
               <Home className="size-3.5" aria-hidden />
               Your delivery address
             </p>
-            <p className="mt-0.5 break-words text-sm">
+            <p className="mt-0.5 break-words text-body">
               {mine?.label ?? (
                 <span className="text-muted-foreground">
                   Not set — the other party cannot post to you until you add one.
@@ -135,7 +135,7 @@ export function DeliveryAddressPanel({
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 shrink-0 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+              className="h-8 shrink-0 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
               onClick={() => handleOpenChange(true)}
             >
               <Pencil aria-hidden />
@@ -146,11 +146,11 @@ export function DeliveryAddressPanel({
       </div>
 
       {theirs || theirsPending ? (
-        <div className="rounded-md border bg-muted/20 px-3 py-2.5">
-          <p className="text-xs font-medium text-muted-foreground">
+        <div className="rounded-md border bg-muted/20 px-cozy py-snug">
+          <p className="text-meta font-medium text-muted-foreground">
             {counterpartName ? `${counterpartName}'s delivery address` : 'Their delivery address'}
           </p>
-          <p className="mt-0.5 break-words text-sm">
+          <p className="mt-0.5 break-words text-body">
             {theirs?.label ?? (
               <span className="text-muted-foreground">{theirsPending}</span>
             )}
@@ -158,7 +158,7 @@ export function DeliveryAddressPanel({
         </div>
       ) : null}
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         Addresses are stored separately from the contract and are never shown on a
         map or in chat. Only the person posting to you can see yours, and only once
         collateral is locked.

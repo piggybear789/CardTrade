@@ -98,7 +98,15 @@ export async function fillPlace(
 export { stubbedPlaceLabel, STUB_PLACES };
 
 export interface CreateListingOptions {
-  /** Marked title — pass `marked(...)` so teardown can find the row. */
+  /**
+   * Marked label — pass `marked(...)` so teardown can find the row.
+   *
+   * The form no longer HAS a Title field: it takes one description and the server
+   * derives `items.title` from it via `deriveItemTitle`. This string is filled as the
+   * OPENING of the description, so it still lands in `items.title` verbatim — it is
+   * far shorter than the 80-character derivation budget — and cleanup keeps matching
+   * on it.
+   */
   title: string;
   /** Dollars, as typed into the form. Converted to integer cents by the form. */
   priceDollars?: string;
@@ -162,8 +170,10 @@ export async function createListing(
   // rather than a change to the component.
   await expect(page.locator('#condition')).toBeFocused({ timeout: 10_000 });
 
-  await page.getByLabel('Title').fill(title);
-  await page.getByLabel('Description').fill(description);
+  // One prose field, and the marked label leads it so the derived title contains it.
+  await page
+    .getByLabel(/Describe what you are selling/)
+    .fill(`${title}. ${description}`);
   await page.getByLabel('Price').fill(priceDollars);
 
   // PLACE BEFORE PHOTOS, and the order matters.

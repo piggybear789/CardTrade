@@ -91,15 +91,15 @@ export function CashSaleDisputeResolution({
 
   return (
     <div aria-labelledby="dispute-resolution-heading">
-      <h4 id="dispute-resolution-heading" className="text-xs font-semibold">
+      <h4 id="dispute-resolution-heading" className="text-meta font-semibold">
         End this without support
       </h4>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-1 text-meta text-muted-foreground">
         You can only choose an outcome that costs you — anything in between is decided by
         support.
       </p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-cozy flex flex-wrap gap-snug">
         {iRaisedIt ? (
           <Button
             type="button"

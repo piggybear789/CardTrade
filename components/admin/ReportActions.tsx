@@ -62,7 +62,7 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-snug">
       {targetType === 'item' && (
         <Button
           type="button"

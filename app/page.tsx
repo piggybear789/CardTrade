@@ -68,7 +68,7 @@ export default async function HomePage() {
                 A marketplace without{' '}
                 <span className="text-parchment/45">imposters.</span>
               </h1>
-              <p className="mx-auto mt-6 max-w-xl text-base leading-6 text-parchment/65 sm:text-lg sm:leading-7">
+              <p className="mx-auto mt-6 max-w-xl text-lead leading-6 text-parchment/65 sm:text-subhead sm:leading-7">
                 Buy from verified sellers with confirmed identities.
                 <br />
                 Trade with strangers backed by collateral and full disclosure.
@@ -96,14 +96,10 @@ export default async function HomePage() {
                 </Button>
               </div>
 
-              <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-parchment sm:text-sm">
-                <li className="flex items-center gap-1.5">
+              <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-meta font-medium text-parchment sm:text-body">
+                <li className="flex items-center gap-tight">
                   <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
                   Sellers verified via Stripe Identity
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-                  Flat 5% Fee
                 </li>
               </ul>
             </div>
@@ -200,9 +196,9 @@ export default async function HomePage() {
         </section>
       </main>
       <footer className="border-t border-white/10">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 text-sm md:grid-cols-[1fr_auto] md:items-start lg:px-24">
+        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 text-body md:grid-cols-[1fr_auto] md:items-start lg:px-24">
           <div className="max-w-xl">
-            <div className="flex items-center gap-2 font-display text-lg font-semibold">
+            <div className="flex items-center gap-2 font-display text-subhead font-semibold">
               <LogoMark className="size-6" />
               <span translate="no">NoDitto</span>
             </div>
@@ -230,7 +226,7 @@ export default async function HomePage() {
               DittoShield
             </Link>
           </nav>
-          <p className="border-t border-white/10 pt-5 text-xs leading-5 text-parchment/45 md:col-span-2">
+          <p className="border-t border-white/10 pt-5 text-meta leading-5 text-parchment/45 md:col-span-2">
             Demo card imagery provided by the{' '}
             <a
               href="https://docs.pokemontcg.io/"
@@ -261,8 +257,8 @@ function ComparisonRow({
 }) {
   return (
     <div className="grid gap-2 border-b border-parchment/15 py-5 sm:grid-cols-[1.1fr_1fr_1fr] sm:items-center sm:gap-6">
-      <h3 className="text-sm font-semibold">{aspect}</h3>
-      <p className="flex items-center gap-2 text-sm text-parchment/60">
+      <h3 className="text-body font-semibold">{aspect}</h3>
+      <p className="flex items-center gap-2 text-body text-parchment/60">
         <X className="size-4 shrink-0 text-parchment/45" aria-hidden="true" />
         <span>
           <span className="market-label mr-1.5 text-parchment/50 sm:hidden">
@@ -271,7 +267,7 @@ function ComparisonRow({
           {typical}
         </span>
       </p>
-      <p className="flex items-center gap-2 text-sm font-medium">
+      <p className="flex items-center gap-2 text-body font-medium">
         <Check className="size-4 shrink-0 text-trust" aria-hidden="true" />
         <span>
           <span className="market-label mr-1.5 text-gold sm:hidden">Us:</span>

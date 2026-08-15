@@ -110,12 +110,12 @@ function SideColumn({
     <div
       className={cn(
         'flex h-full w-full min-w-0 flex-col !rounded-none !border-0 !bg-transparent',
-        compact ? 'gap-2 p-2.5' : 'gap-3 p-3',
+        compact ? 'gap-snug p-snug' : 'gap-cozy p-cozy',
       )}
     >
-      <header className="flex min-w-0 items-center gap-2">
+      <header className="flex min-w-0 items-center gap-snug">
         <div className="min-w-0 flex-1 truncate">
-          <p className="truncate text-sm font-medium">
+          <p className="truncate text-body font-medium">
             {side.partyName ?? side.heading}
           </p>
         </div>
@@ -134,17 +134,17 @@ function SideColumn({
           column first is "what is this side worth" — the breakdown is the support
           for that answer, not the route to it. */}
       {showTotal && !compact && total > 0 ? (
-        <div className="flex items-center gap-2.5 border-b pb-2">
+        <div className="flex items-center gap-snug border-b pb-snug">
           <span className="size-10 shrink-0" aria-hidden />
-          <p className="min-w-0 flex-1 text-sm font-medium">Total</p>
-          <span className="shrink-0 text-sm font-semibold tabular-nums">
+          <p className="min-w-0 flex-1 text-body font-medium">Total</p>
+          <span className="shrink-0 text-body font-semibold tabular-nums">
             {formatAud(total)}
           </span>
         </div>
       ) : null}
 
       {side.items.length === 0 && !side.note ? (
-        <p className={cn('text-muted-foreground', compact ? 'text-xs' : 'text-sm')}>
+        <p className={cn('text-muted-foreground', compact ? 'text-meta' : 'text-body')}>
           {side.emptyLabel ?? 'Nothing recorded.'}
         </p>
       ) : null}
@@ -158,23 +158,23 @@ function SideColumn({
              list row with the smallest element on the panel given to the photo,
              while the card stretched to full height and left most of itself empty. */
           <div className="flex min-h-0 flex-1 items-center">
-            <div className="mx-auto grid w-full max-w-2xl gap-4 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] sm:items-center">
+            <div className="mx-auto grid w-full max-w-2xl gap-group sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] sm:items-center">
               <ContractThumbnails
                 images={side.items[0].images ?? []}
                 label={side.items[0].title}
                 layout="stacked"
               />
               <div className="min-w-0 space-y-1">
-                <p className="text-balance text-base font-semibold leading-snug">
+                <p className="text-balance text-lead font-semibold leading-snug">
                   {side.items[0].title}
                 </p>
                 {side.items[0].subtitle ? (
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <p className="text-meta uppercase tracking-wide text-muted-foreground">
                     {side.items[0].subtitle}
                   </p>
                 ) : null}
                 {side.items[0].valueCents != null ? (
-                  <p className="pt-1 text-lg font-semibold tabular-nums">
+                  <p className="pt-1 text-subhead font-semibold tabular-nums">
                     {formatAud(side.items[0].valueCents)}
                   </p>
                 ) : null}
@@ -184,7 +184,7 @@ function SideColumn({
                     after the price, with the prose spanning underneath, is not a
                     two-column layout; it just makes the image look stranded. */}
                 {side.note?.trim() ? (
-                  <p className="whitespace-pre-wrap break-words pt-2 text-sm leading-relaxed">
+                  <p className="whitespace-pre-wrap break-words pt-snug text-body">
                     {side.note}
                   </p>
                 ) : null}
@@ -192,9 +192,9 @@ function SideColumn({
             </div>
           </div>
         ) : (
-          <ul className={cn(compact ? 'space-y-1.5' : 'space-y-2')}>
+          <ul className={cn(compact ? 'space-y-tight' : 'space-y-snug')}>
             {side.items.map((item) => (
-              <li key={item.id} className="flex items-center gap-2.5">
+              <li key={item.id} className="flex items-center gap-snug">
                 <ContractThumbnails
                   images={item.images ?? []}
                   label={item.title}
@@ -202,15 +202,15 @@ function SideColumn({
                   max={compact ? 1 : 2}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{item.title}</p>
+                  <p className="truncate text-body font-medium">{item.title}</p>
                   {!compact && item.subtitle ? (
-                    <p className="truncate text-xs uppercase tracking-wide text-muted-foreground">
+                    <p className="truncate text-meta uppercase tracking-wide text-muted-foreground">
                       {item.subtitle}
                     </p>
                   ) : null}
                 </div>
                 {!compact && item.valueCents != null ? (
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
                     {formatAud(item.valueCents)}
                   </span>
                 ) : null}
@@ -222,14 +222,14 @@ function SideColumn({
                 amounts stay on the same two axes — an amount that does not line up
                 with the amounts above it reads as a different kind of fact. */}
             {!compact && cashCents > 0 ? (
-              <li className="flex items-center gap-2.5">
+              <li className="flex items-center gap-snug">
                 <span className="size-10 shrink-0" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
+                  <p className="truncate text-body font-medium">
                     {side.cashLabel ?? 'Cash'}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
                   {formatAud(cashCents)}
                 </span>
               </li>
@@ -245,7 +245,7 @@ function SideColumn({
       {!showcase && side.note?.trim() ? (
         <p
           className={cn(
-            'break-words text-sm',
+            'break-words text-body',
             compact ? 'line-clamp-2' : 'whitespace-pre-wrap',
           )}
         >
@@ -270,7 +270,7 @@ function SideColumn({
           part of the exchange — it is what the platform charges for running it — so
           including it in the total would overstate what this side is worth. */}
       {!compact && (side.feeCents ?? 0) > 0 ? (
-        <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-snug text-meta text-muted-foreground">
           <span className="size-10 shrink-0" aria-hidden />
           <p className="min-w-0 flex-1">{side.feeLabel ?? 'NoDitto fee'}</p>
           <span className="shrink-0 tabular-nums">{formatAud(side.feeCents!)}</span>
@@ -321,8 +321,8 @@ export function ContractExchangePanel({
         'flex w-full flex-col',
         // The inspector owns the full available height. The content fills it without
         // manufacturing a second card surface inside the selected tab.
-        compact ? 'gap-3' : 'h-full min-h-0 flex-1 gap-3',
-        compact && 'gap-2',
+        compact ? 'gap-cozy' : 'h-full min-h-0 flex-1 gap-cozy',
+        compact && 'gap-snug',
         className,
       )}
     >
@@ -332,9 +332,9 @@ export function ContractExchangePanel({
           twoSided
             ? cn(
                 'grid items-stretch md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',
-                compact ? 'gap-2' : 'gap-3',
+                compact ? 'gap-snug' : 'gap-cozy',
               )
-            : cn('grid', compact ? 'gap-2' : 'gap-3'),
+            : cn('grid', compact ? 'gap-snug' : 'gap-cozy'),
         )}
       >
         <SideColumn
@@ -366,7 +366,7 @@ export function ContractExchangePanel({
       </div>
 
       {!compact && footnote ? (
-        <p className="text-xs text-muted-foreground">{footnote}</p>
+        <p className="text-meta text-muted-foreground">{footnote}</p>
       ) : null}
     </div>
   );

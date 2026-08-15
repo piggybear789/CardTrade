@@ -90,7 +90,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         className={cn(
-          'hidden items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-parchment/70 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:inline-flex',
+          'hidden items-center gap-tight rounded-md px-2 py-1 text-body font-semibold text-parchment/70 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:inline-flex',
           isPending && 'opacity-60',
         )}
         aria-label={`Browse region: ${label}. Click to change.`}
@@ -120,7 +120,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
                 onClick={() => selectRegion(region.code)}
                 disabled={isPending}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                  'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
                   selected
                     ? 'bg-accent font-medium text-accent-foreground'
                     : 'text-foreground hover:bg-accent/50',
@@ -145,7 +145,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
             onClick={() => selectRegion(ALL_REGIONS_PARAM)}
             disabled={isPending}
             className={cn(
-              'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+              'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
               !regionCode
                 ? 'bg-accent font-medium text-accent-foreground'
                 : 'text-foreground hover:bg-accent/50',

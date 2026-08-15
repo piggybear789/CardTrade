@@ -117,10 +117,10 @@ export default async function ArbitrationQueuePage({
           { label: 'Money at stake', value: formatAud(summary.amountAtRiskCents) },
         ].map((stat) => (
           <div key={stat.label} className="rounded-lg border bg-muted/30 p-3">
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+            <dt className="text-meta uppercase tracking-wide text-muted-foreground">
               {stat.label}
             </dt>
-            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{stat.value}</dd>
+            <dd className="mt-0.5 text-subhead font-semibold tabular-nums">{stat.value}</dd>
           </div>
         ))}
       </dl>
@@ -173,7 +173,7 @@ export default async function ArbitrationQueuePage({
                         <Badge variant={priority.variant}>{priority.label}</Badge>
                         <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
                         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
-                        <CardTitle className="text-base">
+                        <CardTitle className="text-lead">
                           <Link
                             href={`/admin/arbitration/${c.kind}/${c.ref}`}
                             className="text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground"
@@ -182,7 +182,7 @@ export default async function ArbitrationQueuePage({
                           </Link>
                         </CardTitle>
                       </div>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      <span className="shrink-0 text-body font-semibold tabular-nums">
                         {formatAud(c.amountAtRiskCents)}
                       </span>
                     </div>
@@ -213,7 +213,7 @@ export default async function ArbitrationQueuePage({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="min-w-0 text-xs text-muted-foreground">
+                    <p className="min-w-0 text-meta text-muted-foreground">
                       {c.parties.map((p) => `${p.role}: ${p.name}`).join(' · ')}
                     </p>
                     <div className="flex items-center gap-2">

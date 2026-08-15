@@ -34,6 +34,7 @@ export {
 export {
   TITLE_MIN_LENGTH,
   TITLE_MAX_LENGTH,
+  TITLE_DERIVED_MAX_LENGTH,
   DESCRIPTION_MIN_LENGTH,
   DESCRIPTION_MAX_LENGTH,
   FMV_MIN_CENTS,
@@ -43,6 +44,7 @@ export {
   itemSubmissionSchema,
   type ItemSubmission,
   validateItemSubmission,
+  deriveItemTitle,
 } from './item';
 
 export {

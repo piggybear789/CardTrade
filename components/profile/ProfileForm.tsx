@@ -110,18 +110,18 @@ export function ProfileForm({
   const generalError = fieldError && !fieldError.field ? fieldError.message : undefined;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-group">
       {/* The picture saves on pick, independently of this form's submit — see
           AvatarUploadField.
 
           A styled <p>, NOT a <Label>: the control is a button, and a <label> with
           no labelable form control associates with nothing. The group takes its
           accessible name from this text; the button carries its own aria-label. */}
-      <div role="group" aria-labelledby="avatar-field-label" className="space-y-2">
+      <div role="group" aria-labelledby="avatar-field-label" className="space-y-snug">
         <p id="avatar-field-label" className="market-label text-muted-foreground">
           Profile picture
         </p>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-group">
           <AvatarUploadField
             avatarPath={avatarPath}
             displayName={displayName}
@@ -132,14 +132,14 @@ export function ProfileForm({
           />
           {/* Format guidance kept, but beside the badge rather than under a
               full-width button. The compact picker renders no hint of its own. */}
-          <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
+          <p className="min-w-0 flex-1 text-body leading-relaxed text-muted-foreground">
             Optional. PNG, JPEG, or WebP, up to 2 MB. Shown next to your name on
             listings and in chats — it is not used to verify you.
           </p>
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-tight">
         <FieldLabel htmlFor="displayName">Display name</FieldLabel>
         <Input
           id="displayName"
@@ -153,13 +153,13 @@ export function ProfileForm({
           disabled={isSaving}
         />
         {displayNameError ? (
-          <p id="displayName-error" role="alert" className="text-sm text-destructive">
+          <p id="displayName-error" role="alert" className="text-body text-destructive">
             {displayNameError}
           </p>
         ) : null}
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-tight">
         <FieldLabel htmlFor="contactEmail">Contact email</FieldLabel>
         <Input
           id="contactEmail"
@@ -176,14 +176,14 @@ export function ProfileForm({
           disabled={isSaving}
         />
         {contactEmailError ? (
-          <p id="contactEmail-error" role="alert" className="text-sm text-destructive">
+          <p id="contactEmail-error" role="alert" className="text-body text-destructive">
             {contactEmailError}
           </p>
         ) : null}
       </div>
 
       {generalError ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {generalError}
         </p>
       ) : null}

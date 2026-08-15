@@ -159,8 +159,8 @@ export function PayoutOnboarding({
           {/* SAYS PAYOUT DESTINATION, NOT "Merchant identity". Connect answers where
               money goes; it says nothing about who the member is since 0069. */}
           <CardDescription>Payout destination</CardDescription>
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+          <div className="flex items-center justify-between gap-cozy">
+            <CardTitle className="flex items-center gap-snug text-lead">
               {state.settlementsEnabled ? (
                 <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
               ) : (
@@ -179,22 +179,22 @@ export function PayoutOnboarding({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <dl className="space-y-2 text-sm">
-            <div className="flex items-center justify-between gap-4">
+        <CardContent className="space-y-group">
+          <dl className="space-y-snug text-body">
+            <div className="flex items-center justify-between gap-group">
               <dt className="text-muted-foreground">Payout name</dt>
               <dd className="min-w-0 truncate text-right font-medium">
                 {state.legalEntityName ?? 'Awaiting Stripe name'}
               </dd>
             </div>
             {state.tradingName ? (
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-group">
                 <dt className="text-muted-foreground">Store</dt>
                 <dd className="min-w-0 truncate text-right font-medium">{state.tradingName}</dd>
               </div>
             ) : null}
             {state.settlementsEnabled && state.identityVerifiedAt ? (
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-group">
                 <dt className="text-muted-foreground">Active since</dt>
                 <dd className="font-medium">
                   {new Date(state.identityVerifiedAt).toLocaleDateString('en-AU')}
@@ -219,7 +219,7 @@ export function PayoutOnboarding({
               {needsPayoutCompletion ? 'Continue with Stripe' : 'Manage with Stripe'}
             </Button>
           ) : null}
-          {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+          {error ? <p role="alert" className="text-body text-destructive">{error}</p> : null}
         </CardContent>
       </Card>
     );
@@ -229,9 +229,9 @@ export function PayoutOnboarding({
     // `id` is the anchor target for `/profile/payouts#payout-setup`.
     <Card id="payout-setup" className="h-full scroll-mt-24">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-cozy">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-2 text-lg">
+            <CardTitle className="flex items-center gap-snug text-lead">
               <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
               Stripe Connect
             </CardTitle>
@@ -248,19 +248,19 @@ export function PayoutOnboarding({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-cozy">
         {state.merchantStatus === 'APPROVED' && !needsPayoutCompletion ? (
-          <div className="space-y-3">
+          <div className="space-y-cozy">
             {/* PLAIN TEXT, NO NESTED BOX — see the same note in IdentityCheckCard.
                 The card is the container; this note does not need a second one. */}
-            <div className="space-y-0.5 text-sm leading-snug">
+            <div className="space-y-tight text-body leading-snug">
               <p className="font-medium text-foreground">This is what buyers may see</p>
               <p className="text-muted-foreground">
                 Your provider-reported name may be disclosed to a buyer for an agreed sale.
                 NoDitto never shows your address or bank details.
               </p>
             </div>
-            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+            <dl className="grid gap-x-6 gap-y-cozy text-body sm:grid-cols-3">
               <div className="min-w-0">
                 <dt className="text-muted-foreground">Payout account name</dt>
                 <dd className="break-words font-medium">
@@ -284,12 +284,12 @@ export function PayoutOnboarding({
         ) : null}
 
         {needsPayoutCompletion ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="space-y-cozy">
+            <p className="text-body text-muted-foreground">
               Stripe has not finished your setup yet, so you cannot be paid. Continue
               with Stripe to complete it — you will pick up where you left off.
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-snug">
               <Button onClick={openHostedOnboarding} disabled={isPending}>
                 {isPending ? <Loader2 className="animate-spin" aria-hidden /> : (
                   <ExternalLink className="size-3.5" aria-hidden />
@@ -305,9 +305,9 @@ export function PayoutOnboarding({
         ) : null}
 
         {needsSetup ? (
-          <div className="space-y-4">
+          <div className="space-y-group">
             {state.merchantStatus === 'REJECTED' ? (
-              <p className="flex gap-2 text-sm text-destructive">
+              <p className="flex gap-snug text-body text-destructive">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
                 Payout setup did not complete last time. You can start again.
               </p>
@@ -321,7 +321,7 @@ export function PayoutOnboarding({
                 as a wall; the two that remain each say something the other does not. */}
 
             {error ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {error}
               </p>
             ) : null}
@@ -337,7 +337,7 @@ export function PayoutOnboarding({
                 the control that gives it. The second sentence is that consent and is
                 deliberately left verbatim — the first now also carries the "one step,
                 on Stripe's pages" reassurance the deleted paragraph was making. */}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               One step, entirely on Stripe&apos;s pages — NoDitto never sees your bank
               details. You agree that the payout name Stripe reports can be shown to
               someone you have an agreed sale or trade with.
@@ -346,7 +346,7 @@ export function PayoutOnboarding({
         ) : null}
 
         {error && !needsSetup ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-body text-destructive">
             {error}
           </p>
         ) : null}

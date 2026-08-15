@@ -262,7 +262,7 @@ export function PlaceSearch({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-sm shadow-md"
+          className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-body shadow-md"
         >
           {results.map((place) => (
             <li key={place.placeId} role="option" aria-selected={value?.placeId === place.placeId}>

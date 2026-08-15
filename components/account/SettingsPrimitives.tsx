@@ -54,11 +54,11 @@ export function SettingsSection({
   className?: string;
 }) {
   return (
-    <section className={cn('space-y-3', className)}>
-      <div className="space-y-1">
+    <section className={cn('space-y-cozy', className)}>
+      <div className="space-y-tight">
         <SectionLabel>{label}</SectionLabel>
         {description ? (
-          <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
+          <p className="text-body leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {children}
@@ -91,8 +91,8 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1',
-        'text-[0.6875rem] font-medium',
+        'inline-flex shrink-0 items-center gap-tight rounded-full border px-snug py-tight',
+        'text-meta font-medium',
         TONE_CLASS[tone],
       )}
     >
@@ -161,19 +161,19 @@ export function SettingsRow({
 }) {
   return (
     <div className={cn('rounded-xl border bg-card', className)}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
+      <div className="flex flex-wrap items-center gap-x-group gap-y-cozy p-group">
         {icon ? <IconMedallion icon={icon} tone={tone} /> : null}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground">{title}</p>
+          <p className="text-body font-medium text-foreground">{title}</p>
           {subtitle ? (
-            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">
               {subtitle}
             </p>
           ) : null}
         </div>
         {trailing ? <div className="shrink-0">{trailing}</div> : null}
       </div>
-      {children ? <div className="border-t px-4 py-4">{children}</div> : null}
+      {children ? <div className="border-t px-group py-group">{children}</div> : null}
     </div>
   );
 }
@@ -192,8 +192,8 @@ export function SettingsPlaceholder({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-4">
-      <p className="text-sm text-muted-foreground">{children}</p>
+    <div className="flex flex-wrap items-center justify-between gap-cozy rounded-xl border border-dashed px-group py-group">
+      <p className="text-body text-muted-foreground">{children}</p>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
@@ -214,15 +214,15 @@ export function StatTile({
   tone?: StatusTone;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-center gap-2">
+    <div className="rounded-xl border bg-card p-group">
+      <div className="flex items-center gap-snug">
         <IconMedallion icon={icon} tone={tone} />
-        <p className="min-w-0 text-xs text-muted-foreground">{label}</p>
+        <p className="min-w-0 text-meta text-muted-foreground">{label}</p>
       </div>
       {/* `display-value` is the existing ledger-figure class: sans, bold, with
           tabular figures so columns of money align. */}
-      <p className="display-value mt-3 text-xl">{value}</p>
-      {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
+      <p className="display-value mt-3 text-subhead">{value}</p>
+      {sub ? <p className="mt-1 text-meta text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }

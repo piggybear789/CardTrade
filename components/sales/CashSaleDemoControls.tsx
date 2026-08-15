@@ -66,15 +66,15 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
         aria-expanded={open}
         aria-controls="cash-sale-demo-body"
         aria-label={open ? 'Collapse hackathon test controls' : 'Expand hackathon test controls'}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 items-center gap-snug">
           <FlaskConical className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
           <span className="min-w-0">
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode
             </span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
+            <span className="mt-0.5 block text-meta text-muted-foreground">
               Simulated payments — not live Stripe
             </span>
           </span>
@@ -87,12 +87,12 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
       </button>
 
       {open ? (
-        <div id="cash-sale-demo-body" className="space-y-3 px-4 pb-4">
-          <p className="text-xs text-muted-foreground">
+        <div id="cash-sale-demo-body" className="space-y-cozy px-group pb-group">
+          <p className="text-meta text-muted-foreground">
             In production, Stripe delivers a webhook when the payment clears. Simulate
             that here to advance the sale.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-snug sm:flex-row">
             <Button
               size="sm"
               onClick={() => fire('settle-payment')}

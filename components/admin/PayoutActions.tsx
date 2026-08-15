@@ -95,7 +95,7 @@ export function DrainPayoutsButton() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-snug">
       <Button
         type="button"
         size="sm"
@@ -111,7 +111,7 @@ export function DrainPayoutsButton() {
         Run release queue
       </Button>
       {summary ? (
-        <span aria-live="polite" className="text-xs text-muted-foreground">
+        <span aria-live="polite" className="text-meta text-muted-foreground">
           {summary}
         </span>
       ) : null}

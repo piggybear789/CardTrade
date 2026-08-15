@@ -52,26 +52,15 @@ export default async function ConversationPage({
   const { conversation, other, item, trade } = result.data;
 
   return (
-    <MarketplaceShell title="Messages">
-      {/* This page is a FULL-VIEWPORT chat. Nothing exists below the composer and
-          nothing above the header needs scrolling — only the message list inside does.
-          The outer document must not scroll at all: a second scrollbar beside the chat's
-          own is confusing, and on mobile it lets the user scroll the page away from the
-          input they are trying to type into.
-
-          `max-h` + `overflow-hidden` on the wrapper ensures the shell's own padding
-          (pb-10, py-7) is contained rather than pushing past the viewport. The chat's
-          internal flex-1 + min-h-0 + overflow-y-auto provides the only scroll. */}
-      <div className="flex max-h-[calc(100dvh-5.25rem-1px-env(safe-area-inset-bottom))] flex-col overflow-hidden lg:max-h-[calc(100dvh-4rem-1px-3.5rem)]">
-        <ChatThread
-          conversationId={conversation.id}
-          currentUserId={user.id}
-          otherName={other.displayName}
-          otherAvatarPath={other.avatarPath}
-          item={item}
-          trade={trade}
-        />
-      </div>
+    <MarketplaceShell title="Messages" flush>
+      <ChatThread
+        conversationId={conversation.id}
+        currentUserId={user.id}
+        otherName={other.displayName}
+        otherAvatarPath={other.avatarPath}
+        item={item}
+        trade={trade}
+      />
     </MarketplaceShell>
   );
 }

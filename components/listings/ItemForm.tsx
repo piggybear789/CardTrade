@@ -156,7 +156,8 @@ const IMAGES_MAX = 10;
 
 /** Which server field a validation error maps to for inline display. */
 type ErrorField =
-  | "title"
+  // No "title" — it is derived from the description, so a title error is not a
+  // field the seller can act on. deriveItemTitle guarantees the bounds instead.
   | "description"
   | "category"
   | "condition"
@@ -246,7 +247,6 @@ function subcategoryName(slug: string): string {
 export function ItemForm({ mode, item }: ItemFormProps) {
   const router = useRouter();
 
-  const [title, setTitle] = React.useState(item?.title ?? "");
   const [description, setDescription] = React.useState(item?.description ?? "");
   const [category, setCategory] = React.useState(() => {
     // In edit mode, infer the top-level category from the item's text category.
@@ -406,7 +406,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
       if (mode === "create") {
         const result = await createItem({
-          title,
           description,
           category: subcategoryName(subcategory),
           condition,
@@ -428,7 +427,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         // plain object paths, so the action does no byte handling at all.
         const images: string[] = [...keptPaths, ...uploadedPaths];
         const result = await updateItem(item!.id, {
-          title,
           description,
           category: subcategoryName(subcategory),
           condition,
@@ -475,7 +473,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     toast.error(fallback);
   }
 
-  const titleError = errorFor("title");
   const descriptionError = errorFor("description");
   const categoryError = errorFor("category");
   const conditionError = errorFor("condition");
@@ -497,7 +494,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   return (
     <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:min-h-[680px] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border/80 lg:px-7 lg:pb-5 lg:pt-7">
-        <CardTitle className="text-xl">
+        <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
         </CardTitle>
         <CardDescription>
@@ -513,7 +510,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               visually distinct from the listing details rail. */}
           <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:flex-col lg:bg-muted/20 lg:p-8">
             <Label htmlFor="images">Photos</Label>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               Add {IMAGES_MIN}–{IMAGES_MAX} photos. {totalImages} selected.
             </p>
 
@@ -538,7 +535,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : (
                 <>
                   <ImagePlus className="size-8" aria-hidden />
-                  <span className="text-sm font-medium">Add photos</span>
+                  <span className="text-body font-medium">Add photos</span>
                 </>
               )}
             </button>
@@ -642,7 +639,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               <p
                 id="images-error"
                 role="alert"
-                className="text-sm text-destructive"
+                className="text-body text-destructive"
               >
                 {imagesError}
               </p>
@@ -655,7 +652,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 this form means: for a shopfront the price below is only a guide
                 and the condition covers a mixed pile. Locked in edit mode. */}
             <fieldset className="space-y-2" disabled={mode === "edit"}>
-              <legend className="mb-2 text-sm font-medium leading-none">
+              <legend className="mb-2 text-body font-medium leading-none">
                 What are you listing?
               </legend>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -674,11 +671,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 ))}
               </div>
               {mode === "edit" ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   This can&apos;t be changed after a listing is created.
                 </p>
               ) : isShopfront ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   Buyers ask for the cards they want and you agree a price with
                   each one. Nothing is reserved, so the same card can be asked for
                   twice — check your open contracts before you accept.
@@ -686,30 +683,13 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : null}
             </fieldset>
 
-            {/* Title */}
+            {/* ONE PIECE OF PROSE, no separate Title field. The short label used in
+                notifications, email subjects and arbitration case lists is derived
+                from this by `deriveItemTitle` — the seller states what they are
+                selling once. Two fields produced two versions of the same fact, and
+                the card showed whichever was weaker. */}
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                name="title"
-                autoComplete="off"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={120}
-                aria-invalid={titleError ? true : undefined}
-                aria-describedby={titleError ? "title-error" : undefined}
-                disabled={isSubmitting}
-              />
-              {titleError ? (
-                <p id="title-error" role="alert" className="text-sm text-destructive">
-                  {titleError}
-                </p>
-              ) : null}
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Describe what you are selling</Label>
               <Textarea
                 id="description"
                 name="description"
@@ -719,15 +699,19 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 rows={5}
                 aria-invalid={descriptionError ? true : undefined}
                 aria-describedby={
-                  descriptionError ? "description-error" : undefined
+                  descriptionError ? "description-error" : "description-hint"
                 }
                 disabled={isSubmitting}
               />
+              <p id="description-hint" className="text-body text-muted-foreground">
+                The opening line is what buyers see on your listing card, so lead with
+                what it is.
+              </p>
               {descriptionError ? (
                 <p
                   id="description-error"
                   role="alert"
-                  className="text-sm text-destructive"
+                  className="text-body text-destructive"
                 >
                   {descriptionError}
                 </p>
@@ -793,7 +777,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   <p
                     id="category-error"
                     role="alert"
-                    className="text-sm text-destructive"
+                    className="text-body text-destructive"
                   >
                     {categoryError}
                   </p>
@@ -832,7 +816,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   <p
                     id="condition-error"
                     role="alert"
-                    className="text-sm text-destructive"
+                    className="text-body text-destructive"
                   >
                     {conditionError}
                   </p>
@@ -859,11 +843,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 disabled={isSubmitting}
               />
               {fmvError ? (
-                <p id="fmv-error" role="alert" className="text-sm text-destructive">
+                <p id="fmv-error" role="alert" className="text-body text-destructive">
                   {fmvError}
                 </p>
               ) : (
-                <p id="fmv-hint" className="text-sm text-muted-foreground">
+                <p id="fmv-hint" className="text-body text-muted-foreground">
                   {isShopfront
                     ? "Shown as a “from” guide. Each buyer’s total is the cards they pick."
                     : "Enter dollars and cents, e.g. 123.45."}
@@ -885,7 +869,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             </div>
 
             {generalError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-body text-destructive">
                 {generalError}
               </p>
             ) : null}

@@ -121,22 +121,35 @@ export async function isWatching(itemId: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 /**
- * The number of users who have saved `itemId` to their watchlist. Returns `0`
- * on any read error so server components can call it without try/catch. The
- * `watchlist` table RLS is owner-only for rows, but a plain `count` aggregate
- * does not expose any row contents and is permitted, so this reflects the true
- * total across all users.
+ * The number of users who have saved `itemId`. Returns `0` on any read error so
+ * server components can call it without try/catch.
+ *
+ * THIS READS THE DENORMALISED COUNTER ON `items`, NOT A COUNT OVER `watchlist`.
+ * The previous implementation counted `watchlist` rows and documented that "a plain
+ * `count` aggregate does not expose any row contents and is permitted, so this
+ * reflects the true total across all users". That is not how RLS works: the policy
+ * `watchlist_owner_all` is `for all using (user_id = auth.uid())`, and Postgres
+ * applies it BEFORE aggregation, so the count only ever included rows the caller
+ * could already see. Probed against the live database as a member who was not the
+ * watcher, the old query returned 0 on an item whose real count was 1 — so the
+ * listing page showed "no saves" on every listing except ones the viewer had saved
+ * themselves, and the figure was silently self-referential rather than social.
+ *
+ * `items.watch_count` (0097) is maintained by a trigger on `watchlist` and is granted
+ * to `authenticated` and `anon`, which is what makes a public total both correct and
+ * readable without weakening the row policy.
  */
 export async function getWatchCount(itemId: string): Promise<number> {
   const supabase = await createClient();
 
-  const { count, error } = await supabase
-    .from('watchlist')
-    .select('item_id', { count: 'exact', head: true })
-    .eq('item_id', itemId);
+  const { data, error } = await supabase
+    .from('items')
+    .select('watch_count')
+    .eq('id', itemId)
+    .maybeSingle();
 
-  if (error || count == null) return 0;
-  return count;
+  if (error || data?.watch_count == null) return 0;
+  return data.watch_count;
 }
 
 /**

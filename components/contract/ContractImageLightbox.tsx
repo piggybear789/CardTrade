@@ -68,7 +68,7 @@ export function ContractImageLightbox({
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next ? index : null)}>
       <DialogContent mobile="center" className="max-w-3xl">
         <DialogTitle className="sr-only">{label}</DialogTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-snug">
           {images.length > 1 ? (
             <button
               type="button"
@@ -107,7 +107,7 @@ export function ContractImageLightbox({
           ) : null}
         </div>
 
-        <p className="text-center text-xs tabular-nums text-muted-foreground" aria-live="polite">
+        <p className="text-center text-meta tabular-nums text-muted-foreground" aria-live="polite">
           {label} · {index + 1} of {images.length}
         </p>
       </DialogContent>
@@ -222,7 +222,7 @@ export function ContractThumbnails({
 
     return (
       <>
-        <div className={cn('flex w-full min-w-0 flex-col gap-1.5', className)}>
+        <div className={cn('flex w-full min-w-0 flex-col gap-tight', className)}>
           <button
             type="button"
             onClick={() => setOpenIndex(0)}
@@ -236,7 +236,7 @@ export function ContractThumbnails({
           </button>
 
           {rest.length > 0 ? (
-            <ul className="flex items-center gap-1.5" aria-label={`${label} photos`}>
+            <ul className="flex items-center gap-tight" aria-label={`${label} photos`}>
               {restShown.map((src, index) => (
                 <li key={src}>
                   <button
@@ -263,7 +263,7 @@ export function ContractThumbnails({
                     type="button"
                     onClick={() => setOpenIndex(restShown.length + 1)}
                     aria-label={`See all ${images.length} photos for ${label}`}
-                    className="size-11 rounded-md border bg-muted/60 text-xs font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="size-11 rounded-md border bg-muted/60 text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     +{restOverflow}
                   </button>
@@ -288,7 +288,7 @@ export function ContractThumbnails({
 
   return (
     <>
-      <ul className={cn('flex shrink-0 items-center gap-1.5', className)} aria-label={`${label} photos`}>
+      <ul className={cn('flex shrink-0 items-center gap-tight', className)} aria-label={`${label} photos`}>
         {shown.map((src, index) => (
           <li key={src}>
             <button
@@ -316,7 +316,7 @@ export function ContractThumbnails({
               onClick={() => setOpenIndex(max)}
               aria-label={`See all ${images.length} photos for ${label}`}
               className={cn(
-                'rounded-md border bg-muted/60 text-xs font-semibold tabular-nums text-muted-foreground transition',
+                'rounded-md border bg-muted/60 text-meta font-semibold tabular-nums text-muted-foreground transition',
                 'hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 tile,
               )}

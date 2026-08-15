@@ -94,7 +94,7 @@ export default async function TradesPage({
         <SectionLoadError label="trades" />
       ) : visibleTrades.length > 0 ? (
         <section aria-labelledby="trades-heading">
-          <h3 id="trades-heading" className="mb-3 text-lg font-semibold">
+          <h3 id="trades-heading" className="mb-3 text-subhead font-semibold">
             {scope === 'past'
               ? 'Finished'
               : negotiatingCount > 0

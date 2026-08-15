@@ -53,14 +53,14 @@ export const ListingActionIcon = forwardRef<
   const body: ReactNode = (
     <>
       {chip}
-      <span className="w-full text-center text-xs font-semibold leading-tight tracking-[0.01em]">
+      <span className="w-full text-center text-meta font-semibold leading-tight tracking-[0.01em]">
         {label}
       </span>
     </>
   );
 
   const sharedClass = cn(
-    'group inline-flex w-full touch-manipulation flex-col items-center gap-1.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+    'group inline-flex w-full touch-manipulation flex-col items-center gap-tight rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
     className,
   );
 

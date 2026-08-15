@@ -90,7 +90,7 @@ export async function KycRailStatus() {
               {status.label}
             </Badge>
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          <p className="mt-1 text-meta text-muted-foreground">
             Anti-Impostor Verification
           </p>
         </div>
@@ -99,13 +99,13 @@ export async function KycRailStatus() {
       {status.action ? (
         <Link
           href="/profile/payouts"
-          className="mt-2 flex items-center gap-2 rounded-md text-sm font-semibold text-foreground underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-2 flex items-center gap-2 rounded-md text-body font-semibold text-foreground underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ShieldCheck className="size-4 shrink-0 text-gold" aria-hidden="true" />
           {status.action}
         </Link>
       ) : (
-        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+        <p className="mt-2 flex items-center gap-2 text-body text-muted-foreground">
           <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden="true" />
           Collateral relief active
         </p>

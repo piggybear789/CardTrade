@@ -127,15 +127,15 @@ export function RecordShipmentDialog({
         {!recipientAddressKnown ? (
           <p
             role="alert"
-            className="rounded-md border border-dashed border-gold/50 bg-gold/10 px-3 py-2 text-sm"
+            className="rounded-md border border-dashed border-gold/50 bg-gold/10 px-cozy py-snug text-body"
           >
             You do not have a delivery address for this contract yet. Ask the other
             party to add theirs before you post anything.
           </p>
         ) : null}
 
-        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-          <div className="space-y-2">
+        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-snug">
+          <div className="space-y-snug">
             <Label htmlFor="ship-carrier">Carrier</Label>
             <Select value={carrier} onValueChange={setCarrier} disabled={pending}>
               <SelectTrigger id="ship-carrier">
@@ -151,7 +151,7 @@ export function RecordShipmentDialog({
             </Select>
           </div>
           {carrier === 'Other' ? (
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="ship-carrier-custom">Carrier name</Label>
               <Input
                 id="ship-carrier-custom"
@@ -164,7 +164,7 @@ export function RecordShipmentDialog({
               />
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="ship-tracking">Tracking number</Label>
               <Input
                 id="ship-tracking"
@@ -193,7 +193,7 @@ export function RecordShipmentDialog({
         </div>
 
         {carrier === 'Other' ? (
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <Label htmlFor="ship-tracking-other">Tracking number</Label>
             <Input
               id="ship-tracking-other"

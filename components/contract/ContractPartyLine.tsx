@@ -19,7 +19,7 @@ import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 /** One party, collapsed to a name plus its two trust signals. */
 function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-w-0 items-center gap-tight">
       {/* `xs` to keep the header a single compact line. Decorative: the name is
           right beside it. An avatar is recognisability only — the shield below is
           the assurance, and this must never be mistaken for it. */}
@@ -28,7 +28,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
         displayName={isMe ? 'You' : party.name}
         size="xs"
       />
-      <span className="truncate text-sm font-medium">
+      <span className="truncate text-body font-medium">
         {isMe ? 'You' : party.name}
       </span>
       <ShieldCheck
@@ -42,7 +42,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
         {party.verified ? 'DittoShield verified' : 'DittoShield not verified'}
       </span>
       {party.rating === null ? null : (
-        <span className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
+        <span className="flex shrink-0 items-center gap-0.5 text-meta text-muted-foreground">
           <Star className="size-3 fill-gold text-gold" aria-hidden />
           {Number(party.rating).toFixed(1)}
         </span>
@@ -116,7 +116,7 @@ export function ContractPartyStats({
       <p
         aria-label="Reputation summary"
         className={cn(
-          'flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-snug',
+          'flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta leading-snug',
         )}
       >
         {bits.map((bit, idx) => (
@@ -126,7 +126,7 @@ export function ContractPartyStats({
         ))}
       </p>
       {party.legalEntityName ? (
-        <p className="truncate text-[11px] text-muted-foreground">
+        <p className="truncate text-meta text-muted-foreground">
           <span className="font-medium text-foreground">{party.legalEntityName}</span>
         </p>
       ) : null}
@@ -139,25 +139,25 @@ function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
   const initial = party.name.trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <section className="min-w-0 rounded-lg border border-border/70 bg-muted/20 p-3.5">
-      <div className="flex min-w-0 items-center gap-3 border-b border-border/70 pb-3">
+    <section className="min-w-0 rounded-lg border border-border/70 bg-muted/20 p-cozy">
+      <div className="flex min-w-0 items-center gap-cozy border-b border-border/70 pb-cozy">
         <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background text-sm font-semibold shadow-sm"
+          className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background text-body font-semibold shadow-sm"
           aria-hidden
         >
           {initial}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold leading-none">
+          <p className="truncate text-body font-semibold leading-none">
             {isMe ? 'You' : party.name}
           </p>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+          <p className="mt-1 truncate text-meta text-muted-foreground">
             {isMe ? party.name : (party.roleLabel ?? 'Counterparty')}
           </p>
         </div>
       </div>
 
-      <ContractPartyStats party={party} className="pt-3" />
+      <ContractPartyStats party={party} className="pt-cozy" />
       {party.socialLinks ? <SocialLinksDisplay socialLinks={party.socialLinks} compact /> : null}
     </section>
   );
@@ -178,7 +178,7 @@ export function ContractPartyDetails({
   className,
 }: ContractPartyDetailsProps) {
   return (
-    <div className={cn('grid w-full gap-3 sm:grid-cols-2', className)}>
+    <div className={cn('grid w-full gap-cozy sm:grid-cols-2', className)}>
       <PartyDetail party={me} isMe />
       {them ? <PartyDetail party={them} isMe={false} /> : null}
     </div>
@@ -217,7 +217,7 @@ export function ContractPartyLine({
         {them ? (
           <PartyChip party={them} isMe={false} />
         ) : (
-          <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-tight text-body text-muted-foreground">
             <UserPlus className="size-3.5 shrink-0" aria-hidden />
             Open seat
           </span>
@@ -227,7 +227,7 @@ export function ContractPartyLine({
             type="button"
             onClick={() => setExpanded((current) => !current)}
             aria-expanded={expanded}
-            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-meta text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Details
             <ChevronDown
@@ -239,7 +239,7 @@ export function ContractPartyLine({
       </div>
 
       {showDetails && expanded ? (
-        <ContractPartyDetails me={me} them={them} className="mt-3 border-t pt-3" />
+        <ContractPartyDetails me={me} them={them} className="mt-cozy border-t pt-cozy" />
       ) : null}
     </div>
   );

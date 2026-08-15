@@ -267,23 +267,23 @@ function CashSaleItemSnapshot({
             it governs. Unscoped it read as though it applied while stacked, where
             there is no overflow for it to contain and the property is inert. */}
         <div className="flex min-w-0 flex-col md:flex-1 md:overflow-y-auto md:overscroll-contain md:pr-1">
-          <div className="space-y-5">
-            <div className="space-y-3">
-              <h3 className="break-words text-xl font-semibold tracking-[-0.025em] sm:text-2xl">
+          <div className="space-y-group">
+            <div className="space-y-cozy">
+              <h3 className="break-words text-subhead font-semibold tracking-[-0.025em] sm:text-head">
                 {title}
               </h3>
               <div>
-                <p className="text-3xl font-semibold tabular-nums tracking-tight">
+                <p className="text-head font-semibold tabular-nums tracking-tight">
                   {formatMoney(agreedPriceCents, currency)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Agreed item price</p>
+                <p className="mt-1 text-meta text-muted-foreground">Agreed item price</p>
               </div>
               {condition ? <Badge variant="outline">{condition}</Badge> : null}
             </div>
 
-            <div className="border-t border-border/70 pt-4">
-              <h4 className="text-sm font-semibold">Description</h4>
-              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
+            <div className="border-t border-border/70 pt-group">
+              <h4 className="text-body font-semibold">Description</h4>
+              <p className="mt-2 whitespace-pre-wrap break-words text-body text-muted-foreground">
                 {description?.trim() || 'No description was saved with this item.'}
               </p>
             </div>
@@ -291,7 +291,7 @@ function CashSaleItemSnapshot({
         </div>
       </div>
 
-      <p className="shrink-0 border-t pt-3 text-xs text-muted-foreground">
+      <p className="shrink-0 border-t pt-cozy text-meta text-muted-foreground">
         Photos and description are the snapshot saved when this contract opened.{' '}
         <Link
           href={`/listings/${listingId}`}
@@ -364,7 +364,7 @@ function SellerReleaseStatus({ sale }: { sale: CashSaleRow }) {
   };
 
   return (
-    <p className="mt-3 text-xs text-muted-foreground">
+    <p className="mt-cozy text-meta text-muted-foreground">
       {COPY[status] ?? COPY.NOT_DUE}{' '}
       <Link
         href="/profile/payouts"
@@ -609,7 +609,7 @@ function CashSaleRoom({
        than a cap, so a `flex-1` chain with no definite ancestor height just grows
        the page instead of being clipped. `lg:flex-none` retires the `flex-1` that
        carries the stacked layout below `lg`, where the page scrolls normally. */
-    <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
+    <div className="flex min-h-0 flex-1 flex-col gap-group lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
       <ContractHeader
         title={sale.item_title}
         money={`${money(sale.amount_cents)} total`}
@@ -748,7 +748,7 @@ function CashSaleRoom({
 
             {/* Live tracking, while it matters. */}
             {sale.tracking_number && sale.status === 'IN_TRANSIT' ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border bg-background/60 px-3 py-2 text-xs">
+              <div className="flex flex-wrap items-center gap-x-cozy gap-y-1 rounded-md border bg-background/60 px-cozy py-snug text-meta">
                 <span className="min-w-0 break-all font-medium">
                   {sale.tracking_carrier} · {sale.tracking_number}
                 </span>
@@ -762,7 +762,7 @@ function CashSaleRoom({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-auto px-1.5 py-0.5 text-xs"
+                    className="h-auto px-1.5 py-0.5 text-meta"
                     disabled={isPending}
                     aria-busy={busy('track')}
                     onClick={() =>
@@ -867,7 +867,7 @@ function CashSaleRoom({
                   }
                 />
                 {formatContractDateTime(sale.carrier_delivered_at) ? (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-tight text-meta text-muted-foreground">
                     <Clock className="size-3.5 shrink-0" aria-hidden />
                     Carrier confirmed delivery{' '}
                     {formatContractDateTime(sale.carrier_delivered_at)}
@@ -887,12 +887,12 @@ function CashSaleRoom({
                       description="Optionally photograph what you received. This becomes your baseline evidence if a dispute arises later."
                       successMessage="Purchase completed."
                     />
-                    <details className="text-xs">
+                    <details className="text-meta">
                       <summary className="cursor-pointer text-muted-foreground underline-offset-4 hover:underline">
                         Something wrong?
                       </summary>
-                      <div className="mt-2 space-y-2">
-                        <Label htmlFor="cash-sale-dispute-reason" className="text-xs">
+                      <div className="mt-snug space-y-snug">
+                        <Label htmlFor="cash-sale-dispute-reason" className="text-meta">
                           Describe the issue to raise a dispute.
                         </Label>
                         <Textarea
@@ -1019,14 +1019,14 @@ function CashSaleRoom({
                 <div className="flex min-w-0 flex-col gap-3 md:flex-1 md:overflow-y-auto md:overscroll-contain md:pr-1">
                   <ContractLineItemsList lines={lineItems} currency={sale.currency} />
                   {editable ? (
-                    <div className="space-y-2">
+                    <div className="space-y-snug">
                       <EditContractItemsDialog
                         cashSaleId={sale.id}
                         termsVersion={sale.terms_version}
                         lines={lineItems}
                         currency={sale.currency}
                       />
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-meta text-muted-foreground">
                         Changing this re-prices the contract and clears both
                         acceptances, so you will each need to accept again.
                       </p>
@@ -1035,7 +1035,7 @@ function CashSaleRoom({
                 </div>
               </div>
 
-              <p className="shrink-0 border-t pt-3 text-xs text-muted-foreground">
+              <p className="shrink-0 border-t pt-cozy text-meta text-muted-foreground">
                 Photos are the snapshot saved when this contract opened. Nothing on{' '}
                 <Link
                   href={`/listings/${sale.item_id}`}
@@ -1088,7 +1088,7 @@ function CashSaleRoom({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 gap-1.5 px-2.5 text-xs font-medium [&_svg]:size-3.5"
+                className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
                 onClick={() => setDetailsFor(sale.fulfillment_method!)}
               >
                 <Pencil aria-hidden />
@@ -1101,15 +1101,15 @@ function CashSaleRoom({
             editable ? (
               <div className="flex min-h-0 flex-1 items-center justify-center py-6 sm:py-8">
                 <div className="w-full max-w-xl rounded-xl border bg-background p-5 text-center sm:p-6">
-                <h3 className="text-lg font-semibold tracking-tight">
+                <h3 className="text-subhead font-semibold tracking-tight">
                   Propose handover terms
                 </h3>
-                <p className="mx-auto mt-1 max-w-md text-sm leading-5 text-muted-foreground">
+                <p className="mx-auto mt-1 max-w-md text-body text-muted-foreground">
                   Choose how the item will change hands. You&apos;ll add the address or
                   meeting details next.
                 </p>
 
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-cozy">
                   {(
                     [
                       { value: 'DELIVERY', label: 'Ship the item', icon: Truck },
@@ -1124,7 +1124,7 @@ function CashSaleRoom({
                         disabled={isPending}
                         onClick={() => chooseMethod(option.value)}
                         className={cn(
-                          'flex size-24 shrink-0 touch-manipulation flex-col items-center justify-center gap-2 rounded-lg border border-input bg-card p-2 text-center text-xs font-semibold transition-colors sm:size-28',
+                          'flex size-24 shrink-0 touch-manipulation flex-col items-center justify-center gap-snug rounded-lg border border-input bg-card p-snug text-center text-meta font-semibold transition-colors sm:size-28',
                           'hover:border-gold/60 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                           'disabled:pointer-events-none disabled:opacity-45',
                         )}
@@ -1136,7 +1136,7 @@ function CashSaleRoom({
                   })}
                 </div>
 
-                <p className="mx-auto mt-4 max-w-md text-xs leading-4 text-muted-foreground">
+                <p className="mx-auto mt-group max-w-md text-meta text-muted-foreground">
                   Either party can propose terms. Both parties must accept the saved
                   proposal before Stripe begins collection.
                 </p>
@@ -1149,15 +1149,15 @@ function CashSaleRoom({
               </p>
             )
           ) : (
-            <div className="flex w-full min-h-0 flex-1 flex-col gap-3">
+            <div className="flex w-full min-h-0 flex-1 flex-col gap-cozy">
               <div
-                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border bg-muted/30 px-3 py-2 text-xs"
+                className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug rounded-md border bg-muted/30 px-cozy py-snug text-meta"
                 aria-label={`Terms version ${sale.terms_version} acceptance status`}
               >
                 <span className="font-semibold text-foreground">
                   Version {sale.terms_version}
                 </span>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-cozy gap-y-1 text-muted-foreground">
                   <span>
                     You: <span className="font-medium text-foreground">{iAccepted ? 'accepted' : 'needs acceptance'}</span>
                   </span>
@@ -1205,14 +1205,14 @@ function CashSaleRoom({
                     heightClassName="h-56 sm:h-64"
                   />
                 ) : (
-                  <div className="flex min-h-32 items-center rounded-md border border-dashed bg-muted/30 px-4 text-sm text-muted-foreground">
+                  <div className="flex min-h-32 items-center rounded-md border border-dashed bg-muted/30 px-group text-body text-muted-foreground">
                     This meeting location needs a confirmed map pin. Edit terms to
                     select the agreed place from the suggestions.
                   </div>
                 )
               ) : null}
               {editable ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   Editing creates a new version and clears both acceptances. Stripe
                   begins collection only after you both accept the current version.
                 </p>
@@ -1295,10 +1295,10 @@ function CashSaleRoom({
               policy could ever produce required an UNVERIFIED Seller, which
               publishing a listing makes impossible. See
               `CashSaleProtectionExplainer`. */}
-          <div className="flex flex-col gap-3 rounded-lg border bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-cozy rounded-lg border bg-muted/25 p-cozy sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="font-medium">Your payment is the protection here</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-0.5 text-meta text-muted-foreground">
                 {seller.name} is paid only once the sale resolves — not when the
                 item is sent.
               </p>

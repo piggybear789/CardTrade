@@ -30,7 +30,7 @@ export function StarRating({
 }: StarRatingProps) {
   if (rating == null) {
     return (
-      <span className={cn('text-xs text-muted-foreground', className)}>
+      <span className={cn('text-meta text-muted-foreground', className)}>
         No ratings yet
       </span>
     );
@@ -79,7 +79,7 @@ export function StarRating({
         </span>
       </span>
       {!hideLabel && (
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span className="text-meta tabular-nums text-muted-foreground">
           {clamped.toFixed(1)}
           {count != null ? ` (${count})` : ''}
         </span>

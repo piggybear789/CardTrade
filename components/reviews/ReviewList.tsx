@@ -47,13 +47,13 @@ export function ReviewList({
     // (`40 30% 99%`), so pure white read colder than every card around it.
     <ul className="divide-y rounded-lg border bg-card">
       {reviews.map((review) => (
-        <li key={review.id} className="space-y-1.5 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
+        <li key={review.id} className="space-y-tight p-group">
+          <div className="flex flex-wrap items-start justify-between gap-snug">
             <div className="min-w-0">
-              <span className="break-words text-sm font-medium">
+              <span className="break-words text-body font-medium">
                 {review.reviewerName ?? 'Anonymous'}
               </span>
-              <p className="break-words text-xs text-muted-foreground">
+              <p className="break-words text-body text-muted-foreground">
                 {TRANSACTION_KIND_LABEL[review.transactionKind]} {revieweeName}
                 {review.valueCents != null ? ` · ${formatAud(review.valueCents)}` : ''}
               </p>
@@ -61,11 +61,11 @@ export function ReviewList({
             <StarRating rating={review.rating} hideLabel />
           </div>
           {review.comment ? (
-            <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground">
+            <p className="whitespace-pre-line break-words text-body leading-relaxed text-foreground">
               {review.comment}
             </p>
           ) : null}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             {formatRelativeTime(review.createdAt)}
           </p>
         </li>

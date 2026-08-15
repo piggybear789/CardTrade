@@ -123,7 +123,7 @@ export default async function SellerProfilePage({
       <nav className="mb-6" aria-label="Breadcrumb">
         <Link
           href="/listings"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          className="text-body text-muted-foreground underline-offset-4 hover:underline"
         >
           ← Back to listings
         </Link>
@@ -146,7 +146,7 @@ export default async function SellerProfilePage({
                 name is an h2 to keep the document outline hierarchical —
                 mirroring the listing detail page. */}
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="min-w-0 break-words text-3xl font-semibold tracking-[-0.025em]">
+              <h2 className="min-w-0 break-words text-head font-semibold tracking-[-0.025em]">
                 {displayName}
               </h2>
               {/* ONE mark. This row used to also render a <VerifiedBadge/>, on the
@@ -180,7 +180,7 @@ export default async function SellerProfilePage({
                 `whitespace-pre-line` keeps intentional line breaks; `break-words`
                 stops an unbroken 280-character string widening the layout. */}
             {sellerRow.bio ? (
-              <p className="max-w-prose whitespace-pre-line break-words text-pretty text-sm leading-relaxed text-muted-foreground">
+              <p className="max-w-prose whitespace-pre-line break-words text-pretty text-body leading-relaxed text-muted-foreground">
                 {sellerRow.bio as string}
               </p>
             ) : null}
@@ -199,7 +199,7 @@ export default async function SellerProfilePage({
 
         {sellerIdentity ? (
           <div className="mt-3 rounded-lg border bg-muted/30 p-4">
-            <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
+            <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
               {/* Same glyph as IdentityBadge: one fact, one icon vocabulary. */}
               <ShieldCheck className="h-4 w-4" aria-hidden />
               DittoShield verified through Stripe
@@ -207,27 +207,27 @@ export default async function SellerProfilePage({
             <dl className="grid gap-3 sm:grid-cols-2">
               {sellerIdentity.tradingName ? (
                 <div className="min-w-0">
-                  <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <dt className="flex items-center gap-tight text-meta text-muted-foreground">
                     <Store className="h-3.5 w-3.5" aria-hidden />
                     Store
                   </dt>
-                  <dd className="break-words text-sm font-medium">
+                  <dd className="break-words text-body font-medium">
                     {sellerIdentity.tradingName}
                   </dd>
                 </div>
               ) : null}
               <div className="min-w-0">
-                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <dt className="flex items-center gap-tight text-meta text-muted-foreground">
                   <Building2 className="h-3.5 w-3.5" aria-hidden />
                   Verified name
                 </dt>
-                <dd className="break-words text-sm font-medium">
+                <dd className="break-words text-body font-medium">
                   {sellerIdentity.legalEntityName}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Verified</dt>
-                <dd className="text-sm">
+                <dt className="text-meta text-muted-foreground">Verified</dt>
+                <dd className="text-body">
                   {new Date(sellerIdentity.verifiedAt).toLocaleDateString('en-AU')}
                 </dd>
               </div>
@@ -238,7 +238,7 @@ export default async function SellerProfilePage({
 
       {/* Listings */}
       <section aria-labelledby="listings-heading" className="mb-10">
-        <h2 id="listings-heading" className="mb-4 text-xl font-semibold">
+        <h2 id="listings-heading" className="mb-4 text-subhead font-semibold">
           Available listings
         </h2>
         {catalogItems.length === 0 ? (
@@ -259,7 +259,7 @@ export default async function SellerProfilePage({
 
       {/* Reviews */}
       <section id="reviews" aria-labelledby="reviews-heading" className="scroll-mt-24">
-        <h2 id="reviews-heading" className="mb-4 text-xl font-semibold">
+        <h2 id="reviews-heading" className="mb-4 text-subhead font-semibold">
           Reviews {reviews.length > 0 ? `(${reviews.length})` : ''}
         </h2>
         <ReviewList reviews={reviews} revieweeName={displayName} />

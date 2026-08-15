@@ -128,7 +128,7 @@ export function FulfilmentTermsFields({
           hint="Somewhere public you can both find. Choose a suggestion to confirm the map pin."
           textFallbackPlaceholder="A public, agreed meeting point"
         />
-        <div className="space-y-2">
+        <div className="space-y-snug">
           {/* No longer optional. The inspection window of a face-to-face exchange
               is measured from this instant, so a trade without one has no clock and
               its collateral races the card authorisation with nothing to stop it. */}
@@ -141,7 +141,7 @@ export function FulfilmentTermsFields({
             disabled={disabled}
             required
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Both of you get 72 hours after this time to check what you received before
             the contract settles on its own.
           </p>
@@ -173,14 +173,14 @@ export function FulfilmentTermsFields({
               textFallbackPlaceholder="Search your delivery address"
             />
           ) : (
-            <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            <p className="rounded-md border bg-muted/30 px-cozy py-snug text-body text-muted-foreground">
               {deliveryAddressReadOnlyNote ??
                 'Only the recipient can add or replace the delivery address.'}
             </p>
           )
         ) : null}
 
-        <div className="space-y-2">
+        <div className="space-y-snug">
           <Label htmlFor={`${idPrefix}-delivery-cost`}>
             {deliveryCostLabel}
             {deliveryCostOptional ? (
@@ -204,7 +204,7 @@ export function FulfilmentTermsFields({
             // Read-only: show the figure that has been proposed, not an empty
             // note. The viewer still has to accept this number, so hiding it
             // would ask them to agree to a total they cannot see broken down.
-            <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+            <p className="rounded-md border bg-muted/30 px-cozy py-snug text-body">
               <span className="font-medium tabular-nums">
                 ${Number.parseFloat(deliveryCost || '0').toFixed(2)}
               </span>
@@ -216,10 +216,10 @@ export function FulfilmentTermsFields({
               ) : null}
             </p>
           )}
-          <p className="text-xs text-muted-foreground">{deliveryCostHint}</p>
+          <p className="text-body text-muted-foreground">{deliveryCostHint}</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-snug">
           <Label htmlFor={`${idPrefix}-delivery-notes`}>
             Shipping notes{' '}
             <span className="font-normal text-muted-foreground">(optional)</span>

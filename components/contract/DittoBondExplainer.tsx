@@ -40,12 +40,12 @@ function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepPro
   return (
     <div
       className={cn(
-        'rounded-lg border p-3',
+        'rounded-lg border p-cozy',
         tone === 'success' && 'border-emerald-500/30 bg-emerald-500/5',
         tone === 'warning' && 'border-amber-500/30 bg-amber-500/5',
       )}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-snug">
         <span
           className={cn(
             'mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border bg-background',
@@ -57,7 +57,7 @@ function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepPro
         </span>
         <div className="min-w-0">
           <p className="font-medium">{title}</p>
-          <div className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{children}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{children}</div>
         </div>
       </div>
     </div>
@@ -68,21 +68,21 @@ function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepPro
 export function DittoBondExplainer() {
   return (
     <section
-      className="space-y-3 rounded-xl border bg-muted/20 p-3.5"
+      className="space-y-cozy rounded-xl border bg-muted/20 p-cozy"
       aria-labelledby="dittobond-title"
     >
       <div>
-        <h3 id="dittobond-title" className="text-sm font-semibold">
+        <h3 id="dittobond-title" className="text-body font-semibold">
           How trade collateral works
         </h3>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-meta text-muted-foreground">
           Trade collateral is a temporary card authorisation that backs a trade. It is not
           a charge, and NoDitto does not receive the authorised amount while the trade
           is proceeding normally.
         </p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-stretch">
+      <div className="grid gap-snug sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-stretch">
         <FlowStep icon={CreditCard} title="1. Authorise">
           When both traders accept, Stripe reserves the agreed value on each saved
           card. Your available card balance may reduce temporarily.
@@ -99,18 +99,18 @@ export function DittoBondExplainer() {
         </FlowStep>
       </div>
 
-      <div className="grid gap-2 border-t pt-3 text-xs sm:grid-cols-2">
+      <div className="grid gap-snug border-t pt-cozy text-meta sm:grid-cols-2">
         <div className="space-y-1">
           <p className="font-medium text-foreground">If something goes wrong</p>
-          <p className="leading-relaxed text-muted-foreground">
+          <p className="text-muted-foreground">
             A failed handover captures nothing. A condition dispute can capture a
             fixed $20 resolution fee; confirmed fraud can capture the responsible
             trader&apos;s full collateral and pay the affected trader.
           </p>
         </div>
-        <div className="flex gap-2 rounded-md bg-background/70 p-2.5">
+        <div className="flex gap-snug rounded-md bg-background/70 p-snug">
           <Timer className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <p className="leading-relaxed text-muted-foreground">
+          <p className="text-muted-foreground">
             <span className="font-medium text-foreground">Time matters.</span>{' '}
             Card authorisations normally expire after about seven days. The trade must
             resolve before a hold expires, or it no longer protects either side.
@@ -148,7 +148,7 @@ function MoneyStage({
     : null;
 
   return (
-    <li className="flex gap-3 sm:gap-4">
+    <li className="flex gap-cozy sm:gap-group">
       <div className="flex flex-col items-center">
         <span
           className={cn(
@@ -165,9 +165,9 @@ function MoneyStage({
       </div>
 
       <div className={cn('min-w-0 flex-1', last ? 'pb-0' : 'pb-5')}>
-        <p className="text-sm font-semibold leading-tight">{title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{children}</p>
-        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs">
+        <p className="text-body font-semibold leading-tight">{title}</p>
+        <p className="mt-1 text-body text-muted-foreground">{children}</p>
+        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-tight text-meta">
           <span className="font-medium uppercase tracking-wide text-muted-foreground">
             Money
           </span>
@@ -208,7 +208,7 @@ function MoneyStage({
 export function CashSaleProtectionExplainer() {
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         Your payment is held by NoDitto until you&apos;re happy — the seller
         is never paid directly.
       </p>
@@ -240,9 +240,9 @@ export function CashSaleProtectionExplainer() {
         </MoneyStage>
       </ol>
 
-      <div className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3">
+      <div className="flex items-start gap-snug rounded-md border bg-muted/30 p-cozy">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <p className="text-meta text-muted-foreground">
           <span className="font-medium text-foreground">Every seller is verified</span>{' '}
           — photo ID + selfie via Stripe before they can list anything.
         </p>

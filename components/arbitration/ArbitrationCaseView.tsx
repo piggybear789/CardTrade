@@ -76,7 +76,7 @@ function humaniseEvent(event: string): string {
 function EvidenceMedia({ path, url }: { path: string; url: string | null }) {
   if (!url) {
     return (
-      <div className="grid aspect-square place-items-center rounded-md border border-dashed bg-muted/30 px-2 text-center text-[10px] leading-tight text-muted-foreground">
+      <div className="grid aspect-square place-items-center rounded-md border border-dashed bg-muted/30 px-snug text-center text-meta leading-tight text-muted-foreground">
         Unavailable
       </div>
     );
@@ -116,18 +116,18 @@ function EvidenceMedia({ path, url }: { path: string; url: string | null }) {
 /** One party's filed account, as staff read it. */
 function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
   return (
-    <li className="rounded-lg border bg-card p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold">{entry.authorName}</p>
-        <span className="text-[11px] tabular-nums text-muted-foreground">
+    <li className="rounded-lg border bg-card p-cozy">
+      <div className="flex flex-wrap items-baseline justify-between gap-snug">
+        <p className="text-body font-semibold">{entry.authorName}</p>
+        <span className="text-meta tabular-nums text-muted-foreground">
           {formatContractDateTime(entry.createdAt) ?? entry.createdAt}
         </span>
       </div>
-      <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed">
+      <p className="mt-1.5 whitespace-pre-line break-words text-body leading-relaxed">
         {entry.statement}
       </p>
       {entry.media.length > 0 ? (
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <div className="mt-cozy grid grid-cols-3 gap-snug sm:grid-cols-4">
           {entry.media.map((media) => (
             <EvidenceMedia key={media.path} path={media.path} url={media.url} />
           ))}
@@ -142,7 +142,7 @@ function ShipmentLeg({ label, leg }: { label: string; leg: ArbitrationShipmentLe
   const hasData = leg.carrier || leg.trackingNumber || leg.shippedAt || leg.carrierDeliveredAt;
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="flex items-center gap-tight text-meta font-medium uppercase tracking-wide text-muted-foreground">
         {label.includes('Return') ? (
           <RotateCcw className="size-3 shrink-0" aria-hidden />
         ) : (
@@ -151,34 +151,34 @@ function ShipmentLeg({ label, leg }: { label: string; leg: ArbitrationShipmentLe
         {label}
       </p>
       {hasData ? (
-        <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+        <dl className="mt-1.5 grid grid-cols-2 gap-x-group gap-y-1 text-body">
           {leg.carrier ? (
             <div>
-              <dt className="text-xs text-muted-foreground">Carrier</dt>
+              <dt className="text-meta text-muted-foreground">Carrier</dt>
               <dd>{leg.carrier}</dd>
             </div>
           ) : null}
           {leg.trackingNumber ? (
             <div>
-              <dt className="text-xs text-muted-foreground">Tracking</dt>
+              <dt className="text-meta text-muted-foreground">Tracking</dt>
               <dd className="break-all">{leg.trackingNumber}</dd>
             </div>
           ) : null}
           {leg.shippedAt ? (
             <div>
-              <dt className="text-xs text-muted-foreground">Shipped</dt>
+              <dt className="text-meta text-muted-foreground">Shipped</dt>
               <dd>{formatContractDateTime(leg.shippedAt) ?? leg.shippedAt}</dd>
             </div>
           ) : null}
           {leg.carrierDeliveredAt ? (
             <div>
-              <dt className="text-xs text-muted-foreground">Carrier confirmed delivery</dt>
+              <dt className="text-meta text-muted-foreground">Carrier confirmed delivery</dt>
               <dd>{formatContractDateTime(leg.carrierDeliveredAt) ?? leg.carrierDeliveredAt}</dd>
             </div>
           ) : null}
         </dl>
       ) : (
-        <p className="mt-1.5 text-sm italic text-muted-foreground">Not recorded.</p>
+        <p className="mt-1.5 text-body italic text-muted-foreground">Not recorded.</p>
       )}
     </div>
   );
@@ -190,12 +190,12 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
   const overdue = c.ageHours >= ARBITRATION_SLA_HOURS;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       {/* Nav + status bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-cozy">
         <Link
           href="/admin/arbitration"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-tight text-body text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden />
           Back to queue
@@ -211,14 +211,14 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
       </div>
 
       {/* Status strip */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-snug rounded-lg border bg-muted/20 px-group py-cozy">
         <Badge variant={priority.variant}>{priority.label}</Badge>
         <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
         <span className="mx-1 hidden text-border sm:inline">|</span>
         <span
           className={cn(
-            'inline-flex items-center gap-1 text-xs',
+            'inline-flex items-center gap-1 text-meta',
             overdue ? 'text-destructive' : 'text-muted-foreground',
           )}
         >
@@ -229,7 +229,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         {c.hasHardDeadline && c.hoursToDeadline !== null ? (
           <span
             className={cn(
-              'inline-flex items-center gap-1 text-xs',
+              'inline-flex items-center gap-1 text-meta',
               c.hoursToDeadline < DEADLINE_WARNING_HOURS
                 ? 'text-destructive'
                 : 'text-muted-foreground',
@@ -241,36 +241,36 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               : `${c.hoursToDeadline}h to deadline`}
           </span>
         ) : null}
-        <span className="ml-auto text-sm font-semibold tabular-nums">
+        <span className="ml-auto text-body font-semibold tabular-nums">
           {formatAud(c.amountAtRiskCents)}
           <span className="ml-1 font-normal text-muted-foreground">at stake</span>
         </span>
       </div>
 
       {/* Two-column layout: context on left, actions on right */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-section lg:grid-cols-[1fr_380px]">
         {/* LEFT: Context — what happened */}
-        <div className="space-y-6">
+        <div className="space-y-section">
           {/* The Claim */}
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-snug">
                 <FileText className="size-4 text-muted-foreground" aria-hidden />
-                <CardTitle className="text-base">The dispute</CardTitle>
+                <CardTitle className="text-lead">The dispute</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               {c.claim ? (
-                <blockquote className="whitespace-pre-line break-words rounded-md bg-muted/40 p-3 text-sm leading-relaxed">
+                <blockquote className="whitespace-pre-line break-words rounded-md bg-muted/40 p-cozy text-body leading-relaxed">
                   &ldquo;{c.claim}&rdquo;
                 </blockquote>
               ) : (
-                <p className="text-sm italic text-muted-foreground">
+                <p className="text-body italic text-muted-foreground">
                   No reason was recorded.
                 </p>
               )}
               {c.raisedById ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-snug text-meta text-muted-foreground">
                   — {c.parties.find((p) => p.id === c.raisedById)?.name ?? 'A party'}
                 </p>
               ) : null}
@@ -283,13 +283,13 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               other. */}
           <Card className={evidence.length > 0 ? 'border-gold/30' : undefined}>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-snug">
+                <div className="flex items-center gap-snug">
                   <Gavel className="size-4 text-muted-foreground" aria-hidden />
-                  <CardTitle className="text-base">Evidence filed by the parties</CardTitle>
+                  <CardTitle className="text-lead">Evidence filed by the parties</CardTitle>
                 </div>
                 {evidence.length > 0 ? (
-                  <Badge variant="secondary" className="text-[11px]">
+                  <Badge variant="secondary" className="text-meta">
                     {evidence.length}
                   </Badge>
                 ) : null}
@@ -297,13 +297,13 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             </CardHeader>
             <CardContent>
               {evidence.length === 0 ? (
-                <p className="text-sm italic text-muted-foreground">
+                <p className="text-body italic text-muted-foreground">
                   {c.kind === 'CHARGEBACK'
                     ? 'A chargeback has no contract room, so neither party can file here.'
                     : 'Neither party has filed a statement. The Dispute tab in their contract room is where they do it.'}
                 </p>
               ) : (
-                <ul className="space-y-3">
+                <ul className="space-y-cozy">
                   {evidence.map((entry) => (
                     <EvidenceEntry key={entry.id} entry={entry} />
                   ))}
@@ -317,36 +317,36 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           {shipment ? (
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-snug">
                   <Package className="size-4 text-muted-foreground" aria-hidden />
-                  <CardTitle className="text-base">Shipment evidence</CardTitle>
+                  <CardTitle className="text-lead">Shipment evidence</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-group">
                 <ShipmentLeg label="Outbound (seller → buyer)" leg={shipment.outbound} />
                 <ShipmentLeg label="Return (buyer → seller)" leg={shipment.returnLeg} />
                 {shipment.returnDisputedAt ? (
-                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-destructive">
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-cozy">
+                    <p className="text-meta font-medium uppercase tracking-wide text-destructive">
                       Seller contested return · {formatContractDateTime(shipment.returnDisputedAt) ?? shipment.returnDisputedAt}
                     </p>
                     {shipment.returnDisputeReason ? (
-                      <blockquote className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed">
+                      <blockquote className="mt-snug whitespace-pre-line break-words text-body leading-relaxed">
                         &ldquo;{shipment.returnDisputeReason}&rdquo;
                       </blockquote>
                     ) : (
-                      <p className="mt-2 text-sm italic text-muted-foreground">
+                      <p className="mt-snug text-body italic text-muted-foreground">
                         No reason was recorded.
                       </p>
                     )}
                   </div>
                 ) : null}
                 {shipment.returnLapsedAt ? (
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-cozy">
+                    <p className="text-meta font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
                       Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
                     </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-body text-muted-foreground">
                       The buyer did not post the return within the deadline. This is a triage
                       signal only — it must never auto-release money to the seller.
                     </p>
@@ -360,18 +360,18 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           {c.goods.length > 0 ? (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">What the contract covered</CardTitle>
+                <CardTitle className="text-lead">What the contract covered</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="divide-y">
                   {c.goods.map((line, index) => (
                     <li
                       key={index}
-                      className="flex items-baseline justify-between gap-3 py-2 text-sm"
+                      className="flex items-baseline justify-between gap-cozy py-snug text-body"
                     >
                       <div className="min-w-0">
                         <p className="break-words font-medium">{line.description}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-meta text-muted-foreground">
                           {line.quantity > 1 ? `${line.quantity} × ` : ''}
                           {formatAud(line.unitPriceCents)}
                           {line.condition ? ` · ${line.condition}` : ''}
@@ -390,21 +390,21 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           {/* Parties */}
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-snug">
                 <Users className="size-4 text-muted-foreground" aria-hidden />
-                <CardTitle className="text-base">Parties</CardTitle>
+                <CardTitle className="text-lead">Parties</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               {c.parties.length === 0 ? (
-                <p className="text-sm italic text-muted-foreground">
+                <p className="text-body italic text-muted-foreground">
                   No parties attributed.
                 </p>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-cozy sm:grid-cols-2">
                   {c.parties.map((party) => (
-                    <div key={party.id} className="rounded-md border p-3">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <div key={party.id} className="rounded-md border p-cozy">
+                      <p className="text-meta uppercase tracking-wide text-muted-foreground">
                         {party.role}
                       </p>
                       <p className="mt-0.5 font-semibold">
@@ -415,7 +415,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                           {party.name}
                         </Link>
                       </p>
-                      <p className="mt-1 text-sm tabular-nums text-muted-foreground">
+                      <p className="mt-1 text-body tabular-nums text-muted-foreground">
                         {formatAud(party.stakeCents)} at risk
                       </p>
                     </div>
@@ -428,32 +428,32 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           {/* Timeline */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Timeline</CardTitle>
+              <CardTitle className="text-lead">Timeline</CardTitle>
             </CardHeader>
             <CardContent>
               {timeline.length === 0 ? (
-                <p className="text-sm italic text-muted-foreground">
+                <p className="text-body italic text-muted-foreground">
                   {c.kind === 'CASH_SALE'
                     ? 'No events recorded.'
                     : 'Open the contract room to see its history.'}
                 </p>
               ) : (
-                <ol className="space-y-2">
+                <ol className="space-y-snug">
                   {timeline.map((entry, index) => (
                     <li
                       key={`${entry.at}-${index}`}
-                      className="flex items-start gap-3 text-sm"
+                      className="flex items-start gap-cozy text-body"
                     >
                       <span className="mt-1.5 flex size-2 shrink-0 rounded-full bg-border" aria-hidden />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
+                        <div className="flex items-baseline justify-between gap-snug">
                           <p className="font-medium">{humaniseEvent(entry.event)}</p>
-                          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                          <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
                             {formatContractDateTime(entry.at) ?? entry.at}
                           </span>
                         </div>
                         {entry.detail ? (
-                          <p className="break-words text-xs text-muted-foreground">
+                          <p className="break-words text-meta text-muted-foreground">
                             {entry.detail}
                           </p>
                         ) : null}
@@ -467,33 +467,33 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         </div>
 
         {/* RIGHT: Workspace — notes + decision */}
-        <div className="space-y-6">
+        <div className="space-y-section">
           {/* Staff notes */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">
+              <CardTitle className="text-lead">
                 Staff notes
                 {notes.length > 0 ? (
-                  <Badge variant="secondary" className="ml-2 text-[11px]">
+                  <Badge variant="secondary" className="ml-2 text-meta">
                     {notes.length}
                   </Badge>
                 ) : null}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-cozy">
               <CaseNoteComposer caseKind={c.kind} caseRef={c.ref} />
               {notes.length === 0 ? (
-                <p className="text-xs italic text-muted-foreground">
+                <p className="text-meta italic text-muted-foreground">
                   No notes yet.
                 </p>
               ) : (
-                <ul className="max-h-64 space-y-2 overflow-y-auto">
+                <ul className="max-h-64 space-y-snug overflow-y-auto">
                   {notes.map((note) => (
-                    <li key={note.id} className="rounded-md border bg-muted/20 p-2.5">
-                      <p className="whitespace-pre-line break-words text-xs leading-relaxed">
+                    <li key={note.id} className="rounded-md border bg-muted/20 p-snug">
+                      <p className="whitespace-pre-line break-words text-meta leading-relaxed">
                         {note.body}
                       </p>
-                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      <p className="mt-1.5 text-meta text-muted-foreground">
                         {note.authorName} · {formatRelativeTime(note.createdAt)}
                       </p>
                     </li>
@@ -506,26 +506,26 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           {/* Decision */}
           <Card className="border-gold/40">
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-snug">
                 <Scale className="size-4 text-gold" aria-hidden />
-                <CardTitle className="text-base">Decision</CardTitle>
+                <CardTitle className="text-lead">Decision</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               {resolution === null ? (
-                <p className="text-sm italic text-muted-foreground">
+                <p className="text-body italic text-muted-foreground">
                   The underlying record could not be read.
                 </p>
               ) : resolution.kind === 'CASH_SALE' ? (
-                <div className="space-y-3">
+                <div className="space-y-cozy">
                   {resolution.refundStatus === 'FAILED' ? (
-                    <p className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                    <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-meta text-destructive">
                       <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                       A previous refund attempt failed. Retrying is safe (deduplicated).
                     </p>
                   ) : null}
                   {resolution.refundCents > 0 ? (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-meta text-muted-foreground">
                       {formatAud(resolution.refundCents)} already refunded.
                     </p>
                   ) : null}
@@ -552,13 +552,13 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   )}
                 </div>
               ) : resolution.kind === 'TRADE' ? (
-                <div className="space-y-3">
+                <div className="space-y-cozy">
                   {resolution.counterpartGoodsDescription ? (
-                    <div className="rounded-md bg-muted/30 p-2.5">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <div className="rounded-md bg-muted/30 p-snug">
+                      <p className="text-meta font-medium uppercase tracking-wide text-muted-foreground">
                         Agreed goods
                       </p>
-                      <p className="mt-1 whitespace-pre-line break-words text-xs">
+                      <p className="mt-1 whitespace-pre-line break-words text-meta">
                         {resolution.counterpartGoodsDescription}
                       </p>
                     </div>
@@ -572,13 +572,13 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   />
                 </div>
               ) : (
-                <div className="space-y-3 text-sm">
+                <div className="space-y-cozy text-body">
                   <p className="font-medium">Not ours to decide</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     The cardholder&apos;s bank decides chargebacks. Submit evidence in
                     Stripe, then note what was sent.
                   </p>
-                  <dl className="grid gap-1 text-xs text-muted-foreground">
+                  <dl className="grid gap-1 text-meta text-muted-foreground">
                     <div>
                       <dt className="inline font-medium text-foreground">Status: </dt>
                       <dd className="inline">{resolution.providerStatus ?? 'unreported'}</dd>

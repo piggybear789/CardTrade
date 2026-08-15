@@ -217,9 +217,9 @@ export function CatalogFilters({
       )}
       aria-busy={isPending}
     >
-      <div className="flex flex-col gap-2 py-3 lg:hidden">
+      <div className="flex flex-col gap-snug py-cozy lg:hidden">
         <HeaderSearch />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-snug">
           <Button
             asChild
             className="border border-white/15 bg-obsidian font-semibold text-parchment shadow-sm hover:border-white/25 hover:bg-obsidian/80"
@@ -237,7 +237,7 @@ export function CatalogFilters({
           >
             Filters
             {refineCount > 0 ? (
-              <span className="flex size-5 items-center justify-center rounded-full border border-gold/40 bg-gold/20 text-[0.6875rem] font-semibold text-foreground">
+              <span className="flex size-5 items-center justify-center rounded-full border border-gold/40 bg-gold/20 text-meta font-semibold text-foreground">
                 {refineCount}
               </span>
             ) : null}
@@ -248,7 +248,7 @@ export function CatalogFilters({
             type="button"
             onClick={clearFilters}
             disabled={isPending}
-            className="self-start rounded-sm text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="self-start rounded-sm text-meta font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             Clear all
           </button>
@@ -258,18 +258,18 @@ export function CatalogFilters({
       <div
         id="catalog-filter-panel"
         className={cn(
-          'space-y-5 rounded-xl border border-border/70 bg-card p-4 shadow-market lg:mt-4 lg:block lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t lg:bg-transparent lg:px-0 lg:pb-1 lg:pt-4 lg:shadow-none',
+          'space-y-5 rounded-xl border border-border/70 bg-card p-group shadow-market lg:mt-4 lg:block lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t lg:bg-transparent lg:px-0 lg:pb-1 lg:pt-group lg:shadow-none',
           filtersOpen ? 'mb-3 block' : 'hidden',
         )}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold tracking-tight">Refine Results</h2>
+          <h2 className="text-lead font-semibold tracking-tight">Refine Results</h2>
           {hasActiveFilters ? (
             <button
               type="button"
               onClick={clearFilters}
               disabled={isPending}
-              className="hidden rounded-sm text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 lg:inline"
+              className="hidden rounded-sm text-meta font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 lg:inline"
             >
               Clear All
             </button>
@@ -277,9 +277,9 @@ export function CatalogFilters({
         </div>
 
         {facets.categories.length > 0 ? (
-          <fieldset className="border-t border-border/70 pt-5">
+          <fieldset className="border-t border-border/70 pt-group">
             <legend className="market-label mb-2 text-muted-foreground">Categories</legend>
-            <div className="space-y-0.5">
+            <div className="space-y-tight">
               {facets.categories.map((category) => {
                 const active = current.categories.includes(category);
                 return (
@@ -292,7 +292,7 @@ export function CatalogFilters({
                     className={cn(
                       // Taller rows on touch screens (~44px target); compact in
                       // the desktop rail where a pointer is precise.
-                      'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
+                      'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-snug',
                       active
                         ? 'bg-gold/10 font-semibold text-foreground'
                         : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
@@ -314,9 +314,9 @@ export function CatalogFilters({
           </fieldset>
         ) : null}
 
-        <fieldset className="border-t border-border/70 pt-5">
+        <fieldset className="border-t border-border/70 pt-group">
           <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
-          <div className="space-y-0.5">
+          <div className="space-y-tight">
             {CONDITION_OPTIONS.map((condition) => {
               const active = current.conditions.includes(condition);
               return (
@@ -327,7 +327,7 @@ export function CatalogFilters({
                   disabled={isPending}
                   aria-pressed={active}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
+                    'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-snug',
                     active
                       ? 'bg-gold/10 font-semibold text-foreground'
                       : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
@@ -348,11 +348,11 @@ export function CatalogFilters({
           </div>
         </fieldset>
 
-        <div className="border-t border-border/70 pt-5">
+        <div className="border-t border-border/70 pt-group">
           <div className="mb-3 flex items-baseline justify-between gap-2">
             <p className="market-label text-muted-foreground">Price</p>
             {/* Tabular figures so the readout does not jitter mid-drag. */}
-            <p className="text-xs font-semibold tabular-nums">
+            <p className="text-meta font-semibold tabular-nums">
               {priceRangeLabel(priceLadder, priceStops, topStop)}
             </p>
           </div>
@@ -370,10 +370,10 @@ export function CatalogFilters({
             // Thumbs carry a ladder position; announce the price it stands for.
             thumbValueText={(stop) => priceStopLabel(priceLadder, stop, topStop)}
             // Room for the thumbs' focus rings, which sit outside the track.
-            className="px-0.5 py-2"
+            className="px-tight py-2"
           />
           <div
-            className="mt-1 flex justify-between text-[0.6875rem] text-muted-foreground tabular-nums"
+            className="mt-1 flex justify-between text-meta text-muted-foreground tabular-nums"
             aria-hidden="true"
           >
             <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
@@ -388,7 +388,7 @@ export function CatalogFilters({
             sellers, which is the opposite of what is true. Per-card badges still
             show each seller's verified given name. */}
 
-        <div className="border-t border-border/70 pt-5">
+        <div className="border-t border-border/70 pt-group">
           <p className="market-label mb-2 text-muted-foreground">Availability</p>
           <button
             type="button"
@@ -396,7 +396,7 @@ export function CatalogFilters({
             disabled={isPending}
             aria-pressed={current.includeSold}
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-2.5',
+              'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-snug',
               current.includeSold
                 ? 'bg-gold/10 font-semibold text-foreground'
                 : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
@@ -409,7 +409,7 @@ export function CatalogFilters({
                 <span className="size-1.5 rounded-full bg-muted-foreground/50" />
               )}
             </span>
-            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="flex min-w-0 flex-1 items-center gap-tight">
               Include sold items
             </span>
           </button>
@@ -438,7 +438,7 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
       : `Up to ${AUD_FORMATTER.format(Number(current.max))}`;
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 sm:mt-4" aria-label="Active filters">
+    <div className="mt-snug flex flex-wrap items-center gap-snug sm:mt-group" aria-label="Active filters">
       {current.q ? (
         <FilterChip label={`“${current.q}”`} onRemove={() => pushWith({ q: null })} disabled={isPending} />
       ) : null}
@@ -480,7 +480,7 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
         type="button"
         onClick={reset}
         disabled={isPending}
-        className="rounded-sm px-1 py-1.5 text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="rounded-sm px-1 py-tight text-meta font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       >
         Clear all
       </button>
@@ -502,7 +502,7 @@ function FilterChip({
       type="button"
       onClick={onRemove}
       disabled={disabled}
-      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-gold/30 bg-gold/8 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+      className="inline-flex max-w-full items-center gap-tight rounded-full border border-gold/30 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       aria-label={`Remove ${label} filter`}
     >
       <span className="truncate">{label}</span>

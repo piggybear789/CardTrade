@@ -287,7 +287,7 @@ function TradeCashSettlementNotice({
   const amount = formatAud(cashAmountCents);
 
   return (
-    <div className="rounded-lg border border-dashed border-gold/50 bg-gold/10 px-4 py-3 text-sm">
+    <div className="rounded-lg border border-dashed border-gold/50 bg-gold/10 px-group py-cozy text-body">
       {pendingAfterComplete ? (
         <>
           <p className="font-medium">
@@ -625,7 +625,7 @@ function TradeTermsRow({
         />
       ) : null}
       {editable ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Either trader can update delivery terms until someone marks the goods as
           shipped.
         </p>
@@ -798,7 +798,7 @@ function TradeContractRoom({
           is exactly the shell content box, so the header, action card and
           details/chat row divide it and the panes scroll internally instead of
           growing the page (F37). */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
+      <div className="flex min-h-0 flex-1 flex-col gap-group lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
         <ContractHeader
           title="2-way trade"
           money={
@@ -934,7 +934,7 @@ function TradeContractRoom({
                   ) : null}
 
                   {trade.state === 'FRAUD_RESOLVED' ? (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-body text-muted-foreground">
                       The other trader&apos;s deposit was paid to you.
                     </p>
                   ) : null}
@@ -971,7 +971,7 @@ function TradeContractRoom({
                       This is the statement of what changes hands, it is part of the
                       terms, and it is what an arbitrator reads. */}
                   {trade.counterpart_goods_description ? (
-                    <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                    <div className="mb-cozy rounded-lg border bg-muted/30 p-cozy text-body">
                       <p className="font-medium">
                         {viewerRole === 'INITIATOR'
                           ? 'Cards you are getting from their listing'
@@ -980,7 +980,7 @@ function TradeContractRoom({
                       <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
                         {trade.counterpart_goods_description}
                       </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
+                      <p className="mt-snug text-body text-muted-foreground">
                         The listing is a binder or bulk lot, so nothing in it is held.
                         This description is what the two of you agreed to swap.
                       </p>
@@ -1117,7 +1117,7 @@ function TradeContractRoom({
                       No cash component — this trade is goods for goods.
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-body text-muted-foreground">
                     The cash was fixed when the proposal was accepted. Stripe
                     settles it once the trade completes, so the receiver needs payout
                     details on file.
@@ -1144,7 +1144,7 @@ function TradeContractRoom({
                 <div className="flex flex-col gap-3 rounded-lg border bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium">Both traders have collateral on this trade</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">
                       Each saved card has a temporary authorisation for the agreed value.
                       It is released when the trade resolves normally.
                     </p>

@@ -167,14 +167,14 @@ export function CatalogInfiniteGrid({
           <button
             type="button"
             onClick={() => void loadMoreRef.current({ force: true })}
-            className="mt-2 w-full rounded-lg border border-border/70 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-snug w-full rounded-lg border border-border/70 px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Load more listings
           </button>
         ) : null}
-        <div className="flex flex-col items-center gap-2 py-6" aria-live="polite">
+        <div className="flex flex-col items-center gap-snug py-6" aria-live="polite">
           {loadingMore ? (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <p className="flex items-center gap-snug text-body text-muted-foreground">
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               Loading more…
             </p>
@@ -183,13 +183,13 @@ export function CatalogInfiniteGrid({
             <button
               type="button"
               onClick={() => void loadMoreRef.current({ force: true })}
-              className="rounded-md text-sm font-medium text-foreground underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {error}
             </button>
           ) : null}
           {!hasMore && !loadingMore && items.length > 0 ? (
-            <p className="text-sm text-muted-foreground">End of results</p>
+            <p className="text-body text-muted-foreground">End of results</p>
           ) : null}
         </div>
       </div>

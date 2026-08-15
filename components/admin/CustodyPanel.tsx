@@ -83,11 +83,11 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
   return (
     <section
       aria-labelledby={headingId}
-      className={cn('mb-6 rounded-lg border p-4', tone.wrapper)}
+      className={cn('mb-section rounded-lg border p-group', tone.wrapper)}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-cozy flex flex-wrap items-center gap-snug">
         {tone.icon}
-        <h3 id={headingId} className="text-base font-semibold">
+        <h3 id={headingId} className="text-lead font-semibold">
           Money held for members — {regionLabel(region)}
         </h3>
         <Badge variant={tone.badge}>{tone.label}</Badge>
@@ -96,38 +96,38 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
         </Badge>
       </div>
 
-      <dl className="grid gap-3 sm:grid-cols-3">
+      <dl className="grid gap-cozy sm:grid-cols-3">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+          <dt className="text-meta uppercase tracking-wide text-muted-foreground">
             Owed to members
           </dt>
-          <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+          <dd className="mt-0.5 text-subhead font-semibold tabular-nums">
             {money(heldForMembersCents)}
           </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0.5 text-meta text-muted-foreground">
             Across {saleCount} {saleCount === 1 ? 'sale' : 'sales'} where money has been
             collected and not yet paid out or refunded.
           </p>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+          <dt className="text-meta uppercase tracking-wide text-muted-foreground">
             Held at Stripe
           </dt>
-          <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+          <dd className="mt-0.5 text-subhead font-semibold tabular-nums">
             {state === 'UNKNOWN' ? '—' : money(providerBalanceCents)}
           </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0.5 text-meta text-muted-foreground">
             Available plus pending. Card funds clear over days, so pending money is still
             money you hold.
           </p>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+          <dt className="text-meta uppercase tracking-wide text-muted-foreground">
             {state === 'SHORTFALL' ? 'Short by' : 'Headroom'}
           </dt>
           <dd
             className={cn(
-              'mt-0.5 text-lg font-semibold tabular-nums',
+              'mt-0.5 text-subhead font-semibold tabular-nums',
               state === 'SHORTFALL' && 'text-destructive',
             )}
           >
@@ -135,7 +135,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
               ? '—'
               : money(state === 'SHORTFALL' ? shortfallCents : surplusCents)}
           </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0.5 text-meta text-muted-foreground">
             {state === 'SHORTFALL'
               ? 'You cannot currently pay everyone you owe.'
               : state === 'SOLVENT'
@@ -148,7 +148,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
       {state === 'SHORTFALL' ? (
         // Named causes, in the order they are actually likely. An operator seeing red
         // for the first time needs somewhere to look, not just a number.
-        <div className="mt-4 space-y-1.5 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+        <div className="mt-group space-y-tight rounded-md border border-destructive/40 bg-destructive/10 p-cozy text-meta text-destructive">
           <p className="font-semibold">
             Money members are owed is not all present. Check, in this order:
           </p>
@@ -173,7 +173,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
       ) : null}
 
       {state === 'UNKNOWN' ? (
-        <p className="mt-4 rounded-md border border-border/70 bg-card p-3 text-xs text-muted-foreground">
+        <p className="mt-group rounded-md border border-border/70 bg-card p-cozy text-meta text-muted-foreground">
           The provider balance could not be read, so this cannot be verified either way.
           {unreadableReason ? ` Reason: ${unreadableReason}.` : ''} With the mock provider
           there is no real balance to check — this reads as unknown by design rather than

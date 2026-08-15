@@ -166,13 +166,13 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
       >
         {/* One card surface, divided by rules — matching the chat panel this
             sits beside. See the note in ContractChat. */}
-        <div className="flex items-center gap-3 border-b px-4 py-3">
+        <div className="flex items-center gap-cozy border-b px-group py-cozy">
           <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
             <ScrollText className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Contract Details</h2>
-            <p className="truncate text-xs text-muted-foreground">
+            <h2 className="text-body font-semibold">Contract Details</h2>
+            <p className="truncate text-meta text-muted-foreground">
               Review one part of the agreement at a time
             </p>
           </div>
@@ -222,7 +222,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   onClick={() => selectTab(index)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
-                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-xs font-medium transition-colors',
+                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-meta font-medium transition-colors',
                     explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
                     'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     isDestructive
@@ -256,7 +256,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                     <PopoverContent
                       side="bottom"
                       align="start"
-                      className="max-w-[16rem] text-pretty text-sm leading-relaxed"
+                      className="max-w-[16rem] text-pretty text-body"
                     >
                       {explainer}
                     </PopoverContent>
@@ -292,7 +292,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
               // dead-ended the gesture: a swipe that reached the bottom of the
               // panel stopped there instead of carrying on down the page, and the
               // reader had to lift and re-swipe outside the panel to continue.
-              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-4 text-sm lg:overscroll-contain',
+              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-group text-body lg:overscroll-contain',
               activeRow.props.contentClassName,
             )}
           >

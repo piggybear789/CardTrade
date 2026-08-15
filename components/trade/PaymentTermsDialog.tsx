@@ -104,7 +104,7 @@ export function PaymentTermsDialog({
 
         <div className="space-y-3">
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Cash adjustment</legend>
+            <legend className="text-body font-medium">Cash adjustment</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {(
                 [
@@ -123,7 +123,7 @@ export function PaymentTermsDialog({
                 <label
                   key={value}
                   className={cn(
-                    'flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm ring-offset-background transition-colors',
+                    'flex cursor-pointer items-start gap-snug rounded-md border p-snug text-body ring-offset-background transition-colors',
                     // The row carries the focus ring, matching the item rows on
                     // the offer card.
                     'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
@@ -140,7 +140,7 @@ export function PaymentTermsDialog({
                   />
                   <span>
                     <span className="font-medium">{label}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-0.5 block text-body text-muted-foreground">
                       {hint}
                     </span>
                   </span>
@@ -150,7 +150,7 @@ export function PaymentTermsDialog({
           </fieldset>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
+            <div className="space-y-tight">
               <Label htmlFor="terms-cash">Cash</Label>
               <MoneyInput
                 id="terms-cash"
@@ -159,7 +159,7 @@ export function PaymentTermsDialog({
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-tight">
               <Label htmlFor="terms-value">Your side is worth</Label>
               <Input
                 id="terms-value"
@@ -175,7 +175,7 @@ export function PaymentTermsDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-tight">
             <Label htmlFor="terms-message">Note</Label>
             <Textarea
               id="terms-message"

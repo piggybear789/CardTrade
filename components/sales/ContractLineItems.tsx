@@ -162,8 +162,8 @@ export function ContractRequestFields({
   const priceId = `${idPrefix}-price`;
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
+    <div className="space-y-cozy">
+      <div className="space-y-tight">
         <Label htmlFor={descriptionId}>{descriptionLabel}</Label>
         <Textarea
           id={descriptionId}
@@ -175,12 +175,12 @@ export function ContractRequestFields({
           disabled={disabled}
           aria-describedby={`${descriptionId}-hint`}
         />
-        <p id={`${descriptionId}-hint`} className="text-xs text-muted-foreground">
+        <p id={`${descriptionId}-hint`} className="text-meta text-muted-foreground">
           {descriptionHint}
         </p>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-tight">
         <Label htmlFor={priceId}>{priceLabel}</Label>
         <MoneyInput
           id={priceId}
@@ -191,7 +191,7 @@ export function ContractRequestFields({
           disabled={disabled}
           aria-describedby={`${priceId}-hint`}
         />
-        <p id={`${priceId}-hint`} className="text-xs text-muted-foreground">
+        <p id={`${priceId}-hint`} className="text-meta text-muted-foreground">
           The price for the lot
           {offerCents > 0 ? ` — ${formatMoney(offerCents, currency)}` : ''}. The 5%
           platform fee and any postage are added on top when you agree terms.
@@ -199,7 +199,7 @@ export function ContractRequestFields({
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}
@@ -239,12 +239,12 @@ export function ContractLineItemsList({
   const itemised = lines.length > 1 || lines.some((line) => line.quantity > 1);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-snug">
       <ul className="divide-y rounded-md border">
         {lines.map((line, index) => (
           <li
             key={line.id ?? index}
-            className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm"
+            className="flex items-baseline justify-between gap-cozy px-cozy py-snug text-body"
           >
             <div className="min-w-0">
               {/* `whitespace-pre-wrap`: the description is prose now, and a written
@@ -254,7 +254,7 @@ export function ContractLineItemsList({
                 {line.description}
               </p>
               {line.quantity > 1 || line.condition ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   {line.quantity > 1 ? `${line.quantity} × ${money(line.unitPriceCents)}` : ''}
                   {line.quantity > 1 && line.condition ? ' · ' : ''}
                   {line.condition ?? ''}
@@ -271,7 +271,7 @@ export function ContractLineItemsList({
           </li>
         ))}
       </ul>
-      <div className="flex items-center justify-between px-3 text-sm">
+      <div className="flex items-center justify-between px-cozy text-body">
         <span className="text-muted-foreground">Agreed price</span>
         <span className="font-semibold">{money(total)}</span>
       </div>

@@ -45,7 +45,7 @@ function HubSheetLinks({
               onClick={onNavigate}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-h-12 touch-manipulation items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'flex min-h-12 touch-manipulation items-center gap-3 rounded-lg px-3 py-3 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 active
                   ? 'bg-gold/10 font-semibold text-foreground'
                   : 'font-medium text-foreground/85 hover:bg-muted/70',
@@ -86,7 +86,7 @@ export function MobileBottomNav() {
             const active = hub.isActive(pathname);
             const Icon = hub.icon;
             const className = cn(
-              'flex h-full min-h-14 w-full touch-manipulation flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+              'flex h-full min-h-14 w-full touch-manipulation flex-col items-center justify-center gap-0.5 px-1 text-meta transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
               active
                 ? 'font-semibold text-foreground'
                 : 'font-medium text-muted-foreground',

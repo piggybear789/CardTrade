@@ -62,7 +62,7 @@ export function SocialLinksEditor({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-cozy">
       <div className="divide-y overflow-hidden rounded-xl border bg-card">
         {SOCIAL_PLATFORMS.map((platform) => {
           const inputId = `social-${platform.slug}`;
@@ -72,11 +72,11 @@ export function SocialLinksEditor({
                   of its own, so the platform name is the only thing identifying it. */}
               <label
                 htmlFor={inputId}
-                className="w-24 shrink-0 cursor-text px-4 py-3 text-sm text-muted-foreground sm:w-28"
+                className="w-24 shrink-0 cursor-text px-group py-cozy text-body text-muted-foreground sm:w-28"
               >
                 {platform.label}
               </label>
-              <span className="shrink-0 text-sm text-muted-foreground/60" aria-hidden>
+              <span className="shrink-0 text-body text-muted-foreground/60" aria-hidden>
                 @
               </span>
               <input
@@ -95,7 +95,7 @@ export function SocialLinksEditor({
                   }))
                 }
                 disabled={isPending}
-                className="min-w-0 flex-1 bg-transparent py-3 pr-4 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/50 focus-visible:outline-none disabled:opacity-65"
+                className="min-w-0 flex-1 bg-transparent py-cozy pr-group text-body font-medium text-foreground outline-none placeholder:text-muted-foreground/50 focus-visible:outline-none disabled:opacity-65"
               />
             </div>
           );

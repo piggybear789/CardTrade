@@ -107,7 +107,7 @@ export function SectionTabs({
             href={tab.href}
             aria-current={current ? 'page' : undefined}
             className={cn(
-              '-mb-px inline-flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-4 py-2.5 text-sm font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              '-mb-px inline-flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-4 py-2.5 text-body font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               current
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground',
@@ -115,7 +115,7 @@ export function SectionTabs({
           >
             {tab.label}
             {tab.count === undefined ? null : (
-              <span className="text-xs tabular-nums text-muted-foreground">
+              <span className="text-meta tabular-nums text-muted-foreground">
                 {tab.count}
               </span>
             )}

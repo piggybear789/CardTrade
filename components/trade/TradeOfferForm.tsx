@@ -49,6 +49,7 @@ import {
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
+import { deriveItemTitle } from '@/domain/validation';
 import type { ItemRow } from '@/lib/actions/listings';
 import type { HandoverMethod } from '@/lib/handover/terms';
 
@@ -151,6 +152,13 @@ export function TradeOfferForm({
    * already hold, so it is unavailable there.
    */
   const [unlisted, setUnlisted] = useState<UnlistedItemDraft | null>(null);
+  /**
+   * The chip label for an unlisted draft, derived from its description by the SAME
+   * function the server uses when it stores `items.title`. Deriving it here rather
+   * than inventing a display rule is what stops the chip disagreeing with the label
+   * the trade contract and arbitration will actually carry.
+   */
+  const unlistedLabel = unlisted ? deriveItemTitle(unlisted.description) : '';
   const [unlistedDialogOpen, setUnlistedDialogOpen] = useState(false);
   const [listingsPickerOpen, setListingsPickerOpen] = useState(false);
   /** Cash, your valuation and a note, all set in their own dialog. */
@@ -284,7 +292,6 @@ export function TradeOfferForm({
         offer: unlisted
           ? {
               kind: 'private',
-              title: unlisted.title,
               description: unlisted.description,
               category: unlisted.category,
               condition: unlisted.condition,
@@ -331,7 +338,7 @@ export function TradeOfferForm({
           />
         ) : null}
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          <p className="text-meta uppercase tracking-wide text-muted-foreground">
             {requested.ownerName} is offering up
           </p>
           <p className="truncate font-semibold">{requested.title}</p>
@@ -340,11 +347,11 @@ export function TradeOfferForm({
             here as what this trader gives would overstate their side by an order of
             magnitude. The running total below states the real figure. */}
         {isShopfront ? (
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+          <span className="ml-auto shrink-0 text-meta text-muted-foreground">
             binder or bulk
           </span>
         ) : (
-          <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">
+          <span className="ml-auto shrink-0 text-body font-semibold tabular-nums">
             {formatAud(requested.fmvCents)}
           </span>
         )}
@@ -354,7 +361,7 @@ export function TradeOfferForm({
           cannot — and this is what an arbitrator reads if it goes wrong. */}
       {isShopfront ? (
         <fieldset className="min-w-0 space-y-2">
-          <legend className="text-sm font-medium">
+          <legend className="text-body font-medium">
             What you want
             <span className="ml-1 text-destructive" aria-hidden>
               *
@@ -368,7 +375,7 @@ export function TradeOfferForm({
             placeholder="The two Charizards on page 2 and any NM Blastoise."
             aria-describedby="wanted-goods-hint"
           />
-          <p id="wanted-goods-hint" className="text-xs text-muted-foreground">
+          <p id="wanted-goods-hint" className="text-body text-muted-foreground">
             Nothing here is held for you. You can both revise this in the trade room,
             and changing it means you each accept again.
           </p>
@@ -378,8 +385,8 @@ export function TradeOfferForm({
       {/* Your side: one list of everything you are putting up, listed or not.
           min-w-0: fieldsets default to min-width:min-content, which refuses to
           shrink inside the sheet and lets prices get clipped by the scrollbar. */}
-      <fieldset className="min-w-0 space-y-2">
-        <legend className="text-sm font-medium">
+      <fieldset className="min-w-0 space-y-snug">
+        <legend className="text-body font-medium">
           You offer
           {offeredCount > 0 ? (
             <span className="ml-1 font-normal text-muted-foreground">
@@ -390,10 +397,10 @@ export function TradeOfferForm({
 
         {/* The unlisted draft sits at the top: it is the primary item. */}
         {unlisted ? (
-          <div className="flex items-center gap-3 rounded-md border border-primary bg-primary/5 p-2.5 text-sm">
+          <div className="flex items-center gap-cozy rounded-md border border-primary bg-primary/5 p-snug text-body">
             <Lock className="size-4 shrink-0 text-gold" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate font-medium">
-              {unlisted.title}
+              {unlistedLabel}
               <span className="ml-1.5 font-normal text-muted-foreground">
                 not listed
               </span>
@@ -406,7 +413,7 @@ export function TradeOfferForm({
               onClick={() => setUnlistedDialogOpen(true)}
             >
               <Pencil aria-hidden="true" />
-              <span className="sr-only">Edit {unlisted.title}</span>
+              <span className="sr-only">Edit {unlistedLabel}</span>
             </Button>
             <Button
               type="button"
@@ -416,7 +423,7 @@ export function TradeOfferForm({
               onClick={() => setUnlisted(null)}
             >
               <X aria-hidden="true" />
-              <span className="sr-only">Remove {unlisted.title}</span>
+              <span className="sr-only">Remove {unlistedLabel}</span>
             </Button>
           </div>
         ) : null}
@@ -430,7 +437,7 @@ export function TradeOfferForm({
               return (
                 <li
                   key={item.id}
-                  className="flex items-center gap-3 rounded-md border border-primary bg-primary/5 p-2.5 text-sm"
+                  className="flex items-center gap-cozy rounded-md border border-primary bg-primary/5 p-snug text-body"
                 >
                   <span className="min-w-0 flex-1 truncate font-medium">
                     {item.title}
@@ -476,14 +483,14 @@ export function TradeOfferForm({
         )}
       </fieldset>
 
-      <fieldset className="min-w-0 space-y-2">
-        <legend className="text-sm font-medium">
+      <fieldset className="min-w-0 space-y-snug">
+        <legend className="text-body font-medium">
           Handover
           <span className="ml-1 text-destructive" aria-hidden>
             *
           </span>
         </legend>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-tight">
           {HANDOVER_OPTIONS.map((option) => (
             <ChoiceTile
               key={option.value}
@@ -498,7 +505,7 @@ export function TradeOfferForm({
             />
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Meeting place, postage and tracking are agreed in the trade room.
         </p>
       </fieldset>
@@ -514,7 +521,7 @@ export function TradeOfferForm({
       {/* Running total. Sides do not have to match — this just shows where the
           offer stands so nobody has to do the arithmetic themselves. */}
       <div
-        className="rounded-lg border bg-muted/20 p-3 text-sm"
+        className="rounded-lg border bg-muted/20 p-cozy text-body"
         role="status"
         aria-live="polite"
       >
@@ -531,12 +538,12 @@ export function TradeOfferForm({
           </span>
         </div>
         {isShopfront ? (
-          <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
+          <p className="mt-snug border-t pt-snug text-body text-muted-foreground">
             A binder has no single price, so their side is valued at what you put up.
             That is the figure both of you hold collateral against.
           </p>
         ) : null}
-        <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
+        <p className="mt-snug border-t pt-snug text-body text-muted-foreground">
           {differenceCents === 0
             ? 'Even on the stated terms.'
             : differenceCents > 0
@@ -546,7 +553,7 @@ export function TradeOfferForm({
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}
@@ -636,7 +643,7 @@ export function TradeOfferForm({
   return (
     <Card className="mx-auto w-full max-w-lg">
       <CardHeader className="pb-4">
-        <CardTitle className="text-xl">{title}</CardTitle>
+        <CardTitle className="text-subhead">{title}</CardTitle>
         <CardDescription>
           Nothing is reserved until {requested.ownerName} accepts.
         </CardDescription>

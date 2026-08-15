@@ -83,7 +83,7 @@ export function IdentityCheckCard({
       // of the header's shield, so one fact rendered as a card inside a card and the
       // inner box outweighed the heading that introduced it. The card is already the
       // container; its content does not need a second one.
-      <div className="space-y-0.5 text-sm leading-snug">
+      <div className="space-y-tight text-body leading-snug">
         <p className="font-medium text-foreground">
           {verifiedName ? `Verified as ${verifiedName}` : 'Your identity is verified'}
         </p>
@@ -94,9 +94,9 @@ export function IdentityCheckCard({
         </p>
       </div>
     ) : (
-      <div className="space-y-4">
+      <div className="space-y-group">
         {status === 'FAILED' ? (
-          <p className="flex gap-2 text-sm text-destructive">
+          <p className="flex gap-snug text-body text-destructive">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
             {/* Retryable, and said so. A document check fails for a blurry photo far
                 more often than for anything sinister, and a dead end reads as a ban. */}
@@ -105,14 +105,14 @@ export function IdentityCheckCard({
         ) : null}
 
         {status === 'PENDING' ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Your document is being checked. This is usually quick — we will update this
             automatically.
           </p>
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-body text-destructive">
             {error}
           </p>
         ) : null}
@@ -126,7 +126,7 @@ export function IdentityCheckCard({
           {status === 'NONE' ? 'Verify with Stripe' : 'Try again'}
         </Button>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           One step on Stripe&apos;s pages, with a photo ID and a selfie — NoDitto never
           sees the document. No bank details needed for this.
         </p>
@@ -142,9 +142,9 @@ export function IdentityCheckCard({
     // member landed at the top of a page with several cards on it.
     <Card id="identity" className="h-full scroll-mt-24">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-cozy">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-2 text-lg">
+            <CardTitle className="flex items-center gap-snug text-lead">
               <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
               Identity
             </CardTitle>

@@ -41,6 +41,9 @@ export interface FakeState {
 const IDENTITY = {
   version: 'seller-v1',
   legalEntityName: 'Seller One Pty Ltd',
+  // This fake stands for a fully verified seller, so the name is the
+  // document-backed one rather than the grandfathered fallback.
+  nameIsDocumentVerified: true,
   tradingName: 'Seller One Cards',
   registrationNumber: '12345678901',
   organisationType: 'company',

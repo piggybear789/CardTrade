@@ -221,7 +221,7 @@ export function BuyButton({
                   between a disappointed buyer and a misled one. */}
               {isShopfront ? (
                 <>
-                  <div className="rounded-lg border border-dashed bg-muted/30 p-3 text-sm">
+                  <div className="rounded-lg border border-dashed bg-muted/30 p-3 text-body">
                     <p className="font-medium">Nothing is held for you yet</p>
                     <p className="mt-1 text-muted-foreground">
                       Other buyers can ask for the same cards. Your place is
@@ -239,11 +239,11 @@ export function BuyButton({
 
               {/* Seller identity */}
               <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="text-trust mb-3 flex items-center gap-2 text-sm font-medium">
+                <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
                   <ShieldCheck className="h-4 w-4" aria-hidden />
                   DittoShield verified via Stripe
                 </div>
-                <dl className="grid gap-2 text-sm">
+                <dl className="grid gap-2 text-body">
                   {sellerIdentity.tradingName ? (
                     <div className="min-w-0">
                       <dt className="text-muted-foreground">Store</dt>
@@ -252,12 +252,29 @@ export function BuyButton({
                       </dd>
                     </div>
                   ) : null}
+                  {/* THIS ROW USED TO READ "Verified name" UNCONDITIONALLY, and that
+                      was the overclaim worth fixing first: this is the screen where a
+                      Buyer commits money against the disclosure. `legalEntityName`
+                      falls back to the seller's own `display_name` for members
+                      grandfathered by 0069, so for those rows the old label promised a
+                      government document check that had not happened. */}
                   <div className="min-w-0">
-                    <dt className="text-muted-foreground">Verified name</dt>
+                    <dt className="text-muted-foreground">
+                      {sellerIdentity.nameIsDocumentVerified
+                        ? 'Real name'
+                        : 'Stated name'}
+                    </dt>
                     <dd className="break-words font-medium">
                       {sellerIdentity.legalEntityName}
                     </dd>
                   </div>
+                  {sellerIdentity.nameIsDocumentVerified ? null : (
+                    <p className="text-body text-muted-foreground">
+                      This seller verified their identity before we began recording
+                      names from photo ID, so the name above is the one they gave us
+                      rather than one checked against a document.
+                    </p>
+                  )}
                   <div>
                     <dt className="text-muted-foreground">Verified</dt>
                     <dd>{new Date(sellerIdentity.verifiedAt).toLocaleDateString('en-AU')}</dd>
@@ -269,10 +286,10 @@ export function BuyButton({
               <div className="flex items-center gap-3 rounded-lg border p-3">
                 <CreditCard className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
+                  <p className="truncate text-body font-medium">
                     {paymentLabel ?? 'Card on file'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     Stripe method
                   </p>
                 </div>
@@ -280,7 +297,7 @@ export function BuyButton({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-xs"
+                  className="text-meta"
                   onClick={() => {
                     setHasPaymentMethod(false);
                     setPaymentLabel(null);
@@ -290,7 +307,7 @@ export function BuyButton({
                 </Button>
               </div>
 
-              <label className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm">
+              <label className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-body">
                 <input
                   type="checkbox"
                   checked={confirmed}
@@ -305,7 +322,7 @@ export function BuyButton({
               </label>
 
               {error ? (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="text-body text-destructive">
                   {error}
                 </p>
               ) : null}

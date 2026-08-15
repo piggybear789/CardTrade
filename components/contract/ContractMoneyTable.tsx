@@ -29,14 +29,14 @@ export function ContractMoneyTable({
 }: ContractMoneyTableProps) {
   return (
     <dl
-      className={cn('rounded-md border bg-background text-sm', className)}
+      className={cn('rounded-md border bg-background text-body', className)}
       aria-label={ariaLabel}
     >
       {rows.map((row, index) => (
         <div
           key={index}
           className={cn(
-            'flex items-start justify-between gap-3 px-4 py-3',
+            'flex items-start justify-between gap-cozy px-group py-cozy',
             index > 0 && 'border-t',
           )}
         >
@@ -48,18 +48,18 @@ export function ContractMoneyTable({
           >
             {row.label}
             {row.hint ? (
-              <span className="mt-0.5 block whitespace-pre-wrap break-words text-xs text-muted-foreground">
+              <span className="mt-0.5 block whitespace-pre-wrap break-words text-meta text-muted-foreground">
                 {row.hint}
               </span>
             ) : null}
           </dt>
-          <dd className="flex shrink-0 items-center gap-2 text-right">
+          <dd className="flex shrink-0 items-center gap-snug text-right">
             <span
               className={cn(
                 row.muted
                   ? 'text-muted-foreground'
                   : row.total
-                    ? 'text-base font-semibold tabular-nums'
+                    ? 'text-lead font-semibold tabular-nums'
                     : 'font-medium tabular-nums',
               )}
             >

@@ -19,8 +19,8 @@ export default function AccountSuspendedPage() {
         <span className="mx-auto grid size-11 place-items-center rounded-full border border-destructive/30 bg-destructive/10 text-destructive">
           <ShieldAlert className="size-5" aria-hidden />
         </span>
-        <h1 className="mt-4 text-xl font-semibold">Account permanently suspended</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <h1 className="mt-4 text-subhead font-semibold">Account permanently suspended</h1>
+        <p className="mt-2 text-body leading-relaxed text-muted-foreground">
           This account was permanently suspended after a staff-confirmed objective
           fraud finding. It cannot buy, sell, trade, or use member features.
         </p>

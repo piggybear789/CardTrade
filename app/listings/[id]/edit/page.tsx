@@ -89,7 +89,7 @@ function NotEditable({ itemId, status }: { itemId: string; status: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl">This listing can&apos;t be edited</CardTitle>
+        <CardTitle className="text-subhead">This listing can&apos;t be edited</CardTitle>
         <CardDescription>
           It&apos;s currently {status.toLowerCase()} and can only be modified
           while it is available.

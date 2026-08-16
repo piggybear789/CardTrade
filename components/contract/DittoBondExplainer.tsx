@@ -45,11 +45,9 @@ function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepPro
         tone === 'warning' && 'border-amber-500/30 bg-amber-500/5',
       )}
     >
-      {/* Same grid as `CustodyBox` below, and for the same reason: the badge
-          centres on the TITLE, and the prose indents to the title's left edge.
-          Flex could not do it — centred put the badge beside the paragraph, and
-          top-aligned left its centre below the title's. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-snug">
+      {/* Badge centred against the whole row, matching `CustodyBox` below. See the
+          note there: it is deliberate, not the first-line convention. */}
+      <div className="flex items-center gap-snug">
         <span
           className={cn(
             'grid size-7 shrink-0 place-items-center rounded-full border bg-background',
@@ -59,8 +57,10 @@ function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepPro
         >
           <Icon className="size-3.5" aria-hidden />
         </span>
-        <p className="min-w-0 font-medium">{title}</p>
-        <div className="col-start-2 text-meta text-muted-foreground">{children}</div>
+        <div className="min-w-0">
+          <p className="font-medium">{title}</p>
+          <div className="mt-0.5 text-meta text-muted-foreground">{children}</div>
+        </div>
       </div>
     </div>
   );
@@ -137,15 +137,14 @@ function CustodyBox({
   /** The one box where the money is sitting rather than moving. */
   held?: boolean;
 }) {
-  // A GRID, so the badge centres on the TITLE rather than on the whole block.
-  // Neither flex alignment gets this right: `items-center` centres a 32px badge
-  // against a three-line block and lands it beside the description, while
-  // `items-start` (even nudged) leaves its centre below the title's, straddling
-  // the title and the first line under it. Row one holds the badge and the title
-  // and centres them against each other; the description is placed explicitly in
-  // column two, so it indents to the title's left edge.
+  // The badge centres against the WHOLE row — title plus description — not against
+  // the title line. Stated here because it is a deliberate choice and reads as a bug
+  // to the usual convention: a badge beside a title-plus-prose is normally aligned to
+  // the first line, on the grounds that an icon labels the heading rather than the
+  // paragraph. These rows are short (one line of title, one or two of detail) and each
+  // one is a single unit in a diagram, so the badge belongs on the unit's axis.
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-snug">
+    <div className="flex min-w-0 items-center gap-snug">
       <span
         className={cn(
           'grid size-8 shrink-0 place-items-center rounded-full border',
@@ -156,8 +155,10 @@ function CustodyBox({
       >
         <Icon className="size-4" aria-hidden />
       </span>
-      <p className="min-w-0 text-body font-semibold leading-tight">{title}</p>
-      <p className="col-start-2 text-meta leading-4 text-muted-foreground">{detail}</p>
+      <div className="min-w-0">
+        <p className="text-body font-semibold leading-tight">{title}</p>
+        <p className="mt-0.5 text-meta leading-4 text-muted-foreground">{detail}</p>
+      </div>
     </div>
   );
 }

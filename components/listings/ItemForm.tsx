@@ -489,8 +489,29 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         ? URL.createObjectURL(newFiles[0])
         : null;
 
+  // FIXED HEIGHT ON DESKTOP, and the details rail scrolls inside it.
+  //
+  // Previously the grid was `min-h`, so its height was whatever the rail's content
+  // came to and the photo panel grew with every field added. Making the height
+  // definite is what lets the middle row scroll and what keeps the left column the
+  // same size no matter how much is in the form.
+  //
+  // Clamped rather than a bare `calc`: `100svh` minus the 4rem app header and the
+  // page's own padding is the right target, but the exact padding is the shell's
+  // business, not this component's. `min-h`/`max-h` mean a short laptop still gets a
+  // usable form (and scrolls) and a very tall monitor does not stretch one column of
+  // fields over 1200px. `svh` for the same reason as the photo below: `dvh` would
+  // resize the whole card as a mobile URL bar hides.
+  //
+  // A CONSEQUENCE FOR THE LAST FIELD IN THE RAIL. `Based near` is a combobox, and
+  // `PlaceSearch` positions its suggestions absolutely against the input. Once the rail
+  // became a scroll box the suggestions were clipped at its bottom edge, so the third
+  // one down was sliced in half and the rest were unreachable. `PlaceSearch` measures
+  // its nearest clipping ancestor and opens upwards when there is no room below, which
+  // is what keeps that field usable inside a definite-height card — do not assume a
+  // popover in this rail can grow downwards.
   return (
-    <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:min-h-[680px] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border/80 lg:px-7 lg:pb-5 lg:pt-7">
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
@@ -506,7 +527,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         <CardContent className="grid gap-8 lg:contents">
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
-          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:flex-col lg:bg-muted/20 lg:p-8">
+          {/* `lg:min-h-0` + `lg:overflow-hidden` are what make the photo actually
+              yield space to the filmstrip instead of overflowing the fixed panel: a
+              grid item defaults to `min-height:auto`, which refuses to shrink below
+              its content. */}
+          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-muted/20 lg:p-8">
             <Label htmlFor="images">Photos</Label>
             <p className="text-body text-muted-foreground">
               Add {IMAGES_MIN}–{IMAGES_MAX} photos. {totalImages} selected.
@@ -515,31 +540,27 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             {/* Large cover preview / empty drop target. Clicking it opens the
                 file picker, same affordance as the thumbnail grid below.
 
-                TWO DIFFERENT SIZING RULES, because the two layouts have different
-                things to size against.
-
-                On `lg` the card is a grid and this panel spans all three of its rows,
-                so the panel's height is already whatever the details rail on the
-                right comes to. `lg:flex-1` makes the target FILL that, which is the
-                Facebook Marketplace behaviour: the photo is as tall as the form
-                beside it, and it grows if the rail grows. `lg:aspect-auto` and
-                `lg:max-h-none` are needed to get out of the way of that —
-                `aspect-[3/4]` ties height to the panel's WIDTH, which on the wide
-                side of the grid resolved to roughly 900px and overflowed the
-                viewport, and a `max-h` cap then fought the flex growth. `min-h-0`
-                lets it shrink below its content when the rail is short.
+                On `lg` the panel now has a FIXED height, so this is the element that
+                absorbs the difference: `lg:flex-1` takes whatever is left after the
+                label, the count and the filmstrip, which means adding photos SHRINKS
+                the cover rather than making the card taller. `lg:min-h-[10rem]` is
+                the floor — with ten thumbnails the strip is several rows, and without
+                a floor the cover could be squeezed to the height of its own icon.
+                `lg:aspect-auto` and `lg:max-h-none` get the mobile rules out of the
+                way: `aspect-[3/4]` ties height to WIDTH, which on the wide side of
+                the grid resolved to roughly 900px, and a `max-h` cap fought the flex.
 
                 Below `lg` the card is stacked, there is no rail alongside and so
-                nothing to match: the portrait ratio sets the shape and `60svh`
-                keeps it off the whole screen. `svh` rather than `dvh` so the target
-                does not resize as a mobile URL bar hides on scroll.
+                nothing to match: the portrait ratio sets the shape and `60svh` keeps
+                it off the whole screen. `svh` rather than `dvh` so the target does
+                not resize as a mobile URL bar hides on scroll.
 
-                The image is `object-contain` throughout, so neither rule crops. */}
+                The image is `object-contain` throughout, so nothing crops. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:aspect-auto lg:min-h-0 lg:max-h-none lg:flex-1`}
+              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:aspect-auto lg:min-h-[10rem] lg:max-h-none lg:flex-1`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -574,9 +595,15 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             />
 
             {/* Filmstrip of every selected photo, including the cover, so each
-                one can be removed individually. */}
+                one can be removed individually.
+
+                `lg:shrink-0` so the strip keeps its size and the COVER gives way
+                instead — the cover is the flexible one. Capped and scrollable because
+                ten thumbnails in four columns is three rows, which at this panel width
+                is taller than the cover's floor; without the cap the panel would
+                overflow its now-fixed height. */}
             {totalImages > 0 ? (
-              <ul className="grid grid-cols-4 gap-2">
+              <ul className="grid grid-cols-4 gap-2 lg:max-h-[9.5rem] lg:shrink-0 lg:overflow-y-auto">
                 {keptPaths.map((path) => {
                   const url = itemImageUrl(path);
                   return (
@@ -666,7 +693,13 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           </div>
 
           {/* Details form — a dedicated right-hand rail. */}
-          <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:border-l lg:border-border/80 lg:px-7 lg:pb-7">
+          {/* THE ONLY SCROLLING REGION. This is the grid's `1fr` row, so now that the
+              card's height is definite this is where the overflow belongs — the
+              header and footer stay pinned and the photo column stays put.
+              `lg:min-h-0` is required, not cosmetic: a grid item defaults to
+              `min-height:auto`, which grows the row to fit its content and would
+              silently defeat `overflow-y-auto`. */}
+          <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border/80 lg:px-7 lg:pb-7">
             {/* Listing kind (0064). First, because it changes what the rest of
                 this form means: for a shopfront the price below is only a guide
                 and the condition covers a mixed pile. Locked in edit mode. */}

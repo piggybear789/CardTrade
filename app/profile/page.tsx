@@ -172,13 +172,13 @@ export default async function ProfilePage({
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
                     <SectionLabel>Display name</SectionLabel>
-                    <p className="mt-1 truncate text-body font-medium">
+                    <p className="mt-1 truncate text-lead font-semibold">
                       {profile.display_name}
                     </p>
                   </div>
                   <div>
                     <SectionLabel>Email</SectionLabel>
-                    <p className="mt-1 truncate text-body text-muted-foreground">
+                    <p className="mt-1 truncate text-meta text-muted-foreground">
                       {profile.contact_email}
                     </p>
                   </div>

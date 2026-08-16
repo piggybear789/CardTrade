@@ -164,9 +164,9 @@ export function SettingsRow({
       <div className="flex flex-wrap items-center gap-x-group gap-y-cozy p-group">
         {icon ? <IconMedallion icon={icon} tone={tone} /> : null}
         <div className="min-w-0 flex-1">
-          <p className="text-body font-medium text-foreground">{title}</p>
+          <p className="text-body font-semibold text-foreground">{title}</p>
           {subtitle ? (
-            <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">
+            <p className="mt-0.5 text-meta text-muted-foreground">
               {subtitle}
             </p>
           ) : null}
@@ -193,7 +193,7 @@ export function SettingsPlaceholder({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-cozy rounded-xl border border-dashed px-group py-group">
-      <p className="text-body text-muted-foreground">{children}</p>
+      <p className="text-meta text-muted-foreground">{children}</p>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );

@@ -199,18 +199,13 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
           Pending payouts
         </h3>
         <Card className="h-full">
-          <CardHeader className="pb-3">
+          <CardHeader className="p-4">
             <CardDescription>Owed to you</CardDescription>
-            <CardTitle className="text-display tabular-nums">{formatAud(0)}</CardTitle>
+            <CardTitle className="text-subhead tabular-nums">{formatAud(0)}</CardTitle>
             <CardDescription>
-              No funds are queued for release yet. Releases happen automatically after a sale resolves.
+              Funds are released after a contract resolves.
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-body text-muted-foreground">
-              Net proceeds are released automatically after a sale resolves.
-            </p>
-          </CardContent>
         </Card>
       </section>
     );
@@ -225,7 +220,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
       <Card className="h-full">
         <CardHeader className="pb-3">
           <CardDescription>Owed to you</CardDescription>
-          <CardTitle className="text-head tabular-nums">
+          <CardTitle className="text-subhead tabular-nums">
             {formatAud(model.releasingNowCents)}
           </CardTitle>
           <CardDescription>
@@ -238,7 +233,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
               <dt className="text-meta uppercase tracking-wide text-muted-foreground">
                 Upcoming
               </dt>
-              <dd className="mt-0.5 text-lead font-semibold tabular-nums">
+              <dd className="mt-0.5 text-body font-semibold tabular-nums">
                 {formatAud(model.upcomingProceedsCents)}
               </dd>
               <p className="mt-0.5 text-body text-muted-foreground">
@@ -250,7 +245,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
                 <dt className="text-meta uppercase tracking-wide text-muted-foreground">
                   Under dispute
                 </dt>
-                <dd className="mt-0.5 text-lead font-semibold tabular-nums">
+                <dd className="mt-0.5 text-body font-semibold tabular-nums">
                   {formatAud(model.atRiskProceedsCents)}
                 </dd>
                 <p className="mt-0.5 text-body text-muted-foreground">

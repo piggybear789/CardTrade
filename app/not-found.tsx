@@ -34,8 +34,8 @@ export default function NotFound() {
           <Link href="/">Back to home</Link>
         </Button>
       </div>
-      <p className="mt-10 inline-flex items-center gap-2 text-meta text-muted-foreground">
-        <ShieldCheck className="size-4 text-trust" aria-hidden="true" />
+      <p className="mt-10 inline-flex items-start gap-2 text-meta text-muted-foreground">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden="true" />
         Every trade on NoDitto shows collateral terms and identity verification status.
       </p>
     </main>

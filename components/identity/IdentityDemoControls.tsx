@@ -84,8 +84,8 @@ export function IdentityDemoControls() {
         aria-label={open ? 'Collapse hackathon test controls' : 'Expand hackathon test controls'}
         className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        <span className="flex min-w-0 items-center gap-snug">
-          <FlaskConical className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+        <span className="flex min-w-0 items-start gap-snug">
+          <FlaskConical className="cardtrade-demo-label mt-0.5 size-4 shrink-0" aria-hidden />
           <span className="min-w-0">
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode

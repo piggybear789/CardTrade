@@ -80,7 +80,15 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
             <li key={step.id} className="flex min-w-0 flex-1 flex-col items-center">
               {/* Connector halves either side of the tick, so the line never
                   overshoots the first or last step. Only the connectors are
-                  aria-hidden — the tick button itself must stay reachable. */}
+                  aria-hidden — the tick button itself must stay reachable.
+
+                  THE LINE HAS TWO MEANINGS, NOT THREE. It is progress travelled
+                  (`trust`, green) or it is not (`border`), with `destructive` for the
+                  segment into a halt. The segment leading INTO the active step counts
+                  as travelled — you got there — so it is green, not gold. Gold on that
+                  one segment read as a third state the rail does not have, and it put
+                  the accent colour on a line while the accent's real job is the "you
+                  are here" marker at the end of it. */}
               <div className="flex w-full items-center">
                 <span
                   aria-hidden
@@ -88,13 +96,11 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     'h-[3px] flex-1 rounded-full transition-[background-color] duration-500',
                     first
                       ? 'bg-transparent'
-                      : done
+                      : done || live
                         ? 'bg-trust/60'
-                        : live
-                          ? 'bg-gold/60'
-                          : halted
-                            ? 'bg-destructive/50'
-                            : 'bg-border',
+                        : halted
+                          ? 'bg-destructive/50'
+                          : 'bg-border',
                   )}
                 />
                 <button
@@ -147,20 +153,19 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     'h-[3px] flex-1 rounded-full transition-[background-color] duration-500',
                     last
                       ? 'bg-transparent'
-                      : steps[index + 1]?.status === 'done'
+                      : steps[index + 1]?.status === 'done' ||
+                          steps[index + 1]?.status === 'active'
                         ? 'bg-trust/60'
-                        : steps[index + 1]?.status === 'active'
-                          ? 'bg-gold/60'
-                          : steps[index + 1]?.status === 'halted'
-                            ? 'bg-destructive/50'
-                            : 'bg-border',
+                        : steps[index + 1]?.status === 'halted'
+                          ? 'bg-destructive/50'
+                          : 'bg-border',
                   )}
                 />
               </div>
 
               <span
                 className={cn(
-                  'mt-1.5 max-w-full truncate px-1 text-meta transition-colors duration-300',
+                  'mt-1.5 max-w-full truncate px-1 text-[0.6875rem] transition-colors duration-300',
                   live
                     ? 'font-semibold text-foreground'
                     : halted

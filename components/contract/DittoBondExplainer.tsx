@@ -1,4 +1,4 @@
-// components/contract/DittoBondExplainer.tsx
+﻿// components/contract/DittoBondExplainer.tsx
 //
 // Member-facing explanations of where money sits in each transaction model. The two
 // exports describe DIFFERENT mechanisms and must not be merged:
@@ -20,11 +20,11 @@ import {
   ArrowRight,
   CheckCircle2,
   CreditCard,
-  Package,
-  Search,
+  Lock,
   ShieldAlert,
   ShieldCheck,
   Timer,
+  Undo2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -122,72 +122,41 @@ export function DittoBondExplainer() {
 }
 
 
-/** One stage of the cash-sale money flow. */
-function MoneyStage({
-  index,
+/** One box on the cash-sale custody diagram: who has the money, and while what. */
+function CustodyBox({
+  icon: Icon,
   title,
-  where,
-  icon,
-  tone = 'neutral',
-  last = false,
-  children,
+  detail,
+  held = false,
 }: {
-  index: number;
+  icon: typeof CreditCard;
   title: string;
-  /** Where the buyer's money physically is during this stage. */
-  where: string;
-  /** Lucide icon name for the stage marker. */
-  icon?: 'credit-card' | 'package' | 'search' | 'check-circle';
-  tone?: 'neutral' | 'success';
-  /** Suppresses the connector beneath the final stage. */
-  last?: boolean;
-  children: ReactNode;
+  detail: string;
+  /** The one box where the money is sitting rather than moving. */
+  held?: boolean;
 }) {
-  const IconComponent = icon
-    ? { 'credit-card': CreditCard, 'package': Package, 'search': Search, 'check-circle': CheckCircle2 }[icon]
-    : null;
-
   return (
-    <li className="flex gap-cozy sm:gap-group">
-      <div className="flex flex-col items-center">
-        <span
-          className={cn(
-            'grid size-8 shrink-0 place-items-center rounded-full border',
-            tone === 'success'
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-              : 'border-border bg-background text-foreground',
-          )}
-          aria-hidden
-        >
-          {IconComponent ? <IconComponent className="size-4" /> : index}
-        </span>
-        {last ? null : <span className="mt-1 w-px flex-1 bg-border" aria-hidden />}
-      </div>
-
-      <div className={cn('min-w-0 flex-1', last ? 'pb-0' : 'pb-5')}>
+    <div className="flex min-w-0 items-start gap-snug">
+      <span
+        className={cn(
+          'mt-0.5 grid size-8 shrink-0 place-items-center rounded-full border',
+          held
+            ? 'border-trust/45 bg-trust/10 text-trust'
+            : 'border-border bg-background text-foreground',
+        )}
+      >
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <div className="min-w-0">
         <p className="text-body font-semibold leading-tight">{title}</p>
-        <p className="mt-1 text-body text-muted-foreground">{children}</p>
-        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-tight text-meta">
-          <span className="font-medium uppercase tracking-wide text-muted-foreground">
-            Money
-          </span>
-          <span
-            className={cn(
-              'font-medium',
-              tone === 'success' ? 'text-emerald-700' : 'text-foreground',
-            )}
-          >
-            {where}
-          </span>
-        </p>
+        <p className="mt-0.5 text-meta leading-4 text-muted-foreground">{detail}</p>
       </div>
-    </li>
+    </div>
   );
 }
 
 /**
- * Explains where a Cash_Sale buyer's money sits at each stage, and when the Seller
- * is paid.
+ * Explains where a Cash_Sale buyer's money sits, and when the Seller is paid.
  *
  * DELIBERATELY SAYS NOTHING ABOUT COLLATERAL. A Cash_Sale has none: the Buyer's
  * money is genuinely collected up front, so there is nothing left for either party
@@ -201,46 +170,74 @@ function MoneyStage({
  * Trade collateral is a different thing entirely and is explained by
  * `DittoBondExplainer`; do not merge the two.
  *
- * The stages are a vertical list, not the three side-by-side columns this replaced.
- * In a `max-w-2xl` dialog those columns were ~150px wide, so every line broke after
- * two or three words.
+ * THREE BOXES, ONE FORK, AND NO LEGEND. Two earlier versions both failed the same
+ * way: they were built around the sale's four STAGES (pay, ship, inspect, resolve),
+ * which meant the diagram had to say "the money has not moved" three times — once
+ * as repeated "MONEY — Held by NoDitto" rows, then as a band spanning three
+ * columns with the sentences repeated underneath as a legend. Every stage label
+ * appeared twice on screen.
+ *
+ * A member asking "where is my money" is asking about CUSTODY, and custody only has
+ * three positions: yours, ours, or theirs. Shipping and inspection are not custody
+ * changes — they are what happens WHILE we hold it, so they belong inside the middle
+ * box as one clause. That collapses the whole explanation to a payment, a hold, and
+ * a two-way fork, with no fact stated twice and no legend to keep in step.
  */
 export function CashSaleProtectionExplainer() {
   return (
-    <div className="space-y-5">
-      <p className="text-body text-muted-foreground">
-        Your payment is held by NoDitto until you&apos;re happy — the seller
-        is never paid directly.
-      </p>
+    <div className="space-y-group">
+      {/* One `role="img"` carrying the whole journey. The labels are real text and
+          are fine to read, but a graphics role suppresses them for assistive tech,
+          so the label has to be the complete answer on its own. */}
+      <div
+        className={cn(
+          'grid gap-cozy',
+          'sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.1fr)_auto_minmax(0,1.2fr)] sm:items-center',
+        )}
+        role="img"
+        aria-label="You pay the full amount up front. NoDitto holds it while the seller posts the item and you check it over. The seller is paid when you accept or the inspection window closes; if you dispute inside the window, a person reviews it and you can be refunded."
+      >
+        <CustodyBox
+          icon={CreditCard}
+          title="You pay"
+          detail="The full amount, up front."
+        />
 
-      <ol className="list-none">
-        <MoneyStage index={1} title="You pay" where="Held by NoDitto" icon="credit-card">
-          Stripe collects the item price + delivery. This commits the sale.
-        </MoneyStage>
+        <ArrowRight
+          className="mx-auto size-4 shrink-0 rotate-90 text-muted-foreground sm:rotate-0"
+          aria-hidden
+        />
 
-        <MoneyStage index={2} title="Seller ships" where="Held by NoDitto" icon="package">
-          They can see it&apos;s paid — that&apos;s their signal to post.
-        </MoneyStage>
+        <CustodyBox
+          icon={Lock}
+          title="NoDitto holds it"
+          detail="While the seller posts it and you check it over."
+          held
+        />
 
-        <MoneyStage index={3} title="You inspect" where="Held by NoDitto" icon="search">
-          Check the item when it arrives. Dispute within the window if
-          something&apos;s wrong.
-        </MoneyStage>
+        <ArrowRight
+          className="mx-auto size-4 shrink-0 rotate-90 text-muted-foreground sm:rotate-0"
+          aria-hidden
+        />
 
-        <MoneyStage
-          index={4}
-          title="Resolved"
-          where="Released to seller, or refunded to you"
-          icon="check-circle"
-          tone="success"
-          last
-        >
-          Accept or let the window close → seller is paid. Dispute → money
-          stays frozen for review.
-        </MoneyStage>
-      </ol>
+        {/* THE FORK. Two outcomes from one position, so they share a bracket rather
+            than sitting in the flow as two more steps — the money goes to exactly
+            one of them. */}
+        <div className="space-y-cozy border-l pl-cozy">
+          <CustodyBox
+            icon={CheckCircle2}
+            title="Seller is paid"
+            detail="When you accept, or the inspection window closes."
+          />
+          <CustodyBox
+            icon={Undo2}
+            title="Or you are refunded"
+            detail="Dispute inside the window and a person reviews it."
+          />
+        </div>
+      </div>
 
-      <div className="flex items-start gap-snug rounded-md border bg-muted/30 p-cozy">
+      <div className="flex items-start gap-snug border-t pt-cozy">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
         <p className="text-meta text-muted-foreground">
           <span className="font-medium text-foreground">Every seller is verified</span>{' '}

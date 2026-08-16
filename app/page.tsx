@@ -258,8 +258,8 @@ function ComparisonRow({
   return (
     <div className="grid gap-2 border-b border-parchment/15 py-5 sm:grid-cols-[1.1fr_1fr_1fr] sm:items-center sm:gap-6">
       <h3 className="text-body font-semibold">{aspect}</h3>
-      <p className="flex items-center gap-2 text-body text-parchment/60">
-        <X className="size-4 shrink-0 text-parchment/45" aria-hidden="true" />
+      <p className="flex items-start gap-2 text-body text-parchment/60">
+        <X className="mt-0.5 size-4 shrink-0 text-parchment/45" aria-hidden="true" />
         <span>
           <span className="market-label mr-1.5 text-parchment/50 sm:hidden">
             Elsewhere:
@@ -267,8 +267,8 @@ function ComparisonRow({
           {typical}
         </span>
       </p>
-      <p className="flex items-center gap-2 text-body font-medium">
-        <Check className="size-4 shrink-0 text-trust" aria-hidden="true" />
+      <p className="flex items-start gap-2 text-body font-medium">
+        <Check className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden="true" />
         <span>
           <span className="market-label mr-1.5 text-gold sm:hidden">Us:</span>
           {ours}

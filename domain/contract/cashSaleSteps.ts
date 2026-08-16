@@ -346,7 +346,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 5. The buyer's inspection window closes the contract and releases funds.
   drafts.push({
     id: 'inspect',
-    short: '',
+    short: 'Finish',
     label: 'Buyer accepts the item',
     detail:
       viewerRole === 'BUYER'
@@ -387,7 +387,9 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
 
     drafts.push({
       id: 'return-refund',
-      short: '',
+      // Not 'Finish': the Finish tick is already on the rail above, and the return
+      // leg is what happens AFTER the buyer declined to finish it that way.
+      short: 'Refund',
       label: 'Refund released',
       detail:
         'The refund releases automatically once a carrier confirms the return reached the seller.',

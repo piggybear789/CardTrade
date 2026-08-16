@@ -24,7 +24,7 @@
 //     "Payment clears into escrow" → "Both confirm the handover" →
 //     "Buyer accepts the item".
 //   * Acceptance is asymmetric copy: the buyer's button is
-//     "Accept & pay $X with Stripe", the seller's is "Accept terms". They are the
+//     "Accept and pay $X", the seller's is "Accept terms". They are the
 //     same transition and must not be matched by one pattern.
 
 import { test, expect } from '../support/fixtures';
@@ -242,7 +242,7 @@ test.describe.serial('Cash sale lifecycle', () => {
     const buyerPage = await buyerCtx.newPage();
     await buyerPage.goto(saleUrl);
     await buyerPage.waitForLoadState('domcontentloaded');
-    const buyerAccept = buyerPage.getByRole('button', { name: /Accept & pay .* with Stripe/i });
+    const buyerAccept = buyerPage.getByRole('button', { name: /Accept and pay .*/i });
     await expect(buyerAccept).toBeVisible({ timeout: RENDERED });
     await buyerAccept.click();
     // The control retires once this side has accepted — the cheapest proof the write

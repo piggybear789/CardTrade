@@ -46,9 +46,12 @@ export function ContractHeader({
     <Card className={cn('border-border/90 shadow-sm', className)}>
       <CardContent className="space-y-snug p-group">
         <div className="flex flex-wrap items-baseline justify-between gap-x-group gap-y-1">
-          {/* The page shell renders the route <h1>; this is the contract's own title. */}
+          {/* The page shell renders the route <h1>; this is the contract's own title.
+              `text-subhead`: at `text-body` it was the same size as a detail row's
+              label and one step smaller than the money beside it, so the thing the
+              contract is ABOUT was the quietest text in its own identity strip. */}
           <h2
-            className="min-w-0 flex-1 truncate text-body font-semibold tracking-tight"
+            className="min-w-0 flex-1 truncate text-subhead font-semibold tracking-tight"
             title={title}
           >
             {title}

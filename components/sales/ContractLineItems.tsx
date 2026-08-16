@@ -141,7 +141,7 @@ export function ContractRequestFields({
   currency = CURRENCY_CODE,
   idPrefix = 'request',
   descriptionLabel = 'What you want',
-  descriptionHint = 'Describe the cards in your own words. You can both change this in the contract before either of you accepts.',
+  descriptionHint = 'You can both change this in the contract before either of you accepts.',
   priceLabel = 'Your offer',
 }: {
   value: RequestDraft;
@@ -191,11 +191,6 @@ export function ContractRequestFields({
           disabled={disabled}
           aria-describedby={`${priceId}-hint`}
         />
-        <p id={`${priceId}-hint`} className="text-meta text-muted-foreground">
-          The price for the lot
-          {offerCents > 0 ? ` — ${formatMoney(offerCents, currency)}` : ''}. The 5%
-          platform fee and any postage are added on top when you agree terms.
-        </p>
       </div>
 
       {error ? (
@@ -239,39 +234,48 @@ export function ContractLineItemsList({
   const itemised = lines.length > 1 || lines.some((line) => line.quantity > 1);
 
   return (
-    <div className="space-y-snug">
-      <ul className="divide-y rounded-md border">
-        {lines.map((line, index) => (
-          <li
-            key={line.id ?? index}
-            className="flex items-baseline justify-between gap-cozy px-cozy py-snug text-body"
-          >
-            <div className="min-w-0">
-              {/* `whitespace-pre-wrap`: the description is prose now, and a written
-                  want list uses line breaks. Collapsing them ran three cards into
-                  one sentence. */}
-              <p className="whitespace-pre-wrap break-words font-medium">
-                {line.description}
-              </p>
-              {line.quantity > 1 || line.condition ? (
-                <p className="text-meta text-muted-foreground">
-                  {line.quantity > 1 ? `${line.quantity} × ${money(line.unitPriceCents)}` : ''}
-                  {line.quantity > 1 && line.condition ? ' · ' : ''}
-                  {line.condition ?? ''}
+    <div className="space-y-group">
+      {/* Headed prose, not a framed list. The tab this renders in is already a
+          surface, so the border around the lines read as a card inside a card —
+          and it framed a paragraph of prose as though it were a table. Same
+          treatment as the single-item snapshot's description, so a binder
+          contract and a one-object contract describe their goods identically. */}
+      <div>
+        <h4 className="text-body font-semibold">Description</h4>
+        <div className="mt-2 space-y-snug">
+          {lines.map((line, index) => (
+            <div
+              key={line.id ?? index}
+              className="flex items-baseline justify-between gap-cozy text-body"
+            >
+              <div className="min-w-0">
+                {/* `whitespace-pre-wrap`: the description is prose, and a written
+                    want list uses line breaks. Collapsing them ran three cards
+                    into one sentence. */}
+                <p className="whitespace-pre-wrap break-words text-muted-foreground">
+                  {line.description}
                 </p>
+                {line.quantity > 1 || line.condition ? (
+                  <p className="text-meta text-muted-foreground">
+                    {line.quantity > 1 ? `${line.quantity} × ${money(line.unitPriceCents)}` : ''}
+                    {line.quantity > 1 && line.condition ? ' · ' : ''}
+                    {line.condition ?? ''}
+                  </p>
+                ) : null}
+              </div>
+              {/* A single line's amount IS the total below it, so printing it twice
+                  was noise. Shown only when the list is itemised. */}
+              {itemised ? (
+                <span className="shrink-0 font-medium">
+                  {money(line.quantity * line.unitPriceCents)}
+                </span>
               ) : null}
             </div>
-            {/* A single line's amount IS the total below it, so printing it twice
-                on one row was noise. Shown only when the list is itemised. */}
-            {itemised ? (
-              <span className="shrink-0 font-medium">
-                {money(line.quantity * line.unitPriceCents)}
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      <div className="flex items-center justify-between px-cozy text-body">
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between border-t pt-cozy text-body">
         <span className="text-muted-foreground">Agreed price</span>
         <span className="font-semibold">{money(total)}</span>
       </div>

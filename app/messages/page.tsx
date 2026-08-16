@@ -130,7 +130,7 @@ export default async function MessagesPage() {
                           taller for no gain. The name keeps priority when space is tight —
                           it truncates last, because two conversations about one item are
                           told apart by who they are with. */}
-                      <p className="flex min-w-0 items-center gap-tight font-medium">
+                      <p className="flex min-w-0 items-center gap-tight text-body font-medium">
                         <Avatar
                           avatarPath={c.other.avatarPath}
                           displayName={name}

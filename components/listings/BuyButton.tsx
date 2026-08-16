@@ -209,8 +209,8 @@ export function BuyButton({
               <DialogTitle>Start a purchase contract</DialogTitle>
               <DialogDescription>
                 {isShopfront
-                  ? 'Say what you want from this listing and what you would pay. The seller can change both with you before either of you accepts, and you pay through Stripe only once you agree.'
-                  : 'This reserves the item and opens a private contract with the seller. You pay through Stripe only after you both agree how the item changes hands.'}
+                  ? 'Describe your desired items. You do not pay yet.'
+                  : 'This reserves the item and opens a contract with the seller. You do not pay yet.'}
               </DialogDescription>
             </DialogHeader>
 
@@ -221,14 +221,6 @@ export function BuyButton({
                   between a disappointed buyer and a misled one. */}
               {isShopfront ? (
                 <>
-                  <div className="rounded-lg border border-dashed bg-muted/30 p-3 text-body">
-                    <p className="font-medium">Nothing is held for you yet</p>
-                    <p className="mt-1 text-muted-foreground">
-                      Other buyers can ask for the same cards. Your place is
-                      settled when you both accept the terms and your payment is
-                      confirmed.
-                    </p>
-                  </div>
                   <ContractRequestFields
                     value={request}
                     onChange={setRequest}
@@ -282,9 +274,16 @@ export function BuyButton({
                 </dl>
               </div>
 
-              {/* Saved payment method widget — just above the confirmation */}
+              {/* Saved payment method widget — just above the confirmation.
+                  The ROW stays `items-center` because the Button on the right
+                  belongs on the row's axis; only the icon self-aligns to the
+                  label it sits beside. Top-aligning the whole row would send the
+                  button up with it. */}
               <div className="flex items-center gap-3 rounded-lg border p-3">
-                <CreditCard className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                <CreditCard
+                  className="mt-0.5 h-5 w-5 shrink-0 self-start text-muted-foreground"
+                  aria-hidden
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium">
                     {paymentLabel ?? 'Card on file'}

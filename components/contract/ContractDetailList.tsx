@@ -171,7 +171,13 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             <ScrollText className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-meta font-semibold uppercase tracking-wide text-muted-foreground">Contract Details</h2>
+            {/* Matches the chat panel's own heading exactly (`text-body
+                font-semibold`) — the two panels sit side by side, so a different
+                weight or size on one reads as a hierarchy that is not there.
+                It was `text-heading font-bold tracking-wide`, and `text-heading`
+                is not in the type scale at all: Tailwind emitted nothing for it,
+                so the heading fell back to the inherited 16px. */}
+            <h2 className="text-body font-semibold">Contract Details</h2>
             <p className="truncate text-meta text-muted-foreground">
               Review one part of the agreement at a time
             </p>
@@ -222,7 +228,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   onClick={() => selectTab(index)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
-                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-meta font-medium transition-colors',
+                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-[0.6875rem] font-medium transition-colors',
                     explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
                     'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     isDestructive

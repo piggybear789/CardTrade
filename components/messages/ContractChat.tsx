@@ -206,7 +206,7 @@ export function ContractChat({
                   ) : null}
                   <div
                     className={cn(
-                      'max-w-[82%] rounded-2xl px-3 py-2 text-body',
+                      'max-w-[82%] rounded-2xl px-3 py-2 text-meta',
                       mine
                         ? 'rounded-br-sm bg-primary text-primary-foreground'
                         : 'rounded-bl-sm bg-muted text-foreground',

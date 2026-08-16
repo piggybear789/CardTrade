@@ -49,7 +49,6 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   ContractActionCard,
   CashSaleProtectionExplainer,
-  CollateralExplainerDialog,
   ContractConversationPanel,
   ContractDetailList,
   ContractDetailRow,
@@ -682,7 +681,7 @@ function CashSaleRoom({
                       <Check aria-hidden />
                     )}
                     {iAmBuyer
-                      ? `Accept & pay ${money(sale.amount_cents)} with Stripe`
+                      ? `Accept and pay ${money(sale.amount_cents)}`
                       : 'Accept terms'}
                   </Button>
                 ) : null}
@@ -1016,20 +1015,39 @@ function CashSaleRoom({
                   </div>
                 ) : null}
 
-                <div className="flex min-w-0 flex-col gap-3 md:flex-1 md:overflow-y-auto md:overscroll-contain md:pr-1">
+                {/* `md:pb-1.5` IS FOR THE FOCUS RING, not for looks. `mt-auto` below
+                    makes the content exactly fill this scroller, so anything painted
+                    outside the last child's box creates overflow — and the button
+                    paints 4px of `ring-2 ring-offset-2` plus 1px of
+                    `active:translate-y-px`. Without the slack, clicking Change items
+                    made a scrollbar appear on a pane with nothing to scroll. The
+                    right edge already had its 4px via `md:pr-1`. */}
+                <div className="flex min-w-0 flex-col gap-3 md:flex-1 md:overflow-y-auto md:overscroll-contain md:pb-1.5 md:pr-1">
                   <ContractLineItemsList lines={lineItems} currency={sale.currency} />
+                  {/* The control sits WITH the sentence that explains what it
+                      costs you, not above it. On its own it was a bare button
+                      between the agreed lines and a caveat it did not appear to
+                      belong to — and the caveat is the whole point: pressing it
+                      re-prices the contract and drops both acceptances.
+
+                      `mt-auto` pins it to the bottom of the column so it lands in
+                      the same place whether the contract covers one line or ten.
+                      Not `justify-between` on the column: this pane is a scroller
+                      from `md`, and distributing space in an overflow container
+                      makes the overflowing top unreachable. */}
                   {editable ? (
-                    <div className="space-y-snug">
-                      <EditContractItemsDialog
-                        cashSaleId={sale.id}
-                        termsVersion={sale.terms_version}
-                        lines={lineItems}
-                        currency={sale.currency}
-                      />
-                      <p className="text-meta text-muted-foreground">
-                        Changing this re-prices the contract and clears both
-                        acceptances, so you will each need to accept again.
+                    <div className="mt-auto flex flex-col gap-cozy pt-cozy sm:flex-row sm:items-center sm:justify-between">
+                      <p className="min-w-0 text-meta text-muted-foreground">
+                        You will need to accept again after editing.  
                       </p>
+                      <div className="shrink-0">
+                        <EditContractItemsDialog
+                          cashSaleId={sale.id}
+                          termsVersion={sale.terms_version}
+                          lines={lineItems}
+                          currency={sale.currency}
+                        />
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -1150,22 +1168,11 @@ function CashSaleRoom({
             )
           ) : (
             <div className="flex w-full min-h-0 flex-1 flex-col gap-cozy">
-              <div
-                className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug rounded-md border bg-muted/30 px-cozy py-snug text-meta"
-                aria-label={`Terms version ${sale.terms_version} acceptance status`}
-              >
-                <span className="font-semibold text-foreground">
-                  Version {sale.terms_version}
-                </span>
-                <div className="flex flex-wrap items-center gap-x-cozy gap-y-1 text-muted-foreground">
-                  <span>
-                    You: <span className="font-medium text-foreground">{iAccepted ? 'accepted' : 'needs acceptance'}</span>
-                  </span>
-                  <span>
-                    {them.name}: <span className="font-medium text-foreground">{theyAccepted ? 'accepted' : 'waiting'}</span>
-                  </span>
-                </div>
-              </div>
+              {/* No version / acceptance strip here. Whose move it is has ONE home —
+                  `ContractActionCard` — and the progress rail carries the Accept Terms
+                  tick beside it, so this restated the same two facts a third time in
+                  the terms tab. The version number is not a member-facing fact either:
+                  it exists so an acceptance binds the exact terms it named. */}
               <ContractMoneyTable
                 ariaLabel="Proposed handover terms"
                 rows={
@@ -1285,7 +1292,7 @@ function CashSaleRoom({
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.collateral}
           label="Protection"
-          explainer="You're protected by NoDitto until you have the item and are happy with it. Open the full explanation to see how buyer protection works at each stage."
+          explainer="You're protected by NoDitto until you have the item and are happy with it. This tab shows where your money sits at each stage."
           summary="Buyer protection active"
           contentClassName="gap-3"
         >
@@ -1294,22 +1301,24 @@ function CashSaleRoom({
               party to guarantee with a card hold — and the only Seller bond the
               policy could ever produce required an UNVERIFIED Seller, which
               publishing a listing makes impossible. See
-              `CashSaleProtectionExplainer`. */}
-          <div className="flex flex-col gap-cozy rounded-lg border bg-muted/25 p-cozy sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="font-medium">Your payment is the protection here</p>
-              <p className="mt-0.5 text-meta text-muted-foreground">
-                {seller.name} is paid only once the sale resolves — not when the
-                item is sent.
-              </p>
-            </div>
-            <CollateralExplainerDialog
-              title="Where your money sits"
-              description="Payment is collected up front and held by NoDitto until the sale resolves."
-              triggerLabel="How protection works"
-            >
-              <CashSaleProtectionExplainer />
-            </CollateralExplainerDialog>
+              `CashSaleProtectionExplainer`.
+
+              THE EXPLAINER IS THE TAB, not a dialog behind a button. This row held a
+              two-line summary and a "How protection works" trigger, which left most of
+              a full-height panel empty and put the actual answer one click away — in a
+              modal that then had to re-state the heading and the summary to stand on
+              its own. A tab whose whole job is to explain protection has nothing to
+              gain from hiding the explanation. */}
+          <div className="min-w-0">
+            <p className="font-medium">Your payment is the protection here</p>
+            <p className="mt-0.5 text-meta text-muted-foreground">
+              {seller.name} is paid only once the sale resolves — not when the
+              item is sent.
+            </p>
+          </div>
+
+          <div className="border-t pt-group">
+            <CashSaleProtectionExplainer />
           </div>
         </ContractDetailRow>
 

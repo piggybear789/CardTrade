@@ -224,7 +224,14 @@ export function ChatThread({
               <div
                 key={message.id}
                 className={cn(
-                  'flex items-end gap-2',
+                  // `items-center`, not `items-end`. The bubble carries its own
+                  // timestamp line, so it is ~54px tall against a 24px avatar —
+                  // bottom-aligning parked the avatar beside the date rather than
+                  // beside the message, and on a multi-line message it drifted
+                  // further still. Chat convention bottom-aligns to hug the tail of
+                  // the bubble; that convention assumes a bubble whose last line IS
+                  // the message.
+                  'flex items-center gap-2',
                   isMine ? 'justify-end' : 'justify-start',
                 )}
               >
@@ -240,7 +247,7 @@ export function ChatThread({
                 )}
                 <div
                   className={cn(
-                    'max-w-[75%] rounded-2xl px-4 py-2 text-body',
+                    'max-w-[75%] rounded-2xl px-4 py-2 text-meta',
                     isMine
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground',

@@ -6,6 +6,7 @@
 // island is the sign-out control (see SignOutButton).
 
 import Link from 'next/link';
+import { BookmarkCheck, MessageCircle } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { listMyNotifications } from '@/lib/actions/notifications';
@@ -117,6 +118,40 @@ export async function SiteHeader() {
           <RegionIndicator regionCode={region.code} source={region.source} />
           {isAuthenticated && user ? (
             <>
+              {/* PROMOTED OUT OF THE BURGER, as icons. The overflow menu had grown to
+                  six labelled groups, and two of its rows — Notifications and Account
+                  — were already in this bar as the bell and the avatar, so the menu
+                  was restating the header rather than extending it. Saved and Messages
+                  are the two highest-frequency destinations that were menu-only, so
+                  they come up here and the corresponding rows drop out of the menu at
+                  the same breakpoint.
+
+                  `hidden sm:inline-flex`, not always-on: below `sm` this bar is
+                  already carrying the wordmark, the region, the bell, a truncated
+                  display name and the burger, and two more icons crowd it. Below `sm`
+                  these stay in the menu instead — see PROMOTED_HREFS in SiteMenu,
+                  which hides exactly these rows from `sm` up, so neither viewport gets
+                  a dead end and neither gets the row twice.
+
+                  Icon-only needs the accessible name spelled out: the glyph is the
+                  whole control, so `aria-label` is the only name it has, and `title`
+                  gives sighted users the same word on hover. */}
+              <Link
+                href="/saved"
+                aria-label="Saved listings"
+                title="Saved"
+                className="hidden size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian sm:inline-flex"
+              >
+                <BookmarkCheck className="size-5" aria-hidden />
+              </Link>
+              <Link
+                href="/messages"
+                aria-label="Messages"
+                title="Messages"
+                className="hidden size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian sm:inline-flex"
+              >
+                <MessageCircle className="size-5" aria-hidden />
+              </Link>
               <NotificationBell
                 userId={user.id}
                 initialNotifications={

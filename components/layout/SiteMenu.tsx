@@ -53,6 +53,33 @@ const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
   },
 ];
 
+/**
+ * Destinations the SITE HEADER already carries, so the menu does not repeat them.
+ *
+ * The bell has always been Notifications and the avatar has always been Account, so
+ * two of the menu's rows were restating the bar above them. Saved and Messages are
+ * now icons up there too. All four rows are therefore hidden from `sm` up — the
+ * breakpoint at which those header controls appear — and kept below it, because the
+ * two new icons are `hidden sm:inline-flex` and removing the rows outright would
+ * make Saved unreachable on a phone.
+ *
+ * NOT removed from `MARKETPLACE_NAV_GROUPS`: that constant also drives the desktop
+ * rail, which is a workspace sidebar that SHOULD list Messages and Account, and the
+ * mobile hubs read it by index. Skipping rows is this menu's business, so the
+ * decision lives here rather than in the shared map.
+ */
+const PROMOTED_TO_HEADER: readonly string[] = [
+  '/saved',
+  '/messages',
+  '/notifications',
+  '/profile',
+];
+
+/** True when every link in a group is already in the header. */
+function groupIsFullyPromoted(group: MarketplaceNavGroup): boolean {
+  return group.links.every((link) => PROMOTED_TO_HEADER.includes(link.href));
+}
+
 export interface SiteMenuProps {
   isAuthenticated: boolean;
   /** May moderate: shows the Admin console link. */
@@ -87,12 +114,19 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
    */
   function renderLink(link: MarketplaceNavLink, trackCurrent = true) {
     const active = trackCurrent && isMarketplaceSectionActive(pathname, link.href);
+    // A row the header already carries stays reachable on a phone and disappears
+    // from `sm` up, where the icon for it exists.
+    const promoted = PROMOTED_TO_HEADER.includes(link.href);
     return (
       <Button
         key={link.href}
         asChild
         variant="ghost"
-        className={cn('justify-start', active && 'bg-accent text-accent-foreground')}
+        className={cn(
+          'justify-start',
+          promoted && 'sm:hidden',
+          active && 'bg-accent text-accent-foreground',
+        )}
       >
         <Link href={link.href} aria-current={active ? 'page' : undefined}>
           <link.icon aria-hidden />
@@ -183,15 +217,28 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
               </>
             ) : (
               <>
-                {MARKETPLACE_NAV_GROUPS.map((group, index) => (
-                  <Fragment key={group.label}>
-                    {index > 0 ? <div className="my-1 border-t" /> : null}
-                    <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
-                      {group.label}
-                    </p>
-                    {group.links.map((link) => renderLink(link))}
-                  </Fragment>
-                ))}
+                {MARKETPLACE_NAV_GROUPS.map((group, index) => {
+                  // The "You" group is entirely in the header now, so its heading and
+                  // rule have to go with its rows — otherwise `sm` and up shows a
+                  // "YOU" label with nothing under it.
+                  const fullyPromoted = groupIsFullyPromoted(group);
+                  return (
+                    <Fragment key={group.label}>
+                      {index > 0 ? (
+                        <div className={cn('my-1 border-t', fullyPromoted && 'sm:hidden')} />
+                      ) : null}
+                      <p
+                        className={cn(
+                          'market-label px-3 pb-1 pt-2 text-muted-foreground',
+                          fullyPromoted && 'sm:hidden',
+                        )}
+                      >
+                        {group.label}
+                      </p>
+                      {group.links.map((link) => renderLink(link))}
+                    </Fragment>
+                  );
+                })}
 
                 {MENU_ONLY_GROUPS.map((group) => (
                   <Fragment key={group.label}>

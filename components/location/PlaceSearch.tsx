@@ -56,6 +56,30 @@ export interface PlaceSearchProps {
   onTextFallback?: (label: string) => void;
 }
 
+/** Tallest the suggestion list renders: `max-h-56` (14rem) plus its 4px gap. */
+const LIST_MAX_HEIGHT = 228;
+
+/**
+ * The viewport-relative box the suggestion list can occupy without being cut off.
+ *
+ * The nearest ancestor with a non-`visible` overflow is what clips an absolutely
+ * positioned descendant, so that box — intersected with the viewport — is the real
+ * budget. Falls back to the viewport when nothing on the way up clips.
+ */
+function clippingBounds(el: HTMLElement): { top: number; bottom: number } {
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+    const style = window.getComputedStyle(node);
+    if (style.overflowY !== 'visible' || style.overflowX !== 'visible') {
+      const rect = node.getBoundingClientRect();
+      return {
+        top: Math.max(0, rect.top),
+        bottom: Math.min(window.innerHeight, rect.bottom),
+      };
+    }
+  }
+  return { top: 0, bottom: window.innerHeight };
+}
+
 export function PlaceSearch({
   precision,
   value,
@@ -76,6 +100,11 @@ export function PlaceSearch({
   const [results, setResults] = useState<PlaceValue[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Why the list is empty. An empty dropdown used to be the ONLY symptom of a
+  // provider outage, a missing API enablement, and a query with genuinely no
+  // matches — and of a CSP that omitted `places.googleapis.com`, which is how this
+  // field once read as "not wired" while working exactly as written.
+  const [outcome, setOutcome] = useState<'none' | 'empty' | 'error'>('none');
   const abortRef = useRef<AbortController | null>(null);
   // Monotonic request id. Only the newest request may write state, which makes the
   // loading reset unconditional instead of depending on an abort signal.
@@ -96,6 +125,10 @@ export function PlaceSearch({
    */
   const blurTimerRef = useRef<number | null>(null);
 
+  // The field itself, measured to decide which way the list opens.
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [dropUp, setDropUp] = useState(false);
+
   // Clear it on unmount so a close cannot fire against a gone component.
   useEffect(
     () => () => {
@@ -103,6 +136,45 @@ export function PlaceSearch({
     },
     [],
   );
+
+  // OPEN UPWARDS WHEN THERE IS NO ROOM BELOW.
+  //
+  // A location field is often the LAST one in a form, which puts it at the bottom of
+  // whatever contains it — and this list is positioned absolutely rather than
+  // portalled, so it is clipped by that container. On the listing form the details
+  // rail is a scroll box inside a card whose height is pinned to the viewport: the
+  // list opened downwards into nothing, the third suggestion was sliced in half, and
+  // the rest could not be reached at all.
+  //
+  // MEASURED AGAINST THE NEAREST CLIPPING ANCESTOR, not the viewport. Those are the
+  // same thing on a plain page and very much not inside a scroll box: the rail's
+  // bottom edge sits a footer's height above the card's, so a viewport measurement
+  // reports room that the list cannot actually use.
+  //
+  // Whichever side has more room wins, so a field near the top still opens downwards.
+  // Re-measured on scroll — capturing, so a scrolling ancestor is caught, not just the
+  // window — and on resize, since either can move the field while the list is open.
+  useEffect(() => {
+    if (!open) return;
+    const el = fieldRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const bounds = clippingBounds(el);
+      const below = bounds.bottom - rect.bottom;
+      const above = rect.top - bounds.top;
+      setDropUp(below < LIST_MAX_HEIGHT && above > below);
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, results.length, outcome]);
 
   // Adopt a selection made elsewhere (initial value, parent reset), but never while
   // the user is mid-edit. Keyed on `placeId` so a re-render with an equal-but-new
@@ -117,6 +189,7 @@ export function PlaceSearch({
     if (trimmed.length < 2) {
       setResults([]);
       setLoading(false);
+      setOutcome('none');
       return;
     }
     // Only skip the search when the text still matches the selection AND the user
@@ -125,6 +198,7 @@ export function PlaceSearch({
     if (!editingRef.current && value && trimmed === value.label.trim()) {
       setResults([]);
       setLoading(false);
+      setOutcome('none');
       return;
     }
 
@@ -142,10 +216,15 @@ export function PlaceSearch({
         .then((places) => {
           if (requestIdRef.current !== id) return;
           setResults(places);
+          setOutcome(places.length > 0 ? 'none' : 'empty');
         })
         .catch(() => {
+          // A superseded request is filtered above, so reaching here with the
+          // current id means the lookup itself failed — offline, blocked, or the
+          // provider erroring. That is not the same as "no such place".
           if (requestIdRef.current !== id) return;
           setResults([]);
+          setOutcome('error');
         })
         .finally(() => {
           // No abort guard: a superseded request is filtered by the id check, and
@@ -170,14 +249,19 @@ export function PlaceSearch({
     setQuery('');
     setResults([]);
     setLoading(false);
+    setOutcome('none');
     setOpen(false);
     onClear?.();
   }
 
   const showClear = !disabled && (query.length > 0 || value != null);
 
+  // Shared by the suggestion list and the "why is this empty" panel so the two can
+  // never disagree about which side of the field they sit on.
+  const panelPosition = dropUp ? 'bottom-full mb-1' : 'top-full mt-1';
+
   return (
-    <div className={cn('relative', className)}>
+    <div ref={fieldRef} className={cn('relative', className)}>
       <div className="relative">
         <MapPin
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -204,6 +288,9 @@ export function PlaceSearch({
             // Acknowledge the keystroke immediately. Waiting for the debounce to
             // start made the field feel dead for the first 250ms.
             setLoading(next.trim().length >= 2);
+            // Drop the previous verdict immediately: keeping it would show "No
+            // matches" against a query that has not been searched yet.
+            setOutcome('none');
             onTextFallback?.(next);
           }}
           onFocus={() => {
@@ -258,11 +345,34 @@ export function PlaceSearch({
         </div>
       </div>
 
+      {/* SAY WHY THERE ARE NO OPTIONS. Rendered in the dropdown's own position so it
+          is where the member is already looking, and as `role="status"` rather than an
+          option so it is never selectable. The two messages are deliberately
+          different: one is about the query, the other is about the lookup. */}
+      {open && !loading && results.length === 0 && outcome !== 'none' ? (
+        <div
+          role="status"
+          className={cn(
+            'absolute z-30 w-full rounded-md border bg-popover px-2 py-2 text-body text-muted-foreground shadow-md',
+            panelPosition,
+          )}
+        >
+          {outcome === 'error'
+            ? "Couldn't reach address search. Check your connection and try again."
+            : countries && countries.length > 0
+              ? 'No matching places found here.'
+              : 'No matching places found.'}
+        </div>
+      ) : null}
+
       {open && results.length > 0 ? (
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-body shadow-md"
+          className={cn(
+            'absolute z-30 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-body shadow-md',
+            panelPosition,
+          )}
         >
           {results.map((place) => (
             <li key={place.placeId} role="option" aria-selected={value?.placeId === place.placeId}>
@@ -277,6 +387,7 @@ export function PlaceSearch({
                   setOpen(false);
                   setResults([]);
                   setLoading(false);
+                  setOutcome('none');
                 }}
               >
                 <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />

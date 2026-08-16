@@ -150,7 +150,7 @@ export function PlacePicker({
           placeholder={textFallbackPlaceholder ?? 'Suburb or meeting place'}
           required={required}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : hint ? hintId : undefined}
+          aria-describedby={error ? errorId : hintId}
           onChange={(event) => {
             const labelText = event.target.value;
             setTextOnly(labelText);
@@ -169,9 +169,10 @@ export function PlacePicker({
             });
           }}
         />
-        {hint && !error ? (
+        {!error ? (
           <p id={hintId} className="text-body text-muted-foreground">
-            {hint} Address search unavailable until a Google Maps API key is configured.
+            {hint ? `${hint} ` : null}
+            Address search unavailable until a Google Maps API key is configured.
           </p>
         ) : null}
         {error ? (

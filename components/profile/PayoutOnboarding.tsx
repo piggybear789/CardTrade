@@ -231,7 +231,7 @@ export function PayoutOnboarding({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-cozy">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-snug text-lead">
+            <CardTitle className="flex items-center gap-snug text-lead mb-2">
               <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
               Stripe Connect
             </CardTitle>
@@ -241,7 +241,7 @@ export function PayoutOnboarding({
                   `IdentityCheckCard` makes it. Two cards asserting the same
                   requirement is the "two answers to one question" failure the docs
                   warn about, and here only one of them was true. */}
-              Required before you can receive money.
+              Bank payout details and account setup.
             </CardDescription>
           </div>
           <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -332,16 +332,6 @@ export function PayoutOnboarding({
               )}
               {context.hostedOnboarding ? 'Verify with Stripe' : 'Submit payout setup'}
             </Button>
-
-            {/* Req 4.8-4.12: continuing is the consent, so it is stated here, next to
-                the control that gives it. The second sentence is that consent and is
-                deliberately left verbatim — the first now also carries the "one step,
-                on Stripe's pages" reassurance the deleted paragraph was making. */}
-            <p className="text-body text-muted-foreground">
-              One step, entirely on Stripe&apos;s pages — NoDitto never sees your bank
-              details. You agree that the payout name Stripe reports can be shown to
-              someone you have an agreed sale or trade with.
-            </p>
           </div>
         ) : null}
 

@@ -63,9 +63,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        // Plus Jakarta Sans for headings + copy, Geist Mono for labels and
-        // ledger data. `display` keeps its utility name so existing classnames
-        // don't change.
+        // Plus Jakarta Sans for headings, copy, labels, and ledger data.
+        // `display` keeps its utility name so existing classnames don't change.
         sans: [
           "var(--font-plus-jakarta)",
           "ui-sans-serif",

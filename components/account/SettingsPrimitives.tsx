@@ -4,7 +4,7 @@
 //
 // TRANSLATED, NOT COPIED. The design reference these follow is dark-themed and
 // names fonts this app does not load (Fraunces, JetBrains Mono). The app ships a
-// single LIGHT theme with Plus Jakarta Sans + Geist Mono, so the reference's
+// single LIGHT theme with Plus Jakarta Sans, so the reference's
 // STRUCTURE (compact rows, eyebrow labels, status pills, icon medallions) is
 // reproduced here against real tokens — `trust`, `gold`, `destructive`, `muted`.
 // Porting its `bg-[#111118]` / `text-emerald-400` classes verbatim would render
@@ -217,12 +217,12 @@ export function StatTile({
     <div className="rounded-xl border bg-card p-group">
       <div className="flex items-center gap-snug">
         <IconMedallion icon={icon} tone={tone} />
-        <p className="min-w-0 text-meta text-muted-foreground">{label}</p>
+        <p className="min-w-0 font-sans text-meta text-muted-foreground">{label}</p>
       </div>
       {/* `display-value` is the existing ledger-figure class: sans, bold, with
           tabular figures so columns of money align. */}
-      <p className="display-value mt-3 text-subhead">{value}</p>
-      {sub ? <p className="mt-1 text-meta text-muted-foreground">{sub}</p> : null}
+      <p className="display-value mt-4 text-subhead">{value}</p>
+      {sub ? <p className="mt-1 font-sans text-meta text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }

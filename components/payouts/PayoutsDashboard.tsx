@@ -155,7 +155,7 @@ export interface PayoutsDashboardProps {
 
 export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboardProps) {
   return (
-    <div className="space-y-section">
+    <div className="space-y-section font-sans">
       <BalanceSummary model={model} />
       <ActiveSalesSummary model={model} />
       {/* ONE payout destination card, not two.
@@ -200,11 +200,11 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
         </h3>
         <Card className="h-full">
           <CardHeader className="p-4">
-            <CardDescription>Owed to you</CardDescription>
-            <CardTitle className="text-subhead tabular-nums">{formatAud(0)}</CardTitle>
-            <CardDescription>
+            <p className="font-sans text-meta text-muted-foreground">Owed to you</p>
+            <p className="display-value mt-4 text-subhead">{formatAud(0)}</p>
+            <p className="mt-1 font-sans text-meta text-muted-foreground">
               Funds are released after a contract resolves.
-            </CardDescription>
+            </p>
           </CardHeader>
         </Card>
       </section>
@@ -219,13 +219,13 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
 
       <Card className="h-full">
         <CardHeader className="pb-3">
-          <CardDescription>Owed to you</CardDescription>
-          <CardTitle className="text-subhead tabular-nums">
+          <p className="font-sans text-meta text-muted-foreground">Owed to you</p>
+          <p className="display-value mt-4 text-subhead">
             {formatAud(model.releasingNowCents)}
-          </CardTitle>
-          <CardDescription>
+          </p>
+          <p className="mt-1 font-sans text-meta text-muted-foreground">
             Queued and released automatically.
-          </CardDescription>
+          </p>
         </CardHeader>
         <CardContent className="space-y-group">
           <dl className="grid gap-group sm:grid-cols-2">

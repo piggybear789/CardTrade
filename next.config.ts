@@ -15,7 +15,14 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://images.pokemontcg.io https://images.scrydex.com https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com",
   "font-src 'self'",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com",
+  // GOOGLE SERVES MAPS FROM TWO DIFFERENT HOSTS AND ONLY ONE OF THEM IS `maps.`.
+  // Places API (New) — the autocomplete and Place Details calls behind
+  // `PlaceSearch` — is `places.googleapis.com`; the Static Maps image is
+  // `maps.googleapis.com`. Listing the latter alone blocked every address lookup
+  // in the browser while the image still loaded, and `searchPlaces` catches the
+  // rejection and returns no results, so the field looked unwired rather than
+  // blocked. Keep both.
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com https://places.googleapis.com",
   // Stripe Elements and Payment Element render inside iframes; Google Maps
   // embed does too.
   "frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com https://maps.google.com",

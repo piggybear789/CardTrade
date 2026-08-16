@@ -502,11 +502,11 @@ export default async function ItemDetailPage({
                 </div>
               </div>
 
-              {/* Description — in its own bordered field beneath the seller card,
-                  above the action buttons. The listing's prose now lives here
-                  rather than at the top of the rail, so the first things a buyer
-                  sees are the price and who they're buying from, then the detail. */}
-              <div className="rounded-lg border bg-card px-3 py-3">
+              {/* Description — beneath the seller card, above actions. */}
+              <div>
+                <h3 className="mb-tight text-meta font-semibold uppercase tracking-wide text-muted-foreground">
+                  Description
+                </h3>
                 <p className="whitespace-pre-line break-words text-body leading-relaxed text-foreground">
                   {item.description}
                 </p>

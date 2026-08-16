@@ -371,7 +371,7 @@ export default async function ItemDetailPage({
                   </Badge>
                 </div>
 
-                <p className="text-head font-semibold tabular-nums tracking-tight">
+                <p className="text-display font-bold tabular-nums tracking-tight">
                   {formatAud(item.fmv_cents)}
                 </p>
 

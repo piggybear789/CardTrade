@@ -19,14 +19,29 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full touch-manipulation items-center justify-between rounded-md border border-input bg-card px-3 py-2 text-base sm:text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65 [&>span]:line-clamp-1",
+      // THE VALUE SPAN TAKES THE FREE SPACE, which is what keeps the text hard
+      // against the left edge and gives it every pixel up to the chevron.
+      //
+      // `justify-between` distributes free space BETWEEN the trigger's children, so
+      // the text only sits flush left while the value span is the only thing before
+      // the icon. Anything else in there — and Radix's own internals are free to add
+      // to it — turns that spare width into a gap in front of the label, which is
+      // what put a visible indent before "Coins &…" on a narrow trigger. Giving the
+      // span `flex-1` leaves no free space to distribute, so the result no longer
+      // depends on how many children there are.
+      //
+      // `truncate` rather than `line-clamp-1`: both cut to one line, but line-clamp
+      // switches the span to `display:-webkit-box`, and the ellipsis it produces is
+      // sized against the span's own content rather than the space actually
+      // available. `min-w-0` is required for either to shrink inside a flex row.
+      "flex h-10 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-base sm:text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65 [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
       className
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" aria-hidden="true" />
+      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));

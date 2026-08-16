@@ -22,12 +22,14 @@ import { redirect } from 'next/navigation';
 import {
   AlertCircle,
   Banknote,
+  CalendarDays,
   CheckCircle2,
   Clock,
   CreditCard,
   Globe,
   ScaleIcon,
   ShieldCheck,
+  Star,
   Wallet,
   Zap,
 } from 'lucide-react';
@@ -47,6 +49,7 @@ import { PayoutOnboarding } from '@/components/profile/PayoutOnboarding';
 import { PayoutsDashboard } from '@/components/payouts/PayoutsDashboard';
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
+import { Avatar } from '@/components/ui/avatar';
 import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
 import { SocialLinksEditor } from '@/components/profile/SocialLinksEditor';
 import { ProfileBioEditor } from '@/components/profile/ProfileBioEditor';
@@ -94,7 +97,7 @@ export default async function ProfilePage({
     await Promise.all([
       supabase
         .from('profiles')
-        .select('display_name, contact_email, avatar_path, region_code, social_links, bio')
+        .select('display_name, contact_email, avatar_path, region_code, social_links, bio, rating, rating_count, created_at')
         .eq('id', user.id)
         .single(),
       getPaymentMethodStatus(),
@@ -270,62 +273,116 @@ export default async function ProfilePage({
         ) : null}
 
         {activeTab === 'verification' ? (
-          <div className="space-y-8">
-            {/* STEP ONE. Unlocks listing, selling and trade access on its own — it
-                needs no bank details, which is why it comes first. */}
-            <SettingsSection
-              label="Step 1 · Identity"
-              description="A photo ID and selfie check on Stripe's pages. Unlocks listing, selling, and entering trade escrow."
-            >
-              {identity.ok ? (
-                <IdentityCheckCard
-                  status={identity.data.status}
-                  verifiedName={identity.data.verifiedName}
-                  returnPath="/profile?tab=verification"
+          <div className="space-y-6">
+            {/* PROFILE CARD — how this member appears to others, plus compact
+                action rows for the two setup steps. The old content was a three-
+                section wizard that repeated the heading "Step 1 / Step 2" and
+                dedicated a card each to Identity, Payouts and Region. The
+                information it displayed was sparse, so it made a short process
+                look long. A single card with the same data reads as a summary
+                rather than an ordeal. */}
+            <div className="rounded-xl border bg-card p-6">
+              <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+                <Avatar
+                  avatarPath={profile.avatar_path}
+                  displayName={profile.display_name}
+                  size="xl"
                 />
-              ) : (
-                <SettingsPlaceholder>
-                  Verification status is unavailable right now. Reload to try again.
-                </SettingsPlaceholder>
-              )}
-              {paymentDemoEnabled && identity.ok && !identityVerified ? (
-                <IdentityDemoControls />
-              ) : null}
-            </SettingsSection>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                    <h2 className="text-subhead font-semibold">
+                      {profile.display_name}
+                    </h2>
+                    {identityVerified ? (
+                      <StatusPill tone="verified" icon={ShieldCheck}>
+                        Verified
+                      </StatusPill>
+                    ) : (
+                      <StatusPill tone="required" icon={AlertCircle}>
+                        Unverified
+                      </StatusPill>
+                    )}
+                  </div>
 
-            {/* STEP TWO. Gates being PAID and nothing else. Independent of step one
-                in both directions — a verified member with no payout account is a
-                normal, valid state (product.md), so this never blocks the page. */}
-            <SettingsSection
-              label="Step 2 · Payout account"
-              description="Connect a bank through Stripe so sale proceeds can reach you. Not needed to buy, list, or trade."
-            >
-              {payoutContext.ok ? (
-                <PayoutOnboarding context={payoutContext.data} />
-              ) : (
-                <SettingsPlaceholder>
-                  Payout setup is unavailable right now. Reload to try again.
-                </SettingsPlaceholder>
-              )}
-            </SettingsSection>
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-meta text-muted-foreground sm:justify-start">
+                    {(profile as { rating: number | null }).rating != null ? (
+                      <span className="inline-flex items-center gap-tight">
+                        <Star className="size-3.5 fill-gold text-gold" aria-hidden />
+                        {((profile as { rating: number }).rating).toFixed(1)}
+                        <span className="text-muted-foreground/70">
+                          ({(profile as { rating_count: number }).rating_count})
+                        </span>
+                      </span>
+                    ) : (
+                      <span>No ratings yet</span>
+                    )}
+                    {(profile as { created_at: string }).created_at ? (
+                      <span className="inline-flex items-center gap-tight">
+                        <CalendarDays className="size-3.5" aria-hidden />
+                        Member since{' '}
+                        {new Date((profile as { created_at: string }).created_at).toLocaleDateString(
+                          'en-AU',
+                          { month: 'short', year: 'numeric' },
+                        )}
+                      </span>
+                    ) : null}
+                    {regionCode ? (
+                      <span className="inline-flex items-center gap-tight">
+                        <Globe className="size-3.5" aria-hidden />
+                        {regionLabel(regionCode)}
+                      </span>
+                    ) : null}
+                  </div>
 
-            <SettingsSection
-              label="Trading region"
-              description="Every contract you open is scoped to this region. It is fixed once a payout account exists, because Stripe fixes an account's country at creation."
-            >
-              {regionCode ? (
-                <SettingsRow
-                  icon={Globe}
-                  title={regionLabel(regionCode)}
-                  subtitle="Buyers and sellers must share a region to open a contract."
-                  trailing={<StatusPill tone="neutral">{regionCode}</StatusPill>}
-                />
-              ) : (
-                <SettingsPlaceholder>
-                  No trading region set. Contracts are refused until one is recorded.
-                </SettingsPlaceholder>
-              )}
-            </SettingsSection>
+                  {payoutsActive ? (
+                    <p className="mt-2 text-meta text-trust">
+                      <CheckCircle2 className="mr-tight inline size-3.5" aria-hidden />
+                      Payouts active
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {/* Action rows — only shown when something needs doing. A fully
+                verified, payouts-active member sees just the card above and
+                nothing below, which is the goal: verification done, move on. */}
+            {!identityVerified ? (
+              <SettingsSection
+                label="Identity"
+                description="A photo ID and selfie check on Stripe's pages. Unlocks listing, selling, and entering trade escrow."
+              >
+                {identity.ok ? (
+                  <IdentityCheckCard
+                    status={identity.data.status}
+                    verifiedName={identity.data.verifiedName}
+                    returnPath="/profile?tab=verification"
+                  />
+                ) : (
+                  <SettingsPlaceholder>
+                    Verification status is unavailable right now. Reload to try again.
+                  </SettingsPlaceholder>
+                )}
+                {paymentDemoEnabled && identity.ok ? (
+                  <IdentityDemoControls />
+                ) : null}
+              </SettingsSection>
+            ) : null}
+
+            {!payoutsActive ? (
+              <SettingsSection
+                label="Payout account"
+                description="Connect a bank through Stripe so sale proceeds can reach you. Not needed to buy, list, or trade."
+              >
+                {payoutContext.ok ? (
+                  <PayoutOnboarding context={payoutContext.data} />
+                ) : (
+                  <SettingsPlaceholder>
+                    Payout setup is unavailable right now. Reload to try again.
+                  </SettingsPlaceholder>
+                )}
+              </SettingsSection>
+            ) : null}
           </div>
         ) : null}
 

@@ -211,7 +211,7 @@ const LISTING_KINDS = [
   {
     value: "SHOPFRONT" as const,
     icon: Library,
-    label: "Collection",
+    label: "Multiple items",
     hint: "Many cards buyers pick from. Several buyers can negotiate at once and nothing is held.",
   },
 ];
@@ -839,20 +839,20 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 value={fmvDollars}
                 onChange={(e) => setFmvDollars(e.target.value)}
                 aria-invalid={fmvError ? true : undefined}
-                aria-describedby={fmvError ? "fmv-error" : "fmv-hint"}
+                aria-describedby={
+                  fmvError ? "fmv-error" : isShopfront ? "fmv-hint" : undefined
+                }
                 disabled={isSubmitting}
               />
               {fmvError ? (
                 <p id="fmv-error" role="alert" className="text-body text-destructive">
                   {fmvError}
                 </p>
-              ) : (
+              ) : isShopfront ? (
                 <p id="fmv-hint" className="text-body text-muted-foreground">
-                  {isShopfront
-                    ? "Shown as a “from” guide. Each buyer’s total is the cards they pick."
-                    : "Enter dollars and cents, e.g. 123.45."}
+                  Shown as a “from” guide. Each buyer’s total is the cards they pick.
                 </p>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -864,7 +864,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 disabled={isSubmitting}
                 required
                 error={locationError}
-                hint="Suburb or city only — shown publicly on your listing."
               />
             </div>
 

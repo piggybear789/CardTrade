@@ -515,26 +515,31 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             {/* Large cover preview / empty drop target. Clicking it opens the
                 file picker, same affordance as the thumbnail grid below.
 
-                HEIGHT IS CAPPED AGAINST THE VIEWPORT, not the panel. `aspect-[3/4]`
-                ties height to the PANEL'S WIDTH, and this panel is the wide side of
-                the grid (1.65fr of a max-w-7xl card), so the ratio alone resolved to
-                roughly 900px on a desktop — taller than the viewport, which pushed
-                the filmstrip below the fold. A fixed `rem` cap fixed that and then
-                read as collapsed on a tall screen, because the right bound here is
-                not an absolute size, it is "how much of the SCREEN a drop target
-                should be allowed to take".
+                TWO DIFFERENT SIZING RULES, because the two layouts have different
+                things to size against.
 
-                `svh` rather than `vh` or `dvh`: the cap bites on mobile too, and
-                `dvh` would resize the box as the URL bar hides on scroll. `svh` is
-                the stable smallest-viewport figure, so the target does not move
-                under the user's thumb. The ratio still governs shape before the cap
-                applies, and the image is `object-contain`, so a capped box
-                letterboxes rather than cropping the card. */}
+                On `lg` the card is a grid and this panel spans all three of its rows,
+                so the panel's height is already whatever the details rail on the
+                right comes to. `lg:flex-1` makes the target FILL that, which is the
+                Facebook Marketplace behaviour: the photo is as tall as the form
+                beside it, and it grows if the rail grows. `lg:aspect-auto` and
+                `lg:max-h-none` are needed to get out of the way of that —
+                `aspect-[3/4]` ties height to the panel's WIDTH, which on the wide
+                side of the grid resolved to roughly 900px and overflowed the
+                viewport, and a `max-h` cap then fought the flex growth. `min-h-0`
+                lets it shrink below its content when the rail is short.
+
+                Below `lg` the card is stacked, there is no rail alongside and so
+                nothing to match: the portrait ratio sets the shape and `60svh`
+                keeps it off the whole screen. `svh` rather than `dvh` so the target
+                does not resize as a mobile URL bar hides on scroll.
+
+                The image is `object-contain` throughout, so neither rule crops. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
+              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:aspect-auto lg:min-h-0 lg:max-h-none lg:flex-1`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (

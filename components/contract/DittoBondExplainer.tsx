@@ -45,20 +45,22 @@ function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepPro
         tone === 'warning' && 'border-amber-500/30 bg-amber-500/5',
       )}
     >
-      <div className="flex items-start gap-snug">
+      {/* Same grid as `CustodyBox` below, and for the same reason: the badge
+          centres on the TITLE, and the prose indents to the title's left edge.
+          Flex could not do it — centred put the badge beside the paragraph, and
+          top-aligned left its centre below the title's. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-snug">
         <span
           className={cn(
-            'mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border bg-background',
+            'grid size-7 shrink-0 place-items-center rounded-full border bg-background',
             tone === 'success' && 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400',
             tone === 'warning' && 'border-amber-500/40 text-amber-700 dark:text-amber-400',
           )}
         >
           <Icon className="size-3.5" aria-hidden />
         </span>
-        <div className="min-w-0">
-          <p className="font-medium">{title}</p>
-          <div className="mt-0.5 text-meta text-muted-foreground">{children}</div>
-        </div>
+        <p className="min-w-0 font-medium">{title}</p>
+        <div className="col-start-2 text-meta text-muted-foreground">{children}</div>
       </div>
     </div>
   );
@@ -135,11 +137,18 @@ function CustodyBox({
   /** The one box where the money is sitting rather than moving. */
   held?: boolean;
 }) {
+  // A GRID, so the badge centres on the TITLE rather than on the whole block.
+  // Neither flex alignment gets this right: `items-center` centres a 32px badge
+  // against a three-line block and lands it beside the description, while
+  // `items-start` (even nudged) leaves its centre below the title's, straddling
+  // the title and the first line under it. Row one holds the badge and the title
+  // and centres them against each other; the description is placed explicitly in
+  // column two, so it indents to the title's left edge.
   return (
-    <div className="flex min-w-0 items-start gap-snug">
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-snug">
       <span
         className={cn(
-          'mt-0.5 grid size-8 shrink-0 place-items-center rounded-full border',
+          'grid size-8 shrink-0 place-items-center rounded-full border',
           held
             ? 'border-trust/45 bg-trust/10 text-trust'
             : 'border-border bg-background text-foreground',
@@ -147,10 +156,8 @@ function CustodyBox({
       >
         <Icon className="size-4" aria-hidden />
       </span>
-      <div className="min-w-0">
-        <p className="text-body font-semibold leading-tight">{title}</p>
-        <p className="mt-0.5 text-meta leading-4 text-muted-foreground">{detail}</p>
-      </div>
+      <p className="min-w-0 text-body font-semibold leading-tight">{title}</p>
+      <p className="col-start-2 text-meta leading-4 text-muted-foreground">{detail}</p>
     </div>
   );
 }

@@ -21,7 +21,6 @@
 import { redirect } from 'next/navigation';
 import {
   AlertCircle,
-  Banknote,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -31,7 +30,6 @@ import {
   ShieldCheck,
   Star,
   Wallet,
-  Zap,
 } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
@@ -417,44 +415,6 @@ export default async function ProfilePage({
                 />
               </div>
             ) : null}
-
-            {/* Where the money lands. Reporting only — setup lives on the
-                Verification tab so the two surfaces cannot compete. */}
-            <SettingsSection
-              label="Destination"
-            >
-              {payoutsActive ? (
-                <SettingsRow
-                  icon={Banknote}
-                  tone="verified"
-                  title="Connected through Stripe"
-                  subtitle="Releases are sent automatically once a sale completes."
-                  trailing={
-                    <StatusPill tone="verified" icon={CheckCircle2}>
-                      Active
-                    </StatusPill>
-                  }
-                />
-              ) : (
-                <SettingsRow
-                  icon={Zap}
-                  tone="required"
-                  title="No payout account yet"
-                  subtitle="Proceeds are held for you until this is set up — nothing is lost in the meantime."
-                  trailing={
-                    <Button asChild variant="outline" size="sm">
-                      <a href="/profile?tab=verification">Set up</a>
-                    </Button>
-                  }
-                >
-                  <p className="flex items-start gap-2 text-body leading-relaxed text-muted-foreground">
-                    <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                    A payout attempt is refused until Stripe reports your account can
-                    receive transfers. Your money stays held rather than being returned.
-                  </p>
-                </SettingsRow>
-              )}
-            </SettingsSection>
 
             <SettingsSection
               label="History"

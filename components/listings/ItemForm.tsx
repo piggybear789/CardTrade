@@ -513,12 +513,28 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             </p>
 
             {/* Large cover preview / empty drop target. Clicking it opens the
-                file picker, same affordance as the thumbnail grid below. */}
+                file picker, same affordance as the thumbnail grid below.
+
+                HEIGHT IS CAPPED AGAINST THE VIEWPORT, not the panel. `aspect-[3/4]`
+                ties height to the PANEL'S WIDTH, and this panel is the wide side of
+                the grid (1.65fr of a max-w-7xl card), so the ratio alone resolved to
+                roughly 900px on a desktop — taller than the viewport, which pushed
+                the filmstrip below the fold. A fixed `rem` cap fixed that and then
+                read as collapsed on a tall screen, because the right bound here is
+                not an absolute size, it is "how much of the SCREEN a drop target
+                should be allowed to take".
+
+                `svh` rather than `vh` or `dvh`: the cap bites on mobile too, and
+                `dvh` would resize the box as the URL bar hides on scroll. `svh` is
+                the stable smallest-viewport figure, so the target does not move
+                under the user's thumb. The ratio still governs shape before the cap
+                applies, and the image is `object-contain`, so a capped box
+                letterboxes rather than cropping the card. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
+              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (

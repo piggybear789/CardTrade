@@ -16,10 +16,10 @@
 //   3. `Based near` is REQUIRED. The suite runs the dev server with no Maps key so
 //      PlacePicker falls back to a plain text input — see the note in
 //      playwright.config.ts.
-//   4. Listing kind is a pair of radio tiles whose accessible names are the whole
-//      tile including its description ("One itemA single collectible. Reserved
-//      for one buyer as soon as they open a contract."), so they are matched by
-//      prefix, not by equality.
+//   4. Listing kind is a pair of radio tiles labelled "One item" and "Multiple
+//      items". They no longer carry a description, so the accessible name is just
+//      the label — but they are still matched by PREFIX rather than equality, so
+//      that reinstating a per-tile hint does not break every spec at once.
 
 import { test, expect } from '../support/fixtures';
 import { ALICE, storageStatePath } from '../support/users';

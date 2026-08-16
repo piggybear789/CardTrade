@@ -22,7 +22,13 @@ export interface ChoiceTileProps {
   onChange: () => void;
   icon?: LucideIcon;
   label: string;
-  hint: string;
+  /**
+   * Short line beneath the label. OPTIONAL: where the options are
+   * self-explanatory, a hint on each tile is noise that pushes the group taller
+   * than the choice deserves. Omit it rather than passing an empty string, so the
+   * tile collapses to a single row instead of reserving space for nothing.
+   */
+  hint?: string;
   /** Marks every tile in a group whose selection failed validation. */
   invalid?: boolean;
 }
@@ -42,7 +48,7 @@ export function ChoiceTile({
     <label
       htmlFor={id}
       className={cn(
-        'flex cursor-pointer flex-col gap-1 rounded-md border p-2.5 text-sm ring-offset-background transition-colors',
+        'flex cursor-pointer flex-col gap-tight rounded-md border p-cozy text-body ring-offset-background transition-colors',
         // The whole tile takes the focus ring: at this size the native control's
         // own ring is easy to miss.
         'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
@@ -65,7 +71,9 @@ export function ChoiceTile({
         ) : null}
         <span className="min-w-0 truncate font-medium">{label}</span>
       </span>
-      <span className="text-xs leading-4 text-muted-foreground">{hint}</span>
+      {hint ? (
+        <span className="text-meta leading-4 text-muted-foreground">{hint}</span>
+      ) : null}
     </label>
   );
 }

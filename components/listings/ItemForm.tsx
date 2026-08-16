@@ -206,13 +206,11 @@ const LISTING_KINDS = [
     value: "SINGLE" as const,
     icon: Package,
     label: "One item",
-    hint: "A single collectible. Reserved for one buyer as soon as they open a contract.",
   },
   {
     value: "SHOPFRONT" as const,
     icon: Library,
     label: "Multiple items",
-    hint: "Many cards buyers pick from. Several buyers can negotiate at once and nothing is held.",
   },
 ];
 
@@ -664,7 +662,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     type="radio"
                     icon={kind.icon}
                     label={kind.label}
-                    hint={kind.hint}
                     checked={listingKind === kind.value}
                     onChange={() => setListingKind(kind.value)}
                   />

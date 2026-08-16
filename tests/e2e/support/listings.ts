@@ -118,8 +118,9 @@ export interface CreateListingOptions {
  *
  * Field notes that are not guessable from the component source:
  *
- *  - Listing kind is a pair of radio tiles whose accessible name is the whole
- *    tile including its description, so it is matched by prefix. SINGLE is chosen
+ *  - Listing kind is a pair of radio tiles, matched by PREFIX on the label rather
+ *    than by equality — the tiles carry no description now, but matching on a
+ *    prefix means reinstating one would not break this helper. SINGLE is chosen
  *    because a SHOPFRONT is never reserved and never sold (0064) and so behaves
  *    differently in every downstream assertion.
  *  - Category / Subcategory / Condition are shadcn `Select`s. Radix renders the

@@ -171,7 +171,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             <ScrollText className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-body font-semibold">Contract Details</h2>
+            <h2 className="text-meta font-semibold uppercase tracking-wide text-muted-foreground">Contract Details</h2>
             <p className="truncate text-meta text-muted-foreground">
               Review one part of the agreement at a time
             </p>

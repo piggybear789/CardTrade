@@ -48,7 +48,7 @@ export function ContractHeader({
         <div className="flex flex-wrap items-baseline justify-between gap-x-group gap-y-1">
           {/* The page shell renders the route <h1>; this is the contract's own title. */}
           <h2
-            className="min-w-0 flex-1 truncate text-subhead font-semibold tracking-tight"
+            className="min-w-0 flex-1 truncate text-body font-semibold tracking-tight"
             title={title}
           >
             {title}

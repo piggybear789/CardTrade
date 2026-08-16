@@ -55,7 +55,7 @@ export function ContractActionCard({
     <Card className={cn(TONE[tone], className)}>
       <CardContent className="grid h-full gap-group p-group md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div className="min-w-0 space-y-1">
-          <h3 className="text-pretty text-subhead font-semibold leading-tight tracking-tight">
+          <h3 className="text-pretty text-body font-semibold leading-tight tracking-tight">
             {title ?? step?.label ?? 'This contract is finished'}
           </h3>
           {detail ?? step?.detail ? (

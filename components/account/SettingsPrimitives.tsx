@@ -91,8 +91,8 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-tight rounded-full border px-snug py-tight',
-        'text-meta font-medium',
+        'inline-flex shrink-0 items-center gap-tight rounded-full border px-2 py-0.5',
+        'text-[0.6875rem] font-medium leading-tight',
         TONE_CLASS[tone],
       )}
     >

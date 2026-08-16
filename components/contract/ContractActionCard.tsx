@@ -66,7 +66,7 @@ export function ContractActionCard({
         </div>
 
         {children ? (
-          <div className="flex min-w-0 flex-col gap-snug md:max-w-[40rem] md:items-end">
+          <div className="flex min-w-0 flex-col gap-snug md:max-w-[14rem] md:items-end">
             {children}
           </div>
         ) : null}

@@ -151,9 +151,6 @@ export default async function ProfilePage({
       <div className="mx-auto w-full max-w-2xl">
         <header className="mb-6">
           <h1 className="text-head font-semibold tracking-[-0.02em]">Settings</h1>
-          <p className="mt-1 text-body text-muted-foreground">
-            Manage your account settings and preferences.
-          </p>
         </header>
 
         <AccountTabs activeTab={activeTab} />
@@ -212,21 +209,18 @@ export default async function ProfilePage({
 
             <SettingsSection
               label="About"
-              description="Shown on your public seller profile."
             >
               <ProfileBioEditor initialBio={(profile.bio as string | null) ?? ''} />
             </SettingsSection>
 
             <SettingsSection
               label="Social links"
-              description="Visible on your seller profile and to the other party in a contract room."
             >
               <SocialLinksEditor initialLinks={socialLinks} />
             </SettingsSection>
 
             <SettingsSection
               label="Payment method"
-              description="Used for purchases and for trade collateral holds. Card details stay with Stripe."
             >
               {hasCard ? (
                 <SettingsRow
@@ -234,8 +228,8 @@ export default async function ProfilePage({
                   title={paymentMethod?.label ?? 'Card saved with Stripe'}
                   subtitle={
                     paymentMethod?.expiry
-                      ? `Expires ${paymentMethod.expiry} · charged for purchases, authorised (not charged) for trade collateral.`
-                      : 'Charged for purchases; authorised (not charged) for trade collateral.'
+                      ? `Expires ${paymentMethod.expiry}`
+                      : null
                   }
                   trailing={
                     <AddPaymentMethodDialog
@@ -265,7 +259,7 @@ export default async function ProfilePage({
                     />
                   }
                 >
-                  No card saved yet. One is required to buy or to enter trade escrow.
+                  Required to buy or enter trade escrow.
                 </SettingsPlaceholder>
               )}
             </SettingsSection>
@@ -350,7 +344,6 @@ export default async function ProfilePage({
             {!identityVerified ? (
               <SettingsSection
                 label="Identity"
-                description="A photo ID and selfie check on Stripe's pages. Unlocks listing, selling, and entering trade escrow."
               >
                 {identity.ok ? (
                   <IdentityCheckCard
@@ -372,7 +365,6 @@ export default async function ProfilePage({
             {!payoutsActive ? (
               <SettingsSection
                 label="Payout account"
-                description="Connect a bank through Stripe so sale proceeds can reach you. Not needed to buy, list, or trade."
               >
                 {payoutContext.ok ? (
                   <PayoutOnboarding context={payoutContext.data} />
@@ -430,7 +422,6 @@ export default async function ProfilePage({
                 Verification tab so the two surfaces cannot compete. */}
             <SettingsSection
               label="Destination"
-              description="Where releases are sent."
             >
               {payoutsActive ? (
                 <SettingsRow
@@ -467,7 +458,6 @@ export default async function ProfilePage({
 
             <SettingsSection
               label="History"
-              description="Every release, and the sales still working toward one."
             >
               {payoutDashboard.ok ? (
                 <PayoutsDashboard

@@ -719,7 +719,14 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
-                rows={5}
+                // Taller than the old 5 rows because this is now the ONLY prose a
+                // seller writes — it carries what used to be a title AND a
+                // description, and the derived listing label comes off its opening
+                // line. A five-row box invited five rows' worth of detail. Merging
+                // the three taxonomy selects onto one row above pays for most of the
+                // extra height, so the rail (and the photo panel that matches it)
+                // does not grow much overall.
+                rows={9}
                 aria-invalid={descriptionError ? true : undefined}
                 aria-describedby={
                   descriptionError ? "description-error" : "description-hint"
@@ -741,8 +748,15 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : null}
             </div>
 
-            {/* Category + Subcategory + Condition */}
-            <div className="grid gap-5 sm:grid-cols-2">
+            {/* Category + Subcategory + Condition, on ONE row — which is what the
+                comment here always claimed. Condition had drifted into its own
+                `sm:grid-cols-2` grid with a single child, so it rendered half-width
+                against an empty cell and broke the column rhythm the row above set.
+
+                `gap-3` rather than `gap-5`: three selects share the details rail
+                (~512px at `lg`), so the gap is width taken from the controls, and a
+                truncated "Trading Cards" costs more than 8px of separation buys. */}
+            <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select
@@ -806,9 +820,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   </p>
                 ) : null}
               </div>
-            </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="condition">
                   {isShopfront ? "Typical condition" : "Condition"}

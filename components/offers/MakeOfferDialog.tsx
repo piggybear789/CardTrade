@@ -160,7 +160,7 @@ export function MakeOfferDialog({
 
           <div className="space-y-4 py-4">
             <div className="min-w-0 rounded-md border bg-muted/30 p-cozy text-body">
-              <p className="font-medium">DittoShield verified seller</p>
+              <p className="font-medium">Verified seller</p>
               {sellerIdentity.tradingName ? (
                 <p className="break-words">{sellerIdentity.tradingName}</p>
               ) : null}

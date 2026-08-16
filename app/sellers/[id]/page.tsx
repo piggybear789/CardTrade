@@ -202,7 +202,7 @@ export default async function SellerProfilePage({
             <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
               {/* Same glyph as IdentityBadge: one fact, one icon vocabulary. */}
               <ShieldCheck className="h-4 w-4" aria-hidden />
-              DittoShield verified through Stripe
+              Identity verified via Stripe
             </div>
             <dl className="grid gap-3 sm:grid-cols-2">
               {sellerIdentity.tradingName ? (

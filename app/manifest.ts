@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'NoDitto — Safer Collectible Deals',
     short_name: 'NoDitto',
     description:
-      'DittoShield verification, collateral-backed contracts, and Stripe payments for collectors.',
+      'Identity verification, collateral-backed contracts, and Stripe payments for collectors.',
     start_url: '/',
     display: 'standalone',
     background_color: '#f4efe4',

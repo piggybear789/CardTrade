@@ -39,7 +39,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
         aria-hidden
       />
       <span className="sr-only">
-        {party.verified ? 'DittoShield verified' : 'DittoShield not verified'}
+        {party.verified ? 'Identity verified' : 'Identity not verified'}
       </span>
       {party.rating === null ? null : (
         <span className="flex shrink-0 items-center gap-0.5 text-meta text-muted-foreground">
@@ -78,7 +78,7 @@ export function ContractPartyStats({
       )}
     >
       <ShieldCheck className="size-3 shrink-0" aria-hidden />
-      {party.verified ? 'DittoShield verified' : 'Unverified'}
+      {party.verified ? 'Identity verified' : 'Unverified'}
     </span>,
     party.rating === null ? (
       <span className="text-muted-foreground">New</span>

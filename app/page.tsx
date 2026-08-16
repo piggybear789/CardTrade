@@ -153,7 +153,7 @@ export default async function HomePage() {
                 Know who you&apos;re dealing with.
               </h2>
               <p className="mt-5 text-pretty leading-7 text-parchment/60">
-                DittoShield verifies identity through Stripe. Contracts show the
+                Identity is verified through Stripe. Contracts show the
                 terms, collateral, and next action before anything moves.
               </p>
             </header>
@@ -175,7 +175,7 @@ export default async function HomePage() {
               <ComparisonRow
                 aspect="Who you're dealing with"
                 typical="Anonymous accounts"
-                ours="DittoShield identity status"
+                ours="identity verification status"
               />
               {/* Was "Contract-backed collateral protection", which is not what happens
                   when a CASH SALE goes wrong — those carry no collateral. What actually
@@ -223,7 +223,7 @@ export default async function HomePage() {
               className="rounded-sm text-parchment/60 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
               href="/profile/payouts#identity"
             >
-              DittoShield
+              Verification
             </Link>
           </nav>
           <p className="border-t border-white/10 pt-5 text-meta leading-5 text-parchment/45 md:col-span-2">

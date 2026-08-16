@@ -241,7 +241,7 @@ export function BuyButton({
               <div className="rounded-lg border bg-muted/30 p-4">
                 <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
                   <ShieldCheck className="h-4 w-4" aria-hidden />
-                  DittoShield verified via Stripe
+                  Identity verified via Stripe
                 </div>
                 <dl className="grid gap-2 text-body">
                   {sellerIdentity.tradingName ? (

@@ -23,7 +23,6 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 
-import { DittoShieldMark } from '@/components/brand/DittoShieldMark';
 import { createClient } from '@/lib/supabase/server';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import {
@@ -49,9 +48,9 @@ const VERIFICATION_RAIL: Record<
   }
 > = {
   VERIFIED: { label: 'Verified', variant: 'default', action: null },
-  IN_PROGRESS: { label: 'Pending', variant: 'secondary', action: 'Check DittoShield progress' },
-  NOT_APPROVED: { label: 'Rejected', variant: 'destructive', action: 'Retry DittoShield' },
-  NOT_STARTED: { label: 'Unverified', variant: 'outline', action: 'Start DittoShield' },
+  IN_PROGRESS: { label: 'Pending', variant: 'secondary', action: 'Check verification' },
+  NOT_APPROVED: { label: 'Rejected', variant: 'destructive', action: 'Retry verification' },
+  NOT_STARTED: { label: 'Unverified', variant: 'outline', action: 'Start verification' },
 };
 
 /** The rail's identity block, read from the caller's own RLS-scoped profile. */
@@ -80,18 +79,18 @@ export async function KycRailStatus() {
       aria-labelledby="marketplace-identity"
     >
       <div className="flex gap-3">
-        <DittoShieldMark className="size-11 self-start" />
+        <ShieldCheck className="size-11 self-start text-trust" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <p id="marketplace-identity" className="market-label text-muted-foreground">
-              DittoShield
+              Identity
             </p>
-            <Badge variant={status.variant} aria-label={`DittoShield status: ${status.label}`}>
+            <Badge variant={status.variant} aria-label={`Identity status: ${status.label}`}>
               {status.label}
             </Badge>
           </div>
           <p className="mt-1 text-meta text-muted-foreground">
-            Anti-Impostor Verification
+            Photo ID and selfie
           </p>
         </div>
       </div>

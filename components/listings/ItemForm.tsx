@@ -688,15 +688,20 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   />
                 ))}
               </div>
+              {/* NO "nothing is reserved" NOTE HERE, and that is not the rule being
+                  dropped. `product.md` requires the fact to be stated, and the
+                  seller gets it where it is actionable rather than hypothetical: on
+                  their own listing, the shopfront branch of `ItemActions` renders
+                  "N open contracts — Nothing here is reserved. Check what each buyer
+                  has asked for before you accept, so you don't promise the same card
+                  twice", above a linked list of those contracts with buyer names and
+                  amounts. A paragraph at creation time warned about a collision that
+                  could not exist yet and named no contracts to check. The
+                  buyer-facing half is separate and untouched (`BuyButton`: "Nothing
+                  is held for you yet"). */}
               {mode === "edit" ? (
                 <p className="text-body text-muted-foreground">
                   This can&apos;t be changed after a listing is created.
-                </p>
-              ) : isShopfront ? (
-                <p className="text-body text-muted-foreground">
-                  Buyers ask for the cards they want and you agree a price with
-                  each one. Nothing is reserved, so the same card can be asked for
-                  twice — check your open contracts before you accept.
                 </p>
               ) : null}
             </fieldset>
@@ -862,15 +867,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 }
                 disabled={isSubmitting}
               />
-              {fmvError ? (
-                <p id="fmv-error" role="alert" className="text-body text-destructive">
-                  {fmvError}
-                </p>
-              ) : isShopfront ? (
-                <p id="fmv-hint" className="text-body text-muted-foreground">
-                  Shown as a “from” guide. Each buyer’s total is the cards they pick.
-                </p>
-              ) : null}
             </div>
 
             <div className="space-y-2">

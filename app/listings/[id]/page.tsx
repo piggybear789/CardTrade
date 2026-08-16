@@ -362,20 +362,7 @@ export default async function ItemDetailPage({
             <div className="space-y-6">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  {/* THE DESCRIPTION IS THE LISTING'S NAME. There is no separate
-                      title to render: a seller writes one piece of prose and
-                      `deriveItemTitle` reduces it to the short label that contracts,
-                      emails, notifications and arbitration carry. Showing both put
-                      the opening of the description on the page twice.
-
-                      The heading is screen-reader-only rather than removed. A
-                      2000-character `h2` is not a heading, but dropping the heading
-                      entirely would leave the page with no label in the
-                      accessibility tree and no outline for search results. */}
                   <h2 className="sr-only">{deriveItemTitle(item.description)}</h2>
-                  <p className="min-w-0 whitespace-pre-line break-words text-body leading-relaxed text-foreground">
-                    {item.description}
-                  </p>
                   <Badge
                     variant={statusBadge.variant}
                     aria-label={`Availability: ${statusBadge.label}`}
@@ -515,8 +502,16 @@ export default async function ItemDetailPage({
                 </div>
               </div>
 
-              {/* Transaction entry points sit above the description so Buy /
-                  Trade / Offer / Save / Report are reachable without scrolling. */}
+              {/* Description — in its own bordered field beneath the seller card,
+                  above the action buttons. The listing's prose now lives here
+                  rather than at the top of the rail, so the first things a buyer
+                  sees are the price and who they're buying from, then the detail. */}
+              <div className="rounded-lg border bg-card px-3 py-3">
+                <p className="whitespace-pre-line break-words text-body leading-relaxed text-foreground">
+                  {item.description}
+                </p>
+              </div>
+
               <ItemActions
                 itemId={item.id}
                 itemTitle={item.title}

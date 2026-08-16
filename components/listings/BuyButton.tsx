@@ -275,15 +275,11 @@ export function BuyButton({
               </div>
 
               {/* Saved payment method widget — just above the confirmation.
-                  The ROW stays `items-center` because the Button on the right
-                  belongs on the row's axis; only the icon self-aligns to the
-                  label it sits beside. Top-aligning the whole row would send the
-                  button up with it. */}
+                  Icon centred against the whole row, which is the convention across
+                  the app: an icon beside a label-plus-subtitle sits on the block's
+                  axis, not on the label's first line. */}
               <div className="flex items-center gap-3 rounded-lg border p-3">
-                <CreditCard
-                  className="mt-0.5 h-5 w-5 shrink-0 self-start text-muted-foreground"
-                  aria-hidden
-                />
+                <CreditCard className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium">
                     {paymentLabel ?? 'Card on file'}

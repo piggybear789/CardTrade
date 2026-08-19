@@ -546,12 +546,13 @@ export function createSupabaseCashSaleRepository(
     async confirmHandover({ cashSaleId, actor, confirmedAt }) {
       const mine =
         actor === 'BUYER' ? 'buyer_handover_confirmed_at' : 'seller_handover_confirmed_at';
+      const stamp =
+        actor === 'BUYER'
+          ? { buyer_handover_confirmed_at: confirmedAt, updated_at: confirmedAt }
+          : { seller_handover_confirmed_at: confirmedAt, updated_at: confirmedAt };
       const { data: stamped } = await client
         .from('cash_sales')
-        .update({
-          [mine]: confirmedAt,
-          updated_at: confirmedAt,
-        })
+        .update(stamp)
         .eq('id', cashSaleId)
         .eq('status', 'HANDOVER')
         .is(mine, null)

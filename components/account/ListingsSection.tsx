@@ -40,7 +40,7 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
   return (
     <ul
       role="list"
-      className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+      className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]"
     >
       {sorted.map((item) => (
         <li key={item.id} className="min-w-0">

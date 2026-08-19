@@ -38,7 +38,6 @@ export default async function NotificationsPage() {
   }
 
   const result = await listMyNotifications();
-  const initialNotifications = result.ok ? result.notifications : [];
 
   return (
     <MarketplaceShell title="Notifications">
@@ -51,14 +50,14 @@ export default async function NotificationsPage() {
         <div className="mb-5">
           <SectionLoadError label="notifications" />
         </div>
-      ) : null}
-
-      <div className="flex w-full flex-col">
-        <NotificationCenter
-          userId={user.id}
-          initialNotifications={initialNotifications}
-        />
-      </div>
+      ) : (
+        <div className="flex w-full flex-col">
+          <NotificationCenter
+            userId={user.id}
+            initialNotifications={result.notifications}
+          />
+        </div>
+      )}
     </MarketplaceShell>
   );
 }

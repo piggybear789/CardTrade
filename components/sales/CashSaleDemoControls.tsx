@@ -74,7 +74,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode
             </span>
-            <span className="mt-0.5 block text-meta text-muted-foreground">
+            <span className="mt-0.5 block text-body text-muted-foreground">
               Simulated payments — not live Stripe
             </span>
           </span>
@@ -88,7 +88,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
 
       {open ? (
         <div id="cash-sale-demo-body" className="space-y-cozy px-group pb-group">
-          <p className="text-meta text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             In production, Stripe delivers a webhook when the payment clears. Simulate
             that here to advance the sale.
           </p>

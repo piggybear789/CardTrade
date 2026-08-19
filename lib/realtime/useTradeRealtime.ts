@@ -117,9 +117,13 @@ export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
     (payload: RealtimePostgresChangesPayload<TradeTransitionRow>) => {
       if (payload.eventType !== 'INSERT') return;
       const next = payload.new as TradeTransitionRow;
-      setTransitions((prev) =>
-        prev.some((row) => row.id === next.id) ? prev : [...prev, next],
-      );
+      setTransitions((prev) => {
+        if (prev.some((row) => row.id === next.id)) return prev;
+        return [...prev, next].sort(
+          (a, b) =>
+            a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+        );
+      });
     },
     [],
   );

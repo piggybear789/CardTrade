@@ -7,19 +7,21 @@
 // are drawn as plain placeholder bars instead of the live `MarketplaceNav` /
 // `KycRailStatus` Server Components.
 
-import type { ReactNode } from 'react';
+import { ViewTransition, type ReactNode } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 /**
- * Link-row counts per rail group, mirroring `MARKETPLACE_NAV_GROUPS`.
+ * Link-row counts per rail group, mirroring `MARKETPLACE_NAV_GROUPS`
+ * (Marketplace 2, Contracts 3, Selling 2, You 3).
  *
  * Members only, deliberately. Staff additionally see a Staff group, but that depends on
  * a profile read this skeleton must not perform — a placeholder that queries the
  * database is no longer a placeholder. The result is a small one-group settle on the
  * rail for staff, and none for everyone else.
  */
-const NAV_GROUPS = [2, 4, 2, 3];
+const NAV_GROUPS = [2, 3, 2, 3];
 
 function NavGroupSkeleton() {
   return (
@@ -47,13 +49,20 @@ export function MarketplaceShellSkeleton({
    * in the route's `loading.tsx`, not here.
    */
   hasPrimaryAction = false,
+  /** Match `MarketplaceShell.flush` — thread/room pages that fill the viewport. */
+  flush = false,
+  /** Match `MarketplaceShell.center` — short interstitials like the trade offer form. */
+  center = false,
   children,
 }: {
   filters?: ReactNode;
   hasPrimaryAction?: boolean;
+  flush?: boolean;
+  center?: boolean;
   children: ReactNode;
 }) {
   return (
+    <ViewTransition exit="slide-down">
     <div
       className="flex min-h-0 w-full flex-1 flex-col"
       role="status"
@@ -64,12 +73,15 @@ export function MarketplaceShellSkeleton({
 
       {/* No mobile header: the real shell prints none either — below `lg` the
           page's own section header is the top of the page. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch lg:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch md:flex-row">
         {/* Rail — same proportional width/min/max as the real aside, and like it
             desktop-only: below `lg` filters live in the content column. */}
-        <aside className="hidden w-full min-w-0 px-4 sm:px-6 lg:block lg:w-1/5 lg:min-w-[13.5rem] lg:max-w-[19rem] lg:shrink-0 lg:self-stretch lg:border-r lg:border-border/80 lg:bg-card/90 lg:px-5">
+        <aside
+          style={{ viewTransitionName: 'persistent-nav' }}
+          className="hidden w-full min-w-0 px-4 sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-card/90 md:px-5"
+        >
           <div className="flex flex-col gap-6 py-7">
-            <div className="hidden space-y-2 lg:block">
+            <div className="hidden space-y-2 md:block">
               <Skeleton className="h-3 w-28" />
               <Skeleton className="h-9 w-40" />
               {hasPrimaryAction ? (
@@ -77,21 +89,37 @@ export function MarketplaceShellSkeleton({
               ) : null}
             </div>
 
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <NavGroupSkeleton />
             </div>
 
-            <div className="hidden lg:block">{filters}</div>
+            <div className="hidden md:block">{filters}</div>
 
-            <div className="mt-auto hidden lg:block">
+            <div className="mt-auto hidden md:block">
               <Skeleton className="h-[4.5rem] w-full rounded-lg" />
             </div>
           </div>
         </aside>
 
-        <section className="flex w-full min-w-0 flex-1 flex-col items-center px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:w-auto lg:px-7 lg:pb-10 lg:py-7 xl:px-8">
-          <div className="flex min-h-0 w-full flex-1 flex-col">
-            {filters ? <div className="min-w-0 lg:hidden">{filters}</div> : null}
+        <section
+          className={cn(
+            'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-5 sm:px-6 md:w-auto md:px-7 md:py-7 xl:px-8',
+            flush && 'min-h-0 overflow-hidden',
+            flush &&
+              'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
+            flush
+              ? 'pb-4 md:pb-7'
+              : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',
+            center && 'justify-center',
+          )}
+        >
+          <div
+            className={cn(
+              'mx-auto flex min-h-0 w-full max-w-workspace flex-col',
+              center ? 'my-auto' : 'flex-1',
+            )}
+          >
+            {filters ? <div className="min-w-0 md:hidden">{filters}</div> : null}
             {children}
           </div>
         </section>
@@ -99,7 +127,8 @@ export function MarketplaceShellSkeleton({
 
       {/* Fixed hub bar placeholder — matches MobileBottomNav geometry. */}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        style={{ viewTransitionName: 'persistent-mobile-nav' }}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-hidden="true"
       >
         <div className="mx-auto grid h-14 max-w-lg grid-cols-5 gap-1 px-2">
@@ -109,5 +138,6 @@ export function MarketplaceShellSkeleton({
         </div>
       </div>
     </div>
+    </ViewTransition>
   );
 }

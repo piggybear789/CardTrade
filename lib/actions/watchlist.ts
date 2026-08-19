@@ -17,6 +17,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { CatalogItem, CatalogSeller } from '@/lib/actions/listings';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 
 /** A persisted watchlist row. */
 export type WatchlistRow = Tables<'watchlist'>;
@@ -77,7 +78,11 @@ export async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
       .eq('user_id', me)
       .eq('item_id', itemId);
     if (error) {
-      return { ok: false, error: 'persistence-error', detail: error.message };
+      return {
+        ok: false,
+        error: 'persistence-error',
+        detail: friendlyWriteFailure(error, 'Failed to update watchlist'),
+      };
     }
     return { ok: true, watching: false };
   }
@@ -86,7 +91,11 @@ export async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
     .from('watchlist')
     .insert({ user_id: me, item_id: itemId });
   if (error) {
-    return { ok: false, error: 'persistence-error', detail: error.message };
+    return {
+      ok: false,
+      error: 'persistence-error',
+      detail: friendlyWriteFailure(error, 'Failed to update watchlist'),
+    };
   }
   return { ok: true, watching: true };
 }
@@ -159,16 +168,20 @@ export async function getWatchCount(itemId: string): Promise<number> {
  */
 export async function getWatchingSet(itemIds: string[]): Promise<Set<string>> {
   if (itemIds.length === 0) return new Set();
-  const supabase = await createClient();
+  const watching = await getMyWatchingSet();
+  return new Set(itemIds.filter((id) => watching.has(id)));
+}
 
+/** Every listing the caller has saved. Safe to start before catalog IDs exist. */
+export async function getMyWatchingSet(): Promise<Set<string>> {
+  const supabase = await createClient();
   const me = await getUserId(supabase);
   if (!me) return new Set();
 
   const { data } = await supabase
     .from('watchlist')
     .select('item_id')
-    .eq('user_id', me)
-    .in('item_id', itemIds);
+    .eq('user_id', me);
 
   return new Set((data ?? []).map((r) => r.item_id as string));
 }
@@ -214,7 +227,11 @@ export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    return { ok: false, error: 'persistence-error', detail: error.message };
+    return {
+      ok: false,
+      error: 'persistence-error',
+      detail: friendlyWriteFailure(error, 'Failed to load watchlist'),
+    };
   }
 
   const watchRows = (rows ?? []) as Pick<WatchlistRow, 'item_id' | 'created_at'>[];
@@ -256,7 +273,7 @@ export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
         rating: (s.rating as number | null) ?? null,
         ratingCount: (s.rating_count as number | null) ?? 0,
         isVerified: Boolean(s.is_verified),
-        identityFirstName: (s.identity_first_name as string | null) ?? null,
+        identityFirstName: (s.identity_first_name as string | null) ?? null,
         avatarPath: (s.avatar_path as string | null) ?? null,
       },
     ]),

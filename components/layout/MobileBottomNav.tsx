@@ -79,7 +79,8 @@ export function MobileBottomNav() {
     <>
       <nav
         aria-label="Marketplace hubs"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_hsl(var(--foreground)/0.06)] backdrop-blur supports-[backdrop-filter]:bg-card/90 lg:hidden"
+        style={{ viewTransitionName: 'persistent-mobile-nav' }}
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] shadow-[0_-8px_28px_hsl(var(--foreground)/0.06)] md:hidden"
       >
         <ul className="mx-auto grid h-14 max-w-lg grid-cols-5">
           {MOBILE_HUBS.map((hub) => {
@@ -152,9 +153,9 @@ export function MobileBottomNav() {
           <SheetContent
             id={`mobile-hub-${hub.id}`}
             side="bottom"
-            className="max-h-[min(28rem,75dvh)] gap-0 rounded-t-xl border-border/80 bg-card p-0"
+            className="max-h-[min(28rem,75dvh)] gap-0 rounded-t-xl border-border bg-card p-0"
           >
-            <SheetHeader className="border-b border-border/70 px-5 py-4 text-left">
+            <SheetHeader className="border-b border-border px-5 py-4 text-left">
               <SheetTitle>{hub.title}</SheetTitle>
               <SheetDescription>{hub.description}</SheetDescription>
             </SheetHeader>

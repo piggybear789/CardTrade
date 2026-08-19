@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isCardGameName } from '@/lib/catalog/cardGames';
 import { runSchema, type ValidationResult } from './result';
 
 /**
@@ -108,8 +109,8 @@ export const itemSubmissionSchema = z.object({
       'Description is required',
     ),
   category: z
-    .string({ error: 'Category is required' })
-    .min(1, 'Category is required'),
+    .string({ error: 'Game is required' })
+    .refine(isCardGameName, 'Game is required'),
   condition: z
     .string({ error: 'Condition is required' })
     .min(1, 'Condition is required'),

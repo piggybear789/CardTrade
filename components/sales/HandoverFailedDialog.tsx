@@ -28,21 +28,24 @@ export interface HandoverFailedDialogProps {
   cashSaleId: string;
   /** Contextual label for the trigger button. */
   triggerLabel?: string;
+  triggerVariant?: 'outline' | 'destructive' | 'default' | 'secondary' | 'ghost';
 }
 
 export function HandoverFailedDialog({
   cashSaleId,
   triggerLabel = 'Report handover failed',
+  triggerVariant,
 }: HandoverFailedDialogProps) {
   return (
     <SharedHandoverFailedDialog
       triggerLabel={triggerLabel}
+      triggerVariant={triggerVariant}
       title="Report handover failed"
       evidenceContext={{ caseKind: 'CASH_SALE', caseRef: cashSaleId }}
       // States what actually happens, not what we hope happens. This previously
       // promised "the buyer is refunded", which was untrue in two ways: nothing
       // refunded automatically, and a refund is only one of three outcomes.
-      outcomeDescription="Describe what went wrong. This raises a dispute and freezes the money — nothing is released to either side until a CardTrade operator reviews it. They can refund you in full, refund part of it, or decide the sale stands. You will be notified of the outcome."
+      outcomeDescription="Describe what went wrong. This raises a dispute and freezes the money — nothing is released to either side until NoDitto support reviews it. They can refund you in full, refund part of it, or decide the sale stands. You will be notified of the outcome."
       successMessage="Dispute raised — the contract is now under review."
       reasonPlaceholder="e.g. Item not as described, seller didn't show up, package arrived damaged…"
       onSubmit={async (reason) => {

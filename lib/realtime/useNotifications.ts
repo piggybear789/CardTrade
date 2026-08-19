@@ -170,6 +170,7 @@ export function useNotifications(
     let channel: RealtimeChannel | null = null;
     let reconnectAttempts = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let subscribeEpoch = 0;
 
     // Load a fresh snapshot before/while the channel connects so the bell stays
     // authoritative even if the first realtime event has not yet arrived.
@@ -181,7 +182,22 @@ export function useNotifications(
         .limit(50);
       if (!isMounted) return;
       if (data) {
-        setNotifications((data as NotificationRow[]).slice().sort(byCreatedAtDesc));
+        setNotifications((prev) => {
+          const map = new Map<string, NotificationRow>();
+          for (const n of data as NotificationRow[]) {
+            map.set(n.id, n);
+          }
+          for (const n of prev) {
+            const incoming = map.get(n.id);
+            if (!incoming) {
+              map.set(n.id, n);
+            } else if (n.read_at !== null && incoming.read_at === null) {
+              // Preserve local optimistic read state
+              map.set(n.id, { ...incoming, read_at: n.read_at });
+            }
+          }
+          return Array.from(map.values()).sort(byCreatedAtDesc);
+        });
       }
     };
 
@@ -202,6 +218,7 @@ export function useNotifications(
 
     const subscribe = () => {
       if (!isMounted) return;
+      const epoch = ++subscribeEpoch;
 
       // Tear down any previous channel before creating a fresh one.
       if (channel) {
@@ -243,7 +260,7 @@ export function useNotifications(
 
       channel = nextChannel;
       nextChannel.subscribe((status) => {
-        if (!isMounted || channel !== nextChannel) return;
+        if (!isMounted || channel !== nextChannel || epoch !== subscribeEpoch) return;
         switch (status) {
           case 'SUBSCRIBED':
             // Fresh snapshot on (re)connect avoids missing notifications that

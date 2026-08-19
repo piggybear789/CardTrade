@@ -493,8 +493,8 @@ export async function handleWebhookDelivery(
     outcomes.push(outcome);
   }
 
-  // Authentic deliveries are always acked (200); the recorded outcomes
-  // distinguish SUCCESS / FAILURE / NO_OP (Req 10.6).
+  // When any event in the delivery failed, return HTTP 500 so Stripe/provider
+  // retries with exponential backoff (Req 10.6).
   const aggregate: WebhookOutcome = outcomes.includes('FAILURE')
     ? 'FAILURE'
     : outcomes.includes('SUCCESS')
@@ -510,6 +510,6 @@ export async function handleWebhookDelivery(
       // demo UI surfaces this to show idempotent re-delivery (Req 10.5).
       deduped: dedupedCount === outcomes.length,
     },
-    { status: 200 },
+    { status: aggregate === 'FAILURE' ? 500 : 200 },
   );
 }

@@ -4,21 +4,37 @@
 //
 // Entry point to a purchase contract (Req 4.1). When the buyer clicks "Buy now":
 //   1. Fetch their payment method status from the server.
-//   2a. Saved method exists → show a compact card widget ("Visa •••• 4242") plus
-//       the seller identity confirmation, all in one view.
+//   2a. Saved method exists → show a compact card widget ("Visa •••• 4242").
 //   2b. No method → show the inline card entry form. Once saved, advance to 2a.
 //
 // Confirming reserves the item and opens the contract room. No money moves until
-// both parties accept the same fulfillment terms.
+// the buyer pays after handover details are set.
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Loader2, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { CreditCard, Loader2, ShoppingCart } from 'lucide-react';
+import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
+import { navigateWithType } from '@/lib/motion/navigate';
+import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
-import { AddPaymentMethodForm } from '@/components/payments/AddPaymentMethodForm';
+
+const AddPaymentMethodForm = dynamic(
+  () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-gold" aria-hidden />
+        <span className="sr-only">Loading payment form…</span>
+      </div>
+    ),
+  },
+);
+
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -35,7 +51,6 @@ import {
   emptyRequest,
   requestTotalCents,
   toRequestLineItems,
-  type RequestDraft,
 } from '@/components/sales/ContractLineItems';
 
 // Refusal copy lives in `lib/cashSaleErrors.ts` because accepting an Offer opens
@@ -43,41 +58,92 @@ import {
 // here is what let the two drift — see the note in that file.
 import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 
+type SalePrep =
+  | { ok: true; lineItems?: ReturnType<typeof toRequestLineItems> }
+  | { ok: false; error: string };
+
+/**
+ * Single-item listing: opening the contract reserves the object.
+ */
 export function BuyButton({
   itemId,
   sellerIdentity,
-  appearance = 'button',
-  isShopfront = false,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
-  /** `icon` = round chip + label below (item detail). */
-  appearance?: 'button' | 'icon';
-  /**
-   * The listing is a browsable inventory rather than one object (0064).
-   *
-   * The control stays "Buy now" — it opens a contract on this listing either way,
-   * and a second verb for the same act only made members wonder what the other one
-   * did. What changes is what the contract has to state, because the listing
-   * cannot: the buyer writes what they want out of the binder and names a price,
-   * and that becomes the contract's single line item. The one thing that must not
-   * be glossed is that nothing is reserved by opening it.
-   */
-  isShopfront?: boolean;
+}) {
+  return (
+    <PurchaseDialog
+      itemId={itemId}
+      sellerIdentity={sellerIdentity}
+      description="This reserves the item and opens a contract with the seller. You do not pay yet."
+      confirmLabel="Reserve item and agree terms"
+      prepareSale={() => ({ ok: true })}
+    />
+  );
+}
+
+/**
+ * Shopfront / binder listing: the buyer names what they want and a price.
+ * Nothing is reserved when the contract opens (0064).
+ */
+export function ShopfrontBuyButton({
+  itemId,
+  sellerIdentity,
+}: {
+  itemId: string;
+  sellerIdentity: SellerIdentityDisclosure;
+}) {
+  const [request, setRequest] = useState(emptyRequest);
+
+  return (
+    <PurchaseDialog
+      itemId={itemId}
+      sellerIdentity={sellerIdentity}
+      description="Describe your desired items. You do not pay yet."
+      confirmLabel="Open contract and agree terms"
+      onReset={() => setRequest(emptyRequest())}
+      prepareSale={() => {
+        if (toRequestLineItems(request).length === 0) {
+          return { ok: false, error: 'Describe what you want from this listing.' };
+        }
+        if (requestTotalCents(request) <= 0) {
+          return { ok: false, error: 'Put a price on what you are asking for.' };
+        }
+        return { ok: true, lineItems: toRequestLineItems(request) };
+      }}
+    >
+      <ContractRequestFields value={request} onChange={setRequest} />
+    </PurchaseDialog>
+  );
+}
+
+function PurchaseDialog({
+  itemId,
+  sellerIdentity,
+  description,
+  confirmLabel,
+  prepareSale,
+  onReset,
+  children,
+}: {
+  itemId: string;
+  sellerIdentity: SellerIdentityDisclosure;
+  description: string;
+  confirmLabel: string;
+  prepareSale: () => SalePrep;
+  onReset?: () => void;
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [request, setRequest] = useState<RequestDraft>(emptyRequest);
 
-  // Payment method status, fetched on dialog open.
   const [paymentLabel, setPaymentLabel] = useState<string | null>(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
 
-  // Fetch payment method status every time the dialog opens.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -95,8 +161,6 @@ export function BuyButton({
         }
       })
       .catch(() => {
-        // Never leave the dialog stuck on the spinner if the lookup rejects;
-        // fall back to the card-entry path.
         if (cancelled) return;
         setLoadingStatus(false);
         setHasPaymentMethod(false);
@@ -105,46 +169,40 @@ export function BuyButton({
     return () => { cancelled = true; };
   }, [open]);
 
-  function openContract() {
-    setError(null);
-    startTransition(async () => {
-      const result = await initiateCashSale({
-        itemId,
-        sellerIdentityVersion: sellerIdentity.version,
-        buyerConfirmedSellerIdentity: true,
-        lineItems: isShopfront ? toRequestLineItems(request) : undefined,
-      });
-      if (result.ok) {
-        router.push(`/sales/${result.sale.id}`);
-        return;
-      }
-      if (result.error === 'no-payment-method') {
-        setHasPaymentMethod(false);
-        setPaymentLabel(null);
-        return;
-      }
-      setError(
-        result.message ?? cashSaleRefusalMessage(result.error),
-      );
-    });
-  }
-
   function handleBuy() {
-    if (isShopfront) {
-      if (toRequestLineItems(request).length === 0) {
-        setError('Describe what you want from this listing.');
-        return;
-      }
-      if (requestTotalCents(request) <= 0) {
-        setError('Put a price on what you are asking for.');
-        return;
-      }
-    }
-    if (!confirmed) {
-      setError('Confirm that this is the seller you intend to buy from.');
+    const prepared = prepareSale();
+    if (!prepared.ok) {
+      setError(prepared.error);
       return;
     }
-    openContract();
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await initiateCashSale({
+          itemId,
+          sellerIdentityVersion: sellerIdentity.version,
+          buyerConfirmedSellerIdentity: true,
+          lineItems: prepared.lineItems,
+        });
+        if (result.ok) {
+          navigateWithType(router, `/sales/${result.sale.id}`, 'nav-forward');
+          return;
+        }
+        if (result.error === 'no-payment-method') {
+          setHasPaymentMethod(false);
+          setPaymentLabel(null);
+          return;
+        }
+        const errorMsg = result.message ?? cashSaleRefusalMessage(result.error);
+        setError(errorMsg);
+        toast.error(errorMsg);
+      } catch {
+        const fallback = 'Failed to initiate purchase contract. Please try again.';
+        setError(fallback);
+        toast.error(fallback);
+      }
+    });
   }
 
   const showCardForm = hasPaymentMethod === false;
@@ -157,21 +215,13 @@ export function BuyButton({
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) {
-          setConfirmed(false);
           setError(null);
-          setRequest(emptyRequest());
+          onReset?.();
         }
       }}
     >
       <DialogTrigger asChild>
-        {appearance === 'icon' ? (
-          <ListingActionIcon icon={ShoppingCart} label="Buy now" variant="default" />
-        ) : (
-          <Button type="button" size="lg" className="flex-1 sm:flex-none">
-            <ShoppingCart aria-hidden />
-            Buy now
-          </Button>
-        )}
+        <ListingActionIcon icon={ShoppingCart} label="Buy now" variant="default" />
       </DialogTrigger>
       <DialogContent>
         {loading ? (
@@ -189,7 +239,6 @@ export function BuyButton({
             </DialogHeader>
             <AddPaymentMethodForm
               onAttached={() => {
-                // Re-fetch to pick up the new label.
                 setLoadingStatus(true);
                 getPaymentMethodStatus()
                   .then((result) => {
@@ -207,84 +256,29 @@ export function BuyButton({
           <>
             <DialogHeader>
               <DialogTitle>Start a purchase contract</DialogTitle>
-              <DialogDescription>
-                {isShopfront
-                  ? 'Describe your desired items. You do not pay yet.'
-                  : 'This reserves the item and opens a contract with the seller. You do not pay yet.'}
-              </DialogDescription>
+              <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* The one thing a buyer could reasonably get wrong. Every other
-                  listing on the site is held the moment a contract opens; this
-                  one is not, and being vague about that would be the difference
-                  between a disappointed buyer and a misled one. */}
-              {isShopfront ? (
-                <>
-                  <ContractRequestFields
-                    value={request}
-                    onChange={setRequest}
-                    disabled={isPending}
-                  />
-                </>
-              ) : null}
+              {children}
 
-              {/* Seller identity */}
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
-                  <ShieldCheck className="h-4 w-4" aria-hidden />
-                  Identity verified via Stripe
-                </div>
-                <dl className="grid gap-2 text-body">
-                  {sellerIdentity.tradingName ? (
-                    <div className="min-w-0">
-                      <dt className="text-muted-foreground">Store</dt>
-                      <dd className="break-words font-medium">
-                        {sellerIdentity.tradingName}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {/* THIS ROW USED TO READ "Verified name" UNCONDITIONALLY, and that
-                      was the overclaim worth fixing first: this is the screen where a
-                      Buyer commits money against the disclosure. `legalEntityName`
-                      falls back to the seller's own `display_name` for members
-                      grandfathered by 0069, so for those rows the old label promised a
-                      government document check that had not happened. */}
-                  <div className="min-w-0">
-                    <dt className="text-muted-foreground">
-                      {sellerIdentity.nameIsDocumentVerified
-                        ? 'Real name'
-                        : 'Stated name'}
-                    </dt>
-                    <dd className="break-words font-medium">
-                      {sellerIdentity.legalEntityName}
-                    </dd>
-                  </div>
-                  {sellerIdentity.nameIsDocumentVerified ? null : (
-                    <p className="text-body text-muted-foreground">
-                      This seller verified their identity before we began recording
-                      names from photo ID, so the name above is the one they gave us
-                      rather than one checked against a document.
-                    </p>
-                  )}
-                  <div>
-                    <dt className="text-muted-foreground">Verified</dt>
-                    <dd>{new Date(sellerIdentity.verifiedAt).toLocaleDateString('en-AU')}</dd>
-                  </div>
-                </dl>
+              <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
+                <p className="font-medium">Verified seller</p>
+                {sellerIdentity.tradingName ? (
+                  <p className="break-words">{sellerIdentity.tradingName}</p>
+                ) : null}
+                <p className="break-words text-muted-foreground">
+                  {sellerIdentity.legalEntityName}
+                </p>
               </div>
 
-              {/* Saved payment method widget — just above the confirmation.
-                  Icon centred against the whole row, which is the convention across
-                  the app: an icon beside a label-plus-subtitle sits on the block's
-                  axis, not on the label's first line. */}
-              <div className="flex items-center gap-3 rounded-lg border p-3">
-                <CreditCard className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="flex items-center gap-3 rounded-lg border border-white/15 bg-obsidian p-3 text-parchment">
+                <CreditCard className="h-5 w-5 shrink-0 text-parchment/70" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-medium">
+                  <p className="truncate text-body font-medium text-parchment">
                     {paymentLabel ?? 'Card on file'}
                   </p>
-                  <p className="text-meta text-muted-foreground">
+                  <p className="text-body text-parchment/65">
                     Stripe method
                   </p>
                 </div>
@@ -292,7 +286,7 @@ export function BuyButton({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-meta"
+                  className="text-parchment hover:bg-white/10 hover:text-parchment"
                   onClick={() => {
                     setHasPaymentMethod(false);
                     setPaymentLabel(null);
@@ -302,31 +296,10 @@ export function BuyButton({
                 </Button>
               </div>
 
-              <label className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-body">
-                <input
-                  type="checkbox"
-                  checked={confirmed}
-                  onChange={(event) => setConfirmed(event.target.checked)}
-                  className="h-4 w-4 shrink-0"
-                  disabled={isPending}
-                />
-                <span>
-                  I confirm that these are the seller details I expect and I want
-                  to open a contract with them.
-                </span>
-              </label>
-
-              {error ? (
-                <p role="alert" className="text-body text-destructive">
-                  {error}
-                </p>
-              ) : null}
+              <FieldError message={error ?? undefined} />
             </div>
 
             <DialogFooter>
-              {/* Enabled until the request starts: clicking without ticking the
-                  box surfaces an inline error via handleBuy, which is clearer
-                  than a mysteriously disabled button. */}
               <Button
                 type="button"
                 onClick={handleBuy}
@@ -334,11 +307,7 @@ export function BuyButton({
                 aria-busy={isPending}
               >
                 {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-                {isPending
-                  ? 'Opening contract…'
-                  : isShopfront
-                    ? 'Open contract and agree terms'
-                    : 'Reserve item and agree terms'}
+                {isPending ? 'Opening contract…' : confirmLabel}
               </Button>
             </DialogFooter>
           </>

@@ -6,37 +6,112 @@
 // room (Req 4.2) and the private deal room both render it in their middle
 // column, so the two flows behave and read identically.
 //
-// It is generic over the thread: it takes a `conversationId` and nothing else
-// about what the contract is. Contract history arrives in the same thread as
-// stored SYSTEM messages (mirrored by database triggers), which render as
-// centred, unattributed notes.
+// Header is Xianyu-shaped: a person bar (avatar + name), then a product strip
+// (thumb, title, price, live CTAs). The thread itself is generic — it takes a
+// conversationId — and contract history arrives as SYSTEM messages.
 
-import { useEffect, useRef, useState, useTransition, type FormEvent, type UIEvent } from 'react';
-import Link from 'next/link';
-import { ArrowDown, ExternalLink, Loader2, Send } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { sendMessage, markConversationRead } from '@/lib/actions/messages';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type UIEvent,
+} from 'react';
+import { ArrowDown } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
+import { markConversationRead } from '@/lib/actions/messages';
 import { useConversationRealtime } from '@/lib/realtime/useConversationRealtime';
-import { MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
+import { MessageComposer } from '@/components/messages/MessageComposer';
+import { MessageLog } from '@/components/messages/MessageLog';
 import { cn } from '@/lib/utils';
 
 /** How close to the bottom (px) still counts as "already reading the latest". */
 const FOLLOW_THRESHOLD_PX = 48;
 
+/** The item this thread is about — Xianyu pins it under the person bar. */
+export interface ContractChatSubject {
+  title: string;
+  /** Resolved image URL, already public. */
+  thumb?: string | null;
+  /** Formatted price, e.g. "$84.00". */
+  price?: string | null;
+}
+
 export interface ContractChatProps {
   conversationId: string;
   currentUserId: string;
   counterpartyName: string;
-  /** Panel heading. Defaults to the neutral "Contract chat". */
+  /** Avatar object path, or null. A PATH, not a URL. */
+  counterpartyAvatarPath?: string | null;
+  /**
+   * @deprecated The counterpart's name is the heading now (Xianyu person bar).
+   * Kept so existing call sites do not break.
+   */
   title?: string;
   /** Composer placeholder. */
   placeholder?: string;
   /** Copy shown while the thread is empty. */
   emptyHint?: string;
-  /** Link to the full `/messages/[id]` thread for this contract's conversation. */
-  contractHref?: string;
+  /** Item strip under the person bar: thumb, title, price, then the live CTAs. */
+  subject?: ContractChatSubject | null;
+  /**
+   * Live-step controls. Sit on the product strip (right), the way 闲鱼 puts
+   * 我想要 / 去支付 beside the goods — not next to the person's name.
+   */
+  actions?: ReactNode;
   className?: string;
+}
+
+export function ContractChatBar({
+  counterpartyName,
+  counterpartyAvatarPath,
+  subject,
+  actions,
+  connectionStatus,
+}: {
+  counterpartyName: string;
+  counterpartyAvatarPath?: string | null;
+  subject?: ContractChatSubject | null;
+  actions?: ReactNode;
+  connectionStatus?: 'ok' | 'error' | string;
+}) {
+  const offline = connectionStatus === 'error';
+
+  return (
+    <header className="flex shrink-0 items-center gap-cozy border-b px-group py-3.5">
+      <Avatar
+        avatarPath={counterpartyAvatarPath}
+        displayName={counterpartyName}
+        size="md"
+      />
+      <div className="min-w-0 flex-1">
+        <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
+          {subject?.title ?? counterpartyName}
+        </h2>
+        {subject || offline ? (
+          <p className="truncate text-body leading-tight text-muted-foreground">
+            {subject?.price ? (
+              <span className="display-value font-semibold text-foreground">
+                {subject.price}
+              </span>
+            ) : null}
+            {subject?.price && subject ? ' · ' : null}
+            {subject ? counterpartyName : null}
+            {offline ? (
+              <span className="text-destructive">
+                {subject ? ' · Offline' : 'Offline'}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+      </div>
+      {actions ? (
+        <div className="flex min-w-0 shrink-0 items-center justify-end gap-1">
+          {actions}
+        </div>
+      ) : null}
+    </header>
+  );
 }
 
 /**
@@ -49,16 +124,14 @@ export function ContractChat({
   conversationId,
   currentUserId,
   counterpartyName,
-  title = 'Contract chat',
+  counterpartyAvatarPath,
   placeholder = 'Message about the handover…',
   emptyHint = 'Use chat to coordinate. Only the saved terms are binding.',
-  contractHref,
+  subject,
+  actions,
   className,
 }: ContractChatProps) {
   const { messages, connectionStatus } = useConversationRealtime(conversationId);
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [unseenCount, setUnseenCount] = useState(0);
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -94,22 +167,10 @@ export function ContractChat({
     setUnseenCount(0);
   }
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    const body = draft.trim();
-    if (!body || body.length > MESSAGE_BODY_MAX || isPending) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await sendMessage(conversationId, body);
-      if (result.ok) setDraft('');
-      else setError('Message could not be sent.');
-    });
-  }
-
   return (
     <section
       className={cn(
-        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/90 bg-card shadow-sm',
+        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm',
         className,
       )}
     >
@@ -118,39 +179,13 @@ export function ContractChat({
           separately banded the panel, and with only 3 points of lightness
           between `--card` and `--background` the tints read as dirt, not depth.
           Depth comes from the bubbles instead. */}
-      <header className="flex items-center justify-between gap-3 border-b px-group py-cozy">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
-            <Send className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-body font-semibold">{title}</h2>
-            <p className="truncate text-meta text-muted-foreground">
-              With {counterpartyName}
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {connectionStatus === 'error' ? (
-            <span
-              className="flex items-center gap-tight text-meta text-destructive"
-              role="status"
-            >
-              <span className="size-2 rounded-full bg-destructive" aria-hidden />
-              Offline
-            </span>
-          ) : null}
-          {contractHref ? (
-            <Link
-              href={contractHref}
-              className="inline-flex touch-manipulation items-center gap-1 rounded-sm text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Open Conversation
-              <ExternalLink className="size-3" aria-hidden />
-            </Link>
-          ) : null}
-        </div>
-      </header>
+      <ContractChatBar
+        counterpartyName={counterpartyName}
+        counterpartyAvatarPath={counterpartyAvatarPath}
+        subject={subject}
+        actions={actions}
+        connectionStatus={connectionStatus}
+      />
       <div className="relative min-h-0 flex-1">
         <div
           ref={logRef}
@@ -164,126 +199,38 @@ export function ContractChat({
           // carrying on down the page, and the reader had to lift and re-swipe
           // outside the log to continue. The two panes stack at the same
           // breakpoint, so they must make the same choice.
-          className="h-full space-y-3 overflow-y-auto p-cozy lg:overscroll-contain"
+          className="h-full overflow-y-auto p-cozy lg:overscroll-contain"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"
         >
-          {messages.length === 0 ? (
-            <div className="grid h-full place-items-center text-center">
-              <p className="max-w-56 text-body leading-5 text-muted-foreground">{emptyHint}</p>
-            </div>
-          ) : (
-            messages.map((message, index) => {
-              // Contract events are mirrored into the thread as SYSTEM messages:
-              // same table, same ordering, but centred and unattributed.
-              if (message.kind === 'SYSTEM') {
-                return (
-                  <div key={message.id} className="flex justify-center">
-                    <p className="max-w-[92%] break-words rounded-2xl border border-dashed bg-muted/40 px-cozy py-tight text-center text-meta leading-4 text-muted-foreground">
-                      {message.body}
-                    </p>
-                  </div>
-                );
-              }
-              const mine = message.sender_id === currentUserId;
-              const senderName = mine ? 'You' : counterpartyName;
-              // Show the name when the previous message was from a different sender
-              // or is a system message (i.e. start of a new run from this person).
-              const prev = index > 0 ? messages[index - 1] : null;
-              const showName =
-                !prev ||
-                prev.kind === 'SYSTEM' ||
-                prev.sender_id !== message.sender_id;
-              const time = new Date(message.created_at);
-              const timeLabel = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-              return (
-                <div key={message.id} className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
-                  {showName ? (
-                    <span className={cn('mb-0.5 px-1 text-meta font-medium text-muted-foreground')}>
-                      {senderName}
-                    </span>
-                  ) : null}
-                  <div
-                    className={cn(
-                      'max-w-[82%] rounded-2xl px-3 py-2 text-meta',
-                      mine
-                        ? 'rounded-br-sm bg-primary text-primary-foreground'
-                        : 'rounded-bl-sm bg-muted text-foreground',
-                    )}
-                  >
-                    <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                  </div>
-                  <span className={cn('mt-0.5 px-1 text-meta text-muted-foreground/60')}>
-                    {timeLabel}
-                  </span>
-                </div>
-              );
-            })
-          )}
+          <MessageLog
+            conversationId={conversationId}
+            messages={messages}
+            currentUserId={currentUserId}
+            counterpartyName={counterpartyName}
+            counterpartyAvatarPath={counterpartyAvatarPath}
+            emptyHint={emptyHint}
+            showNames
+          />
         </div>
         {!isNearBottom && unseenCount > 0 ? (
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full bg-primary px-cozy py-2 text-meta font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full bg-primary px-cozy py-2 text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <ArrowDown className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}
           </button>
         ) : null}
       </div>
-      <form onSubmit={submit} className="border-t p-cozy">
-        <label htmlFor={`contract-chat-${conversationId}`} className="sr-only">
-          Write a message
-        </label>
-        <div className="flex items-end gap-2">
-          <Textarea
-            id={`contract-chat-${conversationId}`}
-            name="message"
-            autoComplete="off"
-            enterKeyHint="send"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              // Only submit on Enter from pointer devices; touch needs Enter for newlines.
-              if (
-                event.key === 'Enter' &&
-                !event.shiftKey &&
-                window.matchMedia('(hover: hover)').matches
-              ) {
-                event.preventDefault();
-                if (draft.trim() && !isPending) {
-                  submit(event as unknown as FormEvent);
-                }
-              }
-            }}
-            placeholder={placeholder}
-            maxLength={MESSAGE_BODY_MAX}
-            rows={1}
-            className="max-h-24 min-h-10 resize-none"
-            readOnly={isPending}
-          />
-          <Button
-            type="submit"
-            size="icon"
-            className="size-10 shrink-0"
-            disabled={!draft.trim() || isPending}
-            aria-label="Send message"
-          >
-            {isPending ? (
-              <Loader2 className="animate-spin" aria-hidden />
-            ) : (
-              <Send aria-hidden />
-            )}
-          </Button>
-        </div>
-        {error ? (
-          <p role="alert" className="mt-2 text-body text-destructive">
-            {error}
-          </p>
-        ) : null}
-      </form>
+      <MessageComposer
+        conversationId={conversationId}
+        placeholder={placeholder}
+        inputId={`contract-chat-${conversationId}`}
+        compact
+      />
     </section>
   );
 }

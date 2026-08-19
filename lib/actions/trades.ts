@@ -863,9 +863,10 @@ export type UpdateTradeHandoverTermsResult =
 /**
  * Update delivery / meeting terms on a live trade.
  *
- * Either participant may edit while the trade is still in COLLATERAL_PENDING or
- * COLLATERAL_LOCKED and neither side has marked shipped. After shipping starts,
- * terms are frozen.
+ * Either participant may edit while the trade is still NEGOTIATING,
+ * COLLATERAL_PENDING or COLLATERAL_LOCKED and neither side has marked shipped.
+ * A handover save does not reset acceptances. After shipping starts, terms are
+ * frozen.
  */
 export async function updateTradeHandoverTerms(
   tradeId: string,
@@ -885,7 +886,9 @@ export async function updateTradeHandoverTerms(
 
   const { trade } = guard.ctx;
   if (
-    (trade.state !== 'COLLATERAL_PENDING' && trade.state !== 'COLLATERAL_LOCKED') ||
+    (trade.state !== 'NEGOTIATING' &&
+      trade.state !== 'COLLATERAL_PENDING' &&
+      trade.state !== 'COLLATERAL_LOCKED') ||
     trade.initiator_shipped_at != null ||
     trade.counterpart_shipped_at != null
   ) {

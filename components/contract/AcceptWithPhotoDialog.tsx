@@ -41,6 +41,10 @@ export interface AcceptWithPhotoDialogProps {
   description?: string;
   /** Toast on success. */
   successMessage?: string;
+  /** Confirm button when a photo is attached. Trades keep the Accept default. */
+  confirmWithPhotoLabel?: string;
+  /** Confirm button with no photo. Trades keep the Accept default. */
+  confirmWithoutPhotoLabel?: string;
 }
 
 export function AcceptWithPhotoDialog({
@@ -50,6 +54,8 @@ export function AcceptWithPhotoDialog({
   title = 'Accept and complete',
   description = 'Optionally photograph what you received. This becomes your evidence if a dispute arises later.',
   successMessage = 'Accepted.',
+  confirmWithPhotoLabel = 'Accept with photo',
+  confirmWithoutPhotoLabel = 'Accept without photo',
 }: AcceptWithPhotoDialogProps) {
   const [open, setOpen] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -104,7 +110,7 @@ export function AcceptWithPhotoDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button">
+        <Button type="button" variant="action">
           <Check className="size-4" aria-hidden />
           {triggerLabel}
         </Button>
@@ -139,7 +145,7 @@ export function AcceptWithPhotoDialog({
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={isPending}
-              className="flex w-full flex-col items-center gap-snug rounded-lg border-2 border-dashed border-input p-section text-muted-foreground transition-colors hover:border-ring hover:bg-muted/30"
+              className="flex w-full flex-col items-center gap-snug rounded-lg border-2 border-dashed border-input p-section text-muted-foreground transition-colors hover:border-ring hover:bg-muted"
             >
               <Camera className="size-8" aria-hidden />
               <span className="text-body font-medium">Take or upload a photo</span>
@@ -170,12 +176,17 @@ export function AcceptWithPhotoDialog({
           </Button>
           <Button
             type="button"
+            variant="action"
             onClick={handleAccept}
             disabled={isPending}
             aria-busy={isPending}
           >
             {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />}
-            {isPending ? 'Confirming…' : photo ? 'Accept with photo' : 'Accept without photo'}
+            {isPending
+              ? 'Confirming…'
+              : photo
+                ? confirmWithPhotoLabel
+                : confirmWithoutPhotoLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -97,7 +97,7 @@ async function main(): Promise<void> {
   const createResult = await post('listings/create', token, {
     title: 'Smoke Test Card',
     description: 'Test',
-    category: 'Trading Cards',
+    category: 'Pokémon',
     condition: 'Near Mint',
     fmvCents: 1000,
     images: [],

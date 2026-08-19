@@ -22,6 +22,7 @@ import {
 } from 'react';
 import { CircleHelp, ScrollText } from 'lucide-react';
 
+import { TabIndicator } from '@/components/motion/TabIndicator';
 import { Card } from '@/components/ui/card';
 import {
   Popover,
@@ -49,7 +50,7 @@ export interface ContractDetailRowProps {
   variant?: 'default' | 'destructive';
   /** Current value shown beneath the selected tab. */
   summary?: ReactNode;
-  /** Contextual edit control for this detail. */
+  /** Edit control for this detail — rendered in the Contract Details header. */
   action?: ReactNode;
   /** Additional classes for the panel body. */
   contentClassName?: string;
@@ -160,7 +161,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
   return (
       <Card
         className={cn(
-          'flex h-full min-h-0 flex-col overflow-hidden border-border/90 shadow-sm',
+          'flex h-full min-h-0 flex-col overflow-hidden border-border shadow-sm',
           className,
         )}
       >
@@ -170,33 +171,25 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
           <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
             <ScrollText className="size-4" aria-hidden />
           </span>
-          <div className="min-w-0">
-            {/* Matches the chat panel's own heading exactly (`text-body
-                font-semibold`) — the two panels sit side by side, so a different
-                weight or size on one reads as a hierarchy that is not there.
-                It was `text-heading font-bold tracking-wide`, and `text-heading`
-                is not in the type scale at all: Tailwind emitted nothing for it,
-                so the heading fell back to the inherited 16px. */}
-            <h2 className="text-body font-semibold">Contract Details</h2>
-            <p className="truncate text-meta text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lead font-semibold">Contract Details</h2>
+            <p className="truncate text-body text-muted-foreground">
               Review one part of the agreement at a time
             </p>
           </div>
+          {activeRow.props.action ? (
+            <div className="shrink-0">{activeRow.props.action}</div>
+          ) : null}
         </div>
 
         {/* The strip scrolls when the labels outrun the panel, but the native
             bar is suppressed: it drew a grey rail across the full width and
             sat on top of the active tab's gold underline. The clipped next tab
-            is the affordance instead.
-
-            The active row's edit action docks at the right end of this same
-            strip on wider screens — giving it its own row above the panel
-            content cost a full row of vertical space for one small button. On
-            phones the strip has no width to spare (the button would bury the
-            tabs), so the action moves into the panel there instead. */}
+            is the affordance instead. Edit lives in the card header so the
+            tabs stay a navigation strip. */}
         <div className="flex min-h-10 shrink-0 items-stretch border-b">
           <div
-            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] sm:[mask-image:none]"
+            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] lg:[mask-image:none]"
             role="tablist"
             aria-label="Contract details"
           >
@@ -214,10 +207,11 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   // line (`truncate` + `nowrap`) — wrapping grew the strip and
                   // let text paint over adjacent tabs (e.g. Terms).
                   'relative flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden sm:flex-none sm:justify-start sm:overflow-visible',
-                  selected &&
-                    'after:absolute after:inset-x-2 after:bottom-0 after:z-10 after:h-0.5 after:bg-gold',
                 )}
               >
+                {selected ? (
+                  <TabIndicator layoutId={`${tabsId}-indicator`} />
+                ) : null}
                 <button
                   id={`${tabsId}-tab-${index}`}
                   type="button"
@@ -228,7 +222,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   onClick={() => selectTab(index)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
-                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-[0.6875rem] font-medium transition-colors',
+                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-meta font-medium transition-colors',
                     explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
                     'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     isDestructive
@@ -272,11 +266,6 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             );
           })}
           </div>
-          {activeRow.props.action ? (
-            <div className="hidden shrink-0 items-center self-center py-1 pl-2 pr-3 sm:flex">
-              {activeRow.props.action}
-            </div>
-          ) : null}
         </div>
 
         <section
@@ -304,11 +293,6 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
           >
             {activeRow.props.summary ? (
               <p className="sr-only">{activeRow.props.summary}</p>
-            ) : null}
-            {activeRow.props.action ? (
-              <div className="mb-3 flex shrink-0 justify-end sm:hidden">
-                {activeRow.props.action}
-              </div>
             ) : null}
             {activeRow.props.children}
           </div>

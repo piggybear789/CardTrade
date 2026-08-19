@@ -78,7 +78,7 @@ export default async function ArbitrationQueuePage({
           icon={<ShieldAlert className="size-6" aria-hidden />}
           title="Not Authorized"
           titleAs="h3"
-          description="Cases are limited to CardTrade support staff."
+          description="Cases are limited to NoDitto support staff."
           action={{ label: 'Return home', href: '/', variant: 'outline' }}
           className="border-none"
         />
@@ -98,7 +98,7 @@ export default async function ArbitrationQueuePage({
         actions={
           viewerIsAdmin ? (
             <Button asChild variant="outline">
-              <Link href="/admin">
+              <Link href="/admin" transitionTypes={['nav-back']}>
                 <Wrench aria-hidden />
                 Operations
               </Link>
@@ -116,7 +116,7 @@ export default async function ArbitrationQueuePage({
           { label: `Over ${ARBITRATION_SLA_HOURS}h`, value: String(summary.overdue) },
           { label: 'Money at stake', value: formatAud(summary.amountAtRiskCents) },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-lg border bg-muted/30 p-3">
+          <div key={stat.label} className="rounded-lg border bg-muted p-3">
             <dt className="text-meta uppercase tracking-wide text-muted-foreground">
               {stat.label}
             </dt>
@@ -213,12 +213,12 @@ export default async function ArbitrationQueuePage({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="min-w-0 text-meta text-muted-foreground">
+                    <p className="min-w-0 text-body text-muted-foreground">
                       {c.parties.map((p) => `${p.role}: ${p.name}`).join(' · ')}
                     </p>
                     <div className="flex items-center gap-2">
                       <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/arbitration/${c.kind}/${c.ref}`}>
+                        <Link href={`/admin/arbitration/${c.kind}/${c.ref}`} transitionTypes={['nav-forward']}>
                           Open case
                         </Link>
                       </Button>

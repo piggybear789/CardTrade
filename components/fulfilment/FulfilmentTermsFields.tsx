@@ -16,7 +16,7 @@
 // Presentational: it owns no server action. Each room passes state in and gets
 // changes out, then saves through its own action.
 
-import { Input } from '@/components/ui/input';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,7 +33,7 @@ export interface FulfilmentTermsFieldsProps {
   // --- IN_PERSON ---
   meetingPlace: PlaceValue | null;
   onMeetingPlaceChange: (place: PlaceValue | null) => void;
-  /** `datetime-local` value, i.e. `YYYY-MM-DDTHH:mm`. */
+  /** Local `YYYY-MM-DDTHH:mm` value from {@link DateTimePicker}. */
   meetingAt: string;
   onMeetingAtChange: (value: string) => void;
 
@@ -133,11 +133,10 @@ export function FulfilmentTermsFields({
               is measured from this instant, so a trade without one has no clock and
               its collateral races the card authorisation with nothing to stop it. */}
           <Label htmlFor={`${idPrefix}-meeting-at`}>Date and time</Label>
-          <Input
+          <DateTimePicker
             id={`${idPrefix}-meeting-at`}
-            type="datetime-local"
             value={meetingAt}
-            onChange={(event) => onMeetingAtChange(event.target.value)}
+            onChange={onMeetingAtChange}
             disabled={disabled}
             required
           />
@@ -173,7 +172,7 @@ export function FulfilmentTermsFields({
               textFallbackPlaceholder="Search your delivery address"
             />
           ) : (
-            <p className="rounded-md border bg-muted/30 px-cozy py-snug text-body text-muted-foreground">
+            <p className="rounded-md border bg-muted px-cozy py-snug text-body text-muted-foreground">
               {deliveryAddressReadOnlyNote ??
                 'Only the recipient can add or replace the delivery address.'}
             </p>
@@ -204,7 +203,7 @@ export function FulfilmentTermsFields({
             // Read-only: show the figure that has been proposed, not an empty
             // note. The viewer still has to accept this number, so hiding it
             // would ask them to agree to a total they cannot see broken down.
-            <p className="rounded-md border bg-muted/30 px-cozy py-snug text-body">
+            <p className="rounded-md border bg-muted px-cozy py-snug text-body">
               <span className="font-medium tabular-nums">
                 ${Number.parseFloat(deliveryCost || '0').toFixed(2)}
               </span>

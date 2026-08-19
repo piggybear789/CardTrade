@@ -23,8 +23,10 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 
+import { IdentityPendingPoll } from '@/components/identity/IdentityPendingPoll';
 import { createClient } from '@/lib/supabase/server';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   verificationState,
   type IdentityCheckStatus,
@@ -32,8 +34,10 @@ import {
 } from '@/domain/identity/identityGate';
 
 /**
- * Rail presentation per Identity_Gate state: a badge plus the action that moves
- * the Member forward. VERIFIED is terminal, so it offers no action.
+ * Rail presentation per Identity_Gate state: status copy plus a button that
+ * moves the Member forward. VERIFIED is terminal, so it offers a badge and no
+ * action. The action is a real button — a text link next to an outline badge
+ * made the badge look like the control.
  *
  * Keyed on `VerificationState` rather than on the raw column, so the mapping from
  * check status to member-facing wording lives in one place instead of being
@@ -48,7 +52,7 @@ const VERIFICATION_RAIL: Record<
   }
 > = {
   VERIFIED: { label: 'Verified', variant: 'default', action: null },
-  IN_PROGRESS: { label: 'Pending', variant: 'secondary', action: 'Check verification' },
+  IN_PROGRESS: { label: 'Pending', variant: 'secondary', action: null },
   NOT_APPROVED: { label: 'Rejected', variant: 'destructive', action: 'Retry verification' },
   NOT_STARTED: { label: 'Unverified', variant: 'outline', action: 'Start verification' },
 };
@@ -75,40 +79,35 @@ export async function KycRailStatus() {
 
   return (
     <section
-      className="relative overflow-hidden rounded-lg border border-border/70 bg-muted/45 p-3"
+      className="relative overflow-hidden rounded-lg border border-border bg-muted px-3 py-2.5"
       aria-labelledby="marketplace-identity"
     >
-      <div className="flex gap-3">
-        <ShieldCheck className="size-11 self-start text-trust" />
+      {state === 'IN_PROGRESS' ? <IdentityPendingPoll /> : null}
+      <div className="flex items-center gap-2.5">
+        <ShieldCheck className="size-8 shrink-0 text-trust" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p id="marketplace-identity" className="market-label text-muted-foreground">
-              Identity
-            </p>
-            <Badge variant={status.variant} aria-label={`Identity status: ${status.label}`}>
-              {status.label}
-            </Badge>
-          </div>
-          <p className="mt-1 text-meta text-muted-foreground">
-            Photo ID and selfie
+          <p id="marketplace-identity" className="market-label font-medium text-muted-foreground">
+            Identity
+          </p>
+          <p className="text-body text-muted-foreground">
+            {status.action ? status.label : 'Photo ID and selfie'}
           </p>
         </div>
+        {status.action ? null : (
+          <Badge
+            variant={status.variant}
+            className="shrink-0"
+            aria-label={`Identity status: ${status.label}`}
+          >
+            {status.label}
+          </Badge>
+        )}
       </div>
-
       {status.action ? (
-        <Link
-          href="/profile/payouts"
-          className="mt-2 flex items-center gap-2 rounded-md text-body font-semibold text-foreground underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ShieldCheck className="size-4 shrink-0 text-gold" aria-hidden="true" />
-          {status.action}
-        </Link>
-      ) : (
-        <p className="mt-2 flex items-center gap-2 text-body text-muted-foreground">
-          <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden="true" />
-          Collateral relief active
-        </p>
-      )}
+        <Button asChild size="sm" className="mt-2.5 w-full font-medium">
+          <Link href="/profile?tab=verification">{status.action}</Link>
+        </Button>
+      ) : null}
     </section>
   );
 }

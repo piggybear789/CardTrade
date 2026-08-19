@@ -34,7 +34,7 @@ const SelectTrigger = React.forwardRef<
       // switches the span to `display:-webkit-box`, and the ellipsis it produces is
       // sized against the span's own content rather than the space actually
       // available. `min-w-0` is required for either to shrink inside a flex row.
-      "flex h-10 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-base sm:text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65 [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      "flex h-10 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-lead sm:text-body placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
       className
     )}
     {...props}
@@ -120,7 +120,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
+    className={cn("py-1.5 pl-8 pr-2 text-body font-semibold", className)}
     {...props}
   />
 ));
@@ -133,7 +133,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 min-h-11",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-body outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 min-h-11",
       className
     )}
     {...props}

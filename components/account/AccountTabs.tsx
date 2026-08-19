@@ -3,6 +3,7 @@
 // components/account/AccountTabs.tsx
 
 import Link from 'next/link';
+import { TabIndicator } from '@/components/motion/TabIndicator';
 import { cn } from '@/lib/utils';
 
 const TABS = [
@@ -14,7 +15,7 @@ const TABS = [
 export function AccountTabs({ activeTab }: { activeTab: string }) {
   return (
     <nav aria-label="Account sections" className="mb-8 border-b">
-      <ul className="-mb-px flex gap-section">
+      <ul className="-mb-px flex gap-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-section [&::-webkit-scrollbar]:hidden">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -29,15 +30,7 @@ export function AccountTabs({ activeTab }: { activeTab: string }) {
                 )}
               >
                 {tab.label}
-                {/* Indicator as an absolutely-positioned bar rather than a
-                    `border-b`, so it can be thicker than the nav's own hairline and
-                    carry a rounded cap without shifting the label. */}
-                {active ? (
-                  <span
-                    className="absolute inset-x-0 -bottom-px h-0.5 rounded-t-full bg-gold"
-                    aria-hidden
-                  />
-                ) : null}
+                {active ? <TabIndicator layoutId="account-tabs" /> : null}
               </Link>
             </li>
           );

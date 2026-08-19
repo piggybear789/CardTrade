@@ -21,28 +21,20 @@ import 'server-only';
 
 import { cookies, headers } from 'next/headers';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedProfile } from '@/lib/supabase/cachedAuth';
 import {
   FALLBACK_REGION,
   normalizeRegionCode,
   type RegionCode,
   type RegionSource,
 } from '@/domain/region';
+import { ALL_REGIONS } from '@/lib/location/regionParams';
 
 export type { RegionSource };
+export { ALL_REGIONS };
 
 /** Cookie holding an explicit browse-region choice. */
 export const REGION_COOKIE = 'nd_region';
-
-/**
- * `?region=` value meaning "do not scope at all".
- *
- * A real sentinel rather than an omitted param, because omitting the param falls
- * through to the profile / cookie / IP chain — so there would otherwise be no way
- * to ASK for the worldwide catalog once any of those resolved. It is not a region
- * code and never reaches `profiles.region_code`.
- */
-export const ALL_REGIONS = 'all';
 
 /** A year: a browse preference should outlive a session but not be permanent. */
 const REGION_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -92,18 +84,8 @@ export async function geoRegionFromRequest(): Promise<RegionCode | null> {
 /** The caller's own trading region, or null when signed out / not yet set. */
 export async function viewerTradingRegion(): Promise<RegionCode | null> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const { data } = await supabase
-      .from('profiles')
-      .select('region_code')
-      .eq('id', user.id)
-      .maybeSingle();
-    return normalizeRegionCode(data?.region_code);
+    const profile = await getCachedProfile();
+    return normalizeRegionCode(profile?.region_code);
   } catch {
     return null;
   }

@@ -1,8 +1,8 @@
 // domain/contract/cashSaleSteps.ts
 //
 // The Cash_Sale action plan (Req 4). Turns a sale's live facts into the ordered
-// list of steps the contract room shows: agree terms, both accept, payment
-// clears, the item changes hands, the buyer accepts it.
+// list of steps the contract room shows: set handover terms, the buyer pays,
+// the item changes hands, the buyer completes the purchase.
 //
 // Pure: takes plain facts rather than a Supabase row, so the room maps its row in
 // and this can be tested in the Node-only Vitest project.
@@ -22,7 +22,6 @@ export const CASH_SALE_SECTIONS = {
   /** The live controls: ship, confirm receipt, confirm handover, accept, dispute. */
   actions: 'contract-actions',
   exchange: 'contract-exchange',
-  parties: 'contract-parties',
   terms: 'contract-terms',
   payment: 'contract-payment',
   collateral: 'contract-collateral',
@@ -41,9 +40,6 @@ export interface CashSaleStepFacts {
   /** True once a fulfillment method has been chosen. */
   termsSet: boolean;
   termsVersion: number;
-  /** Whether each side has accepted the CURRENT terms version. */
-  iAccepted: boolean;
-  theyAccepted: boolean;
   /** DELIVERY (ship with tracking) vs IN_PERSON (mutual handover). */
   isDelivery: boolean;
   /** A carrier + tracking number have been recorded. */
@@ -173,8 +169,6 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     viewerRole,
     counterpartyName,
     termsSet,
-    iAccepted,
-    theyAccepted,
     isDelivery,
     hasTracking,
     myHandoverConfirmed,
@@ -197,12 +191,12 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   drafts.push({
     id: 'terms',
     short: 'Discuss Terms',
-    label: 'Propose handover terms',
+    label: 'Set handover terms',
     detail: termsSet
       ? isDelivery
         ? 'Shipping with tracking.'
         : 'Face-to-face handover.'
-      : 'Choose shipping or meet-up, then add the details for both parties to accept.',
+      : 'Choose shipping or a meet-up, then add the details.',
     owner: 'both',
     done: termsSet,
     action: termsSet
@@ -214,46 +208,32 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
         },
   });
 
-  // 2. Both sides accept the SAME version. Money moves only then.
-  drafts.push({
-    id: 'accept',
-    short: 'Accept Terms',
-    label: 'Review and accept the proposal',
-    detail: !termsSet
-      ? 'Available once handover terms have been proposed.'
-      : iAccepted && theyAccepted
-        ? 'Both parties accepted the current proposal.'
-        : iAccepted
-          ? `You accepted. Waiting on ${counterpartyName}.`
-          : theyAccepted
-            ? `${counterpartyName} accepted. Review and accept to continue.`
-            : 'Both parties must accept before payment begins.',
-    owner: iAccepted ? 'them' : 'you',
-    done: status !== 'AGREEMENT',
-    blocked: !termsSet,
-    action:
-      status === 'AGREEMENT' && termsSet && !iAccepted
-        ? { label: 'Accept terms', kind: 'act', target: 'accept' }
-        : undefined,
-  });
-
-  // 3. The buyer's payment is collected in full before anything ships.
+  // 2. The buyer pays. That is the commitment — there is no confirm step.
   drafts.push({
     id: 'payment',
     short: 'Payment',
     label: 'Payment collected and held',
-    detail:
-      viewerRole === 'BUYER'
-        ? 'Your payment method is charged and the funds are held by NoDitto.'
-        : "The buyer's payment is collected and held before you send anything.",
-    owner: 'platform',
+    detail: !termsSet
+      ? 'Available once handover terms have been proposed.'
+      : viewerRole === 'BUYER'
+        ? 'Pay now. Your payment method is charged and the funds are held by NoDitto.'
+        : `Waiting on ${counterpartyName} to pay. Funds are held before you send anything.`,
+    owner: ownerFor('BUYER', viewerRole),
     done: FUNDS_CLEARED.has(status),
-    action: {
-      label: 'Payment terms',
-      kind: 'focus',
-      target: CASH_SALE_SECTIONS.payment,
-      tone: 'secondary',
-    },
+    blocked: !termsSet,
+    action:
+      status === 'AGREEMENT' && termsSet && viewerRole === 'BUYER'
+        ? {
+            label: 'Pay now',
+            kind: 'act',
+            target: 'accept',
+          }
+        : {
+            label: 'Payment terms',
+            kind: 'focus',
+            target: CASH_SALE_SECTIONS.payment,
+            tone: 'secondary',
+          },
   });
 
   // A dispute suspends the remaining fulfillment steps: neither party can act on
@@ -315,23 +295,32 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
           : undefined,
     });
   } else {
-    // 4b. In-person branch: a single mutual confirmation.
+    // 4b. In-person cash sale: both parties confirm the meetup. The sale
+    // completes and the seller is paid on the second confirmation.
+    const bothConfirmed =
+      (myHandoverConfirmed && theirHandoverConfirmed) || status === 'COMPLETED';
     drafts.push({
       id: 'handover',
       // Rail shorts must survive a five-tick rail on a 320px screen.
       short: 'Delivery',
       label: 'Both confirm the handover',
-      detail:
-        myHandoverConfirmed && theirHandoverConfirmed
-          ? 'Both parties confirmed.'
-          : myHandoverConfirmed
-            ? `You confirmed. Waiting on ${counterpartyName}.`
-            : theirHandoverConfirmed
-              ? `${counterpartyName} confirmed. Your turn.`
-              : 'Meet, swap, then you both confirm here.',
-      owner: myHandoverConfirmed ? 'them' : 'you',
-      done:
-        WITH_BUYER.has(status) || (myHandoverConfirmed && theirHandoverConfirmed),
+      detail: bothConfirmed
+        ? viewerRole === 'SELLER'
+          ? 'Handover confirmed. Your payout is being processed.'
+          : 'Handover confirmed. The seller payout is being processed.'
+        : myHandoverConfirmed
+          ? `You confirmed. Waiting for ${counterpartyName} to confirm.`
+          : theirHandoverConfirmed
+            ? `${counterpartyName} confirmed. Confirm after you meet.`
+            : 'Meet and confirm after the item changes hands. The sale completes when you both confirm.',
+      owner: bothConfirmed
+        ? 'both'
+        : myHandoverConfirmed
+          ? 'them'
+          : theirHandoverConfirmed
+            ? 'you'
+            : 'both',
+      done: WITH_BUYER.has(status) || bothConfirmed,
       action:
         status === 'HANDOVER' && !myHandoverConfirmed
           ? {
@@ -343,22 +332,26 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     });
   }
 
-  // 5. The buyer's inspection window closes the contract and releases funds.
-  drafts.push({
-    id: 'inspect',
-    short: 'Finish',
-    label: 'Buyer accepts the item',
-    detail:
-      viewerRole === 'BUYER'
-        ? 'Accept to release the funds, or raise a dispute. Accepts automatically when the window closes.'
-        : `Funds are released once ${counterpartyName} accepts, or the inspection window closes.`,
-    owner: ownerFor('BUYER', viewerRole),
-    done: status === 'COMPLETED' || RETURNING.has(status),
-    action:
-      viewerRole === 'BUYER' && status === 'INSPECTION'
-        ? { label: 'Accept or dispute', kind: 'focus', target: CASH_SALE_SECTIONS.actions }
-        : undefined,
-  });
+  // 5. Delivered purchases retain an inspection window. In-person sales complete
+  // when both parties confirm the handover, so adding another acceptance step
+  // would imply payment is still held when it has already been released.
+  if (isDelivery) {
+    drafts.push({
+      id: 'inspect',
+      short: '',
+      label: 'Buyer confirms the item',
+      detail:
+        viewerRole === 'BUYER'
+          ? 'Complete the purchase to release the funds, or raise a dispute. Completes automatically when the window closes.'
+          : `Funds are released once ${counterpartyName} completes the purchase, or the inspection window closes.`,
+      owner: ownerFor('BUYER', viewerRole),
+      done: status === 'COMPLETED' || RETURNING.has(status),
+      action:
+        viewerRole === 'BUYER' && status === 'INSPECTION'
+          ? { label: 'Complete or dispute', kind: 'focus', target: CASH_SALE_SECTIONS.actions }
+          : undefined,
+    });
+  }
 
   // 6. Return leg (0088). Shown only when the dispute resolved with a return-
   //    conditional refund. The buyer posts the item back; the refund releases
@@ -387,9 +380,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
 
     drafts.push({
       id: 'return-refund',
-      // Not 'Finish': the Finish tick is already on the rail above, and the return
-      // leg is what happens AFTER the buyer declined to finish it that way.
-      short: 'Refund',
+      short: '',
       label: 'Refund released',
       detail:
         'The refund releases automatically once a carrier confirms the return reached the seller.',

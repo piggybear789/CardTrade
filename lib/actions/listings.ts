@@ -44,6 +44,9 @@ import {
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import { normalizeRegionCode } from '@/domain/region';
+import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
+import { CARD_GAME_NAMES, isCardGameName } from '@/lib/catalog/cardGames';
+import { catalogSearchAttempts } from '@/lib/catalog/searchQuery';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { ListingKind } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -81,11 +84,11 @@ export interface ItemLocationInput {
 /** Fields accepted when creating an Item (images are uploaded, then validated). */
 export interface CreateItemInput {
   /**
-   * The listing's only prose. There is NO `title` field: the short label the rest of
-   * the platform needs is derived from this by `deriveItemTitle`, so a seller states
-   * what they are selling once. Asking twice produced two versions of the same fact
-   * and a card that showed the weaker one.
+   * Short listing label. Optional: if omitted or blank, derived from the
+   * description via {@link deriveItemTitle} so older callers and the mobile
+   * path still work.
    */
+  title?: string;
   description: string;
   category: string;
   condition: string;
@@ -111,7 +114,8 @@ export interface CreateItemInput {
 
 /** Fields accepted when updating an Item. Images may mix kept paths + new uploads. */
 export interface UpdateItemInput {
-  /** See `CreateItemInput.description` — the title is derived, never supplied. */
+  /** See `CreateItemInput.title`. */
+  title?: string;
   description: string;
   category: string;
   condition: string;
@@ -229,6 +233,12 @@ async function getUserId(
   return user?.id ?? null;
 }
 
+/** Prefer a typed title; fall back to the first line of the description. */
+function resolveListingTitle(input: { title?: string; description: string }): string {
+  const typed = input.title?.replace(/\s+/g, ' ').trim();
+  return typed ? typed : deriveItemTitle(input.description);
+}
+
 /**
  * Create an Item (Req 3.1, 3.2, 3.3, 14.1).
  *
@@ -291,16 +301,12 @@ export async function createItem(
     };
   }
 
-  // The short label the contract layer needs, derived from the seller's prose rather
-  // than collected as a second field. Computed ONCE here and reused by both
-  // validation passes and the insert, so the value that was checked is the value that
-  // is stored.
-  const derivedTitle = deriveItemTitle(input.description);
+  const listingTitle = resolveListingTitle(input);
 
   // Pre-validate the text/number fields using placeholder image paths so an
   // invalid title/description/category/condition/fmv is caught before upload.
   const preValidation = validateItemSubmission({
-    title: derivedTitle,
+    title: listingTitle,
     description: input.description,
     category: input.category,
     condition: input.condition,
@@ -331,7 +337,7 @@ export async function createItem(
 
   // Final validation over the real submission (with uploaded paths).
   const validated = validateItemSubmission({
-    title: derivedTitle,
+    title: listingTitle,
     description: input.description,
     category: input.category,
     condition: input.condition,
@@ -521,10 +527,7 @@ export async function updateItem(
     return { ok: false, error: 'not-authenticated' };
   }
 
-  // Re-derived on every edit, so the label tracks the prose it came from. An edit
-  // that rewrites the description therefore renames the listing — which is correct,
-  // because the description IS the listing's name now.
-  const derivedTitle = deriveItemTitle(input.description);
+  const listingTitle = resolveListingTitle(input);
 
   // Resolve images: keep existing string paths, upload any new binary/base64.
   const admin = createAdminClient();
@@ -583,7 +586,7 @@ export async function updateItem(
     itemId,
     actorId: userId,
     update: {
-      title: derivedTitle,
+      title: listingTitle,
       description: input.description,
       category: input.category,
       condition: input.condition,
@@ -769,6 +772,7 @@ export async function listAvailableItems(): Promise<ListingActionResult<ItemRow[
     .eq('status', 'AVAILABLE')
     .eq('hidden', false)
     .is('closed_at', null)
+    .in('category', CARD_GAME_NAMES)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -889,6 +893,7 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
     .eq('status', 'AVAILABLE')
     .eq('hidden', false)
     .is('closed_at', null)
+    .in('category', CARD_GAME_NAMES)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -986,6 +991,12 @@ export interface CatalogPage {
   pageSize: number;
   /** Whether at least one more page exists after this one. */
   hasMore: boolean;
+  /**
+   * The query that produced this page, when it is broader than `params.q`.
+   * Websearch ANDs every word; a miss retries with fewer words so "Iconic
+   * Michael Jordan" can still surface Jordan cards.
+   */
+  matchedQuery?: string;
 }
 
 /** Discriminated result for {@link searchCatalog}. */
@@ -1061,8 +1072,11 @@ async function enrichWithSellers(
  * (matches {@link listCatalogItems}). On top of that:
  *   * `q` (non-empty) → full-text search over the generated `search_tsv`
  *     tsvector using websearch syntax + the english config (backed by a GIN
- *     index). Whitespace-only queries are ignored.
- *   * `categories` → `category IN (...)`.
+ *     index). Whitespace-only queries are ignored. A zero-hit query retries
+ *     with fewer words (see {@link catalogSearchAttempts}) so a product-line
+ *     adjective does not empty the marketplace.
+ *   * `categories` → `category IN (...)`, always restricted to card games.
+ *     Collectible-type leftovers (Comics, Stamps, …) never appear in browse.
  *   * `condition`  → `condition = ...`.
  *   * `minCents` / `maxCents` → `fmv_cents >= / <=` (integer AUD cents).
  *
@@ -1085,118 +1099,144 @@ export async function searchCatalog(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // Base query: public catalog only, with an exact total for pagination.
-  // `closed_at` is null for every SINGLE listing and for every open shopfront; a
-  // closed shopfront is excluded here as well as by RLS (0064).
-  let query = supabase
-    .from('items')
-    .select('*', { count: 'exact' })
-    .eq('hidden', false)
-    .is('closed_at', null);
-
-  // Status filter: default to AVAILABLE only; optionally include SOLD.
-  if (params.includeSold) {
-    query = query.in('status', ['AVAILABLE', 'SOLD']);
-  } else {
-    query = query.eq('status', 'AVAILABLE');
+  // Game multi-select. The catalog is cards-only — leftover collectible-type
+  // labels are never browsable, even if a stale `?category=` URL asks for them.
+  const requestedGames = (params.categories ?? [])
+    .map((value) => value.trim())
+    .filter((value) => value !== '' && isCardGameName(value));
+  if ((params.categories ?? []).some((value) => value.trim() !== '') && requestedGames.length === 0) {
+    return { ok: true, items: [], total: 0, page, pageSize, hasMore: false };
   }
 
-  // Full-text search (skip empty / whitespace-only queries).
-  const q = params.q?.trim();
-  if (q) {
-    query = query.textSearch('search_tsv', q, {
-      type: 'websearch',
-      config: 'english',
-    });
+  const typedQuery = params.q?.trim() ?? '';
+  const textAttempts: Array<string | undefined> = typedQuery
+    ? catalogSearchAttempts(typedQuery)
+    : [undefined];
+
+  let emptyPage: CatalogPage | null = null;
+
+  for (const textQuery of textAttempts) {
+    // Base query: public catalog only, with an exact total for pagination.
+    // `closed_at` is null for every SINGLE listing and for every open shopfront; a
+    // closed shopfront is excluded here as well as by RLS (0064).
+    let query = supabase
+      .from('items')
+      .select('*', { count: 'exact' })
+      .eq('hidden', false)
+      .is('closed_at', null);
+
+    // Status filter: default to AVAILABLE only; optionally include SOLD.
+    if (params.includeSold) {
+      query = query.in('status', ['AVAILABLE', 'SOLD']);
+    } else {
+      query = query.eq('status', 'AVAILABLE');
+    }
+
+    if (textQuery) {
+      query = query.textSearch('search_tsv', textQuery, {
+        type: 'websearch',
+        config: 'english',
+      });
+    }
+
+    query = query.in('category', requestedGames.length > 0 ? requestedGames : CARD_GAME_NAMES);
+
+    // Condition multi-select.
+    const conditions = (params.conditions ?? []).filter((c) => c.trim() !== '');
+    if (conditions.length > 0) {
+      query = query.in('condition', conditions);
+    }
+    // Legacy single-condition param (backwards compat with old URLs).
+    if (conditions.length === 0 && params.condition && params.condition.trim() !== '') {
+      query = query.eq('condition', params.condition);
+    }
+
+    // Price range (integer AUD cents).
+    if (params.minCents != null && Number.isFinite(params.minCents)) {
+      query = query.gte('fmv_cents', Math.trunc(params.minCents));
+    }
+    if (params.maxCents != null && Number.isFinite(params.maxCents)) {
+      query = query.lte('fmv_cents', Math.trunc(params.maxCents));
+    }
+
+    // Region scope (0065). Normalized first, so an unknown code falls through to the
+    // unscoped catalog instead of matching nothing.
+    //
+    // NULLS ARE INCLUDED, DELIBERATELY AND TEMPORARILY. Every listing that predates
+    // 0065 has no country: scoping them out would empty the marketplace for everyone
+    // on the day this ships, which is a worse failure than showing a legacy listing
+    // to the wrong region — the contract guards refuse a cross-region deal anyway, so
+    // nothing unsafe can be opened from one. Tighten this to a bare `.eq()` once the
+    // existing rows carry a country.
+    const regionCode = normalizeRegionCode(params.regionCode);
+    if (regionCode) {
+      query = query.eq('location_country_code', regionCode);
+    }
+
+    // No verified-seller filter. Publishing requires the Identity_Gate, so every
+    // catalog item already has a verified owner and the predicate was a tautology.
+    // `items.seller_identity_verified` is still maintained by the 0041 triggers as the
+    // denormalised gate, ready for a query that needs it; it is simply not a filter, and
+    // the per-card badge reads the seller join rather than the item column. The duplicate
+    // `items.seller_verified` was dropped in 0049.
+
+    // Sorting. `rating` orders by the denormalized `seller_rating` column (kept in
+    // sync with each seller's profile rating by DB triggers), so the ordering is
+    // GLOBAL and paginates correctly — not just within a page.
+    switch (sort) {
+      case 'price-asc':
+        query = query
+          .order('fmv_cents', { ascending: true })
+          .order('created_at', { ascending: false });
+        break;
+      case 'price-desc':
+        query = query
+          .order('fmv_cents', { ascending: false })
+          .order('created_at', { ascending: false });
+        break;
+      case 'rating':
+        query = query
+          .order('seller_rating', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false });
+        break;
+      case 'newest':
+      default:
+        query = query.order('created_at', { ascending: false });
+        break;
+    }
+
+    const { data, error, count } = await query.range(from, to);
+
+    if (error) {
+      return { ok: false, error: 'persistence-error', message: error.message };
+    }
+
+    const rows = (data ?? []) as ItemRow[];
+    const enriched = await enrichWithSellers(supabase, rows);
+
+    const total = count ?? enriched.length;
+    const hasMore = from + enriched.length < total;
+    const matchedQuery =
+      textQuery && typedQuery && textQuery !== typedQuery ? textQuery : undefined;
+
+    const pageResult: CatalogPage = {
+      items: enriched,
+      total,
+      page,
+      pageSize,
+      hasMore,
+      matchedQuery,
+    };
+
+    if (total > 0 || textAttempts.length === 1) {
+      return { ok: true, ...pageResult };
+    }
+    emptyPage = pageResult;
   }
-
-  // Category multi-select.
-  const categories = (params.categories ?? []).filter((c) => c.trim() !== '');
-  if (categories.length > 0) {
-    query = query.in('category', categories);
-  }
-
-  // Condition multi-select.
-  const conditions = (params.conditions ?? []).filter((c) => c.trim() !== '');
-  if (conditions.length > 0) {
-    query = query.in('condition', conditions);
-  }
-  // Legacy single-condition param (backwards compat with old URLs).
-  if (conditions.length === 0 && params.condition && params.condition.trim() !== '') {
-    query = query.eq('condition', params.condition);
-  }
-
-  // Price range (integer AUD cents).
-  if (params.minCents != null && Number.isFinite(params.minCents)) {
-    query = query.gte('fmv_cents', Math.trunc(params.minCents));
-  }
-  if (params.maxCents != null && Number.isFinite(params.maxCents)) {
-    query = query.lte('fmv_cents', Math.trunc(params.maxCents));
-  }
-
-  // Region scope (0065). Normalized first, so an unknown code falls through to the
-  // unscoped catalog instead of matching nothing.
-  //
-  // NULLS ARE INCLUDED, DELIBERATELY AND TEMPORARILY. Every listing that predates
-  // 0065 has no country: scoping them out would empty the marketplace for everyone
-  // on the day this ships, which is a worse failure than showing a legacy listing
-  // to the wrong region — the contract guards refuse a cross-region deal anyway, so
-  // nothing unsafe can be opened from one. Tighten this to a bare `.eq()` once the
-  // existing rows carry a country.
-  const regionCode = normalizeRegionCode(params.regionCode);
-  if (regionCode) {
-    query = query.or(
-      `location_country_code.eq.${regionCode},location_country_code.is.null`,
-    );
-  }
-
-  // No verified-seller filter. Publishing requires the Identity_Gate, so every
-  // catalog item already has a verified owner and the predicate was a tautology.
-  // `items.seller_identity_verified` is still maintained by the 0041 triggers as the
-  // denormalised gate, ready for a query that needs it; it is simply not a filter, and
-  // the per-card badge reads the seller join rather than the item column. The duplicate
-  // `items.seller_verified` was dropped in 0049.
-
-  // Sorting. `rating` orders by the denormalized `seller_rating` column (kept in
-  // sync with each seller's profile rating by DB triggers), so the ordering is
-  // GLOBAL and paginates correctly — not just within a page.
-  switch (sort) {
-    case 'price-asc':
-      query = query.order('fmv_cents', { ascending: true });
-      break;
-    case 'price-desc':
-      query = query.order('fmv_cents', { ascending: false });
-      break;
-    case 'rating':
-      query = query
-        .order('seller_rating', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false });
-      break;
-    case 'newest':
-    default:
-      query = query.order('created_at', { ascending: false });
-      break;
-  }
-
-  const { data, error, count } = await query.range(from, to);
-
-  if (error) {
-    return { ok: false, error: 'persistence-error', message: error.message };
-  }
-
-  const rows = (data ?? []) as ItemRow[];
-  const enriched = await enrichWithSellers(supabase, rows);
-
-  const total = count ?? enriched.length;
-  const hasMore = from + enriched.length < total;
 
   return {
     ok: true,
-    items: enriched,
-    total,
-    page,
-    pageSize,
-    hasMore,
+    ...(emptyPage ?? { items: [], total: 0, page, pageSize, hasMore: false }),
   };
 }
 
@@ -1213,6 +1253,7 @@ export async function fetchCatalogPage(params: SearchCatalogParams): Promise<
       pageSize: number;
       hasMore: boolean;
       watchingIds: string[];
+      matchedQuery?: string;
     })
   | { ok: false; error: ListingActionError; message?: string }
 > {
@@ -1245,12 +1286,12 @@ export async function fetchCatalogPage(params: SearchCatalogParams): Promise<
     pageSize: result.pageSize,
     hasMore: result.hasMore,
     watchingIds,
+    matchedQuery: result.matchedQuery,
   };
 }
 
-/** Distinct filter option lists and bounds for the catalog filter UI. */
+/** Bounds for the catalog filter UI. */
 export interface CatalogFacets {
-  categories: string[];
   /**
    * Highest `fmv_cents` in the listable catalog — the ceiling for the price
    * range control, so its span always covers the inventory it filters. 0 when
@@ -1260,16 +1301,15 @@ export interface CatalogFacets {
 }
 
 /**
- * Fetch the distinct `category` values and the top price among AVAILABLE and
- * SOLD, non-hidden items to populate the filter rail. Dedupe and the maximum
- * are computed in one pass in JS — simple and sufficient for MVP scale (a
- * dedicated aggregate/RPC can replace this if the catalog grows large).
+ * Fetch the top price among AVAILABLE and SOLD, non-hidden card listings to
+ * span the price slider. Computed in one pass in JS — simple and sufficient
+ * for MVP scale (a dedicated aggregate/RPC can replace this if the catalog
+ * grows large).
  *
  * Takes the SAME region scope as {@link searchCatalog}, and must keep doing so.
- * Facets describe the result set they filter: an unscoped facet list offers a
- * member categories with nothing behind them and a price ceiling set by a listing
- * in another country, so every one of those controls returns an empty grid. That
- * reads as a broken filter rather than as an empty region.
+ * Facets describe the result set they filter: a price ceiling set by a listing
+ * in another country makes the control return an empty grid, which reads as a
+ * broken filter rather than as an empty region.
  *
  * @param regionCode the active region, or null/omitted for every region
  */
@@ -1280,37 +1320,115 @@ export async function getCatalogFacets(
 
   let query = supabase
     .from('items')
-    .select('category, fmv_cents')
+    .select('fmv_cents')
     .in('status', ['AVAILABLE', 'SOLD'])
     .eq('hidden', false)
-    .is('closed_at', null);
+    .is('closed_at', null)
+    .in('category', CARD_GAME_NAMES);
 
   // Nulls included, matching `searchCatalog` exactly — the two predicates have to
   // agree or the facets describe a different set than the grid shows.
   const region = normalizeRegionCode(regionCode);
   if (region) {
-    query = query.or(
-      `location_country_code.eq.${region},location_country_code.is.null`,
-    );
+    query = query.eq('location_country_code', region);
   }
 
   const { data, error } = await query;
 
   if (error || !data) {
-    return { categories: [], maxPriceCents: 0 };
+    return { maxPriceCents: 0 };
   }
 
-  const categories = new Set<string>();
   let maxPriceCents = 0;
   for (const row of data) {
-    const category = row.category as string | null;
-    if (category) categories.add(category);
     const cents = row.fmv_cents as number | null;
     if (cents != null && cents > maxPriceCents) maxPriceCents = cents;
   }
 
-  return {
-    categories: Array.from(categories).sort(),
-    maxPriceCents,
-  };
+  return { maxPriceCents };
+}
+
+/** A compact catalog hit for the header search typeahead. */
+export type CatalogSuggestion = {
+  id: string;
+  title: string;
+  category: string;
+  imagePath: string | null;
+  fmvCents: number;
+  currency: string;
+};
+
+const SUGGEST_LIMIT = 6;
+const SUGGEST_MIN_CHARS = 2;
+const SUGGEST_MAX_CHARS = 80;
+
+/** Escape `%`, `_`, and `\` so a typed query is a literal substring, not a LIKE pattern. */
+function ilikeContains(raw: string): string {
+  const escaped = raw.replace(/[\\%_]/g, (char) => `\\${char}`);
+  return `%${escaped}%`;
+}
+
+/**
+ * Title matches for the header typeahead. Same public catalog as
+ * {@link searchCatalog} (available, unhidden, card games, browse region), but
+ * substring-on-title rather than `search_tsv` so an unfinished "char" still
+ * surfaces Charizard. A miss retries the same broader queries as catalog
+ * search. Clicking a hit goes to the listing; Enter still runs full-text
+ * search.
+ */
+export async function suggestCatalogItems(params: {
+  q: string;
+  categories?: string[];
+  region?: string | null;
+}): Promise<ListingActionResult<CatalogSuggestion[]>> {
+  const q = params.q.trim().slice(0, SUGGEST_MAX_CHARS);
+  if (q.length < SUGGEST_MIN_CHARS) return { ok: true, data: [] };
+
+  const supabase = await createClient();
+  const region = await resolveBrowseRegion(params.region);
+
+  const requestedGames = (params.categories ?? [])
+    .map((value) => value.trim())
+    .filter((value) => value !== '' && isCardGameName(value));
+  if ((params.categories ?? []).some((value) => value.trim() !== '') && requestedGames.length === 0) {
+    return { ok: true, data: [] };
+  }
+
+  const attempts = catalogSearchAttempts(q);
+  for (const attempt of attempts) {
+    let query = supabase
+      .from('items')
+      .select('id, title, category, image_paths, fmv_cents, currency')
+      .eq('hidden', false)
+      .is('closed_at', null)
+      .eq('status', 'AVAILABLE')
+      .in('category', requestedGames.length > 0 ? requestedGames : CARD_GAME_NAMES)
+      .ilike('title', ilikeContains(attempt))
+      .order('created_at', { ascending: false })
+      .limit(SUGGEST_LIMIT);
+
+    if (region.code) {
+      query = query.eq('location_country_code', region.code);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      return { ok: false, error: 'persistence-error', message: error.message };
+    }
+    if ((data ?? []).length > 0 || attempt === attempts[attempts.length - 1]) {
+      return {
+        ok: true,
+        data: (data ?? []).map((row) => ({
+          id: row.id as string,
+          title: row.title as string,
+          category: row.category as string,
+          imagePath: Array.isArray(row.image_paths) ? (row.image_paths[0] as string | undefined) ?? null : null,
+          fmvCents: (row.fmv_cents as number) ?? 0,
+          currency: (row.currency as string) || 'aud',
+        })),
+      };
+    }
+  }
+
+  return { ok: true, data: [] };
 }

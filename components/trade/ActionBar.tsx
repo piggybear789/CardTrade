@@ -25,14 +25,7 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   HandoverFailedDialog,
   RecordShipmentDialog,
@@ -66,7 +59,12 @@ interface ActionConfig {
   successMessage: string;
   variant: NonNullable<ButtonProps['variant']>;
   /** Irreversible actions require an explicit confirmation dialog. */
-  confirm?: { title: string; description: string; confirmLabel: string };
+  confirm?: {
+    title: string;
+    description: string;
+    confirmLabel: string;
+    helpHref?: string;
+  };
 }
 
 /**
@@ -117,12 +115,19 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
       description:
         'Only confirm if you met and the goods actually changed hands. This does not release either deposit — you still get 72 hours from the meeting time to check what you received and accept it or raise a dispute.',
       confirmLabel: 'We met and swapped',
+      helpHref: '/help#holds',
     },
   },
   RECORD_RECEIPT: {
     label: 'Record receipt',
     successMessage: 'Receipt recorded.',
     variant: 'default',
+    confirm: {
+      title: 'Confirm you received the item?',
+      description: 'This starts your inspection window.',
+      confirmLabel: 'Record receipt',
+      helpHref: '/help#holds',
+    },
   },
   RECORD_ACCEPTANCE: {
     label: 'Accept item',
@@ -143,12 +148,12 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   // trade case got three ids and a timestamp.
   RAISE_DISPUTE: {
     label: 'Raise dispute',
-    successMessage: 'Dispute raised. A CardTrade operator will review it.',
-    variant: 'outline',
+    successMessage: 'Dispute raised. NoDitto support will review it.',
+    variant: 'destructive',
   },
   REPORT_FRAUD: {
     label: 'Report fraud',
-    successMessage: 'Fraud reported. A CardTrade operator will review it.',
+    successMessage: 'Fraud reported. NoDitto support will review it.',
     variant: 'destructive',
   },
 };
@@ -239,16 +244,20 @@ export function ActionBar({
     return null;
   }
 
-  function invoke(action: BarAction, shipment?: ShipmentInput) {
+  function invoke(action: BarAction, shipment?: ShipmentInput): Promise<boolean> {
     const config = ACTION_CONFIG[action];
-    startTransition(async () => {
-      const result = await runAction(action, tradeId, shipment);
-      if (result.ok) {
-        toast.success(config.successMessage);
-        setShipOpen(false);
-      } else {
-        toast.error(errorMessage(result));
-      }
+    return new Promise((resolve) => {
+      startTransition(async () => {
+        const result = await runAction(action, tradeId, shipment);
+        if (result.ok) {
+          toast.success(config.successMessage);
+          setShipOpen(false);
+          resolve(true);
+        } else {
+          toast.error(errorMessage(result));
+          resolve(false);
+        }
+      });
     });
   }
 
@@ -282,7 +291,7 @@ export function ActionBar({
                 triggerLabel="Raise dispute"
                 triggerVariant="outline"
                 title="Raise a condition dispute"
-                outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while a CardTrade operator reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — the operator decides on what you write here."
+                outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while NoDitto support reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — support decides on what you write here."
                 successMessage={config.successMessage}
                 reasonPlaceholder="e.g. the card was described as Near Mint but has a crease down the front and whitening on all four corners…"
                 evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
@@ -303,7 +312,7 @@ export function ActionBar({
                 triggerLabel="Report fraud"
                 triggerVariant="destructive"
                 title="Report fraud"
-                outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to a CardTrade operator, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
+                outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to NoDitto support, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
                 successMessage={config.successMessage}
                 reasonPlaceholder="e.g. the sleeve was sealed but empty; the card fails a light test and the print pattern is wrong…"
                 evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
@@ -367,7 +376,7 @@ export function ActionBar({
             }
             outcomeDescription={
               handoverMethod === 'IN_PERSON'
-                ? 'Use this if the other trader did not show up, refused to hand over, or the exchange went wrong. The trade freezes for review and NOTHING is charged to either of you — a CardTrade operator decides what happens next.'
+                ? 'Use this if the other trader did not show up, refused to hand over, or the exchange went wrong. The trade freezes for review and NOTHING is charged to either of you — NoDitto support decides what happens next.'
                 : 'Use this if the parcel has not arrived or arrived empty. The trade freezes for review and NOTHING is charged to either of you — a lost parcel is nobody’s fault, so no deposit is taken while an operator looks at it.'
             }
             successMessage="Reported. The trade is frozen and an operator will review it."
@@ -396,46 +405,25 @@ export function ActionBar({
         onSubmit={(shipment) => invoke('RECORD_SHIPMENT', shipment)}
       />
 
-      <Dialog
-        open={pendingConfirm !== null}
+      <ConfirmDialog
+        open={pendingConfirm !== null && Boolean(confirmConfig?.confirm)}
         onOpenChange={(open) => {
+          if (isPending) return;
           if (!open) setPendingConfirm(null);
         }}
-      >
-        <DialogContent>
-          {confirmConfig?.confirm ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>{confirmConfig.confirm.title}</DialogTitle>
-                <DialogDescription>
-                  {confirmConfig.confirm.description}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="ghost"
-                  onClick={() => setPendingConfirm(null)}
-                  disabled={isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant={confirmConfig.variant}
-                  onClick={() => {
-                    const action = pendingConfirm;
-                    setPendingConfirm(null);
-                    if (action) invoke(action);
-                  }}
-                  disabled={isPending}
-                  aria-busy={isPending}
-                >
-                  {confirmConfig.confirm.confirmLabel}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+        title={confirmConfig?.confirm?.title ?? ''}
+        description={confirmConfig?.confirm?.description ?? ''}
+        confirmLabel={confirmConfig?.confirm?.confirmLabel ?? ''}
+        confirmVariant={confirmConfig?.variant}
+        pending={isPending}
+        helpHref={confirmConfig?.confirm?.helpHref}
+        onConfirm={async () => {
+          const action = pendingConfirm;
+          if (!action) return;
+          const ok = await invoke(action);
+          if (ok) setPendingConfirm(null);
+        }}
+      />
     </>
   );
 }

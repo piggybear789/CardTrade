@@ -259,7 +259,7 @@ function SimulatedCardSetup({
 
 function ProcessorNote() {
   return (
-    <p className="flex items-start justify-center gap-tight text-center text-meta leading-relaxed text-muted-foreground">
+    <p className="flex items-start justify-center gap-tight text-center text-body leading-relaxed text-muted-foreground">
       <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
       <span>
         Payments processed by{' '}

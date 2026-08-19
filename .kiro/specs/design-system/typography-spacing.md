@@ -62,8 +62,36 @@ they are a *component*, not a size, and already centralised in `globals.css`.
 ancillary — a relative timestamp, a badge, a count, a cell in a dense table. If the
 text is a sentence a member is meant to read, it is `text-body`.
 
-This is also an accessibility fix: muted foreground is `32 8% 40%`, and at 12px that
-combination was carrying disclosure copy and form help.
+This is also an accessibility fix: muted foreground is `32 10% 34%`, and at 12px a
+lighter muted was carrying disclosure copy and form help.
+
+### The compact-row rule — do not shrink reading text to fit a control
+
+A dense strip (chat header, list row, composer) feels small because of **padding
+and height**, not because the sentences dropped a size. Controls keep their
+primitive type: `Button` is `text-body`, `Input`/`Textarea` are `text-lead sm:text-body`
+(16px on a phone so iOS does not zoom). Compact variants may shorten the field;
+they must not change the font size.
+
+```tsx
+// RIGHT — title at lead, facts at body, CTA at body. Emphasis is fill/weight.
+<h2 className="text-lead font-semibold">{title}</h2>
+<p className="text-body text-muted-foreground">
+  <span className="font-semibold text-foreground">{price}</span> · {name}
+</p>
+<Button size="sm">Pay now</Button>  // still text-body; size="sm" is height only
+
+// WRONG — pane looks "compact" because the facts are 12px next to a 14px button
+<p className="text-meta">{price} · {name}</p>
+<div className="text-meta">{message}</div>
+```
+
+`size="sm"` on `Button` does **not** shrink type. If a 14px control looks loud,
+the neighbours are too small — raise them.
+
+The document `body` is `text-body`. Unstyled copy inherits 14px so it matches
+every button. Do not omit a size class and rely on the browser's 16px — that is
+what made controls look out of place on pages that never set a token.
 
 ## Spacing scale
 

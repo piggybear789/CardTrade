@@ -93,7 +93,7 @@ export function EditContractItemsDialog({
       const result = await updateCashSaleItems(cashSaleId, termsVersion, next);
       if (result.ok) {
         setOpen(false);
-        toast.success('Items updated. You both need to accept the new terms.');
+        toast.success('Items updated.');
         router.refresh();
         return;
       }
@@ -117,17 +117,21 @@ export function EditContractItemsDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-6 gap-tight px-2 text-meta font-medium leading-none [&_svg]:size-3"
+        >
           <PencilLine aria-hidden />
-          Change items
+          Edit
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Change what this contract covers</DialogTitle>
           <DialogDescription>
-            Saving clears both acceptances, so you will each need to accept the new
-            terms.
+            Change the items and price this sale covers.
           </DialogDescription>
         </DialogHeader>
 
@@ -139,8 +143,8 @@ export function EditContractItemsDialog({
           currency={currency}
           idPrefix="edit-contract"
           descriptionLabel="What this contract covers"
-          descriptionHint="Both of you have to accept this wording, and it is what an arbitrator reads if the sale is disputed."
-          priceLabel="Agreed price"
+          descriptionHint="This is what the sale covers, and what an arbitrator reads if it is disputed."
+          priceLabel="Price"
         />
 
         <DialogFooter>

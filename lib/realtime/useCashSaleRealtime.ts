@@ -56,13 +56,14 @@ export function useCashSaleRealtime(cashSaleId: string) {
   useEffect(() => {
     const client = clientRef.current;
     if (!client || !cashSaleId) return;
-    let mounted = true;
+    let isMounted = true;
     let channel: RealtimeChannel | null = null;
     let retries = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let subscribeEpoch = 0;
 
     const reconnect = () => {
-      if (!mounted) return;
+      if (!isMounted) return;
       if (retries >= MAX_RECONNECTS) {
         setConnectionStatus('error');
         return;
@@ -72,7 +73,9 @@ export function useCashSaleRealtime(cashSaleId: string) {
     };
 
     const subscribe = () => {
-      if (!mounted) return;
+      if (!isMounted) return;
+      const epoch = ++subscribeEpoch;
+
       if (channel) {
         void client.removeChannel(channel);
         channel = null;
@@ -108,17 +111,19 @@ export function useCashSaleRealtime(cashSaleId: string) {
             const next = (
               payload as RealtimePostgresChangesPayload<CashSaleEventRow>
             ).new as CashSaleEventRow;
-            setEvents((current) =>
-              current.some((event) => event.id === next.id)
-                ? current
-                : [...current, next],
-            );
+            setEvents((current) => {
+              if (current.some((event) => event.id === next.id)) return current;
+              return [...current, next].sort(
+                (a, b) =>
+                  a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+              );
+            });
           },
         );
 
       channel = nextChannel;
       nextChannel.subscribe((status) => {
-        if (!mounted || channel !== nextChannel) return;
+        if (!isMounted || channel !== nextChannel || epoch !== subscribeEpoch) return;
         if (status === 'SUBSCRIBED') {
           retries = 0;
           setConnectionStatus('live');
@@ -139,7 +144,7 @@ export function useCashSaleRealtime(cashSaleId: string) {
     void loadSnapshot();
     subscribe();
     return () => {
-      mounted = false;
+      isMounted = false;
       if (timer) clearTimeout(timer);
       if (channel) void client.removeChannel(channel);
     };

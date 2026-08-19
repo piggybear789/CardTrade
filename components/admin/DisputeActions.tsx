@@ -135,7 +135,7 @@ export function DisputeActions({
   }
 
   return (
-    <div className="space-y-cozy rounded-lg border border-border/70 bg-muted/30 p-cozy">
+    <div className="space-y-cozy rounded-lg border border-border bg-muted p-cozy">
       <p className="flex items-center gap-snug text-body font-medium">
         <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
@@ -149,7 +149,7 @@ export function DisputeActions({
       {openChargebackRef ? (
         <p
           role="alert"
-          className="rounded-md border border-destructive/50 bg-destructive/10 px-cozy py-snug text-body"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-cozy py-snug text-body"
         >
           <span className="font-semibold">A chargeback is open on this sale.</span>{' '}
           The buyer disputed the payment with their bank ({openChargebackRef}). The issuer
@@ -166,13 +166,13 @@ export function DisputeActions({
           the parcel to return. Without this, the buyer's refund waits on a condition
           they cannot satisfy. */}
       {buyerHasGoods ? (
-        <label className="flex items-start gap-snug text-body">
+        <label className="flex items-center gap-snug text-body">
           <input
             type="checkbox"
             checked={nothingToReturn}
             onChange={(event) => setNothingToReturn(event.target.checked)}
             disabled={isPending}
-            className="mt-0.5 size-4 shrink-0 accent-destructive"
+            className="size-4 shrink-0 accent-destructive"
           />
           <span>
             There is nothing to send back
@@ -211,7 +211,7 @@ export function DisputeActions({
 
       <div className="flex flex-wrap items-end gap-snug">
         <div className="min-w-0">
-          <Label htmlFor={`partial-${cashSaleId}`} className="text-meta">
+          <Label htmlFor={`partial-${cashSaleId}`} className="text-body">
             Partial refund
           </Label>
           <MoneyInput

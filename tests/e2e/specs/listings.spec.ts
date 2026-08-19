@@ -8,10 +8,10 @@
 //   1. On an item page the <h1> is the SHELL title — literally "Marketplace" —
 //      and the item's own title is an <h2>. Asserting `heading level 1` contains
 //      the item name fails on every listing in the app.
-//   2. Category / Subcategory / Condition are shadcn `Select`s. Radix renders a
+//   2. Game / Condition are shadcn `Select`s. Radix renders a
 //      trigger with `role="combobox"` AND a hidden native <select> for form
 //      compatibility, and BOTH are labelled by the same <Label htmlFor>. So
-//      `getByLabel('Category')` is always ambiguous; `getByRole('combobox')` is
+//      `getByLabel('Game')` is always ambiguous; `getByRole('combobox')` is
 //      not.
 //   3. `Based near` is REQUIRED. The suite runs the dev server with no Maps key so
 //      PlacePicker falls back to a plain text input — see the note in
@@ -24,7 +24,6 @@
 import { test, expect } from '../support/fixtures';
 import { ALICE, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
-import { COLD_ROUTE } from '../support/waiting';
 import { createListing } from '../support/listings';
 import { ensureFreshSessions } from '../support/auth';
 
@@ -84,25 +83,17 @@ test.describe('Catalog', () => {
     await page.goto('/listings');
     await page.waitForLoadState('domcontentloaded');
 
-    // TWO SEARCH FIELDS ARE MOUNTED, and which one is usable depends on the viewport.
-    // `HeaderSearch.tsx` exports a rail field and a mobile field, each carrying
-    // `aria-label="Search listings"`, and the shell hides the wrong one with CSS. On
-    // the desktop project `.first()` happened to be the visible one; on mobile it is
-    // the hidden rail field, so `fill()` waited the full 90s for an element that can
-    // never be editable. Selecting by visibility works on both, and keeps this test
-    // about search rather than about layout.
-    const search = page.getByLabel('Search listings').locator('visible=true').first();
+    // The catalog owns a dedicated filter field. The header search is a jump
+    // launcher and must not be the control this spec drives.
+    const search = page.getByLabel('Filter listings');
     await search.click();
     await search.fill('Charizard');
-    await search.press('Enter');
 
-    // COLD_ROUTE, not the 5s default. The catalog is a server-rendered navigation and
-    // the mobile project emulates a phone, where the same work takes noticeably longer
-    // — this assertion timed out there while passing on desktop, which reads as a
-    // broken search rather than a slow one.
-    await expect(page).toHaveURL(/[?&]q=Charizard/, { timeout: COLD_ROUTE });
+    // Client-side filter of the loaded grid — no navigation, so the URL stays
+    // clean and cards that already rendered keep their images.
+    await expect(page).toHaveURL(/\/listings\/?$/);
     await expect(page.getByText(/Charizard/).first()).toBeVisible();
-    await expect(page.getByText('1963 Fantastic Four #1 CGC 4.0')).toHaveCount(0);
+    await expect(page.getByText('1986 Fleer Michael Jordan Rookie #57 BGS 7')).toHaveCount(0);
   });
 });
 

@@ -279,7 +279,7 @@ export function HandoverFailedDialog({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending}
-                    className="flex size-16 items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-ring hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex size-16 items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-ring hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
                     aria-label="Add evidence photo"
                   >
                     <ImagePlus className="size-5" aria-hidden />

@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await updateItem(itemId, {
+    title: typeof input.title === 'string' ? input.title : undefined,
     description: String(input.description ?? ''),
     category: String(input.category ?? ''),
     condition: String(input.condition ?? ''),

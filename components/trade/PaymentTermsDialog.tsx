@@ -93,7 +93,7 @@ export function PaymentTermsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg gap-3">
+      <DialogContent className="max-w-lg gap-3 sm:gap-3">
         <DialogHeader className="space-y-1">
           <DialogTitle>Payment Terms</DialogTitle>
           <DialogDescription>
@@ -123,7 +123,7 @@ export function PaymentTermsDialog({
                 <label
                   key={value}
                   className={cn(
-                    'flex cursor-pointer items-start gap-snug rounded-md border p-snug text-body ring-offset-background transition-colors',
+                    'flex cursor-pointer items-center gap-snug rounded-md border p-snug text-body ring-offset-background transition-colors',
                     // The row carries the focus ring, matching the item rows on
                     // the offer card.
                     'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
@@ -136,7 +136,7 @@ export function PaymentTermsDialog({
                     value={value}
                     checked={draft.cashDirection === value}
                     onChange={() => set('cashDirection', value)}
-                    className="mt-0.5 size-4 shrink-0"
+                    className="size-4 shrink-0"
                   />
                   <span>
                     <span className="font-medium">{label}</span>

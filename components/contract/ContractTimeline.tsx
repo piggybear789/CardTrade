@@ -63,7 +63,7 @@ function EventIcon({ tone }: { tone: EventTone }) {
     case 'destructive':
       return <XCircle className={cn(base, 'text-destructive')} aria-hidden />;
     case 'warning':
-      return <CircleAlert className={cn(base, 'text-amber-600')} aria-hidden />;
+      return <CircleAlert className={cn(base, 'text-gold')} aria-hidden />;
     default:
       return <CircleDot className={cn(base, 'text-muted-foreground')} aria-hidden />;
   }
@@ -97,8 +97,8 @@ export function ContractTimeline({
       {events.map((event) => {
         const tone = classifyEvent(event.event);
         return (
-          <li key={event.id} className="flex items-start gap-cozy text-body">
-            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
+          <li key={event.id} className="flex items-center gap-cozy text-body">
+            <span className="flex size-5 shrink-0 items-center justify-center">
               <EventIcon tone={tone} />
             </span>
             <div className="min-w-0 flex-1">
@@ -113,7 +113,7 @@ export function ContractTimeline({
               {event.detail ? (
                 <p className="mt-0.5 break-words text-muted-foreground">{event.detail}</p>
               ) : null}
-              <p className="mt-0.5 text-meta text-muted-foreground/70">
+              <p className="mt-0.5 text-meta text-muted-foreground">
                 {formatContractDateTime(event.created_at)}
               </p>
             </div>

@@ -80,7 +80,7 @@ export function InspectionCountdown({
       )}
       role={alarming ? 'alert' : undefined}
     >
-      <p className="flex items-center gap-snug font-medium">
+      <p suppressHydrationWarning className="flex items-center gap-snug font-medium">
         {alarming ? (
           <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden />
         ) : (

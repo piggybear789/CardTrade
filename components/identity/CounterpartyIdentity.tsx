@@ -56,11 +56,11 @@ export function CounterpartyIdentity({
 
   return (
     <div
-      className={cn('flex gap-cozy rounded-lg border px-cozy py-snug', className)}
+      className={cn('flex items-center gap-cozy', className)}
       role="note"
       aria-label="Verified identity of the other party"
     >
-      <ShieldCheck className="text-trust mt-0.5 size-4 shrink-0" aria-hidden />
+      <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
       <div className="min-w-0 space-y-tight text-body leading-snug">
         <p className="font-medium text-foreground">
           You are dealing with <span className="break-words">{legalName}</span>

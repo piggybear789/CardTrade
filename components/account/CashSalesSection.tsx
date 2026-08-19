@@ -52,6 +52,7 @@ export function CashSalesSection({
             <Card className="p-cozy">
               <Link
                 href={`/sales/${sale.id}`}
+                transitionTypes={['nav-forward']}
                 className="flex items-center gap-group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
@@ -72,8 +73,8 @@ export function CashSalesSection({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-medium">{title}</p>
-                  <p className="mt-0.5 text-lead font-bold tabular-nums tracking-tight">
+                  <p className="truncate text-lead font-medium">{title}</p>
+                  <p className="mt-0.5 text-body font-semibold tabular-nums tracking-tight">
                     {formatAud(sale.amountCents)}
                   </p>
                 </div>

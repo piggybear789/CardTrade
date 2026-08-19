@@ -29,8 +29,11 @@ const config: Config = {
         foreground: "hsl(var(--foreground))",
         gold: "hsl(var(--gold))",
         ditto: "hsl(var(--ditto))",
+        action: {
+          DEFAULT: "hsl(var(--action))",
+          foreground: "hsl(var(--action-foreground))",
+        },
         obsidian: "hsl(var(--obsidian))",
-        charcoal: "hsl(var(--charcoal))",
         parchment: "hsl(var(--parchment))",
         trust: "hsl(var(--trust))",
         primary: {
@@ -150,6 +153,13 @@ const config: Config = {
           "0 1px 2px hsl(var(--obsidian) / 0.08), 0 10px 30px hsl(var(--obsidian) / 0.06)",
         auction: "0 16px 44px hsl(var(--obsidian) / 0.16)",
       },
+      // Shared content spine for MarketplaceShell's content column and the
+      // landing frame. 90rem / 1440px is one extra catalog column over `7xl`
+      // without letting listing copy and 50/50 splits sprawl on ultrawide.
+      // Chrome (header, rail, mobile hub) stays full-bleed.
+      maxWidth: {
+        workspace: "90rem",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -168,11 +178,21 @@ const config: Config = {
           from: { transform: "translate3d(0, 0, 0)" },
           to: { transform: "translate3d(-50%, 0, 0)" },
         },
+        "dialog-fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "dialog-fade-out": {
+          from: { opacity: "1" },
+          to: { opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "listing-marquee": "listing-marquee 60s linear infinite",
+        "dialog-fade-in": "dialog-fade-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both",
+        "dialog-fade-out": "dialog-fade-out 120ms ease-in both",
       },
     },
   },

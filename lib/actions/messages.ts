@@ -21,6 +21,9 @@ import { createNotification } from '@/lib/notifications/createNotification';
 import { MESSAGE_BODY_MIN, MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { attachmentPreviewLabel } from '@/lib/storage/messageAttachmentsShared';
+import { verifyMessageAttachmentPath } from '@/lib/storage/messageAttachments';
 
 /** A persisted conversation row. */
 export type ConversationRow = Tables<'conversations'>;
@@ -96,9 +99,9 @@ export async function getOrCreateConversation(
   //
   // This used to exclude deal-scoped threads via `.is('deal_id', null)`, because a
   // deal room's chat is never a general DM and would otherwise make an unscoped
-  // lookup between two members match two rows. Deals are withdrawn, so the column
-  // and the exclusion are both gone. Trade rooms do not need the same treatment:
-  // they are resolved by `ensure_trade_conversation`, never by this lookup.
+  // lookup between two members match two rows. The Deal ledger is gone; private
+  // deals now open a Cash_Sale or Trade conversation instead. Trade rooms are
+  // resolved by `ensure_trade_conversation`, never by this lookup.
   let existingQuery = supabase
     .from('conversations')
     .select('id')
@@ -124,6 +127,10 @@ export async function getOrCreateConversation(
     .single();
 
   if (error || !inserted) {
+    const { data: retried } = await existingQuery.maybeSingle();
+    if (retried) {
+      return { ok: true, conversationId: retried.id };
+    }
     return {
       ok: false,
       error: 'not-found',
@@ -151,6 +158,10 @@ export interface ConversationItemSummary {
   id: string;
   title: string;
   imagePath: string | null;
+  /** Asking price in cents. Loaded for the thread view; absent in the inbox list. */
+  priceCents?: number | null;
+  /** Listing lifecycle status (e.g. AVAILABLE / SOLD). Loaded for the thread view. */
+  status?: string | null;
 }
 
 /** A compact summary of the trade a conversation belongs to (if any). */
@@ -255,7 +266,9 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       : Promise.resolve({ data: [] as { id: string; item_title: string }[] }),
     supabase
       .from('messages')
-      .select('id, conversation_id, sender_id, body, read_at, created_at')
+      .select(
+        'id, conversation_id, sender_id, kind, body, read_at, created_at, attachment_path, attachment_name, attachment_mime',
+      )
       .in('conversation_id', conversationIds)
       .order('created_at', { ascending: false }),
   ]);
@@ -300,7 +313,11 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
   for (const msg of (messagesRes.data ?? []) as MessageRow[]) {
     if (!latestByConversation.has(msg.conversation_id)) {
       latestByConversation.set(msg.conversation_id, {
-        body: msg.body,
+        body: attachmentPreviewLabel({
+          body: msg.body,
+          attachmentMime: msg.attachment_mime,
+          attachmentName: msg.attachment_name,
+        }),
         createdAt: msg.created_at,
       });
     }
@@ -403,7 +420,7 @@ export async function getConversation(
     conv.item_id
       ? supabase
           .from('items')
-          .select('id, title, image_paths')
+          .select('id, title, image_paths, fmv_cents, status')
           .eq('id', conv.item_id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -419,6 +436,8 @@ export async function getConversation(
         id: itemRes.data.id as string,
         title: itemRes.data.title as string,
         imagePath: ((itemRes.data.image_paths as string[] | null) ?? [])[0] ?? null,
+        priceCents: (itemRes.data.fmv_cents as number | null) ?? null,
+        status: (itemRes.data.status as string | null) ?? null,
       }
     : null;
 
@@ -447,7 +466,16 @@ export type SendMessageError =
   | 'unauthenticated'
   | 'not-participant'
   | 'invalid-body'
+  | 'invalid-attachment'
   | 'persistence-error';
+
+/** Optional file already uploaded to the message-attachments bucket. */
+export interface MessageAttachmentInput {
+  path: string;
+  name: string;
+  mime: string;
+  bytes: number;
+}
 
 /** Result of {@link sendMessage}. */
 export type SendMessageResult =
@@ -463,6 +491,7 @@ export type SendMessageResult =
 export async function sendMessage(
   conversationId: string,
   body: string,
+  attachment?: MessageAttachmentInput | null,
 ): Promise<SendMessageResult> {
   const supabase = await createClient();
 
@@ -471,7 +500,12 @@ export async function sendMessage(
 
   const trimmed = (body ?? '').trim();
   const length = Array.from(trimmed).length;
-  if (length < MESSAGE_BODY_MIN || length > MESSAGE_BODY_MAX) {
+  const hasAttachment = Boolean(attachment?.path);
+  if (hasAttachment) {
+    if (length > MESSAGE_BODY_MAX) {
+      return { ok: false, error: 'invalid-body' };
+    }
+  } else if (length < MESSAGE_BODY_MIN || length > MESSAGE_BODY_MAX) {
     return { ok: false, error: 'invalid-body' };
   }
 
@@ -489,12 +523,38 @@ export async function sendMessage(
     return { ok: false, error: 'not-participant' };
   }
 
+  let storedAttachment: MessageAttachmentInput | null = null;
+  if (attachment?.path) {
+    const exists = await verifyMessageAttachmentPath(
+      createAdminClient(),
+      me,
+      attachment.path,
+    );
+    if (!exists) {
+      return { ok: false, error: 'invalid-attachment' };
+    }
+    storedAttachment = {
+      path: attachment.path,
+      name: attachment.name.slice(0, 200),
+      mime: attachment.mime,
+      bytes: attachment.bytes,
+    };
+  }
+
   const { data: message, error } = await supabase
     .from('messages')
     .insert({
       conversation_id: conversationId,
       sender_id: me,
       body: trimmed,
+      ...(storedAttachment
+        ? {
+            attachment_path: storedAttachment.path,
+            attachment_name: storedAttachment.name,
+            attachment_mime: storedAttachment.mime,
+            attachment_bytes: storedAttachment.bytes,
+          }
+        : {}),
     })
     .select('*')
     .single();
@@ -524,7 +584,14 @@ export async function sendMessage(
     userId: recipientId,
     type: 'MESSAGE',
     title: 'New message',
-    body: trimmed.length > 120 ? `${trimmed.slice(0, 117)}…` : trimmed,
+    body: (() => {
+      const preview = attachmentPreviewLabel({
+        body: trimmed,
+        attachmentMime: storedAttachment?.mime,
+        attachmentName: storedAttachment?.name,
+      });
+      return preview.length > 120 ? `${preview.slice(0, 117)}…` : preview;
+    })(),
     link: `/messages/${conversationId}`,
   });
 

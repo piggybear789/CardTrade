@@ -7,8 +7,8 @@
 // renders inline, field-level validation errors from the returned ActionResult
 // (`field` + `message`). On success it redirects with next/navigation:
 //   - sign-in  -> the sanitized `redirectTo` query param, else /listings
-//   - sign-up  -> /profile (or /sign-in when email confirmation is pending),
-//     where payout/verification onboarding lives
+//   - sign-up  -> /onboarding (preserving redirectTo) or /sign-in when email
+//     confirmation is pending
 //
 // Google OAuth sits alongside the credentials fields via GoogleSignInButton;
 // that flow redirects out to Google and returns through /auth/callback, which
@@ -64,7 +64,7 @@ const COPY: Record<
   },
   "sign-up": {
     title: "Create your account",
-    description: "Register to buy, sell, and trade collectibles.",
+    description: "A few details to get you on the floor.",
     submitLabel: "Create account",
     pendingLabel: "Creating account…",
     switchPrompt: "Already have an account?",
@@ -103,6 +103,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // A failed OAuth round-trip comes back as ?authError=… from /auth/callback.
   // A local submission error takes precedence over that stale message.
@@ -161,6 +162,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
 
+      if (!acceptedTerms) {
+        setFormError("Accept the Terms and Privacy Policy to create an account.");
+        return;
+      }
+
       const result = await signUp(email, password);
       if (!result.ok) {
         applyError(result.field, result.message);
@@ -172,7 +178,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
       toast.success("Account created.");
-      router.push('/onboarding');
+      router.push(withRedirect("/onboarding", destination));
       router.refresh();
     });
   }
@@ -181,22 +187,24 @@ export function AuthForm({ mode }: { mode: Mode }) {
   function applyError(field: string | undefined, message: string) {
     if (field === "email" || field === "password") {
       setFieldErrors({ [field]: message });
-    } else {
-      setFormError(message);
+      return;
     }
+    setFormError(message);
     toast.error(message);
   }
 
   return (
-    <Card className="w-full max-w-md border-border/80 bg-card shadow-market">
-      <CardHeader>
+    <Card className="w-full max-w-md border-border bg-card shadow-market">
+      <CardHeader className="items-center text-center">
         {/* The auth pages have no shell-provided heading, so the card title is
             the page's single h1. CardTitle renders a div, so use a semantic
             heading carrying the same styling. */}
-        <h1 className="text-head font-semibold leading-none tracking-tight">
+        <h1 className="text-head font-semibold leading-none tracking-tight text-balance">
           {copy.title}
         </h1>
-        <CardDescription>{copy.description}</CardDescription>
+        <CardDescription className="text-pretty">
+          {copy.description}
+        </CardDescription>
       </CardHeader>
       {/*
         `method="post"` MATTERS EVEN THOUGH SUBMIT IS HANDLED IN JS.
@@ -273,14 +281,55 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 {fieldErrors.password}
               </p>
             ) : null}
+            {mode === "sign-in" ? (
+              <p className="text-body">
+                <Link
+                  href={withRedirect("/forgot-password", destination)}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </p>
+            ) : null}
           </div>
+
+          {mode === "sign-up" ? (
+            <label className="flex cursor-pointer items-center justify-center gap-2.5 text-center text-body text-muted-foreground">
+              <input
+                type="checkbox"
+                name="acceptedTerms"
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                disabled={isPending}
+                className="size-4 shrink-0"
+                required
+              />
+              <span>
+                I accept the{" "}
+                <Link
+                  href="/terms"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/privacy"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Privacy
+                </Link>{" "}
+                policy.
+              </span>
+            </label>
+          ) : null}
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-4">
+        <CardFooter className="flex flex-col items-center gap-4">
           <Button type="submit" className="w-full" disabled={isPending || !isReady} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>
-          <p className="text-body text-muted-foreground">
+          <p className="text-center text-body text-muted-foreground">
             {copy.switchPrompt}{" "}
             <Link
               href={withRedirect(copy.switchHref, destination)}

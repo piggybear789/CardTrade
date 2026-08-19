@@ -21,8 +21,12 @@ import { headers } from 'next/headers';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { validateRegistrationCredentials } from '@/domain/validation';
-import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
+import {
+  EMAIL_REGEX,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validateRegistrationCredentials,
+} from '@/domain/validation';
 import { type ActionResult, fail, ok } from './result';
 import { authLimiter } from '@/lib/rateLimiters';
 import { rateLimitIdentifier } from '@/lib/rateLimit';
@@ -42,7 +46,11 @@ export interface SignUpData {
 }
 
 /** Typed failure codes for {@link signIn}. */
-export type SignInError = 'VALIDATION' | 'INVALID_CREDENTIALS' | 'ACCOUNT_BANNED';
+export type SignInError =
+  | 'VALIDATION'
+  | 'INVALID_CREDENTIALS'
+  | 'ACCOUNT_BANNED'
+  | 'EMAIL_NOT_CONFIRMED';
 
 /** Typed failure codes for {@link signOut}. */
 export type SignOutError = 'SIGN_OUT_FAILED';
@@ -101,7 +109,7 @@ export async function signUp(
     if (/already\s*(registered|been registered|exists)|already in use/i.test(error.message)) {
       return fail('DUPLICATE_ACCOUNT', 'An account with this email already exists.', 'email');
     }
-    return fail('SIGN_UP_FAILED', error.message);
+    return fail('SIGN_UP_FAILED', 'Could not create your account. Please try again.');
   }
 
   const user = data.user;
@@ -133,7 +141,7 @@ export async function signUp(
     }
     return fail(
       'PROFILE_CREATION_FAILED',
-      `Account created but profile setup failed: ${profileError.message}`,
+      'Account created but profile setup failed. Please try again.',
     );
   }
 
@@ -178,6 +186,13 @@ export async function signIn(
         'This account was permanently suspended after a staff-confirmed objective fraud finding.',
       );
     }
+    if (error && /email.*not.*confirm/i.test(error.message)) {
+      return fail(
+        'EMAIL_NOT_CONFIRMED',
+        'Please check your inbox and confirm your email before signing in.',
+        'email',
+      );
+    }
     return fail('INVALID_CREDENTIALS', 'Invalid email or password.');
   }
 
@@ -189,7 +204,7 @@ export async function signOut(): Promise<ActionResult<null, SignOutError>> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
   if (error) {
-    return fail('SIGN_OUT_FAILED', error.message);
+    return fail('SIGN_OUT_FAILED', 'Could not sign out. Please try again.');
   }
   return ok(null);
 }
@@ -265,11 +280,103 @@ export async function signInWithGoogle(
   });
 
   if (error || !data?.url) {
-    return fail(
-      'OAUTH_START_FAILED',
-      friendlyWriteFailure(error, 'Could not start Google sign-in. Please try again.'),
-    );
+    return fail('OAUTH_START_FAILED', 'Could not start Google sign-in. Please try again.');
   }
 
   return ok({ url: data.url });
+}
+
+/** Typed failure codes for {@link requestPasswordReset}. */
+export type PasswordResetRequestError = 'VALIDATION' | 'RESET_REQUEST_FAILED';
+
+/**
+ * Send a password-reset email. Always succeeds with the same outcome when the
+ * address is well-formed, so the caller cannot tell whether the email is
+ * registered. `redirectTo` is same-origin `/auth/callback?next=/reset-password`.
+ */
+export async function requestPasswordReset(
+  email: string,
+): Promise<ActionResult<null, PasswordResetRequestError>> {
+  const identifier = await rateLimitIdentifier();
+  const { allowed } = await authLimiter.check(identifier);
+  if (!allowed) {
+    return fail('VALIDATION', 'Too many attempts. Please wait a minute and try again.');
+  }
+
+  const trimmed = email.trim();
+  if (!trimmed) {
+    return fail('VALIDATION', 'Email is required', 'email');
+  }
+  if (!EMAIL_REGEX.test(trimmed)) {
+    return fail('VALIDATION', 'Email must be in local-part@domain format', 'email');
+  }
+
+  const supabase = await createClient();
+  const origin = await resolveOrigin();
+  const callback = new URL('/auth/callback', origin);
+  callback.searchParams.set('next', '/reset-password');
+
+  const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+    redirectTo: callback.toString(),
+  });
+
+  if (error) {
+    // Missing-account signals stay success so this path cannot enumerate users.
+    if (/not found|does not exist|no user|unable to find/i.test(error.message)) {
+      return ok(null);
+    }
+    return fail('RESET_REQUEST_FAILED', 'Could not send a reset email. Please try again.');
+  }
+
+  return ok(null);
+}
+
+/** Typed failure codes for {@link updatePassword}. */
+export type UpdatePasswordError = 'VALIDATION' | 'NOT_AUTHENTICATED' | 'UPDATE_PASSWORD_FAILED';
+
+/**
+ * Set a new password on the current recovery (or authenticated) session.
+ * Used by `/reset-password` after the email link has exchanged a session.
+ */
+export async function updatePassword(
+  password: string,
+): Promise<ActionResult<null, UpdatePasswordError>> {
+  const identifier = await rateLimitIdentifier();
+  const { allowed } = await authLimiter.check(identifier);
+  if (!allowed) {
+    return fail('VALIDATION', 'Too many attempts. Please wait a minute and try again.');
+  }
+
+  if (typeof password !== 'string' || password.length === 0) {
+    return fail('VALIDATION', 'Password is required', 'password');
+  }
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return fail(
+      'VALIDATION',
+      `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+      'password',
+    );
+  }
+  if (password.length > PASSWORD_MAX_LENGTH) {
+    return fail(
+      'VALIDATION',
+      `Password must be at most ${PASSWORD_MAX_LENGTH} characters`,
+      'password',
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return fail('NOT_AUTHENTICATED', 'This reset link is invalid or has expired.');
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    return fail('UPDATE_PASSWORD_FAILED', 'Could not update your password. Please try again.');
+  }
+
+  return ok(null);
 }

@@ -18,8 +18,8 @@ import { Loader2, MessageCircle, Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getOrCreateConversation } from '@/lib/actions/messages';
-import { sendMessage } from '@/lib/actions/messages';
+import { getOrCreateConversation, sendMessage } from '@/lib/actions/messages';
+import { navigateWithType } from '@/lib/motion/navigate';
 
 /** Human-readable messages for the get-or-create action error codes. */
 const ERROR_MESSAGES: Record<string, string> = {
@@ -69,7 +69,7 @@ export function MessageSellerButton({
     startTransition(async () => {
       const result = await getOrCreateConversation(itemId, sellerId);
       if (result.ok) {
-        router.push(`/messages/${result.conversationId}`);
+        navigateWithType(router, `/messages/${result.conversationId}`, 'nav-forward');
         return;
       }
       setError(
@@ -109,14 +109,14 @@ export function MessageSellerButton({
         return;
       }
 
-      router.push(`/messages/${result.conversationId}`);
+      navigateWithType(router, `/messages/${result.conversationId}`, 'nav-forward');
     });
   }
 
   if (variant === 'inline') {
     return (
       <div className="space-y-2">
-        <div className="rounded-lg border bg-muted/40 p-cozy">
+        <div className="rounded-lg border bg-muted p-cozy">
           <label
             htmlFor="message-seller-input"
             className="mb-2 flex items-center gap-tight text-body font-medium text-foreground"

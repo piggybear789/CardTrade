@@ -16,18 +16,24 @@ import { cn } from "@/lib/utils";
 // is what makes it read as a press. Both are neutralised by the global
 // `prefers-reduced-motion` block in `globals.css`.
 const buttonVariants = cva(
-  "inline-flex touch-manipulation items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold tracking-[0.01em] ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:translate-y-px disabled:pointer-events-none disabled:opacity-55 disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex touch-manipulation items-center justify-center gap-2 whitespace-nowrap rounded-md text-body font-semibold tracking-[0.01em] ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:translate-y-px disabled:pointer-events-none disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
           "border border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:bg-primary/80",
+        action:
+          "border border-obsidian/10 bg-action text-action-foreground shadow-sm hover:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_12%)] active:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_20%)]",
+        ditto:
+          "border border-obsidian/10 bg-[color-mix(in_oklch,hsl(var(--ditto)),white_62%)] text-obsidian shadow-sm hover:bg-[color-mix(in_oklch,hsl(var(--ditto)),white_50%)] active:bg-[color-mix(in_oklch,hsl(var(--ditto)),white_40%)]",
+        success:
+          "border border-trust bg-trust text-white shadow-sm hover:bg-trust/90 active:bg-trust/80",
         destructive:
           "border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
         outline:
           "border border-input bg-card/80 text-foreground shadow-sm hover:border-gold/50 hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
         secondary:
-          "border border-border/70 bg-secondary text-secondary-foreground hover:border-gold/40 hover:bg-secondary/75 active:bg-secondary/60",
+          "border border-border bg-secondary text-secondary-foreground hover:border-gold/40 hover:bg-secondary/75 active:bg-secondary/60",
         ghost:
           "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground",
         link: "text-foreground underline decoration-gold/55 underline-offset-4 hover:decoration-gold active:decoration-gold active:text-foreground/80",

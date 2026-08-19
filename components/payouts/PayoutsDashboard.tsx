@@ -61,7 +61,7 @@ const FAILURE_COPY: Record<
     // told a verified seller they were unverified.
     summary: 'Your payout setup is not finished, so we have nowhere to send this.',
     action: 'Finish Stripe Connect setup and we will release it automatically.',
-    href: '/profile/payouts',
+    href: '/profile?tab=payouts',
     actionLabel: 'Open Stripe Connect setup',
   },
   PROVIDER_REJECTED: {
@@ -70,7 +70,7 @@ const FAILURE_COPY: Record<
   },
   RETRIES_EXHAUSTED: {
     summary: 'Automatic retries for this release have stopped.',
-    action: 'A CardTrade operator is reviewing it. Your funds are safe and release will be retried.',
+    action: 'A NoDitto operator is reviewing it. Your funds are safe and release will be retried.',
   },
 };
 
@@ -202,7 +202,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
           <CardHeader className="p-4">
             <p className="font-sans text-meta text-muted-foreground">Owed to you</p>
             <p className="display-value mt-4 text-subhead">{formatAud(0)}</p>
-            <p className="mt-1 font-sans text-meta text-muted-foreground">
+            <p className="mt-1 font-sans text-body text-muted-foreground">
               Funds are released after a contract resolves.
             </p>
           </CardHeader>
@@ -223,7 +223,7 @@ function BalanceSummary({ model }: { model: PayoutReadModel }) {
           <p className="display-value mt-4 text-subhead">
             {formatAud(model.releasingNowCents)}
           </p>
-          <p className="mt-1 font-sans text-meta text-muted-foreground">
+          <p className="mt-1 font-sans text-body text-muted-foreground">
             Queued and released automatically.
           </p>
         </CardHeader>
@@ -290,7 +290,7 @@ function DestinationAccountSummary({
     <Card className={compact ? 'h-full' : undefined}>
       <CardContent className="flex flex-col gap-cozy p-group sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-cozy">
-          <span className="grid size-10 shrink-0 place-items-center rounded-md border bg-muted/30">
+          <span className="grid size-10 shrink-0 place-items-center rounded-md border bg-muted">
             <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
           </span>
           <div className="min-w-0">
@@ -309,7 +309,7 @@ function DestinationAccountSummary({
         </div>
         {destination.hostedOnboarding ? (
           <Button asChild size="sm" variant="outline" className="shrink-0">
-            <Link href="/profile/payouts#payout-setup">
+            <Link href="/profile?tab=payouts#payout-setup">
               {needsSetup ? 'Finish setup' : 'Manage with Stripe'}
               <ArrowUpRight aria-hidden />
             </Link>
@@ -366,6 +366,7 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
                   <li key={sale.cashSaleId} className="flex items-center justify-between gap-cozy px-cozy py-snug">
                     <Link
                       href={`/sales/${sale.cashSaleId}`}
+                      transitionTypes={['nav-forward']}
                       className="min-w-0 truncate text-body font-medium underline-offset-4 hover:underline"
                     >
                       {sale.itemTitle}
@@ -407,7 +408,7 @@ function TransferHistory({
       {model.history.length > 0 ? (
         <SectionFilter
           scope={scope}
-          basePath="/profile/payouts"
+          basePath="/profile?tab=payouts"
           activeCount={active.length}
           pastCount={past.length}
         />
@@ -457,7 +458,8 @@ function TransferHistory({
                 {entry.cashSaleId ? (
                   <Link
                     href={`/sales/${entry.cashSaleId}`}
-                    className="text-meta underline underline-offset-2 hover:text-foreground"
+                    transitionTypes={['nav-forward']}
+                    className="text-body underline underline-offset-2 hover:text-foreground"
                   >
                     View sale
                   </Link>
@@ -527,7 +529,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
                   </CardHeader>
                   <CardContent className="space-y-snug">
                     {record.reason ? (
-                      <p className="whitespace-pre-line break-words rounded-md border bg-muted/40 p-snug text-meta">
+                      <p className="whitespace-pre-line break-words rounded-md border bg-muted p-snug text-body">
                         {record.reason}
                       </p>
                     ) : null}
@@ -540,7 +542,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
                       {href ? (
                         <Link
                           href={href}
-                          className="text-meta underline underline-offset-2 hover:text-foreground"
+                          className="text-body underline underline-offset-2 hover:text-foreground"
                         >
                           View contract
                         </Link>

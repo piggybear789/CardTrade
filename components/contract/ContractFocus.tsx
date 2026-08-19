@@ -20,8 +20,8 @@
 
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useMemo,
   useRef,
   useState,
@@ -31,16 +31,24 @@ import {
 /** How long a focused section keeps its highlight ring, in ms. */
 const HIGHLIGHT_MS = 2000;
 
-interface ContractFocusValue {
+interface ContractFocusState {
   /** The section currently highlighted, or `null`. */
   focusedId: string | null;
+}
+
+interface ContractFocusActions {
   /** Expand, scroll to, and briefly highlight a section. */
   focusSection: (sectionId: string) => void;
 }
 
-const ContractFocusContext = createContext<ContractFocusValue>({
-  focusedId: null,
-  focusSection: () => {},
+interface ContractFocusContextValue {
+  state: ContractFocusState;
+  actions: ContractFocusActions;
+}
+
+const ContractFocusContext = createContext<ContractFocusContextValue>({
+  state: { focusedId: null },
+  actions: { focusSection: () => {} },
 });
 
 /** Provides focus coordination to every section in one contract room. */
@@ -71,7 +79,10 @@ export function ContractFocusProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ focusedId, focusSection }),
+    () => ({
+      state: { focusedId },
+      actions: { focusSection },
+    }),
     [focusedId, focusSection],
   );
 
@@ -86,6 +97,7 @@ export function ContractFocusProvider({ children }: { children: ReactNode }) {
  * Read focus state. Safe outside a provider — `focusSection` becomes a no-op, so
  * a section can be rendered standalone.
  */
-export function useContractFocus(): ContractFocusValue {
-  return useContext(ContractFocusContext);
+export function useContractFocus() {
+  const { state, actions } = use(ContractFocusContext);
+  return { focusedId: state.focusedId, focusSection: actions.focusSection };
 }

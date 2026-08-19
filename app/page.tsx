@@ -6,13 +6,15 @@
 import Link from 'next/link';
 import { ArrowRight, Check, X } from 'lucide-react';
 
+import { DittoNotWelcome } from '@/components/brand/DittoNotWelcome';
 import { LogoMark } from '@/components/layout/Logo';
 
+import { StartDealButton, StartDealEmptyState } from '@/components/deals/StartDealButton';
 import { ListingCarousel } from '@/components/listings/ListingCarousel';
+import { DirectionalTransition } from '@/components/motion/DirectionalTransition';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
 import { searchCatalog } from '@/lib/actions/listings';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -24,82 +26,96 @@ export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'NoDitto',
   description:
-    'Buy, sell, and swap high-value collectibles. Sellers are identity-verified through Stripe, swaps are backed by collateral from both traders, and buyers are protected until they approve.',
+    'Buy, sell, and swap high-value collectibles. Sellers verify with Stripe Identity. Payments stay Stripe. Swaps are backed by collateral from both traders.',
 };
 
 export default async function HomePage() {
-  const supabase = await createClient();
   // The landing carousel is region-scoped for the same reason the catalog is: an
   // unscoped preview is a shop window of items the visitor cannot buy, and the
   // contract guards would refuse every one of them.
+  const userPromise = getCachedAuthUser();
   const region = await resolveBrowseRegion();
-  const [authResult, catalogResult] = await Promise.all([
-    supabase.auth.getUser(),
+  const [user, catalogResult] = await Promise.all([
+    userPromise,
     searchCatalog({ sort: 'newest', pageSize: 12, regionCode: region.code }),
   ]);
-  const user = authResult.data.user;
   const previewItems = catalogResult.ok ? catalogResult.items : [];
   const isAuthenticated = Boolean(user);
-  // Deals are withdrawn (Req 12): a private deal was a Trade negotiated in its own
-  // room, which is what opening a trade offer now does.
-  const tradeHref = isAuthenticated ? '/trades' : '/sign-up';
 
   return (
-    // ALL ONE SURFACE. The page used to alternate obsidian hero, light listings
-    // section, obsidian comparison — three bands with two hard seams, and the
-    // marquee landed on the seam. One dark surface end to end lets the card wall
-    // bleed out of the hero instead of starting a new section, which is the whole
-    // point of putting it there.
-    <div className="flex flex-col bg-obsidian text-parchment">
+    <DirectionalTransition>
+    <div className="landing-selection flex flex-col bg-background text-foreground">
       {/* Clip only the horizontal axis: decorative layers can bleed sideways,
           but vertical clipping would eat focus rings at section edges. */}
       <main className="flex-1 overflow-x-clip">
         <section className="relative isolate overflow-hidden">
           <div
-            className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(227,192,106,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(227,192,106,0.08)_1px,transparent_1px)] [background-size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
+            className="landing-ledger pointer-events-none absolute inset-0 z-0"
             aria-hidden="true"
           />
           {/* CENTRED HERO. The card wall below carries the visual weight, using
               listings that actually exist — the hero stays clean copy and CTAs. */}
-          <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-24 sm:pt-28 lg:px-24 lg:pt-36">
+          <div className="relative z-10 mx-auto max-w-workspace px-6 pb-16 pt-20 sm:pt-24 lg:px-24 lg:pt-28">
             <div className="mx-auto max-w-2xl text-center">
-              <p className="market-label text-ditto">Safety-first trading</p>
-              <h1 className="mt-5 text-balance font-display text-5xl font-semibold leading-[1.02] tracking-[-0.04em] text-parchment sm:text-6xl lg:text-7xl">
+              <DittoNotWelcome />
+              <h1 className="mt-5 break-words text-balance font-display text-4xl font-semibold leading-[1.02] tracking-[-0.04em] text-foreground sm:text-5xl lg:text-7xl">
                 A marketplace without{' '}
-                <span className="text-parchment/45">imposters.</span>
+                <span className="group relative inline-block isolate">
+                  {/* Easter egg: the imposter itself peeks out from behind the
+                      struck word on hover. */}
+                  <LogoMark className="absolute -top-2 right-6 -z-10 size-7 rotate-[10deg] opacity-0 motion-safe:translate-y-3 motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out group-hover:opacity-100 motion-safe:group-hover:-translate-y-3" />
+                  <span className="text-muted-foreground">imposters.</span>
+                  {/* The same squiggle as the "ditto not welcome" underline,
+                      stretched across the word as a strike. `non-scaling-stroke`
+                      keeps the line weight constant while the wave stretches. */}
+                  <svg
+                    viewBox="0 0 168 10"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -left-[0.05em] top-[58%] h-[0.35em] w-[calc(100%+0.05em)] -translate-y-1/2 -rotate-[1.2deg] text-ditto"
+                  >
+                    <path
+                      d="M2 6.5c28-4 52 3.5 80-1.5 22-4 42 3 84 0"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="4"
+                      vectorEffect="non-scaling-stroke"
+                      opacity="0.9"
+                    />
+                  </svg>
+                </span>
               </h1>
-              <p className="mx-auto mt-6 max-w-xl text-lead leading-6 text-parchment/65 sm:text-subhead sm:leading-7">
-                Buy from verified sellers with confirmed identities.
-                <br />
-                Trade with strangers backed by collateral and full disclosure.
-                <br />
-                Zero tolerance for imposters or fraudulent activity.
+              <p className="mx-auto mt-6 max-w-xl text-pretty text-lead leading-6 text-muted-foreground">
+                Buy, sell, and trade cards with full protection.   
               </p>
               <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                <Button
-                  asChild
-                  size="lg"
-                  className="border-parchment/20 bg-parchment text-obsidian hover:bg-parchment/90"
-                >
-                  <Link href="/listings">
+                <Button asChild size="lg">
+                  <Link href="/listings" transitionTypes={['nav-forward']}>
                     Browse Marketplace
                     <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>
-                <Button
-                  asChild
+                <StartDealButton
+                  isAuthenticated={isAuthenticated}
                   size="lg"
                   variant="outline"
-                  className="border-parchment/20 bg-white/[0.03] text-parchment shadow-none backdrop-blur-sm hover:border-parchment/40 hover:bg-white/[0.07] hover:text-parchment"
-                >
-                  <Link href={tradeHref}>Start a Trade</Link>
-                </Button>
+                  className="hover:border-ditto/50 hover:bg-ditto/10"
+                />
               </div>
 
-              <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-meta font-medium text-parchment sm:text-body">
+              <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-body font-medium text-foreground">
                 <li className="flex items-center gap-tight">
                   <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
-                  Sellers verified via Stripe Identity
+                  Photo ID on every seller
+                </li>
+                <li className="flex items-center gap-tight">
+                  <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
+                  Collateral locked on trades
+                </li>
+                <li className="flex items-center gap-tight">
+                  <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
+                  Powered by Stripe
                 </li>
               </ul>
             </div>
@@ -107,64 +123,70 @@ export default async function HomePage() {
 
           {/* THE CARD WALL — a full-bleed marquee of real listings that gives the
               hero visual weight without stock art. */}
-          {previewItems.length > 0 ? (
+          {!catalogResult.ok ? (
+            <div className="mx-auto max-w-workspace px-6 pb-14 lg:px-24">
+              <p
+                role="alert"
+                className="mx-auto max-w-xl text-center text-pretty text-body leading-6 text-muted-foreground"
+              >
+                Public listings could not be loaded. Try again shortly.
+              </p>
+            </div>
+          ) : previewItems.length > 0 ? (
             <div className="relative py-8">
-              {/* Edge fades — the carousel floats into the background rather than
-                  cutting off at a hard edge. Mirrors the reference landing page. */}
               <div
-                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-obsidian to-transparent"
+                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background to-transparent"
                 aria-hidden="true"
               />
               <div
-                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-obsidian to-transparent"
+                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-background to-transparent"
                 aria-hidden="true"
               />
               <ListingCarousel items={previewItems} />
             </div>
           ) : (
-            <div className="mx-auto max-w-7xl px-6 pb-14 lg:px-24">
-              <EmptyState
-                title="No Public Listings Yet"
-                description="You can still make a protected deal with another collector."
-                action={{ label: 'Start a Trade', href: tradeHref }}
+            <div className="mx-auto max-w-workspace px-6 pb-14 lg:px-24">
+              <StartDealEmptyState
+                isAuthenticated={isAuthenticated}
+                title="The shop window is empty for now."
+                description="You can still start a trade or a protected contract with another collector."
+                help={{ label: 'How it works', href: '/help' }}
                 titleAs="h2"
                 compact
-                className="border-white/10 bg-white/[0.02]"
               />
             </div>
           )}
         </section>
 
-        {/* A slightly lifted surface, not a second colour. All-black end to end left the
-            page with no rhythm at all — every section looked like the same section. One
-            step of elevation is enough to separate them without reinstating the hard
-            light/dark seam this replaced. */}
         <section
           aria-labelledby="why-noditto"
-          className="border-t border-white/10 bg-white/[0.02]"
+          className="relative border-t border-border bg-card"
         >
-          <div className="mx-auto grid max-w-7xl gap-12 px-6 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-20 lg:px-24 lg:py-24">
+          {/* Ditto sticker slapped across the seam — caught sneaking in. */}
+          <LogoMark className="absolute -top-4 right-8 size-8 rotate-[9deg] lg:right-24" />
+          <div className="mx-auto grid max-w-workspace gap-12 px-6 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-20 lg:px-24 lg:py-24">
             <header className="max-w-xl">
               <p className="market-label text-gold">Why NoDitto</p>
               <h2
                 id="why-noditto"
-                className="mt-3 text-balance font-sans text-4xl font-semibold leading-[1.08] tracking-[-0.03em] sm:text-5xl"
+                className="mt-3 text-balance font-sans text-display font-semibold leading-[1.08] tracking-[-0.03em]"
               >
                 Know who you&apos;re dealing with.
               </h2>
-              <p className="mt-5 text-pretty leading-7 text-parchment/60">
-                Identity is verified through Stripe. Contracts show the
-                terms, collateral, and next action before anything moves.
+              <p className="mt-5 text-pretty text-lead leading-7 text-muted-foreground">
+                Sellers verify with Stripe Identity. Payments stay Stripe.
+                You see the terms, the collateral, and who moves next, before
+                anything leaves a binder.
               </p>
             </header>
 
-            <div className="border-t border-parchment/15">
+            <div className="border-t border-border">
               {/* Below `sm` the rows stack and carry their own inline
                   "Elsewhere:"/"Us:" labels, so a column-header row has nothing
                   to line up with — hide it entirely. */}
-              <div className="market-label hidden gap-x-6 border-b border-parchment/15 py-3 text-parchment/60 sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
+              <div className="market-label hidden gap-x-6 border-b border-border py-3 text-muted-foreground sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
                 <span aria-hidden="true" />
-                <span className="text-center">Typical marketplace</span>
+                <span className="text-center">The usual</span>
                 <span className="text-center text-gold">NoDitto</span>
               </div>
               <ComparisonRow
@@ -175,14 +197,14 @@ export default async function HomePage() {
               <ComparisonRow
                 aspect="Who you're dealing with"
                 typical="Anonymous accounts"
-                ours="identity verification status"
+                ours="Stripe Identity check"
               />
               {/* Was "Contract-backed collateral protection", which is not what happens
                   when a CASH SALE goes wrong — those carry no collateral. What actually
                   happens on every contract type is that funds stop moving and a person
                   decides, which is a stronger claim and a true one. */}
               <ComparisonRow
-                aspect="If a deal goes wrong"
+                aspect="If a contract goes wrong"
                 typical="“Sort it out yourselves”"
                 ours="Funds frozen, reviewed by support"
               />
@@ -195,56 +217,52 @@ export default async function HomePage() {
           </div>
         </section>
       </main>
-      <footer className="border-t border-white/10">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 text-body md:grid-cols-[1fr_auto] md:items-start lg:px-24">
-          <div className="max-w-xl">
-            <div className="flex items-center gap-2 font-display text-subhead font-semibold">
-              <LogoMark className="size-6" />
-              <span translate="no">NoDitto</span>
+      <footer className="border-t border-border">
+        <div className="mx-auto max-w-workspace px-6 py-10 text-body lg:px-24">
+          <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
+            <div className="max-w-xl">
+              <div className="group flex items-center gap-2 font-display text-subhead font-semibold">
+                <LogoMark className="size-6 origin-center transition-transform duration-300 ease-out motion-safe:group-hover:-rotate-[12deg]" />
+                <span translate="no">NoDitto</span>
+              </div>
+              <p className="mt-2 text-pretty text-body leading-6 text-muted-foreground">
+                Safer contracts for trading cards.
+              </p>
             </div>
-            <p className="mt-2 text-pretty leading-6 text-parchment/55">
-              Safer contracts for trading cards, coins, stamps, comics, and memorabilia.
-            </p>
+            <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-3">
+              <Link className={footerLinkClass} href="/listings" transitionTypes={['nav-forward']}>
+                Marketplace
+              </Link>
+              <Link className={footerLinkClass} href="/trades" transitionTypes={['nav-forward']}>
+                Trades
+              </Link>
+              <Link className={footerLinkClass} href="/profile?tab=verification">
+                Verification
+              </Link>
+              <Link className={footerLinkClass} href="/help#holds">
+                How it works
+              </Link>
+              <Link className={footerLinkClass} href="/help">
+                Help
+              </Link>
+              <Link className={footerLinkClass} href="/terms">
+                Terms
+              </Link>
+              <Link className={footerLinkClass} href="/privacy">
+                Privacy
+              </Link>
+            </nav>
           </div>
-          <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-3">
-            <Link
-              className="rounded-sm text-parchment/60 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
-              href="/listings"
-            >
-              Marketplace
-            </Link>
-            <Link
-              className="rounded-sm text-parchment/60 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
-              href="/trades"
-            >
-              Trades
-            </Link>
-            <Link
-              className="rounded-sm text-parchment/60 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
-              href="/profile/payouts#identity"
-            >
-              Verification
-            </Link>
-          </nav>
-          <p className="border-t border-white/10 pt-5 text-meta leading-5 text-parchment/45 md:col-span-2">
-            Demo card imagery provided by the{' '}
-            <a
-              href="https://docs.pokemontcg.io/"
-              target="_blank"
-              rel="noreferrer"
-              className="underline decoration-gold/50 underline-offset-4 hover:text-parchment"
-            >
-              Pokémon TCG API
-            </a>
-            . Pokémon names and artwork belong to their respective owners. NoDitto is not
-            affiliated with or endorsed by The Pokémon Company. Payments are processed by
-            Stripe.
-          </p>
+          <DittoNotWelcome quiet className="mx-0 mt-3 items-start" />
         </div>
       </footer>
     </div>
+    </DirectionalTransition>
   );
 }
+
+const footerLinkClass =
+  'rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 function ComparisonRow({
   aspect,
@@ -256,12 +274,12 @@ function ComparisonRow({
   ours: string;
 }) {
   return (
-    <div className="grid gap-2 border-b border-parchment/15 py-5 sm:grid-cols-[1.1fr_1fr_1fr] sm:items-center sm:gap-6">
+    <div className="grid gap-2 border-b border-border py-5 sm:grid-cols-[1.1fr_1fr_1fr] sm:items-center sm:gap-6">
       <h3 className="text-body font-semibold">{aspect}</h3>
-      <p className="flex items-center gap-2 text-body text-parchment/60">
-        <X className="size-4 shrink-0 text-parchment/45" aria-hidden="true" />
+      <p className="flex items-center gap-2 text-body text-muted-foreground">
+        <X className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span>
-          <span className="market-label mr-1.5 text-parchment/50 sm:hidden">
+          <span className="market-label mr-1.5 text-muted-foreground sm:hidden">
             Elsewhere:
           </span>
           {typical}

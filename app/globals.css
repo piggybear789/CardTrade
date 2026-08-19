@@ -5,32 +5,43 @@
 @layer base {
   :root {
     /* NoDitto: collector-ledger restraint with a controlled Ditto-purple accent. */
-    --background: 42 31% 96%;
-    --foreground: 30 10% 9%;
-    --card: 40 30% 99%;
-    --card-foreground: 30 10% 9%;
-    --popover: 40 30% 99%;
-    --popover-foreground: 30 10% 9%;
-    --primary: 30 9% 7%;
-    --primary-foreground: 42 33% 95%;
-    --secondary: 39 35% 90%;
-    --secondary-foreground: 30 10% 12%;
-    --muted: 40 22% 91%;
-    --muted-foreground: 32 8% 40%;
-    --accent: 41 41% 87%;
-    --accent-foreground: 30 11% 10%;
-    --destructive: 4 80% 50%;
-    --destructive-foreground: 42 33% 96%;
-    --border: 36 18% 78%;
-    --input: 36 18% 62%;
-    --ring: 41 52% 48%;
-    --trust: 173 80% 26%;
-    --gold: 41 52% 38%;
-    --ditto: 282 62% 62%;
+    --background: 42 26% 93%;
+    /* ONE BLACK. Header, body ink, primary buttons, and inverse cards all
+       read this. Do not invent a second near-black — opacity is how it
+       lightens, not another HSL. `#0c0b0a` in the manifest is this value. */
     --obsidian: 30 9% 4%;
-    --charcoal: 30 8% 14%;
+    --foreground: var(--obsidian);
+    --card: 40 30% 99%;
+    --card-foreground: var(--obsidian);
+    --popover: 40 30% 99%;
+    --popover-foreground: var(--obsidian);
+    --primary: var(--obsidian);
+    --primary-foreground: 42 33% 95%;
+    --secondary: 39 28% 88%;
+    --secondary-foreground: var(--obsidian);
+    /* Grouping tint on card — a whisper, not a khaki slab. Do not wash
+       with /20 or /30; do not use this as a field fill. */
+    --muted: 40 22% 90%;
+    --muted-foreground: 32 10% 34%;
+    --accent: 41 32% 84%;
+    --accent-foreground: var(--obsidian);
+    --destructive: 4 78% 40%;
+    --destructive-foreground: 42 33% 96%;
+    /* Structural hairline. Fields share the same cream — no ink, no Ditto. */
+    --border: 36 18% 78%;
+    --input: var(--parchment);
+    --ring: var(--parchment);
+    --trust: 173 80% 26%;
+    --gold: 41 56% 30%;
+    --ditto: 282 62% 62%;
+    /* Bright amber: "this is your move." Pale lavender read as decoration. */
+    --action: 41 94% 50%;
+    --action-foreground: var(--obsidian);
     --parchment: 40 45% 90%;
     --radius: 0.625rem;
+    --duration-exit: 150ms;
+    --duration-enter: 210ms;
+    --duration-move: 400ms;
   }
 
   /* The app ships a single light theme (see `colorScheme: 'light'` in the
@@ -39,6 +50,14 @@
 
   * {
     @apply border-border;
+  }
+
+  /* Native controls sit on the flex cross-axis so a wrapping label does not
+     leave the box hanging off the first line. `sr-only` radios are taken out
+     of flow and ignore this. */
+  input[type='checkbox'],
+  input[type='radio'] {
+    align-self: center;
   }
 
   html {
@@ -50,7 +69,10 @@
   }
 
   body {
-    @apply min-h-dvh overflow-x-clip bg-background font-sans text-foreground antialiased;
+    /* Inherited size MUST match Button (`text-body` / 14px). Without this,
+       unstyled copy is the browser's 16px and every control looks too small
+       or too large depending on whether the neighbour set a token. */
+    @apply min-h-dvh overflow-x-clip bg-background font-sans text-body text-foreground antialiased;
     background-image:
       radial-gradient(circle at 8% 0%, hsl(var(--gold) / 0.055), transparent 24rem),
       linear-gradient(hsl(var(--foreground) / 0.018) 1px, transparent 1px);
@@ -107,8 +129,44 @@
     border-color: hsl(var(--gold) / 0.7);
   }
 
+  /* Native search cancel fights our X and is unstyled on the dark bar. */
+  .market-search input[type='search']::-webkit-search-cancel-button,
+  .market-search input[type='search']::-webkit-search-decoration {
+    appearance: none;
+  }
+
+  .market-search button[aria-label='Clear search'] {
+    color: hsl(var(--primary-foreground) / 0.72);
+  }
+
+  .market-search button[aria-label='Clear search']:hover {
+    color: hsl(var(--primary-foreground));
+    background: hsl(var(--primary-foreground) / 0.12);
+  }
+
   .auction-stage {
-    background: radial-gradient(ellipse at 50% 28%, hsl(var(--charcoal)) 0%, hsl(var(--obsidian)) 88%);
+    background: hsl(var(--obsidian));
+  }
+
+  /* Selecting text on the landing page flashes Ditto purple instead of the
+     app-wide gold — one more edge the character lives at. */
+  .landing-selection ::selection {
+    color: hsl(var(--obsidian));
+    background: hsl(var(--ditto) / 0.38);
+  }
+
+  /* Ledger grid behind the landing hero. Body already draws 4rem rules at
+     ~2% ink — too faint to read as texture. This is the same gold grid as
+     the auth pages, masked so it sits under the headline and dies before
+     the card wall. */
+  .landing-ledger {
+    background-image:
+      radial-gradient(ellipse 50% 36% at 50% 14%, hsl(var(--gold) / 0.055), transparent 64%),
+      linear-gradient(hsl(var(--gold) / 0.085) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--gold) / 0.085) 1px, transparent 1px);
+    background-size: auto, 4.5rem 4.5rem, 4.5rem 4.5rem;
+    -webkit-mask-image: radial-gradient(ellipse 72% 58% at 50% 20%, #000 12%, transparent 66%);
+    mask-image: radial-gradient(ellipse 72% 58% at 50% 20%, #000 12%, transparent 66%);
   }
 
   .ledger-strip {
@@ -217,6 +275,132 @@
   will-change: transform;
 }
 
+@keyframes fade {
+  from { filter: blur(3px); opacity: 0; }
+  to { filter: blur(0); opacity: 1; }
+}
+
+@keyframes slide {
+  from { translate: var(--slide-offset); }
+  to { translate: 0; }
+}
+
+@keyframes slide-y {
+  from { transform: translateY(var(--slide-y-offset, 10px)); }
+  to { transform: translateY(0); }
+}
+
+@keyframes via-blur {
+  30% { filter: blur(3px); }
+}
+
+@keyframes scale-down {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.85); opacity: 0; }
+}
+
+@keyframes scale-up {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+::view-transition-old(.fade-out) {
+  animation: var(--duration-exit) ease-in fade reverse;
+}
+::view-transition-new(.fade-in) {
+  animation: var(--duration-enter) ease-out var(--duration-exit) both fade;
+}
+
+::view-transition-old(.slide-down) {
+  animation:
+    var(--duration-exit) ease-out both fade reverse,
+    var(--duration-exit) ease-out both slide-y reverse;
+}
+::view-transition-new(.slide-up) {
+  animation:
+    var(--duration-enter) ease-in var(--duration-exit) both fade,
+    var(--duration-move) ease-in both slide-y;
+}
+
+::view-transition-old(.nav-forward) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-exit) ease-in both fade reverse,
+    var(--duration-move) ease-in-out both slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-enter) ease-out var(--duration-exit) both fade,
+    var(--duration-move) ease-in-out both slide;
+}
+
+::view-transition-old(.nav-back) {
+  --slide-offset: 60px;
+  animation:
+    var(--duration-exit) ease-in both fade reverse,
+    var(--duration-move) ease-in-out both slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --slide-offset: -60px;
+  animation:
+    var(--duration-enter) ease-out var(--duration-exit) both fade,
+    var(--duration-move) ease-in-out both slide;
+}
+
+::view-transition-group(.morph) {
+  animation-duration: var(--duration-move);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: via-blur;
+}
+
+::view-transition-group(.text-morph) {
+  animation-duration: var(--duration-move);
+}
+::view-transition-old(.text-morph) {
+  display: none;
+}
+::view-transition-new(.text-morph) {
+  animation: none;
+  object-fit: none;
+  object-position: left top;
+}
+
+::view-transition-old(.scale-out) {
+  animation: var(--duration-exit) ease-in scale-down;
+}
+::view-transition-new(.scale-in) {
+  animation: var(--duration-enter) ease-out var(--duration-exit) both scale-up;
+}
+
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+::view-transition-group(persistent-nav) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-group(persistent-mobile-nav) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(persistent-mobile-nav) {
+  display: none;
+}
+::view-transition-new(persistent-mobile-nav) {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -227,5 +411,12 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
+  }
+
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 }

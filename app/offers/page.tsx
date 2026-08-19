@@ -1,8 +1,8 @@
 // app/offers/page.tsx
 //
-// Offers the caller has made on other members' listings. Accepting an offer
-// opens a Cash_Sale contract, so this belongs beside the other transaction
-// sections rather than inside account settings.
+// Offers the caller has sent and received. Accepting an offer opens a
+// Cash_Sale contract, so this belongs beside the other transaction sections
+// rather than inside account settings.
 
 import { redirect } from 'next/navigation';
 
@@ -29,7 +29,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Offers · NoDitto',
-  description: 'Offers you have made on listings.',
+  description: 'Offers you have sent and received.',
 };
 
 export default async function OffersPage({
@@ -66,7 +66,7 @@ export default async function OffersPage({
     <MarketplaceShell title="Offers" primaryAction={primaryAction}>
       <SectionHeader
         title="Offers"
-        description="Prices you have proposed. An accepted offer opens a purchase contract."
+        description="Prices you have sent and received. An accepted offer opens a purchase contract."
         mobileAction={primaryAction}
       />
 

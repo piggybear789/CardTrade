@@ -302,14 +302,16 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
 
                 // ─── Category ─────────────────────────────────────────
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: AppConstants.categories
+                  value: AppConstants.games.contains(_selectedCategory)
+                      ? _selectedCategory
+                      : null,
+                  decoration: const InputDecoration(labelText: 'Game'),
+                  items: AppConstants.games
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (val) => setState(() => _selectedCategory = val),
                   validator: (val) =>
-                      val == null ? 'Please select a category' : null,
+                      val == null ? 'Please select a game' : null,
                 ),
                 const SizedBox(height: AppTheme.spacingLg),
 

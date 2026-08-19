@@ -55,12 +55,16 @@ export default async function MessagesPage() {
         <SectionHeader
           title="Inbox"
           description={
-            <>
-              {conversations.length === 1
-                ? '1 conversation'
-                : `${conversations.length} conversations`}
-              {unreadTotal > 0 ? ` · ${unreadTotal} unread` : ''}
-            </>
+            result.ok ? (
+              <>
+                {conversations.length === 1
+                  ? '1 conversation'
+                  : `${conversations.length} conversations`}
+                {unreadTotal > 0 ? ` · ${unreadTotal} unread` : ''}
+              </>
+            ) : (
+              'Your buyer and seller conversations.'
+            )
           }
         />
       </div>
@@ -68,18 +72,18 @@ export default async function MessagesPage() {
         <div className="mb-5">
           <SectionLoadError label="conversations" />
         </div>
-      ) : null}
-      {conversations.length === 0 ? (
+      ) : conversations.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="size-6" aria-hidden="true" />}
           title="No Conversations Yet"
           description="Messages with buyers and sellers will appear here. Browse the marketplace to start a conversation."
           action={{ label: 'Browse Marketplace', href: '/listings' }}
+          help={{ label: 'How holds and disputes work', href: '/help#holds' }}
           compact
         />
       ) : (
         <ul
-          className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card shadow-market"
+          className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-market"
           aria-label="Conversations"
         >
           {conversations.map((c) => {
@@ -93,17 +97,18 @@ export default async function MessagesPage() {
               <li key={c.id}>
                 <Link
                   href={`/messages/${c.id}`}
+                  transitionTypes={['nav-forward']}
                   className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    (<img
+                    <img
                       src={thumb}
                       alt=""
                       width={96}
                       height={96}
                       className="size-12 shrink-0 rounded-md object-cover"
-                    />)
+                    />
                   ) : (
                     <span
                       className={`flex size-12 shrink-0 items-center justify-center rounded-md ${c.dispute ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}
@@ -130,7 +135,7 @@ export default async function MessagesPage() {
                           taller for no gain. The name keeps priority when space is tight —
                           it truncates last, because two conversations about one item are
                           told apart by who they are with. */}
-                      <p className="flex min-w-0 items-center gap-tight text-body font-medium">
+                      <p className="flex min-w-0 items-center gap-tight text-lead font-medium">
                         <Avatar
                           avatarPath={c.other.avatarPath}
                           displayName={name}
@@ -138,7 +143,7 @@ export default async function MessagesPage() {
                         />
                         <span className="max-w-[60%] truncate">{name}</span>
                         {c.dispute ? (
-                          <span className="truncate text-meta font-medium text-destructive">
+                          <span className="truncate text-body font-medium text-destructive">
                             Dispute: {c.dispute.itemTitle}
                           </span>
                         ) : c.trade ? (
@@ -146,7 +151,7 @@ export default async function MessagesPage() {
                             Trade
                           </span>
                         ) : c.item ? (
-                          <span className="truncate text-meta font-normal text-muted-foreground">
+                          <span className="truncate text-body font-normal text-muted-foreground">
                             Re: {c.item.title}
                           </span>
                         ) : null}

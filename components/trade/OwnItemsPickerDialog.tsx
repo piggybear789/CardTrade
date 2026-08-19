@@ -69,8 +69,11 @@ export function OwnItemsPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(92dvh,100dvh-3rem)] sm:max-w-lg">
-        <DialogHeader className="shrink-0 space-y-1 border-b border-border/70 px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
+      {/* `sm:gap-0 sm:p-0` repeat the bare overrides on purpose — the base
+          DialogContent sets `sm:p-6`/`sm:gap-4`, which a bare `p-0`/`gap-0`
+          does not beat at desktop widths (see ProposeTradeDialog). */}
+      <DialogContent className="flex max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(92dvh,100dvh-3rem)] sm:max-w-lg sm:gap-0 sm:p-0">
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
           <DialogTitle>Your listings</DialogTitle>
           <DialogDescription>
             Tick what you are putting up. The first selected is the primary item.
@@ -132,7 +135,7 @@ export function OwnItemsPickerDialog({
           )}
         </div>
 
-        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border/70 bg-card px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-none supports-[backdrop-filter]:bg-card sm:border-t sm:bg-card sm:px-6 sm:pb-4 sm:pt-3">
+        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:border-t sm:bg-card/95 sm:px-6 sm:pb-4 sm:pt-3">
           <Button
             type="button"
             variant="ghost"

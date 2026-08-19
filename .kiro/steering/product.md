@@ -1,6 +1,6 @@
 # Product
 
-CardTrade is a safety-first, peer-to-peer clearinghouse and marketplace for collectibles (trading cards, coins, stamps, comics, memorabilia). Its differentiator is a trustless escrow engine built to run on Stripe.
+CardTrade is a safety-first, peer-to-peer clearinghouse and marketplace for trading cards (TCGs and sports cards). Its differentiator is a trustless escrow engine built to run on Stripe. The product is deliberately cards-only for now — user-facing copy and category pickers expose only Trading Cards to concentrate liquidity — but the domain model, contracts, and DB taxonomy remain category-agnostic so adjacent collectibles (comics, coins, memorabilia) can open later without rework.
 
 ## Transaction models
 
@@ -86,7 +86,7 @@ Member-facing copy says **binder or bulk listing**, never "shopfront" — that i
 
 `TRANSITIONS` in `domain/state-machine/machine.ts` is the source of truth; read it rather than this summary when the distinction matters.
 
-`Police_Evidence_Pack` is **retired vocabulary** — do not reintroduce it. `KYC_Status` is retired too: there was never an enforced gate behind it, and the flow that wrote it has been removed. `Deal` is retired: the private deal feature has been removed entirely (migration 0055). `DittoBond` is retired member-facing terminology: say **trade collateral** and explain it as a **temporary card hold**. Internal `bondPolicy` / `requiredBondCents` names remain implementation vocabulary.
+`Police_Evidence_Pack` is **retired vocabulary** — do not reintroduce it. `KYC_Status` is retired too: there was never an enforced gate behind it, and the flow that wrote it has been removed. Deal *tables* (`deals`, `deal_holds`, `deal_payments`) stay retired from migration 0055 — do not resurrect that ledger. A **private deal** is an invite (`deal_invites`) that opens a Cash_Sale or a Trade: cash-for-a-card uses `CashSaleView`, a swap uses `TradeContract`. Member copy may say Deal for that link. `DittoBond` is retired member-facing terminology: say **trade collateral** and explain it as a **temporary card hold**. Internal `bondPolicy` / `requiredBondCents` names remain implementation vocabulary.
 
 **Verification is TWO SEQUENTIAL STEPS, and they gate different things.** Step one is the **Identity_Gate**: a Stripe Identity document-plus-selfie check, `profiles.identity_check_status = 'VERIFIED'`. That alone unlocks listing, selling, entering trade escrow, and being a disclosed counterparty — it needs no bank details. Step two is **Connect payout setup**, `merchant_status = APPROVED` **and** `merchant_settlements_enabled`, which unlocks actually RECEIVING money via `canReceiveFunds`.
 

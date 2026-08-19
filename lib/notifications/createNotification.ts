@@ -18,6 +18,7 @@ import 'server-only';
 // so a failed emit is swallowed (and logged) rather than surfaced. Emitting a
 // notification is a side effect of a successful mutation, never a precondition.
 
+import { after } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Enums } from '@/lib/supabase/database.types';
 
@@ -47,25 +48,34 @@ export interface CreateNotificationInput {
 export async function createNotification(
   input: CreateNotificationInput,
 ): Promise<boolean> {
-  try {
-    if (!input.userId || !input.title) return false;
+  const execute = async () => {
+    try {
+      if (!input.userId || !input.title) return false;
 
-    const admin = createAdminClient();
-    const { error } = await admin.from('notifications').insert({
-      user_id: input.userId,
-      type: input.type,
-      title: input.title,
-      body: input.body ?? null,
-      link: input.link ?? null,
-    });
+      const admin = createAdminClient();
+      const { error } = await admin.from('notifications').insert({
+        user_id: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body ?? null,
+        link: input.link ?? null,
+      });
 
-    if (error) {
-      console.error('[createNotification] failed to insert notification', error);
+      if (error) {
+        console.error('[createNotification] failed to insert notification', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('[createNotification] unexpected error', e);
       return false;
     }
+  };
+
+  try {
+    after(execute);
     return true;
-  } catch (e) {
-    console.error('[createNotification] unexpected error', e);
-    return false;
+  } catch {
+    return await execute();
   }
 }

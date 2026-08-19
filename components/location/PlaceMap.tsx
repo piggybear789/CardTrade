@@ -31,8 +31,42 @@ export interface PlaceMapProps {
    * `exact` renders a full interactive Google Maps Embed. Defaults to `exact`.
    */
   precision?: PlacePrecision | null;
+  /**
+   * `map` (default) is a framed preview. `inline` is a fact row — pin, label,
+   * Open in Maps — for surfaces that already have a Card nearby and must not
+   * grow a second box.
+   */
+  presentation?: 'map' | 'inline';
   /** Kept for call-site compatibility. */
   interactive?: boolean;
+}
+
+function LocationRow({
+  label,
+  href,
+  className,
+}: {
+  label: string;
+  href?: string | null;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex min-w-0 items-center gap-3', className)}>
+      <MapPin className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-body">{label}</span>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1 text-body font-semibold underline-offset-4 hover:underline"
+        >
+          Open in Maps
+          <ExternalLink className="size-3.5" aria-hidden />
+        </a>
+      ) : null}
+    </div>
+  );
 }
 
 export function PlaceMap({
@@ -42,6 +76,7 @@ export function PlaceMap({
   className,
   heightClassName = 'h-64',
   precision = null,
+  presentation = 'map',
 }: PlaceMapProps) {
   const [imgFailed, setImgFailed] = useState(false);
 
@@ -55,18 +90,28 @@ export function PlaceMap({
     ? mapsExternalUrl(lat, lng, label ?? undefined)
     : null;
 
+  if (presentation === 'inline') {
+    return (
+      <LocationRow
+        label={label ?? (hasCoords ? 'Unknown location' : 'No map location yet')}
+        href={externalUrl}
+        className={className}
+      />
+    );
+  }
+
   // No coordinates — empty placeholder
   if (!hasCoords) {
     return (
       <div
         className={cn(
-          'flex items-center justify-center rounded-lg border border-dashed bg-muted/40 text-body text-muted-foreground',
+          'flex items-center justify-center rounded-lg border border-dashed border-border bg-muted text-body text-muted-foreground',
           'h-14',
           className,
         )}
       >
         <span className="inline-flex items-center gap-2">
-          <MapPin className="h-4 w-4" aria-hidden />
+          <MapPin className="size-4" aria-hidden />
           No map location yet
         </span>
       </div>
@@ -78,28 +123,12 @@ export function PlaceMap({
     const imgUrl = staticMapUrl(lat, lng, { precision: 'suburb' });
 
     if (!imgUrl || imgFailed) {
-      // Fallback: compact card if static API unavailable
       return (
-        <div
-          className={cn(
-            'flex items-center gap-3 rounded-lg border bg-muted/30 px-group py-cozy',
-            className,
-          )}
-        >
-          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="min-w-0 flex-1 truncate text-body font-medium">
-            {label ?? 'Unknown location'}
-          </span>
-          <a
-            href={externalUrl!}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1 text-body font-semibold underline-offset-4 hover:underline"
-          >
-            Open in Maps
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-          </a>
-        </div>
+        <LocationRow
+          label={label ?? 'Unknown location'}
+          href={externalUrl}
+          className={className}
+        />
       );
     }
 
@@ -146,7 +175,7 @@ export function PlaceMap({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center gap-2 rounded-lg border bg-muted/40 p-4 text-center text-body',
+          'flex flex-col items-center justify-center gap-2 rounded-lg border bg-muted p-4 text-center text-body',
           'h-32',
           className,
         )}

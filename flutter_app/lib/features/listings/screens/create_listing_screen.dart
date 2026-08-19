@@ -349,19 +349,19 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                   DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: InputDecoration(
-                      hintText: 'Category',
+                      hintText: 'Game',
                       hintStyle: AppTheme.bodyText.copyWith(
                         color: AppTheme.muted,
                       ),
                     ),
-                    items: AppConstants.categories
+                    items: AppConstants.games
                         .map((c) =>
                             DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
                     onChanged: (val) =>
                         setState(() => _selectedCategory = val),
                     validator: (val) =>
-                        val == null ? 'Please select a category' : null,
+                        val == null ? 'Please select a game' : null,
                   ),
                   const SizedBox(height: AppTheme.spacingLg),
 

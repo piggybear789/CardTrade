@@ -30,10 +30,10 @@ export default function Error({
         <AlertTriangle className="size-6" aria-hidden="true" />
       </div>
       <p className="cardtrade-eyebrow mt-6">Something went wrong</p>
-      <h1 className="mt-4 text-balance font-display text-4xl font-semibold leading-[1.08] tracking-[-0.025em] sm:text-5xl">
+      <h1 className="mt-4 text-balance font-display text-display font-semibold tracking-[-0.025em]">
         This page hit a snag
       </h1>
-      <p className="mt-3 text-pretty leading-7 text-muted-foreground">
+      <p className="mt-3 text-pretty text-body leading-7 text-muted-foreground">
         Your money and trades are safe. The page just failed to load. Try again,
         and if it keeps happening, head back to the marketplace.
       </p>

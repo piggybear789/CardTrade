@@ -1,9 +1,9 @@
 'use client';
 
 // Mobile infinite catalog: append pages as the sentinel enters the viewport.
-// Desktop keeps URL pagination (the page nav is rendered by the server parent).
+// Desktop paging lives in CatalogResults and refetches through CatalogView.
 
-import { useEffect, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import {
@@ -12,11 +12,14 @@ import {
   type CatalogSort,
   type SearchCatalogParams,
 } from '@/lib/actions/listings';
-import { ItemCard } from '@/components/listings/ItemCard';
+import { CatalogItemCard } from '@/components/listings/ItemCard';
+import { useCatalogView } from '@/components/listings/CatalogView';
 
 const MOBILE_MAX = '(max-width: 1023px)';
 
 export interface CatalogInfiniteGridProps {
+  /** Bumps when the browse query is replaced so we reset without remounting. */
+  revision: number;
   initialItems: CatalogItem[];
   initialPage: number;
   initialHasMore: boolean;
@@ -42,6 +45,7 @@ export interface CatalogInfiniteGridProps {
 }
 
 export function CatalogInfiniteGrid({
+  revision,
   initialItems,
   initialPage,
   initialHasMore,
@@ -57,6 +61,13 @@ export function CatalogInfiniteGrid({
   );
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { filter, setMatchCount } = useCatalogView();
+  const deferredFilter = useDeferredValue(filter);
+  const visibleItems = useMemo(
+    () => filterCatalogItems(items, deferredFilter),
+    [items, deferredFilter],
+  );
+
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const inFlightRef = useRef(false);
   // Pages already merged into `items` — blocks Strict Mode double-fetch of
@@ -127,6 +138,26 @@ export function CatalogInfiniteGrid({
   };
 
   useEffect(() => {
+    setItems(initialItems);
+    setPage(initialPage);
+    setHasMore(initialHasMore);
+    setWatchingIds(new Set(initialWatchingIds));
+    setError(null);
+    loadedPagesRef.current = new Set([initialPage]);
+    // Only `revision` — a new watchingIds array on an unrelated parent render
+    // must not wipe pages already appended on mobile.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision]);
+
+  useEffect(() => {
+    if (!filter.trim()) {
+      setMatchCount(null);
+      return;
+    }
+    setMatchCount(visibleItems.length);
+  }, [filter, visibleItems.length, setMatchCount]);
+
+  useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
 
@@ -145,19 +176,25 @@ export function CatalogInfiniteGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
-        {items.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            variant="catalog"
-            initialWatching={
-              currentUserId && item.owner_id !== currentUserId
-                ? watchingIds.has(item.id)
-                : undefined
-            }
-          />
-        ))}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+        {visibleItems.length === 0 ? (
+          <p className="col-span-full py-10 text-center text-body text-muted-foreground">
+            No listings here match “{filter.trim()}”.
+          </p>
+        ) : (
+          visibleItems.map((item) => (
+            <ViewTransition key={item.id} enter="fade-in" exit="fade-out" default="none">
+              <CatalogItemCard
+                item={item}
+                initialWatching={
+                  currentUserId && item.owner_id !== currentUserId
+                    ? watchingIds.has(item.id)
+                    : undefined
+                }
+              />
+            </ViewTransition>
+          ))
+        )}
       </div>
 
       {/* Sentinel + status — mobile only; desktop uses the page nav below. */}
@@ -167,7 +204,7 @@ export function CatalogInfiniteGrid({
           <button
             type="button"
             onClick={() => void loadMoreRef.current({ force: true })}
-            className="mt-snug w-full rounded-lg border border-border/70 px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-snug w-full rounded-lg border border-border px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Load more listings
           </button>
@@ -188,11 +225,22 @@ export function CatalogInfiniteGrid({
               {error}
             </button>
           ) : null}
-          {!hasMore && !loadingMore && items.length > 0 ? (
+          {!hasMore && !loadingMore && visibleItems.length > 0 ? (
             <p className="text-body text-muted-foreground">End of results</p>
           ) : null}
         </div>
       </div>
     </>
   );
+}
+
+function filterCatalogItems(items: CatalogItem[], raw: string): CatalogItem[] {
+  const needle = raw.trim().toLowerCase();
+  if (!needle) return items;
+  return items.filter((item) => {
+    if (item.title.toLowerCase().includes(needle)) return true;
+    if (item.category.toLowerCase().includes(needle)) return true;
+    const seller = item.seller?.displayName?.toLowerCase();
+    return seller != null && seller.includes(needle);
+  });
 }

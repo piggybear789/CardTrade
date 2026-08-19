@@ -22,6 +22,8 @@ export default function robots(): MetadataRoute.Robots {
         '/purchases',
         '/sales',
         '/trades',
+        '/deals',
+        '/t/',
       ],
     },
     sitemap: `${siteUrl}/sitemap.xml`,

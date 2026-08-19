@@ -5,6 +5,7 @@
 // marketplace, so they must be crawlable.
 
 import type { MetadataRoute } from 'next';
+import { CARD_GAME_NAMES } from '@/lib/catalog/cardGames';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
@@ -18,6 +19,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/listings`, lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
     { url: `${siteUrl}/sign-up`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${siteUrl}/sign-in`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${siteUrl}/help`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${siteUrl}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${siteUrl}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   // Fetch published listings.
@@ -25,7 +29,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: listings } = await admin
     .from('items')
     .select('id, updated_at, owner_id')
-    .eq('status', 'AVAILABLE');
+    .eq('status', 'AVAILABLE')
+    .eq('hidden', false)
+    .in('category', CARD_GAME_NAMES);
 
   const listingRoutes: MetadataRoute.Sitemap = (listings ?? []).map((item) => ({
     url: `${siteUrl}/listings/${item.id}`,

@@ -75,7 +75,7 @@ ItemSummary makeTestItemSummary({
   String title = 'Charizard Holo 1st Edition',
   int fmvCents = 1999,
   String condition = 'Near Mint',
-  String category = 'Trading Cards',
+  String category = 'Pokémon',
   ListingKind listingKind = ListingKind.single,
   ItemStatus status = ItemStatus.available,
   List<String> imagePaths = const [],

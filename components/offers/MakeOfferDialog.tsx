@@ -14,9 +14,11 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
 import { HandCoins, Loader2 } from 'lucide-react';
 
+import { FieldError } from '@/components/motion/FieldError';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,10 +63,6 @@ export interface MakeOfferDialogProps {
   fmvCents?: number;
   /** Current provider-approved seller identity the buyer must acknowledge. */
   sellerIdentity: SellerIdentityDisclosure;
-  /** Trigger button size when `appearance` is `button`. */
-  size?: 'default' | 'sm' | 'lg';
-  /** `icon` = round chip + label below (item detail). */
-  appearance?: 'button' | 'icon';
 }
 
 /**
@@ -75,14 +73,11 @@ export function MakeOfferDialog({
   itemId,
   fmvCents,
   sellerIdentity,
-  size = 'lg',
-  appearance = 'button',
 }: MakeOfferDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
-  const [confirmedSeller, setConfirmedSeller] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -93,11 +88,6 @@ export function MakeOfferDialog({
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setInlineError(null);
-
-    if (!confirmedSeller) {
-      setInlineError('Confirm the verified seller identity before making an offer.');
-      return;
-    }
 
     const dollars = Number.parseFloat(amount);
     if (!Number.isFinite(dollars) || dollars <= 0) {
@@ -126,8 +116,7 @@ export function MakeOfferDialog({
         setOpen(false);
         setAmount('');
         setMessage('');
-        setConfirmedSeller(false);
-        router.push('/offers');
+        navigateWithType(router, '/offers', 'nav-forward');
         return;
       }
       const msg = messageForError(result);
@@ -139,14 +128,11 @@ export function MakeOfferDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {appearance === 'icon' ? (
-          <ListingActionIcon icon={HandCoins} label="Make an offer" />
-        ) : (
-          <Button type="button" variant="outline" size={size} className="w-full sm:w-auto">
-            <HandCoins aria-hidden />
-            Make an offer
-          </Button>
-        )}
+        <ListingActionIcon
+          icon={HandCoins}
+          label="Make an offer"
+          iconClassName="size-7"
+        />
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
@@ -159,7 +145,7 @@ export function MakeOfferDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="min-w-0 rounded-md border bg-muted/30 p-cozy text-body">
+            <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
               <p className="font-medium">Verified seller</p>
               {sellerIdentity.tradingName ? (
                 <p className="break-words">{sellerIdentity.tradingName}</p>
@@ -168,20 +154,6 @@ export function MakeOfferDialog({
                 {sellerIdentity.legalEntityName}
               </p>
             </div>
-
-            <label className="flex items-start gap-3 text-body">
-              <input
-                type="checkbox"
-                checked={confirmedSeller}
-                onChange={(event) => setConfirmedSeller(event.target.checked)}
-                className="mt-0.5 h-4 w-4"
-                disabled={isPending}
-              />
-              <span>
-                I confirm this is the seller I intend to pay through Stripe
-                if the offer is accepted.
-              </span>
-            </label>
 
             <div className="space-y-2">
               <Label htmlFor="offer-amount">Your offer</Label>
@@ -194,7 +166,7 @@ export function MakeOfferDialog({
                 required
               />
               {fmvCents && fmvCents > 0 ? (
-                <p className="text-meta text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   Listed at {formatAud(fmvCents)}.
                 </p>
               ) : null}
@@ -212,16 +184,10 @@ export function MakeOfferDialog({
               />
             </div>
 
-            {inlineError ? (
-              <p role="alert" className="text-body text-destructive">
-                {inlineError}
-              </p>
-            ) : null}
+            {inlineError ? <FieldError message={inlineError} /> : null}
           </div>
 
           <DialogFooter>
-            {/* Stays enabled until the request starts; submitting without the
-                confirmation surfaces an inline error instead of a dead button. */}
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Sending…' : 'Send offer'}

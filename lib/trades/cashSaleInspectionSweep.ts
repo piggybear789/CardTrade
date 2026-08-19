@@ -108,7 +108,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         userId: sale.buyer_id as string,
         type: 'SALE',
         title: 'Inspection window closing',
-        body: 'Your inspection window closes within 24 hours. Accept the item or raise a dispute before then — otherwise the sale completes and the seller is paid.',
+        body: 'Your inspection window closes within 24 hours. Complete the purchase or raise a dispute before then — otherwise the sale completes and the seller is paid.',
         link: `/sales/${sale.id}`,
       });
       void emailNotify.inspectionDeadlineWarning({

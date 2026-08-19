@@ -44,6 +44,7 @@ import {
 import { inspectionHoldRisk } from '@/domain/fulfilment';
 import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
 
+import { FadeSwap } from '@/components/motion/FadeSwap';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ActionBar } from '@/components/trade/ActionBar';
@@ -54,9 +55,9 @@ import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
 import { StateBadge } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
+import { ReportDialog } from '@/components/reports/ReportDialog';
 import { PlaceMap } from '@/components/location';
 import {
-  CollateralExplainerDialog,
   ContractActionCard,
   ContractConversationPanel,
   ContractDetailList,
@@ -68,7 +69,6 @@ import {
   ContractLiveRow,
   ContractMoneyTable,
   ContractPartyLine,
-  ContractProgressRail,
   ContractTimeline,
   DisputeEvidencePanel,
   useContractConversation,
@@ -306,7 +306,7 @@ function TradeCashSettlementNotice({
           <div className="mt-3 flex flex-wrap gap-2">
             {iReceive ? (
               <Button asChild size="sm" variant="outline">
-                <Link href="/profile/payouts">Set up payouts</Link>
+                <Link href="/profile?tab=payouts">Set up payouts</Link>
               </Button>
             ) : null}
             <Button
@@ -348,7 +348,7 @@ function TradeCashSettlementNotice({
           </p>
           {iReceive ? (
             <Button asChild size="sm" variant="outline" className="mt-3">
-              <Link href="/profile/payouts">Set up payouts</Link>
+              <Link href="/profile?tab=payouts">Set up payouts</Link>
             </Button>
           ) : null}
         </>
@@ -360,7 +360,9 @@ function TradeCashSettlementNotice({
 /** True while either trader may still change face-to-face / postage terms. */
 function canEditHandoverTerms(trade: TradeRow): boolean {
   return (
-    (trade.state === 'COLLATERAL_PENDING' || trade.state === 'COLLATERAL_LOCKED') &&
+    (trade.state === 'NEGOTIATING' ||
+      trade.state === 'COLLATERAL_PENDING' ||
+      trade.state === 'COLLATERAL_LOCKED') &&
     trade.initiator_shipped_at == null &&
     trade.counterpart_shipped_at == null
   );
@@ -626,8 +628,8 @@ function TradeTermsRow({
       ) : null}
       {editable ? (
         <p className="text-body text-muted-foreground">
-          Either trader can update delivery terms until someone marks the goods as
-          shipped.
+          Either trader can update meeting or postage details. That does not
+          ask anyone to confirm again. The listing owner sets the cash.
         </p>
       ) : null}
     </ContractDetailRow>
@@ -862,97 +864,112 @@ function TradeContractRoom({
             ) : null}
 
             <ContractLiveRow
-              action={
-                <ContractActionCard step={step} tone={STATE_TONE[trade.state]}>
-                  {/* Commitment-point identity disclosure. A 2-way trade involves
-                      no connected account, so the payee-side verified name shown
-                      on a cash sale does not exist here — this is the only place
-                      a trader learns who they are actually swapping with. Fetched
-                      by the component itself, which re-checks server-side that
-                      the viewer really is a party to this trade. */}
-                  <CounterpartyIdentity
-                    counterpartyId={viewerRole === 'INITIATOR' ? counterpartId : initiatorId}
-                    displayName={them?.name}
-                    className="mb-3"
-                  />
-
-                  {/* Negotiation lives here rather than in ActionBar because
-                      countering needs a terms form. Both read the same
-                      `availableActions`, so neither invents permissions. */}
-                  {viewer && trade.state === 'NEGOTIATING' ? (
-                    <TradeNegotiationPanel
-                      tradeId={tradeId}
-                      viewer={viewer}
-                      termsVersion={trade.terms_version}
-                      terms={{
-                        cashAmountCents: trade.cash_amount_cents,
-                        cashDirection: trade.cash_direction,
-                        handoverMethod: trade.handover_method,
-                        meetingLocation: trade.meeting_location,
-                        meetingLat: trade.meeting_lat,
-                        meetingLng: trade.meeting_lng,
-                        meetingPlaceId: trade.meeting_place_id,
-                        meetingAt: trade.meeting_at,
-                        deliveryDetails: trade.delivery_details,
-                        deliveryCostCents: trade.delivery_cost_cents,
-                        offerMessage: trade.offer_message,
-                        counterpartGoodsDescription: trade.counterpart_goods_description,
-                      }}
-                    />
-                  ) : null}
-
-                  {viewer && trade.state !== 'NEGOTIATING' && permittedActionCount > 0 ? (
-                    <ActionBar
-                      tradeId={tradeId}
-                      state={trade.state}
-                      viewer={viewer}
-                      handoverMethod={trade.handover_method}
-                      counterpartName={them?.name}
-                      // Nobody should be posting a card to an address they do not
-                      // have. The shipment dialog says so rather than failing later.
-                      recipientAddressKnown={
-                        trade.handover_method !== 'DELIVERY' ||
-                        addresses.theirs !== null
-                      }
-                    />
-                  ) : null}
-
-                  {/* BOTH TRADERS GET A WAY IN — see the matching note in
-                      CashSaleView. In DISPUTED the ActionBar offers only "Report
-                      fraud", which is an escalation, so without this the accused
-                      trader's only visible control was to counter-accuse. */}
-                  {trade.state === 'DISPUTED' ? (
-                    <Button
-                      type="button"
-                      onClick={() => focusSection(TRADE_SECTIONS.dispute)}
-                    >
-                      <ShieldAlert aria-hidden />
-                      {trade.dispute_raised_by === myUserId
-                        ? 'Review the dispute'
-                        : 'Respond to the dispute'}
-                    </Button>
-                  ) : null}
-
-                  {trade.state === 'FRAUD_RESOLVED' ? (
-                    <p className="text-body text-muted-foreground">
-                      The other trader&apos;s deposit was paid to you.
-                    </p>
-                  ) : null}
-                </ContractActionCard>
-              }
               conversation={
                 <ContractConversationPanel
                   conversationId={chat.conversationId}
                   currentUserId={myUserId}
                   counterpartyName={theirName}
-                  title="Chat"
+                  counterpartyAvatarPath={them?.avatarPath}
+                  subject={{
+                    title: (goods?.yours[0] ?? goods?.theirs[0])?.title ?? '2-way trade',
+                    thumb: itemImageUrl(
+                      (goods?.yours[0] ?? goods?.theirs[0])?.imagePath ?? null,
+                    ),
+                    price: goods
+                      ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}`
+                      : null,
+                  }}
                   placeholder="Message about the trade…"
                   emptyHint="Use chat to coordinate shipping and receipt."
                   failed={chat.failed}
                   onRetry={chat.retry}
+                  actions={
+                    <FadeSwap id={`${trade.state}:${step?.id ?? 'complete'}`}>
+                    <ContractActionCard
+                      appearance="header"
+                      step={step}
+                      tone={STATE_TONE[trade.state]}
+                      more={
+                        trade.state !== 'NEGOTIATING' ? (
+                          <ReportDialog
+                            targetType="user"
+                            targetId={
+                              viewerRole === 'INITIATOR' ? counterpartId : initiatorId
+                            }
+                            triggerLabel={`Report ${theirName}`}
+                          />
+                        ) : null
+                      }
+                    >
+                      {viewer && trade.state === 'NEGOTIATING' ? (
+                        <TradeNegotiationPanel
+                          tradeId={tradeId}
+                          viewer={viewer}
+                          counterpartyId={
+                            viewerRole === 'INITIATOR' ? counterpartId : initiatorId
+                          }
+                          counterpartyName={theirName}
+                          termsVersion={trade.terms_version}
+                          terms={{
+                            cashAmountCents: trade.cash_amount_cents,
+                            cashDirection: trade.cash_direction,
+                            handoverMethod: trade.handover_method,
+                            meetingLocation: trade.meeting_location,
+                            meetingLat: trade.meeting_lat,
+                            meetingLng: trade.meeting_lng,
+                            meetingPlaceId: trade.meeting_place_id,
+                            meetingAt: trade.meeting_at,
+                            deliveryDetails: trade.delivery_details,
+                            deliveryCostCents: trade.delivery_cost_cents,
+                            offerMessage: trade.offer_message,
+                            counterpartGoodsDescription: trade.counterpart_goods_description,
+                          }}
+                        />
+                      ) : null}
+
+                      {viewer && trade.state !== 'NEGOTIATING' && permittedActionCount > 0 ? (
+                        <ActionBar
+                          tradeId={tradeId}
+                          state={trade.state}
+                          viewer={viewer}
+                          handoverMethod={trade.handover_method}
+                          counterpartName={them?.name}
+                          // Nobody should be posting a card to an address they do not
+                          // have. The shipment dialog says so rather than failing later.
+                          recipientAddressKnown={
+                            trade.handover_method !== 'DELIVERY' ||
+                            addresses.theirs !== null
+                          }
+                        />
+                      ) : null}
+
+                      {/* BOTH TRADERS GET A WAY IN — see the matching note in
+                          CashSaleView. In DISPUTED the ActionBar offers only "Report
+                          fraud", which is an escalation, so without this the accused
+                          trader's only visible control was to counter-accuse. */}
+                      {trade.state === 'DISPUTED' ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => focusSection(TRADE_SECTIONS.dispute)}
+                        >
+                          <ShieldAlert aria-hidden />
+                          {trade.dispute_raised_by === myUserId
+                            ? 'Review the dispute'
+                            : 'Respond to the dispute'}
+                        </Button>
+                      ) : null}
+
+                      {trade.state === 'FRAUD_RESOLVED' ? (
+                        <p className="text-body text-muted-foreground">
+                          The other trader&apos;s deposit was paid to you.
+                        </p>
+                      ) : null}
+                    </ContractActionCard>
+                    </FadeSwap>
+                  }
                 />
               }
-              progress={<ContractProgressRail steps={steps} />}
             >
               <ContractDetailList>
               {goods ? (
@@ -971,22 +988,26 @@ function TradeContractRoom({
                       This is the statement of what changes hands, it is part of the
                       terms, and it is what an arbitrator reads. */}
                   {trade.counterpart_goods_description ? (
-                    <div className="mb-cozy rounded-lg border bg-muted/30 p-cozy text-body">
+                    <div className="mb-cozy space-y-snug text-body">
                       <p className="font-medium">
                         {viewerRole === 'INITIATOR'
                           ? 'Cards you are getting from their listing'
                           : 'Cards you are giving from your listing'}
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
+                      <p className="whitespace-pre-wrap break-words text-pretty text-muted-foreground">
                         {trade.counterpart_goods_description}
                       </p>
-                      <p className="mt-snug text-body text-muted-foreground">
+                      <p className="text-body text-muted-foreground">
                         The listing is a binder or bulk lot, so nothing in it is held.
                         This description is what the two of you agreed to swap.
                       </p>
                     </div>
                   ) : null}
 
+                  <CounterpartyIdentity
+                    counterpartyId={viewerRole === 'INITIATOR' ? counterpartId : initiatorId}
+                    displayName={them?.name}
+                  />
                   <ContractExchangePanel
                     sides={[
                       {
@@ -1084,7 +1105,7 @@ function TradeContractRoom({
               {goods ? (
                 <ContractDetailRow
                   id={TRADE_SECTIONS.money}
-                  label="Stripe"
+                  label="Payment"
                   summary={
                     goods.cashAmountCents > 0
                       ? `${formatAud(goods.cashAmountCents)} cash ${
@@ -1141,22 +1162,7 @@ function TradeContractRoom({
                 {/* Both traders bond now — the verified exemption is gone, because it
                     left every trade with no collateral and made a dispute or fraud
                     finding unpayable. See `domain/bond/bondPolicy.ts`. */}
-                <div className="flex flex-col gap-3 rounded-lg border bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="font-medium">Both traders have collateral on this trade</p>
-                    <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">
-                      Each saved card has a temporary authorisation for the agreed value.
-                      It is released when the trade resolves normally.
-                    </p>
-                  </div>
-                  <CollateralExplainerDialog
-                    title="How trade collateral protects a trade"
-                    description="Understand the temporary card hold, normal release, and resolution outcomes."
-                    triggerLabel="How trade collateral works"
-                  >
-                    <DittoBondExplainer />
-                  </CollateralExplainerDialog>
-                </div>
+                <DittoBondExplainer />
                 <HoldStatus
                   holds={holds}
                   initiatorId={initiatorId}

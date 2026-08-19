@@ -69,7 +69,7 @@ async function returnPending(deps: CashSaleOrchestratorDeps): Promise<CashSaleRe
 describe('returnRequiredForRefund', () => {
   // Each of these is a different way the record says "the buyer has it", and they
   // matter separately because they come from different fulfilment paths: a carrier
-  // confirmation and a mutual handover never both appear on one sale.
+  // confirmation and an in-person buyer handover never both appear on one sale.
   //
   // No cast: `returnRequiredForRefund` takes exactly these five fields, so the test
   // states its input honestly rather than pretending to hold a whole sale.
@@ -93,15 +93,12 @@ describe('returnRequiredForRefund', () => {
     expect(returnRequiredForRefund({ ...base, inspectionAcceptedAt: 'x' })).toBe(true);
   });
 
-  it('requires a return only when BOTH parties confirmed an in-person handover', () => {
-    expect(returnRequiredForRefund({ ...base, buyerHandoverConfirmedAt: 'x' })).toBe(false);
-    expect(
-      returnRequiredForRefund({
-        ...base,
-        buyerHandoverConfirmedAt: 'x',
-        sellerHandoverConfirmedAt: 'x',
-      }),
-    ).toBe(true);
+  it('requires a return once the buyer confirmed an in-person handover', () => {
+    expect(returnRequiredForRefund({ ...base, buyerHandoverConfirmedAt: 'x' })).toBe(true);
+  });
+
+  it('requires a return once the seller confirmed an in-person handover', () => {
+    expect(returnRequiredForRefund({ ...base, sellerHandoverConfirmedAt: 'x' })).toBe(true);
   });
 
   // The lost-parcel and never-shipped cases. There is nothing to send back, so

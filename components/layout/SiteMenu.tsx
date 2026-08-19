@@ -14,10 +14,10 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Menu, PackagePlus, Repeat2, X } from 'lucide-react';
+import { Banknote, Handshake, Menu, PackagePlus, Repeat2, X } from 'lucide-react';
 
+import { StartDealButton } from '@/components/deals/StartDealButton';
 import { Button } from '@/components/ui/button';
-import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { SignInLink } from '@/components/layout/SignInLink';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import {
@@ -37,7 +37,9 @@ import { cn } from '@/lib/utils';
  * They are not added to `MARKETPLACE_NAV_GROUPS` on purpose: that constant drives
  * the desktop rail and the mobile hub sheets, and the hubs read it BY INDEX, so
  * growing it would repoint the Contracts and Sell sheets. These rows are also the
- * only way in on a phone, where `PrimaryNav` (which carries Sell) is `lg:` only.
+ * only way in on a phone, where `PrimaryNav` (which carries Sell and Start a
+ * Deal) is `md:` only. Start a Deal is a dialog, not a route — the Create
+ * group injects it between Sell and Propose a trade.
  */
 const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
   {
@@ -169,7 +171,7 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
   return (
     <div
       ref={containerRef}
-      className={cn('relative', !isAuthenticated && 'lg:hidden')}
+      className={cn('relative', !isAuthenticated && 'md:hidden')}
     >
       <button
         type="button"
@@ -189,12 +191,8 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
       {open ? (
         <div
           id="site-menu-panel"
-          className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-auction animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+          className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-auction animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 motion-reduce:animate-none"
         >
-          <div className="p-1 sm:hidden">
-            <HeaderSearch ariaLabel="Search listings from menu" />
-          </div>
-
           <nav aria-label="Menu" className="grid gap-1">
             {!isAuthenticated ? (
               <>
@@ -206,6 +204,24 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                 </Button>
                 <Button asChild variant="ghost" className="justify-start">
                   <Link href="/listings/new">Sell an item</Link>
+                </Button>
+                <StartDealButton
+                  isAuthenticated={false}
+                  variant="ghost"
+                  className="justify-start"
+                  onOpen={() => setOpen(false)}
+                >
+                  <Handshake aria-hidden />
+                  Start a Deal
+                </StartDealButton>
+                <Button asChild variant="ghost" className="justify-start">
+                  <Link href="/help">Help</Link>
+                </Button>
+                <Button asChild variant="ghost" className="justify-start">
+                  <Link href="/terms">Terms</Link>
+                </Button>
+                <Button asChild variant="ghost" className="justify-start">
+                  <Link href="/privacy">Privacy</Link>
                 </Button>
                 <div className="my-1 border-t" />
                 <Button asChild variant="ghost" className="justify-start">
@@ -246,7 +262,27 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                     <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
                       {group.label}
                     </p>
-                    {group.links.map((link) => renderLink(link, false))}
+                    {group.label === 'Create' ? (
+                      <>
+                        {group.links
+                          .filter((link) => link.href === '/listings/new')
+                          .map((link) => renderLink(link, false))}
+                        <StartDealButton
+                          isAuthenticated
+                          variant="ghost"
+                          className="justify-start"
+                          onOpen={() => setOpen(false)}
+                        >
+                          <Handshake aria-hidden />
+                          Start a Deal
+                        </StartDealButton>
+                        {group.links
+                          .filter((link) => link.href !== '/listings/new')
+                          .map((link) => renderLink(link, false))}
+                      </>
+                    ) : (
+                      group.links.map((link) => renderLink(link, false))
+                    )}
                   </Fragment>
                 ))}
 
@@ -260,6 +296,16 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                   </>
                 ) : null}
 
+                <div className="my-1 border-t" />
+                <Button asChild variant="ghost" className="justify-start">
+                  <Link href="/help">Help</Link>
+                </Button>
+                <Button asChild variant="ghost" className="justify-start">
+                  <Link href="/terms">Terms</Link>
+                </Button>
+                <Button asChild variant="ghost" className="justify-start">
+                  <Link href="/privacy">Privacy</Link>
+                </Button>
                 <div className="my-1 border-t" />
                 <SignOutButton className="w-full justify-start" />
               </>

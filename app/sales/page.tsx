@@ -1,12 +1,14 @@
 // app/sales/page.tsx
 //
-// Sales: every Cash_Sale where the caller is the seller (Req 4). Sits directly
-// above the contract rooms it links to at /sales/[id].
+// Sales: every Cash_Sale where the caller is the seller (Req 4), plus unused
+// private-deal invites you hosted as the seller — waiting for the other person.
 
 import { redirect } from 'next/navigation';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { getMySales } from '@/lib/actions/account';
+import { listMyDealInvites } from '@/lib/actions/dealInvites';
+import { DealInviteList } from '@/components/deals/DealInviteList';
 import { CashSalesSection } from '@/components/account/CashSalesSection';
 import {
   MarketplaceShell,
@@ -38,18 +40,22 @@ export default async function SalesPage({
 }) {
   const { show } = await searchParams;
   const scope = resolveScope(show);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [user, result, invitesResult] = await Promise.all([
+    getCachedAuthUser(),
+    getMySales(),
+    listMyDealInvites('CASH_SALE', 'SELLER'),
+  ]);
   if (!user) {
     redirect('/sign-in?redirectTo=/sales');
   }
 
-  const result = await getMySales();
   const { active, past } = partitionByScope(result.ok ? result.data : [], (sale) =>
     isCashSalePast(sale.status),
   );
+  const pendingInvites =
+    scope === 'past' || !invitesResult.ok ? [] : invitesResult.data;
+  const visibleSales = scope === 'past' ? past : active;
+  const hasInvites = pendingInvites.length > 0;
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   const primaryAction = (
@@ -66,11 +72,21 @@ export default async function SalesPage({
       <SectionFilter
         scope={scope}
         basePath="/sales"
-        activeCount={active.length}
+        activeCount={active.length + (scope === 'past' ? 0 : pendingInvites.length)}
         pastCount={past.length}
       />
+      {hasInvites ? (
+        <section aria-labelledby="deal-invites-heading" className="mb-8">
+          <h3 id="deal-invites-heading" className="mb-3 text-subhead font-semibold">
+            Waiting to join
+          </h3>
+          <DealInviteList invites={pendingInvites} />
+        </section>
+      ) : null}
       {result.ok ? (
-        <CashSalesSection sales={scope === 'past' ? past : active} variant="sales" />
+        visibleSales.length > 0 || !hasInvites ? (
+          <CashSalesSection sales={visibleSales} variant="sales" />
+        ) : null
       ) : (
         <SectionLoadError label="sales" />
       )}

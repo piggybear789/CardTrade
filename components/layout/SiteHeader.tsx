@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { BookmarkCheck, MessageCircle } from 'lucide-react';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
@@ -26,10 +26,7 @@ import {
 import { normalizeRegionCode } from '@/domain/region';
 
 export async function SiteHeader() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   const isAuthenticated = Boolean(user);
 
   // Seed the notification bell with a server-fetched snapshot so it is populated
@@ -38,48 +35,19 @@ export async function SiteHeader() {
     ? (await listMyNotifications())
     : null;
 
-  // Which region the catalog is scoped to, for the read-only indicator. The header
-  // has no `searchParams`, so an explicit `?region=` on the current URL is not
-  // visible here — the indicator therefore shows the member's own region, their
-  // remembered choice, or the IP guess. That is the right thing for a persistent
-  // chrome element: it states their standing scope, while the marketplace's own
-  // controls state and change the scope of the page in front of them.
-  //
-  // Resolved WITHOUT `resolveBrowseRegion` on the signed-in path. That helper does
-  // its own `auth.getUser()` and its own `profiles` read, both of which this
-  // component has already done a few lines below — and this header renders on every
-  // route in the app, so paying for them twice is a cost on every page load. The
-  // signed-in region therefore comes from the profile read that is happening anyway,
-  // and the helper is called only for anonymous visitors, where it does no database
-  // work at all (cookie, then IP header, then the default).
   let region: ResolvedRegion;
-
-  // Surface the staff links only to staff. RLS scopes this read to the caller's own
-  // profile, so a member can never learn about (or reach) either surface.
-  //
-  // Two capabilities, read separately: `is_support` may arbitrate, `is_admin` may also
-  // moderate. An admin sees both links; a support worker sees only Arbitration. This is
-  // navigation only — `requireStaff` / `requireAdmin` re-check on every action, because
-  // hiding a link is not authorization.
   let isAdmin = false;
   let isStaff = false;
   let displayName: string | null = null;
   let avatarPath: string | null = null;
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin, is_support, display_name, region_code, avatar_path')
-      .eq('id', user.id)
-      .maybeSingle();
+    const profile = await getCachedProfile(user.id);
     isAdmin = Boolean(profile?.is_admin);
     isStaff = isAdmin || Boolean(profile?.is_support);
     displayName = profile?.display_name?.trim() || null;
     avatarPath = (profile?.avatar_path as string | null) ?? null;
 
     const own = normalizeRegionCode(profile?.region_code);
-    // Falls back to the anonymous chain for a member who has not set a region yet —
-    // a Profile predating 0065. Showing them nothing would be worse than showing the
-    // scope their catalog is actually using.
     region = own
       ? { code: own, source: 'profile' }
       : await resolveBrowseRegion();
@@ -91,8 +59,11 @@ export async function SiteHeader() {
   // as a profile shortcut. Everything else (purchases, sales, messages, admin,
   // sign-out) lives behind the burger menu.
   return (
-    <header className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent">
-      <div className="flex h-16 w-full items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
+    <header
+      style={{ viewTransitionName: 'site-header' }}
+      className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent"
+    >
+      <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
         {/* Logo keeps intrinsic width on mobile so equal flex-1 columns cannot
             shrink the wordmark out of view. */}
         <div className="flex min-w-0 shrink-0 items-center gap-3 sm:min-w-0 sm:flex-1">
@@ -110,11 +81,11 @@ export async function SiteHeader() {
           <PrimaryNav isAuthenticated={isAuthenticated} />
         </div>
 
-        <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">
+        <div className="flex min-w-0 flex-1 justify-center px-1 sm:px-2">
           <HeaderSearch className="market-search" />
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center justify-end gap-1 text-parchment sm:min-w-0 sm:flex-1 sm:gap-2">
+        <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 text-parchment sm:flex-1 sm:gap-2">
           <RegionIndicator regionCode={region.code} source={region.source} />
           {isAuthenticated && user ? (
             <>
@@ -158,14 +129,15 @@ export async function SiteHeader() {
                   initialNotifications?.ok ? initialNotifications.notifications : []
                 }
               />
-              <Button asChild variant="ghost" size="sm" className="max-w-[9rem] sm:max-w-[14rem]">
+              <Button asChild variant="ghost" size="sm" className="min-w-0 max-w-[9rem] overflow-hidden sm:max-w-[14rem]">
                 <Link
                   href="/profile"
                   /* No font override: the Button already supplies the header's
                      `text-sm font-semibold`. This carried `font-medium`, which
                      quietly stepped the name down a weight from the nav links
                      sitting a few pixels away. */
-                  className="flex items-center gap-2"
+                  className="flex min-w-0 items-center gap-2"
+                  aria-label={displayName ?? 'Your profile'}
                   title={displayName ?? 'Your profile'}
                 >
                   {/* Own avatar as the profile shortcut — the conventional place a
@@ -176,7 +148,7 @@ export async function SiteHeader() {
                     size="xs"
                     className="border-white/25"
                   />
-                  <span className="truncate">{displayName ?? 'Profile'}</span>
+                  <span className="hidden min-w-0 truncate sm:inline">{displayName ?? 'Profile'}</span>
                 </Link>
               </Button>
             </>
@@ -188,7 +160,7 @@ export async function SiteHeader() {
               <Button
                 asChild
                 size="sm"
-                className="border-gold bg-gold text-obsidian hover:bg-gold/90"
+                className="border-parchment/20 bg-parchment text-obsidian hover:bg-parchment/90"
               >
                 <SignInLink target="/sign-up">
                   <span className="hidden sm:inline">Get started</span>
@@ -199,6 +171,35 @@ export async function SiteHeader() {
           )}
 
           <SiteMenu isAuthenticated={isAuthenticated} isAdmin={isAdmin} isStaff={isStaff} />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export function SiteHeaderSkeleton() {
+  return (
+    <header
+      style={{ viewTransitionName: 'site-header' }}
+      className="market-header relative sticky top-0 z-40 border-b border-white/10 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent"
+    >
+      <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
+        <div className="flex min-w-0 shrink-0 items-center gap-3 sm:min-w-0 sm:flex-1">
+          <Link
+            href="/"
+            aria-label="NoDitto home"
+            className="min-w-0 rounded-md text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          >
+            <Logo />
+          </Link>
+          <div className="hidden h-8 w-24 animate-pulse rounded bg-white/10 sm:block" />
+        </div>
+        <div className="flex min-w-0 flex-1 justify-center px-1 sm:px-2">
+          <div className="h-9 w-full max-w-sm animate-pulse rounded-md bg-white/10" />
+        </div>
+        <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 sm:flex-1 sm:gap-2">
+          <div className="h-8 w-16 animate-pulse rounded bg-white/10" />
+          <div className="size-8 animate-pulse rounded-full bg-white/10" />
         </div>
       </div>
     </header>

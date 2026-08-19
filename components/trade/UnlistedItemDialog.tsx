@@ -15,7 +15,7 @@
 // offer leaves nothing behind.
 
 import { useEffect, useState } from 'react';
-import { ImagePlus, Lock, X } from 'lucide-react';
+import { ImagePlus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { CARD_GAMES, cardGameName, cardGameSlug } from '@/lib/catalog/cardGames';
 import {
   Select,
   SelectContent,
@@ -35,15 +36,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-
-/** Collectible categories, mirroring the listing form. */
-const CATEGORIES = [
-  'Trading Cards',
-  'Coins',
-  'Stamps',
-  'Comics',
-  'Memorabilia',
-] as const;
 
 /** Condition grades, mirroring the listing form (TCGplayer's standard scale). */
 const CONDITIONS = [
@@ -95,17 +87,22 @@ export interface UnlistedItemDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Seeds the fields when editing a draft already added to the offer. */
   initial?: UnlistedItemDraft | null;
-  /** Who will be able to see this item, for the privacy assurance. */
-  counterpartName: string;
   onSave: (draft: UnlistedItemDraft) => void;
+  /** Defaults to the trade-offer wording. */
+  title?: string;
+  /** Optional. Hidden from the dialog when omitted. */
+  description?: string;
+  saveLabel?: string;
 }
 
 export function UnlistedItemDialog({
   open,
   onOpenChange,
   initial,
-  counterpartName,
   onSave,
+  title = 'Offer Terms',
+  description,
+  saveLabel,
 }: UnlistedItemDialogProps) {
   const [draft, setDraft] = useState<UnlistedItemDraft>(initial ?? EMPTY_DRAFT);
 
@@ -156,18 +153,10 @@ export function UnlistedItemDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Offer Terms</DialogTitle>
-          <DialogDescription>
-            Describe an item you hold but have never listed, and put it up in this
-            trade.
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className={description ? undefined : 'sr-only'}>
+            {description ?? title}
           </DialogDescription>
-          <p className="flex items-start gap-snug text-body text-muted-foreground">
-            <Lock className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden="true" />
-            <span>
-              Only {counterpartName} sees this, and only inside this trade. It is
-              never added to the marketplace.
-            </span>
-          </p>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -188,18 +177,18 @@ export function UnlistedItemDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="unlisted-category">Category</Label>
+              <Label htmlFor="unlisted-game">Game</Label>
               <Select
-                value={draft.category}
-                onValueChange={(value) => set('category', value)}
+                value={cardGameSlug(draft.category)}
+                onValueChange={(value) => set('category', cardGameName(value))}
               >
-                <SelectTrigger id="unlisted-category">
-                  <SelectValue placeholder="Select" />
+                <SelectTrigger id="unlisted-game">
+                  <SelectValue placeholder="Select a game" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
+                  {CARD_GAMES.map((game) => (
+                    <SelectItem key={game.slug} value={game.slug}>
+                      {game.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -268,7 +257,7 @@ export function UnlistedItemDialog({
                   {/* The input lives inside its label so the tile is the control:
                       clicking anywhere on it opens the picker, and `has-` puts the
                       focus ring on the tile rather than the hidden input. */}
-                  <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground ring-offset-background transition-colors hover:border-solid hover:bg-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2">
+                  <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground ring-offset-background transition-colors hover:border-solid hover:bg-muted has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2">
                     <ImagePlus aria-hidden="true" className="size-5" />
                     <span className="text-meta font-medium">Add</span>
                     <input
@@ -291,7 +280,7 @@ export function UnlistedItemDialog({
 
             <p className="text-body text-muted-foreground">
               {draft.images.length < UNLISTED_IMAGES_MIN
-                ? `At least ${UNLISTED_IMAGES_MIN} photo. They are the evidence base if this trade is ever disputed.`
+                ? 'At least one photo — used as evidence if this is disputed.'
                 : 'The first photo is the one they see first.'}
             </p>
           </div>
@@ -308,7 +297,7 @@ export function UnlistedItemDialog({
               onOpenChange(false);
             }}
           >
-            {initial ? 'Save item' : 'Add to offer'}
+            {saveLabel ?? (initial ? 'Save item' : 'Add to offer')}
           </Button>
         </DialogFooter>
       </DialogContent>

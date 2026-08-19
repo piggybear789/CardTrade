@@ -31,6 +31,8 @@ export interface ChoiceTileProps {
   hint?: string;
   /** Marks every tile in a group whose selection failed validation. */
   invalid?: boolean;
+  /** `center` for short labels that fill a 2-up grid (deal compose). */
+  align?: 'start' | 'center';
 }
 
 export function ChoiceTile({
@@ -43,6 +45,7 @@ export function ChoiceTile({
   label,
   hint,
   invalid = false,
+  align = 'start',
 }: ChoiceTileProps) {
   return (
     <label
@@ -54,9 +57,15 @@ export function ChoiceTile({
         'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
         checked ? 'border-primary bg-primary/5' : 'hover:bg-muted/40',
         invalid && 'border-destructive',
+        align === 'center' && 'items-center text-center',
       )}
     >
-      <span className="flex min-w-0 items-center gap-2">
+      <span
+        className={cn(
+          'flex min-w-0 items-center gap-2',
+          align === 'center' && 'w-full justify-center',
+        )}
+      >
         <input
           id={id}
           type={type}
@@ -64,7 +73,8 @@ export function ChoiceTile({
           value={id}
           checked={checked}
           onChange={onChange}
-          className="size-4 shrink-0"
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          className={type === 'radio' ? 'sr-only' : 'size-4 shrink-0'}
         />
         {Icon ? (
           <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -72,7 +82,7 @@ export function ChoiceTile({
         <span className="min-w-0 truncate font-medium">{label}</span>
       </span>
       {hint ? (
-        <span className="text-meta leading-4 text-muted-foreground">{hint}</span>
+        <span id={`${id}-hint`} className="text-body text-muted-foreground">{hint}</span>
       ) : null}
     </label>
   );

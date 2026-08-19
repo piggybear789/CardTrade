@@ -57,19 +57,20 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
             <Card className="p-cozy">
               <Link
                 href={`/trades/${trade.id}`}
+                transitionTypes={['nav-forward']}
                 className="flex items-center gap-group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
                   <ArrowLeftRight className="size-5" aria-hidden />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 break-words text-body font-medium">
+                  <p className="line-clamp-2 break-words text-lead font-medium">
                     Your item {yours}
                     <span className="mx-1.5 text-muted-foreground">↔</span>
                     Their item {theirs}
                   </p>
-                  <p className="mt-0.5 text-meta capitalize text-muted-foreground">
+                  <p className="mt-0.5 text-body capitalize text-muted-foreground">
                     You are the {trade.role}
                   </p>
                 </div>

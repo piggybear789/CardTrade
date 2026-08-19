@@ -7,7 +7,7 @@
 //   header        Charizard PSA 9 · $1,240 · You ⇄ Ada ✓ · Agreeing terms
 //   ┌ your move ─────────────────────┬ chat ──────┐
 //   └────────────────────────────────┴────────────┘
-//   ●──●──○──○──○   Terms Accept Payment Ship Done
+//   ●──●──○──○──○   Terms Payment Ship Done
 //   Item · Terms · Money · Protection · History      (collapsed rows)
 //
 // The room says each fact ONCE. Status lives in the header badge; what to do now lives
@@ -29,8 +29,6 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   Check,
-  Clock,
-  ExternalLink,
   Handshake,
   Loader2,
   PackageCheck,
@@ -46,6 +44,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { FadeSwap } from '@/components/motion/FadeSwap';
 import {
   ContractActionCard,
   CashSaleProtectionExplainer,
@@ -56,9 +55,7 @@ import {
   ContractHeader,
   ContractLiveRow,
   ContractMoneyTable,
-  ContractPartyDetails,
   ContractPartyLine,
-  ContractProgressRail,
   ContractTimeline,
   DisputeEvidencePanel,
   useContractConversation,
@@ -67,7 +64,6 @@ import {
   type ContractParty,
   type ContractPartyStat,
 } from '@/components/contract';
-import { CounterpartyIdentity } from '@/components/identity/CounterpartyIdentity';
 import {
   CASH_SALE_SECTIONS,
   currentStep,
@@ -76,14 +72,14 @@ import {
 import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
 import { EditContractItemsDialog } from './EditContractItemsDialog';
-import { ContractLineItemsList, type ContractLine } from './ContractLineItems';
+import { type ContractLine } from './ContractLineItems';
 import { CashSaleDisputeResolution } from './CashSaleDisputeResolution';
 import { CashSaleReturnPanel } from './CashSaleReturnPanel';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { cashSaleErrorMessage } from './errorCopy';
-import { CashSaleDemoControls } from './CashSaleDemoControls';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
 import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDialog';
+import { ReportDialog } from '@/components/reports/ReportDialog';
 
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { formatMoney, formatContractDateTime, itemImageUrl } from '@/lib/format';
@@ -230,7 +226,7 @@ function CashSaleItemSnapshot({
   currency,
   description,
   images,
-  listingId,
+  lines = [],
 }: {
   title: string;
   condition: string | null;
@@ -239,66 +235,64 @@ function CashSaleItemSnapshot({
   currency: string;
   description: string | null;
   images: string[];
-  listingId: string;
+  /** Shopfront contracts: the agreed lines. Empty on a single-item sale. */
+  lines?: readonly ContractLine[];
 }) {
   const galleryImages = images.map((src, index) => ({
     src,
     alt: `${title} — image ${index + 1}`,
   }));
+  const copy = description?.trim() ?? '';
+  const lineCopy =
+    lines.length === 1
+      ? lines[0].description.trim()
+      : '';
+  const descriptionBody = lineCopy || copy;
+  const descriptions =
+    lines.length > 1
+      ? lines.map((line) => line.description.trim()).filter(Boolean)
+      : descriptionBody
+        ? [descriptionBody]
+        : [];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex min-h-0 flex-1 flex-col items-stretch gap-6 md:flex-row">
-        <div className="min-w-0 md:flex md:flex-1 md:flex-col md:justify-center">
-          <ImageGallery
-            images={galleryImages}
-            title={title}
-            /* `min-h` carries the height only while the columns are stacked and
-               there is no definite parent height to fill. From `md` the pane IS
-               bounded, so the floor is dropped: CSS resolves `min-height` in
-               preference to `max-height`, so keeping it would let a portrait
-               card outgrow the pane and push the room taller than the viewport. */
-            frameClassName="h-full min-h-[18rem] max-h-[26rem] md:min-h-0 md:max-h-[calc(100%-1rem)]"
-          />
-        </div>
-
-        {/* `overscroll-contain` is scoped to the same breakpoint as the overflow
-            it governs. Unscoped it read as though it applied while stacked, where
-            there is no overflow for it to contain and the property is inert. */}
-        <div className="flex min-w-0 flex-col md:flex-1 md:overflow-y-auto md:overscroll-contain md:pr-1">
-          <div className="space-y-group">
-            <div className="space-y-cozy">
-              <h3 className="break-words text-subhead font-semibold tracking-[-0.025em] sm:text-head">
-                {title}
-              </h3>
-              <div>
-                <p className="text-head font-semibold tabular-nums tracking-tight">
-                  {formatMoney(agreedPriceCents, currency)}
-                </p>
-                <p className="mt-1 text-meta text-muted-foreground">Agreed item price</p>
-              </div>
-              {condition ? <Badge variant="outline">{condition}</Badge> : null}
-            </div>
-
-            <div className="border-t border-border/70 pt-group">
-              <h4 className="text-body font-semibold">Description</h4>
-              <p className="mt-2 whitespace-pre-wrap break-words text-body text-muted-foreground">
-                {description?.trim() || 'No description was saved with this item.'}
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col items-stretch gap-6">
+      <div className="min-w-0">
+        <ImageGallery
+          images={galleryImages}
+          title={title}
+          frameClassName="min-h-[18rem] max-h-[26rem]"
+        />
       </div>
 
-      <p className="shrink-0 border-t pt-cozy text-meta text-muted-foreground">
-        Photos and description are the snapshot saved when this contract opened.{' '}
-        <Link
-          href={`/listings/${listingId}`}
-          className="font-medium underline-offset-4 hover:underline"
-        >
-          View the listing
-        </Link>
-      </p>
+      <div className="flex min-w-0 flex-col gap-5">
+        <header>
+          <p className="text-display font-semibold tabular-nums tracking-[-0.03em]">
+            {formatMoney(agreedPriceCents, currency)}
+          </p>
+          <h3 className="mt-snug break-words text-head font-semibold tracking-tight">
+            {title}
+          </h3>
+          {condition ? (
+            <Badge variant="outline" className="mt-snug">
+              {condition}
+            </Badge>
+          ) : null}
+        </header>
+
+        {descriptions.length > 0 ? (
+          <section aria-label="Description" className="space-y-3">
+            {descriptions.map((text, index) => (
+              <p
+                key={lines[index]?.id ?? index}
+                className="whitespace-pre-line break-words text-body leading-relaxed text-muted-foreground"
+              >
+                {text}
+              </p>
+            ))}
+          </section>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -314,8 +308,6 @@ export interface CashSaleViewProps {
   deliveryAddress?: CashSaleDeliveryAddress | null;
   /** A real carrier provider is configured to poll status. */
   trackingRefreshAvailable?: boolean;
-  /** When false, hide mock settle/fail webhook buttons (Stripe is live). */
-  paymentDemoEnabled?: boolean;
   /**
    * What this contract covers, line by line (0064).
    *
@@ -355,7 +347,7 @@ function SellerReleaseStatus({ sale }: { sale: CashSaleRow }) {
   if (sale.status !== 'COMPLETED' && status === 'NOT_DUE') return null;
 
   const COPY: Record<string, string> = {
-    NOT_DUE: 'Released to you once the buyer accepts the item, or the inspection window closes.',
+    NOT_DUE: 'Released to you once the buyer completes the purchase, or the inspection window closes.',
     PENDING: 'Queued for release to your payout account.',
     SETTLED:
       'Sent to your payout account. It can take up to four business days to appear.',
@@ -363,10 +355,10 @@ function SellerReleaseStatus({ sale }: { sale: CashSaleRow }) {
   };
 
   return (
-    <p className="mt-cozy text-meta text-muted-foreground">
+    <p className="mt-cozy text-body text-muted-foreground">
       {COPY[status] ?? COPY.NOT_DUE}{' '}
       <Link
-        href="/profile/payouts"
+        href="/profile?tab=payouts"
         className="font-medium underline underline-offset-2 hover:text-foreground"
       >
         View payouts
@@ -394,7 +386,6 @@ function CashSaleRoom({
   conversationId,
   deliveryAddress = null,
   trackingRefreshAvailable = false,
-  paymentDemoEnabled = false,
   lineItems = [],
   disputeEvidence = [],
   returnAddress = null,
@@ -412,7 +403,9 @@ function CashSaleRoom({
   const [trackingNumber, setTrackingNumber] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
   // Which irreversible action (if any) is awaiting explicit confirmation.
-  const [confirming, setConfirming] = useState<'cancel' | 'dispute' | null>(null);
+  const [confirming, setConfirming] = useState<
+    'cancel' | 'dispute' | 'pay' | 'receive' | 'handover' | null
+  >(null);
   // Which method the selector picked while its required details are still missing.
   const [detailsFor, setDetailsFor] = useState<'DELIVERY' | 'IN_PERSON' | null>(null);
 
@@ -431,20 +424,10 @@ function CashSaleRoom({
   const them = iAmBuyer ? seller : buyer;
   const iAmSeller = !iAmBuyer;
   // Opened against a binder or bulk lot rather than one listed object (0064).
-  // Contents are negotiable on exactly the same window as price and terms — see
-  // `editable` below — because the second acceptance collects the money and
-  // freezes the whole contract at once.
+  // Contents are negotiable until the buyer pays — payment freezes the contract.
   const fromShopfront = sale.from_shopfront === true;
-  const myAcceptedVersion = iAmBuyer
-    ? sale.buyer_terms_accepted_version
-    : sale.seller_terms_accepted_version;
-  const theirAcceptedVersion = iAmBuyer
-    ? sale.seller_terms_accepted_version
-    : sale.buyer_terms_accepted_version;
 
   const termsSet = sale.fulfillment_method !== null;
-  const iAccepted = myAcceptedVersion === sale.terms_version;
-  const theyAccepted = theirAcceptedVersion === sale.terms_version;
   const editable = sale.status === 'AGREEMENT';
   const isDelivery = sale.fulfillment_method === 'DELIVERY';
   const deliveryReady = !isDelivery || sale.delivery_address_configured;
@@ -554,22 +537,23 @@ function CashSaleRoom({
   // Identity_Gate, so that figure was always zero and the UI it drove was unreachable.
   // Trade collateral is a separate mechanism; see `resolveTradeBonds`.
 
+  const myHandoverConfirmed = Boolean(
+    iAmBuyer ? sale.buyer_handover_confirmed_at : sale.seller_handover_confirmed_at,
+  );
+  const theirHandoverConfirmed = Boolean(
+    iAmBuyer ? sale.seller_handover_confirmed_at : sale.buyer_handover_confirmed_at,
+  );
+
   const steps = deriveCashSaleSteps({
     status: sale.status,
     viewerRole: iAmBuyer ? 'BUYER' : 'SELLER',
     counterpartyName: them.name,
     termsSet,
     termsVersion: sale.terms_version,
-    iAccepted,
-    theyAccepted,
     isDelivery,
     hasTracking: Boolean(sale.tracking_number),
-    myHandoverConfirmed: Boolean(
-      iAmBuyer ? sale.buyer_handover_confirmed_at : sale.seller_handover_confirmed_at,
-    ),
-    theirHandoverConfirmed: Boolean(
-      iAmBuyer ? sale.seller_handover_confirmed_at : sale.buyer_handover_confirmed_at,
-    ),
+    myHandoverConfirmed,
+    theirHandoverConfirmed,
     disputeRaisedByMe: sale.disputed_by === myUserId,
     haltedAt: haltedAtFrom(events, sale.status),
   });
@@ -623,8 +607,23 @@ function CashSaleRoom({
       />
 
       <ContractLiveRow
-        action={
+        conversation={
+          <ContractConversationPanel
+            conversationId={chat.conversationId}
+            currentUserId={myUserId}
+            counterpartyName={them.name}
+            counterpartyAvatarPath={them.avatarPath}
+            subject={{
+              title: sale.item_title,
+              thumb: itemImages[0] ?? null,
+              price: money(sale.amount_cents),
+            }}
+            failed={chat.failed}
+            onRetry={chat.retry}
+            actions={
+          <FadeSwap id={`${sale.status}:${step?.id ?? 'complete'}`}>
           <ContractActionCard
+            appearance="header"
             step={step}
             tone={isLegacy ? 'warning' : STATUS_TONE[sale.status]}
             title={isLegacy ? 'This contract cannot be continued' : undefined}
@@ -633,96 +632,127 @@ function CashSaleRoom({
                 ? 'It was created by the earlier pay-immediately flow, so it has no agreed terms. Start a new purchase from the listing.'
                 : undefined
             }
+            more={
+              <>
+                {editable && !isLegacy ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    aria-haspopup="dialog"
+                    disabled={isPending}
+                    onClick={() => setConfirming('cancel')}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+                {isLegacy ? (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/listings/${sale.item_id}`}>Go to the listing</Link>
+                  </Button>
+                ) : null}
+                {sale.status === 'IN_TRANSIT' && iAmBuyer ? (
+                  <HandoverFailedDialog
+                    cashSaleId={sale.id}
+                    triggerLabel="Not received"
+                    triggerVariant="destructive"
+                  />
+                ) : null}
+                {sale.status === 'HANDOVER' ? (
+                  <HandoverFailedDialog
+                    cashSaleId={sale.id}
+                    triggerLabel="Handover failed"
+                    triggerVariant="destructive"
+                  />
+                ) : null}
+                {sale.status === 'INSPECTION' && iAmBuyer ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => focusSection(CASH_SALE_SECTIONS.collateral)}
+                  >
+                    Something wrong?
+                  </Button>
+                ) : null}
+                {sale.tracking_number &&
+                sale.status === 'IN_TRANSIT' &&
+                trackingRefreshAvailable ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isPending}
+                    aria-busy={busy('track')}
+                    onClick={() =>
+                      run('track', () => syncCashSaleTracking(sale.id), 'Tracking refreshed.')
+                    }
+                  >
+                    Refresh tracking
+                  </Button>
+                ) : null}
+                {sale.status === 'CANCELLED' || sale.status === 'FAILED' ? (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/listings">Browse listings</Link>
+                  </Button>
+                ) : null}
+                <ReportDialog
+                  targetType="user"
+                  targetId={iAmBuyer ? sale.seller_id : sale.buyer_id}
+                  triggerLabel={`Report ${them.name}`}
+                />
+              </>
+            }
           >
-            {/* Identity is reference information, not the next action. The screenshot
-                showed it filling the top of the action card before the Item / Parties
-                / Terms inspector; that forces every state to lead with a static fact
-                and buries the thing the user can do now. It now lives in Parties,
-                alongside the rest of the counterparty context. */}
-
-            {isLegacy ? (
-              <Button asChild variant="outline" className="w-full sm:w-auto">
-                <Link href={`/listings/${sale.item_id}`}>Go to the listing</Link>
-              </Button>
-            ) : null}
-
-            {/* Agree the terms, then accept them. Cancel is the fire exit, not
-                a peer of the primary action: it sits below as a quiet link so
-                a thumb aiming for the CTA cannot land on it, and turns
-                destructive only on hover/press. The confirm dialog remains the
-                real guard. */}
             {editable && !isLegacy ? (
               <>
                 {!termsSet ? (
                   <Button
                     type="button"
-                    className="w-full"
+                    variant="action"
+                    size="sm"
                     onClick={() => focusSection(CASH_SALE_SECTIONS.terms)}
                   >
-                    Select delivery method
+                    Set delivery details
                   </Button>
-                ) : !iAccepted ? (
+                ) : iAmBuyer ? (
                   <Button
                     type="button"
-                    className="w-full"
+                    variant="action"
+                    size="sm"
                     disabled={isPending || !deliveryReady}
                     aria-busy={busy('accept')}
-                    onClick={() =>
-                      run(
-                        'accept',
-                        () => acceptCashSaleTerms(sale.id, sale.terms_version),
-                        'Terms accepted.',
-                      )
-                    }
+                    onClick={() => setConfirming('pay')}
                   >
                     {busy('accept') ? (
                       <Loader2 className="animate-spin" aria-hidden />
-                    ) : (
-                      <Check aria-hidden />
-                    )}
-                    {iAmBuyer
-                      ? `Accept and pay ${money(sale.amount_cents)}`
-                      : 'Accept terms'}
+                    ) : null}
+                    Accept terms and pay
                   </Button>
                 ) : null}
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="w-full"
-                  aria-haspopup="dialog"
-                  disabled={isPending}
-                  onClick={() => setConfirming('cancel')}
-                >
-                  Cancel this contract
-                </Button>
               </>
             ) : null}
 
-            {/* Mock-only: fire transfer.settled by hand. Hidden when Stripe is live. */}
-            {paymentDemoEnabled && sale.status === 'PAYMENT_PENDING' ? (
-              <CashSaleDemoControls cashSaleId={sale.id} />
-            ) : null}
-
-            {/* Ship (seller, shipping branch). */}
             {sale.status === 'ESCROW_HELD' && isDelivery && iAmSeller ? (
-              <div className="space-y-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    value={carrier}
-                    onChange={(event) => setCarrier(event.target.value)}
-                    placeholder="Carrier (e.g. Australia Post)"
-                    aria-label="Carrier"
-                  />
-                  <Input
-                    value={trackingNumber}
-                    onChange={(event) => setTrackingNumber(event.target.value)}
-                    placeholder="Tracking number"
-                    aria-label="Tracking number"
-                  />
-                </div>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <Input
+                  value={carrier}
+                  onChange={(event) => setCarrier(event.target.value)}
+                  placeholder="Carrier"
+                  aria-label="Carrier"
+                  className="h-8 w-36"
+                />
+                <Input
+                  value={trackingNumber}
+                  onChange={(event) => setTrackingNumber(event.target.value)}
+                  placeholder="Tracking"
+                  aria-label="Tracking number"
+                  className="h-8 w-36"
+                />
                 <Button
                   type="button"
-                  className="w-full sm:w-auto"
+                  variant="action"
+                  size="sm"
                   disabled={
                     !carrier.trim() || trackingNumber.trim().length < 2 || isPending
                   }
@@ -745,238 +775,117 @@ function CashSaleRoom({
               </div>
             ) : null}
 
-            {/* Live tracking, while it matters. */}
             {sale.tracking_number && sale.status === 'IN_TRANSIT' ? (
-              <div className="flex flex-wrap items-center gap-x-cozy gap-y-1 rounded-md border bg-background/60 px-cozy py-snug text-meta">
-                <span className="min-w-0 break-all font-medium">
-                  {sale.tracking_carrier} · {sale.tracking_number}
-                </span>
-                {sale.tracking_status ? (
-                  <span className="uppercase tracking-wide text-muted-foreground">
-                    {sale.tracking_status.toLowerCase().replace(/_/g, ' ')}
-                  </span>
-                ) : null}
-                {trackingRefreshAvailable ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto px-1.5 py-0.5 text-meta"
-                    disabled={isPending}
-                    aria-busy={busy('track')}
-                    onClick={() =>
-                      run('track', () => syncCashSaleTracking(sale.id), 'Tracking refreshed.')
-                    }
-                  >
-                    {busy('track') ? (
-                      <Loader2 className="animate-spin" aria-hidden />
-                    ) : null}
-                    Refresh
-                  </Button>
-                ) : null}
+              <span className="text-body text-muted-foreground">
+                {sale.tracking_carrier} · {sale.tracking_number}
                 {sale.tracking_url ? (
-                  <a
-                    href={sale.tracking_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
-                  >
-                    Track <ExternalLink className="size-3" aria-hidden />
-                  </a>
+                  <>
+                    {' · '}
+                    <a
+                      href={sale.tracking_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-foreground underline-offset-4 hover:underline"
+                    >
+                      Track
+                    </a>
+                  </>
                 ) : null}
-              </div>
+              </span>
             ) : null}
 
-            {/* Confirm receipt (buyer, shipping branch). */}
             {sale.status === 'IN_TRANSIT' && iAmBuyer ? (
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  type="button"
-                  className="w-full sm:w-auto"
-                  disabled={isPending}
-                  aria-busy={busy('receive')}
-                  onClick={() =>
-                    run('receive', () => recordCashSaleReceipt(sale.id), 'Receipt recorded.')
-                  }
-                >
-                  {busy('receive') ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : (
-                    <PackageCheck aria-hidden />
-                  )}
-                  I received the item
-                </Button>
-                <HandoverFailedDialog
-                  cashSaleId={sale.id}
-                  triggerLabel="Not received"
-                />
-              </div>
+              <Button
+                type="button"
+                variant="action"
+                size="sm"
+                disabled={isPending}
+                aria-busy={busy('receive')}
+                onClick={() => setConfirming('receive')}
+              >
+                {busy('receive') ? (
+                  <Loader2 className="animate-spin" aria-hidden />
+                ) : (
+                  <PackageCheck aria-hidden />
+                )}
+                Confirm delivery
+              </Button>
             ) : null}
 
-            {/* Mutual handover (in-person branch). */}
-            {sale.status === 'HANDOVER' ? (
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  type="button"
-                  className="w-full sm:w-auto"
-                  disabled={
-                    isPending ||
-                    Boolean(
-                      iAmBuyer
-                        ? sale.buyer_handover_confirmed_at
-                        : sale.seller_handover_confirmed_at,
-                    )
-                  }
-                  aria-busy={busy('handover')}
-                  onClick={() =>
-                    run(
-                      'handover',
-                      () => confirmCashSaleHandover(sale.id),
-                      'Handover confirmed.',
-                    )
-                  }
-                >
-                  {busy('handover') ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : (
-                    <Handshake aria-hidden />
-                  )}
-                  Handover concluded
-                </Button>
-                <HandoverFailedDialog
-                  cashSaleId={sale.id}
-                  triggerLabel="Handover failed"
-                />
-              </div>
+            {!isDelivery &&
+            (sale.status === 'HANDOVER' ||
+              (sale.status === 'COMPLETED' && myHandoverConfirmed)) ? (
+              <Button
+                type="button"
+                variant={myHandoverConfirmed ? 'success' : 'action'}
+                size="sm"
+                disabled={isPending || myHandoverConfirmed}
+                aria-busy={busy('handover')}
+                onClick={() => {
+                  if (myHandoverConfirmed) return;
+                  setConfirming('handover');
+                }}
+              >
+                {busy('handover') ? (
+                  <Loader2 className="animate-spin" aria-hidden />
+                ) : myHandoverConfirmed ? (
+                  <Check aria-hidden />
+                ) : (
+                  <Handshake aria-hidden />
+                )}
+                {busy('handover')
+                  ? 'Confirming…'
+                  : myHandoverConfirmed
+                    ? 'Handover confirmed'
+                    : 'Confirm handover'}
+              </Button>
             ) : null}
 
-            {/* Inspect and finish (buyer). */}
-            {sale.status === 'INSPECTION' ? (
-              <>
-                {/* The same inspection banner the trade room shows. It replaced a
-                    single muted line of text that was easy to miss on a contract
-                    about to settle itself. */}
-                <InspectionCountdown
-                  deadlineAt={sale.inspection_deadline_at}
-                  viewerMustAct={iAmBuyer && !sale.inspection_accepted_at}
-                  expiryConsequence={
-                    iAmBuyer
-                      ? 'If you do nothing, the sale completes on its own and the seller is paid.'
-                      : 'If the buyer does nothing, the sale completes on its own and you are paid.'
-                  }
-                />
-                {formatContractDateTime(sale.carrier_delivered_at) ? (
-                  <p className="flex items-center gap-tight text-meta text-muted-foreground">
-                    <Clock className="size-3.5 shrink-0" aria-hidden />
-                    Carrier confirmed delivery{' '}
-                    {formatContractDateTime(sale.carrier_delivered_at)}
-                  </p>
-                ) : null}
-
-                {iAmBuyer ? (
-                  <div className="space-y-2">
-                    <AcceptWithPhotoDialog
-                      onAccept={async () => {
-                        const result = await acceptCashSaleInspection(sale.id);
-                        return { ok: result.ok };
-                      }}
-                      evidenceContext={{ caseKind: 'CASH_SALE', caseRef: sale.id }}
-                      triggerLabel="Accept the item"
-                      title="Accept and complete purchase"
-                      description="Optionally photograph what you received. This becomes your baseline evidence if a dispute arises later."
-                      successMessage="Purchase completed."
-                    />
-                    <details className="text-meta">
-                      <summary className="cursor-pointer text-muted-foreground underline-offset-4 hover:underline">
-                        Something wrong?
-                      </summary>
-                      <div className="mt-snug space-y-snug">
-                        <Label htmlFor="cash-sale-dispute-reason" className="text-meta">
-                          Describe the issue to raise a dispute.
-                        </Label>
-                        <Textarea
-                          id="cash-sale-dispute-reason"
-                          value={disputeReason}
-                          onChange={(event) => setDisputeReason(event.target.value)}
-                          placeholder="e.g. The card arrived with a crease not shown in the photos…"
-                          rows={2}
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={!disputeReason.trim() || isPending}
-                          aria-busy={busy('dispute')}
-                          onClick={() => setConfirming('dispute')}
-                        >
-                          Raise dispute
-                        </Button>
-                      </div>
-                    </details>
-                  </div>
-                ) : null}
-              </>
+            {sale.status === 'INSPECTION' && iAmBuyer ? (
+              <AcceptWithPhotoDialog
+                onAccept={async () => {
+                  const result = await acceptCashSaleInspection(sale.id);
+                  return { ok: result.ok };
+                }}
+                evidenceContext={{ caseKind: 'CASH_SALE', caseRef: sale.id }}
+                triggerLabel="Complete purchase"
+                title="Complete purchase"
+                description="Optionally photograph what you received. This becomes your baseline evidence if a dispute arises later."
+                successMessage="Purchase completed."
+                confirmWithPhotoLabel="Complete with photo"
+                confirmWithoutPhotoLabel="Complete without photo"
+              />
             ) : null}
 
-            {/* BOTH PARTIES GET A WAY IN. A disputed contract used to offer the
-                viewer nothing but a sentence saying it was under review, with the
-                Dispute tab the only place to act and no signpost to it — so the
-                accused party in particular had no visible route to answer.
-
-                This replaces an echo of `dispute_reason` that sat here. The reason
-                is the first thing the Dispute tab shows, and the tab is one click
-                away, so printing it twice only widened the card. */}
             {sale.status === 'DISPUTED' ? (
               <Button
                 type="button"
+                variant="action"
+                size="sm"
                 onClick={() => focusSection(CASH_SALE_SECTIONS.dispute)}
               >
                 <ShieldAlert aria-hidden />
                 {sale.disputed_by === myUserId
-                  ? 'Review the dispute'
-                  : 'Respond to the dispute'}
+                  ? 'Review dispute'
+                  : 'Respond to dispute'}
               </Button>
             ) : null}
 
-            {/* The return leg (0088). Rendered inside the action card because the
-                thing the viewer must do next IS the return — posting it, or giving
-                the buyer somewhere to post it to. */}
             {sale.status === 'RETURN_PENDING' || sale.status === 'RETURN_IN_TRANSIT' ? (
-              <CashSaleReturnPanel
-                cashSaleId={sale.id}
-                status={sale.status}
-                viewerIsBuyer={iAmBuyer}
-                amountCents={sale.amount_cents}
-                currency={sale.currency}
-                returnAddressLabel={returnAddress?.address_label ?? null}
-                returnDeadlineAt={sale.return_deadline_at}
-                returnTrackingCarrier={sale.return_tracking_carrier}
-                returnTrackingNumber={sale.return_tracking_number}
-                returnDisputedAt={sale.return_disputed_at}
-                returnDisputeReason={sale.return_dispute_reason}
-                returnLapsedAt={sale.return_lapsed_at}
-                counterpartyName={them.name}
-              />
-            ) : null}
-
-            {sale.status === 'CANCELLED' || sale.status === 'FAILED' ? (
-              <Button asChild variant="outline" className="w-full sm:w-auto">
-                <Link href="/listings">Browse listings</Link>
+              <Button
+                type="button"
+                variant="action"
+                size="sm"
+                onClick={() => focusSection(CASH_SALE_SECTIONS.actions)}
+              >
+                View return
               </Button>
             ) : null}
           </ContractActionCard>
-        }
-        conversation={
-          <ContractConversationPanel
-            conversationId={chat.conversationId}
-            currentUserId={myUserId}
-            counterpartyName={them.name}
-            title="Chat"
-            failed={chat.failed}
-            onRetry={chat.retry}
+          </FadeSwap>
+            }
           />
         }
-        progress={<ContractProgressRail steps={steps} />}
       >
         <ContractDetailList>
         <ContractDetailRow
@@ -987,112 +896,29 @@ function CashSaleRoom({
               ? `${lineItems.length} ${lineItems.length === 1 ? 'item' : 'items'} from ${sale.item_title} · ${money(itemTotal)}`
               : `${sale.item_title} · ${money(itemTotal)}`
           }
+          action={
+            editable && fromShopfront ? (
+              <EditContractItemsDialog
+                cashSaleId={sale.id}
+                termsVersion={sale.terms_version}
+                lines={lineItems}
+                currency={sale.currency}
+              />
+            ) : null
+          }
         >
-          {/* A shopfront contract leads with WHAT WAS AGREED, not the listing.
-              The listing is a binder that stays on sale and that the seller can
-              still edit; these lines are the contract, and they are frozen once
-              payment starts (0064). */}
-          {fromShopfront ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-4">
-              <div className="flex min-h-0 flex-1 flex-col items-stretch gap-6 md:flex-row">
-                {/* The binder's own photos, snapshotted when the contract opened.
-                    Kept because they are how a buyer recognises what they asked
-                    for — the written terms name the cards, the photos are the
-                    only picture of them anyone has. They do NOT define the goods:
-                    a binder photo shows the whole lot, and the seller can still
-                    edit the live listing, which is why the wording beside them is
-                    the contract and this is a snapshot. */}
-                {itemImages.length > 0 ? (
-                  <div className="min-w-0 md:flex md:flex-1 md:flex-col md:justify-center">
-                    <ImageGallery
-                      images={itemImages.map((src, index) => ({
-                        src,
-                        alt: `${sale.item_title} — image ${index + 1}`,
-                      }))}
-                      title={sale.item_title}
-                      frameClassName="h-full min-h-[18rem] max-h-[26rem] md:min-h-0 md:max-h-[calc(100%-1rem)]"
-                    />
-                  </div>
-                ) : null}
-
-                {/* `md:pb-1.5` IS FOR THE FOCUS RING, not for looks. `mt-auto` below
-                    makes the content exactly fill this scroller, so anything painted
-                    outside the last child's box creates overflow — and the button
-                    paints 4px of `ring-2 ring-offset-2` plus 1px of
-                    `active:translate-y-px`. Without the slack, clicking Change items
-                    made a scrollbar appear on a pane with nothing to scroll. The
-                    right edge already had its 4px via `md:pr-1`. */}
-                <div className="flex min-w-0 flex-col gap-3 md:flex-1 md:overflow-y-auto md:overscroll-contain md:pb-1.5 md:pr-1">
-                  <ContractLineItemsList lines={lineItems} currency={sale.currency} />
-                  {/* The control sits WITH the sentence that explains what it
-                      costs you, not above it. On its own it was a bare button
-                      between the agreed lines and a caveat it did not appear to
-                      belong to — and the caveat is the whole point: pressing it
-                      re-prices the contract and drops both acceptances.
-
-                      `mt-auto` pins it to the bottom of the column so it lands in
-                      the same place whether the contract covers one line or ten.
-                      Not `justify-between` on the column: this pane is a scroller
-                      from `md`, and distributing space in an overflow container
-                      makes the overflowing top unreachable. */}
-                  {editable ? (
-                    <div className="mt-auto flex flex-col gap-cozy pt-cozy sm:flex-row sm:items-center sm:justify-between">
-                      <p className="min-w-0 text-meta text-muted-foreground">
-                        You will need to accept again after editing.  
-                      </p>
-                      <div className="shrink-0">
-                        <EditContractItemsDialog
-                          cashSaleId={sale.id}
-                          termsVersion={sale.terms_version}
-                          lines={lineItems}
-                          currency={sale.currency}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <p className="shrink-0 border-t pt-cozy text-meta text-muted-foreground">
-                Photos are the snapshot saved when this contract opened. Nothing on{' '}
-                <Link
-                  href={`/listings/${sale.item_id}`}
-                  className="font-medium underline-offset-4 hover:underline"
-                >
-                  {sale.item_title}
-                </Link>{' '}
-                is held for you — the wording above is what you both agreed to.
-              </p>
-            </div>
-          ) : (
-            <CashSaleItemSnapshot
-              title={sale.item_title}
-              condition={sale.item_condition}
-              agreedPriceCents={itemTotal}
-              currency={sale.currency}
-              description={sale.item_description}
-              images={itemImages}
-              listingId={sale.item_id}
-            />
-          )}
-        </ContractDetailRow>
-
-        <ContractDetailRow
-          id={CASH_SALE_SECTIONS.parties}
-          label="Parties"
-          summary={`Identity and trading history · ${them.name}`}
-          contentClassName="space-y-3"
-        >
-          {/* The commitment-point disclosure belongs with the people involved, not
-              the action card. It is fetched by the component, which re-checks that
-              the viewer is a party before releasing the legal name. */}
-          <CounterpartyIdentity
-            counterpartyId={iAmBuyer ? sale.seller_id : sale.buyer_id}
-            displayName={them.name}
-          />
-          <ContractPartyDetails
-            me={toContractParty(me)}
-            them={toContractParty(them)}
+          {/* Same split as /listings/[id]: photos stay, price / seller /
+              what's-included scroll beside them. A shopfront still leads with
+              the agreed lines, not the live binder — those lines are the
+              contract and freeze once payment starts (0064). */}
+          <CashSaleItemSnapshot
+            title={sale.item_title}
+            condition={sale.item_condition}
+            agreedPriceCents={itemTotal}
+            currency={sale.currency}
+            description={sale.item_description}
+            images={itemImages}
+            lines={fromShopfront ? lineItems : []}
           />
         </ContractDetailRow>
 
@@ -1106,7 +932,7 @@ function CashSaleRoom({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
+                className="h-6 gap-tight px-2 text-meta font-medium [&_svg]:size-3"
                 onClick={() => setDetailsFor(sale.fulfillment_method!)}
               >
                 <Pencil aria-hidden />
@@ -1119,45 +945,45 @@ function CashSaleRoom({
             editable ? (
               <div className="flex min-h-0 flex-1 items-center justify-center py-6 sm:py-8">
                 <div className="w-full max-w-xl rounded-xl border bg-background p-5 text-center sm:p-6">
-                <h3 className="text-subhead font-semibold tracking-tight">
-                  Propose handover terms
-                </h3>
-                <p className="mx-auto mt-1 max-w-md text-body text-muted-foreground">
-                  Choose how the item will change hands. You&apos;ll add the address or
-                  meeting details next.
-                </p>
+                  <h3 className="text-subhead font-semibold tracking-tight">
+                    Propose handover terms
+                  </h3>
+                  <p className="mx-auto mt-1 max-w-md text-body text-muted-foreground">
+                    Choose how the item will change hands. You&apos;ll add the address or
+                    meeting details next.
+                  </p>
 
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-cozy">
-                  {(
-                    [
-                      { value: 'DELIVERY', label: 'Ship the item', icon: Truck },
-                      { value: 'IN_PERSON', label: 'Meet face to face', icon: Handshake },
-                    ] as const
-                  ).map((option) => {
-                    const Icon = option.icon;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => chooseMethod(option.value)}
-                        className={cn(
-                          'flex size-24 shrink-0 touch-manipulation flex-col items-center justify-center gap-snug rounded-lg border border-input bg-card p-snug text-center text-meta font-semibold transition-colors sm:size-28',
-                          'hover:border-gold/60 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                          'disabled:pointer-events-none disabled:opacity-45',
-                        )}
-                      >
-                        <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-                        <span className="max-w-20 leading-tight">{option.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-cozy">
+                    {(
+                      [
+                        { value: 'DELIVERY', label: 'Ship the item', icon: Truck },
+                        { value: 'IN_PERSON', label: 'Meet face to face', icon: Handshake },
+                      ] as const
+                    ).map((option) => {
+                      const Icon = option.icon;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => chooseMethod(option.value)}
+                          className={cn(
+                            'flex size-24 shrink-0 touch-manipulation flex-col items-center justify-center gap-snug rounded-lg border border-input bg-card p-snug text-center text-meta font-semibold transition-colors sm:size-28',
+                            'hover:border-gold/50 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                            'disabled:pointer-events-none disabled:bg-muted disabled:text-muted-foreground',
+                          )}
+                        >
+                          <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                          <span className="max-w-20 leading-tight">{option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                <p className="mx-auto mt-group max-w-md text-meta text-muted-foreground">
-                  Either party can propose terms. Both parties must accept the saved
-                  proposal before Stripe begins collection.
-                </p>
+                  <p className="mx-auto mt-group max-w-md text-meta text-muted-foreground">
+                    Either party can propose terms. Both parties must accept the saved
+                    proposal before Stripe begins collection.
+                  </p>
                 </div>
               </div>
             ) : (
@@ -1168,11 +994,6 @@ function CashSaleRoom({
             )
           ) : (
             <div className="flex w-full min-h-0 flex-1 flex-col gap-cozy">
-              {/* No version / acceptance strip here. Whose move it is has ONE home —
-                  `ContractActionCard` — and the progress rail carries the Accept Terms
-                  tick beside it, so this restated the same two facts a third time in
-                  the terms tab. The version number is not a member-facing fact either:
-                  it exists so an acceptance binds the exact terms it named. */}
               <ContractMoneyTable
                 ariaLabel="Proposed handover terms"
                 rows={
@@ -1183,7 +1004,7 @@ function CashSaleRoom({
                           hint: deliveryAddress?.label ?? (
                             sale.delivery_address_configured
                               ? 'Confirmed. Shared with the seller once payment is collected.'
-                              : 'Buyer must select an address before either party can accept.'
+                              : 'Buyer must select an address before paying.'
                           ),
                           value: money(sale.shipping_cost_cents),
                         },
@@ -1212,17 +1033,11 @@ function CashSaleRoom({
                     heightClassName="h-56 sm:h-64"
                   />
                 ) : (
-                  <div className="flex min-h-32 items-center rounded-md border border-dashed bg-muted/30 px-group text-body text-muted-foreground">
+                  <p className="text-body text-muted-foreground">
                     This meeting location needs a confirmed map pin. Edit terms to
                     select the agreed place from the suggestions.
-                  </div>
+                  </p>
                 )
-              ) : null}
-              {editable ? (
-                <p className="text-meta text-muted-foreground">
-                  Editing creates a new version and clears both acceptances. Stripe
-                  begins collection only after you both accept the current version.
-                </p>
               ) : null}
             </div>
           )}
@@ -1230,14 +1045,24 @@ function CashSaleRoom({
 
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.payment}
-          label="Stripe"
+          label="Payment"
           summary={`${money(sale.amount_cents)} · buyer pays via Stripe`}
+          action={
+            editable && !fromShopfront && !iAmBuyer ? (
+              <CashSalePriceDialog
+                cashSaleId={sale.id}
+                termsVersion={sale.terms_version}
+                agreedPriceCents={sale.agreed_price_cents}
+                currency={sale.currency}
+              />
+            ) : null
+          }
         >
           <>
             <ContractMoneyTable
-              ariaLabel="Stripe breakdown"
+              ariaLabel="Payment breakdown"
               rows={[
-                { label: 'Agreed item price', value: money(itemTotal) },
+                { label: 'Price', value: money(itemTotal) },
                 {
                   label: isDelivery ? 'Shipping' : 'Shipping (not applicable)',
                   value: money(sale.shipping_cost_cents),
@@ -1266,34 +1091,13 @@ function CashSaleRoom({
               ]}
             />
             {iAmSeller ? <SellerReleaseStatus sale={sale} /> : null}
-            {/* A shopfront contract has no standalone price to propose: its total
-                is the sum of its line items, so "Change items" in the Items row
-                is the only way it moves (0064). Offering both would be two
-                sources of truth for the number being charged. */}
-            {/* SELLER ONLY. The seller owns the goods and is the one who can discount
-                them, which is how second-hand marketplaces generally work. A buyer
-                asks in the chat, or makes an Offer before the contract exists — both
-                are requests rather than edits to the number they will be charged.
-                The orchestrator refuses a buyer regardless; this stops us showing a
-                control that would only fail. */}
-            {editable && !fromShopfront && !iAmBuyer ? (
-              <div className="mt-3 flex justify-end">
-                <CashSalePriceDialog
-                  cashSaleId={sale.id}
-                  termsVersion={sale.terms_version}
-                  agreedPriceCents={sale.agreed_price_cents}
-                  currency={sale.currency}
-                />
-              </div>
-            ) : null}
           </>
         </ContractDetailRow>
 
         <ContractDetailRow
           id={CASH_SALE_SECTIONS.collateral}
           label="Protection"
-          explainer="You're protected by NoDitto until you have the item and are happy with it. This tab shows where your money sits at each stage."
-          summary="Buyer protection active"
+          summary="Payment held through inspection"
           contentClassName="gap-3"
         >
           {/* NO COLLATERAL ON A CASH SALE, so this tab does not mention any. The
@@ -1301,24 +1105,53 @@ function CashSaleRoom({
               party to guarantee with a card hold — and the only Seller bond the
               policy could ever produce required an UNVERIFIED Seller, which
               publishing a listing makes impossible. See
-              `CashSaleProtectionExplainer`.
-
-              THE EXPLAINER IS THE TAB, not a dialog behind a button. This row held a
-              two-line summary and a "How protection works" trigger, which left most of
-              a full-height panel empty and put the actual answer one click away — in a
-              modal that then had to re-state the heading and the summary to stand on
-              its own. A tab whose whole job is to explain protection has nothing to
-              gain from hiding the explanation. */}
-          <div className="min-w-0">
-            <p className="font-medium">Your payment is the protection here</p>
-            <p className="mt-0.5 text-meta text-muted-foreground">
-              {seller.name} is paid only once the sale resolves — not when the
-              item is sent.
-            </p>
-          </div>
-
-          <div className="border-t pt-group">
-            <CashSaleProtectionExplainer />
+              `CashSaleProtectionExplainer`. */}
+          <div className="space-y-cozy">
+            {sale.status === 'INSPECTION' ? (
+              <InspectionCountdown
+                deadlineAt={sale.inspection_deadline_at}
+                viewerMustAct={iAmBuyer && !sale.inspection_accepted_at}
+                expiryConsequence={
+                  iAmBuyer
+                    ? 'If you do nothing, the sale completes on its own and the seller is paid.'
+                    : 'If the buyer does nothing, the sale completes on its own and you are paid.'
+                }
+              />
+            ) : null}
+            <CashSaleProtectionExplainer
+              viewerIsBuyer={iAmBuyer}
+              inPerson={!isDelivery}
+            />
+            {sale.status === 'INSPECTION' && iAmBuyer ? (
+              <div className="space-y-snug border-t pt-group">
+                <div>
+                  <Label htmlFor="cash-sale-dispute-reason">
+                    Report a problem before payment is released
+                  </Label>
+                  <p className="mt-1 text-body text-muted-foreground">
+                    Describe how the item differs from the agreement. You can add
+                    evidence after opening the dispute.
+                  </p>
+                </div>
+                <Textarea
+                  id="cash-sale-dispute-reason"
+                  value={disputeReason}
+                  onChange={(event) => setDisputeReason(event.target.value)}
+                  placeholder="e.g. The card arrived with a crease not shown in the photos…"
+                  rows={3}
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={!disputeReason.trim() || isPending}
+                  aria-busy={busy('dispute')}
+                  onClick={() => setConfirming('dispute')}
+                >
+                  Raise dispute
+                </Button>
+              </div>
+            ) : null}
           </div>
         </ContractDetailRow>
 
@@ -1326,6 +1159,30 @@ function CashSaleRoom({
             has been decided — a Dispute tab on a healthy contract would invite one.
             Placed before History because it is the live thing being worked on; the
             timeline is the record behind it. */}
+        {sale.status === 'RETURN_PENDING' || sale.status === 'RETURN_IN_TRANSIT' ? (
+          <ContractDetailRow
+            id={CASH_SALE_SECTIONS.actions}
+            label="Return"
+            summary="Return in progress"
+          >
+            <CashSaleReturnPanel
+              cashSaleId={sale.id}
+              status={sale.status}
+              viewerIsBuyer={iAmBuyer}
+              amountCents={sale.amount_cents}
+              currency={sale.currency}
+              returnAddressLabel={returnAddress?.address_label ?? null}
+              returnDeadlineAt={sale.return_deadline_at}
+              returnTrackingCarrier={sale.return_tracking_carrier}
+              returnTrackingNumber={sale.return_tracking_number}
+              returnDisputedAt={sale.return_disputed_at}
+              returnDisputeReason={sale.return_dispute_reason}
+              returnLapsedAt={sale.return_lapsed_at}
+              counterpartyName={them.name}
+            />
+          </ContractDetailRow>
+        ) : null}
+
         {sale.status === 'DISPUTED' || sale.dispute_resolution ? (
           <ContractDetailRow
             id={CASH_SALE_SECTIONS.dispute}
@@ -1404,7 +1261,58 @@ function CashSaleRoom({
         initialMethod={detailsFor ?? undefined}
       />
 
-      {/* Confirmation steps for the two irreversible actions in this room. */}
+      {/* Confirmation steps for irreversible actions in this room. */}
+      <ConfirmDialog
+        open={confirming === 'pay'}
+        onOpenChange={(next) => setConfirming(next ? 'pay' : null)}
+        title="Accept these terms and pay?"
+        description="This charges your card through Stripe and holds the payment until the item is handed over. You can still raise a dispute if something goes wrong."
+        confirmLabel="Accept terms and pay"
+        pending={busy('accept')}
+        helpHref="/help#holds"
+        onConfirm={() => {
+          setConfirming(null);
+          run(
+            'accept',
+            () => acceptCashSaleTerms(sale.id, sale.terms_version),
+            'Payment started.',
+          );
+        }}
+      />
+      <ConfirmDialog
+        open={confirming === 'receive'}
+        onOpenChange={(next) => setConfirming(next ? 'receive' : null)}
+        title="Confirm you received the item?"
+        description="This records that the package arrived and starts your inspection window."
+        confirmLabel="Confirm delivery"
+        pending={busy('receive')}
+        helpHref="/help#holds"
+        onConfirm={() => {
+          setConfirming(null);
+          run('receive', () => recordCashSaleReceipt(sale.id), 'Receipt recorded.');
+        }}
+      />
+      <ConfirmDialog
+        open={confirming === 'handover'}
+        onOpenChange={(next) => setConfirming(next ? 'handover' : null)}
+        title="Confirm the handover happened?"
+        description={
+          theirHandoverConfirmed
+            ? `${them.name} has already confirmed. Your confirmation completes the sale and pays the seller. Only confirm if you met and the item actually changed hands.`
+            : 'Only confirm if you met and the item actually changed hands. The sale completes and the seller is paid when you both confirm — one confirmation is not enough.'
+        }
+        confirmLabel={iAmBuyer ? 'We met and I have the item' : 'We met and I handed it over'}
+        pending={busy('handover')}
+        helpHref="/help#holds"
+        onConfirm={() => {
+          setConfirming(null);
+          run(
+            'handover',
+            () => confirmCashSaleHandover(sale.id),
+            'Handover confirmed.',
+          );
+        }}
+      />
       <ConfirmDialog
         open={confirming === 'cancel'}
         onOpenChange={(next) => setConfirming(next ? 'cancel' : null)}

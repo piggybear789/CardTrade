@@ -6,7 +6,8 @@
 //
 // Header stays as a compact name line. Reputation figures live inside each exchange
 // side card (`ContractPartyStats`). Optional `showDetails` still expands full cards
-// where a room wants them (e.g. cash-sale parties tab uses `ContractPartyDetails`).
+// where a room wants them. The cash-sale Parties tab is gone — identity lives
+// on the Item seller block.
 
 import { useState, type ReactNode } from 'react';
 import { ChevronDown, ShieldCheck, Star, UserPlus } from 'lucide-react';
@@ -116,7 +117,7 @@ export function ContractPartyStats({
       <p
         aria-label="Reputation summary"
         className={cn(
-          'flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta leading-snug',
+          'flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body leading-snug',
         )}
       >
         {bits.map((bit, idx) => (
@@ -126,7 +127,7 @@ export function ContractPartyStats({
         ))}
       </p>
       {party.legalEntityName ? (
-        <p className="truncate text-meta text-muted-foreground">
+        <p className="truncate text-body text-muted-foreground">
           <span className="font-medium text-foreground">{party.legalEntityName}</span>
         </p>
       ) : null}
@@ -136,28 +137,25 @@ export function ContractPartyStats({
 
 /** The full trust snapshot for one party, revealed by the disclosure. */
 function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
-  const initial = party.name.trim().charAt(0).toUpperCase() || '?';
-
   return (
-    <section className="min-w-0 rounded-lg border border-border/70 bg-muted/20 p-cozy">
-      <div className="flex min-w-0 items-center gap-cozy border-b border-border/70 pb-cozy">
-        <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background text-body font-semibold shadow-sm"
-          aria-hidden
-        >
-          {initial}
-        </span>
+    <section className="min-w-0 space-y-snug">
+      <div className="flex min-w-0 items-center gap-cozy">
+        <Avatar
+          avatarPath={party.avatarPath}
+          displayName={isMe ? 'You' : party.name}
+          size="sm"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-semibold leading-none">
             {isMe ? 'You' : party.name}
           </p>
-          <p className="mt-1 truncate text-meta text-muted-foreground">
+          <p className="mt-1 truncate text-body text-muted-foreground">
             {isMe ? party.name : (party.roleLabel ?? 'Counterparty')}
           </p>
         </div>
       </div>
 
-      <ContractPartyStats party={party} className="pt-cozy" />
+      <ContractPartyStats party={party} />
       {party.socialLinks ? <SocialLinksDisplay socialLinks={party.socialLinks} compact /> : null}
     </section>
   );
@@ -227,7 +225,7 @@ export function ContractPartyLine({
             type="button"
             onClick={() => setExpanded((current) => !current)}
             aria-expanded={expanded}
-            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-meta text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-body text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Details
             <ChevronDown

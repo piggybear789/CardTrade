@@ -9,11 +9,13 @@
 // report and part of the dispute record.
 //
 // `ContractThumbnails` renders a fixed horizontal strip (up to four, then a `+N`
-// tile) and opens this lightbox on click. Arrow keys page through.
+// tile) and opens this lightbox on click. Arrow keys page through. Click the
+// photo to zoom; move the pointer to pan.
 
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 
+import { ZoomableImage } from '@/components/listings/ZoomableImage';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
@@ -66,7 +68,7 @@ export function ContractImageLightbox({
 
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next ? index : null)}>
-      <DialogContent mobile="center" className="max-w-3xl">
+      <DialogContent mobile="center" className="max-w-5xl sm:max-w-5xl">
         <DialogTitle className="sr-only">{label}</DialogTitle>
         <div className="flex items-center gap-snug">
           {images.length > 1 ? (
@@ -80,13 +82,12 @@ export function ContractImageLightbox({
             </button>
           ) : null}
 
-          <div className="grid min-w-0 flex-1 place-items-center overflow-hidden rounded-lg bg-muted">
+          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted">
             {src ? (
-              <ContractThumbnailImage
+              <ZoomableImage
+                key={src}
                 src={src}
                 alt={`${label} — photo ${index + 1} of ${images.length}`}
-                className="max-h-[65dvh] w-auto object-contain"
-                fallbackClassName="h-64 w-full"
               />
             ) : (
               <div className="grid h-64 w-full place-items-center text-muted-foreground">
@@ -263,7 +264,7 @@ export function ContractThumbnails({
                     type="button"
                     onClick={() => setOpenIndex(restShown.length + 1)}
                     aria-label={`See all ${images.length} photos for ${label}`}
-                    className="size-11 rounded-md border bg-muted/60 text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     +{restOverflow}
                   </button>
@@ -316,7 +317,7 @@ export function ContractThumbnails({
               onClick={() => setOpenIndex(max)}
               aria-label={`See all ${images.length} photos for ${label}`}
               className={cn(
-                'rounded-md border bg-muted/60 text-meta font-semibold tabular-nums text-muted-foreground transition',
+                'rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition',
                 'hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 tile,
               )}

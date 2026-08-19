@@ -6,23 +6,37 @@
 // loading and failed states each room previously duplicated, so every flow shows
 // the same "Opening chat…" spinner and the same retry affordance.
 //
+// Live-step controls sit on the product strip (the `actions` slot), the way
+// 闲鱼 puts 我想要 beside the goods. While the thread is still opening those
+// same actions still sit there so the contract can be acted on without chat.
+//
 // It relies on `ContractSplit` for its bounded height — that is what lets the message
 // log scroll in place instead of growing the page.
 
+import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { Card, CardContent } from '@/components/ui/card';
-import { ContractChat } from '@/components/messages/ContractChat';
+import {
+  ContractChat,
+  ContractChatBar,
+  type ContractChatSubject,
+} from '@/components/messages/ContractChat';
 
 export interface ContractConversationPanelProps {
   /** Resolved thread id, or `null` while it is still being opened. */
   conversationId: string | null;
   currentUserId: string;
   counterpartyName: string;
-  /** Panel heading, e.g. "Contract chat" / "Trade chat" / "Deal chat". */
+  /** Avatar object path, or null. A PATH, not a URL. */
+  counterpartyAvatarPath?: string | null;
+  /** Panel heading. Unused visually — the counterpart's name is the title. */
   title?: string;
   placeholder?: string;
   emptyHint?: string;
+  /** Item strip under the person bar (Xianyu product header). */
+  subject?: ContractChatSubject | null;
+  /** Live-step controls, rendered on the product strip. */
+  actions?: ReactNode;
   /** True once opening the thread failed. */
   failed?: boolean;
   /** Re-run the self-heal; renders a "Try again" control when provided. */
@@ -34,9 +48,11 @@ export function ContractConversationPanel({
   conversationId,
   currentUserId,
   counterpartyName,
-  title = 'Contract chat',
+  counterpartyAvatarPath,
   placeholder,
   emptyHint,
+  subject,
+  actions,
   failed = false,
   onRetry,
 }: ContractConversationPanelProps) {
@@ -46,19 +62,26 @@ export function ContractConversationPanel({
         conversationId={conversationId}
         currentUserId={currentUserId}
         counterpartyName={counterpartyName}
-        title={title}
+        counterpartyAvatarPath={counterpartyAvatarPath}
         placeholder={placeholder}
         emptyHint={emptyHint}
-        contractHref={`/messages/${conversationId}`}
+        subject={subject}
+        actions={actions}
       />
     );
   }
 
   return (
-    <Card className="grid flex-1 place-items-center">
-      <CardContent className="pt-6 text-center text-body text-muted-foreground">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <ContractChatBar
+        counterpartyName={counterpartyName}
+        counterpartyAvatarPath={counterpartyAvatarPath}
+        subject={subject}
+        actions={actions}
+      />
+      <div className="grid min-h-0 flex-1 place-items-center p-cozy text-center text-body text-muted-foreground">
         {failed ? (
-          <>
+          <p>
             Chat could not be opened.
             {onRetry ? (
               <>
@@ -72,14 +95,14 @@ export function ContractConversationPanel({
                 </button>
               </>
             ) : null}
-          </>
+          </p>
         ) : (
           <span className="flex items-center gap-snug">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             Opening chat…
           </span>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

@@ -12,12 +12,12 @@ import { Hourglass } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { getMyTrades } from '@/lib/actions/account';
+import { listMyDealInvites } from '@/lib/actions/dealInvites';
+import { DealInviteList } from '@/components/deals/DealInviteList';
+import { StartDealEmptyState, StartDealRailAction } from '@/components/deals/StartDealButton';
 import { TradesSection } from '@/components/account/TradesSection';
 import { EmptyState } from '@/components/ui/empty-state';
-import {
-  MarketplaceShell,
-  RailPrimaryAction,
-} from '@/components/layout/MarketplaceShell';
+import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHeader';
 import {
   SectionFilter,
@@ -52,7 +52,10 @@ export default async function TradesPage({
     redirect('/sign-in?redirectTo=/trades');
   }
 
-  const result = await getMyTrades();
+  const [result, invitesResult] = await Promise.all([
+    getMyTrades(),
+    listMyDealInvites('TRADE'),
+  ]);
 
   // Finished trades are history: they should not sit among the ones still moving.
   // A CANCELLED negotiation counts as finished (see `isTradePast`).
@@ -67,42 +70,53 @@ export default async function TradesPage({
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   // Declared once so the two can never drift apart.
-  // No plus: this opens the marketplace to look through, it does not start a
-  // trade. The trade begins later, from a listing.
-  const primaryAction = (
-    <RailPrimaryAction href="/listings" glyph={null}>
-      Find a Trade
-    </RailPrimaryAction>
-  );
+  const primaryAction = <StartDealRailAction />;
+
+  const pendingInvites =
+    scope === 'past' || !invitesResult.ok ? [] : invitesResult.data;
+  const hasInvites = pendingInvites.length > 0;
+  const hasTrades = visibleTrades.length > 0;
 
   return (
     <MarketplaceShell title="Trades" primaryAction={primaryAction}>
       <SectionHeader
         title="Trades"
-        description="Swap goods, with or without cash on top. Open an offer from a listing, then agree the terms together in its trade room."
+        description="Swap goods, with or without cash on top. Open an offer from a listing, or send a private deal link."
         mobileAction={primaryAction}
       />
 
       <SectionFilter
         scope={scope}
         basePath="/trades"
-        activeCount={activeTrades.length}
+        activeCount={activeTrades.length + (scope === 'past' ? 0 : pendingInvites.length)}
         pastCount={pastTrades.length}
       />
 
       {!result.ok ? (
         <SectionLoadError label="trades" />
-      ) : visibleTrades.length > 0 ? (
-        <section aria-labelledby="trades-heading">
-          <h3 id="trades-heading" className="mb-3 text-subhead font-semibold">
-            {scope === 'past'
-              ? 'Finished'
-              : negotiatingCount > 0
-                ? 'Open'
-                : 'Agreed'}
-          </h3>
-          <TradesSection trades={visibleTrades} />
-        </section>
+      ) : hasInvites || hasTrades ? (
+        <>
+          {hasInvites ? (
+            <section aria-labelledby="deal-invites-heading" className="mb-8">
+              <h3 id="deal-invites-heading" className="mb-3 text-subhead font-semibold">
+                Waiting to join
+              </h3>
+              <DealInviteList invites={pendingInvites} />
+            </section>
+          ) : null}
+          {hasTrades ? (
+            <section aria-labelledby="trades-heading">
+              <h3 id="trades-heading" className="mb-3 text-subhead font-semibold">
+                {scope === 'past'
+                  ? 'Finished'
+                  : negotiatingCount > 0
+                    ? 'Open'
+                    : 'Agreed'}
+              </h3>
+              <TradesSection trades={visibleTrades} />
+            </section>
+          ) : null}
+        </>
       ) : scope === 'past' ? (
         <EmptyState
           icon={<Hourglass className="size-6" aria-hidden="true" />}
@@ -111,11 +125,12 @@ export default async function TradesPage({
           compact
         />
       ) : (
-        <EmptyState
+        <StartDealEmptyState
+          isAuthenticated
           icon={<Hourglass className="size-6" aria-hidden="true" />}
           title="No Trades Yet"
-          description="Find an item you would like, then offer whatever you think is fair for it."
-          action={{ label: 'Browse the marketplace', href: '/listings' }}
+          description="Find an item you would like, then offer whatever you think is fair for it. Or send a private deal link."
+          help={{ label: 'How holds and disputes work', href: '/help#holds' }}
           compact
         />
       )}

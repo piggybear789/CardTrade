@@ -330,9 +330,7 @@ test.describe('inspect as carol', () => {
     await ap.getByRole('radio', { name: /^One item/ }).check();
     await ap.getByLabel('Title').fill(title);
     await ap.getByLabel('Description').fill('probe');
-    await ap.locator('#category').click();
-    await ap.getByRole('option', { name: 'Trading Cards' }).click();
-    await ap.locator('#subcategory').click();
+    await ap.locator('#game').click();
     await ap.getByRole('option', { name: 'Pokémon' }).click();
     await ap.locator('#condition').click();
     await ap.getByRole('option', { name: 'Near Mint' }).click();

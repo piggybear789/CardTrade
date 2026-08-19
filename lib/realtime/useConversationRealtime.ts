@@ -122,7 +122,14 @@ export function useConversationRealtime(
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
       if (!isMounted) return;
-      if (data) setMessages((data as MessageRow[]).slice().sort(byCreatedAt));
+      if (data) {
+        setMessages((prev) => {
+          const map = new Map<string, MessageRow>();
+          for (const m of data as MessageRow[]) map.set(m.id, m);
+          for (const m of prev) map.set(m.id, m);
+          return Array.from(map.values()).sort(byCreatedAt);
+        });
+      }
     };
 
     const scheduleReconnect = () => {

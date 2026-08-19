@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
   // Images arrive as already-uploaded Storage paths from the mobile client.
   // `createItem` handles both raw uploads and path strings; paths are the mobile case.
   const result = await createItem({
+    title: typeof input.title === 'string' ? input.title : undefined,
     description: String(input.description ?? ''),
     category: String(input.category ?? ''),
     condition: String(input.condition ?? ''),

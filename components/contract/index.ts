@@ -1,19 +1,21 @@
 // components/contract/index.ts
 //
-// The shared contract-room kit. Buy (Cash_Sale), trade (2-way escrow) and private deal
-// rooms are three state machines over one UX, so they compose the same primitives.
+// The shared contract-room kit. Buy (Cash_Sale) and trade (2-way escrow) are two
+// state machines over one UX, so they compose the same primitives. A private deal
+// is an invite that opens one of those two rooms — not a third ledger.
 //
 // The room says each fact ONCE, in one place:
 //
 //   ContractHeader          what this is · what it is worth · who · what state
 //     └ ContractPartyLine   both parties on one line (optional details disclosure)
-//   ContractLiveRow         one live surface for action, conversation, and progress
-//     ├ ContractActionCard  what happens NOW, and the only control for it
+//   ContractLiveRow         details beside the chat column, which is the contract's
+//     │                     spine: rail on top, action dock, then the conversation
+//     ├ ContractActionCard  what happens NOW, and the only control for it (dock form)
 //     └ ContractProgressRail where we are in the lifecycle — ticks, no prose
 //   ContractDetailList      the fine print, as collapsed rows
 //     └ ContractDetailRow   item · terms · money · collateral · history
 //   ContractExchangePanel   what each side is putting in
-//   ContractMoneyTable      the bordered money / terms breakdown
+//   ContractMoneyTable      the money / terms breakdown
 //   ContractHoldList        collateral / pre-auth holds
 //   ContractTimeline        the audit trail
 //   ContractThumbnails      photo strip + lightbox
@@ -24,10 +26,10 @@
 // A detail row can be expanded, scrolled to and highlighted by id — wrap a room in
 // `ContractFocusProvider` and call `focusSection(id)`.
 //
-// Anything flow-specific — state machine gating, server actions, copy — stays in the
-// room component. Change a primitive here and all three rooms move together.
+// anything flow-specific — state machine gating, server actions, copy — stays in the
+// room component. Change a primitive here and both rooms move together.
 
-export { ContractActionCard } from './ContractActionCard';
+export { ContractActionCard, ContractOverflowMenu } from './ContractActionCard';
 export { ContractConnectionStatus } from './ContractConnectionStatus';
 export { ContractConversationPanel } from './ContractConversationPanel';
 export { CollateralExplainerDialog } from './CollateralExplainerDialog';

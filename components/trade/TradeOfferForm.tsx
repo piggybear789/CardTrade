@@ -19,10 +19,12 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { navigateWithType } from '@/lib/motion/navigate';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Lock, MapPin, Pencil, Truck, X } from 'lucide-react';
+import { Lock, Pencil, X } from 'lucide-react';
 
+import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -32,7 +34,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ChoiceTile } from '@/components/ui/choice-tile';
 import { Textarea } from '@/components/ui/textarea';
 import { DialogFooter } from '@/components/ui/dialog';
 import { DialogRow } from '@/components/ui/dialog-row';
@@ -51,28 +52,6 @@ import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
 import { deriveItemTitle } from '@/domain/validation';
 import type { ItemRow } from '@/lib/actions/listings';
-import type { HandoverMethod } from '@/lib/handover/terms';
-
-/** How the goods change hands — details are agreed later in the trade room. */
-const HANDOVER_OPTIONS: {
-  value: HandoverMethod;
-  label: string;
-  hint: string;
-  icon: typeof MapPin;
-}[] = [
-  {
-    value: 'IN_PERSON',
-    label: 'Face to face',
-    hint: 'Meet and swap',
-    icon: MapPin,
-  },
-  {
-    value: 'DELIVERY',
-    label: 'Delivery',
-    hint: 'Post it',
-    icon: Truck,
-  },
-];
 
 /** Parse a dollars string into integer AUD cents; 0 when blank or invalid. */
 function dollarsToCents(value: string): number {
@@ -94,7 +73,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   'counterpart-item-private': 'That item is not open to offers.',
   'duplicate-pending': 'You already have an offer open on this item.',
   'item-create-failed': 'Your item could not be saved. Check the details and try again.',
-  'invalid-handover': 'Choose face to face or delivery.',
   unauthenticated: 'Sign in to make an offer.',
 };
 
@@ -165,9 +143,6 @@ export function TradeOfferForm({
   const [terms, setTerms] = useState<PaymentTerms>(EMPTY_PAYMENT_TERMS);
   const [termsDialogOpen, setTermsDialogOpen] = useState(false);
 
-  /** Face to face or postage — details (place, cost, tracking) are set in the room. */
-  const [handover, setHandover] = useState<HandoverMethod | null>(null);
-
   /**
    * What you want out of a binder, written in prose (0081). Empty on a single
    * listing, where the item itself is the statement of what is being traded.
@@ -210,7 +185,6 @@ export function TradeOfferForm({
   const canSubmit =
     !isPending &&
     offeredCount > 0 &&
-    handover !== null &&
     (!isShopfront || wantedGoods.trim() !== '');
 
   /** One-line summary of the optional terms, shown on the collapsed disclosure. */
@@ -230,10 +204,6 @@ export function TradeOfferForm({
 
   function handleSubmit() {
     setError(null);
-    if (handover === null) {
-      setError(ERROR_MESSAGES['invalid-handover']);
-      return;
-    }
     if (isShopfront && wantedGoods.trim() === '') {
       setError('Say which cards you want out of this listing.');
       return;
@@ -278,14 +248,13 @@ export function TradeOfferForm({
         // An unlisted item takes the primary slot, so every ticked listing rides
         // along as part of the bundle.
         initiatorExtraItemIds: unlisted ? selectedItemIds : extraItemIds,
-        // The opening offer names the handover METHOD only. Where and when to
-        // meet, and what postage costs, are settled in the room — which is the
-        // point of opening one.
+        // How the goods change hands is settled in the room — the first offer
+        // only has to say what you are putting up.
         terms: {
           cashAmountCents,
           cashDirection,
           declaredValueCents: declaredValueCents > 0 ? declaredValueCents : null,
-          handoverMethod: handover,
+          handoverMethod: null,
           message,
           counterpartGoodsDescription: isShopfront ? wantedGoods.trim() : null,
         },
@@ -306,7 +275,7 @@ export function TradeOfferForm({
       if (result.ok) {
         toast.success('Offer opened. Discuss and agree the terms in the trade room.');
         onSuccess?.();
-        router.push(`/trades/${result.tradeId}`);
+        navigateWithType(router, `/trades/${result.tradeId}`, 'nav-forward');
         return;
       }
       const copy =
@@ -325,7 +294,7 @@ export function TradeOfferForm({
       {/* What is on the table. */}
       <section
         aria-label="Item you are requesting"
-        className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3"
+        className="flex items-center gap-3 rounded-lg border bg-muted p-3"
       >
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -341,7 +310,7 @@ export function TradeOfferForm({
           <p className="text-meta uppercase tracking-wide text-muted-foreground">
             {requested.ownerName} is offering up
           </p>
-          <p className="truncate font-semibold">{requested.title}</p>
+          <p className="truncate font-semibold text-lead">{requested.title}</p>
         </div>
         {/* A binder's price is an indicative "from" for the whole lot, so showing it
             here as what this trader gives would overstate their side by an order of
@@ -483,33 +452,6 @@ export function TradeOfferForm({
         )}
       </fieldset>
 
-      <fieldset className="min-w-0 space-y-snug">
-        <legend className="text-body font-medium">
-          Handover
-          <span className="ml-1 text-destructive" aria-hidden>
-            *
-          </span>
-        </legend>
-        <div className="grid grid-cols-2 gap-tight">
-          {HANDOVER_OPTIONS.map((option) => (
-            <ChoiceTile
-              key={option.value}
-              id={`trade-handover-${option.value}`}
-              name="trade-handover"
-              type="radio"
-              icon={option.icon}
-              label={option.label}
-              hint={option.hint}
-              checked={handover === option.value}
-              onChange={() => setHandover(option.value)}
-            />
-          ))}
-        </div>
-        <p className="text-body text-muted-foreground">
-          Meeting place, postage and tracking are agreed in the trade room.
-        </p>
-      </fieldset>
-
       {/* Payment Terms: one row summarising whatever the dialog holds. */}
       <DialogRow
         label="Payment Terms"
@@ -521,7 +463,7 @@ export function TradeOfferForm({
       {/* Running total. Sides do not have to match — this just shows where the
           offer stands so nobody has to do the arithmetic themselves. */}
       <div
-        className="rounded-lg border bg-muted/20 p-cozy text-body"
+        className="rounded-lg border bg-muted p-cozy text-body"
         role="status"
         aria-live="polite"
       >
@@ -552,11 +494,7 @@ export function TradeOfferForm({
         </p>
       </div>
 
-      {error ? (
-        <p role="alert" className="text-body text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <FieldError message={error} /> : null}
     </>
   );
 
@@ -574,7 +512,7 @@ export function TradeOfferForm({
         </Button>
       ) : (
         <Button asChild variant="ghost" className="w-full sm:w-auto">
-          <Link href={`/listings/${requested.id}`}>Cancel</Link>
+          <Link href={`/listings/${requested.id}`} transitionTypes={['nav-back']}>Cancel</Link>
         </Button>
       )}
       <Button
@@ -603,7 +541,6 @@ export function TradeOfferForm({
         open={unlistedDialogOpen}
         onOpenChange={setUnlistedDialogOpen}
         initial={unlisted}
-        counterpartName={requested.ownerName}
         onSave={setUnlisted}
       />
 
@@ -632,7 +569,7 @@ export function TradeOfferForm({
         <div className="min-h-0 min-w-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-gutter:stable] sm:px-6">
           {body}
         </div>
-        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border/70 bg-card px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-none supports-[backdrop-filter]:bg-card sm:border-t sm:bg-card sm:px-6 sm:pb-4 sm:pt-3">
+        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:border-t sm:bg-card/95 sm:px-6 sm:pb-4 sm:pt-3">
           {actions}
         </DialogFooter>
         {nestedDialogs}
@@ -651,7 +588,7 @@ export function TradeOfferForm({
 
       <CardContent className="space-y-5">{body}</CardContent>
 
-      <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted/20 px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
+        <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
         {actions}
       </CardFooter>
 

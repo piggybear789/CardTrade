@@ -89,6 +89,11 @@ export default async function NewTradePage({
 
   // Req 1.7: unauthenticated visitors cannot access this protected resource.
   if (!user) {
+    const next = new URLSearchParams();
+    if (counterpartItemId) next.set('counterpartItemId', counterpartItemId);
+    if (counterOfProposalId) next.set('counter', counterOfProposalId);
+    const query = next.toString();
+    const redirectTo = query ? `/trades/new?${query}` : '/trades/new';
     return (
       <Shell center>
         <Card>
@@ -100,7 +105,9 @@ export default async function NewTradePage({
           </CardHeader>
           <CardFooter>
             <Button asChild>
-              <Link href="/sign-in?redirectTo=/trades/new">Go to sign in</Link>
+              <Link href={`/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`}>
+                Go to sign in
+              </Link>
             </Button>
           </CardFooter>
         </Card>

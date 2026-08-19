@@ -52,18 +52,26 @@ export function MarketplaceNav({
       ? [...MARKETPLACE_NAV_GROUPS, { ...STAFF_NAV_GROUP, links: staffLinks }]
       : MARKETPLACE_NAV_GROUPS;
 
+  // Browse already has Marketplace + catalog filters in this rail. Contracts
+  // through You are reachable from the header and the bottom hubs; keeping them
+  // here crowds the filters on the one page that needs the space.
+  const onCatalogBrowse = pathname === '/listings';
+
   return (
     <nav aria-label="Marketplace sections" className="flex flex-col gap-5">
       {groups.map((group) => {
         const isMarketplace = group.label === 'Marketplace';
+        if (onCatalogBrowse && (group.label === 'Contracts' || group.label === 'Selling' || group.label === 'You')) {
+          return null;
+        }
         return (
           // Non-Marketplace groups are desktop-only. Keeping empty wrappers in
           // the flex column used to burn `gap-5` strips of whitespace on mobile.
           <div
             key={group.label}
-            className={cn(!isMarketplace && 'hidden lg:block')}
+            className={cn(!isMarketplace && 'hidden md:block')}
           >
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <p className="market-label px-3 pb-1.5 text-muted-foreground">
                 {group.label}
               </p>

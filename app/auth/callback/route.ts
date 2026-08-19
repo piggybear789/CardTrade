@@ -2,13 +2,14 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 // app/auth/callback/route.ts
 //
-// OAuth callback Route Handler (Req 1.1, 1.7).
+// OAuth and recovery callback Route Handler (Req 1.1, 1.7).
 //
-// Google redirects here with a one-time `code`. We exchange it for a session on
-// the cookie-bound client (which also consumes the PKCE verifier cookie written
-// by `signInWithGoogle`), make sure a Profile exists,
-// then send the User on to their destination. Failures never surface a stack
-// trace: they redirect back to /sign-in with a readable `authError` message.
+// Google (and password-reset emails) redirect here with a one-time `code`. We
+// exchange it for a session on the cookie-bound client (which also consumes the
+// PKCE verifier cookie written by `signInWithGoogle`), make sure a Profile
+// exists for OAuth, then send the User on to their destination. Failures never
+// surface a stack trace: they redirect back to /sign-in with a fixed
+// `authError` message.
 
 import { createClient } from '@/lib/supabase/server';
 import { ensureProfile } from '@/lib/auth/ensureProfile';
@@ -22,6 +23,11 @@ function safeNextPath(target: string | null): string | null {
     return target;
   }
   return null;
+}
+
+/** Password-recovery landing — skip onboarding even if a Profile was just created. */
+function isRecoveryPath(target: string | null): boolean {
+  return target === '/reset-password' || Boolean(target?.startsWith('/reset-password?'));
 }
 
 /**
@@ -44,22 +50,31 @@ function resolveOrigin(request: NextRequest): string {
 export async function GET(request: NextRequest) {
   const origin = resolveOrigin(request);
   const params = request.nextUrl.searchParams;
+  const next = safeNextPath(params.get('next'));
+  const recovery =
+    isRecoveryPath(next) || params.get('type') === 'recovery';
 
   const failure = (message: string) => {
     const url = new URL('/sign-in', origin);
     url.searchParams.set('authError', message);
+    if (next) {
+      url.searchParams.set('redirectTo', next);
+    }
     return NextResponse.redirect(url);
   };
 
   // The User declined consent, or the provider rejected the request.
-  const providerError = params.get('error_description') ?? params.get('error');
-  if (providerError) {
-    return failure(providerError);
+  if (params.get('error_description') ?? params.get('error')) {
+    return failure(
+      recovery
+        ? 'This reset link is invalid or has expired.'
+        : 'Google sign-in was cancelled or could not be completed.',
+    );
   }
 
   const code = params.get('code');
   if (!code) {
-    return failure('Sign-in link was missing its authorization code.');
+    return failure('This sign-in link is missing its authorization code.');
   }
 
   const supabase = await createClient();
@@ -69,7 +84,15 @@ export async function GET(request: NextRequest) {
     if (error && /ban(?:ned)?/i.test(error.message)) {
       return NextResponse.redirect(new URL('/account-suspended', origin));
     }
-    return failure(error?.message ?? 'Could not complete Google sign-in.');
+    return failure(
+      recovery
+        ? 'This reset link is invalid or has expired.'
+        : 'Could not complete sign-in.',
+    );
+  }
+
+  if (recovery) {
+    return NextResponse.redirect(new URL(next ?? '/reset-password', origin));
   }
 
   const user = data.user;
@@ -89,15 +112,16 @@ export async function GET(request: NextRequest) {
     // The session is live but unusable without a Profile; drop it so the User
     // is not stranded in a half-provisioned state.
     await supabase.auth.signOut();
-    return failure(`Signed in, but profile setup failed: ${profile.message}`);
+    return failure('Signed in, but profile setup failed. Please try again.');
   }
 
-  const next = safeNextPath(params.get('next'));
-
-  // New users go through the onboarding flow. Returning users go to their
-  // intended destination (or the catalog as fallback).
+  // New users go through onboarding, carrying the intended destination so the
+  // post-onboarding hop can resume the original task. Returning users go to
+  // that destination (or the catalog as fallback).
   const destination = profile.created
-    ? '/onboarding'
+    ? next
+      ? `/onboarding?redirectTo=${encodeURIComponent(next)}`
+      : '/onboarding'
     : (next ?? DEFAULT_DESTINATION);
 
   return NextResponse.redirect(new URL(destination, origin));

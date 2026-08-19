@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 
-import { SiteHeader } from '@/components/layout/SiteHeader';
+import { StartDealProvider } from '@/components/deals/StartDealProvider';
+import { SiteHeader, SiteHeaderSkeleton } from '@/components/layout/SiteHeader';
+import { MotionProvider } from '@/components/providers/MotionProvider';
 import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
 
@@ -81,6 +83,10 @@ export default function RootLayout({
     >
       <head>
         <link rel="preconnect" href="https://images.pokemontcg.io" />
+        <link rel="preconnect" href="https://images.scrydex.com" />
+        {process.env.NEXT_PUBLIC_SUPABASE_URL ? (
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        ) : null}
       </head>
       <body className="flex min-h-dvh flex-col">
         <a
@@ -89,11 +95,17 @@ export default function RootLayout({
         >
           Skip to Main Content
         </a>
-        <SiteHeader />
-        <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col focus:outline-none">
-          {children}
-        </div>
-        <Toaster />
+        <MotionProvider>
+          <StartDealProvider>
+            <Suspense fallback={<SiteHeaderSkeleton />}>
+              <SiteHeader />
+            </Suspense>
+            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              {children}
+            </div>
+          </StartDealProvider>
+          <Toaster />
+        </MotionProvider>
       </body>
     </html>
   );

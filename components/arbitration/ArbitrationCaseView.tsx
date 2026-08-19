@@ -8,7 +8,6 @@
 // understand what happened, then act.
 
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -24,7 +23,6 @@ import {
 
 import type { ArbitrationCaseDetail, ArbitrationShipmentLeg } from '@/lib/actions/arbitration';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
-import { isVideoPath } from '@/lib/storage/disputeEvidenceShared';
 import {
   ARBITRATION_SLA_HOURS,
   DEADLINE_WARNING_HOURS,
@@ -32,6 +30,7 @@ import {
   type ArbitrationPriority,
 } from '@/domain/arbitration/arbitrationCase';
 import { CaseNoteComposer } from '@/components/arbitration/CaseNoteComposer';
+import { ArbitrationEvidenceGrid } from '@/components/arbitration/ArbitrationEvidenceGrid';
 
 import { ReturnCaseActions } from '@/components/admin/ReturnCaseActions';
 import { DisputeActions } from '@/components/admin/DisputeActions';
@@ -66,53 +65,6 @@ function humaniseEvent(event: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/**
- * One attachment on a party's submission.
- *
- * Video gets real controls rather than a poster frame: the whole reason a trader films
- * an unboxing is so an arbitrator can watch it, and a thumbnail of frame zero is
- * usually a closed box.
- */
-function EvidenceMedia({ path, url }: { path: string; url: string | null }) {
-  if (!url) {
-    return (
-      <div className="grid aspect-square place-items-center rounded-md border border-dashed bg-muted/30 px-snug text-center text-meta leading-tight text-muted-foreground">
-        Unavailable
-      </div>
-    );
-  }
-
-  if (isVideoPath(path)) {
-    return (
-      <video
-        src={url}
-        controls
-        preload="metadata"
-        className="aspect-square w-full rounded-md border bg-black object-contain"
-      />
-    );
-  }
-
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group relative block aspect-square overflow-hidden rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {/* Unoptimised: signed short-lived URLs on a private bucket cannot be cached by
-          the image optimiser, so routing them through it only adds a hop that expires. */}
-      <Image
-        src={url}
-        alt="Evidence"
-        fill
-        unoptimized
-        className="object-cover transition-transform group-hover:scale-105"
-      />
-    </a>
-  );
-}
-
 /** One party's filed account, as staff read it. */
 function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
   return (
@@ -126,13 +78,7 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
       <p className="mt-1.5 whitespace-pre-line break-words text-body leading-relaxed">
         {entry.statement}
       </p>
-      {entry.media.length > 0 ? (
-        <div className="mt-cozy grid grid-cols-3 gap-snug sm:grid-cols-4">
-          {entry.media.map((media) => (
-            <EvidenceMedia key={media.path} path={media.path} url={media.url} />
-          ))}
-        </div>
-      ) : null}
+      {entry.media.length > 0 ? <ArbitrationEvidenceGrid media={entry.media} /> : null}
     </li>
   );
 }
@@ -211,7 +157,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
       </div>
 
       {/* Status strip */}
-      <div className="flex flex-wrap items-center gap-snug rounded-lg border bg-muted/20 px-group py-cozy">
+      <div className="flex flex-wrap items-center gap-snug rounded-lg border bg-muted px-group py-cozy">
         <Badge variant={priority.variant}>{priority.label}</Badge>
         <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
@@ -261,7 +207,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             </CardHeader>
             <CardContent>
               {c.claim ? (
-                <blockquote className="whitespace-pre-line break-words rounded-md bg-muted/40 p-cozy text-body leading-relaxed">
+                <blockquote className="whitespace-pre-line break-words rounded-md bg-muted p-cozy text-body leading-relaxed">
                   &ldquo;{c.claim}&rdquo;
                 </blockquote>
               ) : (
@@ -342,8 +288,8 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   </div>
                 ) : null}
                 {shipment.returnLapsedAt ? (
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-cozy">
-                    <p className="text-meta font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <div className="rounded-md border border-gold/50 bg-gold/10 p-cozy">
+                    <p className="text-meta font-medium uppercase tracking-wide text-gold">
                       Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
                     </p>
                     <p className="mt-1 text-body text-muted-foreground">
@@ -453,7 +399,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                           </span>
                         </div>
                         {entry.detail ? (
-                          <p className="break-words text-meta text-muted-foreground">
+                          <p className="break-words text-body text-muted-foreground">
                             {entry.detail}
                           </p>
                         ) : null}
@@ -483,14 +429,14 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             <CardContent className="space-y-cozy">
               <CaseNoteComposer caseKind={c.kind} caseRef={c.ref} />
               {notes.length === 0 ? (
-                <p className="text-meta italic text-muted-foreground">
+                <p className="text-body italic text-muted-foreground">
                   No notes yet.
                 </p>
               ) : (
                 <ul className="max-h-64 space-y-snug overflow-y-auto">
                   {notes.map((note) => (
-                    <li key={note.id} className="rounded-md border bg-muted/20 p-snug">
-                      <p className="whitespace-pre-line break-words text-meta leading-relaxed">
+                    <li key={note.id} className="rounded-md border bg-muted p-snug">
+                      <p className="whitespace-pre-line break-words text-body leading-relaxed">
                         {note.body}
                       </p>
                       <p className="mt-1.5 text-meta text-muted-foreground">
@@ -519,13 +465,13 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               ) : resolution.kind === 'CASH_SALE' ? (
                 <div className="space-y-cozy">
                   {resolution.refundStatus === 'FAILED' ? (
-                    <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-meta text-destructive">
+                    <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-body text-destructive">
                       <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                       A previous refund attempt failed. Retrying is safe (deduplicated).
                     </p>
                   ) : null}
                   {resolution.refundCents > 0 ? (
-                    <p className="text-meta text-muted-foreground">
+                    <p className="text-body text-muted-foreground">
                       {formatAud(resolution.refundCents)} already refunded.
                     </p>
                   ) : null}
@@ -554,11 +500,11 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               ) : resolution.kind === 'TRADE' ? (
                 <div className="space-y-cozy">
                   {resolution.counterpartGoodsDescription ? (
-                    <div className="rounded-md bg-muted/30 p-snug">
+                    <div className="rounded-md bg-muted p-snug">
                       <p className="text-meta font-medium uppercase tracking-wide text-muted-foreground">
                         Agreed goods
                       </p>
-                      <p className="mt-1 whitespace-pre-line break-words text-meta">
+                      <p className="mt-1 whitespace-pre-line break-words text-body">
                         {resolution.counterpartGoodsDescription}
                       </p>
                     </div>
@@ -600,7 +546,11 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   </dl>
                   <Button asChild size="sm" variant="outline">
                     <a
-                      href="https://dashboard.stripe.com/disputes"
+                      href={
+                        resolution.disputeRef
+                          ? `https://dashboard.stripe.com/disputes/${resolution.disputeRef}`
+                          : 'https://dashboard.stripe.com/disputes'
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                     >

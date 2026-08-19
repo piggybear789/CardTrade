@@ -50,6 +50,7 @@ const TABLES_REQUIRING_RLS = [
   'charge_disputes',
   'arbitration_assignments',
   'arbitration_notes',
+  'deal_invites',
 ];
 
 /**

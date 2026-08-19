@@ -2,31 +2,40 @@
 
 // lib/actions/socialLinks.ts
 //
-// Server action for updating a member's social media links.
+// Server action for updating a member's profile links (social handles + one
+// website URL). Validation is per-platform kind — a store URL must not go
+// through the handle rules.
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { buildSocialLinksPayload, normalizeHandle, SOCIAL_PLATFORMS } from '@/domain/social/socialLinks';
+import {
+  buildSocialLinksPayload,
+  isValidLinkValue,
+  normalizeLinkValue,
+  platformBySlug,
+} from '@/domain/social/socialLinks';
 import { type ActionResult, fail, ok } from './result';
 
 export type UpdateSocialLinksError = 'not-authenticated' | 'validation-error' | 'persistence-error';
 
 export async function updateSocialLinks(
-  entries: { slug: string; handle: string }[],
+  entries: { slug: string; value: string }[],
 ): Promise<ActionResult<null, UpdateSocialLinksError>> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return fail('not-authenticated', 'Sign in to update your socials.');
 
-  // Validate: only known platforms, reasonable handles
-  const validSlugs: Set<string> = new Set(SOCIAL_PLATFORMS.map((p) => p.slug));
+  if (!Array.isArray(entries) || entries.length > 20) {
+    return fail('validation-error', 'Maximum 20 social link entries allowed.');
+  }
+
   for (const entry of entries) {
-    if (!validSlugs.has(entry.slug)) {
+    if (!platformBySlug(entry.slug)) {
       return fail('validation-error', `Unknown platform: ${entry.slug}`);
     }
-    const normalized = normalizeHandle(entry.handle);
-    if (normalized && (normalized.length > 100 || /\s/.test(normalized))) {
-      return fail('validation-error', `Invalid handle for ${entry.slug}`);
+    const normalized = normalizeLinkValue(entry.slug, entry.value);
+    if (normalized && !isValidLinkValue(entry.slug, normalized)) {
+      return fail('validation-error', `Invalid value for ${entry.slug}`);
     }
   }
 

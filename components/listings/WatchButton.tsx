@@ -9,7 +9,7 @@
 // surfaced with a sonner toast.
 //
 // Visual variants:
-//   * `icon`    — heart-only overlay (catalog cards).
+//   * `icon`    — quiet glyph in listing chrome (catalog cards, detail header).
 //   * `labeled` — full "Save" / "Saved" button.
 //   * `action`  — round chip + label below (item detail action row).
 //
@@ -37,7 +37,7 @@ export interface WatchButtonProps {
   initialWatching: boolean;
   /**
    * `labeled` — full "Save"/"Saved" button;
-   * `icon` — heart-only overlay (catalog cards);
+   * `icon` — quiet glyph in listing chrome;
    * `action` — round chip + label (item detail action row).
    */
   variant?: 'labeled' | 'icon' | 'action';
@@ -102,21 +102,27 @@ export function WatchButton({
     return (
       <button
         type="button"
-        onClick={handleToggle}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          handleToggle();
+        }}
         disabled={isPending}
         aria-pressed={watching}
         aria-label={watching ? 'Remove from saved items' : 'Save item'}
         aria-busy={isPending}
         className={cn(
-          'inline-flex size-11 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60',
+          // Same weight as the watching count: a glyph in the chrome, not a
+          // chip on the photo. 闲鱼 keeps the artwork clean and puts 收藏
+          // with the price / want-count.
+          'relative inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60',
+          watching && 'text-destructive hover:text-destructive',
           className,
         )}
       >
         <Heart
-          className={cn(
-            'size-4 transition-colors',
-            watching && 'fill-destructive text-destructive',
-          )}
+          className={cn('size-3.5', watching && 'fill-current')}
+          strokeWidth={1.75}
           aria-hidden
         />
       </button>

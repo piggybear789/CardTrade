@@ -2,7 +2,7 @@
 
 ## Overview
 
-A native iOS/Android marketplace app for peer-to-peer trading of collectibles (trading cards, coins, stamps, comics, memorabilia). Built with Flutter, Riverpod, Supabase, and Stripe. The app provides a safety-first experience with trustless escrow, real-time messaging, and identity verification.
+A native iOS/Android marketplace app for peer-to-peer trading of trading cards (TCGs and sports cards; the web product is cards-only for now, though the backend taxonomy stays category-agnostic for later expansion). Built with Flutter, Riverpod, Supabase, and Stripe. The app provides a safety-first experience with trustless escrow, real-time messaging, and identity verification.
 
 **Design Philosophy:** Inspired by Xianyu (闲鱼) for its casual peer-to-peer feel and quick-list UX, eBay for trust signals and structured listings, and modern apps like StockX/GOAT for clean card-based browsing. The app should feel fast, trustworthy, and simple — hiding complexity behind progressive disclosure.
 
@@ -205,7 +205,7 @@ enum FulfilmentTrackingState { labelCreated, inTransit, outForDelivery, delivere
 
 **Layout:** 
 - Sticky search bar at top (rounded, with camera icon for visual search placeholder)
-- Horizontal category chips (scrollable): Trading Cards, Coins, Stamps, Comics, Memorabilia, All
+- Horizontal category chips (scrollable): card subcategories (Pokémon, Magic, One Piece, Yu-Gi-Oh!, Sports Cards, …), All
 - Region indicator (pill badge, tappable to change browse region)
 - Waterfall/masonry grid (2 columns) of listing cards — inspired by Xianyu's casual browsing
 - Pull-to-refresh, infinite scroll pagination

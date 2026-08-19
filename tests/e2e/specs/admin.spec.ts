@@ -61,7 +61,7 @@ test.describe('Admin access control', () => {
   
   await expect(page.getByRole('heading', { name: /not authorized/i })).toBeVisible();
   // Should not show any case data.
-  await expect(page.getByText('Cases are limited to CardTrade support staff.')).toBeVisible();
+  await expect(page.getByText('Cases are limited to NoDitto support staff.')).toBeVisible();
   
   await context.close(); });
 

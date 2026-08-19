@@ -65,7 +65,7 @@ export function CaseAssignButton({
   return (
     <div className="flex flex-wrap items-center gap-snug">
       {heldByOther ? (
-        <span className="text-meta text-muted-foreground">
+        <span className="text-body text-muted-foreground">
           Held by {assigneeName?.trim() || 'another arbitrator'}
         </span>
       ) : null}

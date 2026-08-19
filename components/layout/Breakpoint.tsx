@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import { useSyncExternalStore } from 'react';
 
-const LG_QUERY = '(min-width: 1024px)';
+const LG_QUERY = '(min-width: 768px)';
 
 function subscribeLg(onChange: () => void) {
   const media = window.matchMedia(LG_QUERY);
@@ -27,12 +27,12 @@ function useIsLg() {
   return useSyncExternalStore(subscribeLg, getLgSnapshot, getLgServerSnapshot);
 }
 
-/** Renders children only below the `lg` breakpoint. */
+/** Renders children only below the desktop chrome split (`md` = 768px). */
 export function MobileOnly({ children }: { children: ReactNode }) {
   return useIsLg() ? null : children;
 }
 
-/** Renders children only at the `lg` breakpoint and up. */
+/** Renders children only at the desktop chrome split and up (`md` = 768px). */
 export function DesktopOnly({ children }: { children: ReactNode }) {
   return useIsLg() ? children : null;
 }

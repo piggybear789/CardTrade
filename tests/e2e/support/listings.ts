@@ -123,11 +123,10 @@ export interface CreateListingOptions {
  *    prefix means reinstating one would not break this helper. SINGLE is chosen
  *    because a SHOPFRONT is never reserved and never sold (0064) and so behaves
  *    differently in every downstream assertion.
- *  - Category / Subcategory / Condition are shadcn `Select`s. Radix renders the
+ *  - Game / Condition are shadcn `Select`s. Radix renders the
  *    trigger AND a hidden native <select>, both labelled by the same
  *    `<Label htmlFor>`, so `getByLabel` is permanently ambiguous. The trigger
- *    carries the id, so `#category` / `#subcategory` / `#condition` are used.
- *    Subcategory stays disabled until a category is picked.
+ *    carries the id, so `#game` / `#condition` are used.
  *  - `Based near` is REQUIRED. The suite runs with no Maps key so PlacePicker
  *    falls back to a plain text input — see playwright.config.ts.
  *  - The file input is visually hidden behind an "Add photos" button; the button
@@ -146,12 +145,10 @@ export async function createListing(
   //
   // Radix Select's hidden native <select> triggers a form-level side-effect on
   // WebKit that clears preceding controlled inputs. Selecting an option from any
-  // of the three dropdowns wipes the Title (and any other text field filled before
+  // of the dropdowns wipes the Title (and any other text field filled before
   // it). Filling text fields AFTER the selects avoids the issue entirely and keeps
   // the helper working on both Chromium (desktop) and WebKit (mobile).
-  await page.locator('#category').click();
-  await page.getByRole('option', { name: 'Trading Cards' }).click();
-  await page.locator('#subcategory').click();
+  await page.locator('#game').click();
   await page.getByRole('option', { name: 'Pokémon' }).click();
   await page.locator('#condition').click();
   await page.getByRole('option', { name: 'Near Mint' }).click();

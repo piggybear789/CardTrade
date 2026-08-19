@@ -32,7 +32,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'not-found': 'This listing no longer exists.',
   unauthorized: 'You can only delete your own listing.',
   'persistence-error':
-    'This listing could not be deleted — it may be part of an active trade or sale.',
+    'This listing could not be deleted. It may be part of an active trade or sale.',
 };
 
 export function DeleteListingDialog({
@@ -72,7 +72,7 @@ export function DeleteListingDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete this listing?</DialogTitle>
+          <DialogTitle>Delete listing</DialogTitle>
           <DialogDescription className="break-words">
             {itemTitle} will be permanently removed. This cannot be undone, and
             it cannot be done while the item is part of an active trade or sale.

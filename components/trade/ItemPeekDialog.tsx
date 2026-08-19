@@ -11,8 +11,8 @@
 // back on — it is deliberately absent from the catalog, so this dialog is the
 // ONLY place it can be seen at all.
 //
-// The gallery is the same `ImageGallery` the listing page uses, so click-to-zoom
-// behaves identically on both surfaces rather than being re-implemented smaller.
+// The gallery is the same `ImageGallery` the listing page uses, so click-to-enlarge
+// opens the same lightbox on both surfaces rather than being re-implemented smaller.
 
 import { ImageOff } from 'lucide-react';
 import Link from 'next/link';

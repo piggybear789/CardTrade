@@ -240,8 +240,9 @@ export function PayoutOnboarding({
                   sell, or trade", which after 0069 is the IDENTITY card's claim — and
                   `IdentityCheckCard` makes it. Two cards asserting the same
                   requirement is the "two answers to one question" failure the docs
-                  warn about, and here only one of them was true. */}
-              Bank payout details and account setup.
+                  warn about, and here only one of them was true. Connect gates
+                  whether a member can receive money (Req 3.9). */}
+              Bank payout details so you can receive money.
             </CardDescription>
           </div>
           <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -332,6 +333,11 @@ export function PayoutOnboarding({
               )}
               {context.hostedOnboarding ? 'Verify with Stripe' : 'Submit payout setup'}
             </Button>
+            {/* Buyer-disclosure consent (Req 4.8-4.12). Pressing the button is
+                the consent; the sentence states what that consent covers. */}
+            <p className="text-body text-muted-foreground">
+              The payout name Stripe reports can be shown to a buyer for an agreed sale.
+            </p>
           </div>
         ) : null}
 

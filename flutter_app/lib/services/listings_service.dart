@@ -34,8 +34,10 @@ class ListingsService {
           .eq('hidden', false)
           .isFilter('closed_at', null);
 
-      if (category != null && category.isNotEmpty) {
+      if (category != null && AppConstants.games.contains(category)) {
         query = query.eq('category', category);
+      } else {
+        query = query.inFilter('category', AppConstants.games);
       }
       if (condition != null && condition.isNotEmpty) {
         query = query.eq('condition', condition);

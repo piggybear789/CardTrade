@@ -296,6 +296,13 @@ export async function counterOffer(
     .single();
 
   if (error || !inserted) {
+    // Rollback original offer to PENDING if counter insertion failed
+    await supabase
+      .from('offers')
+      .update({ status: 'PENDING' })
+      .eq('id', offerId)
+      .eq('status', 'COUNTERED');
+
     return {
       ok: false,
       error: 'persistence-error',
@@ -444,7 +451,17 @@ export async function respondToOffer(
     .eq('status', 'PENDING')
     .select('*')
     .maybeSingle();
-  if (error) return { ok: false, error: 'persistence-error', detail: error.message };
+  if (error || !updated) {
+    // If updating offer failed, rollback the newly initiated cash sale so the item is not locked
+    try {
+      const admin = createAdminClient();
+      await admin.from('cash_sales').update({ status: 'CANCELLED' }).eq('id', saleId);
+      await admin.from('items').update({ status: 'AVAILABLE' }).eq('id', offer.item_id);
+    } catch {
+      // best-effort cleanup
+    }
+    return { ok: false, error: 'persistence-error', detail: error?.message ?? 'Offer status conflict' };
+  }
 
   // Best-effort: decline any other PENDING offers on this now-reserved item so
   // other buyers aren't left with dangling live offers. Uses the service-role

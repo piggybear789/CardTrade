@@ -55,7 +55,7 @@ export default async function NewListingPage() {
           title="Verify Your Identity First"
           titleAs="h3"
           description={identityGateMessage('list', gate.state)}
-          action={{ label: 'Verify identity', href: '/profile/payouts' }}
+          action={{ label: 'Verify identity', href: '/profile?tab=verification' }}
           className="border-none bg-transparent"
         />
       </MarketplaceShell>

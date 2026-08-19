@@ -88,7 +88,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode
             </span>
-            <span className="mt-0.5 block text-meta text-muted-foreground">
+            <span className="mt-0.5 block text-body text-muted-foreground">
               Simulated payments — not live Stripe
             </span>
           </span>
@@ -130,7 +130,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
                   Fail collateral holds
                 </Button>
               </div>
-              <p className="text-meta text-muted-foreground">
+              <p className="text-body text-muted-foreground">
                 Confirming advances Collateral Pending → Collateral Locked;
                 failing cancels the pending collateral.
               </p>

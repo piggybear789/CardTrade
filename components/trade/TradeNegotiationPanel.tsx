@@ -9,8 +9,9 @@
 // offer could only be answered with Decline or Accept from an inbox card, and a
 // counter replaced the whole proposal with a new row, so there was nowhere to
 // discuss and no continuous history. Now the room exists from the first offer:
-// the terms on the table, who has accepted them, the chat, and Accept / Counter /
-// Decline all sit in one place.
+// the terms on the table, who has accepted them, the chat, and Accept /
+// Change cash (listing owner) / Decline all sit in one place. Handover is
+// edited on the Terms row by either trader and does not reset acceptances.
 //
 // The controls offered are decided by `availableActions`, not by this component —
 // the same rule ActionBar follows.
@@ -20,7 +21,9 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +32,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import {
@@ -40,8 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { PlacePicker } from '@/components/location';
-import type { PlaceValue } from '@/lib/location/types';
+import { ReportDialog } from '@/components/reports/ReportDialog';
 import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
 import {
@@ -52,20 +53,12 @@ import {
   type TradeTermsInput,
 } from '@/lib/actions/tradeNegotiation';
 
-/** Only a provider-resolved place may become a contractual meeting point. */
-function isResolvedPlace(place: PlaceValue | null): place is PlaceValue {
-  return Boolean(
-    place &&
-      !place.placeId.startsWith('text:') &&
-      !place.placeId.startsWith('legacy:') &&
-      Number.isFinite(place.lat) &&
-      Number.isFinite(place.lng),
-  );
-}
-
 export interface TradeNegotiationPanelProps {
   tradeId: string;
   viewer: TradeViewerContext;
+  /** The other trader — used for the overflow Report action. */
+  counterpartyId: string;
+  counterpartyName: string;
   termsVersion: number;
   /** Current terms on the table. */
   terms: {
@@ -92,6 +85,8 @@ export interface TradeNegotiationPanelProps {
 export function TradeNegotiationPanel({
   tradeId,
   viewer,
+  counterpartyId,
+  counterpartyName,
   termsVersion,
   terms,
 }: TradeNegotiationPanelProps) {
@@ -99,38 +94,11 @@ export function TradeNegotiationPanel({
   const [isPending, startTransition] = useTransition();
   const [counterOpen, setCounterOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
+  const [acceptOpen, setAcceptOpen] = useState(false);
 
   const [cash, setCash] = useState((terms.cashAmountCents / 100).toFixed(2));
   const [direction, setDirection] = useState(terms.cashDirection);
-  const [method, setMethod] = useState<'DELIVERY' | 'IN_PERSON'>(
-    terms.handoverMethod ?? 'DELIVERY',
-  );
-  const [place, setPlace] = useState<PlaceValue | null>(() =>
-    terms.meetingLocation &&
-    terms.meetingPlaceId &&
-    terms.meetingLat != null &&
-    terms.meetingLng != null
-      ? {
-          label: terms.meetingLocation,
-          placeId: terms.meetingPlaceId,
-          lat: terms.meetingLat,
-          lng: terms.meetingLng,
-          precision: 'exact',
-        }
-      : null,
-  );
-  const [meetingAt, setMeetingAt] = useState(
-    terms.meetingAt ? terms.meetingAt.slice(0, 16) : '',
-  );
-  const [deliveryDetails, setDeliveryDetails] = useState(terms.deliveryDetails ?? '');
-  const [deliveryCost, setDeliveryCost] = useState(
-    ((terms.deliveryCostCents ?? 0) / 100).toFixed(2),
-  );
   const [note, setNote] = useState('');
-  /**
-   * The binder side's goods, seeded from the current terms so a counter about
-   * postage does not read as if the cards were up for renegotiation too.
-   */
   const isShopfrontTrade = terms.counterpartGoodsDescription !== null;
   const [counterpartGoods, setCounterpartGoods] = useState(
     terms.counterpartGoodsDescription ?? '',
@@ -139,20 +107,29 @@ export function TradeNegotiationPanel({
 
   const actions = availableActions('NEGOTIATING', viewer);
 
-  function run(operation: () => Promise<TradeNegotiationResult>, success: string) {
+  function run(
+    operation: () => Promise<TradeNegotiationResult>,
+    success: string,
+  ): Promise<boolean> {
     setError(null);
-    startTransition(async () => {
-      const result = await operation();
-      if (result.ok) {
-        toast.success(result.collateralStarted ? 'Terms agreed. Collateral is being arranged.' : success);
-        setCounterOpen(false);
-        setDeclineOpen(false);
-        router.refresh();
-      } else {
-        const message = result.message ?? 'Something went wrong. Please try again.';
-        setError(message);
-        toast.error(message);
-      }
+    return new Promise((resolve) => {
+      startTransition(async () => {
+        const result = await operation();
+        if (result.ok) {
+          toast.success(
+            result.collateralStarted ? 'Terms agreed. Collateral is being arranged.' : success,
+          );
+          setCounterOpen(false);
+          setDeclineOpen(false);
+          router.refresh();
+          resolve(true);
+        } else {
+          const message = result.message ?? 'Something went wrong. Please try again.';
+          setError(message);
+          toast.error(message);
+          resolve(false);
+        }
+      });
     });
   }
 
@@ -162,18 +139,6 @@ export function TradeNegotiationPanel({
       setError('Enter a valid cash amount.');
       return;
     }
-    if (method === 'IN_PERSON') {
-      const when = meetingAt ? new Date(meetingAt) : null;
-      if (!isResolvedPlace(place)) {
-        setError('Choose a suggested meeting point.');
-        return;
-      }
-      if (!when || !Number.isFinite(when.getTime()) || when.getTime() <= Date.now()) {
-        setError('Choose a future meeting time.');
-        return;
-      }
-    }
-    const shippingCents = Math.round(Number.parseFloat(deliveryCost || '0') * 100);
     if (isShopfrontTrade && counterpartGoods.trim() === '') {
       setError('Say which cards are coming out of the listing.');
       return;
@@ -182,20 +147,13 @@ export function TradeNegotiationPanel({
     const payload: TradeTermsInput = {
       cashAmountCents: cents,
       cashDirection: direction,
-      handoverMethod: method,
-      meetingLocation: method === 'IN_PERSON' ? place!.label.trim() : null,
-      meetingLat: method === 'IN_PERSON' ? place!.lat : null,
-      meetingLng: method === 'IN_PERSON' ? place!.lng : null,
-      meetingPlaceId: method === 'IN_PERSON' ? place!.placeId : null,
-      meetingAt: method === 'IN_PERSON' ? new Date(meetingAt).toISOString() : null,
-      deliveryDetails: method === 'DELIVERY' ? deliveryDetails : null,
-      deliveryCostCents: method === 'DELIVERY' ? shippingCents : null,
+      handoverMethod: terms.handoverMethod ?? 'DELIVERY',
       message: note,
       counterpartGoodsDescription: isShopfrontTrade ? counterpartGoods.trim() : null,
     };
     run(
       () => proposeTradeTerms(tradeId, termsVersion, payload),
-      'Counter offer sent. They need to accept the new terms.',
+      'Cash updated. They need to accept the new amount.',
     );
   }
 
@@ -206,30 +164,33 @@ export function TradeNegotiationPanel({
           them again here made the action card a summary with buttons attached
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}
-      <div className="flex flex-wrap gap-snug">
+      <div className="flex flex-col items-end gap-1">
+        <ContractOverflowMenu>
+          {actions.includes('PROPOSE_TERMS') ? (
+            <Button variant="ghost" disabled={isPending} onClick={() => setCounterOpen(true)}>
+              Change cash
+            </Button>
+          ) : null}
+          {actions.includes('DECLINE_OFFER') ? (
+            <Button variant="ghost" disabled={isPending} onClick={() => setDeclineOpen(true)}>
+              Decline
+            </Button>
+          ) : null}
+          <ReportDialog
+            targetType="user"
+            targetId={counterpartyId}
+            triggerLabel={`Report ${counterpartyName}`}
+          />
+        </ContractOverflowMenu>
         {actions.includes('ACCEPT_TERMS') ? (
           <Button
             disabled={isPending}
             aria-busy={isPending}
-            onClick={() =>
-              run(
-                () => acceptTradeTerms(tradeId, termsVersion),
-                'Accepted. Waiting on the other trader.',
-              )
-            }
+            aria-haspopup="dialog"
+            onClick={() => setAcceptOpen(true)}
           >
             {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
             Accept terms
-          </Button>
-        ) : null}
-        {actions.includes('PROPOSE_TERMS') ? (
-          <Button variant="outline" disabled={isPending} onClick={() => setCounterOpen(true)}>
-            Counter
-          </Button>
-        ) : null}
-        {actions.includes('DECLINE_OFFER') ? (
-          <Button variant="ghost" disabled={isPending} onClick={() => setDeclineOpen(true)}>
-            Decline
           </Button>
         ) : null}
       </div>
@@ -237,16 +198,14 @@ export function TradeNegotiationPanel({
       <Dialog open={counterOpen} onOpenChange={setCounterOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Counter offer</DialogTitle>
+            <DialogTitle>Change cash</DialogTitle>
             <DialogDescription>
-              Revising the terms creates version {termsVersion + 1}, so both of you accept
-              again before any collateral is placed.
+              Only you can set the cash on this trade. The other trader will need to
+              accept the new amount. Meeting and postage are edited separately and do
+              not reset anyone&apos;s accept.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-group py-group">
-            {/* First, because on a binder trade it is the substance: what actually
-                changes hands. Changing it voids both acceptances, same as changing
-                the cash. */}
             {isShopfrontTrade ? (
               <div className="space-y-snug">
                 <Label htmlFor="trade-counterpart-goods">Cards from the listing</Label>
@@ -295,64 +254,6 @@ export function TradeNegotiationPanel({
             </div>
 
             <div className="space-y-snug">
-              <Label htmlFor="trade-method">Handover</Label>
-              <Select value={method} onValueChange={(value) => setMethod(value as typeof method)}>
-                <SelectTrigger id="trade-method">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DELIVERY">Post the items</SelectItem>
-                  <SelectItem value="IN_PERSON">Meet face to face</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {method === 'IN_PERSON' ? (
-              <>
-                <PlacePicker
-                  id="trade-place"
-                  label="Meeting location"
-                  precision="exact"
-                  value={place}
-                  onChange={setPlace}
-                  required
-                  hint="Use a public spot both of you can find. Choose a suggestion to confirm the pin."
-                  textFallbackPlaceholder="A public, agreed meeting point"
-                />
-                <div className="space-y-snug">
-                  <Label htmlFor="trade-meeting-at">Meeting time</Label>
-                  <Input
-                    id="trade-meeting-at"
-                    type="datetime-local"
-                    value={meetingAt}
-                    onChange={(event) => setMeetingAt(event.target.value)}
-                    required
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-snug">
-                  <Label htmlFor="trade-postage">Postage cost</Label>
-                  <MoneyInput
-                    id="trade-postage"
-                    value={deliveryCost}
-                    onChange={(event) => setDeliveryCost(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-snug">
-                  <Label htmlFor="trade-delivery">Postage details</Label>
-                  <Textarea
-                    id="trade-delivery"
-                    value={deliveryDetails}
-                    onChange={(event) => setDeliveryDetails(event.target.value)}
-                    placeholder="Carrier, insurance, signature on delivery"
-                  />
-                </div>
-              </>
-            )}
-
-            <div className="space-y-snug">
               <Label htmlFor="trade-note">Note</Label>
               <Textarea
                 id="trade-note"
@@ -373,11 +274,31 @@ export function TradeNegotiationPanel({
             </Button>
             <Button onClick={submitCounter} disabled={isPending} aria-busy={isPending}>
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-              Send counter
+              Save cash
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={acceptOpen}
+        onOpenChange={(open) => {
+          if (isPending) return;
+          setAcceptOpen(open);
+        }}
+        title="Accept these terms?"
+        description="The last accept places a temporary Stripe card hold (not a charge) and may charge the trade fee."
+        confirmLabel="Accept terms"
+        pending={isPending}
+        helpHref="/help#holds"
+        onConfirm={async () => {
+          const ok = await run(
+            () => acceptTradeTerms(tradeId, termsVersion),
+            'Accepted. Waiting on the other trader.',
+          );
+          if (ok) setAcceptOpen(false);
+        }}
+      />
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <DialogContent>

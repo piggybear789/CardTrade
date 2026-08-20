@@ -21,7 +21,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-obsidian/80 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-200 data-[state=open]:ease-out data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150 data-[state=closed]:ease-in",
       className,
     )}
     {...props}
@@ -40,6 +40,11 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
   mobile?: "sheet" | "center";
   /** Hide the close affordance for required, non-dismissable wizard steps. */
   showClose?: boolean;
+  /**
+   * `default` preserves the existing sheet/zoom motion. `fade` uses opacity only,
+   * suitable for focused overlays where directional motion feels distracting.
+   */
+  animation?: "default" | "fade";
 };
 
 /**
@@ -54,28 +59,48 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
 const CENTRED_MOTION =
   "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]";
 
+/** {@link CENTRED_MOTION} for the `sm:` breakpoint, where the sheet variant centres. */
+const CENTRED_MOTION_SM =
+  "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]";
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, mobile = "sheet", showClose = true, ...props }, ref) => (
+>(({
+  className,
+  children,
+  mobile = "sheet",
+  showClose = true,
+  animation = "default",
+  ...props
+}, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200",
+        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:ring-2 focus-visible:ring-ring [scroll-padding-bottom:5.5rem]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         mobile === "sheet" && [
           // Phone: bottom sheet
           "inset-x-0 bottom-0 top-auto max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
-          "max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=open]:slide-in-from-bottom",
+          animation === "default"
+            ? "max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=open]:duration-[240ms] max-sm:data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=closed]:duration-150 max-sm:data-[state=closed]:ease-in"
+            : "max-sm:data-[state=open]:animate-dialog-fade-in max-sm:data-[state=closed]:animate-dialog-fade-out",
           // sm+: centred on the viewport (not the content column beside the rail)
           "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-4 sm:rounded-lg sm:border sm:border-border sm:p-6 sm:pb-6",
-          "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+          animation === "default"
+            ? CENTRED_MOTION_SM
+            : "sm:data-[state=open]:animate-dialog-fade-in sm:data-[state=closed]:animate-dialog-fade-out",
         ],
         mobile === "center" && [
           "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-xl p-4",
-          CENTRED_MOTION,
+          // CENTRED_MOTION, not a bare zoom: see its doc comment. The `slide-*` halves
+          // seed the resting `-translate-*-1/2`, without which the panel flies in from
+          // the bottom right.
+          animation === "default"
+            ? CENTRED_MOTION
+            : "data-[state=open]:animate-dialog-fade-in data-[state=closed]:animate-dialog-fade-out",
           "sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:p-6",
         ],
         className,
@@ -115,7 +140,7 @@ const DialogFooter = ({
   <div
     className={cn(
       // Stick actions to the visible bottom of the sheet while content scrolls.
-      "sticky bottom-0 z-10 mt-auto flex flex-col-reverse gap-2 border-t border-border/70 bg-card/95 pt-3 backdrop-blur supports-[backdrop-filter]:bg-card/90 [&>a]:w-full [&>button]:w-full",
+      "sticky bottom-0 z-10 mt-auto flex flex-col-reverse gap-2 border-t border-border bg-card/95 pt-3 backdrop-blur supports-[backdrop-filter]:bg-card/90 [&>a]:w-full [&>button]:w-full",
       "sm:static sm:z-auto sm:mt-0 sm:border-0 sm:bg-transparent sm:pt-0 sm:backdrop-blur-none sm:flex-row sm:justify-end sm:gap-2 sm:[&>a]:w-auto sm:[&>button]:w-auto",
       className,
     )}
@@ -131,7 +156,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-snug tracking-tight",
+      "text-subhead font-semibold leading-snug tracking-tight",
       className,
     )}
     {...props}
@@ -145,7 +170,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-body text-muted-foreground", className)}
     {...props}
   />
 ));

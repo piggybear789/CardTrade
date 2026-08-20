@@ -119,7 +119,7 @@ export function PlacePicker({
           ) : null}
           <input
             id={id}
-            className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-body text-muted-foreground"
+            className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-body text-muted-foreground"
             value=""
             disabled
             readOnly

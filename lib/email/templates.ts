@@ -13,7 +13,7 @@ function wrap(body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;padding:24px;max-width:560px;margin:0 auto;">
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0c0b0a;padding:24px;max-width:560px;margin:0 auto;">
 ${body}
 <hr style="border:none;border-top:1px solid #e5e5e5;margin:32px 0 16px;">
 <p style="font-size:12px;color:#666;">This is an automated message from ${BRAND}. Do not reply to this email.</p>
@@ -22,7 +22,7 @@ ${body}
 }
 
 function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;padding:12px 24px;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">${label}</a>`;
+  return `<a href="${href}" style="display:inline-block;padding:12px 24px;background:#0c0b0a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">${label}</a>`;
 }
 
 export function inspectionDeadlineWarning(params: {
@@ -39,7 +39,7 @@ export function inspectionDeadlineWarning(params: {
 <p>Hi ${params.recipientName},</p>
 <p>Your inspection window closes in <strong>${params.hoursRemaining} hours</strong>. If you don't respond, the ${params.contractType} will auto-complete and funds will be released.</p>
 <p style="margin:24px 0;">${button(link, 'Review now')}</p>
-<p style="font-size:13px;color:#666;">If you're satisfied with what you received, you can accept early to release funds sooner.</p>`);
+<p style="font-size:13px;color:#666;">If you're satisfied with what you received, you can ${params.contractType === 'sale' ? 'complete the purchase' : 'accept'} early to release funds sooner.</p>`);
   return { subject, text, html };
 }
 
@@ -74,11 +74,11 @@ export function disputeRaised(params: {
 }) {
   const link = `${SITE_URL}/${params.contractType === 'sale' ? 'sales' : 'trades'}/${params.contractId}`;
   const subject = `A dispute was raised on your ${params.contractType}`;
-  const text = `Hi ${params.recipientName},\n\nThe other party raised a dispute on your ${params.contractType}. Funds are frozen while a CardTrade operator reviews it.\n\nView and respond: ${link}\n\n— ${BRAND}`;
+  const text = `Hi ${params.recipientName},\n\nThe other party raised a dispute on your ${params.contractType}. Funds are frozen while NoDitto support reviews it.\n\nView and respond: ${link}\n\n— ${BRAND}`;
   const html = wrap(`
 <h2 style="font-size:20px;margin:0 0 16px;">Dispute raised</h2>
 <p>Hi ${params.recipientName},</p>
-<p>The other party raised a dispute on your ${params.contractType}. All funds are frozen while a CardTrade operator reviews it.</p>
+<p>The other party raised a dispute on your ${params.contractType}. All funds are frozen while NoDitto support reviews it.</p>
 <p>You can submit your side of the story with evidence.</p>
 <p style="margin:24px 0;">${button(link, 'View dispute')}</p>`);
   return { subject, text, html };

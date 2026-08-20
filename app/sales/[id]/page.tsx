@@ -12,7 +12,6 @@ import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
-import { isPaymentDemoEnabled } from '@/domain/services';
 import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
 import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import { createClient } from '@/lib/supabase/server';
@@ -184,8 +183,11 @@ export default async function CashSalePage({
     // purchase, not a sale.
     <MarketplaceShell
       title={sale.buyer_id === user.id ? 'Purchase' : 'Sale'}
+      flush
     >
-      <ContractBackLink fallbackHref="/purchases" />
+      <ContractBackLink
+        fallbackHref={sale.buyer_id === user.id ? '/purchases' : '/sales'}
+      />
       <CashSaleView
         initialSale={sale}
         myUserId={user.id}
@@ -194,7 +196,6 @@ export default async function CashSalePage({
         conversationId={sale.conversation_id}
         deliveryAddress={deliveryAddress}
         trackingRefreshAvailable={isTrackingStatusPollingAvailable()}
-        paymentDemoEnabled={isPaymentDemoEnabled()}
         lineItems={lineItems}
         disputeEvidence={disputeEvidence}
         returnAddress={returnDetails ?? null}
@@ -202,8 +203,8 @@ export default async function CashSalePage({
       {sale.status === 'COMPLETED' ? (
         <div className="mt-6 flex flex-col items-stretch gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-body font-medium">Rate this transaction</p>
-            <p className="text-meta text-muted-foreground">
+            <p className="text-lead font-medium">Rate this transaction</p>
+            <p className="text-body text-muted-foreground">
               Share how it went with {counterparty.name}.
             </p>
           </div>

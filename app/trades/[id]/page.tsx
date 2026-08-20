@@ -215,8 +215,8 @@ export default async function TradePage({
     reviewSection = (
       <div className="mt-6 flex flex-col items-stretch gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-body font-medium">Rate this trade</p>
-          <p className="text-meta text-muted-foreground">
+          <p className="text-lead font-medium">Rate this trade</p>
+          <p className="text-body text-muted-foreground">
             Share how it went with {counterpartyName}.
           </p>
         </div>
@@ -237,7 +237,7 @@ export default async function TradePage({
   }
 
   return (
-    <MarketplaceShell title="Trade">
+    <MarketplaceShell title="Trade" flush>
       <ContractBackLink fallbackHref="/trades" />
       <TradeContract
         tradeId={trade.id}

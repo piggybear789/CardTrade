@@ -14,6 +14,7 @@ export function EmptyState({
   title,
   description,
   action,
+  help,
   className,
   compact = false,
   titleAs: Title = 'h2',
@@ -21,7 +22,12 @@ export function EmptyState({
   icon?: ReactNode;
   title: string;
   description: ReactNode;
-  action?: { label: string; href: string; variant?: 'default' | 'outline' };
+  action?: {
+    label: string;
+    variant?: 'default' | 'outline';
+    disabled?: boolean;
+  } & ({ href: string; onClick?: never } | { onClick: () => void; href?: never });
+  help?: { label: string; href: string };
   className?: string;
   compact?: boolean;
   /**
@@ -40,7 +46,7 @@ export function EmptyState({
         // Sits where the first row of content would: a section empty state
         // belongs under its heading, not floating in the middle of the viewport.
         // Full-page interstitials are centred by their shell instead.
-        'flex w-full flex-col items-center justify-center rounded-lg border border-dashed bg-card px-6 text-center',
+        'flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-6 text-center',
         compact ? 'py-10' : 'py-14 sm:py-16',
         className,
       )}
@@ -48,25 +54,45 @@ export function EmptyState({
       {icon ? (
         <div
           aria-hidden="true"
-          className="flex size-12 items-center justify-center rounded-full border bg-muted/40 text-muted-foreground"
+          className="flex size-12 items-center justify-center rounded-full border bg-muted text-muted-foreground"
         >
           {icon}
         </div>
       ) : null}
-      <Title className={cn('text-base font-semibold', icon && 'mt-4')}>
+      <Title className={cn('text-lead font-semibold', icon && 'mt-4')}>
         {title}
       </Title>
-      <p className="mt-1.5 max-w-sm text-pretty text-sm leading-6 text-muted-foreground">
+      <p className="mt-1.5 max-w-sm text-pretty text-body text-muted-foreground">
         {description}
       </p>
       {action ? (
-        <Button
-          asChild
-          variant={action.variant ?? 'default'}
-          className="mt-5 w-full sm:w-auto"
+        'href' in action && action.href ? (
+          <Button
+            asChild
+            variant={action.variant ?? 'default'}
+            className="mt-5 w-full sm:w-auto"
+          >
+            <Link href={action.href}>{action.label}</Link>
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant={action.variant ?? 'default'}
+            disabled={action.disabled}
+            onClick={'onClick' in action ? action.onClick : undefined}
+            className="mt-5 w-full sm:w-auto"
+          >
+            {action.label}
+          </Button>
+        )
+      ) : null}
+      {help ? (
+        <Link
+          href={help.href}
+          className="mt-3 text-body font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
-          <Link href={action.href}>{action.label}</Link>
-        </Button>
+          {help.label}
+        </Link>
       ) : null}
     </div>
   );

@@ -30,14 +30,18 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
 
   function save() {
     startTransition(async () => {
-      const result = await updateBio(bio.trim() || null);
-      if (!result.ok) {
-        toast.error(result.message ?? 'Your bio could not be saved.');
-        return;
+      try {
+        const result = await updateBio(bio.trim() || null);
+        if (!result.ok) {
+          toast.error(result.message ?? 'Your bio could not be saved.');
+          return;
+        }
+        setJustSaved(true);
+        toast.success('Bio saved.');
+        window.setTimeout(() => setJustSaved(false), 2000);
+      } catch {
+        toast.error('Network error saving bio. Please try again.');
       }
-      setJustSaved(true);
-      toast.success('Bio saved.');
-      window.setTimeout(() => setJustSaved(false), 2000);
     });
   }
 

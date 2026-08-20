@@ -23,10 +23,8 @@ test('B2: state at the moment the suggestion should appear', async ({ page }) =>
   await page.getByRole('radio', { name: /^One item/ }).check();
   await page.getByLabel('Title').fill('[E2E] probe state');
   await page.getByLabel('Description').fill('probe');
-  await page.locator('#category').click();
-  await page.getByRole('option', { name: 'Trading Cards' }).click();
-  await page.locator('#subcategory').click();
-  await page.getByRole('option').first().click();
+  await page.locator('#game').click();
+  await page.getByRole('option', { name: 'Pokémon' }).click();
   await page.locator('#condition').click();
   await page.getByRole('option', { name: 'Near Mint' }).click();
   await expect(page.locator('#condition')).toBeFocused({ timeout: 10_000 });

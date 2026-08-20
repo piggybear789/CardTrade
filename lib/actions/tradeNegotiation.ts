@@ -46,6 +46,7 @@ export type TradeNegotiationError =
   | 'not-verified'
   | 'not-participant'
   | 'not-negotiating'
+  | 'not-permitted'
   | 'stale-terms'
   | 'invalid-terms'
   | 'rejected'
@@ -68,7 +69,12 @@ export interface TradeTermsInput {
    * revising the postage must not erase the statement of what is being swapped.
    */
   counterpartGoodsDescription?: string | null;
-  handoverMethod: 'DELIVERY' | 'IN_PERSON';
+  /**
+   * How the goods change hands. An opening offer may omit this — the room is
+   * where face-to-face vs delivery is settled. A counter that requires complete
+   * terms still needs a method.
+   */
+  handoverMethod: 'DELIVERY' | 'IN_PERSON' | null;
   meetingLocation?: string | null;
   meetingLat?: number | null;
   meetingLng?: number | null;
@@ -122,15 +128,22 @@ function termsProblem(
   terms: TradeTermsInput,
   options?: { requireHandoverDetail?: boolean },
 ): string | null {
-  if (!Number.isInteger(terms.cashAmountCents) || terms.cashAmountCents < 0) {
-    return 'Enter a valid cash amount.';
+  if (
+    !Number.isInteger(terms.cashAmountCents) ||
+    terms.cashAmountCents < 0 ||
+    terms.cashAmountCents > 100_000_000
+  ) {
+    return 'Enter a valid cash amount up to $1,000,000.';
   }
-  // An OPENING offer only has to name a handover method — where and when to meet
-  // is one of the things the room exists to settle. A counter is different: it is
-  // a concrete proposal the other side is being asked to accept, so it must be
+  // An OPENING offer does not have to name a handover method — that is one of
+  // the things the room exists to settle. A counter is different: it is a
+  // concrete proposal the other side is being asked to accept, so it must be
   // complete. Requiring a resolved place up front is what forced the old flow to
   // collect meeting details before the two traders had even spoken.
   if (!options?.requireHandoverDetail) return null;
+  if (terms.handoverMethod !== 'DELIVERY' && terms.handoverMethod !== 'IN_PERSON') {
+    return 'Choose how the goods change hands.';
+  }
 
   // One validator, shared with the trade room's terms editor and with the Cash_Sale.
   // This function used to reimplement the resolved-place and future-time checks by
@@ -177,7 +190,7 @@ function termsParams(terms: TradeTermsInput) {
     p_cash_amount_cents: Math.trunc(terms.cashAmountCents),
     p_cash_direction: terms.cashDirection,
     p_declared_value_cents: terms.declaredValueCents ?? null,
-    p_handover_method: terms.handoverMethod,
+    p_handover_method: terms.handoverMethod ?? null,
     p_meeting_location: inPerson ? terms.meetingLocation?.trim() || null : null,
     p_meeting_lat: inPerson ? terms.meetingLat ?? null : null,
     p_meeting_lng: inPerson ? terms.meetingLng ?? null : null,
@@ -194,10 +207,15 @@ function termsParams(terms: TradeTermsInput) {
 const COUNTERPART_GOODS_MAX_LENGTH = 1000;
 
 /**
- * Counter: revise the terms of a live negotiation.
+ * Counter: revise the cash (and binder goods) of a live negotiation.
  *
- * Bumps the terms version and clears both acceptances, then re-applies the
- * caller's own — proposing terms means accepting them.
+ * THE LISTING OWNER SETS THE PRICE. The counterpart is the owner of the
+ * listing this trade was opened against. The initiator asks in chat; they
+ * do not write the number. Handover is a separate save and does not come
+ * through this action.
+ *
+ * A real cash / goods change bumps the terms version and clears both
+ * acceptances, then re-applies the caller's own.
  */
 export async function proposeTradeTerms(
   tradeId: string,
@@ -210,15 +228,38 @@ export async function proposeTradeTerms(
   const loaded = await loadParticipantTrade(tradeId, userId);
   if (!loaded.ok) return loaded;
 
-  const problem = termsProblem(terms, { requireHandoverDetail: true });
+  if (userId !== loaded.trade.counterpart_id) {
+    return {
+      ok: false,
+      error: 'not-permitted',
+      message: 'Only the listing owner can change the cash on this trade.',
+    };
+  }
+
+  const problem = termsProblem(terms);
   if (problem) return { ok: false, error: 'invalid-terms', message: problem };
+
+  // Keep the handover already on the row. This action is cash / goods only;
+  // meeting and postage are saved through `updateTradeHandoverTerms`.
+  const current = loaded.trade;
+  const handover: TradeTermsInput = {
+    ...terms,
+    handoverMethod: current.handover_method ?? terms.handoverMethod,
+    meetingLocation: current.meeting_location,
+    meetingLat: current.meeting_lat,
+    meetingLng: current.meeting_lng,
+    meetingPlaceId: current.meeting_place_id,
+    meetingAt: current.meeting_at,
+    deliveryDetails: current.delivery_details,
+    deliveryCostCents: current.delivery_cost_cents,
+  };
 
   const admin = createAdminClient();
   const { data, error } = await admin.rpc('update_trade_terms', {
     p_trade_id: tradeId,
     p_actor_id: userId,
     p_expected_terms_version: expectedTermsVersion,
-    ...termsParams(terms),
+    ...termsParams(handover),
   });
   if (error) {
     return {
@@ -239,8 +280,8 @@ export async function proposeTradeTerms(
   await createNotification({
     userId: loaded.counterpartyId,
     type: 'TRADE',
-    title: 'Counter offer received',
-    body: 'The trade terms were revised. Review and accept them to continue.',
+    title: 'Cash updated',
+    body: 'The listing owner changed the cash on this trade. Accept the new amount to continue.',
     link: `/trades/${tradeId}`,
   });
 
@@ -277,7 +318,7 @@ export async function acceptTradeTerms(
         message:
           partyId === userId
             ? identityGateMessage('trade', gate.state)
-            : 'The other trader has not finished payout setup, so this trade cannot enter escrow yet.',
+            : 'The other trader has not finished payout setup, so this trade cannot lock yet.',
       };
     }
   }

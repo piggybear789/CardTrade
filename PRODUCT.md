@@ -6,11 +6,11 @@ product
 
 ## Users
 
-Collectors buying, selling, and swapping high-value trading cards, coins, stamps, comics, and memorabilia. They need to assess counterparties quickly, agree clear terms, pay safely, and resolve condition or fraud disputes without relying on anonymous marketplace trust.
+Collectors buying, selling, and swapping high-value trading cards (TCGs and sports cards). They need to assess counterparties quickly, agree clear terms, pay safely, and resolve condition or fraud disputes without relying on anonymous marketplace trust. The go-to-market is deliberately cards-only to concentrate liquidity; the contract and escrow architecture stays category-agnostic so adjacent collectibles (comics, coins, memorabilia) can open later without rework.
 
 ## Product Purpose
 
-NoDitto.app is a safety-first peer-to-peer marketplace and clearinghouse for collectibles. It reduces impersonation and transaction risk through DittoShield identity checks, collateral-backed contracts, transparent deal states, and payments handled by Stripe. Success means collectors can confidently complete cash sales, swaps, and private deals while understanding who is verified, what is protected, and what happens next.
+NoDitto.app is a safety-first peer-to-peer marketplace and clearinghouse for collectibles. It reduces impersonation and transaction risk through Stripe Identity checks, collateral-backed contracts, transparent deal states, and payments handled by Stripe. Success means collectors can confidently complete cash sales, swaps, and private deals while understanding who is verified, what is protected, and what happens next.
 
 ## Brand Personality
 
@@ -26,7 +26,7 @@ Playful, protective, and expert. NoDitto uses light Ditto-inspired language to m
 
 ## Design Principles
 
-1. **Trust is visible and specific.** Show what DittoShield verified, what collateral protects, and what Stripe handles.
+1. **Trust is visible and specific.** Show what Stripe Identity verified, what collateral protects, and what Stripe handles.
 2. **Play at the edges, precision at the core.** Use Ditto personality in welcome moments, guidance, and empty states; use plain language for contracts, payments, disputes, and errors.
 3. **Collector credibility comes first.** Preserve the premium auction-ledger foundation while adding restrained Ditto-purple character moments.
 4. **Every deal explains itself.** Users should always know the current state, responsible party, next action, and consequence.

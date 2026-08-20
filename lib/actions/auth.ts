@@ -130,7 +130,7 @@ export async function signUp(
     if (/already\s*(registered|been registered|exists)|already in use/i.test(error.message)) {
       return fail('DUPLICATE_ACCOUNT', 'An account with this email already exists.', 'email');
     }
-    return fail('SIGN_UP_FAILED', error.message);
+    return fail('SIGN_UP_FAILED', 'Could not create your account. Please try again.');
   }
 
   const user = data.user;
@@ -162,7 +162,7 @@ export async function signUp(
     }
     return fail(
       'PROFILE_CREATION_FAILED',
-      `Account created but profile setup failed: ${profileError.message}`,
+      'Account created but profile setup failed. Please try again.',
     );
   }
 
@@ -323,10 +323,20 @@ export async function resendConfirmation(
  *
  * Validates against the SAME password bounds as sign-up, through the shared schema, so
  * recovery cannot set a password sign-up would have refused.
+ *
+ * Rate-limited on the same bucket as the rest of the auth actions: a live recovery
+ * session is a credential, and an unthrottled setter is worth guarding even though the
+ * caller already holds one.
  */
 export async function updatePassword(
   password: string,
 ): Promise<ActionResult<{ updated: true }, UpdatePasswordError>> {
+  const identifier = await rateLimitIdentifier();
+  const { allowed } = await authLimiter.check(identifier);
+  if (!allowed) {
+    return fail('VALIDATION', 'Too many attempts. Please wait a minute and try again.');
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -370,7 +380,7 @@ export async function signOut(): Promise<ActionResult<null, SignOutError>> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
   if (error) {
-    return fail('SIGN_OUT_FAILED', error.message);
+    return fail('SIGN_OUT_FAILED', 'Could not sign out. Please try again.');
   }
   return ok(null);
 }
@@ -454,3 +464,10 @@ export async function signInWithGoogle(
 
   return ok({ url: data.url });
 }
+
+// The password-reset pair lives with the other email-link actions above
+// (`requestPasswordReset`, `resendConfirmation`, `updatePassword`). A second
+// implementation of both arrived on origin/main pointing at
+// `/auth/callback?next=/reset-password`; it was dropped in the merge rather than kept
+// alongside, because `/auth/callback` does not carry a recovery token under
+// `@supabase/ssr` — see `app/auth/confirm/route.ts` for why that route exists.

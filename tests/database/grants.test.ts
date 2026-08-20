@@ -89,6 +89,10 @@ const MUST_WORK: GrantCheck[] = [
   { flow: 'chat: send body', table: 'messages', column: 'body', privilege: 'INSERT', allowed: true },
   { flow: 'chat: send sets sender', table: 'messages', column: 'sender_id', privilege: 'INSERT', allowed: true },
   { flow: 'chat: send names thread', table: 'messages', column: 'conversation_id', privilege: 'INSERT', allowed: true },
+  { flow: 'chat: attach file path', table: 'messages', column: 'attachment_path', privilege: 'INSERT', allowed: true },
+  { flow: 'chat: attach file name', table: 'messages', column: 'attachment_name', privilege: 'INSERT', allowed: true },
+  { flow: 'chat: attach file type', table: 'messages', column: 'attachment_mime', privilege: 'INSERT', allowed: true },
+  { flow: 'chat: attach file size', table: 'messages', column: 'attachment_bytes', privilege: 'INSERT', allowed: true },
   { flow: 'chat: mark read', table: 'messages', column: 'read_at', privilege: 'UPDATE', allowed: true },
 
   // Notifications, watchlist, reviews, reports.
@@ -117,6 +121,7 @@ const MUST_WORK: GrantCheck[] = [
   { flow: 'read: counterparty address', table: 'trade_delivery_details', privilege: 'SELECT', allowed: true },
   { flow: 'read: public profiles', table: 'public_profiles', privilege: 'SELECT', allowed: true },
   { flow: 'read: public profiles anonymously', table: 'public_profiles', privilege: 'SELECT', role: 'anon', allowed: true },
+  { flow: 'read: own deal invites', table: 'deal_invites', privilege: 'SELECT', allowed: true },
 ];
 
 /**
@@ -188,6 +193,10 @@ const MUST_NOT_WORK: GrantCheck[] = [
   { flow: 'MONEY: forge a webhook log', table: 'webhook_logs', privilege: 'INSERT', allowed: false },
   { flow: 'MONEY: edit the region table', table: 'regions', privilege: 'UPDATE', allowed: false },
   { flow: 'MONEY: write an arbitration note', table: 'arbitration_notes', privilege: 'INSERT', allowed: false },
+  { flow: 'MONEY: insert a deal invite', table: 'deal_invites', privilege: 'INSERT', allowed: false },
+  { flow: 'MONEY: update a deal invite', table: 'deal_invites', privilege: 'UPDATE', allowed: false },
+  { flow: 'MONEY: delete a deal invite', table: 'deal_invites', privilege: 'DELETE', allowed: false },
+  { flow: 'MONEY: read deal invites anonymously', table: 'deal_invites', privilege: 'SELECT', role: 'anon', allowed: false },
 ];
 
 const ALL_CHECKS = [...MUST_WORK, ...MUST_NOT_WORK];

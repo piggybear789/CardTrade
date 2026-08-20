@@ -72,10 +72,10 @@ export type StatusTone = 'verified' | 'pending' | 'required' | 'neutral';
 const TONE_CLASS: Record<StatusTone, string> = {
   // `trust` is the app's reserved verification colour (see globals.css) — the
   // reference's emerald would introduce a second "this is confirmed" hue.
-  verified: 'border-trust/25 bg-trust/10 text-trust',
-  pending: 'border-gold/30 bg-gold/10 text-gold',
+  verified: 'border-trust/40 bg-trust/10 text-trust',
+  pending: 'border-gold/40 bg-gold/10 text-gold',
   required: 'border-border bg-muted text-muted-foreground',
-  neutral: 'border-border bg-muted/60 text-muted-foreground',
+  neutral: 'border-border bg-muted text-muted-foreground',
 };
 
 /** Compact status pill. Icon is optional and always decorative. */
@@ -92,7 +92,7 @@ export function StatusPill({
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-tight rounded-full border px-2 py-0.5',
-        'text-[0.6875rem] font-medium leading-tight',
+        'text-meta font-medium leading-tight',
         TONE_CLASS[tone],
       )}
     >
@@ -148,6 +148,7 @@ export function SettingsRow({
   subtitle,
   trailing,
   children,
+  inverse = false,
   className,
 }: {
   icon?: LucideIcon;
@@ -157,16 +158,48 @@ export function SettingsRow({
   trailing?: ReactNode;
   /** Extra content rendered beneath the row, inside the same border. */
   children?: ReactNode;
+  /** Black card, white type — used for a saved payment method. */
+  inverse?: boolean;
   className?: string;
 }) {
+  const IconGlyph = icon;
   return (
-    <div className={cn('rounded-xl border bg-card', className)}>
+    <div
+      className={cn(
+        'rounded-xl border bg-card',
+        inverse && 'border-white/15 bg-obsidian',
+        className,
+      )}
+    >
       <div className="flex flex-wrap items-center gap-x-group gap-y-cozy p-group">
-        {icon ? <IconMedallion icon={icon} tone={tone} /> : null}
+        {IconGlyph ? (
+          inverse ? (
+            <span
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-parchment"
+              aria-hidden
+            >
+              <IconGlyph className="size-4" />
+            </span>
+          ) : (
+            <IconMedallion icon={IconGlyph} tone={tone} />
+          )
+        ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-body font-semibold text-foreground">{title}</p>
+          <p
+            className={cn(
+              'text-lead font-semibold',
+              inverse ? 'text-parchment' : 'text-foreground',
+            )}
+          >
+            {title}
+          </p>
           {subtitle ? (
-            <p className="mt-0.5 text-meta text-muted-foreground">
+            <p
+              className={cn(
+                'mt-0.5 text-body',
+                inverse ? 'text-parchment/65' : 'text-muted-foreground',
+              )}
+            >
               {subtitle}
             </p>
           ) : null}
@@ -193,7 +226,7 @@ export function SettingsPlaceholder({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-cozy rounded-xl border border-dashed px-group py-group">
-      <p className="text-meta text-muted-foreground">{children}</p>
+      <p className="text-body text-muted-foreground">{children}</p>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
@@ -221,8 +254,8 @@ export function StatTile({
       </div>
       {/* `display-value` is the existing ledger-figure class: sans, bold, with
           tabular figures so columns of money align. */}
-      <p className="display-value mt-4 text-subhead">{value}</p>
-      {sub ? <p className="mt-1 font-sans text-meta text-muted-foreground">{sub}</p> : null}
+      <p className="display-value mt-4 text-lead">{value}</p>
+      {sub ? <p className="mt-1 font-sans text-body text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }

@@ -26,6 +26,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { navigateWithType } from "@/lib/motion/navigate";
+import { FieldError } from "@/components/motion/FieldError";
 import { toast } from "sonner";
 import { ImageOff, ImagePlus, Library, Package, X } from "lucide-react";
 
@@ -35,6 +37,7 @@ import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
+import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { uploadItemImages } from "@/lib/storage/uploadItemImages";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,88 +60,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/**
- * Fixed two-level collectible taxonomy. Managed by migration, not users.
- *
- * This MUST stay byte-identical to the `cardtrade.categories` seed (migrations
- * 0062 and 0063): the form submits the subcategory `name` into the free-text
- * `items.category` column, and `searchCatalog` filters on that exact string.
- *
- * Trading Cards subcategories are ordered by market size (TCGplayer GMV for
- * Q2 2026), not alphabetically, so the likely pick sits at the top of the list.
- */
-const TAXONOMY = [
-  {
-    name: 'Trading Cards',
-    slug: 'trading-cards',
-    subcategories: [
-      { name: 'Pokémon', slug: 'pokemon' },
-      { name: 'Magic: The Gathering', slug: 'magic-the-gathering' },
-      { name: 'One Piece', slug: 'one-piece' },
-      { name: 'Yu-Gi-Oh!', slug: 'yu-gi-oh' },
-      { name: 'Disney Lorcana', slug: 'disney-lorcana' },
-      { name: 'Riftbound', slug: 'riftbound' },
-      { name: 'Gundam', slug: 'gundam' },
-      { name: 'Dragon Ball Super', slug: 'dragon-ball-super' },
-      { name: 'Digimon', slug: 'digimon' },
-      { name: 'Star Wars: Unlimited', slug: 'star-wars-unlimited' },
-      { name: 'Flesh and Blood', slug: 'flesh-and-blood' },
-      { name: 'Union Arena', slug: 'union-arena' },
-      { name: 'Weiss Schwarz', slug: 'weiss-schwarz' },
-      { name: 'Cardfight!! Vanguard', slug: 'cardfight-vanguard' },
-      { name: 'Sports Cards', slug: 'sports-cards' },
-      { name: 'Other TCG', slug: 'other-tcg' },
-    ],
-  },
-  {
-    name: 'Coins & Banknotes',
-    slug: 'coins-banknotes',
-    subcategories: [
-      { name: 'Coins', slug: 'coins' },
-      { name: 'Banknotes', slug: 'banknotes' },
-      { name: 'Tokens & Medals', slug: 'tokens-medals' },
-    ],
-  },
-  {
-    name: 'Stamps',
-    slug: 'stamps',
-    subcategories: [
-      { name: 'Australian', slug: 'stamps-australian' },
-      { name: 'International', slug: 'stamps-international' },
-      { name: 'First Day Covers', slug: 'first-day-covers' },
-    ],
-  },
-  {
-    name: 'Comics',
-    slug: 'comics',
-    subcategories: [
-      { name: 'Single Issues', slug: 'single-issues' },
-      { name: 'Graphic Novels', slug: 'graphic-novels' },
-      { name: 'Manga', slug: 'manga' },
-    ],
-  },
-  {
-    name: 'Memorabilia',
-    slug: 'memorabilia',
-    subcategories: [
-      { name: 'Sports', slug: 'memorabilia-sports' },
-      { name: 'Entertainment', slug: 'memorabilia-entertainment' },
-      { name: 'Historical', slug: 'memorabilia-historical' },
-      { name: 'Autographs', slug: 'autographs' },
-    ],
-  },
-  {
-    name: 'Figurines & Toys',
-    slug: 'figurines-toys',
-    subcategories: [
-      { name: 'Action Figures', slug: 'action-figures' },
-      { name: 'Model Kits', slug: 'model-kits' },
-      { name: 'Plush', slug: 'plush' },
-      { name: 'Vintage Toys', slug: 'vintage-toys' },
-    ],
-  },
-] as const;
-
 /** Condition grades shown for a collectible, matching TCGplayer's standard scale. */
 const CONDITIONS = [
   "Graded",
@@ -156,8 +77,6 @@ const IMAGES_MAX = 10;
 
 /** Which server field a validation error maps to for inline display. */
 type ErrorField =
-  // No "title" — it is derived from the description, so a title error is not a
-  // field the seller can act on. deriveItemTitle guarantees the bounds instead.
   | "description"
   | "category"
   | "condition"
@@ -232,44 +151,11 @@ function centsToDollars(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
-/** Resolve the selected subcategory slug to its display name for the DB. */
-function subcategoryName(slug: string): string {
-  for (const group of TAXONOMY) {
-    for (const sub of group.subcategories) {
-      if (sub.slug === slug) return sub.name;
-    }
-  }
-  return slug;
-}
-
 export function ItemForm({ mode, item }: ItemFormProps) {
   const router = useRouter();
 
   const [description, setDescription] = React.useState(item?.description ?? "");
-  const [category, setCategory] = React.useState(() => {
-    // In edit mode, infer the top-level category from the item's text category.
-    if (!item?.category) return "";
-    // Check if it matches a subcategory name directly
-    for (const group of TAXONOMY) {
-      for (const sub of group.subcategories) {
-        if (sub.name === item.category) return group.slug;
-      }
-    }
-    // Check if it matches a top-level name
-    for (const group of TAXONOMY) {
-      if (group.name === item.category) return group.slug;
-    }
-    return "";
-  });
-  const [subcategory, setSubcategory] = React.useState(() => {
-    if (!item?.category) return "";
-    for (const group of TAXONOMY) {
-      for (const sub of group.subcategories) {
-        if (sub.name === item.category) return sub.slug;
-      }
-    }
-    return "";
-  });
+  const [game, setGame] = React.useState(() => cardGameSlug(item?.category));
   const [condition, setCondition] = React.useState(item?.condition ?? "");
   // Immutable after creation: contracts already open against a shopfront depend
   // on it not being reserved, and a single listing's live contract depends on the
@@ -328,23 +214,17 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     event.preventDefault();
     setError(null);
 
+    if (!game) {
+      setError({ field: "category", message: "Select the card game." });
+      return;
+    }
+
     // Client-side FMV parse (Req 3.2): keep dollars<->cents conversion explicit.
     const fmvCents = dollarsToCents(fmvDollars);
     if (fmvCents === null) {
       setError({
         field: "fmvCents",
         message: "Enter a price in dollars (e.g. 123.45).",
-      });
-      return;
-    }
-
-    // Enforce subcategory selection (two-level taxonomy is required).
-    if (!subcategory) {
-      setError({
-        field: "category",
-        message: !category
-          ? "Select a category and subcategory."
-          : "Select a subcategory.",
       });
       return;
     }
@@ -405,7 +285,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       if (mode === "create") {
         const result = await createItem({
           description,
-          category: subcategoryName(subcategory),
+          category: cardGameName(game),
           condition,
           fmvCents,
           images: uploadedPaths,
@@ -415,7 +295,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
         if (result.ok) {
           toast.success("Listing created");
-          router.push(`/listings/${result.data.id}`);
+          navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
         }
@@ -426,7 +306,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         const images: string[] = [...keptPaths, ...uploadedPaths];
         const result = await updateItem(item!.id, {
           description,
-          category: subcategoryName(subcategory),
+          category: cardGameName(game),
           condition,
           fmvCents,
           images,
@@ -435,7 +315,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
         if (result.ok) {
           toast.success("Listing updated");
-          router.push(`/listings/${result.data.id}`);
+          navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
         }
@@ -472,7 +352,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   }
 
   const descriptionError = errorFor("description");
-  const categoryError = errorFor("category");
+  const gameError = errorFor("category");
   const conditionError = errorFor("condition");
   const fmvError = errorFor("fmvCents");
   const imagesError = errorFor("images");
@@ -512,7 +392,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // popover in this rail can grow downwards.
   return (
     <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
-      <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border/80 lg:px-7 lg:pb-5 lg:pt-7">
+      <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7">
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
         </CardTitle>
@@ -531,7 +411,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               yield space to the filmstrip instead of overflowing the fixed panel: a
               grid item defaults to `min-height:auto`, which refuses to shrink below
               its content. */}
-          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-muted/20 lg:p-8">
+          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-muted lg:p-8">
             <Label htmlFor="images">Photos</Label>
             <p className="text-body text-muted-foreground">
               Add {IMAGES_MIN}–{IMAGES_MAX} photos. {totalImages} selected.
@@ -560,7 +440,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted/40 text-muted-foreground transition-colors hover:border-ring hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 lg:aspect-auto lg:min-h-[10rem] lg:max-h-none lg:flex-1`}
+              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-gold/40 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -671,7 +551,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex aspect-square w-full items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-ring hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex aspect-square w-full items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-gold/40 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
                       aria-label="Add another photo"
                     >
                       <ImagePlus className="size-5" aria-hidden />
@@ -682,13 +562,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             ) : null}
 
             {imagesError ? (
-              <p
-                id="images-error"
-                role="alert"
-                className="text-body text-destructive"
-              >
-                {imagesError}
-              </p>
+              <FieldError id="images-error" message={imagesError} />
             ) : null}
           </div>
 
@@ -699,7 +573,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               `lg:min-h-0` is required, not cosmetic: a grid item defaults to
               `min-height:auto`, which grows the row to fit its content and would
               silently defeat `overflow-y-auto`. */}
-          <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border/80 lg:px-7 lg:pb-7">
+          <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-7 lg:pb-7">
             {/* Listing kind (0064). First, because it changes what the rest of
                 this form means: for a shopfront the price below is only a guide
                 and the condition covers a mixed pile. Locked in edit mode. */}
@@ -739,118 +613,54 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : null}
             </fieldset>
 
-            {/* ONE PIECE OF PROSE, no separate Title field. The short label used in
-                notifications, email subjects and arbitration case lists is derived
-                from this by `deriveItemTitle` — the seller states what they are
-                selling once. Two fields produced two versions of the same fact, and
-                the card showed whichever was weaker. */}
             <div className="space-y-2">
-              <Label htmlFor="description">Describe what you are selling</Label>
+              <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 name="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
-                // Taller than the old 5 rows because this is now the ONLY prose a
-                // seller writes — it carries what used to be a title AND a
-                // description, and the derived listing label comes off its opening
-                // line. A five-row box invited five rows' worth of detail. Merging
-                // the three taxonomy selects onto one row above pays for most of the
-                // extra height, so the rail (and the photo panel that matches it)
-                // does not grow much overall.
-                rows={9}
+                rows={6}
                 aria-invalid={descriptionError ? true : undefined}
                 aria-describedby={
-                  descriptionError ? "description-error" : "description-hint"
+                  descriptionError ? "description-error" : undefined
                 }
                 disabled={isSubmitting}
               />
-              <p id="description-hint" className="text-body text-muted-foreground">
-                The opening line is what buyers see on your listing card, so lead with
-                what it is.
+              <p className="text-body text-muted-foreground">
+                The first line is used as the listing title in the catalog.
               </p>
               {descriptionError ? (
-                <p
-                  id="description-error"
-                  role="alert"
-                  className="text-body text-destructive"
-                >
-                  {descriptionError}
-                </p>
+                <FieldError id="description-error" message={descriptionError} />
               ) : null}
             </div>
 
-            {/* Category + Subcategory + Condition, on ONE row — which is what the
-                comment here always claimed. Condition had drifted into its own
-                `sm:grid-cols-2` grid with a single child, so it rendered half-width
-                against an empty cell and broke the column rhythm the row above set.
-
-                `gap-3` rather than `gap-5`: three selects share the details rail
-                (~512px at `lg`), so the gap is width taken from the controls, and a
-                truncated "Trading Cards" costs more than 8px of separation buys. */}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="game">Game</Label>
                 <Select
-                  value={category}
-                  onValueChange={(v) => {
-                    setCategory(v);
-                    setSubcategory("");
-                  }}
+                  value={game}
+                  onValueChange={setGame}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger
-                    id="category"
-                    aria-invalid={categoryError && !subcategory ? true : undefined}
-                    aria-describedby={
-                      categoryError ? "category-error" : undefined
-                    }
+                    id="game"
+                    aria-invalid={gameError ? true : undefined}
+                    aria-describedby={gameError ? "game-error" : undefined}
                   >
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder="Select a game" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TAXONOMY.map((group) => (
-                      <SelectItem key={group.slug} value={group.slug}>
-                        {group.name}
+                    {CARD_GAMES.map((option) => (
+                      <SelectItem key={option.slug} value={option.slug}>
+                        {option.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="subcategory">Subcategory</Label>
-                <Select
-                  value={subcategory}
-                  onValueChange={(v) => setSubcategory(v)}
-                  disabled={isSubmitting || !category}
-                >
-                  <SelectTrigger
-                    id="subcategory"
-                    aria-invalid={categoryError ? true : undefined}
-                    aria-describedby={
-                      categoryError ? "category-error" : undefined
-                    }
-                  >
-                    <SelectValue placeholder={category ? "Select a subcategory" : "Pick a category first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(TAXONOMY.find((g) => g.slug === category)?.subcategories ?? []).map((sub) => (
-                      <SelectItem key={sub.slug} value={sub.slug}>
-                        {sub.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {categoryError ? (
-                  <p
-                    id="category-error"
-                    role="alert"
-                    className="text-body text-destructive"
-                  >
-                    {categoryError}
-                  </p>
+                {gameError ? (
+                  <FieldError id="game-error" message={gameError} />
                 ) : null}
               </div>
 
@@ -881,13 +691,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   </SelectContent>
                 </Select>
                 {conditionError ? (
-                  <p
-                    id="condition-error"
-                    role="alert"
-                    className="text-body text-destructive"
-                  >
-                    {conditionError}
-                  </p>
+                  <FieldError id="condition-error" message={conditionError} />
                 ) : null}
               </div>
             </div>
@@ -912,6 +716,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 }
                 disabled={isSubmitting}
               />
+              <FieldError id="fmv-error" message={fmvError} />
             </div>
 
             <div className="space-y-2">
@@ -927,18 +732,22 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             </div>
 
             {generalError ? (
-              <p role="alert" className="text-body text-destructive">
-                {generalError}
-              </p>
+              <FieldError message={generalError} />
             ) : null}
           </div>
         </CardContent>
 
-        <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted/20 px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border/80 lg:px-7">
+        <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.back()}
+            onClick={() =>
+              navigateWithType(
+                router,
+                item ? `/listings/${item.id}` : "/listings",
+                "nav-back",
+              )
+            }
             disabled={isSubmitting}
             className="w-full sm:w-auto"
           >

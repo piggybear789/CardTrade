@@ -36,7 +36,7 @@ export interface IdentityCheckCardProps {
   status: IdentityCheckStatus;
   /** The document-backed name, once Stripe has reported one. */
   verifiedName?: string | null;
-  /** Where the provider should return the member. Defaults to the payouts page. */
+  /** Where the provider should return the member. Defaults to the verification tab. */
   returnPath?: string;
   /** Drop the surrounding Card chrome, for use inside a dialog or a grid cell. */
   compact?: boolean;
@@ -55,7 +55,7 @@ const BADGE: Record<
 export function IdentityCheckCard({
   status,
   verifiedName = null,
-  returnPath = '/profile/payouts',
+  returnPath = '/profile?tab=verification',
   compact = false,
 }: IdentityCheckCardProps) {
   const [isPending, startTransition] = useTransition();
@@ -136,10 +136,8 @@ export function IdentityCheckCard({
   if (compact) return body;
 
   return (
-    // `id` is the anchor target for `/profile/payouts#identity`, which several
-    // surfaces link to — the onboarding fallback when no hosted URL came back, and
-    // the payouts dashboard. Without it those fragments were silently ignored and the
-    // member landed at the top of a page with several cards on it.
+    // `id` is the in-page anchor if a fragment still lands here. The hosted
+    // return and onboarding fallback now go to `/profile?tab=verification`.
     <Card id="identity" className="h-full scroll-mt-24">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-cozy">

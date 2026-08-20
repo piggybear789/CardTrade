@@ -32,7 +32,6 @@ import { useRef, useState, useTransition, type ReactNode } from 'react';
 import Image from 'next/image';
 import {
   Eye,
-  FileText,
   Loader2,
   Lock,
   Paperclip,
@@ -58,6 +57,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { formatContractDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
 
 export interface DisputeEvidencePanelProps {
   caseKind: DisputeCaseKind;
@@ -85,13 +85,21 @@ export interface DisputeEvidencePanelProps {
 }
 
 /** One attachment, rendered as a thumbnail or a video frame. */
-function MediaTile({ path, url }: { path: string; url: string | null }) {
+function MediaTile({
+  path,
+  url,
+  onOpen,
+}: {
+  path: string;
+  url: string | null;
+  onOpen?: () => void;
+}) {
   const video = isVideoPath(path);
 
   if (!url) {
     return (
-      <div className="grid aspect-square place-items-center rounded-lg border border-dashed bg-muted/40 text-muted-foreground">
-        <span className="px-2 text-center text-[10px] leading-tight">
+      <div className="grid aspect-square place-items-center rounded-lg border border-dashed bg-muted text-muted-foreground">
+        <span className="px-2 text-center text-body leading-tight">
           Attachment unavailable
         </span>
       </div>
@@ -106,17 +114,16 @@ function MediaTile({ path, url }: { path: string; url: string | null }) {
         src={url}
         controls
         preload="metadata"
-        className="aspect-square w-full rounded-lg border bg-black object-contain"
+        className="aspect-square w-full rounded-lg border bg-obsidian object-contain"
       />
     );
   }
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group relative block aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group relative aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {/* Unoptimised: these are signed, short-lived URLs on a private bucket, so the
           image optimiser cannot cache them and would only add a hop that expires. */}
@@ -127,19 +134,19 @@ function MediaTile({ path, url }: { path: string; url: string | null }) {
         unoptimized
         className="object-cover transition-transform group-hover:scale-105"
       />
-    </a>
+    </button>
   );
 }
 
 /** One party's submission. */
 function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const photoUrls = entry.media.flatMap((media) =>
+    media.url && !isVideoPath(media.path) ? [media.url] : [],
+  );
+
   return (
-    <li
-      className={cn(
-        'rounded-xl border px-group py-cozy',
-        entry.mine ? 'border-gold/40 bg-gold/5' : 'bg-card',
-      )}
-    >
+    <li className="space-y-snug">
       <div className="flex flex-wrap items-baseline justify-between gap-snug">
         <p className="text-body font-semibold">
           {entry.mine ? 'Your statement' : entry.authorName}
@@ -153,11 +160,28 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
       </p>
       {entry.media.length > 0 ? (
         <div className="mt-cozy grid grid-cols-3 gap-snug sm:grid-cols-4">
-          {entry.media.map((media) => (
-            <MediaTile key={media.path} path={media.path} url={media.url} />
-          ))}
+          {entry.media.map((media) => {
+            const photoIndex =
+              media.url && !isVideoPath(media.path)
+                ? photoUrls.indexOf(media.url)
+                : -1;
+            return (
+              <MediaTile
+                key={media.path}
+                path={media.path}
+                url={media.url}
+                onOpen={photoIndex >= 0 ? () => setLightboxIndex(photoIndex) : undefined}
+              />
+            );
+          })}
         </div>
       ) : null}
+      <ContractImageLightbox
+        images={photoUrls}
+        openIndex={lightboxIndex}
+        onOpenChange={setLightboxIndex}
+        label="Dispute evidence"
+      />
     </li>
   );
 }
@@ -236,26 +260,20 @@ export function DisputeEvidencePanel({
       {/* The claim that opened the case. Shown first because everything below is a
           response to it. */}
       {disputeReason ? (
-        <div className="rounded-xl border border-destructive/25 bg-destructive/[0.06] p-group">
-          <div className="flex items-center gap-snug text-destructive">
+        <div className="space-y-snug">
+          <h3 className="flex items-center gap-snug text-meta font-semibold uppercase tracking-wide text-destructive">
             <ShieldAlert className="size-4 shrink-0" aria-hidden />
-            <h3 className="text-meta font-semibold uppercase tracking-wide">
-              Why this is in dispute
-            </h3>
-          </div>
-          <p className="mt-2 whitespace-pre-line break-words text-pretty text-lead font-medium">
+            Why this is in dispute
+          </h3>
+          <p className="whitespace-pre-line break-words text-pretty text-lead font-medium">
             {disputeReason}
           </p>
           {raisedByName ? (
-            <p className="mt-1.5 text-meta text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               Raised by {raisedByName}. This is a claim, not a finding.
             </p>
           ) : null}
-          {resolution ? (
-            <div className="mt-group border-t border-destructive/15 pt-group">
-              {resolution}
-            </div>
-          ) : null}
+          {resolution ? <div className="pt-snug">{resolution}</div> : null}
         </div>
       ) : null}
 
@@ -270,7 +288,7 @@ export function DisputeEvidencePanel({
               </span>
             ) : null}
           </h3>
-          <span className="inline-flex items-center gap-tight text-meta text-muted-foreground">
+          <span className="inline-flex items-center gap-tight text-body text-muted-foreground">
             <Eye className="size-3.5 shrink-0" aria-hidden />
             Visible to both parties &amp; staff
           </span>
@@ -281,15 +299,9 @@ export function DisputeEvidencePanel({
         </p>
 
         {entries.length === 0 ? (
-          <div className="mt-group flex flex-col items-center justify-center gap-snug rounded-xl border border-dashed bg-muted/40 px-section py-section text-center">
-            <div className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <FileText className="size-4" aria-hidden />
-            </div>
-            <p className="text-body font-medium">Nothing submitted yet</p>
-            <p className="max-w-sm text-pretty text-meta text-muted-foreground">
-              Explain with details to help arbitration.
-            </p>
-          </div>
+          <p className="mt-group text-body text-muted-foreground">
+            Nothing submitted yet. Explain with details to help arbitration.
+          </p>
         ) : (
           <ul className="mt-group space-y-cozy">
             {entries.map((entry) => (
@@ -309,7 +321,7 @@ export function DisputeEvidencePanel({
           </h3>
           {/* Stated BEFORE the field, not after submitting. Finality is the surprising
               part of this form and the header note explains why it is deliberate. */}
-          <p className="mt-1 inline-flex items-center gap-tight text-meta text-muted-foreground">
+          <p className="mt-1 inline-flex items-center gap-tight text-body text-muted-foreground">
             <Lock className="size-3.5 shrink-0" aria-hidden />
             Submissions are final. Add another entry if you have more to say.
           </p>
@@ -329,7 +341,7 @@ export function DisputeEvidencePanel({
               </label>
               {/* The count lives inside the field's own border rather than floating
                   under it, so the control reads as one object. */}
-              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-gold/40 focus-within:ring-2 focus-within:ring-ring/30">
                 <textarea
                   id="evidence-statement"
                   value={statement}
@@ -339,7 +351,7 @@ export function DisputeEvidencePanel({
                   placeholder="What you sent or received, its condition, the dates that matter, and anything the tracking or photos show."
                   disabled={busy}
                   aria-describedby="evidence-statement-count"
-                  className="block w-full resize-y bg-transparent px-3.5 py-cozy text-body placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
+                  className="block w-full resize-y bg-transparent px-3.5 py-cozy text-lead placeholder:text-muted-foreground focus:outline-none disabled:opacity-60 sm:text-body"
                 />
                 <div className="flex items-center justify-end border-t px-3.5 py-snug">
                   <span
@@ -373,7 +385,7 @@ export function DisputeEvidencePanel({
                   {files.map((file, index) => (
                     <li
                       key={`${file.name}-${index}`}
-                      className="inline-flex max-w-full items-center gap-tight rounded-lg border bg-muted/60 py-1 pl-snug pr-1 text-meta"
+                      className="inline-flex max-w-full items-center gap-tight rounded-lg border bg-muted py-1 pl-snug pr-1 text-body"
                     >
                       <span className="truncate">{file.name}</span>
                       <span className="shrink-0 tabular-nums text-muted-foreground">
@@ -433,7 +445,7 @@ export function DisputeEvidencePanel({
                   rule, so "add your account" alone would be misleading once a member
                   has typed two words and the button is still dead. */}
               {!busy && !longEnough ? (
-                <p className="text-meta text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   {trimmed.length === 0
                     ? 'Add your account before submitting.'
                     : `At least ${EVIDENCE_STATEMENT_MIN} characters.`}

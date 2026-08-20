@@ -26,7 +26,7 @@ export function SectionHeader({
   mobileAction?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         <h2 className="text-balance text-head font-semibold tracking-[-0.025em]">
           {title}
@@ -41,7 +41,7 @@ export function SectionHeader({
       {/* Full width when it stacks under the heading, natural width once the
           header turns into a row. */}
       {mobileAction ? (
-        <div className="w-full min-w-0 sm:w-auto sm:shrink-0 lg:hidden [&>a]:w-full sm:[&>a]:w-auto">
+        <div className="w-full min-w-0 sm:w-auto sm:shrink-0 md:hidden [&>a]:w-full sm:[&>a]:w-auto">
           {mobileAction}
         </div>
       ) : null}

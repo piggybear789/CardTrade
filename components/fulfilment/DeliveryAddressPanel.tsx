@@ -115,39 +115,37 @@ export function DeliveryAddressPanel({
 
   return (
     <div className="space-y-cozy">
-      <div className="rounded-md border bg-muted/20 px-cozy py-snug">
-        <div className="flex items-start justify-between gap-cozy">
-          <div className="min-w-0">
-            <p className="flex items-center gap-tight text-meta font-medium text-muted-foreground">
-              <Home className="size-3.5" aria-hidden />
-              Your delivery address
-            </p>
-            <p className="mt-0.5 break-words text-body">
-              {mine?.label ?? (
-                <span className="text-muted-foreground">
-                  Not set — the other party cannot post to you until you add one.
-                </span>
-              )}
-            </p>
-          </div>
-          {editable ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
-              onClick={() => handleOpenChange(true)}
-            >
-              <Pencil aria-hidden />
-              {mine ? 'Change' : 'Add address'}
-            </Button>
-          ) : null}
+      <div className="flex items-start justify-between gap-cozy">
+        <div className="min-w-0">
+          <p className="flex items-center gap-tight text-body font-medium text-muted-foreground">
+            <Home className="size-3.5" aria-hidden />
+            Your delivery address
+          </p>
+          <p className="mt-0.5 break-words text-body">
+            {mine?.label ?? (
+              <span className="text-muted-foreground">
+                Not set — the other party cannot post to you until you add one.
+              </span>
+            )}
+          </p>
         </div>
+        {editable ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 gap-tight px-snug font-medium [&_svg]:size-3.5"
+            onClick={() => handleOpenChange(true)}
+          >
+            <Pencil aria-hidden />
+            {mine ? 'Change' : 'Add address'}
+          </Button>
+        ) : null}
       </div>
 
       {theirs || theirsPending ? (
-        <div className="rounded-md border bg-muted/20 px-cozy py-snug">
-          <p className="text-meta font-medium text-muted-foreground">
+        <div>
+          <p className="text-body font-medium text-muted-foreground">
             {counterpartName ? `${counterpartName}'s delivery address` : 'Their delivery address'}
           </p>
           <p className="mt-0.5 break-words text-body">

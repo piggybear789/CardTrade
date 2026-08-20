@@ -22,6 +22,7 @@ const PROTECTED_PREFIXES = [
   "/saved",
   "/account",
   "/onboarding",
+  "/deals",
   // Covers /admin/arbitration too. Middleware only proves there IS a session — the
   // capability check is the page's own `is_admin` read and `requireStaff`, and every
   // staff action re-checks. This entry exists so an anonymous visitor is sent to
@@ -89,28 +90,26 @@ export async function proxy(request: NextRequest) {
     const search = request.nextUrl.search;
     redirectUrl.pathname = "/sign-in";
     redirectUrl.search = "";
-    // Keep the query string too: pages like /profile?redirectTo=/deals/join/<token>
+    // Keep the query string too: pages like /trades?redirectTo=/trades/123
     // carry the task the visitor was in the middle of, and losing it strands
     // them on the catalog after signing in.
     redirectUrl.searchParams.set("redirectTo", `${pathname}${search}`);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // ONBOARDING IS REQUIRED TO TRANSACT, NOT TO LOOK.
+  // ONBOARDING IS REQUIRED ONCE THEY HAVE AN ACCOUNT.
   //
-  // `/listings` used to be treated as an onboarding entry point so a returning
-  // member "could not silently skip the flow". The effect was that signing in and
-  // clicking the catalog bounced them into a wizard with no dismiss control, no
-  // sign-out and no way back to the listings they had asked for. Browsing is public
-  // for anonymous visitors, so making it the one thing a signed-in member may NOT do
-  // inverted the incentive: creating an account made the site less usable.
-  //
-  // The gate now covers protected paths only — the places that need a profile
-  // because they write, spend, or receive. The catalog and item pages stay open, and
-  // the wizard offers its own way out (see app/onboarding/page.tsx), so an
-  // incomplete member can look around and finish later. Nothing about the money path
-  // is relaxed: every route that opens a contract is protected and still gated.
-  if (user && pathname !== '/onboarding' && isProtected(pathname)) {
+  // The catalog is public for guests. Signing up is therefore the decision to
+  // transact, not a prerequisite for looking. An unfinished session that hits the
+  // catalog or any protected route is sent back to the wizard; sign-out is the
+  // way back to guest browsing. `/` stays open so a cold landing page still loads.
+  // Public catalog pages only. `/listings/new`, `/listings/mine` and
+  // `/listings/[id]/edit` are already `isProtected`.
+  const onCatalog =
+    pathname === '/listings' ||
+    (pathname.startsWith('/listings/') && !isProtected(pathname));
+
+  if (user && pathname !== '/onboarding' && (isProtected(pathname) || onCatalog)) {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('onboarding_completed_at, fraud_banned_at')
@@ -126,8 +125,10 @@ export async function proxy(request: NextRequest) {
 
     if (!profileError && !profile?.onboarding_completed_at) {
       const onboardingUrl = request.nextUrl.clone();
+      const search = request.nextUrl.search;
       onboardingUrl.pathname = '/onboarding';
       onboardingUrl.search = '';
+      onboardingUrl.searchParams.set('redirectTo', `${pathname}${search}`);
       return NextResponse.redirect(onboardingUrl);
     }
   }
@@ -139,9 +140,9 @@ export const config = {
   // Only run on the protected trees to keep middleware overhead minimal.
   matcher: [
     "/profile/:path*",
-    // The catalog stays public; this matcher only lets the middleware redirect a
-    // signed-in, incomplete member after sign-in. `isProtected()` still limits
-    // anonymous auth redirects to /listings/new and /listings/mine.
+    // Guests may browse. A signed-in member with no `onboarding_completed_at`
+    // is sent back to the wizard. `isProtected()` still limits anonymous auth
+    // redirects to /listings/new, /listings/mine and /listings/[id]/edit.
     "/listings/:path*",
     "/trades/:path*",
     "/messages/:path*",
@@ -152,6 +153,7 @@ export const config = {
     "/saved/:path*",
     "/account/:path*",
     "/onboarding/:path*",
+    "/deals/:path*",
     // `:path*` matches the bare prefix as well as its children, so this covers /admin
     // and /admin/arbitration/... alike.
     "/admin/:path*",

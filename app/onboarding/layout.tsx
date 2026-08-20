@@ -17,10 +17,11 @@
 // with described JSON serialisation.
 //
 // WHY HERE RATHER THAN IN THE ACTIONS. Repairing inside `completeOnboarding` fixes
-// only the LAST step. The wizard writes earlier than that — `setTradingRegion` runs at
-// the region step — so a repair at the end still leaves the earlier steps failing
-// against a row that does not exist. This layout is the one place every step is
-// downstream of, so the row is guaranteed before the member touches anything.
+// only the LAST write. The wizard writes earlier than that — `setTradingRegion`
+// runs on Continue, before the name is persisted — so a repair at the end still
+// leaves the earlier write failing against a row that does not exist. This layout
+// is the one place every step is downstream of, so the row is guaranteed before
+// the member touches anything.
 // `completeOnboarding` keeps its own repair as well: it is the action that reported the
 // original error, and defence in depth costs one `select` on a path that runs once.
 //

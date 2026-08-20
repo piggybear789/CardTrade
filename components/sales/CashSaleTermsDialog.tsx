@@ -211,9 +211,7 @@ export function CashSaleTermsDialog({
       });
       if (result.ok) {
         toast.success(
-          sale.fulfillment_method
-            ? 'Handover terms updated. Both parties must accept the new version.'
-            : 'Handover terms proposed. Both parties must accept to continue.',
+          'Handover terms updated.',
         );
         router.refresh();
         setOpen(false);
@@ -231,7 +229,7 @@ export function CashSaleTermsDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {hideTrigger ? null : (
         <DialogTrigger asChild>
-          <Button type="button" variant="outline" size="sm" className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5">
+          <Button type="button" variant="outline" size="sm" className="h-6 gap-tight px-2 text-meta font-medium leading-none [&_svg]:size-3">
             <Pencil aria-hidden />
             Edit
           </Button>
@@ -240,11 +238,11 @@ export function CashSaleTermsDialog({
       <DialogContent>
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>{sale.fulfillment_method ? 'Edit handover terms' : 'Propose handover terms'}</DialogTitle>
+            <DialogTitle>{sale.fulfillment_method ? 'Edit handover terms' : 'Set handover terms'}</DialogTitle>
             <DialogDescription>
               {sale.fulfillment_method
-                ? 'Editing creates a new version, so both parties must accept again.'
-                : 'Both parties must accept these terms to proceed.'}
+                ? 'Update how the item is handed over.'
+                : 'Choose how the item is handed over.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-group py-5">

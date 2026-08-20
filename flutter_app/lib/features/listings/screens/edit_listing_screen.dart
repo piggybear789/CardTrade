@@ -302,14 +302,19 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
 
                 // ─── Category ─────────────────────────────────────────
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: AppConstants.categories
+                  // Guarded, unlike the create screen: an existing listing may carry a
+                  // category from before 0104 that is not in `games`, and the dropdown
+                  // throws when its value is absent from `items`.
+                  initialValue: AppConstants.games.contains(_selectedCategory)
+                      ? _selectedCategory
+                      : null,
+                  decoration: const InputDecoration(labelText: 'Game'),
+                  items: AppConstants.games
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (val) => setState(() => _selectedCategory = val),
                   validator: (val) =>
-                      val == null ? 'Please select a category' : null,
+                      val == null ? 'Please select a game' : null,
                 ),
                 const SizedBox(height: AppTheme.spacingLg),
 

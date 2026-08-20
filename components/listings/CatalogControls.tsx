@@ -1,23 +1,23 @@
 'use client';
 
-// URL-driven controls for the server-rendered marketplace (Req 3.8, Phase 7).
-// Filters update search params, reset pagination, and preserve server ownership of
-// catalog querying. Prices remain readable dollars in the URL and integer cents
-// at the action boundary.
+// Marketplace refine rail. After first paint, pills / sort / price / condition
+// call CatalogView.apply — fetch in place, rewrite the URL, do not navigate.
+// Prices stay readable dollars in the URL and integer cents at the action.
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Check,
   ChevronRight,
   Plus,
+  Search,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
 
-import { HeaderSearch } from '@/components/layout/HeaderSearch';
+import { useCatalogView } from '@/components/listings/CatalogView';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -89,52 +89,91 @@ export interface CatalogFilterState {
   includeSold: boolean;
 }
 
-/** Merge URL updates, remove blank values, and reset the result page. */
+/** Browse updates stay on the client — see CatalogViewProvider. */
 function useCatalogNav() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const { apply, reset, isPending } = useCatalogView();
+  return { isPending, pushWith: apply, reset };
+}
 
-  const pushWith = useCallback(
-    (updates: Record<string, string | string[] | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [key, value] of Object.entries(updates)) {
-        params.delete(key);
-        if (Array.isArray(value)) {
-          for (const entry of value) if (entry !== '') params.append(key, entry);
-        } else if (value != null && value !== '') {
-          params.set(key, value);
-        }
-      }
-      params.delete('page');
-      const query = params.toString();
-      startTransition(() => router.push(query ? `${pathname}?${query}` : pathname));
-    },
-    [pathname, router, searchParams],
+/**
+ * Instant filter over the listings already on the page. Does not touch the
+ * URL — the header search is the one that runs a marketplace query.
+ */
+export function CatalogFilterSearch() {
+  const { filter, setFilter } = useCatalogView();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+  }
+
+  return (
+    <form role="search" onSubmit={handleSubmit} className="relative min-w-0 w-full sm:w-56">
+      <Search
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
+      <Input
+        type="search"
+        name="q"
+        value={filter}
+        data-catalog-filter=""
+        onChange={(event) => setFilter(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            if (filter) setFilter('');
+          }
+        }}
+        placeholder="Filter…"
+        aria-label="Filter listings"
+        autoComplete="off"
+        spellCheck={false}
+        enterKeyHint="search"
+        className={cn(
+          'h-9 w-full bg-card pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          filter ? 'pr-9' : 'pr-3',
+        )}
+      />
+      {filter ? (
+        <button
+          type="button"
+          onClick={() => setFilter('')}
+          aria-label="Clear listing filter"
+          className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X className="size-3.5" aria-hidden />
+        </button>
+      ) : null}
+    </form>
   );
-
-  const reset = useCallback(() => {
-    startTransition(() => router.push(pathname));
-  }, [pathname, router]);
-
-  return { isPending, pushWith, reset };
 }
 
 export interface CatalogFiltersProps {
-  facets: { categories: string[]; maxPriceCents: number };
-  current: CatalogFilterState;
   /** Mobile Sell button target; omitted when the page keeps Sell elsewhere. */
   mobileSellHref?: string;
 }
 /** Marketplace navigation and filter rail, collapsed into a disclosure on mobile. */
 export function CatalogFilters({
-  facets,
-  current,
   mobileSellHref = '/listings/new',
 }: CatalogFiltersProps) {
+  const { current, facets } = useCatalogView();
   const { isPending, pushWith, reset } = useCatalogNav();
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(() =>
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('filters') === '1',
+  );
+
+  function toggleFilters() {
+    setFiltersOpen((open) => {
+      const next = !open;
+      const params = new URLSearchParams(window.location.search);
+      if (next) params.set('filters', '1');
+      else params.delete('filters');
+      const qs = params.toString();
+      window.history.replaceState(window.history.state, '', qs ? `/listings?${qs}` : '/listings');
+      return next;
+    });
+  }
 
   // Rounding the ceiling up to a legible figure keeps the track's top end
   // stable as inventory comes and goes, rather than shifting on every new
@@ -166,25 +205,17 @@ export function CatalogFilters({
 
   const hasActiveFilters =
     current.q !== '' ||
-    current.categories.length > 0 ||
     current.conditions.length > 0 ||
     current.min !== '' ||
     current.max !== '' ||
     current.includeSold;
 
-  // Search has its own field on mobile — the Filters badge counts refine-only.
+  // Search has its own field on mobile; games live in the header pills.
+  // The Filters badge counts refine-only (condition, price, sold).
   const refineCount =
-    current.categories.length +
     current.conditions.length +
     Number(Boolean(current.min || current.max)) +
     Number(current.includeSold);
-
-  function toggleCategory(category: string) {
-    const next = current.categories.includes(category)
-      ? current.categories.filter((value) => value !== category)
-      : [...current.categories, category];
-    pushWith({ category: next });
-  }
 
   function toggleCondition(condition: string) {
     const next = current.conditions.includes(condition)
@@ -217,8 +248,7 @@ export function CatalogFilters({
       )}
       aria-busy={isPending}
     >
-      <div className="flex flex-col gap-snug py-cozy lg:hidden">
-        <HeaderSearch />
+      <div className="flex flex-col gap-snug py-cozy md:hidden">
         <div className="grid grid-cols-2 gap-snug">
           <Button
             asChild
@@ -231,7 +261,7 @@ export function CatalogFilters({
           </Button>
           <Button
             variant="outline"
-            onClick={() => setFiltersOpen((open) => !open)}
+            onClick={toggleFilters}
             aria-expanded={filtersOpen}
             aria-controls="catalog-filter-panel"
           >
@@ -248,7 +278,7 @@ export function CatalogFilters({
             type="button"
             onClick={clearFilters}
             disabled={isPending}
-            className="self-start rounded-sm text-meta font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="self-start rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             Clear all
           </button>
@@ -258,63 +288,30 @@ export function CatalogFilters({
       <div
         id="catalog-filter-panel"
         className={cn(
-          'space-y-5 rounded-xl border border-border/70 bg-card p-group shadow-market lg:mt-4 lg:block lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t lg:bg-transparent lg:px-0 lg:pb-1 lg:pt-group lg:shadow-none',
+          'space-y-5 rounded-xl border border-border bg-card p-group shadow-market md:mt-4 md:block md:rounded-none md:border-x-0 md:border-b-0 md:border-t md:bg-transparent md:px-0 md:pb-1 md:pt-group md:shadow-none',
           filtersOpen ? 'mb-3 block' : 'hidden',
         )}
       >
+        <div className="hidden border-b border-border pb-group md:block">
+          <p className="market-label mb-2 text-muted-foreground">Sort</p>
+          <CatalogSortControl fullWidth />
+        </div>
+
         <div className="flex items-center justify-between">
-          <h2 className="text-lead font-semibold tracking-tight">Refine Results</h2>
+          <h2 className="text-subhead font-semibold tracking-tight">Refine results</h2>
           {hasActiveFilters ? (
             <button
               type="button"
               onClick={clearFilters}
               disabled={isPending}
-              className="hidden rounded-sm text-meta font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 lg:inline"
+              className="hidden rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 md:inline"
             >
-              Clear All
+              Clear all
             </button>
           ) : null}
         </div>
 
-        {facets.categories.length > 0 ? (
-          <fieldset className="border-t border-border/70 pt-group">
-            <legend className="market-label mb-2 text-muted-foreground">Categories</legend>
-            <div className="space-y-tight">
-              {facets.categories.map((category) => {
-                const active = current.categories.includes(category);
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => toggleCategory(category)}
-                    disabled={isPending}
-                    aria-pressed={active}
-                    className={cn(
-                      // Taller rows on touch screens (~44px target); compact in
-                      // the desktop rail where a pointer is precise.
-                      'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-snug',
-                      active
-                        ? 'bg-gold/10 font-semibold text-foreground'
-                        : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
-                    )}
-                  >
-                    <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-                      {active ? (
-                        <Check className="size-4 text-gold" />
-                      ) : (
-                        <span className="size-1.5 rounded-full bg-muted-foreground/50" />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{category}</span>
-                    {active ? <ChevronRight className="size-4 text-gold" aria-hidden="true" /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-        ) : null}
-
-        <fieldset className="border-t border-border/70 pt-group">
+        <fieldset className="border-t border-border pt-group">
           <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
           <div className="space-y-tight">
             {CONDITION_OPTIONS.map((condition) => {
@@ -348,11 +345,11 @@ export function CatalogFilters({
           </div>
         </fieldset>
 
-        <div className="border-t border-border/70 pt-group">
+        <div className="border-t border-border pt-group">
           <div className="mb-3 flex items-baseline justify-between gap-2">
             <p className="market-label text-muted-foreground">Price</p>
             {/* Tabular figures so the readout does not jitter mid-drag. */}
-            <p className="text-meta font-semibold tabular-nums">
+            <p className="text-body font-semibold tabular-nums">
               {priceRangeLabel(priceLadder, priceStops, topStop)}
             </p>
           </div>
@@ -388,7 +385,7 @@ export function CatalogFilters({
             sellers, which is the opposite of what is true. Per-card badges still
             show each seller's verified given name. */}
 
-        <div className="border-t border-border/70 pt-group">
+        <div className="border-t border-border pt-group">
           <p className="market-label mb-2 text-muted-foreground">Availability</p>
           <button
             type="button"
@@ -419,40 +416,34 @@ export function CatalogFilters({
   );
 }
 /** Removable chips summarizing every active catalog constraint. */
-export function CatalogActiveFilters({ current }: { current: CatalogFilterState }) {
+export function CatalogActiveFilters() {
+  const { current, settled } = useCatalogView();
   const { isPending, pushWith, reset } = useCatalogNav();
   const hasFilters =
-    Boolean(current.q) ||
-    current.categories.length > 0 ||
-    current.conditions.length > 0 ||
-    Boolean(current.min) ||
-    Boolean(current.max) ||
-    current.includeSold;
+    settled.q !== '' ||
+    settled.conditions.length > 0 ||
+    Boolean(settled.min) ||
+    Boolean(settled.max) ||
+    settled.includeSold;
 
   if (!hasFilters) return null;
 
-  const priceLabel = current.min && current.max
-    ? `${AUD_FORMATTER.format(Number(current.min))}–${AUD_FORMATTER.format(Number(current.max))}`
-    : current.min
-      ? `From ${AUD_FORMATTER.format(Number(current.min))}`
-      : `Up to ${AUD_FORMATTER.format(Number(current.max))}`;
+  const priceLabel = settled.min && settled.max
+    ? `${AUD_FORMATTER.format(Number(settled.min))}–${AUD_FORMATTER.format(Number(settled.max))}`
+    : settled.min
+      ? `From ${AUD_FORMATTER.format(Number(settled.min))}`
+      : `Up to ${AUD_FORMATTER.format(Number(settled.max))}`;
 
   return (
     <div className="mt-snug flex flex-wrap items-center gap-snug sm:mt-group" aria-label="Active filters">
-      {current.q ? (
-        <FilterChip label={`“${current.q}”`} onRemove={() => pushWith({ q: null })} disabled={isPending} />
-      ) : null}
-      {current.categories.map((category) => (
+      {settled.q ? (
         <FilterChip
-          key={category}
-          label={category}
-          onRemove={() => pushWith({
-            category: current.categories.filter((value) => value !== category),
-          })}
+          label={`“${settled.q}”`}
+          onRemove={() => pushWith({ q: null })}
           disabled={isPending}
         />
-      ))}
-      {current.conditions.map((condition) => (
+      ) : null}
+      {settled.conditions.map((condition) => (
         <FilterChip
           key={condition}
           label={condition}
@@ -462,14 +453,14 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
           disabled={isPending}
         />
       ))}
-      {current.min || current.max ? (
+      {settled.min || settled.max ? (
         <FilterChip
           label={priceLabel}
           onRemove={() => pushWith({ min: null, max: null })}
           disabled={isPending}
         />
       ) : null}
-      {current.includeSold ? (
+      {settled.includeSold ? (
         <FilterChip
           label="Including sold"
           onRemove={() => pushWith({ sold: null })}
@@ -480,7 +471,7 @@ export function CatalogActiveFilters({ current }: { current: CatalogFilterState 
         type="button"
         onClick={reset}
         disabled={isPending}
-        className="rounded-sm px-1 py-tight text-meta font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="rounded-sm px-1 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       >
         Clear all
       </button>
@@ -502,7 +493,7 @@ function FilterChip({
       type="button"
       onClick={onRemove}
       disabled={disabled}
-      className="inline-flex max-w-full items-center gap-tight rounded-full border border-gold/30 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+      className="inline-flex max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       aria-label={`Remove ${label} filter`}
     >
       <span className="truncate">{label}</span>
@@ -511,18 +502,28 @@ function FilterChip({
   );
 }
 
-/** Compact result-order selector for the catalog heading. */
-export function CatalogSortControl({ current }: { current: CatalogSort }) {
+/** Compact result-order selector for the catalog heading or the filter rail. */
+export function CatalogSortControl({
+  fullWidth = false,
+}: {
+  fullWidth?: boolean;
+} = {}) {
+  const { current } = useCatalogView();
   const { pushWith } = useCatalogNav();
 
   return (
     <div className="flex items-center gap-2">
-      <SlidersHorizontal className="hidden size-4 text-muted-foreground sm:block" aria-hidden />
+      {fullWidth ? null : (
+        <SlidersHorizontal className="hidden size-4 text-muted-foreground sm:block" aria-hidden />
+      )}
       <Select
-        value={current}
+        value={current.sort}
         onValueChange={(value) => pushWith({ sort: value === 'newest' ? null : value })}
       >
-        <SelectTrigger className="w-full bg-card sm:w-[190px]" aria-label="Sort listings">
+        <SelectTrigger
+          className={cn(fullWidth ? 'w-full' : 'w-full min-w-0 sm:w-[190px]')}
+          aria-label="Sort listings"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

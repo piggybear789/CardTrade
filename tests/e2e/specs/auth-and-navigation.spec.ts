@@ -36,7 +36,7 @@ async function signInAs(
 test.describe('protected routes redirect unauthenticated users', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new'];
+  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new', '/deals/new'];
 
   for (const path of protectedPaths) {
     test(`${path} -> /sign-in?redirectTo=${path}`, async ({ page }) => {
@@ -147,8 +147,20 @@ test.describe('navigation structure (regular user)', () => {
     await expect(nav.getByRole('link', { name: /browse all|marketplace/i })).toBeVisible();
     await expect(nav.getByRole('link', { name: /trades/i }).first()).toBeVisible();
     await expect(nav.getByRole('link', { name: /sales/i })).toBeVisible();
-    await expect(nav.getByRole('link', { name: /messages/i })).toBeVisible();
-    await expect(nav.getByRole('link', { name: /account/i })).toBeVisible();
+
+    // Saved and Messages live in the header from `sm` up, and stay in the menu
+    // below that so a phone is not a dead end. Account is the avatar/name in
+    // the header on every authenticated viewport.
+    const header = page.locator('header');
+    const isWide = (page.viewportSize()?.width ?? 0) >= 640;
+    if (isWide) {
+      await expect(header.getByRole('link', { name: 'Messages' })).toBeVisible();
+      await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
+      await expect(header.getByRole('link', { name: ALICE.displayName })).toBeVisible();
+    } else {
+      await expect(nav.getByRole('link', { name: /messages/i })).toBeVisible();
+      await expect(nav.getByRole('link', { name: /account/i })).toBeVisible();
+    }
   });
 
   test('staff nav NOT visible to a regular member', async ({ page }) => {

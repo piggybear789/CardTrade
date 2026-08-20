@@ -239,7 +239,7 @@ export async function updateCashSaleItems(
       userId: recipientId,
       type: 'SALE',
       title: 'Contract items changed',
-      body: 'The items in this contract were updated. Review and re-accept.',
+      body: 'The items in this contract were updated. Review them before you pay.',
       link: `/sales/${result.sale.id}`,
     });
   }
@@ -273,7 +273,7 @@ export async function listCashSaleItems(
   return { ok: true, items: await orchestrator().listLineItems(cashSaleId) };
 }
 
-/** Save a new version of fulfillment terms and clear both acceptances. */
+/** Save a new version of fulfillment terms. */
 export async function updateCashSaleTerms(
   cashSaleId: string,
   expectedTermsVersion: number,
@@ -299,8 +299,8 @@ export async function updateCashSaleTerms(
     await createNotification({
       userId: recipientId,
       type: 'SALE',
-      title: 'Terms updated',
-      body: 'The contract terms were revised. Review and re-accept to continue.',
+      title: 'Handover updated',
+      body: 'The meeting or postage details on this purchase were updated.',
       link: `/sales/${result.sale.id}`,
     });
   }
@@ -308,10 +308,10 @@ export async function updateCashSaleTerms(
 }
 
 /**
- * Propose a new agreed price (Req 4.3). Both acceptances are cleared by the
- * change, and the contract chat is notified automatically: every contract event
- * is mirrored into the thread by a database trigger, so this action must not
- * post its own message or the note would appear twice.
+ * Propose a new agreed price (Req 4.3). The contract chat is notified
+ * automatically: every contract event is mirrored into the thread by a database
+ * trigger, so this action must not post its own message or the note would appear
+ * twice.
  */
 export async function proposeCashSalePrice(
   cashSaleId: string,
@@ -332,8 +332,7 @@ export async function proposeCashSalePrice(
   if (result.ok) {
     // Always the buyer: only the seller can reach this, so the recipient is not in
     // question any more and deriving it from the actor would just be a way to get it
-    // wrong later. The copy states the consequence, because voiding the acceptances is
-    // the part a buyer will otherwise discover as a broken-looking contract.
+    // wrong later.
     await createNotification({
       userId: result.sale.buyerId,
       type: 'SALE',
@@ -343,16 +342,14 @@ export async function proposeCashSalePrice(
       // deprecated alias — hardcoding AUD into a money string is precisely the
       // "charged in one currency, displayed in another" bug the region work exists to
       // prevent. The contract room formats it correctly, so send them there.
-      body:
-        'The item price on your contract has changed. Both acceptances were cleared, so '
-        + 'review the new terms and accept again if you are happy with them.',
+      body: 'The item price on your contract has changed. Review it in the room before you pay.',
       link: `/sales/${cashSaleId}`,
     });
   }
   return result;
 }
 
-/** Accept exactly the terms version shown; second acceptance starts payment. */
+/** Buyer starts collection on the terms version shown. There is no confirm step. */
 export async function acceptCashSaleTerms(
   cashSaleId: string,
   termsVersion: number,
@@ -363,14 +360,11 @@ export async function acceptCashSaleTerms(
     await orchestrator().acceptTerms({ actorId: userId, cashSaleId, termsVersion }),
   );
   if (result.ok) {
-    const recipientId = result.sale.buyerId === userId
-      ? result.sale.sellerId
-      : result.sale.buyerId;
     await createNotification({
-      userId: recipientId,
+      userId: result.sale.sellerId,
       type: 'SALE',
-      title: 'Terms accepted',
-      body: 'The other party accepted the contract terms.',
+      title: 'Payment started',
+      body: 'The buyer is paying. You will be told when the funds are held.',
       link: `/sales/${cashSaleId}`,
     });
   }

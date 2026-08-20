@@ -1,31 +1,51 @@
 // app/sellers/[id]/loading.tsx
 //
-// Streaming fallback for the public seller profile page. Shows an avatar,
-// name placeholder, and a grid of listing card skeletons while data loads.
+// Public seller profile lives in MarketplaceShell: back link, avatar header,
+// then a catalog of auction cards and a reviews block.
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { AuctionCardSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 export default function SellerProfileLoading() {
   return (
-    <div
-      className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <span className="sr-only">Loading profile…</span>
-      <div className="mb-8 flex items-center gap-4">
-        <Skeleton className="size-16 rounded-full" />
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-40" />
-          <Skeleton className="h-4 w-56" />
-        </div>
+    <MarketplaceShellSkeleton>
+      <div className="min-w-0">
+        <nav className="mb-6">
+          <Skeleton className="h-4 w-36" />
+        </nav>
+
+        <header className="mb-8 space-y-2 border-b pb-6">
+          <div className="flex min-w-0 items-start gap-4">
+            <Skeleton className="size-16 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Skeleton className="h-8 w-44" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-4 w-full max-w-prose" />
+            </div>
+          </div>
+        </header>
+
+        <section className="mb-10">
+          <Skeleton className="mb-4 h-5 w-40" />
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+            {Array.from({ length: 6 }, (_, index) => (
+              <AuctionCardSkeleton key={index} />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <Skeleton className="mb-4 h-5 w-28" />
+          <div className="space-y-3">
+            <Skeleton className="h-24 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </div>
+        </section>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} className="h-64 rounded-xl" />
-        ))}
-      </div>
-    </div>
+    </MarketplaceShellSkeleton>
   );
 }

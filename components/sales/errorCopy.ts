@@ -11,7 +11,7 @@ import type { CashSaleActionError, CashSaleActionResult } from '@/lib/actions/ca
 
 export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   'not-authenticated': 'Please sign in again.',
-  'no-payment-method': 'Add a payment method before terms can be accepted.',
+  'no-payment-method': 'Add a payment method before you can continue.',
   'buyer-confirmation-required': 'Confirm the verified seller before continuing.',
   // Names the step that is ACTUALLY missing. This said "has not completed payout
   // onboarding", which since 0069 is a different step: the disclosure is withheld

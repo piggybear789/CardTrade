@@ -19,8 +19,9 @@
 // inside the viewport, and portals out of the header's backdrop filter.
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Bell, CheckCheck, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/format';
@@ -52,7 +53,6 @@ export function NotificationBell({
   userId,
   initialNotifications,
 }: NotificationBellProps) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -68,19 +68,22 @@ export function NotificationBell({
     if (notification.read_at === null) {
       markReadLocal(notification.id);
       startTransition(async () => {
-        await markNotificationRead(notification.id);
+        const res = await markNotificationRead(notification.id);
+        if (!res.ok) {
+          toast.error('Could not mark notification as read.');
+        }
       });
     }
     setOpen(false);
-    if (notification.link) {
-      router.push(notification.link);
-    }
   }
 
   function handleMarkAll() {
     markAllReadLocal();
     startTransition(async () => {
-      await markAllNotificationsRead();
+      const result = await markAllNotificationsRead();
+      if (!result.ok) {
+        toast.error('Could not mark notifications as read.');
+      }
     });
   }
 
@@ -98,14 +101,14 @@ export function NotificationBell({
         className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
       >
         <Bell className="size-5" aria-hidden />
-        {unreadCount > 0 && (
+        {unreadCount > 0 ? (
           <span
-            className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-4 text-destructive-foreground"
+            className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-meta font-semibold leading-4 text-destructive-foreground"
             aria-hidden
           >
             {badgeLabel}
           </span>
-        )}
+        ) : null}
       </PopoverTrigger>
 
       <PopoverContent
@@ -124,7 +127,7 @@ export function NotificationBell({
             type="button"
             onClick={handleMarkAll}
             disabled={isPending || unreadCount === 0}
-            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-meta text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           >
             {isPending ? (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -146,8 +149,8 @@ export function NotificationBell({
                 const unread = n.read_at === null;
                 return (
                   <li key={n.id}>
-                    <button
-                      type="button"
+                    <Link
+                      href={n.link || '/notifications'}
                       onClick={() => handleSelect(n)}
                       className={cn(
                         'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
@@ -179,12 +182,12 @@ export function NotificationBell({
                           </span>
                         </span>
                         {n.body && (
-                          <span className="mt-0.5 line-clamp-2 block break-words text-meta text-muted-foreground">
+                          <span className="mt-0.5 line-clamp-2 block break-words text-body text-muted-foreground">
                             {n.body}
                           </span>
                         )}
                       </span>
-                    </button>
+                    </Link>
                   </li>
                 );
               })}

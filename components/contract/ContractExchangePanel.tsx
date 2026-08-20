@@ -144,7 +144,7 @@ function SideColumn({
       ) : null}
 
       {side.items.length === 0 && !side.note ? (
-        <p className={cn('text-muted-foreground', compact ? 'text-meta' : 'text-body')}>
+        <p className="text-body text-muted-foreground">
           {side.emptyLabel ?? 'Nothing recorded.'}
         </p>
       ) : null}
@@ -210,7 +210,7 @@ function SideColumn({
                   ) : null}
                 </div>
                 {!compact && item.valueCents != null ? (
-                  <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-body tabular-nums text-muted-foreground">
                     {formatAud(item.valueCents)}
                   </span>
                 ) : null}
@@ -229,7 +229,7 @@ function SideColumn({
                     {side.cashLabel ?? 'Cash'}
                   </p>
                 </div>
-                <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-body tabular-nums text-muted-foreground">
                   {formatAud(cashCents)}
                 </span>
               </li>
@@ -270,7 +270,7 @@ function SideColumn({
           part of the exchange — it is what the platform charges for running it — so
           including it in the total would overstate what this side is worth. */}
       {!compact && (side.feeCents ?? 0) > 0 ? (
-        <div className="flex items-center gap-snug text-meta text-muted-foreground">
+        <div className="flex items-center gap-snug text-body text-muted-foreground">
           <span className="size-10 shrink-0" aria-hidden />
           <p className="min-w-0 flex-1">{side.feeLabel ?? 'NoDitto fee'}</p>
           <span className="shrink-0 tabular-nums">{formatAud(side.feeCents!)}</span>
@@ -331,7 +331,7 @@ export function ContractExchangePanel({
           compact ? null : 'min-h-0 flex-1',
           twoSided
             ? cn(
-                'grid items-stretch md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',
+                'grid items-stretch lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',
                 compact ? 'gap-snug' : 'gap-cozy',
               )
             : cn('grid', compact ? 'gap-snug' : 'gap-cozy'),
@@ -354,7 +354,7 @@ export function ContractExchangePanel({
               >
                 <ArrowLeftRight
                   className={cn(
-                    'rotate-90 md:rotate-0',
+                    'rotate-90 lg:rotate-0',
                     compact ? 'size-3.5' : 'size-4',
                   )}
                 />
@@ -366,7 +366,7 @@ export function ContractExchangePanel({
       </div>
 
       {!compact && footnote ? (
-        <p className="text-meta text-muted-foreground">{footnote}</p>
+        <p className="text-body text-muted-foreground">{footnote}</p>
       ) : null}
     </div>
   );

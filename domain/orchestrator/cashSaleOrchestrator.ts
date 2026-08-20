@@ -1,9 +1,9 @@
 // domain/orchestrator/cashSaleOrchestrator.ts
 //
 // Bilateral Cash_Sale contract orchestration (Req 4). Buy Now creates an
-// agreement and reserves the Item without charging. Versioned fulfillment terms
-// require both participants' acceptance before an idempotent payment submission.
-// Cleared funds then gate delivery or face-to-face handover.
+// agreement and reserves the Item without charging. Once handover details exist,
+// the buyer starts an idempotent payment. Cleared funds then gate delivery or
+// face-to-face handover.
 
 import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
@@ -470,8 +470,8 @@ export interface CashSaleRepository {
     terms: NormalizedCashSaleTerms;
   }): Promise<CashSaleTermsUpdateResult>;
   /**
-   * Renegotiate the agreed item price. The database clears both acceptances and
-   * bumps the terms version, exactly as a fulfillment change does.
+   * Renegotiate the agreed item price. The database bumps the terms version,
+   * exactly as a fulfillment change does.
    */
   updateAgreedPrice(params: {
     cashSaleId: string;
@@ -484,9 +484,8 @@ export interface CashSaleRepository {
    * Replace every line and re-derive the price from the new set.
    *
    * One call, not a diff, because a partially applied change would leave a
-   * contract describing goods nobody agreed to. The price write is what clears
-   * both acceptances, so swapping one card for another of identical value still
-   * forces a re-accept.
+   * contract describing goods nobody agreed to. The price write bumps the terms
+   * version, so payment is against the new set.
    */
   replaceLineItems(params: {
     cashSaleId: string;
@@ -495,12 +494,6 @@ export interface CashSaleRepository {
     lineItems: readonly CashSaleLineItemDraft[];
     agreedPriceCents: Cents;
     platformFeeCents: Cents;
-  }): Promise<CashSaleRecord | null>;
-  acceptTerms(params: {
-    cashSaleId: string;
-    actor: 'BUYER' | 'SELLER';
-    termsVersion: number;
-    acceptedAt: string;
   }): Promise<CashSaleRecord | null>;
   claimPayment(params: {
     cashSaleId: string;
@@ -1514,7 +1507,10 @@ async function submitClaimedPayment(
 
   return { ok: true, sale: submitted ?? sale };
 }
-/** Record one party's acceptance; the second acceptance claims and submits payment. */
+/**
+ * Buyer starts collection. Payment is the commitment — there is no mutual
+ * confirm step on a cash sale. The seller sets handover details; the buyer pays.
+ */
 export async function acceptCashSaleTerms(
   deps: CashSaleOrchestratorDeps,
   params: { actorId: string; cashSaleId: string; termsVersion: number },
@@ -1523,60 +1519,37 @@ export async function acceptCashSaleTerms(
   if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
   const actor = participantRole(sale, params.actorId);
   if (!actor) return { ok: false, error: 'NOT_PARTICIPANT' };
+  if (actor !== 'BUYER') {
+    return {
+      ok: false,
+      error: 'NOT_PERMITTED',
+      detail: 'Only the buyer can start payment.',
+    };
+  }
   if (sale.status !== 'AGREEMENT') return { ok: false, error: 'INVALID_STATE' };
   if (!sale.fulfillmentMethod) return { ok: false, error: 'INVALID_TERMS' };
   if (sale.fulfillmentMethod === 'DELIVERY' && !sale.deliveryAddressConfigured) {
     return {
       ok: false,
       error: 'INVALID_TERMS',
-      detail: 'The buyer must confirm a delivery address before either party can accept.',
+      detail: 'Add a delivery address before paying.',
     };
   }
   if (sale.termsVersion !== params.termsVersion) {
     return { ok: false, error: 'STALE_TERMS' };
   }
-  // The second acceptance collects the money and freezes the contract, so a
-  // shopfront contract must state its goods BEFORE it can be accepted. Otherwise
-  // the record would say only "Josh's Pokémon binder" and an arbitrator would
-  // have nothing to decide against.
+  // Collection freezes the contract, so a shopfront sale must name its goods
+  // first. Otherwise the record would say only the binder title.
   if (sale.fromShopfront) {
     const lines = await deps.repository.loadLineItems(sale.id);
     if (lines.length === 0) {
       return {
         ok: false,
         error: 'INVALID_TERMS',
-        detail: 'List the items this contract covers before accepting.',
+        detail: 'List the items this contract covers before paying.',
       };
     }
   }
-  if (
-    (actor === 'BUYER' && sale.buyerTermsAcceptedVersion === sale.termsVersion) ||
-    (actor === 'SELLER' && sale.sellerTermsAcceptedVersion === sale.termsVersion)
-  ) {
-    return { ok: false, error: 'ALREADY_RECORDED' };
-  }
-
-  const accepted = await deps.repository.acceptTerms({
-    cashSaleId: sale.id,
-    actor,
-    termsVersion: sale.termsVersion,
-    acceptedAt: currentIso(deps),
-  });
-  if (!accepted) return { ok: false, error: 'STALE_TERMS' };
-
-  await deps.repository.logEvent({
-    cashSaleId: sale.id,
-    actorId: params.actorId,
-    event: 'TERMS_ACCEPTED',
-    fromStatus: sale.status,
-    toStatus: accepted.status,
-    detail: `${actor} accepted terms v${sale.termsVersion}`,
-  });
-
-  const bothAccepted =
-    accepted.buyerTermsAcceptedVersion === accepted.termsVersion &&
-    accepted.sellerTermsAcceptedVersion === accepted.termsVersion;
-  if (!bothAccepted) return { ok: true, sale: accepted };
 
   const nonce =
     deps.createNonce?.() ?? `cash-sale:${sale.id}:terms:${sale.termsVersion}`;
@@ -1597,7 +1570,7 @@ export async function acceptCashSaleTerms(
     event: 'PAYMENT_REQUESTED',
     fromStatus: 'AGREEMENT',
     toStatus: 'PAYMENT_PENDING',
-    detail: `Terms v${sale.termsVersion} accepted by both parties.`,
+    detail: `Buyer started payment for terms v${sale.termsVersion}.`,
   });
   return submitClaimedPayment(deps, claimed);
 }
@@ -1992,7 +1965,9 @@ export function returnRequiredForRefund(sale: ReturnRequiredFacts): boolean {
     sale.carrierDeliveredAt ||
       sale.receivedAt ||
       sale.inspectionAcceptedAt ||
-      (sale.buyerHandoverConfirmedAt && sale.sellerHandoverConfirmedAt),
+      // Either confirmation means the goods may have changed hands (Req 4.3).
+      sale.buyerHandoverConfirmedAt ||
+      sale.sellerHandoverConfirmedAt,
   );
 }
 
@@ -2893,10 +2868,14 @@ export async function confirmCashSaleHandover(
   if (sale.status !== 'HANDOVER' || sale.fulfillmentMethod !== 'IN_PERSON') {
     return { ok: false, error: 'INVALID_STATE' };
   }
-  if (
-    (actor === 'BUYER' && sale.buyerHandoverConfirmedAt) ||
-    (actor === 'SELLER' && sale.sellerHandoverConfirmedAt)
-  ) {
+  // In-person cash sales complete on the second confirmation: either party can
+  // record that the meetup happened, and neither can release the money alone.
+  if (actor !== 'BUYER' && actor !== 'SELLER') {
+    return { ok: false, error: 'NOT_PERMITTED' };
+  }
+  const alreadyConfirmed =
+    actor === 'BUYER' ? sale.buyerHandoverConfirmedAt : sale.sellerHandoverConfirmedAt;
+  if (alreadyConfirmed) {
     return { ok: false, error: 'ALREADY_RECORDED' };
   }
   const updated = await deps.repository.confirmHandover({
@@ -2916,8 +2895,7 @@ export async function confirmCashSaleHandover(
     toStatus: updated.status,
   });
 
-  // Both parties confirmed the in-person handover, so the release is owed
-  // (Req 4.3). Only fires on the second confirmation, when status flips.
+  // Both parties confirmed the meetup, so the seller's payout is now owed (Req 4.3).
   if (updated.status === 'COMPLETED') {
     const released = await payoutCashSaleSeller(deps, { cashSaleId: sale.id });
     if (released.ok) return released;

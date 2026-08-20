@@ -13,6 +13,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
 import { HandCoins, ImageOff, Loader2 } from 'lucide-react';
 
@@ -98,8 +99,9 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [counterOpen, setCounterOpen] = useState(false);
-  // Accepting opens a binding sale at this price, so confirm first.
-  const [confirmingAccept, setConfirmingAccept] = useState(false);
+  const [confirming, setConfirming] = useState<'accept' | 'decline' | 'withdraw' | null>(
+    null,
+  );
 
   const imageUrl = itemImageUrl(offer.itemImagePath);
   const title = offer.itemTitle ?? 'Item';
@@ -107,35 +109,38 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
   const counterparty = offer.counterpartyName ?? 'Unknown user';
   const roleLabel = offer.role === 'buyer' ? 'You are buying' : 'You are selling';
 
-  function respond(action: 'accept' | 'decline' | 'withdraw') {
-    startTransition(async () => {
-      const result = await respondToOffer(offer.offerId, action);
-      if (result.ok) {
-        if (action === 'accept') {
-          toast.success('Offer accepted — opening the sale…');
-          // The sale has been opened at the agreed price; take the user
-          // straight to it.
-          if (result.saleId) {
-            router.push(`/sales/${result.saleId}`);
-            return;
+  function respond(action: 'accept' | 'decline' | 'withdraw'): Promise<boolean> {
+    return new Promise((resolve) => {
+      startTransition(async () => {
+        const result = await respondToOffer(offer.offerId, action);
+        if (result.ok) {
+          if (action === 'accept') {
+            toast.success('Offer accepted — opening the sale…');
+            if (result.saleId) {
+              navigateWithType(router, `/sales/${result.saleId}`, 'nav-forward');
+              resolve(true);
+              return;
+            }
+          } else {
+            toast.success(action === 'decline' ? 'Offer declined.' : 'Offer withdrawn.');
           }
-        } else {
-          toast.success(action === 'decline' ? 'Offer declined.' : 'Offer withdrawn.');
+          router.refresh();
+          resolve(true);
+          return;
         }
-        router.refresh();
-        return;
-      }
-      // SURFACE THE REASON THE SERVER SENT. This branch used to replace every
-      // `sale-failed` with "the item may no longer be available", which threw away
-      // the one thing that made the refusal actionable — `detail` carries the
-      // underlying `initiateCashSale` code. For a buyer with no saved card, the
-      // substituted copy was also simply untrue, so they abandoned a purchase that
-      // needed one more click.
-      const message =
-        result.error === 'sale-failed'
-          ? cashSaleRefusalMessage(result.detail, result.detail)
-          : (result.detail ?? 'Could not update the offer. Please try again.');
-      toast.error(message);
+        // SURFACE THE REASON THE SERVER SENT. This branch used to replace every
+        // `sale-failed` with "the item may no longer be available", which threw away
+        // the one thing that made the refusal actionable — `detail` carries the
+        // underlying `initiateCashSale` code. For a buyer with no saved card, the
+        // substituted copy was also simply untrue, so they abandoned a purchase that
+        // needed one more click.
+        const message =
+          result.error === 'sale-failed'
+            ? cashSaleRefusalMessage(result.detail, result.detail)
+            : (result.detail ?? 'Could not update the offer. Please try again.');
+        toast.error(message);
+        resolve(false);
+      });
     });
   }
 
@@ -162,7 +167,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-snug">
-            <p className="truncate text-body font-medium">{title}</p>
+            <p className="truncate text-lead font-medium">{title}</p>
             <Badge variant={status.variant} className="shrink-0">
               {status.label}
             </Badge>
@@ -170,7 +175,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
           <p className="mt-0.5 text-lead font-bold tabular-nums tracking-tight">
             {formatAud(offer.amountCents)}
           </p>
-          <p className="mt-0.5 truncate text-meta text-muted-foreground">
+          <p className="mt-0.5 truncate text-body text-muted-foreground">
             {roleLabel} · with {counterparty}
             {offer.offeredByMe ? ' · your offer' : ''}
           </p>
@@ -182,9 +187,10 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                 <>
                   <Button
                     size="sm"
-                    onClick={() => setConfirmingAccept(true)}
+                    onClick={() => setConfirming('accept')}
                     disabled={isPending}
                     aria-busy={isPending}
+                    aria-haspopup="dialog"
                   >
                     {isPending ? (
                       <Loader2 className="animate-spin" aria-hidden />
@@ -192,25 +198,47 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                     Accept
                   </Button>
                   <ConfirmDialog
-                    open={confirmingAccept}
-                    onOpenChange={setConfirmingAccept}
+                    open={confirming === 'accept'}
+                    onOpenChange={(open) => {
+                      if (isPending) return;
+                      setConfirming(open ? 'accept' : null);
+                    }}
                     title="Accept this offer?"
-                    description={`Accepting opens a binding sale of "${title}" with ${counterparty} at ${formatAud(offer.amountCents)}. You're protected until you confirm the item.`}
+                    description={`Accepting opens a purchase contract of "${title}" with ${counterparty} at ${formatAud(offer.amountCents)}. The buyer pays once handover details are set.`}
                     confirmLabel="Accept offer"
+                    cancelLabel="Not now"
                     pending={isPending}
-                    onConfirm={() => {
-                      setConfirmingAccept(false);
-                      respond('accept');
+                    helpHref="/help#holds"
+                    onConfirm={async () => {
+                      const ok = await respond('accept');
+                      if (ok) setConfirming(null);
                     }}
                   />
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => respond('decline')}
+                    onClick={() => setConfirming('decline')}
                     disabled={isPending}
+                    aria-haspopup="dialog"
                   >
                     Decline
                   </Button>
+                  <ConfirmDialog
+                    open={confirming === 'decline'}
+                    onOpenChange={(open) => {
+                      if (isPending) return;
+                      setConfirming(open ? 'decline' : null);
+                    }}
+                    title="Decline this offer?"
+                    description={`This offer of ${formatAud(offer.amountCents)} for "${title}" will be declined. They can send a new one.`}
+                    confirmLabel="Decline offer"
+                    confirmVariant="destructive"
+                    pending={isPending}
+                    onConfirm={async () => {
+                      const ok = await respond('decline');
+                      if (ok) setConfirming(null);
+                    }}
+                  />
                   <Button
                     size="sm"
                     variant="secondary"
@@ -222,18 +250,36 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                 </>
               )}
               {offer.canWithdraw && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => respond('withdraw')}
-                  disabled={isPending}
-                  aria-busy={isPending}
-                >
-                  {isPending ? (
-                    <Loader2 className="animate-spin" aria-hidden />
-                  ) : null}
-                  Withdraw
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setConfirming('withdraw')}
+                    disabled={isPending}
+                    aria-busy={isPending}
+                    aria-haspopup="dialog"
+                  >
+                    {isPending ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : null}
+                    Withdraw
+                  </Button>
+                  <ConfirmDialog
+                    open={confirming === 'withdraw'}
+                    onOpenChange={(open) => {
+                      if (isPending) return;
+                      setConfirming(open ? 'withdraw' : null);
+                    }}
+                    title="Withdraw this offer?"
+                    description={`Your offer of ${formatAud(offer.amountCents)} for "${title}" will be withdrawn. You can make a new one later.`}
+                    confirmLabel="Withdraw offer"
+                    pending={isPending}
+                    onConfirm={async () => {
+                      const ok = await respond('withdraw');
+                      if (ok) setConfirming(null);
+                    }}
+                  />
+                </>
               )}
             </div>
           )}

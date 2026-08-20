@@ -7,6 +7,7 @@
 
 import Link from 'next/link';
 
+import { TabIndicator } from '@/components/motion/TabIndicator';
 import { cn } from '@/lib/utils';
 
 /** Which slice of a section's records to show. */
@@ -34,6 +35,21 @@ export function partitionByScope<T>(
   return { active, past };
 }
 
+/** Merge extra search params into a path that may already have a query string. */
+function withQuery(path: string, extra: Record<string, string | null> = {}) {
+  const queryIndex = path.indexOf('?');
+  const pathname = queryIndex === -1 ? path : path.slice(0, queryIndex);
+  const params = new URLSearchParams(
+    queryIndex === -1 ? '' : path.slice(queryIndex + 1),
+  );
+  for (const [key, value] of Object.entries(extra)) {
+    if (value == null) params.delete(key);
+    else params.set(key, value);
+  }
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 export function SectionFilter({
   scope,
   basePath,
@@ -51,8 +67,8 @@ export function SectionFilter({
       label="Filter by status"
       currentKey={scope}
       tabs={[
-        { key: 'active', label: 'Active', count: activeCount, href: basePath },
-        { key: 'past', label: 'Past', count: pastCount, href: `${basePath}?show=past` },
+        { key: 'active', label: 'Active', count: activeCount, href: withQuery(basePath, { show: null }) },
+        { key: 'past', label: 'Past', count: pastCount, href: withQuery(basePath, { show: 'past' }) },
       ]}
     />
   );
@@ -95,7 +111,7 @@ export function SectionTabs({
       // counts overflow a 320px viewport, and a clipped tab is an unreachable one.
       // Scrollbar hidden to match the rail's treatment in MarketplaceShell.
       className={cn(
-        'mb-5 flex gap-1 overflow-x-auto border-b border-border/70 pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[mask-image:none]',
+        'mb-5 flex gap-1 overflow-x-auto border-b border-border pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] lg:[mask-image:none]',
         className,
       )}
     >
@@ -107,10 +123,10 @@ export function SectionTabs({
             href={tab.href}
             aria-current={current ? 'page' : undefined}
             className={cn(
-              '-mb-px inline-flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-4 py-2.5 text-body font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'relative -mb-px inline-flex shrink-0 items-center gap-2 rounded-t-md px-4 py-2.5 text-body font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               current
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground',
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {tab.label}
@@ -119,6 +135,9 @@ export function SectionTabs({
                 {tab.count}
               </span>
             )}
+            {current ? (
+              <TabIndicator layoutId={`section-tabs-${label}`} />
+            ) : null}
           </Link>
         );
       })}

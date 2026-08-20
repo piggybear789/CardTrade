@@ -97,6 +97,22 @@ export function LeaveReviewDialog({
     });
   }
 
+  function handleRatingKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setRating((prev) => Math.min(5, (prev || 0) + 1));
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setRating((prev) => Math.max(1, (prev || 1) - 1));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setRating(1);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setRating(5);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -120,6 +136,8 @@ export function LeaveReviewDialog({
               className="flex items-center gap-1"
               role="radiogroup"
               aria-label="Star rating"
+              tabIndex={0}
+              onKeyDown={handleRatingKeyDown}
             >
               {[1, 2, 3, 4, 5].map((value) => (
                 <button

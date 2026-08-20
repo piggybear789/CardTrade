@@ -87,10 +87,17 @@ export interface OnboardingWizardProps {
    * the status read-backs inside `UnifiedOnboardingSurface`, never by a query param.
    */
   initialStep: Step;
+  /**
+   * Where to go once onboarding is done — the path `proxy.ts` was taking the member to
+   * when it diverted them here. Already validated as same-origin by the route; null
+   * falls back to the catalog.
+   */
+  redirectTo?: string | null;
 }
 
-export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
+export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardProps) {
   const router = useRouter();
+  const exitPath = redirectTo ?? '/listings';
   const [step, setStep] = useState<Step>(initialStep);
   const [displayName, setDisplayName] = useState('');
   // Saved by AvatarUploadField the moment it is picked, so this only mirrors it for
@@ -204,7 +211,7 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
     // for now" beneath it, which is a screen whose best outcome is being dismissed.
     setSaving(false);
     toast.success('Welcome! Browse listings and find something you love.');
-    router.push('/listings');
+    router.push(exitPath);
   }
 
   return (
@@ -589,7 +596,7 @@ export function OnboardingWizard({ initialStep }: OnboardingWizardProps) {
                 onSettledChange={setSellerSettled}
                 onComplete={() => {
                   toast.success('You\u2019re all set. Start listing and selling.');
-                  router.push('/listings');
+                  router.push(exitPath);
                 }}
               />
 

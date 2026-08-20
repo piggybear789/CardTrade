@@ -43,40 +43,33 @@ export function ContractHeader({
   const degraded = connectionStatus === 'error';
 
   return (
-    <Card className={cn('border-border/90 shadow-sm', className)}>
-      <CardContent className="space-y-snug p-group">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-group gap-y-1">
-          {/* The page shell renders the route <h1>; this is the contract's own title.
-              `text-subhead`: at `text-body` it was the same size as a detail row's
-              label and one step smaller than the money beside it, so the thing the
-              contract is ABOUT was the quietest text in its own identity strip. */}
-          <h2
-            className="min-w-0 flex-1 truncate text-subhead font-semibold tracking-tight"
-            title={title}
-          >
-            {title}
-          </h2>
-          {money ? (
-            <p className="display-value shrink-0 text-lead">{money}</p>
-          ) : null}
-        </div>
-
-        {parties || status || degraded ? (
-          <div
-            className={cn(
-              'flex flex-wrap items-center justify-between gap-x-group gap-y-snug',
-              'border-t pt-snug',
-            )}
-          >
-            <div className="min-w-0 flex-1">{parties}</div>
-            <div className="flex shrink-0 items-center gap-cozy">
-              {degraded && connectionStatus ? (
-                <ContractConnectionStatus status={connectionStatus} />
-              ) : null}
-              {status}
-            </div>
+    <Card className={cn('border-border shadow-sm', className)}>
+      <CardContent className="px-group py-cozy">
+        {/* Identity on one line: the workspace below (details + chat) owns the
+            vertical budget, so the strip packs title · parties on the left and
+            status · money on the right, wrapping only when it must. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-1">
+            {/* The page shell renders the route <h1>; this is the contract's own title. */}
+            <h2
+              className="min-w-0 max-w-full truncate text-subhead font-semibold tracking-tight"
+              title={title}
+            >
+              {title}
+            </h2>
+            {parties ? <div className="min-w-0">{parties}</div> : null}
           </div>
-        ) : null}
+
+          <div className="flex shrink-0 items-center gap-cozy">
+            {degraded && connectionStatus ? (
+              <ContractConnectionStatus status={connectionStatus} />
+            ) : null}
+            {status}
+            {money ? (
+              <p className="display-value shrink-0 text-lead">{money}</p>
+            ) : null}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

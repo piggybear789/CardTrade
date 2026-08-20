@@ -36,6 +36,7 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   // `/auth/update-password`, which is where a recovery link lands.
   '/auth/confirm',
   '/auth/update-password',
+  '/onboarding', // post-signup / proxy entry; AuthForm uses withRedirect()
 ]);
 
 /** Recursively collect files under `dir` whose extension is in `exts`. */
@@ -207,7 +208,6 @@ const flutterRouterPath = path.join(repoRoot, 'flutter_app', 'lib', 'router', 'r
 function parseMobileRoutes(): string[] {
   const source = readFileSync(flutterRouterPath, 'utf8');
   const paths: string[] = [];
-  const pattern = /path:\s*(?:AppRoutes\.\w+|'([^']*)')/g;
 
   // Also resolve AppRoutes constants
   const constantPattern = /static const (\w+)\s*=\s*'([^']*)'/g;
@@ -224,15 +224,6 @@ function parseMobileRoutes(): string[] {
   }
 
   return [...new Set(paths)];
-}
-
-/**
- * Normalize a web route to a comparable form:
- * - Strip route groups: (auth)/sign-in → /sign-in
- * - Keep dynamic segments as-is
- */
-function normalizeWebRoute(route: string): string {
-  return route;
 }
 
 /**
@@ -265,6 +256,9 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
     'Emailed link token exchange (signup confirmation, password recovery) — mobile redeems the same links via Supabase deep links',
   '/auth/update-password':
     'Landing page for a redeemed recovery link — mobile sets the new password in its own screen after the deep link',
+  '/help': 'Marketing help centre — mobile has no native help route',
+  '/privacy': 'Opened as an external web URL from Settings, not a native route',
+  '/terms': 'Opened as an external web URL from Settings, not a native route',
 };
 
 describe('mobile route parity', () => {

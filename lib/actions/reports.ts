@@ -12,6 +12,7 @@
 // async Server Action; shared shapes are `export type` only.
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { REASON_MIN, REASON_MAX, DETAILS_MAX } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -156,10 +157,10 @@ export async function reportItem(
     };
   }
 
-  // Resolve the item's owner to block self-reports. RLS exposes AVAILABLE rows
-  // publicly, so a missing row here means the item is not visible/does not
-  // exist.
-  const { data: item } = await supabase
+  // Resolve the item's owner to block self-reports. We use the admin client
+  // so items in active contracts (RESERVED/SOLD) can still be reported for fraud.
+  const admin = createAdminClient();
+  const { data: item } = await admin
     .from('items')
     .select('owner_id')
     .eq('id', itemId)
@@ -200,6 +201,21 @@ export async function reportUser(
       ok: false,
       error: 'self-report',
       message: 'You cannot report yourself.',
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data: targetUser } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!targetUser) {
+    return {
+      ok: false,
+      error: 'not-found',
+      message: 'The user you are reporting does not exist.',
     };
   }
 

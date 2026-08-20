@@ -257,7 +257,7 @@ test.describe('Identity gate', () => {
 
     // The dialog should show the identity gate prompt rather than the trade form.
     await expect(
-      dialog.getByText(/Verify your identity to trade/),
+      dialog.getByRole('heading', { name: 'Verify to trade' }),
     ).toBeVisible({ timeout: RENDERED });
 
     // The "Verify with Stripe" button should be offered (actionable).

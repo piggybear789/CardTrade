@@ -47,7 +47,7 @@ test('compare the two parties views of the same trade room', async ({ browser })
         tabs: Array.from(document.querySelectorAll('button'))
           .filter(vis)
           .map(txt)
-          .filter((t) => ['Exchange', 'Stripe', 'Collateral', 'History', 'Demo'].includes(t)),
+          .filter((t) => ['Exchange', 'Payment', 'Collateral', 'History', 'Demo'].includes(t)),
         bodyLen: document.body.innerText.length,
         noGoods: document.body.innerText.includes('putting up no goods'),
         exchangeText: (document.body.innerText.match(/You (give|receive)[\s\S]{0,160}/g) ?? []).join(' || ').slice(0, 320),

@@ -84,8 +84,8 @@ export function IdentityBadge({
       role="img"
       aria-label={
         name
-          ? `Identity verified by the payment provider, given name ${name}`
-          : 'Identity verified by the payment provider'
+          ? `Identity verified by Stripe with a photo ID and a selfie, given name ${name}`
+          : 'Identity verified by Stripe with a photo ID and a selfie'
       }
     >
       <ShieldCheck style={{ width: size, height: size, minWidth: size }} aria-hidden />

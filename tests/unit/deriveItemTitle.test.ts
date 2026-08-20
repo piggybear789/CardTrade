@@ -105,7 +105,7 @@ describe('deriveItemTitle', () => {
 
 describe('item submission with a derived title', () => {
   const base = {
-    category: 'Trading Cards',
+    category: 'Pokémon',
     condition: 'Near Mint',
     fmvCents: 12_345,
     images: ['path/one.jpg'],

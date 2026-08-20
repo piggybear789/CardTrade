@@ -36,7 +36,7 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
     return (
       <div className="relative">
         <span
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-body text-muted-foreground"
           aria-hidden
         >
           {CURRENCY_SYMBOL}

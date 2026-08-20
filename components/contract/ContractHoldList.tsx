@@ -55,7 +55,7 @@ export function ContractHoldList({
         return (
           <li
             key={hold.id}
-            className="flex items-center justify-between gap-group rounded-md border bg-background p-cozy"
+            className="flex items-center justify-between gap-group"
           >
             <div className="min-w-0">
               <p className="truncate text-body font-medium">{hold.label}</p>

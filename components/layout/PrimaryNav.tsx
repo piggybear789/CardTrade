@@ -14,6 +14,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { StartDealButton } from '@/components/deals/StartDealButton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -48,15 +49,15 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
   const links: NavLink[] = [
     { href: '/listings', label: 'Marketplace', match: 'prefix', except: ['/listings/new'] },
     { href: '/listings/new', label: 'Sell', match: 'exact' },
-    // Deals are withdrawn. A private deal was a Trade negotiated in its own room,
-    // which is now what opening a trade offer does (Req 12).
+    // Private-deal compose is a dialog. Trades still lists open rooms
+    // and unused trade invites.
     ...(isAuthenticated
       ? [{ href: '/trades', label: 'Trades', match: 'prefix' as const }]
       : []),
   ];
 
   return (
-    <nav aria-label="Primary" className="hidden items-center text-parchment lg:flex">
+    <nav aria-label="Primary" className="hidden items-center text-parchment md:flex">
       {links.map((link) => {
         const active = isActive(pathname, link);
         return (
@@ -79,6 +80,12 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
           </Button>
         );
       })}
+      <StartDealButton
+        isAuthenticated={isAuthenticated}
+        variant="ghost"
+        size="sm"
+        className="relative"
+      />
     </nav>
   );
 }

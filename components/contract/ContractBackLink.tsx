@@ -7,6 +7,7 @@
 
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { navigateWithType } from '@/lib/motion/navigate';
 import { Button } from '@/components/ui/button';
 
 export function ContractBackLink({ fallbackHref }: { fallbackHref: string }) {
@@ -17,14 +18,7 @@ export function ContractBackLink({ fallbackHref }: { fallbackHref: string }) {
       variant="ghost"
       size="sm"
       className="mb-3 -ml-2 lg:hidden"
-      onClick={() => {
-        // If there's history, go back. Otherwise navigate to the fallback.
-        if (window.history.length > 1) {
-          router.back();
-        } else {
-          router.push(fallbackHref);
-        }
-      }}
+      onClick={() => navigateWithType(router, fallbackHref, 'nav-back')}
     >
       <ArrowLeft className="size-4" aria-hidden />
       Back

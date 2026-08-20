@@ -13,6 +13,7 @@ import { notFound } from 'next/navigation';
 import { Building2, ShieldCheck, Store } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
+import { CARD_GAME_NAMES } from '@/lib/catalog/cardGames';
 import { getReviewsFor } from '@/lib/actions/reviews';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import { ItemCard } from '@/components/listings/ItemCard';
@@ -20,6 +21,7 @@ import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { ReviewList } from '@/components/reviews/ReviewList';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import { SectionLoadError } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
@@ -96,7 +98,7 @@ export default async function SellerProfilePage({
   const sellerIdentity = await loadSellerIdentityDisclosure(id);
 
   // The seller's AVAILABLE listings (RLS allows AVAILABLE reads publicly).
-  const { data: itemsData } = await supabase
+  const { data: itemsData, error: itemsError } = await supabase
     .from('items')
     .select('*')
     .eq('owner_id', id)
@@ -105,6 +107,7 @@ export default async function SellerProfilePage({
     // seller's public profile either (0064).
     .is('closed_at', null)
     .eq('hidden', false)
+    .in('category', CARD_GAME_NAMES)
     .order('created_at', { ascending: false });
 
   const items = (itemsData ?? []) as ItemRow[];
@@ -123,6 +126,7 @@ export default async function SellerProfilePage({
       <nav className="mb-6" aria-label="Breadcrumb">
         <Link
           href="/listings"
+          transitionTypes={['nav-back']}
           className="text-body text-muted-foreground underline-offset-4 hover:underline"
         >
           ← Back to listings
@@ -174,7 +178,7 @@ export default async function SellerProfilePage({
             )}
             <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
             {/* MEMBER-AUTHORED, so it is presented as their words and nothing more.
-                Deliberately NOT inside the DittoShield disclosure block below, which
+                Deliberately NOT inside the identity disclosure block below, which
                 carries provider-verified facts — putting self-written copy there
                 would borrow that block's credibility for text anyone can type.
                 `whitespace-pre-line` keeps intentional line breaks; `break-words`
@@ -198,7 +202,7 @@ export default async function SellerProfilePage({
         </div>
 
         {sellerIdentity ? (
-          <div className="mt-3 rounded-lg border bg-muted/30 p-4">
+          <div className="mt-3 rounded-lg border bg-muted p-4">
             <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
               {/* Same glyph as IdentityBadge: one fact, one icon vocabulary. */}
               <ShieldCheck className="h-4 w-4" aria-hidden />
@@ -241,7 +245,9 @@ export default async function SellerProfilePage({
         <h2 id="listings-heading" className="mb-4 text-subhead font-semibold">
           Available listings
         </h2>
-        {catalogItems.length === 0 ? (
+        {itemsError ? (
+          <SectionLoadError label="listings" />
+        ) : catalogItems.length === 0 ? (
           <EmptyState
             title="No Available Listings"
             titleAs="h3"

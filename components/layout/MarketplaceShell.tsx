@@ -1,9 +1,12 @@
 // components/layout/MarketplaceShell.tsx
 //
-// Shared fluid workspace layout for every signed-in marketplace surface:
+// Shared workspace layout for every signed-in marketplace surface:
 // browse, deals, messages, notifications, account, sales, trades, profile,
-// and admin. Desktop keeps a sticky proportional rail; below `lg`, navigation
-// moves to MobileBottomNav (hubs + sheets) so content is not buried under chips.
+// and admin. The rail stays docked to the left edge. Only the content column
+// is capped at `max-w-workspace` and centred in the remaining space, so
+// ultrawide viewports do not stretch lists, grids, or 50/50 splits. Desktop keeps a
+// sticky proportional rail; below `lg`, navigation moves to MobileBottomNav
+// (hubs + sheets) so content is not buried under chips.
 //
 // The rail owns the page title and its primary action. Below `lg` the rail is
 // gone and the shell renders no visible chrome of its own: the page's own
@@ -15,8 +18,6 @@
 // they are entry points, not workspace sections.
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
-import { Plus } from 'lucide-react';
 
 import {
   DesktopOnly,
@@ -26,45 +27,11 @@ import { KycRailStatus } from '@/components/layout/KycRailStatus';
 import { MarketplaceNav } from '@/components/layout/MarketplaceNav';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { PageShell } from '@/components/layout/PageShell';
-import { Button } from '@/components/ui/button';
+import { DirectionalTransition } from '@/components/motion/DirectionalTransition';
 import { createClient } from '@/lib/supabase/server';
 import { cn } from '@/lib/utils';
 
-/** Default glyph, hoisted so the element is not rebuilt on every render. */
-const CREATE_GLYPH = <Plus aria-hidden="true" className="text-gold" />;
-
-/**
- * A section's primary CTA, shared by every marketplace section: obsidian fill,
- * parchment label. Sized by its container — full width in the rail, and in
- * SectionHeader's `mobileAction` slot below `lg`.
- */
-export function RailPrimaryAction({
-  href,
-  glyph = CREATE_GLYPH,
-  children,
-}: {
-  href: string;
-  /**
-   * Leading glyph, a plus by default because most sections' one action is to
-   * create something. Pass `null` where the action only goes somewhere: a plus
-   * on a link that opens a browse page promises a new record that never
-   * appears.
-   */
-  glyph?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <Button
-      asChild
-      className="w-full border border-white/15 bg-obsidian text-parchment font-semibold shadow-sm hover:bg-obsidian/80 hover:border-white/25"
-    >
-      <Link href={href}>
-        {glyph}
-        {children}
-      </Link>
-    </Button>
-  );
-}
+export { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 
 export async function MarketplaceShell({
   title,
@@ -143,15 +110,16 @@ export async function MarketplaceShell({
   }
 
   return (
+    <DirectionalTransition>
     <PageShell className="min-h-0 flex-1 self-stretch px-0 py-0 sm:px-0 sm:py-0 lg:px-0 lg:py-0">
       {/* Below `lg` the rail is gone, so the <h1> has no visible home — and it
           does not need one. The page's SectionHeader already names the section
           on screen; printing the title here as well is the same page titled
           twice, one line apart. Kept off-screen so the outline still starts at
           an h1 and screen-reader users get the section name. */}
-      <h1 className="sr-only lg:hidden">{title}</h1>
+      <h1 className="sr-only md:hidden">{title}</h1>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch lg:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch md:flex-row">
         {/* Rail width is proportional (20% of the workspace) so it scales with
             the viewport. The min/max keep it usable at the extremes: a floor so
             the nav labels never crush on smaller laptops, and a cap so it does
@@ -159,7 +127,10 @@ export async function MarketplaceShell({
         {/* The rail is desktop-only in full: below `lg` its section links live
             in MobileBottomNav and its filters render in the content column, so
             nothing is left to mount. */}
-        <aside className="hidden w-full min-w-0 px-4 sm:px-6 lg:block lg:w-1/5 lg:min-w-[13.5rem] lg:max-w-[19rem] lg:shrink-0 lg:self-stretch lg:border-r lg:border-border/80 lg:bg-card/90 lg:px-5 lg:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)]">
+        <aside
+          style={{ viewTransitionName: 'persistent-nav' }}
+          className="hidden w-full min-w-0 px-4 sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-card/90 md:px-5 md:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)]"
+        >
           {/* The rail background stretches the full column; its contents stay in
               view, with identity status held at the bottom of the rail.
               The inset px-1/-mx-1 pair gives focus rings room to draw: setting
@@ -172,8 +143,8 @@ export async function MarketplaceShell({
               must appear here, or the rail runs 1px taller than the space
               under the header and stretches the whole workspace row 1px past
               the viewport — a permanent hairline page scroll. */}
-          <div className="flex flex-col lg:sticky lg:top-[calc(4rem+1px+env(safe-area-inset-top))] lg:-mx-1 lg:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] lg:gap-6 lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:py-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
-            <div className="hidden lg:block">
+          <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-1 md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-1 md:py-7 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
+            <div className="hidden md:block">
               <h1 className="text-balance font-display text-head font-semibold tracking-[-0.03em]">
                 {title}
               </h1>
@@ -187,7 +158,7 @@ export async function MarketplaceShell({
               staff={staff}
             />
 
-            <div className="hidden lg:mt-auto lg:block">
+            <div className="hidden md:mt-auto md:block">
               <KycRailStatus />
             </div>
           </div>
@@ -198,7 +169,7 @@ export async function MarketplaceShell({
             // Below `lg` the content column is the top of the page now that the
             // shell prints no header, so it carries the inset the old mobile
             // title block used to provide.
-            'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-5 sm:px-6 lg:w-auto lg:px-7 lg:py-7 xl:px-8',
+            'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-5 sm:px-6 md:w-auto md:px-7 md:py-7 xl:px-8',
             // `min-h-0` IS THE WHOLE FIX for a full-viewport page, and its absence here
             // was the single break in an otherwise complete shrink chain. `body`,
             // `#main-content`, the PageShell `<main>`, the row, the inner wrapper and the
@@ -230,7 +201,7 @@ export async function MarketplaceShell({
             // computes its own height from the same header terms, and for the same reason.
             flush &&
               (showMobileNav
-                ? 'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] lg:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'
+                ? 'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'
                 : 'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'),
             // Leave room for the fixed mobile hub bar when it is mounted.
             //
@@ -244,16 +215,16 @@ export async function MarketplaceShell({
             // to the viewport edge. The mobile hub bar is already subtracted from the cap,
             // so this is clearance from the bar, not a substitute for it.
             flush
-              ? 'pb-4 lg:pb-7'
+              ? 'pb-4 md:pb-7'
               : showMobileNav
-                ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-10'
+                ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10'
                 : 'pb-10',
             center && 'justify-center',
           )}
         >
           <div
             className={cn(
-              'flex min-h-0 w-full flex-col',
+              'mx-auto flex min-h-0 w-full max-w-workspace flex-col',
               // `my-auto` rather than `flex-1` so a centred interstitial keeps
               // its natural height instead of stretching to fill the section.
               center ? 'my-auto' : 'flex-1',
@@ -271,5 +242,6 @@ export async function MarketplaceShell({
 
       {showMobileNav ? <MobileBottomNav /> : null}
     </PageShell>
+    </DirectionalTransition>
   );
 }

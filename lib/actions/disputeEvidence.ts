@@ -313,7 +313,7 @@ export async function getDisputeEvidenceForStaff(
   if (!gate.ok) {
     return gate.error === 'not-authenticated'
       ? fail('not-authenticated', 'Sign in to read this case.')
-      : fail('not-authorized', 'Evidence is limited to CardTrade support staff.');
+      : fail('not-authorized', 'Evidence is limited to NoDitto support staff.');
   }
 
   const admin = createAdminClient();

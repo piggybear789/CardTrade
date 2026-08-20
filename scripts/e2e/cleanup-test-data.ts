@@ -85,6 +85,12 @@
 //                                                participants, so they are covered for free once a trade's own
 //                                                initiator_id/counterpart_id membership pulls it into tradeIds)
 //   cash_sales.item_id / .buyer_id / .seller_id -> items / profiles         (0001_schema.sql, plain — NO ACTION)
+//   deal_invites.host_id / .claimed_by / .host_item_id / .cash_sale_id / .trade_id
+//                                               -> profiles / items / cash_sales / trades
+//                                               (0103_deal_invites.sql — delete BEFORE trades,
+//                                                cash_sales and items; the invite is the door,
+//                                                the contract rows are the rooms)
+//
 //   cash_sales.cancelled_by / .disputed_by / .dispute_resolved_by -> profiles
 //                                               (0008_cash_sale_contract.sql / 0044_cash_sale_dispute_resolution.sql, plain —
 //                                                UNLIKE the trade columns above, `dispute_resolved_by` is an OPERATOR
@@ -606,6 +612,16 @@ async function main(): Promise<void> {
   total += await step('cash_sale_events', () => deleteByIdsIn('cash_sale_events', 'cash_sale_id', cashSaleIds));
   total += await step('cash_sale_delivery_details', () =>
     deleteByIdsIn('cash_sale_delivery_details', 'cash_sale_id', cashSaleIds),
+  );
+  total += await step('deal_invites', () =>
+    deleteByOr('deal_invites', [
+      inCond('host_id', profileIds),
+      inCond('claimed_by', profileIds),
+      inCond('host_item_id', itemIds),
+      inCond('trade_id', tradeIds),
+      inCond('cash_sale_id', cashSaleIds),
+      'wanted_description.ilike.[E2E]*',
+    ]),
   );
   // Breaks the conversations <-> cash_sales cycle. MUST precede the conversations
   // delete: see the CYCLE note in the FK graph above.

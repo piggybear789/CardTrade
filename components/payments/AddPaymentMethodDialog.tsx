@@ -7,11 +7,24 @@
 // `AddPaymentMethodForm` directly without this wrapper.
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { AddPaymentMethodForm } from './AddPaymentMethodForm';
+const AddPaymentMethodForm = dynamic(
+  () => import('./AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-gold" aria-hidden />
+        <span className="sr-only">Loading payment form…</span>
+      </div>
+    ),
+  },
+);
+
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

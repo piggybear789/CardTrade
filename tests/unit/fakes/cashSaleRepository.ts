@@ -403,7 +403,7 @@ export function makeCashSaleRepository(options: {
       if (sale.termsVersion !== expectedTermsVersion) {
         return { ok: false as const, reason: 'STALE' as const };
       }
-      // The database trigger bumps the version and clears both acceptances.
+      // The database trigger bumps the version, matching a fulfillment change.
       const { deliveryAddress, ...publicTerms } = terms;
       state.sale = {
         ...sale,
@@ -487,25 +487,12 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
-    async acceptTerms({ actor, termsVersion, acceptedAt }) {
-      const sale = state.sale;
-      if (!sale || sale.status !== 'AGREEMENT' || sale.termsVersion !== termsVersion) {
-        return null;
-      }
-      state.sale =
-        actor === 'BUYER'
-          ? { ...sale, buyerTermsAcceptedVersion: termsVersion, buyerTermsAcceptedAt: acceptedAt }
-          : { ...sale, sellerTermsAcceptedVersion: termsVersion, sellerTermsAcceptedAt: acceptedAt };
-      return state.sale;
-    },
     async claimPayment({ termsVersion, nonce, requestedAt }) {
       const sale = state.sale;
       if (
         !sale ||
         sale.status !== 'AGREEMENT' ||
         sale.termsVersion !== termsVersion ||
-        sale.buyerTermsAcceptedVersion !== termsVersion ||
-        sale.sellerTermsAcceptedVersion !== termsVersion ||
         sale.paymentNonce !== null
       ) {
         return null;
@@ -612,14 +599,20 @@ export function makeCashSaleRepository(options: {
     async confirmHandover({ actor, confirmedAt }) {
       const sale = state.sale;
       if (!sale || sale.status !== 'HANDOVER') return null;
-      const next =
-        actor === 'BUYER'
-          ? { ...sale, buyerHandoverConfirmedAt: confirmedAt }
-          : { ...sale, sellerHandoverConfirmedAt: confirmedAt };
-      state.sale =
-        next.buyerHandoverConfirmedAt && next.sellerHandoverConfirmedAt
-          ? { ...next, status: 'COMPLETED', completedAt: confirmedAt }
-          : next;
+      if (actor === 'BUYER' && sale.buyerHandoverConfirmedAt) return null;
+      if (actor === 'SELLER' && sale.sellerHandoverConfirmedAt) return null;
+      const otherDone =
+        actor === 'BUYER' ? sale.sellerHandoverConfirmedAt : sale.buyerHandoverConfirmedAt;
+      const completes = Boolean(otherDone);
+      state.sale = {
+        ...sale,
+        buyerHandoverConfirmedAt:
+          actor === 'BUYER' ? confirmedAt : sale.buyerHandoverConfirmedAt,
+        sellerHandoverConfirmedAt:
+          actor === 'SELLER' ? confirmedAt : sale.sellerHandoverConfirmedAt,
+        status: completes ? 'COMPLETED' : 'HANDOVER',
+        completedAt: completes ? confirmedAt : sale.completedAt,
+      };
       return state.sale;
     },
     async cancelAgreement({ cancelledAt }) {

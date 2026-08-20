@@ -1,4 +1,4 @@
-﻿// components/contract/DittoBondExplainer.tsx
+// components/contract/DittoBondExplainer.tsx
 //
 // Member-facing explanations of where money sits in each transaction model. The two
 // exports describe DIFFERENT mechanisms and must not be merged:
@@ -17,14 +17,10 @@
 
 import type { ReactNode } from 'react';
 import {
-  ArrowRight,
   CheckCircle2,
   CreditCard,
-  Lock,
   ShieldAlert,
-  ShieldCheck,
   Timer,
-  Undo2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -36,32 +32,28 @@ interface FlowStepProps {
   tone?: 'neutral' | 'success' | 'warning';
 }
 
+function FlowStepCopy({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-medium">{title}</p>
+      <div className="mt-0.5 text-body text-muted-foreground">{children}</div>
+    </div>
+  );
+}
+
 function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepProps) {
   return (
-    <div
-      className={cn(
-        'rounded-lg border p-cozy',
-        tone === 'success' && 'border-emerald-500/30 bg-emerald-500/5',
-        tone === 'warning' && 'border-amber-500/30 bg-amber-500/5',
-      )}
-    >
-      {/* Badge centred against the whole row, matching `CustodyBox` below. See the
-          note there: it is deliberate, not the first-line convention. */}
-      <div className="flex items-center gap-snug">
-        <span
-          className={cn(
-            'grid size-7 shrink-0 place-items-center rounded-full border bg-background',
-            tone === 'success' && 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400',
-            tone === 'warning' && 'border-amber-500/40 text-amber-700 dark:text-amber-400',
-          )}
-        >
-          <Icon className="size-3.5" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <p className="font-medium">{title}</p>
-          <div className="mt-0.5 text-meta text-muted-foreground">{children}</div>
-        </div>
-      </div>
+    <div className="flex items-center gap-snug">
+      <Icon
+        className={cn(
+          'size-4 shrink-0',
+          tone === 'success' && 'text-emerald-700 dark:text-emerald-400',
+          tone === 'warning' && 'text-gold',
+          tone === 'neutral' && 'text-muted-foreground',
+        )}
+        aria-hidden
+      />
+      <FlowStepCopy title={title}>{children}</FlowStepCopy>
     </div>
   );
 }
@@ -69,39 +61,63 @@ function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepPro
 /** Explains the collateral lifecycle and resolution outcomes in a Trade contract. */
 export function DittoBondExplainer() {
   return (
-    <section
-      className="space-y-cozy rounded-xl border bg-muted/20 p-cozy"
-      aria-labelledby="dittobond-title"
-    >
+    <section className="space-y-cozy" aria-labelledby="dittobond-title">
       <div>
         <h3 id="dittobond-title" className="text-body font-semibold">
           How trade collateral works
         </h3>
-        <p className="mt-1 text-meta text-muted-foreground">
+        <p className="mt-1 text-body text-muted-foreground">
           Trade collateral is a temporary card authorisation that backs a trade. It is not
           a charge, and NoDitto does not receive the authorised amount while the trade
           is proceeding normally.
         </p>
       </div>
 
-      <div className="grid gap-snug sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-stretch">
+      <div className="grid gap-snug lg:hidden">
         <FlowStep icon={CreditCard} title="1. Authorise">
           When both traders accept, Stripe reserves the agreed value on each saved
           card. Your available card balance may reduce temporarily.
         </FlowStep>
-        <ArrowRight className="mx-auto hidden size-4 self-center text-muted-foreground sm:block" aria-hidden />
         <FlowStep icon={ShieldAlert} title="2. Trade with protection">
           Each hold stays active while you send, receive, and inspect. No money moves
           merely because the hold is active.
         </FlowStep>
-        <ArrowRight className="mx-auto hidden size-4 self-center text-muted-foreground sm:block" aria-hidden />
         <FlowStep icon={CheckCircle2} title="3. Release or resolve" tone="success">
           When both members accept, Stripe voids both holds. Your card issuer decides
           how quickly the available balance refreshes.
         </FlowStep>
       </div>
 
-      <div className="grid gap-snug border-t pt-cozy text-meta sm:grid-cols-2">
+      <div className="hidden lg:block">
+        <div className="relative grid grid-cols-3 items-center" aria-hidden>
+          <span className="absolute inset-x-8 top-1/2 h-px -translate-y-1/2 bg-border" />
+          <div className="relative z-[1] flex justify-center bg-card">
+            <CreditCard className="size-4 text-muted-foreground" />
+          </div>
+          <div className="relative z-[1] flex justify-center bg-card">
+            <ShieldAlert className="size-4 text-muted-foreground" />
+          </div>
+          <div className="relative z-[1] flex justify-center bg-card">
+            <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400" />
+          </div>
+        </div>
+        <div className="mt-cozy grid grid-cols-3 gap-group text-center">
+          <FlowStepCopy title="1. Authorise">
+            When both traders accept, Stripe reserves the agreed value on each saved
+            card. Your available card balance may reduce temporarily.
+          </FlowStepCopy>
+          <FlowStepCopy title="2. Trade with protection">
+            Each hold stays active while you send, receive, and inspect. No money moves
+            merely because the hold is active.
+          </FlowStepCopy>
+          <FlowStepCopy title="3. Release or resolve">
+            When both members accept, Stripe voids both holds. Your card issuer decides
+            how quickly the available balance refreshes.
+          </FlowStepCopy>
+        </div>
+      </div>
+
+      <div className="grid gap-snug border-t pt-cozy text-body sm:grid-cols-2">
         <div className="space-y-1">
           <p className="font-medium text-foreground">If something goes wrong</p>
           <p className="text-muted-foreground">
@@ -110,8 +126,8 @@ export function DittoBondExplainer() {
             trader&apos;s full collateral and pay the affected trader.
           </p>
         </div>
-        <div className="flex gap-snug rounded-md bg-background/70 p-snug">
-          <Timer className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="flex items-center gap-snug">
+          <Timer className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <p className="text-muted-foreground">
             <span className="font-medium text-foreground">Time matters.</span>{' '}
             Card authorisations normally expire after about seven days. The trade must
@@ -123,48 +139,29 @@ export function DittoBondExplainer() {
   );
 }
 
-
-/** One box on the cash-sale custody diagram: who has the money, and while what. */
-function CustodyBox({
+function ProtectionOutcome({
   icon: Icon,
   title,
-  detail,
-  held = false,
+  children,
 }: {
   icon: typeof CreditCard;
   title: string;
-  detail: string;
-  /** The one box where the money is sitting rather than moving. */
-  held?: boolean;
+  children: ReactNode;
 }) {
-  // The badge centres against the WHOLE row — title plus description — not against
-  // the title line. Stated here because it is a deliberate choice and reads as a bug
-  // to the usual convention: a badge beside a title-plus-prose is normally aligned to
-  // the first line, on the grounds that an icon labels the heading rather than the
-  // paragraph. These rows are short (one line of title, one or two of detail) and each
-  // one is a single unit in a diagram, so the badge belongs on the unit's axis.
   return (
-    <div className="flex min-w-0 items-center gap-snug">
-      <span
-        className={cn(
-          'grid size-8 shrink-0 place-items-center rounded-full border',
-          held
-            ? 'border-trust/45 bg-trust/10 text-trust'
-            : 'border-border bg-background text-foreground',
-        )}
-      >
-        <Icon className="size-4" aria-hidden />
-      </span>
+    <div className="flex gap-cozy py-cozy first:pt-0 last:pb-0">
+      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
       <div className="min-w-0">
-        <p className="text-body font-semibold leading-tight">{title}</p>
-        <p className="mt-0.5 text-meta leading-4 text-muted-foreground">{detail}</p>
+        <p className="text-body font-semibold">{title}</p>
+        <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">{children}</p>
       </div>
     </div>
   );
 }
 
 /**
- * Explains where a Cash_Sale buyer's money sits, and when the Seller is paid.
+ * Explains where a Cash_Sale buyer's money sits at each stage, and when the Seller
+ * is paid.
  *
  * DELIBERATELY SAYS NOTHING ABOUT COLLATERAL. A Cash_Sale has none: the Buyer's
  * money is genuinely collected up front, so there is nothing left for either party
@@ -178,80 +175,55 @@ function CustodyBox({
  * Trade collateral is a different thing entirely and is explained by
  * `DittoBondExplainer`; do not merge the two.
  *
- * THREE BOXES, ONE FORK, AND NO LEGEND. Two earlier versions both failed the same
- * way: they were built around the sale's four STAGES (pay, ship, inspect, resolve),
- * which meant the diagram had to say "the money has not moved" three times — once
- * as repeated "MONEY — Held by NoDitto" rows, then as a band spanning three
- * columns with the sentences repeated underneath as a legend. Every stage label
- * appeared twice on screen.
- *
- * A member asking "where is my money" is asking about CUSTODY, and custody only has
- * three positions: yours, ours, or theirs. Shipping and inspection are not custody
- * changes — they are what happens WHILE we hold it, so they belong inside the middle
- * box as one clause. That collapses the whole explanation to a payment, a hold, and
- * a two-way fork, with no fact stated twice and no legend to keep in step.
+ * Three mutually exclusive outcomes answer the practical questions directly:
+ * where payment is now, when it releases, and what a dispute changes.
  */
-export function CashSaleProtectionExplainer() {
+export function CashSaleProtectionExplainer({
+  viewerIsBuyer,
+  inPerson,
+}: {
+  viewerIsBuyer: boolean;
+  inPerson: boolean;
+}) {
   return (
-    <div className="space-y-group">
-      {/* One `role="img"` carrying the whole journey. The labels are real text and
-          are fine to read, but a graphics role suppresses them for assistive tech,
-          so the label has to be the complete answer on its own. */}
-      <div
-        className={cn(
-          'grid gap-cozy',
-          'sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.1fr)_auto_minmax(0,1.2fr)] sm:items-center',
-        )}
-        role="img"
-        aria-label="You pay the full amount up front. NoDitto holds it while the seller posts the item and you check it over. The seller is paid when you accept or the inspection window closes; if you dispute inside the window, a person reviews it and you can be refunded."
-      >
-        <CustodyBox
-          icon={CreditCard}
-          title="You pay"
-          detail="The full amount, up front."
-        />
-
-        <ArrowRight
-          className="mx-auto size-4 shrink-0 rotate-90 text-muted-foreground sm:rotate-0"
-          aria-hidden
-        />
-
-        <CustodyBox
-          icon={Lock}
-          title="NoDitto holds it"
-          detail="While the seller posts it and you check it over."
-          held
-        />
-
-        <ArrowRight
-          className="mx-auto size-4 shrink-0 rotate-90 text-muted-foreground sm:rotate-0"
-          aria-hidden
-        />
-
-        {/* THE FORK. Two outcomes from one position, so they share a bracket rather
-            than sitting in the flow as two more steps — the money goes to exactly
-            one of them. */}
-        <div className="space-y-cozy border-l pl-cozy">
-          <CustodyBox
-            icon={CheckCircle2}
-            title="Seller is paid"
-            detail="When you accept, or the inspection window closes."
-          />
-          <CustodyBox
-            icon={Undo2}
-            title="Or you are refunded"
-            detail="Dispute inside the window and a person reviews it."
-          />
-        </div>
-      </div>
-
-      <div className="flex items-start gap-snug border-t pt-cozy">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
-        <p className="text-meta text-muted-foreground">
-          <span className="font-medium text-foreground">Every seller is verified</span>{' '}
-          — photo ID + selfie via Stripe before they can list anything.
+    <section className="space-y-group" aria-labelledby="cash-sale-protection-title">
+      <div>
+        <h3 id="cash-sale-protection-title" className="text-lead font-semibold">
+          How buyer protection works
+        </h3>
+        <p className="mt-1 text-body leading-relaxed text-muted-foreground">
+          {viewerIsBuyer ? 'Your payment' : "The buyer's payment"} stays with NoDitto
+          {inPerson ? ' until the buyer confirms the handover' : ' through delivery and inspection'}.
+          The seller can see that it is paid, but cannot receive it yet.
         </p>
       </div>
-    </div>
+
+      <div className="divide-y border-y py-cozy">
+        <ProtectionOutcome icon={CreditCard} title="While the sale is active">
+          The full payment remains held. {inPerson ? 'Meeting the seller' : 'Shipping the item'} does not
+          release it.
+        </ProtectionOutcome>
+        <ProtectionOutcome
+          icon={CheckCircle2}
+          title={inPerson ? 'When the buyer confirms handover' : 'When the item is accepted'}
+        >
+          NoDitto releases the payment to the seller.
+        </ProtectionOutcome>
+        <ProtectionOutcome icon={ShieldAlert} title="If the buyer reports a problem">
+          A dispute freezes the payment while support reviews both sides. Opening a
+          dispute does not guarantee a refund.
+        </ProtectionOutcome>
+      </div>
+
+      {!inPerson ? (
+        <p className="flex gap-snug text-body leading-relaxed text-muted-foreground">
+          <Timer className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            If the buyer takes no action before the inspection deadline, the sale
+            completes automatically and the seller is paid.
+          </span>
+        </p>
+      ) : null}
+    </section>
   );
 }

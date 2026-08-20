@@ -52,6 +52,11 @@ const cspDirectives = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // Native <ViewTransition> / Link `transitionTypes`. Typed as experimental in
+    // Next 16.3 even though the shipped ExperimentalConfig typings omit the flag.
+    viewTransition: true,
+  } as NextConfig['experimental'],
   // Suppress the X-Powered-By: Next.js header — leaks framework version info.
   poweredByHeader: false,
   // Lets a production build run without fighting a `next dev` server for `.next`.

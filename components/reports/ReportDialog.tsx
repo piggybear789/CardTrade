@@ -45,10 +45,20 @@ import {
 } from '@/lib/actions/reports';
 import { DETAILS_MAX } from '@/lib/marketplace-constants';
 
-/** The preset reasons offered in the Select. */
-const REASONS = [
+/** Reasons when the target is a listing. */
+const ITEM_REASONS = [
   'Prohibited item',
   'Counterfeit',
+  'Spam',
+  'Inappropriate',
+  'Other',
+] as const;
+
+/** Reasons when the target is a person — used from profiles and contract rooms. */
+const USER_REASONS = [
+  'Harassment',
+  'Scam or fraud',
+  'No-show',
   'Spam',
   'Inappropriate',
   'Other',
@@ -77,8 +87,12 @@ export interface ReportDialogProps {
   triggerLabel: string;
   /** Semantic style for the trigger; defaults to the low-key ghost treatment. */
   triggerVariant?: ButtonProps['variant'];
-  /** `icon` = round chip + label below (item detail action row). */
-  appearance?: 'button' | 'icon';
+  /**
+   * `button` — labelled trigger;
+   * `icon` — round chip + label below (item detail action row);
+   * `icon-only` — flag only, for compact toolbars.
+   */
+  appearance?: 'button' | 'icon' | 'icon-only';
 }
 
 /**
@@ -100,6 +114,7 @@ export function ReportDialog({
   const [isPending, startTransition] = useTransition();
 
   const targetNoun = targetType === 'item' ? 'listing' : 'user';
+  const reasons = targetType === 'item' ? ITEM_REASONS : USER_REASONS;
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -135,17 +150,18 @@ export function ReportDialog({
       <DialogTrigger asChild>
         {appearance === 'icon' ? (
           <ListingActionIcon icon={Flag} label="Report" />
-        ) : (
+        ) : appearance === 'icon-only' ? (
           <Button
             type="button"
-            variant={triggerVariant}
-            size="sm"
-            className={
-              triggerVariant === 'ghost'
-                ? 'text-muted-foreground hover:text-foreground'
-                : undefined
-            }
+            variant="ghost"
+            size="icon"
+            className="size-9 text-muted-foreground hover:text-foreground"
+            aria-label={triggerLabel}
           >
+            <Flag aria-hidden />
+          </Button>
+        ) : (
+          <Button type="button" variant={triggerVariant} size="sm">
             <Flag aria-hidden />
             {triggerLabel}
           </Button>
@@ -169,7 +185,7 @@ export function ReportDialog({
                   <SelectValue placeholder="Select a reason…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {REASONS.map((r) => (
+                  {reasons.map((r) => (
                     <SelectItem key={r} value={r}>
                       {r}
                     </SelectItem>

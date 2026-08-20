@@ -257,8 +257,8 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     },
     {
       id: 'release',
-      // Terminal tick reads 'Finish' in every flow.
-      short: 'Finish',
+      // Terminal tick reads 'Done' in every flow.
+      short: '',
       label: 'Both holds released',
       detail: 'Neither card is charged once the swap completes.',
       owner: 'platform',

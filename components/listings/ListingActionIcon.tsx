@@ -1,4 +1,4 @@
-import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 
@@ -9,18 +9,20 @@ type SharedProps = {
   label: string;
   /** Filled primary chip vs outlined secondary. */
   variant?: 'default' | 'outline';
+  /** Extra classes on the Lucide icon (e.g. a larger offer glyph). */
+  iconClassName?: string;
   className?: string;
 };
 
 type ListingActionIconProps = SharedProps &
   (
-    | ({ href: string } & Omit<
+    | ({ href: string; ref?: Ref<HTMLAnchorElement> } & Omit<
         ComponentPropsWithoutRef<typeof Link>,
-        'href' | 'className' | 'children'
+        'href' | 'className' | 'children' | 'ref'
       >)
-    | ({ href?: undefined } & Omit<
+    | ({ href?: undefined; ref?: Ref<HTMLButtonElement> } & Omit<
         ComponentPropsWithoutRef<'button'>,
-        'className' | 'children'
+        'className' | 'children' | 'ref'
       >)
   );
 
@@ -29,7 +31,7 @@ function chipClass(variant: 'default' | 'outline') {
     'flex size-12 items-center justify-center rounded-full border transition-[colors,transform] group-active:scale-95',
     variant === 'default'
       ? 'border-primary bg-primary text-primary-foreground group-hover:bg-primary/90'
-      : 'border-input bg-card text-foreground shadow-sm group-hover:border-gold/50 group-hover:bg-accent group-hover:text-accent-foreground',
+      : 'border-border bg-card text-foreground shadow-sm group-hover:border-gold/40 group-hover:bg-accent group-hover:text-accent-foreground',
   );
 }
 
@@ -37,23 +39,26 @@ function chipClass(variant: 'default' | 'outline') {
  * Compact listing CTA: round icon chip with the action label underneath.
  * Used for Buy / Trade / Offer on the item detail page.
  */
-export const ListingActionIcon = forwardRef<
-  HTMLButtonElement | HTMLAnchorElement,
-  ListingActionIconProps
->(function ListingActionIcon(
-  { icon: Icon, label, variant = 'outline', className, href, ...props },
+export function ListingActionIcon({
+  icon: Icon,
+  label,
+  variant = 'outline',
+  iconClassName,
+  className,
+  href,
   ref,
-) {
+  ...props
+}: ListingActionIconProps) {
   const chip = (
     <span className={chipClass(variant)} aria-hidden="true">
-      <Icon className="size-5" />
+      <Icon className={cn('size-5', iconClassName)} />
     </span>
   );
 
   const body: ReactNode = (
     <>
       {chip}
-      <span className="w-full text-center text-meta font-semibold leading-tight tracking-[0.01em]">
+      <span className="w-full text-center text-body font-semibold leading-tight tracking-[0.01em]">
         {label}
       </span>
     </>
@@ -69,10 +74,10 @@ export const ListingActionIcon = forwardRef<
       <Link
         href={href}
         className={sharedClass}
-        ref={ref as React.Ref<HTMLAnchorElement>}
+        ref={ref as Ref<HTMLAnchorElement>}
         {...(props as Omit<
           ComponentPropsWithoutRef<typeof Link>,
-          'href' | 'className' | 'children'
+          'href' | 'className' | 'children' | 'ref'
         >)}
       >
         {body}
@@ -84,10 +89,10 @@ export const ListingActionIcon = forwardRef<
     <button
       type="button"
       className={sharedClass}
-      ref={ref as React.Ref<HTMLButtonElement>}
-      {...(props as Omit<ComponentPropsWithoutRef<'button'>, 'className' | 'children'>)}
+      ref={ref as Ref<HTMLButtonElement>}
+      {...(props as Omit<ComponentPropsWithoutRef<'button'>, 'className' | 'children' | 'ref'>)}
     >
       {body}
     </button>
   );
-});
+}

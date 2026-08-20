@@ -20,15 +20,10 @@
 
 import { redirect } from 'next/navigation';
 import {
-  AlertCircle,
-  CalendarDays,
-  CheckCircle2,
   Clock,
   CreditCard,
-  Globe,
   ScaleIcon,
   ShieldCheck,
-  Star,
   Wallet,
 } from 'lucide-react';
 
@@ -38,7 +33,6 @@ import { getPayoutSetupContext } from '@/lib/actions/merchant';
 import { getPayoutsDashboard } from '@/lib/actions/payouts';
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { isPaymentDemoEnabled } from '@/domain/services';
-import { regionLabel } from '@/domain/region';
 import { formatAud } from '@/lib/format';
 import { IdentityCheckCard } from '@/components/identity/IdentityCheckCard';
 import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
@@ -47,7 +41,6 @@ import { PayoutOnboarding } from '@/components/profile/PayoutOnboarding';
 import { PayoutsDashboard } from '@/components/payouts/PayoutsDashboard';
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
-import { Avatar } from '@/components/ui/avatar';
 import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
 import { SocialLinksEditor } from '@/components/profile/SocialLinksEditor';
 import { ProfileBioEditor } from '@/components/profile/ProfileBioEditor';
@@ -95,7 +88,7 @@ export default async function ProfilePage({
     await Promise.all([
       supabase
         .from('profiles')
-        .select('display_name, contact_email, avatar_path, region_code, social_links, bio, rating, rating_count, created_at')
+        .select('display_name, contact_email, avatar_path, social_links, bio')
         .eq('id', user.id)
         .single(),
       getPaymentMethodStatus(),
@@ -134,7 +127,6 @@ export default async function ProfilePage({
   );
 
   const socialLinks = (profile.social_links as Record<string, string> | null) ?? null;
-  const regionCode = profile.region_code as string | null;
 
   return (
     <MarketplaceShell title="Settings">
@@ -148,7 +140,7 @@ export default async function ProfilePage({
           The heading and tabs share the column so all three left edges line up. */}
       <div className="mx-auto w-full max-w-2xl">
         <header className="mb-6">
-          <h1 className="text-head font-semibold tracking-[-0.02em]">Settings</h1>
+          <h2 className="text-head font-semibold tracking-[-0.02em]">Settings</h2>
         </header>
 
         <AccountTabs activeTab={activeTab} />
@@ -162,14 +154,14 @@ export default async function ProfilePage({
                 64px circle beside two stacked fields centres itself against their
                 combined height and floats below the label it belongs to. */}
             <div className="rounded-xl border bg-card p-5">
-              <div className="flex items-start gap-5">
+              <div className="flex flex-wrap items-start gap-5">
                 <AvatarUploadField
                   avatarPath={profile.avatar_path}
                   displayName={profile.display_name}
                   hideHint
                   compact
                 />
-                <div className="min-w-0 flex-1 space-y-3">
+                <div className="min-w-0 flex-1 basis-40 space-y-3">
                   <div>
                     <SectionLabel>Display name</SectionLabel>
                     <p className="mt-1 truncate text-lead font-semibold">
@@ -178,7 +170,7 @@ export default async function ProfilePage({
                   </div>
                   <div>
                     <SectionLabel>Email</SectionLabel>
-                    <p className="mt-1 truncate text-meta text-muted-foreground">
+                    <p className="mt-1 truncate text-body text-muted-foreground">
                       {profile.contact_email}
                     </p>
                   </div>
@@ -212,7 +204,8 @@ export default async function ProfilePage({
             </SettingsSection>
 
             <SettingsSection
-              label="Social links"
+              label="Links"
+              description="Shown on your public profile. Usernames for socials; a full https link for your store."
             >
               <SocialLinksEditor initialLinks={socialLinks} />
             </SettingsSection>
@@ -223,6 +216,7 @@ export default async function ProfilePage({
               {hasCard ? (
                 <SettingsRow
                   icon={CreditCard}
+                  inverse
                   title={paymentMethod?.label ?? 'Card saved with Stripe'}
                   subtitle={
                     paymentMethod?.expiry
@@ -236,7 +230,7 @@ export default async function ProfilePage({
                           type="button"
                           variant="link"
                           size="sm"
-                          className="h-auto p-0 text-body font-medium no-underline hover:underline"
+                          className="h-auto p-0 text-body font-medium text-parchment no-underline hover:text-parchment hover:underline"
                         >
                           Replace
                         </Button>
@@ -257,7 +251,7 @@ export default async function ProfilePage({
                     />
                   }
                 >
-                  Required to buy or enter trade escrow.
+                  Required to buy or back a trade.
                 </SettingsPlaceholder>
               )}
             </SettingsSection>
@@ -266,79 +260,17 @@ export default async function ProfilePage({
 
         {activeTab === 'verification' ? (
           <div className="space-y-6">
-            {/* PROFILE CARD — how this member appears to others, plus compact
-                action rows for the two setup steps. The old content was a three-
-                section wizard that repeated the heading "Step 1 / Step 2" and
-                dedicated a card each to Identity, Payouts and Region. The
-                information it displayed was sparse, so it made a short process
-                look long. A single card with the same data reads as a summary
-                rather than an ordeal. */}
-            <div className="rounded-xl border bg-card p-6">
-              <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-                <Avatar
-                  avatarPath={profile.avatar_path}
-                  displayName={profile.display_name}
-                  size="xl"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                    <h2 className="text-subhead font-semibold">
-                      {profile.display_name}
-                    </h2>
-                    {identityVerified ? (
-                      <StatusPill tone="verified" icon={ShieldCheck}>
-                        Verified
-                      </StatusPill>
-                    ) : (
-                      <StatusPill tone="required" icon={AlertCircle}>
-                        Unverified
-                      </StatusPill>
-                    )}
-                  </div>
+            {/* Identity and payout setup only. The member summary (avatar, name,
+                ratings, region) already lives on the Profile tab — repeating it
+                here made Verification look like a second profile page. */}
+            {identityVerified && payoutsActive ? (
+              <SettingsRow
+                icon={ShieldCheck}
+                title="You're set up"
+                subtitle="Identity verified and payouts are active."
+              />
+            ) : null}
 
-                  <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-meta text-muted-foreground sm:justify-start">
-                    {(profile as { rating: number | null }).rating != null ? (
-                      <span className="inline-flex items-center gap-tight">
-                        <Star className="size-3.5 fill-gold text-gold" aria-hidden />
-                        {((profile as { rating: number }).rating).toFixed(1)}
-                        <span className="text-muted-foreground/70">
-                          ({(profile as { rating_count: number }).rating_count})
-                        </span>
-                      </span>
-                    ) : (
-                      <span>No ratings yet</span>
-                    )}
-                    {(profile as { created_at: string }).created_at ? (
-                      <span className="inline-flex items-center gap-tight">
-                        <CalendarDays className="size-3.5" aria-hidden />
-                        Member since{' '}
-                        {new Date((profile as { created_at: string }).created_at).toLocaleDateString(
-                          'en-AU',
-                          { month: 'short', year: 'numeric' },
-                        )}
-                      </span>
-                    ) : null}
-                    {regionCode ? (
-                      <span className="inline-flex items-center gap-tight">
-                        <Globe className="size-3.5" aria-hidden />
-                        {regionLabel(regionCode)}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {payoutsActive ? (
-                    <p className="mt-2 text-meta text-trust">
-                      <CheckCircle2 className="mr-tight inline size-3.5" aria-hidden />
-                      Payouts active
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            {/* Action rows — only shown when something needs doing. A fully
-                verified, payouts-active member sees just the card above and
-                nothing below, which is the goal: verification done, move on. */}
             {!identityVerified ? (
               <SettingsSection
                 label="Identity"
@@ -396,7 +328,7 @@ export default async function ProfilePage({
                   }
                 />
                 <StatTile
-                  label="Still in escrow"
+                  label="Held for open sales"
                   value={formatAud(payoutDashboard.data.model.upcomingProceedsCents)}
                   sub="Collected, not yet complete"
                   icon={Clock}

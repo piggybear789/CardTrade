@@ -29,7 +29,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { BadgeCheck, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import { BadgeCheck, Loader2, ShieldAlert } from 'lucide-react';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { Button } from '@/components/ui/button';
@@ -85,7 +85,7 @@ export function IdentityGatePrompt({
 
   /**
    * Create the check and leave for the provider in one action. Pressing this is the
-   * buyer-disclosure consent (Req 4.8-4.12), stated beneath it.
+   * buyer-disclosure consent (Req 4.8-4.12).
    */
   function handleStart() {
     setError(null);
@@ -107,31 +107,19 @@ export function IdentityGatePrompt({
     });
   }
 
-  function handleRecheck() {
-    setError(null);
-    setNotice(null);
-    startTransition(async () => {
-      await settle('Still checking — we will update this automatically.');
-    });
-  }
-
   return (
     <div className="space-y-group">
-      <div className="space-y-tight">
+      {resuming ? (
         <p className="text-body text-muted-foreground">
-          {resuming
-            ? `Your identity check is not finished yet, so you cannot ${blockedAction} for the moment. Continue when you are ready.`
-            : `Verify your identity to ${blockedAction}. It takes one step and needs a photo ID — no bank details.`}
+          Your check is still open. You cannot {blockedAction} until it finishes.
         </p>
-        {state === 'NOT_APPROVED' ? (
-          <p className="flex gap-snug text-body text-destructive">
-            <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {/* Retryable. A document check fails for a blurry photo far more often
-                than for anything sinister. */}
-            That document could not be verified. You can try again.
-          </p>
-        ) : null}
-      </div>
+      ) : null}
+      {state === 'NOT_APPROVED' ? (
+        <p className="flex gap-snug text-body text-destructive">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          That document could not be verified. You can try again.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-snug">
         <Button type="button" onClick={handleStart} disabled={isPending} aria-busy={isPending}>
@@ -142,12 +130,6 @@ export function IdentityGatePrompt({
           )}
           {resuming ? 'Continue with Stripe' : 'Verify with Stripe'}
         </Button>
-        {resuming ? (
-          <Button variant="outline" onClick={handleRecheck} disabled={isPending}>
-            <RefreshCw className="size-3.5" aria-hidden />
-            Check status
-          </Button>
-        ) : null}
       </div>
 
       {error ? (
@@ -156,13 +138,6 @@ export function IdentityGatePrompt({
         </p>
       ) : null}
       {notice ? <p className="text-body text-muted-foreground">{notice}</p> : null}
-
-      {/* Req 4.8-4.12: continuing is the consent, so it is stated here. */}
-      <p className="text-body text-muted-foreground">
-        Stripe checks a photo ID and a selfie on its own pages — NoDitto never sees the
-        document. You agree that the name on it can be shown to someone you have an
-        agreed sale or trade with.
-      </p>
     </div>
   );
 }

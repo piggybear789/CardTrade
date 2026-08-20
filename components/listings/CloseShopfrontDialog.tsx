@@ -74,10 +74,10 @@ export function CloseShopfrontDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Close this listing?</DialogTitle>
+          <DialogTitle>Close listing</DialogTitle>
           <DialogDescription className="break-words">
             {itemTitle} will stop appearing in the catalog and will not take new
-            requests. Contracts already open stay open — you still need to finish
+            requests. Contracts already open stay open. You still need to finish
             those.
           </DialogDescription>
         </DialogHeader>

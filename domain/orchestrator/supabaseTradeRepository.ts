@@ -20,6 +20,7 @@ import {
   type TradeRepository,
   type TransitionAudit,
 } from './tradeOrchestrator';
+import { createSupabaseCollateralSideEffects } from './supabaseTradeProposalRepository';
 
 /** The Supabase admin client type (service-role, RLS-bypassing). */
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -89,7 +90,7 @@ export function createDefaultTradeOrchestrator(
   return createTradeOrchestrator({
     repository: overrides.repository ?? createSupabaseTradeRepository(),
     payments: overrides.payments,
-    runSideEffects: overrides.runSideEffects,
+    runSideEffects: overrides.runSideEffects ?? createSupabaseCollateralSideEffects(),
     now: overrides.now,
   });
 }

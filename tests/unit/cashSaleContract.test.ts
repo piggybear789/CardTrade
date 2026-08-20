@@ -1,8 +1,8 @@
 // tests/unit/cashSaleContract.test.ts
 //
 // The bilateral Cash_Sale lifecycle (Req 4): Buy reserves without charging,
-// versioned terms need both acceptances, cleared funds gate fulfillment, and
-// every action is authorized and state-guarded.
+// the buyer pays once handover details exist, cleared funds gate fulfillment,
+// and every action is authorized and state-guarded.
 
 import { describe, expect, it } from 'vitest';
 
@@ -97,7 +97,7 @@ async function agreeDeliveryTerms(
   });
 }
 
-/** Drive a sale to both-accepted so payment is submitted. */
+/** Drive a sale to paid so fulfillment tests can start. */
 async function agreeAndPay(
   deps: CashSaleOrchestratorDeps,
   // Typed as the domain input rather than inferred from DELIVERY_TERMS, whose
@@ -121,17 +121,12 @@ async function agreeAndPay(
         });
   if (!updated.ok) throw new Error(`terms failed: ${updated.error}`);
   const version = updated.sale.termsVersion;
-  await acceptCashSaleTerms(deps, {
+  const paid = await acceptCashSaleTerms(deps, {
     actorId: BUYER.profileId,
     cashSaleId: saleId,
     termsVersion: version,
   });
-  const second = await acceptCashSaleTerms(deps, {
-    actorId: ITEM.ownerId,
-    cashSaleId: saleId,
-    termsVersion: version,
-  });
-  return { saleId, version, second };
+  return { saleId, version, second: paid };
 }
 
 describe('cash sale — agreement stage', () => {
@@ -273,26 +268,43 @@ describe('cash sale — terms and dual acceptance', () => {
     );
   });
 
-  it('does not pay on the first acceptance alone', async () => {
+  it('starts collection when the buyer pays, without a seller confirm', async () => {
     const { deps, calls } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
     const updated = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
     if (!updated.ok) throw new Error('setup failed');
 
-    const first = await acceptCashSaleTerms(deps, {
+    const paid = await acceptCashSaleTerms(deps, {
       actorId: BUYER.profileId,
       cashSaleId: created.sale.id,
       termsVersion: updated.sale.termsVersion,
     });
 
-    expect(first.ok).toBe(true);
-    if (!first.ok) return;
-    expect(first.sale.status).toBe('AGREEMENT');
+    expect(paid.ok).toBe(true);
+    if (!paid.ok) return;
+    expect(paid.sale.status).toBe('ESCROW_HELD');
+    expect(calls.transfers).toHaveLength(1);
+  });
+
+  it('refuses a seller trying to start payment', async () => {
+    const { deps, calls } = makeDeps();
+    const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
+    if (!created.ok) throw new Error('setup failed');
+    const updated = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
+    if (!updated.ok) throw new Error('setup failed');
+
+    const result = await acceptCashSaleTerms(deps, {
+      actorId: ITEM.ownerId,
+      cashSaleId: created.sale.id,
+      termsVersion: updated.sale.termsVersion,
+    });
+
+    expect(result).toMatchObject({ ok: false, error: 'NOT_PERMITTED' });
     expect(calls.transfers).toHaveLength(0);
   });
 
-  it('submits exactly one payment with a persisted nonce when both accept', async () => {
+  it('submits exactly one payment with a persisted nonce when the buyer pays', async () => {
     const { deps, calls } = makeDeps();
     const { second } = await agreeAndPay(deps);
 
@@ -306,17 +318,12 @@ describe('cash sale — terms and dual acceptance', () => {
     expect(calls.transfers[0].amount).toBe(second.sale.amountCents);
   });
 
-  it('clears both acceptances when terms change', async () => {
+  it('lets terms change before the buyer pays', async () => {
     const { deps, calls } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
     const v2 = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
     if (!v2.ok) throw new Error('setup failed');
-    await acceptCashSaleTerms(deps, {
-      actorId: BUYER.profileId,
-      cashSaleId: created.sale.id,
-      termsVersion: v2.sale.termsVersion,
-    });
 
     const v3 = await updateCashSaleTerms(deps, {
       actorId: ITEM.ownerId,
@@ -331,13 +338,12 @@ describe('cash sale — terms and dual acceptance', () => {
 
     expect(v3.ok).toBe(true);
     if (!v3.ok) return;
-    expect(v3.sale.buyerTermsAcceptedVersion).toBeNull();
-    expect(v3.sale.sellerTermsAcceptedVersion).toBeNull();
+    expect(v3.sale.status).toBe('AGREEMENT');
     expect(v3.sale.termsVersion).toBe(v2.sale.termsVersion + 1);
     expect(calls.transfers).toHaveLength(0);
   });
 
-  it('rejects an acceptance for a superseded terms version', async () => {
+  it('rejects payment against a superseded terms version', async () => {
     const { deps } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
@@ -425,12 +431,12 @@ describe('cash sale — terms and dual acceptance', () => {
     );
   });
 
-  it('does not double-charge when the same party accepts twice', async () => {
+  it('does not double-charge when the buyer pays twice', async () => {
     const { deps, calls } = makeDeps();
     const { saleId, version } = await agreeAndPay(deps);
 
     const repeat = await acceptCashSaleTerms(deps, {
-      actorId: ITEM.ownerId,
+      actorId: BUYER.profileId,
       cashSaleId: saleId,
       termsVersion: version,
     });
@@ -532,7 +538,7 @@ describe('cash sale — fulfillment', () => {
     expect(state.item.status).toBe('SOLD');
   });
 
-  it('needs both confirmations to complete a face-to-face handover', async () => {
+  it('completes a face-to-face handover when both parties confirm', async () => {
     const { deps, state } = makeDeps();
     const { saleId, second } = await agreeAndPay(deps, {
       fulfillmentMethod: 'IN_PERSON',
@@ -548,28 +554,35 @@ describe('cash sale — fulfillment', () => {
     // In-person sales settle straight into HANDOVER when the transfer clears.
     expect(second.sale.status).toBe('HANDOVER');
 
+    const sellerFirst = await confirmCashSaleHandover(deps, {
+      actorId: ITEM.ownerId,
+      cashSaleId: saleId,
+    });
+    expect(sellerFirst.ok).toBe(true);
+    if (!sellerFirst.ok) return;
+    expect(sellerFirst.sale.status).toBe('HANDOVER');
+    expect(state.item.status).not.toBe('SOLD');
+
+    const sellerRepeat = await confirmCashSaleHandover(deps, {
+      actorId: ITEM.ownerId,
+      cashSaleId: saleId,
+    });
+    expect(sellerRepeat).toMatchObject({ ok: false, error: 'ALREADY_RECORDED' });
+
     const buyerConfirm = await confirmCashSaleHandover(deps, {
       actorId: BUYER.profileId,
       cashSaleId: saleId,
     });
     expect(buyerConfirm.ok).toBe(true);
     if (!buyerConfirm.ok) return;
-    expect(buyerConfirm.sale.status).toBe('HANDOVER');
+    expect(buyerConfirm.sale.status).toBe('COMPLETED');
+    expect(state.item.status).toBe('SOLD');
 
     const repeat = await confirmCashSaleHandover(deps, {
       actorId: BUYER.profileId,
       cashSaleId: saleId,
     });
-    expect(repeat).toMatchObject({ ok: false, error: 'ALREADY_RECORDED' });
-
-    const sellerConfirm = await confirmCashSaleHandover(deps, {
-      actorId: ITEM.ownerId,
-      cashSaleId: saleId,
-    });
-    expect(sellerConfirm.ok).toBe(true);
-    if (!sellerConfirm.ok) return;
-    expect(sellerConfirm.sale.status).toBe('COMPLETED');
-    expect(state.item.status).toBe('SOLD');
+    expect(repeat).toMatchObject({ ok: false, error: 'INVALID_STATE' });
   });
 });
 
@@ -609,19 +622,12 @@ describe('cash sale — contract chat', () => {
 });
 
 describe('cash sale — price renegotiation', () => {
-  it('reprices the contract and clears both acceptances', async () => {
+  it('reprices the contract before the buyer pays', async () => {
     const { deps, calls } = makeDeps();
     const created = await initiateCashSale(deps, CONFIRMED_PURCHASE);
     if (!created.ok) throw new Error('setup failed');
     const withTerms = await agreeDeliveryTerms(deps, created.sale.id, created.sale.termsVersion);
     if (!withTerms.ok) throw new Error('setup failed');
-    // The BUYER accepts first, so this asserts the thing that actually matters: a
-    // seller's discount does not silently keep the buyer's consent to the old number.
-    await acceptCashSaleTerms(deps, {
-      actorId: BUYER.profileId,
-      cashSaleId: created.sale.id,
-      termsVersion: withTerms.sale.termsVersion,
-    });
 
     const repriced = await proposeCashSalePrice(deps, {
       actorId: ITEM.ownerId,
@@ -637,10 +643,7 @@ describe('cash sale — price renegotiation', () => {
       // Repricing re-derives the percentage fee from the NEW price.
       8_000 + platformFeeCentsFor(8_000) + DELIVERY_TERMS.shippingCostCents,
     );
-    // Cleared, so nothing can be charged on a number the buyer never agreed to. This is
-    // what makes a private discount safe rather than merely convenient — and it applies
-    // to a price CUT too, because a buyer is entitled to know what they are paying.
-    expect(repriced.sale.buyerTermsAcceptedVersion).toBeNull();
+    expect(repriced.sale.status).toBe('AGREEMENT');
     expect(repriced.sale.termsVersion).toBe(withTerms.sale.termsVersion + 1);
     expect(calls.transfers).toHaveLength(0);
   });

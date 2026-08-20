@@ -20,12 +20,9 @@
 //   * The progress rail is a row of BUTTONS whose accessible names are the step
 //     names, and the live one is suffixed " — current step". That suffix is the
 //     cleanest state assertion in the whole flow: it is what the member reads.
-//     Steps: "Propose handover terms" → "Review and accept the proposal" →
-//     "Payment clears into escrow" → "Both confirm the handover" →
-//     "Buyer accepts the item".
-//   * Acceptance is asymmetric copy: the buyer's button is
-//     "Accept and pay $X", the seller's is "Accept terms". They are the
-//     same transition and must not be matched by one pattern.
+//     Steps: "Set handover terms" → "Payment collected and held" →
+//     fulfilment (ship or handover) → complete the purchase.
+//   * The buyer pays as soon as terms exist. There is no seller confirm.
 
 import { test, expect } from '../support/fixtures';
 import type { Page } from '@playwright/test';
@@ -110,14 +107,14 @@ test.describe.serial('Cash sale lifecycle', () => {
   saleUrl = new URL(page.url()).pathname;
   
   // NO MONEY HAS MOVED YET. Opening the contract reserves the goods and starts a
-  // negotiation; collection happens only once both parties accept terms.
+  // negotiation; the buyer pays once handover details are set.
   //
   // The room's title is per-ROLE, not per-contract: the buyer's shell says
   // "Purchase" and the seller's says "Sale" for the same row. Matching either.
   await expect(
     page.getByRole('heading', { name: /^(Purchase|Sale)$/ }).first(),
   ).toBeVisible({ timeout: RENDERED });
-  await expect(currentStep(page, 'Propose handover terms')).toBeVisible({
+  await expect(currentStep(page, 'Set handover terms')).toBeVisible({
     timeout: RENDERED,
   });
   
@@ -187,7 +184,7 @@ test.describe.serial('Cash sale lifecycle', () => {
 
     // Refused, so nothing was committed and the contract is still at terms.
     await page.keyboard.press('Escape');
-    await expect(currentStep(page, 'Propose handover terms')).toBeVisible({
+    await expect(currentStep(page, 'Set handover terms')).toBeVisible({
       timeout: RENDERED,
     });
 
@@ -220,50 +217,30 @@ test.describe.serial('Cash sale lifecycle', () => {
     await dialog.getByRole('button', { name: 'Propose terms' }).click();
     await expect(dialog).toBeHidden({ timeout: 25_000 });
 
-    // Terms proposed, so the rail advances to the acceptance step.
-    await expect(currentStep(page, 'Review and accept the proposal')).toBeVisible({
+    // Terms proposed, so the buyer can pay.
+    await expect(currentStep(page, 'Payment collected and held')).toBeVisible({
       timeout: 25_000,
     });
 
     await ctx.close();
   });
 
-  test('both parties accept the terms', async ({ browser }) => {
-    // ASYMMETRIC COPY for the same transition: the buyer is told what they are paying
-    // and through whom, the seller only agrees. Matching them with one pattern would
-    // hide which side was actually clicked.
-    //
-    // EACH ACCEPTANCE IS WAITED FOR BEFORE ITS CONTEXT CLOSES. Closing straight after
-    // the click aborts the in-flight server action, and the symptom is misleading: the
-    // seller's acceptance lands, the buyer's does not, and the room reads "You
-    // accepted. Waiting on Bob Carter." So the failure looks like the rail being wrong
-    // when the real answer is that one acceptance was never sent.
+  test('the buyer pays as soon as terms are set', async ({ browser }) => {
     const buyerCtx = await browser.newContext({ storageState: storageStatePath(BOB) });
     const buyerPage = await buyerCtx.newPage();
     await buyerPage.goto(saleUrl);
     await buyerPage.waitForLoadState('domcontentloaded');
-    const buyerAccept = buyerPage.getByRole('button', { name: /Accept and pay .*/i });
-    await expect(buyerAccept).toBeVisible({ timeout: RENDERED });
-    await buyerAccept.click();
-    // The control retires once this side has accepted — the cheapest proof the write
-    // completed.
-    await expect(buyerAccept).toHaveCount(0, { timeout: 30_000 });
+    const buyerPay = buyerPage.getByRole('button', { name: 'Pay now' });
+    await expect(buyerPay).toBeVisible({ timeout: RENDERED });
+    await buyerPay.click();
+    await expect(buyerPay).toHaveCount(0, { timeout: 30_000 });
     await buyerCtx.close();
 
     const sellerCtx = await browser.newContext({ storageState: storageStatePath(ALICE) });
     const sellerPage = await sellerCtx.newPage();
     await sellerPage.goto(saleUrl);
     await sellerPage.waitForLoadState('domcontentloaded');
-    const sellerAccept = sellerPage.getByRole('button', { name: 'Accept terms' });
-    await expect(sellerAccept).toBeVisible({ timeout: 25_000 });
-    await sellerAccept.click();
-
-    // Both accepted: the contract is frozen at the Commitment_Point and payment is now
-    // owed. NO MONEY HAS MOVED YET — that is the next step, and the separation is the
-    // point of the flow.
-    await expect(currentStep(sellerPage, 'Payment clears into escrow')).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(sellerPage.getByRole('button', { name: 'Confirm terms' })).toHaveCount(0);
 
     await sellerCtx.close();
   });
@@ -275,11 +252,10 @@ test.describe.serial('Cash sale lifecycle', () => {
     await page.goto(saleUrl);
     await page.waitForLoadState('domcontentloaded');
 
-    // THE MOCK PROVIDER CONFIRMS THE PAYMENT ITSELF, shortly after both acceptances —
-    // the room's own log reads "Both parties accepted the same terms, so payment was
-    // requested." then "Payment confirmed. The seller can now ship or meet." So by the
-    // time this step loads the page, the sale has usually already left
-    // PAYMENT_PENDING and the demo panel has retired with it.
+    // THE MOCK PROVIDER CONFIRMS THE PAYMENT ITSELF, shortly after the buyer pays —
+    // the room's own log reads "started payment" then "Payment confirmed. The seller
+    // can now ship or meet." So by the time this step loads the page, the sale has
+    // usually already left PAYMENT_PENDING and the demo panel has retired with it.
     //
     // The panel is therefore fired only if it is still there. An earlier version
     // clicked it unconditionally and hung for the full test budget waiting for a
@@ -299,7 +275,7 @@ test.describe.serial('Cash sale lifecycle', () => {
     // where the money would be the seller's from the moment of purchase.
     //
     // Asserted through the SELLER'S UNLOCKED ACTION rather than a rail label, because
-    // the rail is method-dependent: a DELIVERY sale runs Terms / Accept / Escrow /
+    // the rail is method-dependent: a DELIVERY sale runs Terms / Payment / Escrow /
     // Ship / Arrive / Done, where an in-person one converges sooner. Shipping becoming
     // available is the same fact stated in a way that does not depend on which
     // fulfilment method the contract took.
@@ -358,7 +334,7 @@ test.describe.serial('Cash sale lifecycle', () => {
     // Asserted via the acceptance control appearing rather than a rail label, for the
     // same method-independence reason as the escrow step.
     await expect(
-      buyerPage.getByRole('button', { name: 'Accept the item' }),
+      buyerPage.getByRole('button', { name: 'Complete purchase' }),
     ).toBeVisible({ timeout: 40_000 });
 
     await buyerCtx.close();
@@ -371,14 +347,14 @@ test.describe.serial('Cash sale lifecycle', () => {
     await page.goto(saleUrl);
     await page.waitForLoadState('domcontentloaded');
 
-    const accept = page.getByRole('button', { name: 'Accept the item' });
-    await expect(accept).toBeVisible({ timeout: RENDERED });
-    await accept.click();
+    const complete = page.getByRole('button', { name: 'Complete purchase' });
+    await expect(complete).toBeVisible({ timeout: RENDERED });
+    await complete.click();
 
-    // Acceptance is the release trigger. Asserting the ABSENCE of the control rather
-    // than a success string: the contract is terminal, so every action retires, and
-    // copy is the kind of thing that reasonably changes.
-    await expect(accept).toHaveCount(0, { timeout: 30_000 });
+    // Completing the purchase is the release trigger. Asserting the ABSENCE of the
+    // control rather than a success string: the contract is terminal, so every
+    // action retires, and copy is the kind of thing that reasonably changes.
+    await expect(complete).toHaveCount(0, { timeout: 30_000 });
 
     await ctx.close();
   });

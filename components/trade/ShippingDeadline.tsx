@@ -70,7 +70,7 @@ export function ShippingDeadline({
     return (
       <div
         className={cn(
-          'flex items-start gap-snug rounded-lg border bg-muted/30 px-cozy py-snug text-body',
+          'flex items-start gap-snug rounded-lg border bg-muted px-cozy py-snug text-body',
           className,
         )}
         role="status"
@@ -117,7 +117,7 @@ export function ShippingDeadline({
     <div
       className={cn(
         'flex items-start gap-snug rounded-lg border px-cozy py-snug text-body',
-        urgent ? 'border-destructive/40 bg-destructive/5' : 'bg-muted/30',
+        urgent ? 'border-destructive/40 bg-destructive/5' : 'bg-muted',
         className,
       )}
       role={urgent ? 'alert' : 'status'}

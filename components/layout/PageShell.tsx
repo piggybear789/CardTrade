@@ -1,8 +1,8 @@
 // components/layout/PageShell.tsx
 //
 // Canonical fluid route container for pages outside MarketplaceShell (join
-// deal, admin gate). Content widths scale with the viewport while gutters and
-// vertical rhythm stay stable. Section titles use SectionHeader instead.
+// deal, admin gate). The shell itself stays full-bleed so chrome can dock to
+// the viewport edge; MarketplaceShell caps the content column, not this frame.
 
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';

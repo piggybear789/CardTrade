@@ -10,7 +10,9 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { BellOff, CheckCheck, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
+import { navigateWithType } from '@/lib/motion/navigate';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
@@ -45,17 +47,22 @@ export function NotificationCenter({
       });
     }
     if (notification.link) {
-      router.push(notification.link);
+      navigateWithType(router, notification.link, 'nav-forward');
     }
   }
 
   function handleMarkAll() {
     markAllReadLocal();
     startTransition(async () => {
-      await markAllNotificationsRead();
+      const result = await markAllNotificationsRead();
+      if (!result.ok) {
+        toast.error('Could not mark notifications as read.');
+      }
     });
   }
 
+  // First-run empty only. The notifications page does not mount this on a
+  // failed list, so `[]` here is never a load error.
   if (notifications.length === 0) {
     return (
       <EmptyState

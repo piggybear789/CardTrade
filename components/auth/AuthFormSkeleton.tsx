@@ -20,7 +20,7 @@ export function AuthFormSkeleton() {
       aria-label="Loading"
     >
       <span className="sr-only">Loading…</span>
-      <CardHeader className="space-y-3">
+      <CardHeader className="items-center space-y-3">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-4 w-64 max-w-full" />
       </CardHeader>
@@ -36,7 +36,7 @@ export function AuthFormSkeleton() {
         </div>
         <Skeleton className="h-10 w-full rounded-md" />
       </CardContent>
-      <CardFooter>
+      <CardFooter className="justify-center">
         <Skeleton className="h-4 w-48" />
       </CardFooter>
     </Card>

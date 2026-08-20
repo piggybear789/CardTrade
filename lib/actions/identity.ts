@@ -32,6 +32,7 @@ import { getPaymentService } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { regionForProfile } from '@/lib/regionBinding';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { type ActionResult, fail, ok } from './result';
 
 /**
@@ -199,7 +200,7 @@ export interface StartedIdentityCheck {
  * a status precisely so a provider failure leaves verification state untouched.
  */
 export async function beginIdentityCheck(
-  returnPath = '/profile/payouts',
+  returnPath = '/profile?tab=verification',
 ): Promise<ActionResult<StartedIdentityCheck, IdentityCheckError>> {
   const supabase = await createClient();
   const {
@@ -246,7 +247,7 @@ export async function beginIdentityCheck(
     .eq('id', user.id)
     .neq('identity_check_status', 'VERIFIED');
 
-  if (error) return fail('PERSIST_FAILED', error.message);
+  if (error) return fail('PERSIST_FAILED', friendlyWriteFailure(error, 'Could not save identity check state.'));
 
   return ok({ url: check.hostedUrl, sessionId: check.sessionId });
 }
@@ -428,7 +429,7 @@ export async function refreshIdentityCheck(): Promise<
     })
     .eq('id', user.id);
 
-  if (error) return fail('PERSIST_FAILED', error.message);
+  if (error) return fail('PERSIST_FAILED', friendlyWriteFailure(error, 'Could not update identity status.'));
 
   return ok({
     status,

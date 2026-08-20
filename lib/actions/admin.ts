@@ -496,14 +496,14 @@ export async function resolveTradeConditionDispute(
     userId: trade.initiator_id as string,
     type: 'TRADE',
     title: 'Dispute resolved',
-    body: 'A CardTrade operator reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
+    body: 'NoDitto support reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
     link: `/trades/${tradeId}`,
   });
   await createNotification({
     userId: trade.counterpart_id as string,
     type: 'TRADE',
     title: 'Dispute resolved',
-    body: 'A CardTrade operator reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
+    body: 'NoDitto support reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
     link: `/trades/${tradeId}`,
   });
   void emailNotify.disputeRaised({ userId: trade.initiator_id as string, contractType: 'trade', contractId: tradeId });
@@ -598,14 +598,14 @@ export async function resolveTradeFraud(
     userId: victimUserId,
     type: 'TRADE',
     title: 'Fraud confirmed — you are being compensated',
-    body: 'A CardTrade operator confirmed objective fraud. The offender\'s collateral is being released to you.',
+    body: 'NoDitto support confirmed objective fraud. The offender\'s collateral is being released to you.',
     link: `/trades/${tradeId}`,
   });
   await createNotification({
     userId: offenderId,
     type: 'TRADE',
     title: 'Fraud confirmed — your account is permanently suspended',
-    body: 'A CardTrade operator confirmed objective fraud on your trade. Your collateral has been captured.',
+    body: 'NoDitto support confirmed objective fraud on your trade. Your collateral has been captured.',
     link: `/trades/${tradeId}`,
   });
 

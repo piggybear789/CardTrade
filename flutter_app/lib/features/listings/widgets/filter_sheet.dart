@@ -9,8 +9,8 @@ import 'package:cardtrade/services/listings_service.dart';
 
 /// Bottom sheet for catalog filters.
 ///
-/// Provides category and condition multi-select chips, a price range slider,
-/// and sort options. Uses [catalogFilterProvider] to read/write filter state.
+/// Condition chips, a price range slider, and sort options. Uses
+/// [catalogFilterProvider] to read/write filter state.
 class FilterSheet extends ConsumerStatefulWidget {
   const FilterSheet({super.key});
 
@@ -19,7 +19,6 @@ class FilterSheet extends ConsumerStatefulWidget {
 }
 
 class _FilterSheetState extends ConsumerState<FilterSheet> {
-  String? _selectedCategory;
   String? _selectedCondition;
   RangeValues _priceRange = const RangeValues(0, 10000);
   ListingSortOrder _sortOrder = ListingSortOrder.newest;
@@ -30,14 +29,12 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
   void initState() {
     super.initState();
     final filter = ref.read(catalogFilterProvider);
-    _selectedCategory = filter.category;
     _selectedCondition = filter.condition;
     _sortOrder = filter.sort;
   }
 
   void _reset() {
     setState(() {
-      _selectedCategory = null;
       _selectedCondition = null;
       _priceRange = const RangeValues(0, _maxPriceCents);
       _sortOrder = ListingSortOrder.newest;
@@ -47,7 +44,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
   void _apply() {
     final current = ref.read(catalogFilterProvider);
     ref.read(catalogFilterProvider.notifier).update((_) => CatalogFilter(
-          category: _selectedCategory,
+          category: null,
           condition: _selectedCondition,
           regionCode: current.regionCode,
           searchQuery: current.searchQuery,
@@ -83,27 +80,6 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
                     child: const Text('Reset'),
                   ),
                 ],
-              ),
-              const SizedBox(height: AppTheme.spacingXl),
-
-              // ─── Category ────────────────────────────────────────
-              Text('Category', style: theme.textTheme.labelLarge),
-              const SizedBox(height: AppTheme.spacingSm),
-              Wrap(
-                spacing: AppTheme.spacingSm,
-                runSpacing: AppTheme.spacingSm,
-                children: AppConstants.categories.map((cat) {
-                  final selected = _selectedCategory == cat;
-                  return FilterChip(
-                    label: Text(cat),
-                    selected: selected,
-                    onSelected: (val) {
-                      setState(() {
-                        _selectedCategory = val ? cat : null;
-                      });
-                    },
-                  );
-                }).toList(),
               ),
               const SizedBox(height: AppTheme.spacingXl),
 

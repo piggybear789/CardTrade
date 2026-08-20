@@ -2,7 +2,7 @@
 
 // components/sales/CashSalePriceDialog.tsx
 // Renegotiate the agreed item price. Saving posts a chat note to the other party
-// and clears both acceptances, so nothing is charged on the old number.
+// and bumps the terms version, so payment uses the new number.
 
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
 import { Loader2, TicketPercent as Pencil } from 'lucide-react';
@@ -74,7 +74,7 @@ export function CashSalePriceDialog({
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
+          className="h-6 gap-tight px-2 text-meta font-medium leading-none [&_svg]:size-3"
         >
           <Pencil aria-hidden />
           Edit
@@ -85,8 +85,7 @@ export function CashSalePriceDialog({
           <DialogHeader>
             <DialogTitle>Request a price change</DialogTitle>
             <DialogDescription>
-              The other party is told in chat and both acceptances reset, so nothing
-              is charged until you agree on the new number.
+              Update the item price. Shipping and the platform fee stay separate.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-group py-5">
@@ -100,7 +99,7 @@ export function CashSalePriceDialog({
                 onChange={(event) => setPrice(event.target.value)}
                 required
               />
-              <p className="text-meta text-muted-foreground">
+              <p className="text-body text-muted-foreground">
                 Currently {formatMoney(agreedPriceCents, currency)}. Shipping and the platform fee
                 are shown separately.
               </p>

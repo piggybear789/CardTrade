@@ -79,14 +79,25 @@ abstract final class AppConstants {
   /// Default page size for list queries.
   static const int defaultPageSize = 20;
 
-  // ─── Categories ────────────────────────────────────────────────────────────
-  static const List<String> categories = [
-    'Trading Cards',
-    'Coins',
-    'Stamps',
-    'Comics',
-    'Memorabilia',
-    'Other',
+  // ─── Games ─────────────────────────────────────────────────────────────────
+  /// Card games a listing can be tagged with. Must match `CARD_GAMES` on web.
+  static const List<String> games = [
+    'Pokémon',
+    'Magic: The Gathering',
+    'One Piece',
+    'Yu-Gi-Oh!',
+    'Disney Lorcana',
+    'Riftbound',
+    'Gundam',
+    'Dragon Ball Super',
+    'Digimon',
+    'Star Wars: Unlimited',
+    'Flesh and Blood',
+    'Union Arena',
+    'Weiss Schwarz',
+    'Cardfight!! Vanguard',
+    'Sports Cards',
+    'Other TCG',
   ];
 
   // ─── Conditions ────────────────────────────────────────────────────────────

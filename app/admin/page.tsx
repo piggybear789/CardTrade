@@ -280,7 +280,7 @@ export default async function AdminPage({
         description="Queues the platform runs itself, plus community reports. Disputes that need a decision from you live in Cases."
         actions={
           <Button asChild variant={openCases > 0 ? 'default' : 'outline'}>
-            <Link href="/admin/arbitration">
+            <Link href="/admin/arbitration" transitionTypes={['nav-forward']}>
               <Scale aria-hidden />
               {openCases > 0 ? `${openCases} case${openCases === 1 ? '' : 's'}` : 'Cases'}
             </Link>
@@ -366,6 +366,7 @@ export default async function AdminPage({
                           {sale.item_title} · paid by {nameFor(sale.buyer_id)} ·{' '}
                           <Link
                             href={`/sales/${sale.id}`}
+                            transitionTypes={['nav-forward']}
                             className="underline underline-offset-2 hover:text-foreground"
                           >
                             View sale
@@ -539,6 +540,7 @@ export default async function AdminPage({
                       <CardDescription>
                         <Link
                           href={`/trades/${trade.id}`}
+                          transitionTypes={['nav-forward']}
                           className="underline underline-offset-2 hover:text-foreground"
                         >
                           View trade

@@ -488,7 +488,7 @@ class _DetailsSection extends StatelessWidget {
       children: [
         _DetailLabelValue(label: 'Condition', value: item.condition),
         const SizedBox(height: AppTheme.spacingSm),
-        _DetailLabelValue(label: 'Category', value: item.category),
+        _DetailLabelValue(label: 'Game', value: item.category),
         const SizedBox(height: AppTheme.spacingSm),
         _DetailLabelValue(label: 'Listing type', value: kindLabel),
         if (item.locationLabel != null) ...[

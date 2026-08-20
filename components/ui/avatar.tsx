@@ -29,11 +29,11 @@ import { cn } from '@/lib/utils';
  * the same name twice. Pass `alt` explicitly where the avatar stands alone.
  */
 const SIZES = {
-  xs: 'size-6 text-[0.625rem]',
-  sm: 'size-8 text-xs',
-  md: 'size-10 text-sm',
-  lg: 'size-14 text-base',
-  xl: 'size-20 text-xl',
+  xs: 'size-6 text-meta',
+  sm: 'size-8 text-meta',
+  md: 'size-10 text-body',
+  lg: 'size-14 text-lead',
+  xl: 'size-20 text-subhead',
 } as const;
 
 export type AvatarSize = keyof typeof SIZES;
@@ -73,7 +73,7 @@ function Avatar({
       className={cn(
         // `shrink-0` because these sit in flex rows beside names that can be long;
         // without it the circle squashes into an ellipse.
-        'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted font-semibold uppercase text-muted-foreground',
+        'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border bg-muted font-semibold uppercase text-muted-foreground',
         SIZES[size],
         className,
       )}

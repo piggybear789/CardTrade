@@ -198,7 +198,7 @@ export function TradeHandoverTermsEditor({
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-tight px-snug text-meta font-medium [&_svg]:size-3.5"
+          className="h-6 gap-tight px-2 text-meta font-medium [&_svg]:size-3"
         >
           <Pencil aria-hidden />
           {triggerLabel}
@@ -208,8 +208,8 @@ export function TradeHandoverTermsEditor({
         <DialogHeader>
           <DialogTitle>Delivery terms</DialogTitle>
           <DialogDescription>
-            Agree how the goods change hands. Either trader can update these until
-            someone marks a shipment or confirms a handover.
+            Either trader can update these. A save does not ask anyone to confirm
+            again, and it does not change the cash.
           </DialogDescription>
         </DialogHeader>
 

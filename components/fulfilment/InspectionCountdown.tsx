@@ -75,12 +75,12 @@ export function InspectionCountdown({
         'rounded-lg border px-group py-cozy text-body',
         alarming
           ? 'border-destructive/40 bg-destructive/5'
-          : 'border-dashed border-gold/50 bg-gold/10',
+          : 'border-dashed border-gold/40 bg-gold/10',
         className,
       )}
       role={alarming ? 'alert' : undefined}
     >
-      <p className="flex items-center gap-snug font-medium">
+      <p suppressHydrationWarning className="flex items-center gap-snug font-medium">
         {alarming ? (
           <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden />
         ) : (

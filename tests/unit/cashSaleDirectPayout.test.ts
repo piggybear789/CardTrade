@@ -80,13 +80,8 @@ async function runToPayment(options: {
   });
   if (!terms.ok) throw new Error(`terms failed: ${terms.error}`);
 
-  await acceptCashSaleTerms(deps, {
-    actorId: BUYER.profileId,
-    cashSaleId: created.sale.id,
-    termsVersion: terms.sale.termsVersion,
-  });
   const result = await acceptCashSaleTerms(deps, {
-    actorId: ITEM.ownerId,
+    actorId: BUYER.profileId,
     cashSaleId: created.sale.id,
     termsVersion: terms.sale.termsVersion,
   });
@@ -131,9 +126,14 @@ describe('cash sale — direct payout mode', () => {
     if (!created.ok) throw new Error('setup failed');
     const cashSaleId = created.sale.id;
 
-    // Both handover confirmations complete the sale, which is what makes the
-    // Seller's money owed (Req 4.3).
-    await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
+    const first = await confirmCashSaleHandover(deps, {
+      actorId: BUYER.profileId,
+      cashSaleId,
+    });
+    expect(first.ok).toBe(true);
+    expect(first.ok && first.sale.status).toBe('HANDOVER');
+    expect(calls.payouts).toHaveLength(0);
+
     const completed = await confirmCashSaleHandover(deps, {
       actorId: ITEM.ownerId,
       cashSaleId,
@@ -166,7 +166,10 @@ describe('cash sale — direct payout mode', () => {
     if (!created.ok) throw new Error('setup failed');
     const cashSaleId = created.sale.id;
 
-    await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
+    await confirmCashSaleHandover(deps, {
+      actorId: BUYER.profileId,
+      cashSaleId,
+    });
     const completed = await confirmCashSaleHandover(deps, {
       actorId: ITEM.ownerId,
       cashSaleId,

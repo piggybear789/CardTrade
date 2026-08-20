@@ -19,6 +19,14 @@
 import type { Step } from '@/components/onboarding/OnboardingWizard';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 
+/** Same-origin absolute paths only, so `redirectTo` cannot become an open redirect. */
+function safeRedirectPath(target: string | null): string | null {
+  if (target && target.startsWith('/') && !target.startsWith('//')) {
+    return target;
+  }
+  return null;
+}
+
 export default async function OnboardingPage({
   searchParams,
 }: {
@@ -30,5 +38,17 @@ export default async function OnboardingPage({
 
   const initialStep: Step = returningFromProvider ? 'seller-onboarding' : 'welcome';
 
-  return <OnboardingWizard initialStep={initialStep} />;
+  // `proxy.ts` sets `redirectTo` when it bounces a member here mid-navigation. Honour it
+  // on the way out, or the deep link that triggered onboarding is lost and they land on
+  // the catalog instead of the contract they were opening.
+  const redirectTo = Array.isArray(params.redirectTo)
+    ? params.redirectTo[0]
+    : params.redirectTo;
+
+  return (
+    <OnboardingWizard
+      initialStep={initialStep}
+      redirectTo={safeRedirectPath(redirectTo ?? null)}
+    />
+  );
 }

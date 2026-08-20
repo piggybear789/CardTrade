@@ -457,28 +457,6 @@ export function createSupabaseCashSaleRepository(
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
-    async acceptTerms({ cashSaleId, actor, termsVersion, acceptedAt }) {
-      const patch: TablesUpdate<'cash_sales'> =
-        actor === 'BUYER'
-          ? {
-              buyer_terms_accepted_version: termsVersion,
-              buyer_terms_accepted_at: acceptedAt,
-            }
-          : {
-              seller_terms_accepted_version: termsVersion,
-              seller_terms_accepted_at: acceptedAt,
-            };
-      const { data } = await client
-        .from('cash_sales')
-        .update(patch)
-        .eq('id', cashSaleId)
-        .eq('status', 'AGREEMENT')
-        .eq('terms_version', termsVersion)
-        .select('*')
-        .maybeSingle();
-      return data ? toCashSale(data as CashSaleRow) : null;
-    },
-
     async claimPayment({ cashSaleId, termsVersion, nonce, requestedAt }) {
       const { data } = await client
         .from('cash_sales')
@@ -490,8 +468,6 @@ export function createSupabaseCashSaleRepository(
         .eq('id', cashSaleId)
         .eq('status', 'AGREEMENT')
         .eq('terms_version', termsVersion)
-        .eq('buyer_terms_accepted_version', termsVersion)
-        .eq('seller_terms_accepted_version', termsVersion)
         .is('payment_nonce', null)
         .select('*')
         .maybeSingle();
@@ -568,22 +544,42 @@ export function createSupabaseCashSaleRepository(
     },
 
     async confirmHandover({ cashSaleId, actor, confirmedAt }) {
-      const patch: TablesUpdate<'cash_sales'> =
+      const mine =
+        actor === 'BUYER' ? 'buyer_handover_confirmed_at' : 'seller_handover_confirmed_at';
+      const stamp =
         actor === 'BUYER'
-          ? { buyer_handover_confirmed_at: confirmedAt }
-          : { seller_handover_confirmed_at: confirmedAt };
-      const updated = await guardedUpdate(client, cashSaleId, 'HANDOVER', patch);
-      if (!updated) return null;
-      if (!updated.buyerHandoverConfirmedAt || !updated.sellerHandoverConfirmedAt) {
-        return updated;
+          ? { buyer_handover_confirmed_at: confirmedAt, updated_at: confirmedAt }
+          : { seller_handover_confirmed_at: confirmedAt, updated_at: confirmedAt };
+      const { data: stamped } = await client
+        .from('cash_sales')
+        .update(stamp)
+        .eq('id', cashSaleId)
+        .eq('status', 'HANDOVER')
+        .is(mine, null)
+        .select('*')
+        .maybeSingle();
+      if (!stamped) return null;
+
+      const row = stamped as CashSaleRow;
+      if (!row.buyer_handover_confirmed_at || !row.seller_handover_confirmed_at) {
+        return toCashSale(row);
       }
-      return (
-        (await guardedUpdate(client, cashSaleId, 'HANDOVER', {
-          status: 'COMPLETED',
-          completed_at: confirmedAt,
-          updated_at: confirmedAt,
-        })) ?? updated
-      );
+
+      const completed = await guardedUpdate(client, cashSaleId, 'HANDOVER', {
+        status: 'COMPLETED',
+        completed_at: confirmedAt,
+        updated_at: confirmedAt,
+      });
+      if (completed) return completed;
+
+      // A concurrent confirm already completed the row — re-read so payout
+      // still sees COMPLETED rather than a stale HANDOVER snapshot.
+      const { data: latest } = await client
+        .from('cash_sales')
+        .select('*')
+        .eq('id', cashSaleId)
+        .maybeSingle();
+      return latest ? toCashSale(latest as CashSaleRow) : toCashSale(row);
     },
 
     async cancelAgreement({ cashSaleId, actorId, reason, cancelledAt }) {

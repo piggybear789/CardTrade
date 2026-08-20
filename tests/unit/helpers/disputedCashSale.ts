@@ -3,9 +3,10 @@
 // Driving a Cash_Sale all the way to DISPUTED, which is the only resolvable state.
 //
 // Extracted so the dispute-resolution tests and the refund-drain tests share ONE setup.
-// The sequence is long and order-sensitive — two parties each save terms, both accept,
-// payment settles, the seller ships, the buyer receives — and a second copy would drift
-// from this one silently, leaving two tests that believe they are testing the same state.
+// The sequence is long and order-sensitive — two parties each save terms, the buyer
+// pays, payment settles, the seller ships, the buyer receives — and a second copy would
+// drift from this one silently, leaving two tests that believe they are testing the same
+// state.
 
 import {
   acceptCashSaleTerms,
@@ -74,11 +75,6 @@ export async function disputedCashSale(
   const sale = await deps.repository.loadCashSale(saleId);
   if (!sale) throw new Error('setup: sale vanished');
 
-  await acceptCashSaleTerms(deps, {
-    cashSaleId: saleId,
-    actorId: ITEM.ownerId,
-    termsVersion: sale.termsVersion,
-  });
   await acceptCashSaleTerms(deps, {
     cashSaleId: saleId,
     actorId: BUYER.profileId,

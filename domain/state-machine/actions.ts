@@ -48,15 +48,16 @@ export function availableActions(
 
   switch (state) {
     case 'NEGOTIATING':
-      // Either side may revise the terms or walk away, and may tick their
-      // acceptance of the current version exactly once. PROPOSE_TERMS is offered
-      // to BOTH sides on purpose: a counter-offer is a terms revision by whoever
-      // is answering, which is what lets the negotiation happen in the room
-      // instead of as a chain of replacement rows.
+      // Handover is edited on the Terms row by either trader and does not
+      // reset acceptances. Cash and binder goods are the listing owner's —
+      // the counterpart — so only they get Counter. Either side may still
+      // accept the current version once, or walk away.
       if (!hasAcceptedTerms(facts, role)) {
         actions.push('ACCEPT_TERMS');
       }
-      actions.push('PROPOSE_TERMS');
+      if (role === 'COUNTERPART') {
+        actions.push('PROPOSE_TERMS');
+      }
       actions.push('DECLINE_OFFER');
       break;
 

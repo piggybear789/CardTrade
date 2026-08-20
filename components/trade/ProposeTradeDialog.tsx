@@ -25,7 +25,6 @@ import {
   TradeOfferForm,
   type TradeOfferRequested,
 } from '@/components/trade/TradeOfferForm';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -40,8 +39,6 @@ import type { ItemRow } from '@/lib/actions/listings';
 export interface ProposeTradeDialogProps {
   requested: TradeOfferRequested;
   ownItems: ItemRow[];
-  /** `icon` matches the listing action row; `button` for denser placements. */
-  appearance?: 'icon' | 'button';
   /** Filled chip when this is the only transactional CTA (trades-only sellers). */
   emphasize?: boolean;
   /**
@@ -60,7 +57,6 @@ export interface ProposeTradeDialogProps {
 export function ProposeTradeDialog({
   requested,
   ownItems,
-  appearance = 'icon',
   emphasize = false,
   viewerVerification = null,
   returnPath,
@@ -87,25 +83,13 @@ export function ProposeTradeDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => setOpen(disabled ? false : next)}>
       <DialogTrigger asChild>
-        {appearance === 'icon' ? (
-          <ListingActionIcon
-            icon={ArrowLeftRight}
-            label="Propose Trade"
-            variant={emphasize ? 'default' : 'outline'}
-            disabled={disabled}
-            title={disabledReason ?? undefined}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant={emphasize ? 'default' : 'outline'}
-            disabled={disabled}
-            title={disabledReason ?? undefined}
-          >
-            <ArrowLeftRight aria-hidden="true" />
-            Propose Trade
-          </Button>
-        )}
+        <ListingActionIcon
+          icon={ArrowLeftRight}
+          label="Propose Trade"
+          variant={emphasize ? 'default' : 'outline'}
+          disabled={disabled}
+          title={disabledReason ?? undefined}
+        />
       </DialogTrigger>
       {/*
         Long form: pin header + footer, scroll the middle. Default DialogContent
@@ -116,16 +100,19 @@ export function ProposeTradeDialog({
         className={
           needsVerification
             ? 'min-w-0 sm:max-w-lg'
-            : 'h-[min(92dvh,100dvh-env(safe-area-inset-top))] min-w-0 gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[min(92dvh,100dvh-3rem)] sm:max-w-lg'
+            : // `sm:gap-0 sm:p-0` must be stated explicitly: the base DialogContent
+              // sets `sm:p-6`/`sm:gap-4`, and a bare `p-0`/`gap-0` only overrides the
+              // mobile classes — tailwind-merge keeps responsive variants separate,
+              // so without these the desktop dialog double-pads (24px shell + 24px
+              // header/body/footer).
+              'h-[min(92dvh,100dvh-env(safe-area-inset-top))] min-w-0 gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[min(92dvh,100dvh-3rem)] sm:max-w-lg sm:gap-0 sm:p-0'
         }
       >
         {needsVerification ? (
           <>
             <DialogHeader className="pr-10">
-              <DialogTitle>One step before you trade</DialogTitle>
-              <DialogDescription>
-                Nothing is sent to {requested.ownerName} yet.
-              </DialogDescription>
+              <DialogTitle>Verify to trade</DialogTitle>
+              <DialogDescription>Photo ID and a selfie.</DialogDescription>
             </DialogHeader>
             <IdentityGatePrompt
               state={viewerVerification!}
@@ -136,7 +123,7 @@ export function ProposeTradeDialog({
           </>
         ) : (
           <>
-            <DialogHeader className="shrink-0 border-b border-border/70 px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
+            <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
               <DialogTitle>Offer a trade</DialogTitle>
               {/* On a binder nothing is held even AFTER they accept — every other
                   listing reserves on acceptance, so saying "until they accept" here

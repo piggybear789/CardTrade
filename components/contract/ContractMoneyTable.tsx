@@ -1,6 +1,6 @@
 // components/contract/ContractMoneyTable.tsx
 //
-// The bordered label/value breakdown shared by every contract room: payment terms,
+// The label/value breakdown shared by every contract room: payment terms,
 // money terms, collateral, and — in the compact layout — the fulfillment terms
 // summary. One primitive means the row rhythm, tabular alignment and total emphasis
 // are the same wherever terms or money are disclosed.
@@ -29,16 +29,13 @@ export function ContractMoneyTable({
 }: ContractMoneyTableProps) {
   return (
     <dl
-      className={cn('rounded-md border bg-background text-body', className)}
+      className={cn('space-y-cozy text-body', className)}
       aria-label={ariaLabel}
     >
       {rows.map((row, index) => (
         <div
-          key={index}
-          className={cn(
-            'flex items-start justify-between gap-cozy px-group py-cozy',
-            index > 0 && 'border-t',
-          )}
+          key={`${row.label}-${index}`}
+          className="flex items-start justify-between gap-cozy"
         >
           <dt
             className={cn(
@@ -48,7 +45,7 @@ export function ContractMoneyTable({
           >
             {row.label}
             {row.hint ? (
-              <span className="mt-0.5 block whitespace-pre-wrap break-words text-meta text-muted-foreground">
+              <span className="mt-0.5 block whitespace-pre-wrap break-words text-body text-muted-foreground">
                 {row.hint}
               </span>
             ) : null}

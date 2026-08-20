@@ -52,20 +52,25 @@ export function IdentityDemoControls() {
   function fire(kind: DemoIdentityWebhookKind) {
     setActiveKind(kind);
     startTransition(async () => {
-      const result = await fireIdentityWebhook(kind);
-      if (result.ok) {
-        if (result.deduped) {
-          toast.info('That webhook was already processed for your profile.');
+      try {
+        const result = await fireIdentityWebhook(kind);
+        if (result.ok) {
+          if (result.deduped) {
+            toast.info('That webhook was already processed for your profile.');
+          } else {
+            toast.success(SUCCESS_MESSAGES[kind]);
+          }
+          // The gate is read server-side, so the card and every gated surface only
+          // change on a refetch.
+          router.refresh();
         } else {
-          toast.success(SUCCESS_MESSAGES[kind]);
+          toast.error(result.detail ?? ERROR_MESSAGES[result.error]);
         }
-        // The gate is read server-side, so the card and every gated surface only
-        // change on a refetch.
-        router.refresh();
-      } else {
-        toast.error(result.detail ?? ERROR_MESSAGES[result.error]);
+      } catch {
+        toast.error('Simulation request failed. Please try again.');
+      } finally {
+        setActiveKind(null);
       }
-      setActiveKind(null);
     });
   }
 

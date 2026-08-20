@@ -1760,6 +1760,72 @@ export type Database = {
         };
         Relationships: [];
       };
+      deal_invites: {
+        Row: {
+          id: string;
+          token: string;
+          host_id: string;
+          kind: Database['cardtrade']['Enums']['deal_invite_kind'];
+          host_role: Database['cardtrade']['Enums']['deal_invite_host_role'] | null;
+          host_item_id: string | null;
+          price_cents: number | null;
+          cash_amount_cents: number;
+          cash_direction: Database['cardtrade']['Enums']['trade_cash_direction'];
+          declared_value_cents: number | null;
+          wanted_description: string | null;
+          offer_message: string | null;
+          expires_at: string;
+          claimed_at: string | null;
+          claimed_by: string | null;
+          cash_sale_id: string | null;
+          trade_id: string | null;
+          revoked_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          token: string;
+          host_id: string;
+          kind: Database['cardtrade']['Enums']['deal_invite_kind'];
+          host_role?: Database['cardtrade']['Enums']['deal_invite_host_role'] | null;
+          host_item_id?: string | null;
+          price_cents?: number | null;
+          cash_amount_cents?: number;
+          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
+          declared_value_cents?: number | null;
+          wanted_description?: string | null;
+          offer_message?: string | null;
+          expires_at: string;
+          claimed_at?: string | null;
+          claimed_by?: string | null;
+          cash_sale_id?: string | null;
+          trade_id?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          token?: string;
+          host_id?: string;
+          kind?: Database['cardtrade']['Enums']['deal_invite_kind'];
+          host_role?: Database['cardtrade']['Enums']['deal_invite_host_role'] | null;
+          host_item_id?: string | null;
+          price_cents?: number | null;
+          cash_amount_cents?: number;
+          cash_direction?: Database['cardtrade']['Enums']['trade_cash_direction'];
+          declared_value_cents?: number | null;
+          wanted_description?: string | null;
+          offer_message?: string | null;
+          expires_at?: string;
+          claimed_at?: string | null;
+          claimed_by?: string | null;
+          cash_sale_id?: string | null;
+          trade_id?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       offers: {
         Row: {
           id: string;
@@ -1853,6 +1919,10 @@ export type Database = {
           kind: 'USER' | 'SYSTEM';
           system_event: string | null;
           body: string;
+          attachment_path: string | null;
+          attachment_name: string | null;
+          attachment_mime: string | null;
+          attachment_bytes: number | null;
           read_at: string | null;
           created_at: string;
         };
@@ -1863,6 +1933,10 @@ export type Database = {
           kind?: 'USER' | 'SYSTEM';
           system_event?: string | null;
           body: string;
+          attachment_path?: string | null;
+          attachment_name?: string | null;
+          attachment_mime?: string | null;
+          attachment_bytes?: number | null;
           read_at?: string | null;
           created_at?: string;
         };
@@ -1873,6 +1947,10 @@ export type Database = {
           kind?: 'USER' | 'SYSTEM';
           system_event?: string | null;
           body?: string;
+          attachment_path?: string | null;
+          attachment_name?: string | null;
+          attachment_mime?: string | null;
+          attachment_bytes?: number | null;
           read_at?: string | null;
           created_at?: string;
         };
@@ -2390,6 +2468,8 @@ export type Database = {
        */
       /** Release leg of Cash_Sale escrow (0038). */
       cash_sale_payout_status: 'NOT_DUE' | 'PENDING' | 'SETTLED' | 'FAILED';
+      deal_invite_kind: 'CASH_SALE' | 'TRADE';
+      deal_invite_host_role: 'SELLER' | 'BUYER';
       hold_status:
         | 'ACTIVE'
         | 'VOIDED'

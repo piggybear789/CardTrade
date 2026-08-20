@@ -89,7 +89,7 @@ function NotEditable({ itemId, status }: { itemId: string; status: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-subhead">This listing can&apos;t be edited</CardTitle>
+        <CardTitle className="text-lead">This listing can&apos;t be edited</CardTitle>
         <CardDescription>
           It&apos;s currently {status.toLowerCase()} and can only be modified
           while it is available.
@@ -97,7 +97,7 @@ function NotEditable({ itemId, status }: { itemId: string; status: string }) {
       </CardHeader>
       <CardContent>
         <Button asChild variant="outline">
-          <Link href={`/listings/${itemId}`}>Back to listing</Link>
+          <Link href={`/listings/${itemId}`} transitionTypes={['nav-back']}>Back to listing</Link>
         </Button>
       </CardContent>
     </Card>

@@ -84,8 +84,8 @@ export const MARKETPLACE_NAV_GROUPS = [
     links: [
       { href: '/purchases', label: 'Purchases', icon: ShoppingBag },
       { href: '/sales', label: 'Sales', icon: Tag },
-      // Deals are withdrawn: a private deal WAS a trade, negotiated in its own
-      // room, which is what a Trade now does natively (Req 12).
+      // Private deals are invites that open a Cash_Sale or a Trade. Pending
+      // unused invites sit in those inboxes; the rooms themselves are unchanged.
       { href: '/trades', label: 'Trades', icon: Repeat2 },
     ],
   },
@@ -190,7 +190,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     label: 'Contracts',
     icon: Handshake,
     title: 'Contracts',
-    description: 'Active contracts for purchases, trades and deals.',
+    description: 'Active contracts for purchases, sales, and trades.',
     links: CONTRACT_LINKS,
     isActive: (pathname) =>
       CONTRACT_LINKS.some((link) =>

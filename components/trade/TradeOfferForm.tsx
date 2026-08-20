@@ -366,7 +366,7 @@ export function TradeOfferForm({
 
         {/* The unlisted draft sits at the top: it is the primary item. */}
         {unlisted ? (
-          <div className="flex items-center gap-cozy rounded-md border border-primary bg-primary/5 p-snug text-body">
+          <div className="flex items-center gap-cozy rounded-md border border-border bg-gold/10 p-snug text-body">
             <Lock className="size-4 shrink-0 text-gold" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate font-medium">
               {unlistedLabel}
@@ -406,7 +406,7 @@ export function TradeOfferForm({
               return (
                 <li
                   key={item.id}
-                  className="flex items-center gap-cozy rounded-md border border-primary bg-primary/5 p-snug text-body"
+                  className="flex items-center gap-cozy rounded-md border border-border bg-gold/10 p-snug text-body"
                 >
                   <span className="min-w-0 flex-1 truncate font-medium">
                     {item.title}

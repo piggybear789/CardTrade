@@ -46,7 +46,7 @@ export function EmptyState({
         // Sits where the first row of content would: a section empty state
         // belongs under its heading, not floating in the middle of the viewport.
         // Full-page interstitials are centred by their shell instead.
-        'flex w-full flex-col items-center justify-center rounded-lg border border-dashed bg-card px-6 text-center',
+        'flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-6 text-center',
         compact ? 'py-10' : 'py-14 sm:py-16',
         className,
       )}

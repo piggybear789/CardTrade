@@ -188,7 +188,7 @@ function GenrePill({
         'inline-flex h-11 min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-meta font-semibold tracking-tight transition-colors',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         active
-          ? 'border-gold/50 bg-gold/10 text-foreground'
+          ? 'border-border bg-gold/10 text-foreground'
           : 'border-border text-muted-foreground hover:border-gold/40 hover:bg-muted/70 hover:text-foreground',
       )}
     >

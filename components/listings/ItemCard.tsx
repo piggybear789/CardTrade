@@ -54,7 +54,7 @@ export function CatalogItemCard({ item, initialWatching }: ItemCardProps) {
       <ItemCardStage
         item={item}
         unavailableLabel={unavailableLabel}
-        className="aspect-[5/6] overflow-hidden rounded-xl border border-white/10 shadow-market transition-[shadow,transform] duration-150 group-hover:shadow-auction group-active:scale-[0.98]"
+        className="aspect-[5/6] overflow-hidden rounded-xl border border-white/15 shadow-market transition-[shadow,transform] duration-150 group-hover:shadow-auction group-active:scale-[0.98]"
         washClassName="bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.09),transparent_52%)]"
         imageClassName="drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)]"
         emptyIconClassName="size-9"
@@ -99,7 +99,7 @@ export function ItemCard({ item, initialWatching }: ItemCardProps) {
   return (
     <Card
       className={cn(
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border p-0 transition-[border-color,box-shadow] duration-150 hover:border-gold/50 hover:shadow-auction',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border p-0 transition-[border-color,box-shadow] duration-150 hover:border-gold/40 hover:shadow-auction',
         unavailableLabel && 'opacity-70',
       )}
     >
@@ -196,7 +196,7 @@ function ItemCardStage({
           <Badge
             variant="secondary"
             className={cn(
-              'gap-1 border-white/20 bg-obsidian/75 text-parchment shadow-sm backdrop-blur hover:bg-obsidian/75',
+              'gap-1 border-white/15 bg-obsidian/75 text-parchment shadow-sm backdrop-blur hover:bg-obsidian/75',
               badgeClassName,
             )}
           >

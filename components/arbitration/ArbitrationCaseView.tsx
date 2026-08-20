@@ -227,7 +227,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               because this is the material the decision is meant to rest on — before it
               existed an arbitrator had one sentence from one side and nothing from the
               other. */}
-          <Card className={evidence.length > 0 ? 'border-gold/30' : undefined}>
+          <Card className={evidence.length > 0 ? 'border-gold/40' : undefined}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-snug">
                 <div className="flex items-center gap-snug">
@@ -272,7 +272,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 <ShipmentLeg label="Outbound (seller → buyer)" leg={shipment.outbound} />
                 <ShipmentLeg label="Return (buyer → seller)" leg={shipment.returnLeg} />
                 {shipment.returnDisputedAt ? (
-                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-cozy">
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-cozy">
                     <p className="text-meta font-medium uppercase tracking-wide text-destructive">
                       Seller contested return · {formatContractDateTime(shipment.returnDisputedAt) ?? shipment.returnDisputedAt}
                     </p>
@@ -288,7 +288,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   </div>
                 ) : null}
                 {shipment.returnLapsedAt ? (
-                  <div className="rounded-md border border-gold/50 bg-gold/10 p-cozy">
+                  <div className="rounded-md border border-gold/40 bg-gold/10 p-cozy">
                     <p className="text-meta font-medium uppercase tracking-wide text-gold">
                       Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
                     </p>

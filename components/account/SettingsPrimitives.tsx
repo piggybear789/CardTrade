@@ -72,8 +72,8 @@ export type StatusTone = 'verified' | 'pending' | 'required' | 'neutral';
 const TONE_CLASS: Record<StatusTone, string> = {
   // `trust` is the app's reserved verification colour (see globals.css) — the
   // reference's emerald would introduce a second "this is confirmed" hue.
-  verified: 'border-trust/30 bg-trust/10 text-trust',
-  pending: 'border-gold/30 bg-gold/10 text-gold',
+  verified: 'border-trust/40 bg-trust/10 text-trust',
+  pending: 'border-gold/40 bg-gold/10 text-gold',
   required: 'border-border bg-muted text-muted-foreground',
   neutral: 'border-border bg-muted text-muted-foreground',
 };

@@ -33,8 +33,9 @@ Tokens are HSL triplets consumed as `hsl(var(--token))`.
 | `--accent` | `41 32% 84%` | Hover tint |
 | `--destructive` | `4 78% 40%` | Errors; cream foreground |
 | `--border` | `36 18% 78%` | Quiet structural hairline (deliberately below 3:1 — see Rules) |
-| `--input` / `--ring` | alias `--parchment` | Cream field edge and focus ring — no ink, no ditto on focus |
-| `--parchment` | `40 45% 90%` | Cream utility tone (ledger strips, field edges) |
+| `--input` | alias `--border` | Semantic field-edge class — same colour as `--border`, so fields cannot drift onto a second cream |
+| `--ring` | alias `--parchment` | Cream focus ring — no ink, no Ditto on focus. Interactive borders lift to `gold/40` instead |
+| `--parchment` | `40 45% 90%` | Cream utility tone (ledger strips, inverse-surface fills) |
 | `--gold` | `41 56% 30%` | Brand accent — AA as text on cream/card |
 | `--action` | `41 94% 50%` | Bright amber "this is your move" CTA; obsidian foreground |
 | `--ditto` | `282 62% 62%` | Ditto lavender — character moments and the `ditto` button variant only |
@@ -90,6 +91,8 @@ Card must be the lightest surface — it sits ON the cream canvas to lift.
 - `--muted` washed to `/20`–`/30` (reads as dirty white, not grouping)
 - Gold used as a large fill (it is a text/hairline accent, AA as text)
 - A second near-black invented instead of `--obsidian` + opacity
+- Field edges using a different colour than `--border` (parchment-on-card that vanishes)
+- Gold/destructive/trust hairlines at opacities other than `/40`
 
 ### 5. COMPONENT SPOT-CHECK
 
@@ -127,7 +130,8 @@ Scan component files for violations:
 
 - Single **light** theme (`colorScheme: 'light'` in the root layout). Dark surfaces (header, auction stage) are explicit obsidian tokens, not a mode switch. Never report "missing dark mode" as an issue.
 - ONE black: `--obsidian`. Lightening is via opacity, never a second HSL.
-- Hairlines are deliberately quiet: `--border` and the cream `--input`/`--ring` sit below 3:1 **by owner decision** — a 3:1 bronze pass was tried and rejected as heavy. Do not re-flag them; flag only NEW borders that carry meaning (state, selection) without another cue.
+- Hairlines are deliberately quiet: `--border` (and `--input`, which aliases it) sit below 3:1 **by owner decision** — a 3:1 bronze pass was tried and rejected as heavy. Do not re-flag them; flag only NEW borders that carry meaning (state, selection) without another cue.
+- **One hairline, one lift, one inverse, one tint.** Resting edges are `--border`. Interactive hover/focus edges lift to `gold/40`. Selected state is a fill (`bg-gold/10`), never a gold border. Inverse surfaces (obsidian) use `white/15` resting and `white/25` hover. Semantic callouts (gold, destructive, trust) use `/40`. Flag `border-gold/30`, `/50`, `border-primary` on cream tiles, a gold border on a selected tile, or a parchment field edge that is not `--border`.
 - Two creams cannot hit 3:1 against each other; do not demand it of surface-on-surface seams.
 - Ditto lavender is scoped: character art, landing selection, and the `ditto` button variant. Flag expansion beyond that.
 - Never use pure white as a page background — `--card` is the only near-white and it is a surface, not the canvas.

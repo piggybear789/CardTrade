@@ -140,7 +140,7 @@ export function TradeDisputeActions({
                 className={cn(
                   'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
                   selected
-                    ? 'border-primary bg-primary/10 font-semibold text-foreground'
+                    ? 'border-border bg-gold/10 font-semibold text-foreground'
                     : 'border-border text-foreground/85 hover:bg-muted',
                 )}
               >

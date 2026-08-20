@@ -75,7 +75,7 @@ export function InspectionCountdown({
         'rounded-lg border px-group py-cozy text-body',
         alarming
           ? 'border-destructive/40 bg-destructive/5'
-          : 'border-dashed border-gold/50 bg-gold/10',
+          : 'border-dashed border-gold/40 bg-gold/10',
         className,
       )}
       role={alarming ? 'alert' : undefined}

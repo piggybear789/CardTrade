@@ -287,7 +287,7 @@ function TradeCashSettlementNotice({
   const amount = formatAud(cashAmountCents);
 
   return (
-    <div className="rounded-lg border border-dashed border-gold/50 bg-gold/10 px-group py-cozy text-body">
+    <div className="rounded-lg border border-dashed border-gold/40 bg-gold/10 px-group py-cozy text-body">
       {pendingAfterComplete ? (
         <>
           <p className="font-medium">

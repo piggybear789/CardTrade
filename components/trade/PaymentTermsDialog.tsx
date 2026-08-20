@@ -127,7 +127,7 @@ export function PaymentTermsDialog({
                     // The row carries the focus ring, matching the item rows on
                     // the offer card.
                     'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
-                    draft.cashDirection === value && 'border-primary bg-primary/5',
+                    draft.cashDirection === value && 'bg-gold/10',
                   )}
                 >
                   <input

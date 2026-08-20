@@ -116,12 +116,12 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     // The tick stays 20px visually, but an invisible overlay
                     // stretches the hit area to ~44px for touch guidelines.
                     "relative before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']",
-                    'hover:border-foreground/40 hover:text-foreground',
+                    'hover:border-gold/40 hover:text-foreground',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     done && 'cardtrade-success-chip',
                     live && 'animate-step-active border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
                     halted &&
-                      'border-destructive/55 bg-destructive/10 text-destructive',
+                      'border-destructive/40 bg-destructive/10 text-destructive',
                     !done && !live && !halted && 'border-border bg-card text-muted-foreground',
                     selected && 'ring-2 ring-ring ring-offset-1',
                     animating && 'animate-step-complete',

@@ -197,7 +197,7 @@ export function HandoverFailedDialog({
           </DialogHeader>
 
           <div className="space-y-group py-4">
-            <div className="flex items-start gap-cozy rounded-lg border border-destructive/30 bg-destructive/5 p-cozy">
+            <div className="flex items-start gap-cozy rounded-lg border border-destructive/40 bg-destructive/5 p-cozy">
               <AlertTriangle
                 className="mt-0.5 size-4 shrink-0 text-destructive"
                 aria-hidden
@@ -279,7 +279,7 @@ export function HandoverFailedDialog({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending}
-                    className="flex size-16 items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-ring hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
+                    className="flex size-16 items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-gold/40 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
                     aria-label="Add evidence photo"
                   >
                     <ImagePlus className="size-5" aria-hidden />

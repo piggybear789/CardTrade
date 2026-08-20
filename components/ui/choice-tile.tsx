@@ -51,11 +51,11 @@ export function ChoiceTile({
     <label
       htmlFor={id}
       className={cn(
-        'flex cursor-pointer flex-col gap-tight rounded-md border p-cozy text-body ring-offset-background transition-colors',
+        'flex cursor-pointer flex-col gap-tight rounded-md border border-border p-cozy text-body ring-offset-background transition-colors',
         // The whole tile takes the focus ring: at this size the native control's
         // own ring is easy to miss.
         'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
-        checked ? 'border-primary bg-primary/5' : 'hover:bg-muted/40',
+        checked ? 'bg-gold/10' : 'hover:border-gold/40 hover:bg-muted/40',
         invalid && 'border-destructive',
         align === 'center' && 'items-center text-center',
       )}

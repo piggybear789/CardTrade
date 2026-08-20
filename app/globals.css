@@ -27,9 +27,14 @@
     --accent-foreground: var(--obsidian);
     --destructive: 4 78% 40%;
     --destructive-foreground: 42 33% 96%;
-    /* Structural hairline. Fields share the same cream — no ink, no Ditto. */
+    /* ONE hairline. Cards, dividers, fields, and outline controls all
+       share --border. --input is a semantic alias (`border-input` means
+       "this is a field") so fields cannot drift onto a second cream that
+       vanishes on card. Interactive edges lift to gold/40 on hover/focus.
+       Inverse surfaces use white/15. Semantic tints (gold, destructive,
+       trust) use /40. Focus rings stay parchment — no ink, no Ditto. */
     --border: 36 18% 78%;
-    --input: var(--parchment);
+    --input: var(--border);
     --ring: var(--parchment);
     --trust: 173 80% 26%;
     --gold: 41 56% 30%;
@@ -89,7 +94,7 @@
   /* Teal is reserved for verified identity and provenance, never decoration. */
   .cardtrade-trust-mark {
     color: hsl(var(--trust));
-    border-color: hsl(var(--trust) / 0.32);
+    border-color: hsl(var(--trust) / 0.4);
     background-color: hsl(var(--trust) / 0.1);
   }
 
@@ -104,7 +109,7 @@
   .cardtrade-eyebrow {
     @apply inline-flex w-fit items-center rounded-sm border px-2 py-1;
     color: hsl(var(--gold));
-    border-color: hsl(var(--gold) / 0.35);
+    border-color: hsl(var(--gold) / 0.4);
     background-color: hsl(var(--gold) / 0.08);
   }
 
@@ -206,7 +211,7 @@
 
   /* Soft caution callouts (terms changed, collateral notice). */
   .cardtrade-warning {
-    border-color: hsl(var(--gold) / 0.45);
+    border-color: hsl(var(--gold) / 0.4);
     background-color: hsl(var(--gold) / 0.1);
     color: hsl(var(--foreground));
   }
@@ -217,7 +222,7 @@
   }
 
   .cardtrade-success-chip {
-    border-color: hsl(var(--trust) / 0.55);
+    border-color: hsl(var(--trust) / 0.4);
     background-color: hsl(var(--trust) / 0.12);
     color: hsl(var(--trust));
   }

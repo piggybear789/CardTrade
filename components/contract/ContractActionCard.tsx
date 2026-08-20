@@ -32,9 +32,9 @@ import type { ContractStep } from '@/domain/contract';
 export type ContractActionTone = 'default' | 'success' | 'warning' | 'danger';
 
 const TONE: Record<ContractActionTone, string> = {
-  default: 'border-gold/50 bg-gold/[0.08]',
+  default: 'border-gold/40 bg-gold/[0.08]',
   success: 'border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.06)]',
-  warning: 'border-gold/50 bg-gold/[0.06]',
+  warning: 'border-gold/40 bg-gold/[0.06]',
   danger: 'border-destructive/40 bg-destructive/[0.06]',
 };
 

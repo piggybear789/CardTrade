@@ -127,7 +127,7 @@ export function ImageGallery({
         {!activeFailed ? (
           <p
             aria-hidden="true"
-            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-full border border-white/20 bg-obsidian/65 px-snug py-1 text-meta font-medium text-white/90 shadow-sm backdrop-blur"
+            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-full border border-white/15 bg-obsidian/65 px-snug py-1 text-meta font-medium text-white/90 shadow-sm backdrop-blur"
           >
             <ZoomIn className="size-3.5" />
             <span className="[@media(hover:none)]:hidden">Click to enlarge</span>
@@ -137,7 +137,7 @@ export function ImageGallery({
 
         {images.length > 1 ? (
           <nav
-            className="absolute right-3 top-3 z-[2] flex items-center gap-1 rounded-full border border-white/20 bg-obsidian/65 px-1 py-tight shadow-sm backdrop-blur"
+            className="absolute right-3 top-3 z-[2] flex items-center gap-1 rounded-full border border-white/15 bg-obsidian/65 px-1 py-tight shadow-sm backdrop-blur"
             aria-label="Image navigation"
           >
             <button

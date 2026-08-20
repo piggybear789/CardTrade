@@ -114,7 +114,7 @@ export function OwnItemsPickerDialog({
                       className={cn(
                         'flex cursor-pointer items-center gap-cozy rounded-md border p-snug text-body transition-colors',
                         'has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring',
-                        checked && 'border-primary bg-primary/5',
+                        checked && 'bg-gold/10',
                       )}
                     >
                       <input

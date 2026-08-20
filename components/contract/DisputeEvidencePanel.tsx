@@ -341,7 +341,7 @@ export function DisputeEvidencePanel({
               </label>
               {/* The count lives inside the field's own border rather than floating
                   under it, so the control reads as one object. */}
-              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-gold/40 focus-within:ring-2 focus-within:ring-ring/30">
                 <textarea
                   id="evidence-statement"
                   value={statement}

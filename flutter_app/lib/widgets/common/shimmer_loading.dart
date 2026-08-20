@@ -54,25 +54,25 @@ class ShimmerListingCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(color: AppTheme.border),
         ),
-        child: Column(
+        child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image placeholder
-            const ShimmerBox(
+            ShimmerBox(
               width: double.infinity,
               height: 140,
               borderRadius: AppTheme.radiusLg,
             ),
             Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingMd),
+              padding: EdgeInsets.all(AppTheme.spacingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const ShimmerBox(width: double.infinity, height: 14),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  const ShimmerBox(width: 80, height: 12),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  const ShimmerBox(width: 60, height: 18),
+                  ShimmerBox(width: double.infinity, height: 14),
+                  SizedBox(height: AppTheme.spacingSm),
+                  ShimmerBox(width: 80, height: 12),
+                  SizedBox(height: AppTheme.spacingMd),
+                  ShimmerBox(width: 60, height: 18),
                 ],
               ),
             ),
@@ -94,26 +94,26 @@ class ShimmerListTile extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: AppTheme.border,
       highlightColor: AppTheme.surfaceVariant,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
+      child: const Padding(
+        padding: EdgeInsets.symmetric(
           horizontal: AppTheme.spacingLg,
           vertical: AppTheme.spacingMd,
         ),
         child: Row(
           children: [
-            const ShimmerBox(
+            ShimmerBox(
               width: 40,
               height: 40,
               borderRadius: AppTheme.radiusFull,
             ),
-            const SizedBox(width: AppTheme.spacingMd),
+            SizedBox(width: AppTheme.spacingMd),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const ShimmerBox(width: double.infinity, height: 14),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  const ShimmerBox(width: 120, height: 12),
+                  ShimmerBox(width: double.infinity, height: 14),
+                  SizedBox(height: AppTheme.spacingSm),
+                  ShimmerBox(width: 120, height: 12),
                 ],
               ),
             ),

@@ -3,6 +3,7 @@
 /// These evaluate client-side business rules to determine whether
 /// a user should be redirected away from certain routes. The server
 /// is still authoritative — these are UX guards, not security gates.
+library;
 import '../domain/identity/identity_gate.dart';
 import '../models/profile.dart';
 

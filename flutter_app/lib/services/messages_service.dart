@@ -91,7 +91,7 @@ class MessagesService {
       ApiRoutes.messagesGetOrCreate,
       body: {
         'otherUserId': otherUserId,
-        if (itemId != null) 'itemId': itemId,
+        'itemId': ?itemId,
       },
     );
   }

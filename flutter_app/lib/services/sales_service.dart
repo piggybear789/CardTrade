@@ -89,8 +89,8 @@ class SalesService {
         'itemId': itemId,
         'sellerIdentityVersion': sellerIdentityVersion,
         'buyerConfirmedSellerIdentity': buyerConfirmedSellerIdentity,
-        if (agreedPriceCents != null) 'agreedPriceCents': agreedPriceCents,
-        if (lineItems != null) 'lineItems': lineItems,
+        'agreedPriceCents': ?agreedPriceCents,
+        'lineItems': ?lineItems,
       },
     );
   }
@@ -209,7 +209,7 @@ class SalesService {
       ApiRoutes.cashSaleCancel,
       body: {
         'cashSaleId': saleId,
-        if (reason != null) 'reason': reason,
+        'reason': ?reason,
       },
     );
   }

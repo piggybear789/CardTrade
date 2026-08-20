@@ -108,18 +108,14 @@ test.describe('Onboarding', () => {
     await wizard.getByText('I want to buy').click();
     await wizard.getByRole('button', { name: 'Continue' }).click();
 
-    // Step 5 — saved card, and it is OPTIONAL here on purpose. A card is a hard
-    // prerequisite for opening a contract, but demanding one before the member has
-    // chosen anything to buy is friction with no purpose — the same deferral
-    // argument as collecting bank details only when there is money to pay out.
-    // Skipping is therefore the path worth asserting: onboarding must complete
-    // without a card, and `initiateCashSale` enforces it later with
-    // BUYER_NO_PAYMENT_METHOD.
-    await expect(
-      wizard.getByRole('heading', { name: 'Add a payment card' }),
-    ).toBeVisible({ timeout: RENDERED });
-    await wizard.getByRole('button', { name: /Skip for now/ }).click();
-
+    // A BUYER IS FINISHED AT THE INTENT STEP. There is no card screen: a card is a
+    // hard prerequisite for opening a contract, but demanding one before the member has
+    // chosen anything to buy is friction with no purpose — the same deferral argument
+    // as collecting bank details only when there is money to pay out. The wizard used
+    // to show an optional card step with a "Skip for now" beneath it, i.e. a screen
+    // whose best outcome was being dismissed. `initiateCashSale` still enforces the
+    // card later with BUYER_NO_PAYMENT_METHOD, which is what makes deferring safe.
+    //
     // Onboarding is done when the member is no longer sent back to it. Middleware
     // redirects to /onboarding from every protected route until
     // `onboarding_completed_at` is set, so reaching another page is the completion

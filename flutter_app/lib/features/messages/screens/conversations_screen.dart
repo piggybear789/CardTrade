@@ -45,7 +45,7 @@ class ConversationsScreen extends ConsumerWidget {
             },
             child: ListView.separated(
               itemCount: conversations.length,
-              separatorBuilder: (_, __) => const Divider(
+              separatorBuilder: (_, _) => const Divider(
                 indent: AppTheme.spacingLg + 56 + AppTheme.spacingMd,
               ),
               itemBuilder: (context, index) {

@@ -80,7 +80,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
               itemCount: notifications.length,
-              separatorBuilder: (_, __) => const Divider(
+              separatorBuilder: (_, _) => const Divider(
                 indent: AppTheme.spacingLg + 40 + AppTheme.spacingMd,
               ),
               itemBuilder: (context, index) {

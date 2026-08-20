@@ -7,6 +7,7 @@
 /// - Meeting time must be in the future
 /// - Delivery cost is integer cents, 0 = free, null = not yet agreed
 /// - Method is nullable during early negotiation
+library;
 import '../../models/enums.dart';
 
 /// Inspection window constants.

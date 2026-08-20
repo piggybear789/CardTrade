@@ -114,6 +114,36 @@ async function rest<T>(
   return (text ? JSON.parse(text) : null) as T;
 }
 
+/**
+ * Mark an auth user's email as confirmed, with the service role.
+ *
+ * WHY THE SUITE NEEDS THIS. With email confirmation enforced, `signUp` returns no
+ * session, so a spec that registers through the form lands on `/sign-in` and can go no
+ * further — there is no inbox to click in a headless run. Confirming through the Admin
+ * API is the supported stand-in for that click, and it keeps the specs exercising the
+ * REAL sign-up path rather than provisioning members behind the app's back.
+ *
+ * Hits the Auth Admin API rather than `rest()`, which is scoped to PostgREST and the
+ * `cardtrade` schema; `auth.users` is neither.
+ */
+export async function confirmUserEmail(userId: string): Promise<void> {
+  const { url, serviceKey } = credentials();
+  const response = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email_confirm: true }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Auth admin confirm ${userId} -> ${response.status}: ${text}`);
+  }
+}
+
 /** Rows from a table, filtered with raw PostgREST query syntax. */
 export async function selectRows<T = Record<string, unknown>>(
   table: string,

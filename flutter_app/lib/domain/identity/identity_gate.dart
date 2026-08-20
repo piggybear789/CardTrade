@@ -12,6 +12,7 @@
 ///
 /// What the gate does NOT lock:
 /// - Cash buying (buyer never needs to be verified)
+library;
 import '../../models/enums.dart';
 
 /// The outcome of evaluating the identity gate for UI display.

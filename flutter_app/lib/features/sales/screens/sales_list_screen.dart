@@ -113,7 +113,7 @@ class _SalesList extends StatelessWidget {
       child: ListView.separated(
         padding: const EdgeInsets.all(AppTheme.spacingLg),
         itemCount: sales.length,
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (_, _) =>
             const SizedBox(height: AppTheme.spacingMd),
         itemBuilder: (context, index) {
           final sale = sales[index];
@@ -170,7 +170,7 @@ class _SaleCard extends StatelessWidget {
                       ? Image.network(
                           sale.itemImagePaths.first,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
+                          errorBuilder: (_, _, _) => const Center(
                             child: Icon(Icons.image_outlined,
                                 color: AppTheme.muted, size: 24),
                           ),

@@ -95,7 +95,7 @@ class _ReceivedOffersTab extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(AppTheme.spacingLg),
             itemCount: offers.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const SizedBox(height: AppTheme.spacingMd),
             itemBuilder: (context, index) {
               return _ReceivedOfferCard(offer: offers[index]);
@@ -139,7 +139,7 @@ class _SentOffersTab extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(AppTheme.spacingLg),
             itemCount: offers.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const SizedBox(height: AppTheme.spacingMd),
             itemBuilder: (context, index) {
               return _SentOfferCard(offer: offers[index]);

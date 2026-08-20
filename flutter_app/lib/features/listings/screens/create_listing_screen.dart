@@ -314,7 +314,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               ),
               child: Row(
                 children: [
-                  Text(
+                  const Text(
                     'Details',
                     style: AppTheme.sectionLabel,
                   ),
@@ -347,7 +347,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                 children: [
                   // Category
                   DropdownButtonFormField<String>(
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     decoration: InputDecoration(
                       hintText: 'Category',
                       hintStyle: AppTheme.bodyText.copyWith(
@@ -445,7 +445,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                         color: AppTheme.muted,
                       ),
                       prefixIcon:
-                          Icon(Icons.location_on_outlined, size: 18),
+                          const Icon(Icons.location_on_outlined, size: 18),
                     ),
                   ),
                 ],

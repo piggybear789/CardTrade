@@ -302,7 +302,7 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
 
                 // ─── Category ─────────────────────────────────────────
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: const InputDecoration(labelText: 'Category'),
                   items: AppConstants.categories
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))

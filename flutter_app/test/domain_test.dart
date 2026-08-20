@@ -114,14 +114,14 @@ void main() {
     });
 
     test('bond never exceeds value at stake', () {
-      final policy = BondPolicy(
+      const policy = BondPolicy(
         unverifiedRateBps: 20000, // 200% rate (capped at value)
       );
       expect(requiredTradeBondCents(valueCents: 1000, policy: policy), 1000);
     });
 
     test('bond respects ceiling', () {
-      final policy = BondPolicy(ceilingCents: 500);
+      const policy = BondPolicy(ceilingCents: 500);
       expect(requiredTradeBondCents(valueCents: 10000, policy: policy), 500);
     });
 

@@ -152,6 +152,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
             router.push('/account-suspended');
             return;
           }
+          // AN UNCONFIRMED ADDRESS IS NOT A BAD PASSWORD. Retrying here can never
+          // succeed, so send them straight to the screen that can resend the link,
+          // carrying the address they just typed so they need not retype it.
+          if (result.error === 'EMAIL_NOT_CONFIRMED') {
+            toast.error(result.message);
+            router.push(
+              `/forgot-password?intent=confirm&email=${encodeURIComponent(email)}`,
+            );
+            return;
+          }
           applyError(result.field, result.message);
           return;
         }
@@ -256,7 +266,20 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={passwordId}>Password</Label>
+            {/* The recovery route sits beside the field it rescues, which is where
+                someone looks when the password they typed did not work. Sign-up has no
+                password to recover yet, so it is offered on sign-in only. */}
+            <div className="flex items-baseline justify-between gap-cozy">
+              <Label htmlFor={passwordId}>Password</Label>
+              {mode === 'sign-in' ? (
+                <Link
+                  href="/forgot-password"
+                  className="text-meta text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              ) : null}
+            </div>
             <Input
               id={passwordId}
               name="password"

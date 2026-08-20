@@ -61,9 +61,9 @@ class _MessageInputState extends State<MessageInput> {
         horizontal: AppTheme.spacingMd,
         vertical: AppTheme.spacingSm,
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.surface,
-        border: const Border(
+        border: Border(
           top: BorderSide(color: AppTheme.border, width: 1),
         ),
       ),
@@ -115,10 +115,10 @@ class _MessageInputState extends State<MessageInput> {
               icon: const Icon(Icons.send_rounded, size: 20),
               style: IconButton.styleFrom(
                 backgroundColor:
-                    _hasText ? AppTheme.accent : AppTheme.muted.withOpacity(0.3),
+                    _hasText ? AppTheme.accent : AppTheme.muted.withValues(alpha: 0.3),
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: AppTheme.muted.withOpacity(0.3),
-                disabledForegroundColor: Colors.white.withOpacity(0.6),
+                disabledBackgroundColor: AppTheme.muted.withValues(alpha: 0.3),
+                disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
               ),
             ),
           ],

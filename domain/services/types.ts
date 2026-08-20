@@ -245,6 +245,34 @@ export interface ManagedMerchantDetails {
    * change; the Stripe binding falls back to its configured default when absent.
    */
   country?: string | null;
+  /**
+   * TRANSIENT, PROVIDER-SOURCED PREFILL (unified-seller-onboarding, Req 4.1-4.2).
+   * Name/DOB/address read from the seller's Identity `verified_outputs` and
+   * forwarded to Stripe as `identity.individual` fields at account creation, so the
+   * seller is never re-asked for what Stripe already verified.
+   *
+   * NEVER PERSISTED to any NoDitto table, NEVER logged, NEVER returned to a client
+   * component (Req 4.3-4.5, 9.3, 9.4). It exists on this create DTO only to travel
+   * from the Identity read-back into `createManagedMerchant` within a single server
+   * request, and is dropped the moment the account-create body is built. It is
+   * deliberately NOT mirrored onto {@link ManagedMerchant}, `MerchantRecord`, or any
+   * persisted update, so "never persisted" is a structural fact rather than a
+   * discipline. A field absent here is collected normally by Stripe in its own
+   * iframe (Req 4.6).
+   */
+  prefill?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    dob?: { day: number; month: number; year: number } | null;
+    address?: {
+      line1?: string | null;
+      line2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      postalCode?: string | null;
+      country?: string | null;
+    } | null;
+  };
 }
 
 /**
@@ -639,6 +667,20 @@ export interface PaymentService {
     /** Where the provider sends the User if the link expired mid-flow. */
     refreshUrl: string;
   }): Promise<{ url: string; expiresAt?: string }>;
+
+  /**
+   * Mint a Connect account-session client secret for embedded onboarding
+   * (unified-seller-onboarding, Req 5.1, 7.1).
+   *
+   * The counterpart to {@link createMerchantOnboardingLink}: where that returns a
+   * hosted URL to redirect to, this returns a secret the browser feeds to
+   * `@stripe/connect-js` to render onboarding INLINE, with no redirect.
+   *
+   * Optional on the contract — a provider without embedded components (the Mock)
+   * leaves it undefined, and that absence is the signal for the UI to fall back to
+   * the hosted flow rather than render an empty component (Req 10.1).
+   */
+  createConnectAccountSession?(merchantRef: string): Promise<EmbeddedClientSecret>;
 }
 
 /**
@@ -694,6 +736,53 @@ export interface IdentityCheck {
   hostedUrl?: string | null;
   /** Provider-supplied reason a check failed, for support. Never shown verbatim. */
   failureReason?: string | null;
+  /**
+   * TRANSIENT, SERVER-ONLY. The given/family name split from the verified document,
+   * surfaced ONLY to prefill `identity.individual.{given_name,surname}` into Connect
+   * account creation (unified-seller-onboarding, Req 4.1). The persisted disclosure
+   * still uses the combined {@link IdentityCheck.verifiedName}; these two are never
+   * persisted, logged, or returned to a client. Present only while VERIFIED.
+   */
+  verifiedFirstName?: string | null;
+  verifiedLastName?: string | null;
+  /**
+   * TRANSIENT, SERVER-ONLY. Date of birth read off the verified document, surfaced
+   * ONLY so it can be prefilled into Connect account creation in the same request
+   * (unified-seller-onboarding, Req 4.1). NEVER persisted to a NoDitto table, NEVER
+   * logged, NEVER returned to a client component. Present only after
+   * `readIdentityCheck` expands `verified_outputs.dob`, and only while VERIFIED.
+   */
+  verifiedDob?: { day: number; month: number; year: number } | null;
+  /**
+   * TRANSIENT, SERVER-ONLY. Verified residential address, same handling rules as
+   * {@link IdentityCheck.verifiedDob}: never persisted, logged, or returned to a
+   * client. Present only after `readIdentityCheck` expands `verified_outputs.address`.
+   */
+  verifiedAddress?: {
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+  } | null;
+}
+
+/**
+ * A short-lived credential to render an embedded Stripe component in the browser
+ * (unified-seller-onboarding, Req 7.1). Minted server-side behind the seam so the
+ * Stripe server SDK never leaves `domain/services/stripe/**`.
+ */
+export interface EmbeddedClientSecret {
+  /**
+   * The single-use secret handed to the browser SDK. Scoped to one component render
+   * and useless for anything else, but still never logged.
+   */
+  clientSecret: string;
+  /** Publishable/browser-safe key. The ONLY key material that may reach the client. */
+  publishableKey: string;
+  /** Provider expiry, when known — callers mint a fresh one rather than reusing. */
+  expiresAt?: string;
 }
 
 /**
@@ -735,6 +824,21 @@ export interface IdentityService {
    * every return from the hosted flow reads back rather than trusting the redirect.
    */
   readIdentityCheck(sessionId: string): Promise<IdentityCheck>;
+
+  /**
+   * Mint an Identity session client secret for the embedded `stripe.verifyIdentity`
+   * modal (unified-seller-onboarding, Req 2.1, 7.1).
+   *
+   * The counterpart to {@link IdentityService.createIdentityCheck}'s `hostedUrl`:
+   * where that redirects to a hosted page, this returns the session `client_secret`
+   * so the check runs INLINE. A consumed/terminal session has no secret, which is
+   * exactly the "mint a fresh one on retry" contract (Req 13.4) — callers start a
+   * new session rather than reusing a dead secret.
+   *
+   * Optional for the same reason as {@link PaymentService.createConnectAccountSession}:
+   * a non-embedded provider leaves it undefined and the UI falls back.
+   */
+  createIdentitySessionSecret?(sessionId: string): Promise<EmbeddedClientSecret>;
 }
 
 /**

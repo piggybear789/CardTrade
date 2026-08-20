@@ -15,6 +15,7 @@
 ///   status: json.reqEnum('status', ItemStatus.values, ItemStatus.available),
 /// );
 /// ```
+library;
 
 import '../models/enums.dart';
 

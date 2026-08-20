@@ -37,6 +37,7 @@ import type Stripe from 'stripe';
 import type {
   CaptureResult,
   Cents,
+  EmbeddedClientSecret,
   InstrumentSetup,
   ManagedMerchant,
   ManagedMerchantDetails,
@@ -76,6 +77,64 @@ export interface StripeServiceOptions {
 /** A hold/transfer failure that carries no provider id. */
 function failedHold(payerId: string, amount: Cents): PreAuthHold {
   return { holdId: '', payerId, amount, status: 'FAILED' };
+}
+
+/**
+ * Build the `identity.individual` prefill block from provider-verified outputs
+ * (unified-seller-onboarding, Req 4.2, 4.6).
+ *
+ * Uses conditional spreads so an ABSENT field is omitted from the body entirely
+ * rather than sent as `undefined` — Stripe then collects it in its own iframe.
+ * Omission (not null) is what Req 4.6 requires, and it also narrows each present
+ * value to a defined string, which is what the SDK's `Individual`/`Address` params
+ * expect.
+ */
+function prefillIndividual(
+  prefill: NonNullable<ManagedMerchantDetails['prefill']>,
+  accountCountry: string,
+): Stripe.V2.Core.AccountCreateParams.Identity.Individual {
+  // Guarded assignment rather than conditional spread: under
+  // `exactOptionalPropertyTypes` a spread of `cond ? { k: v } : {}` widens the key to
+  // `string | undefined`, which the SDK's optional params reject. Assigning only
+  // defined values keeps each field either absent or a definite string.
+  const individual: Stripe.V2.Core.AccountCreateParams.Identity.Individual = {};
+  if (prefill.firstName) individual.given_name = prefill.firstName;
+  if (prefill.lastName) individual.surname = prefill.lastName;
+  if (prefill.dob) {
+    individual.date_of_birth = {
+      day: prefill.dob.day,
+      month: prefill.dob.month,
+      year: prefill.dob.year,
+    };
+  }
+
+  // The individual Address requires `country`, so an address is prefilled only when
+  // the verified outputs carry one. Without it, Stripe collects the whole address in
+  // its own iframe (Req 4.6) rather than us sending a partial it would reject.
+  //
+  // AND it is prefilled only when that country is the account's own. Stripe rejects
+  // account creation outright with "the address country must match the identity
+  // country" when they differ, which turns a mismatch into a dead end for the seller
+  // instead of a field they can fill in — and the identity document a member verified
+  // with may legitimately carry a foreign address (a test-mode document routinely
+  // does). The country is compared case-insensitively and sent in the SAME casing as
+  // `identity.country`, so a document reporting `AU` against an `au` account is a
+  // match rather than a spurious rejection.
+  const a = prefill.address;
+  const addressCountry = a?.country?.trim().toLowerCase() ?? '';
+  if (a && addressCountry !== '' && addressCountry === accountCountry) {
+    const address: Stripe.V2.Core.AccountCreateParams.Identity.Individual.Address = {
+      country: accountCountry,
+    };
+    if (a.line1) address.line1 = a.line1;
+    if (a.line2) address.line2 = a.line2;
+    if (a.city) address.city = a.city;
+    if (a.state) address.state = a.state;
+    if (a.postalCode) address.postal_code = a.postalCode;
+    individual.address = address;
+  }
+
+  return individual;
 }
 
 export class StripeService implements PaymentService, PayerService {
@@ -206,6 +265,15 @@ export class StripeService implements PaymentService, PayerService {
     const last = verified?.last_name?.trim() ?? '';
     const fullName = [first, last].filter(Boolean).join(' ') || null;
 
+    // TRANSIENT prefill inputs (unified-seller-onboarding, Req 4.1). Read off the
+    // verified document and surfaced ONLY so the caller can forward them into Connect
+    // account creation in the same request. Guarded to VERIFIED like the name, and
+    // present only because `readIdentityCheck` expands `verified_outputs`. These are
+    // never persisted or logged — `refreshIdentityCheck` ignores them and writes only
+    // the name.
+    const dob = verified?.dob ?? null;
+    const addr = verified?.address ?? null;
+
     return {
       sessionId: session.id,
       outcome,
@@ -218,6 +286,23 @@ export class StripeService implements PaymentService, PayerService {
           : null,
       hostedUrl: session.url ?? null,
       failureReason: session.last_error?.reason ?? null,
+      verifiedFirstName: outcome === 'VERIFIED' ? first || null : null,
+      verifiedLastName: outcome === 'VERIFIED' ? last || null : null,
+      verifiedDob:
+        outcome === 'VERIFIED' && dob && dob.day && dob.month && dob.year
+          ? { day: dob.day, month: dob.month, year: dob.year }
+          : null,
+      verifiedAddress:
+        outcome === 'VERIFIED' && addr
+          ? {
+              line1: addr.line1 ?? null,
+              line2: addr.line2 ?? null,
+              city: addr.city ?? null,
+              state: addr.state ?? null,
+              postalCode: addr.postal_code ?? null,
+              country: addr.country ?? null,
+            }
+          : null,
     };
   }
 
@@ -781,6 +866,11 @@ export class StripeService implements PaymentService, PayerService {
    * collecting them; nothing here reads, persists, or logs them.
    */
   async createManagedMerchant(details: ManagedMerchantDetails): Promise<ManagedMerchant> {
+    // Resolved once: the account's country is also the only address country Stripe
+    // will accept in the same request, so the prefill has to be built against the
+    // same value rather than re-deriving it.
+    const accountCountry = resolveAccountCountry(details.country, this.opts.config.country);
+
     const body: Stripe.V2.Core.AccountCreateParams = {
       contact_email: details.businessEmail,
       display_name: details.tradingName || details.legalEntityName,
@@ -813,8 +903,17 @@ export class StripeService implements PaymentService, PayerService {
       // region exist at all, and it is also why `setTradingRegion` refuses to move
       // a member who already has a `merchant_ref`.
       identity: {
-        country: resolveAccountCountry(details.country, this.opts.config.country),
+        country: accountCountry,
         entity_type: 'individual',
+        // Silent prefill (unified-seller-onboarding, Req 4.2). Provider-verified
+        // name/DOB/address from the seller's Identity session, forwarded so Connect
+        // onboarding does not re-ask for them. Absent fields are omitted so Stripe
+        // collects them in its own iframe (Req 4.6). NOT written to `metadata`, which
+        // persists at Stripe and reads back. The account country is passed in because
+        // Stripe refuses an address whose country differs from it.
+        ...(details.prefill
+          ? { individual: prefillIndividual(details.prefill, accountCountry) }
+          : {}),
       },
       include: ['identity', 'configuration.recipient', 'requirements'],
       metadata: {
@@ -877,6 +976,70 @@ export class StripeService implements PaymentService, PayerService {
     });
 
     return { url: link.url };
+  }
+
+  /**
+   * Mint an account-session client secret for the embedded `account_onboarding`
+   * component (unified-seller-onboarding, Req 5.1).
+   *
+   * The inline counterpart to {@link createMerchantOnboardingLink}: no redirect, the
+   * browser renders onboarding via `@stripe/connect-js`. Recipient accounts collect
+   * only what remains — the disbursement bank account and the service agreement — so
+   * only the onboarding component is enabled.
+   *
+   * @throws {Stripe.errors.StripeError} when the session cannot be created, or an
+   * Error when the publishable key is not configured (the browser could not init the
+   * SDK anyway).
+   */
+  async createConnectAccountSession(merchantRef: string): Promise<EmbeddedClientSecret> {
+    const publishableKey = this.opts.config.publishableKey;
+    if (!publishableKey) {
+      throw new Error(
+        '[payments] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set, so the browser cannot ' +
+          'initialise Connect embedded onboarding.',
+      );
+    }
+
+    const session = await this.stripe.accountSessions.create({
+      account: merchantRef,
+      components: { account_onboarding: { enabled: true } },
+    });
+
+    return {
+      clientSecret: session.client_secret,
+      publishableKey,
+      expiresAt: new Date(session.expires_at * 1000).toISOString(),
+    };
+  }
+
+  /**
+   * Mint an Identity session client secret for the embedded `stripe.verifyIdentity`
+   * modal (unified-seller-onboarding, Req 2.1).
+   *
+   * Reads the session and returns only its `client_secret` rather than widening the
+   * always-returned {@link IdentityCheck} with a sensitive secret. A consumed or
+   * terminal session has no `client_secret`, which is the "mint fresh on retry"
+   * contract (Req 13.4): the caller starts a new session instead of reusing a dead one.
+   *
+   * @throws {Error} when the publishable key is missing or the session has no secret.
+   */
+  async createIdentitySessionSecret(sessionId: string): Promise<EmbeddedClientSecret> {
+    const publishableKey = this.opts.config.publishableKey;
+    if (!publishableKey) {
+      throw new Error(
+        '[payments] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set, so the browser cannot ' +
+          'initialise Stripe.js for the identity check.',
+      );
+    }
+
+    const session = await this.stripe.identity.verificationSessions.retrieve(sessionId);
+    if (!session.client_secret) {
+      throw new Error(
+        '[payments] Identity session has no client secret (already consumed); start a new one.',
+      );
+    }
+
+    return { clientSecret: session.client_secret, publishableKey };
   }
 
   /**

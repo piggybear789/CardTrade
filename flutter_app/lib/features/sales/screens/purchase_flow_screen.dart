@@ -119,7 +119,7 @@ class _PurchaseFlowScreenState extends ConsumerState<PurchaseFlowScreen> {
               textCapitalization: TextCapitalization.sentences,
               onChanged: (_) => setState(() {}),
             ),
-            Text(
+            const Text(
               'Describe the cards in your own words. You can both change this '
               'in the contract before either of you accepts.',
               style: AppTheme.metaText,
@@ -139,7 +139,7 @@ class _PurchaseFlowScreenState extends ConsumerState<PurchaseFlowScreen> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => setState(() {}),
             ),
-            Text('The price for the lot', style: AppTheme.metaText),
+            const Text('The price for the lot', style: AppTheme.metaText),
             const SizedBox(height: AppTheme.spacingSm),
 
             // Nothing is reserved on a binder — say so plainly rather than
@@ -285,7 +285,7 @@ class _ItemSummaryCard extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: hasImage
                   ? Image.network(item.imagePaths.first, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined, color: AppTheme.muted))
+                      errorBuilder: (_, _, _) => const Icon(Icons.image_outlined, color: AppTheme.muted))
                   : const Icon(Icons.image_outlined, color: AppTheme.muted, size: 28),
             ),
             const SizedBox(width: AppTheme.spacingMd),

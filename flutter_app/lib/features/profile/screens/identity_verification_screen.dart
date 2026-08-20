@@ -50,7 +50,7 @@ class IdentityVerificationScreen extends ConsumerWidget {
               children: [
                 // ─── Status Indicator ──────────────────────────────
                 if (isVerified)
-                  _StatusBanner(
+                  const _StatusBanner(
                     icon: Icons.check_circle_rounded,
                     color: AppTheme.success,
                     label: 'Identity verified',
@@ -58,7 +58,7 @@ class IdentityVerificationScreen extends ConsumerWidget {
                         'Your identity has been verified. You can list items, sell, and trade.',
                   )
                 else if (isPending)
-                  _StatusBanner(
+                  const _StatusBanner(
                     icon: Icons.hourglass_top_rounded,
                     color: AppTheme.warning,
                     label: 'Verification pending',
@@ -93,19 +93,19 @@ class IdentityVerificationScreen extends ConsumerWidget {
                     style: theme.textTheme.headlineSmall,
                   ),
                   const SizedBox(height: AppTheme.spacingMd),
-                  _BenefitItem(
+                  const _BenefitItem(
                     icon: Icons.storefront_rounded,
                     text: 'List items for sale',
                   ),
-                  _BenefitItem(
+                  const _BenefitItem(
                     icon: Icons.swap_horiz_rounded,
                     text: 'Propose and accept trades',
                   ),
-                  _BenefitItem(
+                  const _BenefitItem(
                     icon: Icons.verified_user_rounded,
                     text: 'Verified badge on your profile',
                   ),
-                  _BenefitItem(
+                  const _BenefitItem(
                     icon: Icons.shield_rounded,
                     text: 'Dispute resolution & fraud protection',
                   ),
@@ -118,11 +118,11 @@ class IdentityVerificationScreen extends ConsumerWidget {
                     style: theme.textTheme.headlineSmall,
                   ),
                   const SizedBox(height: AppTheme.spacingMd),
-                  _BenefitItem(
+                  const _BenefitItem(
                     icon: Icons.badge_outlined,
                     text: 'A valid government-issued photo ID',
                   ),
-                  _BenefitItem(
+                  const _BenefitItem(
                     icon: Icons.face_rounded,
                     text: 'A selfie for comparison',
                   ),
@@ -131,7 +131,7 @@ class IdentityVerificationScreen extends ConsumerWidget {
 
                   // ─── CTA ─────────────────────────────────────────
                   if (!isPending) ...[
-                    Text(
+                    const Text(
                       'Verification opens in your browser',
                       style: AppTheme.metaText,
                     ),

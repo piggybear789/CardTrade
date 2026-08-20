@@ -165,10 +165,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   // ─── Region ──────────────────────────────────────
                   regionsAsync.when(
                     loading: () => const LinearProgressIndicator(),
-                    error: (_, __) => const Text('Failed to load regions'),
+                    error: (_, _) => const Text('Failed to load regions'),
                     data: (regions) {
                       return DropdownButtonFormField<String>(
-                        value: _selectedRegion,
+                        initialValue: _selectedRegion,
                         decoration: const InputDecoration(
                           labelText: 'Trading region',
                         ),

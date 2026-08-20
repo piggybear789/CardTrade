@@ -332,7 +332,7 @@ class _ItemSnapshot extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: hasImage
                   ? Image.network(sale.itemImagePaths.first, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined, color: AppTheme.muted))
+                      errorBuilder: (_, _, _) => const Icon(Icons.image_outlined, color: AppTheme.muted))
                   : const Icon(Icons.image_outlined, color: AppTheme.muted),
             ),
             const SizedBox(width: AppTheme.spacingMd),
@@ -443,7 +443,7 @@ class _ContractLineItems extends ConsumerWidget {
 
     return lineItemsAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (items) {
         if (items.isEmpty) return const SizedBox.shrink();
 
@@ -712,25 +712,25 @@ class _SaleActionCard extends StatelessWidget {
   List<_SaleAction> _actionsForState() {
     return switch (sale.status) {
       CashSaleStatus.agreement => [
-          if (!sale.termsAgreed) _SaleAction('accept_terms', 'Accept Terms', Icons.check, false),
-          _SaleAction('cancel', 'Cancel', Icons.close, true),
+          if (!sale.termsAgreed) const _SaleAction('accept_terms', 'Accept Terms', Icons.check, false),
+          const _SaleAction('cancel', 'Cancel', Icons.close, true),
         ],
       CashSaleStatus.escrowHeld => [
           if (role == CashSaleRole.seller)
-            _SaleAction('record_shipment', 'Mark as Shipped', Icons.local_shipping, false),
-          _SaleAction('cancel', 'Cancel', Icons.close, true),
+            const _SaleAction('record_shipment', 'Mark as Shipped', Icons.local_shipping, false),
+          const _SaleAction('cancel', 'Cancel', Icons.close, true),
         ],
       CashSaleStatus.inTransit => [
           if (role == CashSaleRole.buyer)
-            _SaleAction('record_receipt', 'Mark as Received', Icons.inbox, false),
+            const _SaleAction('record_receipt', 'Mark as Received', Icons.inbox, false),
         ],
       CashSaleStatus.handover => [
-          _SaleAction('confirm_handover', 'Confirm Handover', Icons.handshake, false),
+          const _SaleAction('confirm_handover', 'Confirm Handover', Icons.handshake, false),
         ],
       CashSaleStatus.inspection => [
           if (role == CashSaleRole.buyer) ...[
-            _SaleAction('accept_inspection', 'Accept Goods', Icons.thumb_up, false),
-            _SaleAction('raise_dispute', 'Raise Dispute', Icons.gavel, true),
+            const _SaleAction('accept_inspection', 'Accept Goods', Icons.thumb_up, false),
+            const _SaleAction('raise_dispute', 'Raise Dispute', Icons.gavel, true),
           ],
         ],
       _ => [],

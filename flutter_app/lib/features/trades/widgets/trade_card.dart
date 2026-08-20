@@ -43,7 +43,7 @@ class TradeCard extends StatelessWidget {
                 children: [
                   _ItemThumbnail(imagePath: trade.initiatorItemImage),
                   const SizedBox(width: AppTheme.spacingSm),
-                  Icon(
+                  const Icon(
                     Icons.swap_horiz_rounded,
                     size: 20,
                     color: AppTheme.muted,
@@ -136,14 +136,14 @@ class _ItemThumbnail extends StatelessWidget {
           ? Image.network(
               imagePath!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _placeholder(),
+              errorBuilder: (_, _, _) => _placeholder(),
             )
           : _placeholder(),
     );
   }
 
   Widget _placeholder() {
-    return Center(
+    return const Center(
       child: Icon(
         Icons.image_outlined,
         size: 20,

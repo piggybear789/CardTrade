@@ -1264,7 +1264,7 @@ void main() {
                     width: 48,
                     height: 48,
                     child: Material(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
@@ -1399,7 +1399,7 @@ void main() {
         // The CreateListingScreen._publish() checks:
         // if (_selectedCondition == null) → shows SnackBar
         const String? selectedCondition = null;
-        final wouldShowError = selectedCondition == null;
+        const wouldShowError = selectedCondition == null;
 
         expect(wouldShowError, isTrue);
       });
@@ -1447,9 +1447,9 @@ void main() {
         //     ...
         //   ),
         // We verify the pattern by creating the same TextField
-        await tester.pumpWidget(MaterialApp(
+        await tester.pumpWidget(const MaterialApp(
           home: Scaffold(
-            body: const TextField(
+            body: TextField(
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 hintText: 'Counter amount',

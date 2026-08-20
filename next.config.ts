@@ -10,10 +10,26 @@ const cspDirectives = [
   // Next.js runtime requires unsafe-inline and unsafe-eval for its script
   // injection and hot-reload in development. Stripe Elements and Google Maps
   // load from their own origins.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com",
+  //
+  // STRIPE SERVES THREE DIFFERENT SCRIPT ORIGINS AND CONNECT IS NOT ON js.stripe.com.
+  // Connect embedded onboarding (`@stripe/connect-js`) injects
+  // `https://connect-js.stripe.com/v1.0/connect.js`, so listing js.stripe.com alone
+  // blocked it — the injected <script> fired `error`, the SDK rejected with
+  // "Failed to load Connect.js", and because every internal `.then()` on that promise
+  // is unhandled the failure arrived as a wall of unhandledRejection noise with a
+  // blank panel on the page rather than as one legible error. `*.js.stripe.com` is
+  // Stripe's own recommendation: Stripe.js starts frames on per-feature subdomains.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com https://maps.googleapis.com",
   // Tailwind injects styles at runtime; unsafe-inline is required.
+  //
+  // Connect embedded components are documented as needing a style-src HASH (the SHA of
+  // an empty style element). DO NOT ADD IT: a hash or nonce in `style-src` makes
+  // browsers IGNORE 'unsafe-inline' for that directive, which would block every inline
+  // style Tailwind and Next emit. 'unsafe-inline' already permits the empty element.
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://images.pokemontcg.io https://images.scrydex.com https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com",
+  // `*.stripe.com` covers the icons and brand assets Connect embedded components and
+  // Stripe Elements load from their own CDN hosts.
+  "img-src 'self' data: blob: https://*.stripe.com https://images.pokemontcg.io https://images.scrydex.com https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com",
   "font-src 'self'",
   // GOOGLE SERVES MAPS FROM TWO DIFFERENT HOSTS AND ONLY ONE OF THEM IS `maps.`.
   // Places API (New) — the autocomplete and Place Details calls behind
@@ -24,8 +40,10 @@ const cspDirectives = [
   // blocked. Keep both.
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com https://places.googleapis.com",
   // Stripe Elements and Payment Element render inside iframes; Google Maps
-  // embed does too.
-  "frame-src https://js.stripe.com https://hooks.stripe.com https://www.google.com https://maps.google.com",
+  // embed does too. Connect embedded onboarding renders its own iframes from
+  // connect-js.stripe.com AND js.stripe.com, so both are required — the component
+  // paints blank if either is missing.
+  "frame-src https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com https://hooks.stripe.com https://www.google.com https://maps.google.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

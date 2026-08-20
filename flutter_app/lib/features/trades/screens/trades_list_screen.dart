@@ -48,7 +48,7 @@ class TradesListScreen extends ConsumerWidget {
             child: ListView.separated(
               padding: const EdgeInsets.all(AppTheme.spacingLg),
               itemCount: trades.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const SizedBox(height: AppTheme.spacingMd),
               itemBuilder: (context, index) {
                 final trade = trades[index];

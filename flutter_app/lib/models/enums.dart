@@ -3,6 +3,7 @@
 /// Each enum value uses @JsonValue to map to the UPPERCASE Postgres string.
 /// Postgres stores: 'SINGLE', 'SHOPFRONT', 'AVAILABLE', 'IN_TRANSIT', etc.
 /// Dart uses: ListingKind.single, ItemStatus.available, etc.
+library;
 import 'package:json_annotation/json_annotation.dart';
 
 // ─── Identity & Merchant ─────────────────────────────────────────────────────

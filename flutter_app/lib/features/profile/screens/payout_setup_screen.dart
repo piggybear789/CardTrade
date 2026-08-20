@@ -171,7 +171,7 @@ class PayoutSetupScreen extends ConsumerWidget {
                     number: '2',
                     text: 'Complete the Stripe onboarding form',
                   ),
-                  _StepItem(
+                  const _StepItem(
                     number: '3',
                     text: "You're ready to receive payments",
                   ),
@@ -179,7 +179,7 @@ class PayoutSetupScreen extends ConsumerWidget {
                   const SizedBox(height: AppTheme.spacingXxl),
 
                   // ─── CTA ─────────────────────────────────────────
-                  Text(
+                  const Text(
                     'Setup opens in your browser',
                     style: AppTheme.metaText,
                   ),
@@ -237,7 +237,7 @@ class _StepItem extends StatelessWidget {
             width: 28,
             height: 28,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppTheme.accentLight,
               shape: BoxShape.circle,
             ),

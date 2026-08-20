@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isDeliverableEmail } from './registration';
 import { runSchema, type ValidationResult } from './result';
 
 /** Maximum length for any profile text field (Req 1.4, 1.5). */
@@ -11,10 +12,25 @@ const profileTextField = (label: string) =>
     .min(1, `${label} must not be empty`)
     .max(PROFILE_TEXT_MAX_LENGTH, `${label} must be at most ${PROFILE_TEXT_MAX_LENGTH} characters`);
 
-/** Zod schema for a profile update. Exported for direct testing. */
+/**
+ * Zod schema for a profile update. Exported for direct testing.
+ *
+ * `contactEmail` uses {@link isDeliverableEmail} — the SAME rule sign-up enforces —
+ * rather than a second definition of its own. It was validated as GENERIC TEXT (any
+ * non-empty string up to 255 chars) until this change, which is how `phil@gm` and even
+ * `notanemail` reached the column. That matters because the value is passed verbatim as
+ * the connected account's `contact_email` during payout onboarding, and Stripe refuses
+ * a malformed one with `email_invalid` — leaving no `merchant_ref`, so the member
+ * retried forever against the same stored value.
+ *
+ * Editing remains the RECOVERY path for an address that predates the sign-up rule, so
+ * this must reject the bad value while still being reachable by the member holding it.
+ */
 export const profileUpdateSchema = z.object({
   displayName: profileTextField('Display name'),
-  contactEmail: profileTextField('Contact email'),
+  contactEmail: profileTextField('Contact email').refine(isDeliverableEmail, {
+    error: 'Enter a complete email address, including the domain — like you@example.com',
+  }),
 });
 
 export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;

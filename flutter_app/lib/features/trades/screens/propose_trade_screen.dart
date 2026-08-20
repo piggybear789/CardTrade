@@ -110,7 +110,7 @@ class _ProposeTradeScreenState extends ConsumerState<ProposeTradeScreen> {
               ),
               const SizedBox(height: AppTheme.spacingMd),
 
-              Text(
+              const Text(
                 'Select one of your items to offer. The server checks identity, '
                 'region compatibility, and ownership before opening the negotiation.',
                 style: AppTheme.bodyText,
@@ -141,7 +141,7 @@ class _ProposeTradeScreenState extends ConsumerState<ProposeTradeScreen> {
               const SizedBox(height: AppTheme.spacingXl),
 
               // Item selection
-              Text('Your item to offer', style: AppTheme.sectionLabel),
+              const Text('Your item to offer', style: AppTheme.sectionLabel),
               const SizedBox(height: AppTheme.spacingMd),
 
               myListingsAsync.when(
@@ -167,12 +167,12 @@ class _ProposeTradeScreenState extends ConsumerState<ProposeTradeScreen> {
               const SizedBox(height: AppTheme.spacingLg),
 
               // Optional description for binder trades
-              Text(
+              const Text(
                 'What you want from this listing (optional)',
                 style: AppTheme.sectionLabel,
               ),
               const SizedBox(height: AppTheme.spacingSm),
-              Text(
+              const Text(
                 'If trading for specific cards from a binder, describe them here.',
                 style: AppTheme.metaText,
               ),
@@ -206,7 +206,7 @@ class _ProposeTradeScreenState extends ConsumerState<ProposeTradeScreen> {
               const SizedBox(height: AppTheme.spacingMd),
 
               if (!hasTarget)
-                Center(
+                const Center(
                   child: Text(
                     'Open a listing to propose a trade against it',
                     style: AppTheme.metaText,
@@ -245,7 +245,7 @@ class _ItemSelector extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppTheme.spacingMd),
+        separatorBuilder: (_, _) => const SizedBox(width: AppTheme.spacingMd),
         itemBuilder: (context, index) {
           final item = items[index];
           final isSelected = selected?.id == item.id;

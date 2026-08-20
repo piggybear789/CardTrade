@@ -21,7 +21,11 @@ import { headers } from 'next/headers';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { validateRegistrationCredentials } from '@/domain/validation';
+import {
+  EMAIL_REGEX,
+  validateRegistrationCredentials,
+  validateSignUpCredentials,
+} from '@/domain/validation';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { type ActionResult, fail, ok } from './result';
 import { authLimiter } from '@/lib/rateLimiters';
@@ -41,11 +45,29 @@ export interface SignUpData {
   emailConfirmationRequired: boolean;
 }
 
-/** Typed failure codes for {@link signIn}. */
-export type SignInError = 'VALIDATION' | 'INVALID_CREDENTIALS' | 'ACCOUNT_BANNED';
+/**
+ * Typed failure codes for {@link signIn}.
+ *
+ * `EMAIL_NOT_CONFIRMED` is deliberately distinct from `INVALID_CREDENTIALS`. With email
+ * confirmation enforced, an unconfirmed member submits the RIGHT password and is
+ * refused — reporting that as "invalid email or password" sends them to reset a
+ * password that was never wrong, and no amount of retrying fixes it. The UI needs to
+ * know the real reason so it can offer to resend the confirmation instead.
+ */
+export type SignInError =
+  | 'VALIDATION'
+  | 'INVALID_CREDENTIALS'
+  | 'EMAIL_NOT_CONFIRMED'
+  | 'ACCOUNT_BANNED';
 
 /** Typed failure codes for {@link signOut}. */
 export type SignOutError = 'SIGN_OUT_FAILED';
+
+/** Typed failure codes for the email-link actions. */
+export type EmailLinkError = 'VALIDATION' | 'RATE_LIMITED' | 'SEND_FAILED';
+
+/** Typed failure codes for {@link updatePassword}. */
+export type UpdatePasswordError = 'VALIDATION' | 'NO_SESSION' | 'UPDATE_FAILED';
 
 /**
  * Derive a non-empty default display name from an email local-part. The
@@ -82,7 +104,14 @@ export async function signUp(
   }
 
   // 1. Syntactic validation (Req 1.1, 1.3).
-  const validation = validateRegistrationCredentials({ email, password });
+  //
+  // SIGN-UP USES THE STRICTER RULE. This value becomes `profiles.contact_email` two
+  // statements below, and later the connected account's `contact_email`, where an
+  // unreachable address such as `phil@gm` is refused by Stripe — after the member has
+  // an account and no way to see why payouts will not start. Sign-in deliberately
+  // keeps the permissive shape check so anyone already holding such an address can get
+  // in and correct it.
+  const validation = validateSignUpCredentials({ email, password });
   if (!validation.ok) {
     return fail('VALIDATION', validation.message, validation.field);
   }
@@ -178,10 +207,162 @@ export async function signIn(
         'This account was permanently suspended after a staff-confirmed objective fraud finding.',
       );
     }
+    // REPORTED SEPARATELY, NOT AS BAD CREDENTIALS. Supabase refuses an unconfirmed
+    // account with `email_not_confirmed` / "Email not confirmed" even when the password
+    // is correct. Collapsing that into INVALID_CREDENTIALS tells the member their
+    // password is wrong, which it is not, and points them at a reset that cannot help.
+    if (
+      error &&
+      (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message))
+    ) {
+      return fail(
+        'EMAIL_NOT_CONFIRMED',
+        'Confirm your email address before signing in. Check your inbox for the link.',
+        'email',
+      );
+    }
     return fail('INVALID_CREDENTIALS', 'Invalid email or password.');
   }
 
   return ok({ userId: data.user.id });
+}
+
+/**
+ * Send a password-reset email (Req 1.7 recovery path).
+ *
+ * WHY THIS EXISTS. There was no password reset on the web app at all: a member who
+ * forgot their password was locked out permanently, with escrow potentially in flight.
+ * It is also the prerequisite for enforcing email confirmation — both flows depend on a
+ * reachable address, and neither is safe to require without a way to re-send.
+ *
+ * ALWAYS REPORTS SUCCESS for a syntactically valid address, even when no account
+ * exists. Reporting "no such account" would turn this into an account-enumeration
+ * oracle, which matters more here than the small UX cost, because a NoDitto address
+ * identifies someone who trades collectibles for money.
+ *
+ * The link Supabase sends must point at `/auth/confirm?...&type=recovery` — see that
+ * route for why the default template does not work under `@supabase/ssr`.
+ */
+export async function requestPasswordReset(
+  email: string,
+): Promise<ActionResult<{ sent: true }, EmailLinkError>> {
+  const identifier = await rateLimitIdentifier();
+  const { allowed } = await authLimiter.check(identifier);
+  if (!allowed) {
+    return fail('RATE_LIMITED', 'Too many attempts. Please wait a minute and try again.');
+  }
+
+  const candidate = email.trim();
+  // The shape rule, not the deliverable one: a member whose stored address predates the
+  // stricter sign-up rule must still be able to ask for a reset for it.
+  if (!EMAIL_REGEX.test(candidate)) {
+    return fail('VALIDATION', 'Enter the email address you signed up with.', 'email');
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(candidate, {
+    redirectTo: `${siteOrigin()}/auth/confirm?type=recovery&next=/auth/update-password`,
+  });
+
+  // A provider failure is logged for operators but still reported as sent, so this
+  // cannot be used to probe which addresses exist.
+  if (error) {
+    console.warn('[auth] password reset send failed:', error.message);
+  }
+
+  return ok({ sent: true });
+}
+
+/**
+ * Resend the signup confirmation email.
+ *
+ * The other half of enforcing confirmation: without this, a member whose confirmation
+ * email was lost, mistyped, or spam-filtered has no route back in — the same shape of
+ * dead end the payout email failure produced.
+ *
+ * Reports success regardless of whether the address exists or is already confirmed,
+ * for the enumeration reason given on {@link requestPasswordReset}.
+ */
+export async function resendConfirmation(
+  email: string,
+): Promise<ActionResult<{ sent: true }, EmailLinkError>> {
+  const identifier = await rateLimitIdentifier();
+  const { allowed } = await authLimiter.check(identifier);
+  if (!allowed) {
+    return fail('RATE_LIMITED', 'Too many attempts. Please wait a minute and try again.');
+  }
+
+  const candidate = email.trim();
+  if (!EMAIL_REGEX.test(candidate)) {
+    return fail('VALIDATION', 'Enter the email address you signed up with.', 'email');
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: candidate,
+    options: {
+      emailRedirectTo: `${siteOrigin()}/auth/confirm?type=signup&next=/onboarding`,
+    },
+  });
+
+  if (error) {
+    console.warn('[auth] confirmation resend failed:', error.message);
+  }
+
+  return ok({ sent: true });
+}
+
+/**
+ * Set a new password for the member holding a live recovery session.
+ *
+ * Reached from `/auth/update-password`, which is only useful after
+ * `/auth/confirm?type=recovery` has exchanged the emailed token for a session. Without
+ * that session there is nobody to update, which is `NO_SESSION` rather than a generic
+ * failure — the member's link expired and they need a fresh one.
+ *
+ * Validates against the SAME password bounds as sign-up, through the shared schema, so
+ * recovery cannot set a password sign-up would have refused.
+ */
+export async function updatePassword(
+  password: string,
+): Promise<ActionResult<{ updated: true }, UpdatePasswordError>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return fail(
+      'NO_SESSION',
+      'That reset link has expired. Request a new one and try again.',
+    );
+  }
+
+  // Reuse the sign-up schema's password rule rather than restating the bounds. The
+  // email is not being changed here, so a placeholder satisfies the shape.
+  const validation = validateSignUpCredentials({ email: 'placeholder@example.com', password });
+  if (!validation.ok) {
+    return fail('VALIDATION', validation.message, 'password');
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    return fail('UPDATE_FAILED', error.message, 'password');
+  }
+
+  return ok({ updated: true });
+}
+
+/**
+ * Absolute origin for links Supabase emails back to us. Mirrors the resolution in
+ * `/auth/callback`, minus the request-header fallback that a Server Action cannot see.
+ */
+function siteOrigin(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'http://localhost:3000').replace(
+    /\/+$/,
+    '',
+  );
 }
 
 /** End the current session. */

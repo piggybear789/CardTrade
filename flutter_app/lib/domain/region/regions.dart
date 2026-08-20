@@ -9,6 +9,7 @@
 /// TWO region values — merging them is the mistake to avoid:
 /// - `items.location_country_code` is where the GOODS are (scopes catalog)
 /// - `profiles.region_code` is where the MEMBER trades (gates contracts)
+library;
 import '../../models/region.dart';
 
 /// All known regions with their properties.

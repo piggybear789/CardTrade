@@ -249,7 +249,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     const SizedBox(height: AppTheme.spacingMd),
                     TextButton(
                       onPressed: () => context.go(AppRoutes.home),
-                      child: Text(
+                      child: const Text(
                         'Browse without signing in',
                         style: AppTheme.supportText,
                       ),

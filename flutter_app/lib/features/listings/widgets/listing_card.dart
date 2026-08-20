@@ -97,7 +97,7 @@ class _ListingCardState extends ConsumerState<ListingCard>
                           ? CachedNetworkImage(
                               imageUrl: imageUrl,
                               fit: BoxFit.cover,
-                              placeholder: (_, __) => Container(
+                              placeholder: (_, _) => Container(
                                 color: AppTheme.surfaceVariant,
                                 child: const Center(
                                   child: Icon(
@@ -106,7 +106,7 @@ class _ListingCardState extends ConsumerState<ListingCard>
                                   ),
                                 ),
                               ),
-                              errorWidget: (_, __, ___) => Container(
+                              errorWidget: (_, _, _) => Container(
                                 color: AppTheme.surfaceVariant,
                                 child: const Center(
                                   child: Icon(

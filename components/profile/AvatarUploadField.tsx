@@ -38,11 +38,17 @@ export interface AvatarUploadFieldProps {
    * Render the picker as a small camera badge on the avatar instead of a labelled
    * button beside it.
    *
-   * NOT the default, deliberately. Onboarding shows this field to someone who has
-   * never seen the app, where an explicit "Add a picture" button is worth the
-   * space; a 24px glyph is far less discoverable. Settings is the opposite case —
-   * the member came looking for it, and a full-width button beside a 64px avatar
-   * dominates a row that is meant to be secondary to the name and email beside it.
+   * NOT the default, but BOTH current callers pass it. Settings wants it because the
+   * member came looking for the control, and a labelled button beside a 64px avatar
+   * dominates a row meant to be secondary to the name and email next to it. Onboarding
+   * wants it because the picture is optional and marked so: a labelled Upload button
+   * plus a Remove button gave an optional field louder controls and more vertical space
+   * than the required display name above it. The surrounding label carries the
+   * discoverability the button used to.
+   *
+   * The default stays as it is because it is the accessible-by-default shape — a
+   * labelled button rather than a glyph — and a third caller with room for it should
+   * get that without opting in.
    */
   compact?: boolean;
 }

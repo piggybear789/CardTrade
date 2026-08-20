@@ -5,6 +5,7 @@
 /// CRITICAL RULE: Trade bonds are NEVER exempt. Both traders bond
 /// regardless of verification status. The exemption applies ONLY to
 /// Cash_Sale seller bonds, where the Buyer's money is already collected.
+library;
 import 'dart:math' as math;
 
 /// Policy parameters for bond sizing.

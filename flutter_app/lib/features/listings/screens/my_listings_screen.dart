@@ -39,7 +39,7 @@ class MyListingsScreen extends ConsumerWidget {
         loading: () => ListView.builder(
           itemCount: 6,
           padding: const EdgeInsets.all(AppTheme.spacingLg),
-          itemBuilder: (_, __) => const Padding(
+          itemBuilder: (_, _) => const Padding(
             padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
             child: ShimmerListTile(),
           ),
@@ -64,7 +64,7 @@ class MyListingsScreen extends ConsumerWidget {
             child: ListView.separated(
               padding: const EdgeInsets.all(AppTheme.spacingLg),
               itemCount: listings.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const SizedBox(height: AppTheme.spacingMd),
               itemBuilder: (context, index) {
                 return _MyListingTile(item: listings[index]);
@@ -111,10 +111,10 @@ class _MyListingTile extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
+                        placeholder: (_, _) => Container(
                           color: AppTheme.surfaceVariant,
                         ),
-                        errorWidget: (_, __, ___) => Container(
+                        errorWidget: (_, _, _) => Container(
                           color: AppTheme.surfaceVariant,
                           child: const Icon(Icons.image_outlined,
                               color: AppTheme.muted),

@@ -2,6 +2,7 @@
 ///
 /// Mirrors the action derivation logic in the web app.
 /// This drives the trade room UI: which buttons are visible, enabled, disabled.
+library;
 import '../../models/enums.dart';
 import '../../models/trade.dart';
 

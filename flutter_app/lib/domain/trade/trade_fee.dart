@@ -5,6 +5,7 @@
 /// The platform fee is 5% of the trade side value, charged symmetrically
 /// to BOTH traders. Use [resolveTradeSideValues] to get the value each
 /// side is charged against — never size a fee from FMV directly.
+library;
 
 /// Platform fee in basis points.
 const int platformFeeBps = 500;

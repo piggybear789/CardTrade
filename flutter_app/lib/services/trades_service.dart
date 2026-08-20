@@ -109,9 +109,8 @@ class TradesService {
       body: {
         'initiatorItemId': initiatorItemId,
         'counterpartItemId': counterpartItemId,
-        if (counterpartGoodsDescription != null)
-          'counterpartGoodsDescription': counterpartGoodsDescription,
-        if (message != null) 'message': message,
+        'counterpartGoodsDescription': ?counterpartGoodsDescription,
+        'message': ?message,
       },
     );
   }
@@ -149,7 +148,7 @@ class TradesService {
       ApiRoutes.tradeDecline,
       body: {
         'tradeId': tradeId,
-        if (reason != null) 'reason': reason,
+        'reason': ?reason,
       },
     );
   }
@@ -169,9 +168,9 @@ class TradesService {
         'tradeId': tradeId,
         if (carrier != null || trackingNumber != null || trackingUrl != null)
           'shipment': {
-            if (carrier != null) 'carrier': carrier,
-            if (trackingNumber != null) 'trackingNumber': trackingNumber,
-            if (trackingUrl != null) 'trackingUrl': trackingUrl,
+            'carrier': ?carrier,
+            'trackingNumber': ?trackingNumber,
+            'trackingUrl': ?trackingUrl,
           },
       },
     );

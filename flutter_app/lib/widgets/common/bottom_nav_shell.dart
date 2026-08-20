@@ -80,7 +80,7 @@ class BottomNavShell extends ConsumerWidget {
             selectedIcon: Icon(Icons.receipt_long, size: 20),
             label: 'Trades',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(
               Icons.add_circle_outline,
               size: 22,

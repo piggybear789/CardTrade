@@ -723,11 +723,11 @@ class _ImageCarousel extends StatelessWidget {
                       ImageUrl.itemImage(images[index], size: ImageSize.large),
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  placeholder: (_, __) => Container(
+                  placeholder: (_, _) => Container(
                     color: AppTheme.surfaceVariant,
                     child: const Center(child: CircularProgressIndicator()),
                   ),
-                  errorWidget: (_, __, ___) => Container(
+                  errorWidget: (_, _, _) => Container(
                     color: AppTheme.surfaceVariant,
                     child: const Icon(Icons.broken_image_outlined,
                         size: 48, color: AppTheme.muted),
@@ -904,7 +904,7 @@ class _ReportSheetState extends State<_ReportSheet> {
 
           // Reason dropdown
           DropdownButtonFormField<String>(
-            value: _selectedReason,
+            initialValue: _selectedReason,
             decoration: const InputDecoration(
               labelText: 'Reason',
               border: OutlineInputBorder(),

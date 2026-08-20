@@ -5,6 +5,7 @@
 ///
 /// The client uses this to determine which actions to show/hide in the
 /// trade room UI. The server is authoritative — this is for display only.
+library;
 import '../../models/enums.dart';
 
 /// The full transitions table. Read this rather than any summary.

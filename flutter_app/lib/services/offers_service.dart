@@ -58,7 +58,7 @@ class OffersService {
       body: {
         'itemId': itemId,
         'amountCents': amountCents,
-        if (message != null) 'message': message,
+        'message': ?message,
       },
     );
   }
@@ -74,7 +74,7 @@ class OffersService {
       body: {
         'offerId': offerId,
         'amountCents': amountCents,
-        if (message != null) 'message': message,
+        'message': ?message,
       },
     );
   }

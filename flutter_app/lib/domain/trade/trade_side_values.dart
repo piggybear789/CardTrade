@@ -13,6 +13,7 @@
 ///
 /// If disclosure disagrees with the charge, we have a money bug.
 /// Never re-derive a side value by summing `fmv_cents`.
+library;
 import 'dart:math' as math;
 
 /// The resolved values for both sides of a trade.

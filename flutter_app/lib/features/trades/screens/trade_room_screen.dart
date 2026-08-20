@@ -308,11 +308,11 @@ class _TermsSection extends StatelessWidget {
       children: [
         Text('Terms', style: theme.textTheme.headlineSmall),
         const SizedBox(height: AppTheme.spacingMd),
-        Row(
+        const Row(
           children: [
             // Initiator item
-            Expanded(child: const _ItemCard(label: 'You offer')),
-            const Padding(
+            Expanded(child: _ItemCard(label: 'You offer')),
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: AppTheme.spacingSm),
               child: Text(
                 'vs',
@@ -324,7 +324,7 @@ class _TermsSection extends StatelessWidget {
               ),
             ),
             // Counterpart item
-            Expanded(child: const _ItemCard(label: 'They offer')),
+            Expanded(child: _ItemCard(label: 'They offer')),
           ],
         ),
         if (!trade.termsAgreed) ...[
@@ -557,7 +557,7 @@ class _HoldIndicators extends ConsumerWidget {
 
     return holdsAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (holds) {
         if (holds.isEmpty) return const SizedBox.shrink();
 

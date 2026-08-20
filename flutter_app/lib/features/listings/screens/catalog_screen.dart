@@ -208,7 +208,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                     mainAxisSpacing: AppTheme.spacingMd,
                     crossAxisSpacing: AppTheme.spacingMd,
                     childCount: 6,
-                    itemBuilder: (_, __) => const ShimmerListingCard(),
+                    itemBuilder: (_, _) => const ShimmerListingCard(),
                   ),
                 ),
                 error: (error, _) => SliverFillRemaining(
@@ -254,9 +254,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
               // ─── Loading More Indicator ────────────────────────────
               if (_isLoadingMore)
-                SliverToBoxAdapter(
+                const SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacingXl),
+                    padding: EdgeInsets.all(AppTheme.spacingXl),
                     child: Center(
                       child: SizedBox(
                         width: 16,

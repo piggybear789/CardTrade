@@ -26,9 +26,11 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
+import type { ManagedMerchantDetails } from '@/domain/services/types';
 import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { MerchantStatus } from '@/domain/orchestrator/merchantOnboarding';
 import { findRegion, normalizeRegionCode } from '@/domain/region';
+import { isDeliverableEmail } from '@/domain/validation';
 import { regionForProfile } from '@/lib/regionBinding';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { type ActionResult, fail, ok } from './result';
@@ -239,7 +241,23 @@ export async function startIdentityVerification(
   // Resume rather than fail when an account shell already exists: a member who
   // abandoned the provider's pages mid-flow presses the same button again.
   if (!state.data.merchantRef) {
-    const submitted = await submitMerchantOnboarding({ buyerDisclosureConsent: true });
+    // PREFILLED, exactly as `beginEmbeddedPayout` does it (Req 4.1-4.2). The prefill
+    // is written onto the ACCOUNT at creation, not handed to a surface, so the hosted
+    // pages show the same name/DOB/address the embedded component would. Omitting it
+    // here — which this action did until now — meant the hosted route silently asked a
+    // seller to retype what Stripe had already verified off their document.
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const prefill = user
+      ? await buildIdentityPrefill(user.id, getPaymentService(await viewerRegion()))
+      : undefined;
+
+    const submitted = await submitMerchantOnboarding(
+      { buyerDisclosureConsent: true },
+      prefill,
+    );
     if (!submitted.ok && submitted.error !== 'already-onboarded') return submitted;
   }
 
@@ -247,6 +265,136 @@ export async function startIdentityVerification(
   if (link.ok) return ok({ url: link.data.url });
   if (link.error === 'not-supported') return ok({ url: null });
   return link;
+}
+
+/** What the browser needs to render Connect embedded onboarding inline. */
+export interface StartedEmbeddedPayout {
+  /** Single-use Connect account-session client secret. Re-minted on retry. */
+  clientSecret: string;
+  /** Browser-safe publishable key for `@stripe/connect-js`. */
+  publishableKey: string;
+}
+
+/**
+ * Ensure the seller's payout account exists (prefilled from their verified identity)
+ * and mint a Connect account-session secret for the EMBEDDED onboarding component
+ * (unified-seller-onboarding, Req 4.1-4.2, 5.1).
+ *
+ * Order of operations (silent prefill): a fresh server-only `readIdentityCheck`
+ * yields the Prefill_Object (name/DOB/address from `verified_outputs`); that is passed
+ * to `submitMerchantOnboarding`, which creates the recipient account with
+ * `identity.individual` prefilled so Connect never re-asks for it; then the account
+ * session is minted. The Prefill_Object never leaves this function's scope and is
+ * never returned to the client — the result carries only the secret + publishable key
+ * (Req 4.5).
+ *
+ * Returns `not-supported` when the active provider has no embedded binding (the Mock),
+ * so the surface falls back. Region rules are unchanged: `submitMerchantOnboarding`
+ * refuses an absent/non-tradeable region (Req 12.2), and `setTradingRegion` refuses a
+ * move once a `merchant_ref` exists (Req 12.4).
+ */
+export async function beginEmbeddedPayout(): Promise<
+  ActionResult<StartedEmbeddedPayout, MerchantOnboardingActionError>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('not-authenticated', 'You must be signed in to set up payouts.');
+
+  const region = await viewerRegion();
+  const payments = getPaymentService(region);
+  if (!payments.createConnectAccountSession) {
+    return fail('not-supported', 'The active payment provider does not support embedded payouts.');
+  }
+
+  const state = await getMerchantState();
+  if (!state.ok) return fail('profile-not-found', 'No profile was found for your account.');
+
+  // Create the account shell if it does not exist yet, prefilling from the seller's
+  // verified identity so Connect does not re-collect name/DOB/address.
+  if (!state.data.merchantRef) {
+    const prefill = await buildIdentityPrefill(user.id, payments);
+    const submitted = await submitMerchantOnboarding({ buyerDisclosureConsent: true }, prefill);
+    if (!submitted.ok && submitted.error !== 'already-onboarded') return submitted;
+  }
+
+  // Re-read to get the reference the account was (now) created under.
+  const refreshed = await getMerchantState();
+  const merchantRef = refreshed.ok ? refreshed.data.merchantRef : null;
+  if (!merchantRef) {
+    return fail('submission-failed', 'Could not open payout setup. Please try again.');
+  }
+
+  try {
+    const secret = await payments.createConnectAccountSession(merchantRef);
+    return ok({ clientSecret: secret.clientSecret, publishableKey: secret.publishableKey });
+  } catch (err) {
+    return fail(
+      'submission-failed',
+      err instanceof Error ? err.message : 'Could not open embedded payout onboarding.',
+    );
+  }
+}
+
+/**
+ * Build the transient Prefill_Object from the seller's own Identity session
+ * (unified-seller-onboarding, Req 4.1). Server-only: the DOB/address it carries are
+ * handed straight to account creation and never persisted, logged, or returned.
+ *
+ * Returns `undefined` when there is no session to read or the provider cannot be read
+ * — the account is then created without prefill and Stripe collects the fields itself
+ * (Req 4.6), which is a valid degrade, not a failure.
+ */
+async function buildIdentityPrefill(
+  profileId: string,
+  payments: ReturnType<typeof getPaymentService>,
+): Promise<ManagedMerchantDetails['prefill'] | undefined> {
+  if (!payments.readIdentityCheck) return undefined;
+
+  const { data } = await createAdminClient()
+    .from('profiles')
+    .select('identity_check_session_id')
+    .eq('id', profileId)
+    .maybeSingle();
+
+  const sessionId = (data?.identity_check_session_id as string | null) ?? null;
+  if (!sessionId) return undefined;
+
+  try {
+    const check = await payments.readIdentityCheck(sessionId);
+    if (check.outcome !== 'VERIFIED') return undefined;
+    return {
+      firstName: check.verifiedFirstName ?? null,
+      lastName: check.verifiedLastName ?? null,
+      dob: check.verifiedDob ?? null,
+      address: check.verifiedAddress ?? null,
+    };
+  } catch {
+    // A read failure must not block onboarding — Stripe collects the fields instead.
+    return undefined;
+  }
+}
+
+/**
+ * Whether a provider submission failure was about the email address.
+ *
+ * Matches Stripe's own error identifiers (`email_invalid`,
+ * `email_domain_invalid_for_recipient`) and the prose it returns for them. This reads a
+ * message string, which is not a contract — so it only ever UPGRADES the wording of a
+ * failure that already happened, never gates anything. The up-front
+ * `isUsableContactEmail` check is the real defence; this catches what only the provider
+ * can know.
+ */
+function isProviderEmailRejection(detail: string | undefined): boolean {
+  if (!detail) return false;
+  const text = detail.toLowerCase();
+  return (
+    text.includes('email_invalid') ||
+    text.includes('email_domain_invalid') ||
+    text.includes('unsupported domain') ||
+    (text.includes('email') && text.includes('invalid'))
+  );
 }
 
 /**
@@ -326,6 +474,13 @@ export async function refreshPayoutStatus(): Promise<
  */
 export async function submitMerchantOnboarding(
   input: MerchantOnboardingInput,
+  /**
+   * TRANSIENT provider-sourced prefill (unified-seller-onboarding, Req 4.2). Passed
+   * ONLY by `beginEmbeddedPayout`, built from the seller's own Identity read-back, and
+   * forwarded straight to `createManagedMerchant`. It is NOT part of the zod input —
+   * it never comes from the client — and it is never persisted or logged here.
+   */
+  prefill?: ManagedMerchantDetails['prefill'],
 ): Promise<ActionResult<MerchantStateData, MerchantOnboardingActionError>> {
   const supabase = await createClient();
   const {
@@ -354,7 +509,27 @@ export async function submitMerchantOnboarding(
 
   const businessEmail = (profile?.contact_email as string | null) ?? user.email;
   if (!businessEmail) {
-    return fail('validation-error', 'Add a contact email to your profile before setting up payouts.');
+    return fail(
+      'validation-error',
+      'Add a contact email to your profile before setting up payouts.',
+      'contactEmail',
+    );
+  }
+
+  // A BACKSTOP, NOT THE PRIMARY GUARD. Sign-up and the profile form both enforce
+  // `isDeliverableEmail` now, so a new member cannot reach here with a bad address.
+  // This still earns its place: accounts created BEFORE that rule hold whatever they
+  // were given (`phil@gm` passed sign-up, and the profile field was validated as
+  // generic text), and Stripe refuses such an address with `email_invalid` — which left
+  // no `merchant_ref`, so the member retried forever against the same stored value.
+  // Failing here names the field and points at the screen that can change it.
+  if (!isDeliverableEmail(businessEmail)) {
+    return fail(
+      'validation-error',
+      `Your contact email (${businessEmail}) is not a valid address, so Stripe will not accept ` +
+        'it for payouts. Update it in your profile, then start payout setup again.',
+      'contactEmail',
+    );
   }
 
   // The connected account's country is fixed at creation and cannot be changed
@@ -387,6 +562,7 @@ export async function submitMerchantOnboarding(
       tradingName: details.tradingName,
       legalEntityName: (profile?.display_name as string | null) ?? undefined,
       country: accountCountry,
+      ...(prefill ? { prefill } : {}),
     },
   });
 
@@ -404,11 +580,26 @@ export async function submitMerchantOnboarding(
           'not-supported',
           'The active payment provider does not support payout accounts.',
         );
-      case 'SUBMISSION_FAILED':
+      case 'SUBMISSION_FAILED': {
+        // An email the provider refuses for a reason only IT can know — an
+        // unsupported or disposable domain (`email_domain_invalid_for_recipient`),
+        // which no local regex can predict. Reported against the field so the UI
+        // offers the same "fix your profile email" route as the up-front check,
+        // rather than passing Stripe's wording straight through.
+        if (isProviderEmailRejection(result.detail)) {
+          return fail(
+            'validation-error',
+            `Stripe will not accept ${businessEmail} for payouts — some email domains are ` +
+              'not supported. Try a different address in your profile, then start payout ' +
+              'setup again.',
+            'contactEmail',
+          );
+        }
         return fail(
           'submission-failed',
           result.detail ?? 'Payout setup could not be submitted. Please try again.',
         );
+      }
       case 'PROFILE_NOT_FOUND':
       default:
         return fail('profile-not-found', 'No profile was found for your account.');

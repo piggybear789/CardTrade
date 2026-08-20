@@ -17,6 +17,11 @@ export {
 
 export {
   EMAIL_REGEX,
+  DELIVERABLE_EMAIL_REGEX,
+  isDeliverableEmail,
+  signUpCredentialsSchema,
+  type SignUpCredentials,
+  validateSignUpCredentials,
   PASSWORD_MIN_LENGTH,
   PASSWORD_MAX_LENGTH,
   registrationCredentialsSchema,

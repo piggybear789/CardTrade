@@ -30,6 +30,12 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   '/sign-up',
   '/auth/callback', // OAuth provider redirect target
   '/api/webhooks/stripe', // server-to-server webhook, never navigated
+  // EMAILED-LINK entry points. Reached from a message in the member's inbox, so there
+  // is deliberately no in-app link: an unauthenticated member who cannot sign in is
+  // exactly who needs them. `/auth/confirm` redeems the token and hands off to
+  // `/auth/update-password`, which is where a recovery link lands.
+  '/auth/confirm',
+  '/auth/update-password',
 ]);
 
 /** Recursively collect files under `dir` whose extension is in `exts`. */
@@ -237,6 +243,9 @@ const MOBILE_TO_WEB_EQUIVALENCE: Record<string, string> = {
   '/home': '/listings',             // Mobile catalog is /home, web is /listings
   '/auth/sign-in': '/sign-in',
   '/auth/sign-up': '/sign-up',
+  // Both clients offer password recovery; only the path prefix differs, as with
+  // sign-in and sign-up above.
+  '/auth/forgot-password': '/forgot-password',
   '/listings/edit/:id': '/listings/[id]/edit',
 };
 
@@ -252,6 +261,10 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/account-suspended': 'Handled via error state in the auth flow',
   '/onboarding': 'Identity and payout onboarding handled via WebHandoff',
   '/auth/callback': 'OAuth provider redirect — mobile uses deep links via Supabase Auth',
+  '/auth/confirm':
+    'Emailed link token exchange (signup confirmation, password recovery) — mobile redeems the same links via Supabase deep links',
+  '/auth/update-password':
+    'Landing page for a redeemed recovery link — mobile sets the new password in its own screen after the deep link',
 };
 
 describe('mobile route parity', () => {

@@ -251,6 +251,85 @@ export async function beginIdentityCheck(
   return ok({ url: check.hostedUrl, sessionId: check.sessionId });
 }
 
+/** What the browser needs to render the embedded `stripe.verifyIdentity` modal. */
+export interface StartedEmbeddedIdentity {
+  /** Single-use Identity session client secret. Never cached; re-minted on retry. */
+  clientSecret: string;
+  /** Browser-safe publishable key for initialising Stripe.js. */
+  publishableKey: string;
+  /** Provider session id (`vs_...`), persisted so the read-back can reconcile it. */
+  sessionId: string;
+}
+
+/**
+ * Start (or resume) the caller's identity check for the EMBEDDED modal
+ * (unified-seller-onboarding, Req 2.1). Mirrors {@link beginIdentityCheck} but hands
+ * back a client secret for `stripe.verifyIdentity` instead of a hosted URL, so the
+ * check runs inline with no redirect.
+ *
+ * Persists PENDING before returning, exactly as the hosted path does, so an abandoned
+ * flow is reconcilable. Returns `NOT_SUPPORTED` when the active provider has no
+ * embedded binding (the Mock) — the surface then falls back to the hosted/mock flow.
+ * On any provider failure it returns an error and leaves `identity_check_status`
+ * untouched (Req 2.6, 13.1).
+ */
+export async function beginEmbeddedIdentity(
+  returnPath = '/onboarding',
+): Promise<ActionResult<StartedEmbeddedIdentity, IdentityCheckError>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to verify your identity.');
+
+  const payments = getPaymentService(await viewerRegion());
+  // Both are required for the embedded path; either absent is the fallback signal.
+  if (!payments.createIdentityCheck || !payments.createIdentitySessionSecret) {
+    return fail('NOT_SUPPORTED', 'The active payment provider does not support embedded identity.');
+  }
+
+  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const path = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+  const separator = path.includes('?') ? '&' : '?';
+
+  let check;
+  let secret;
+  try {
+    check = await payments.createIdentityCheck({
+      profileId: user.id,
+      // Harmless for the embedded modal (which does not redirect); kept so a session
+      // is equally resumable through the hosted fallback.
+      returnUrl: `${origin}${path}${separator}identity=complete`,
+    });
+    secret = await payments.createIdentitySessionSecret(check.sessionId);
+  } catch (err) {
+    return fail(
+      'START_FAILED',
+      err instanceof Error ? err.message : 'Could not start the identity check.',
+    );
+  }
+
+  // Persist PENDING + session id (service role: these columns carry no member update
+  // grant). Never overwrite a VERIFIED member, so a stray call cannot un-verify.
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      identity_check_status: 'PENDING',
+      identity_check_session_id: check.sessionId,
+    })
+    .eq('id', user.id)
+    .neq('identity_check_status', 'VERIFIED');
+
+  if (error) return fail('PERSIST_FAILED', error.message);
+
+  return ok({
+    clientSecret: secret.clientSecret,
+    publishableKey: secret.publishableKey,
+    sessionId: check.sessionId,
+  });
+}
+
 /** The caller's own identity check state, for a status card. */
 export interface IdentityCheckState {
   status: IdentityCheckStatus;

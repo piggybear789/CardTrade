@@ -126,7 +126,7 @@ function ItemCardHitArea({ item, label }: { item: CatalogItem; label: string }) 
     <Link
       href={`/listings/${item.id}`}
       transitionTypes={['nav-forward']}
-      className="absolute inset-0 z-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="absolute inset-0 z-0 rounded-xl border border-transparent focus:outline-none focus-visible:border-gold/40"
     >
       <span className="sr-only">{label}</span>
     </Link>

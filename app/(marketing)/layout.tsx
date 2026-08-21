@@ -19,7 +19,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4 lg:px-8">
           <Link
             href="/"
-            className="rounded-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="rounded-sm text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40"
           >
             <Logo />
           </Link>

@@ -30,12 +30,14 @@
     /* ONE hairline. Cards, dividers, fields, and outline controls all
        share --border. --input is a semantic alias (`border-input` means
        "this is a field") so fields cannot drift onto a second cream that
-       vanishes on card. Interactive edges lift to gold/40 on hover/focus.
+       vanishes on card. Interactive edges lift to gold/40 on hover.
        Inverse surfaces use white/15. Semantic tints (gold, destructive,
-       trust) use /40. Focus rings stay parchment — no ink, no Ditto. */
+       trust) use /40. Focus is the control's own edge (`border-gold/40`),
+       never `ring-2` + `ring-offset-2`. --ring still aliases --border so a
+       stray `ring-ring` cannot invent a second cream. */
     --border: 36 18% 78%;
     --input: var(--border);
-    --ring: var(--parchment);
+    --ring: var(--border);
     --trust: 173 80% 26%;
     --gold: 41 56% 30%;
     --ditto: 282 62% 62%;
@@ -68,8 +70,7 @@
   html {
     scroll-padding-top: calc(4rem + 1px + env(safe-area-inset-top));
     scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
-    /* Focus rings already communicate the tap; the grey flash just looks
-       broken next to them on Android/iOS. */
+    /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -128,10 +129,6 @@
 
   .market-search > svg {
     color: hsl(var(--primary-foreground) / 0.5);
-  }
-
-  .market-search input:focus-visible {
-    border-color: hsl(var(--gold) / 0.7);
   }
 
   /* Native search cancel fights our X and is unstyled on the dark bar. */

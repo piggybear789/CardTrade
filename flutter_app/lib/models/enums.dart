@@ -76,6 +76,7 @@ enum TradeAction {
   @JsonValue('RECORD_ACCEPTANCE') recordAcceptance,
   @JsonValue('RAISE_DISPUTE') raiseDispute,
   @JsonValue('REPORT_FRAUD') reportFraud,
+  @JsonValue('RETRY_COLLATERAL') retryCollateral,
 }
 
 enum TradeCashDirection {

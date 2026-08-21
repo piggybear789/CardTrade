@@ -149,8 +149,8 @@ function ProtectionOutcome({
   children: ReactNode;
 }) {
   return (
-    <div className="flex gap-cozy py-cozy first:pt-0 last:pb-0">
-      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+    <div className="flex items-center gap-cozy py-cozy first:pt-0 last:pb-0">
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <div className="min-w-0">
         <p className="text-body font-semibold">{title}</p>
         <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">{children}</p>

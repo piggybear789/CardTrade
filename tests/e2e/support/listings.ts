@@ -123,7 +123,7 @@ export interface CreateListingOptions {
  *    prefix means reinstating one would not break this helper. SINGLE is chosen
  *    because a SHOPFRONT is never reserved and never sold (0064) and so behaves
  *    differently in every downstream assertion.
- *  - Game / Condition are shadcn `Select`s. Radix renders the
+ *  - Category / Condition are shadcn `Select`s. Radix renders the
  *    trigger AND a hidden native <select>, both labelled by the same
  *    `<Label htmlFor>`, so `getByLabel` is permanently ambiguous. The trigger
  *    carries the id, so `#game` / `#condition` are used.

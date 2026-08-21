@@ -50,6 +50,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ActionBar } from '@/components/trade/ActionBar';
 import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import { HoldStatus } from '@/components/trade/HoldStatus';
+import { SavedCardRow } from '@/components/payments/SavedCardRow';
 import { TRADE_FEE_BPS, tradeFeeCentsFor } from '@/domain/trade/tradeFee';
 import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
@@ -109,10 +110,18 @@ import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
  */
 function deriveFacts(
   trade: TradeRow,
-  holds: { trader_id: string; status: string }[],
+  holds: { trader_id: string; status: string; created_at?: string }[],
 ): TradeFacts {
-  const holdActive = (traderId: string) =>
-    holds.some((h) => h.trader_id === traderId && h.status === 'ACTIVE');
+  const latestStatus = (traderId: string) => {
+    const theirs = holds
+      .filter((h) => h.trader_id === traderId)
+      .toSorted((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+    return theirs[theirs.length - 1]?.status;
+  };
+  const initiatorStatus = latestStatus(trade.initiator_id);
+  const counterpartStatus = latestStatus(trade.counterpart_id);
+  const seekEnded = (status: string | undefined) =>
+    status === 'FAILED' || status === 'VOIDED' || status === 'EXPIRED';
   return {
     termsAccepted: {
       initiator: trade.initiator_terms_accepted_version === trade.terms_version,
@@ -136,9 +145,10 @@ function deriveFacts(
     },
     fulfilmentMethod: trade.handover_method,
     holdsActive: {
-      initiator: holdActive(trade.initiator_id),
-      counterpart: holdActive(trade.counterpart_id),
+      initiator: initiatorStatus === 'ACTIVE',
+      counterpart: counterpartStatus === 'ACTIVE',
     },
+    collateralSeekFailed: seekEnded(initiatorStatus) || seekEnded(counterpartStatus),
   };
 }
 
@@ -925,6 +935,12 @@ function TradeContractRoom({
                             counterpartGoodsDescription: trade.counterpart_goods_description,
                           }}
                         />
+                      ) : null}
+
+                      {viewer &&
+                      trade.state === 'COLLATERAL_PENDING' &&
+                      permittedActionCount === 0 ? (
+                        <SavedCardRow className="w-full sm:max-w-sm" />
                       ) : null}
 
                       {viewer && trade.state !== 'NEGOTIATING' && permittedActionCount > 0 ? (

@@ -224,6 +224,89 @@ export type Database = {
           },
         ];
       };
+      /**
+       * HMAC person keys from Stripe Identity (0105). Service-role only.
+       * Never the raw government ID, name, or date of birth.
+       */
+      identity_person_keys: {
+        Row: {
+          fingerprint: string;
+          profile_id: string;
+          kind: 'document-id' | 'name-dob';
+          created_at: string;
+        };
+        Insert: {
+          fingerprint: string;
+          profile_id: string;
+          kind: 'document-id' | 'name-dob';
+          created_at?: string;
+        };
+        Update: {
+          fingerprint?: string;
+          profile_id?: string;
+          kind?: 'document-id' | 'name-dob';
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'identity_person_keys_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      /**
+       * Blocklist of Identity person keys (0105). A matching verification must
+       * not open the Identity_Gate. Service-role only.
+       */
+      identity_bans: {
+        Row: {
+          fingerprint: string;
+          created_at: string;
+          banned_by: string | null;
+          source_profile_id: string | null;
+          source_trade_id: string | null;
+        };
+        Insert: {
+          fingerprint: string;
+          created_at?: string;
+          banned_by?: string | null;
+          source_profile_id?: string | null;
+          source_trade_id?: string | null;
+        };
+        Update: {
+          fingerprint?: string;
+          created_at?: string;
+          banned_by?: string | null;
+          source_profile_id?: string | null;
+          source_trade_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'identity_bans_banned_by_fkey';
+            columns: ['banned_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'identity_bans_source_profile_id_fkey';
+            columns: ['source_profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'identity_bans_source_trade_id_fkey';
+            columns: ['source_trade_id'];
+            isOneToOne: false;
+            referencedRelation: 'trades';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       items: {
         Row: {
           id: string;

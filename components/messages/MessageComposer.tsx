@@ -149,7 +149,7 @@ export function MessageComposer({
           <button
             type="button"
             onClick={() => attach(null)}
-            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid size-8 place-items-center rounded-full border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-gold/40"
             aria-label="Remove attachment"
           >
             <X className="size-3.5" aria-hidden />

@@ -113,7 +113,7 @@ export function OwnItemsPickerDialog({
                     <label
                       className={cn(
                         'flex cursor-pointer items-center gap-cozy rounded-md border p-snug text-body transition-colors',
-                        'has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring',
+                        'has-[:focus-visible]:border-gold/40 has-[:focus-visible]:outline-none',
                         checked && 'bg-gold/10',
                       )}
                     >

@@ -28,7 +28,7 @@ type ListingActionIconProps = SharedProps &
 
 function chipClass(variant: 'default' | 'outline') {
   return cn(
-    'flex size-12 items-center justify-center rounded-full border transition-[colors,transform] group-active:scale-95',
+    'flex size-12 items-center justify-center rounded-full border transition-[colors,transform] group-active:scale-95 group-focus-visible:border-gold/40',
     variant === 'default'
       ? 'border-primary bg-primary text-primary-foreground group-hover:bg-primary/90'
       : 'border-border bg-card text-foreground shadow-sm group-hover:border-gold/40 group-hover:bg-accent group-hover:text-accent-foreground',
@@ -65,7 +65,7 @@ export function ListingActionIcon({
   );
 
   const sharedClass = cn(
-    'group inline-flex w-full touch-manipulation flex-col items-center gap-tight rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+    'group inline-flex w-full touch-manipulation flex-col items-center gap-tight rounded-md focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
     className,
   );
 

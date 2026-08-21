@@ -14,7 +14,7 @@
 // The gallery is the same `ImageGallery` the listing page uses, so click-to-enlarge
 // opens the same lightbox on both surfaces rather than being re-implemented smaller.
 
-import { ImageOff } from 'lucide-react';
+import { ArrowUpRight, ImageOff } from 'lucide-react';
 import Link from 'next/link';
 
 import { ImageGallery, type GalleryImage } from '@/components/listings/ImageGallery';
@@ -24,6 +24,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -82,7 +83,7 @@ export function ItemPeekDialog({
           <ImageGallery
             images={images}
             title={item.title}
-            frameClassName="h-[min(55dvh,26rem)] w-full"
+            frameClassName="h-[min(45dvh,22rem)] w-full"
           />
         ) : (
           <p className="flex items-center gap-snug rounded-lg border border-dashed p-6 text-body text-muted-foreground">
@@ -104,16 +105,22 @@ export function ItemPeekDialog({
         </div>
 
         {item.description ? (
-          <p className="whitespace-pre-line break-words text-body leading-6 text-muted-foreground">
+          <p className="whitespace-pre-line break-words text-body leading-relaxed">
             {item.description}
           </p>
         ) : null}
 
-        {/* A hidden Item has no catalog page; linking to one would 404. */}
+        {/* A hidden Item has no catalog page; linking to one would 404, so the
+            footer is dropped entirely rather than shown with a dead action. */}
         {item.hidden ? null : (
-          <Button asChild variant="outline" className="sm:self-start">
-            <Link href={`/listings/${item.id}`}>Open full listing</Link>
-          </Button>
+          <DialogFooter>
+            <Button asChild variant="outline">
+              <Link href={`/listings/${item.id}`}>
+                Open full listing
+                <ArrowUpRight className="size-3.5" aria-hidden />
+              </Link>
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

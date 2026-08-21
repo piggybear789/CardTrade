@@ -109,8 +109,8 @@ export const itemSubmissionSchema = z.object({
       'Description is required',
     ),
   category: z
-    .string({ error: 'Game is required' })
-    .refine(isCardGameName, 'Game is required'),
+    .string({ error: 'Category is required' })
+    .refine(isCardGameName, 'Category is required'),
   condition: z
     .string({ error: 'Condition is required' })
     .min(1, 'Condition is required'),

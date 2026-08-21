@@ -8,10 +8,10 @@
 //   1. On an item page the <h1> is the SHELL title — literally "Marketplace" —
 //      and the item's own title is an <h2>. Asserting `heading level 1` contains
 //      the item name fails on every listing in the app.
-//   2. Game / Condition are shadcn `Select`s. Radix renders a
+//   2. Category / Condition are shadcn `Select`s. Radix renders a
 //      trigger with `role="combobox"` AND a hidden native <select> for form
 //      compatibility, and BOTH are labelled by the same <Label htmlFor>. So
-//      `getByLabel('Game')` is always ambiguous; `getByRole('combobox')` is
+//      `getByLabel('Category')` is always ambiguous; `getByRole('combobox')` is
 //      not.
 //   3. `Based near` is REQUIRED. The suite runs the dev server with no Maps key so
 //      PlacePicker falls back to a plain text input — see the note in

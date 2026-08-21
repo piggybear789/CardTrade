@@ -123,7 +123,7 @@ export function SectionTabs({
             href={tab.href}
             aria-current={current ? 'page' : undefined}
             className={cn(
-              'relative -mb-px inline-flex shrink-0 items-center gap-2 rounded-t-md px-4 py-2.5 text-body font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'relative -mb-px inline-flex shrink-0 items-center gap-2 rounded-t-md border border-transparent px-4 py-2.5 text-body font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:border-gold/40',
               current
                 ? 'text-foreground'
                 : 'text-muted-foreground hover:text-foreground',

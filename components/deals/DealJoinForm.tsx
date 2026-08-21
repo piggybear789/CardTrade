@@ -210,7 +210,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
               : 'Describe the card they are buying. You both continue in a sale room.'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-group">
         <DealInviteSummary preview={preview} />
 
         {needsCard ? (
@@ -242,20 +242,28 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
             <span className="sr-only">Loading payment details…</span>
           </div>
         ) : showCardForm ? (
-          <AddPaymentMethodForm
-            onAttached={() => {
-              setLoadingStatus(true);
-              getPaymentMethodStatus()
-                .then((result) => {
-                  setLoadingStatus(false);
-                  if (result.ok) {
-                    setHasPaymentMethod(result.data.hasPaymentMethod);
-                    setPaymentLabel(result.data.label);
-                  }
-                })
-                .catch(() => setLoadingStatus(false));
-            }}
-          />
+          <div className="space-y-cozy">
+            <div className="space-y-tight">
+              <p className="text-body font-medium">Add a payment method</p>
+              <p className="text-body text-muted-foreground">
+                Stripe stores the card. Nothing is charged until you agree to terms.
+              </p>
+            </div>
+            <AddPaymentMethodForm
+              onAttached={() => {
+                setLoadingStatus(true);
+                getPaymentMethodStatus()
+                  .then((result) => {
+                    setLoadingStatus(false);
+                    if (result.ok) {
+                      setHasPaymentMethod(result.data.hasPaymentMethod);
+                      setPaymentLabel(result.data.label);
+                    }
+                  })
+                  .catch(() => setLoadingStatus(false));
+              }}
+            />
+          </div>
         ) : needsCheckout && showCheckout ? (
           <>
             {preview.sellerIdentity ? (
@@ -298,22 +306,24 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
 
         <FieldError message={error ?? undefined} />
       </CardContent>
-      <CardFooter>
-        <Button
-          type="button"
-          onClick={join}
-          disabled={
-            isPending ||
-            loading ||
-            showCardForm ||
-            (needsCheckout && !preview.sellerIdentity)
-          }
-          aria-busy={isPending}
-        >
-          {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-          {isPending ? 'Opening…' : 'Join this deal'}
-        </Button>
-      </CardFooter>
+      {/* While the card form is up, saving the card IS the action. A second,
+          permanently disabled Join button below it just reads as broken. */}
+      {showCardForm ? null : (
+        <CardFooter>
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={join}
+            disabled={
+              isPending || loading || (needsCheckout && !preview.sellerIdentity)
+            }
+            aria-busy={isPending}
+          >
+            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? 'Opening…' : 'Join this deal'}
+          </Button>
+        </CardFooter>
+      )}
 
       <UnlistedItemDialog
         open={itemDialogOpen}

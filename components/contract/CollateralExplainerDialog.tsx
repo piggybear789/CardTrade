@@ -12,8 +12,10 @@ import { CircleHelp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -44,12 +46,22 @@ export function CollateralExplainerDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl" mobile="sheet">
+      {/* No inner scroll container: DialogContent already scrolls, and nesting a
+          second one meant the wheel stalled at the boundary. `sm:max-w-lg`,
+          not 2xl — this is prose, and a 42rem measure left a wide empty band. */}
+      <DialogContent className="sm:max-w-lg" mobile="sheet">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 overflow-y-auto pr-0.5">{children}</div>
+        {children}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Got it
+            </Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

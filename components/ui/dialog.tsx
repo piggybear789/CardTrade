@@ -79,7 +79,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:ring-2 focus-visible:ring-ring [scroll-padding-bottom:5.5rem]",
+        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-gold/40 [scroll-padding-bottom:5.5rem]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         mobile === "sheet" && [
           // Phone: bottom sheet
@@ -109,7 +109,7 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {showClose ? (
-        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-muted/80 opacity-90 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none sm:size-8 sm:rounded-sm sm:bg-transparent sm:opacity-70">
+        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-muted/80 opacity-90 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:pointer-events-none sm:size-8 sm:rounded-sm sm:bg-transparent sm:opacity-70">
           <X className="size-4" aria-hidden="true" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

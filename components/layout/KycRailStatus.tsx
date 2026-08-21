@@ -85,14 +85,12 @@ export async function KycRailStatus() {
       {state === 'IN_PROGRESS' ? <IdentityPendingPoll /> : null}
       <div className="flex items-center gap-2.5">
         <ShieldCheck className="size-8 shrink-0 text-trust" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <p id="marketplace-identity" className="market-label font-medium text-muted-foreground">
-            Identity
-          </p>
-          <p className="text-body text-muted-foreground">
-            {status.action ? status.label : 'Photo ID and selfie'}
-          </p>
-        </div>
+        <p
+          id="marketplace-identity"
+          className="min-w-0 flex-1 text-body font-medium text-foreground"
+        >
+          Identity
+        </p>
         {status.action ? null : (
           <Badge
             variant={status.variant}

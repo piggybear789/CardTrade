@@ -168,7 +168,10 @@ export function ReportDialog({
         )}
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
+        {/* The form is DialogContent's only child, so its flex gap cannot reach
+            header, body and footer. Repeating the gap here spaces them the same
+            way every other dialog does, instead of a one-off `py-4` on the body. */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
           <DialogHeader>
             <DialogTitle>Report {targetNoun}</DialogTitle>
             <DialogDescription>
@@ -177,7 +180,7 @@ export function ReportDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-group py-4">
+          <div className="space-y-group">
             <div className="space-y-snug">
               <Label htmlFor="report-reason">Reason</Label>
               <Select value={reason} onValueChange={setReason}>
@@ -203,6 +206,7 @@ export function ReportDialog({
                 onChange={(e) => setDetails(e.target.value)}
                 maxLength={DETAILS_MAX}
                 rows={3}
+                className="resize-none"
               />
               <p className="text-right text-meta text-muted-foreground">
                 {details.length}/{DETAILS_MAX}
@@ -217,6 +221,14 @@ export function ReportDialog({
           </div>
 
           <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
               {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Submitting…' : 'Submit report'}

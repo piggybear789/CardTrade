@@ -72,7 +72,7 @@ export async function SiteHeader() {
           <Link
             href="/"
             aria-label="NoDitto home"
-            className="min-w-0 rounded-md text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            className="min-w-0 rounded-md border border-transparent text-parchment focus:outline-none focus-visible:border-gold"
           >
             <Logo />
           </Link>
@@ -111,7 +111,7 @@ export async function SiteHeader() {
                 href="/saved"
                 aria-label="Saved listings"
                 title="Saved"
-                className="hidden size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian sm:inline-flex"
+                className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:border-gold sm:inline-flex"
               >
                 <BookmarkCheck className="size-5" aria-hidden />
               </Link>
@@ -119,7 +119,7 @@ export async function SiteHeader() {
                 href="/messages"
                 aria-label="Messages"
                 title="Messages"
-                className="hidden size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian sm:inline-flex"
+                className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:border-gold sm:inline-flex"
               >
                 <MessageCircle className="size-5" aria-hidden />
               </Link>
@@ -188,7 +188,7 @@ export function SiteHeaderSkeleton() {
           <Link
             href="/"
             aria-label="NoDitto home"
-            className="min-w-0 rounded-md text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            className="min-w-0 rounded-md text-parchment border border-transparent focus:outline-none focus-visible:border-gold"
           >
             <Logo />
           </Link>

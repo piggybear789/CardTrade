@@ -117,7 +117,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                     // stretches the hit area to ~44px for touch guidelines.
                     "relative before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']",
                     'hover:border-gold/40 hover:text-foreground',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    'border border-transparent focus:outline-none focus-visible:border-gold/40',
                     done && 'cardtrade-success-chip',
                     live && 'animate-step-active border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
                     halted &&

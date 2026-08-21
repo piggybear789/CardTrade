@@ -314,7 +314,7 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
           onMouseDown={(event) => event.preventDefault()}
           onClick={clearQuery}
           aria-label="Clear search"
-          className="absolute right-1 top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute right-1 top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-gold/40"
         >
           <X className="size-3.5" aria-hidden />
         </button>
@@ -346,7 +346,7 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-2.5 px-2 py-2 text-left focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-2 py-2 text-left focus:outline-none focus-visible:border-gold/40 focus-visible:bg-accent',
                     active ? 'bg-accent' : 'hover:bg-muted/70',
                   )}
                 >

@@ -13,11 +13,20 @@
 // photo to zoom; move the pointer to pan.
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react';
 
 import { ZoomableImage } from '@/components/listings/ZoomableImage';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+
+/** Dark, translucent control that floats over the photo rather than beside it. */
+const LIGHTBOX_CONTROL =
+  'z-10 grid size-10 touch-manipulation place-items-center rounded-full bg-obsidian/60 text-parchment backdrop-blur transition-colors hover:bg-obsidian/80 border border-transparent focus:outline-none focus-visible:border-parchment';
 
 export interface ContractImageLightboxProps {
   /** Resolved image URLs, in order. */
@@ -68,47 +77,68 @@ export function ContractImageLightbox({
 
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next ? index : null)}>
-      <DialogContent mobile="center" className="max-w-5xl sm:max-w-5xl">
+      {/* A photo viewer is not a paper card. Cream padding and a bordered
+          chevron next to a slab makes the chrome compete with the thing being
+          inspected, so the panel is stripped to the image and dark controls
+          that float over it. */}
+      <DialogContent
+        mobile="center"
+        showClose={false}
+        animation="fade"
+        className="max-w-5xl gap-cozy border-0 bg-transparent p-0 shadow-none sm:max-w-5xl sm:p-0"
+      >
         <DialogTitle className="sr-only">{label}</DialogTitle>
-        <div className="flex items-center gap-snug">
-          {images.length > 1 ? (
-            <button
-              type="button"
-              onClick={() => step(-1)}
-              aria-label="Previous photo"
-              className="grid size-9 shrink-0 place-items-center rounded-full border bg-card hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-            </button>
-          ) : null}
 
-          <div className="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted">
-            {src ? (
-              <ZoomableImage
-                key={src}
-                src={src}
-                alt={`${label} — photo ${index + 1} of ${images.length}`}
-              />
-            ) : (
-              <div className="grid h-64 w-full place-items-center text-muted-foreground">
-                <ImageOff className="size-8" aria-hidden />
-              </div>
-            )}
-          </div>
+        <div className="relative min-w-0 overflow-hidden rounded-xl bg-obsidian">
+          {src ? (
+            <ZoomableImage
+              key={src}
+              src={src}
+              alt={`${label} — photo ${index + 1} of ${images.length}`}
+            />
+          ) : (
+            <div className="grid h-64 w-full place-items-center text-parchment/50">
+              <ImageOff className="size-8" aria-hidden />
+            </div>
+          )}
+
+          <DialogClose className={cn(LIGHTBOX_CONTROL, 'absolute right-2 top-2')}>
+            <X className="size-4" aria-hidden />
+            <span className="sr-only">Close</span>
+          </DialogClose>
 
           {images.length > 1 ? (
-            <button
-              type="button"
-              onClick={() => step(1)}
-              aria-label="Next photo"
-              className="grid size-9 shrink-0 place-items-center rounded-full border bg-card hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ChevronRight className="size-4" aria-hidden />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => step(-1)}
+                aria-label="Previous photo"
+                className={cn(
+                  LIGHTBOX_CONTROL,
+                  'absolute left-2 top-1/2 -translate-y-1/2',
+                )}
+              >
+                <ChevronLeft className="size-5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => step(1)}
+                aria-label="Next photo"
+                className={cn(
+                  LIGHTBOX_CONTROL,
+                  'absolute right-2 top-1/2 -translate-y-1/2',
+                )}
+              >
+                <ChevronRight className="size-5" aria-hidden />
+              </button>
+            </>
           ) : null}
         </div>
 
-        <p className="text-center text-meta tabular-nums text-muted-foreground" aria-live="polite">
+        <p
+          className="text-center text-meta tabular-nums text-parchment/70"
+          aria-live="polite"
+        >
           {label} · {index + 1} of {images.length}
         </p>
       </DialogContent>
@@ -228,7 +258,7 @@ export function ContractThumbnails({
             type="button"
             onClick={() => setOpenIndex(0)}
             aria-label={`Enlarge photo 1 of ${images.length} for ${label}`}
-            className="aspect-square w-full overflow-hidden rounded-lg transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="aspect-square w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-gold/40"
           >
             <ContractThumbnailImage
               src={primary}
@@ -246,7 +276,7 @@ export function ContractThumbnails({
                     aria-label={`Enlarge photo ${index + 2} of ${images.length} for ${label}`}
                     className={cn(
                       'overflow-hidden rounded-md border bg-muted transition',
-                      'hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      'hover:opacity-90 border border-transparent focus:outline-none focus-visible:border-gold/40',
                       'size-11',
                     )}
                   >
@@ -264,7 +294,7 @@ export function ContractThumbnails({
                     type="button"
                     onClick={() => setOpenIndex(restShown.length + 1)}
                     aria-label={`See all ${images.length} photos for ${label}`}
-                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:border-gold/40"
                   >
                     +{restOverflow}
                   </button>
@@ -298,7 +328,7 @@ export function ContractThumbnails({
               aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${label}`}
               className={cn(
                 'overflow-hidden rounded-md border bg-muted transition',
-                'hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'border border-transparent hover:opacity-90 focus:outline-none focus-visible:border-gold/40',
                 tile,
               )}
             >
@@ -318,7 +348,7 @@ export function ContractThumbnails({
               aria-label={`See all ${images.length} photos for ${label}`}
               className={cn(
                 'rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition',
-                'hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'hover:bg-accent border border-transparent focus:outline-none focus-visible:border-gold/40',
                 tile,
               )}
             >

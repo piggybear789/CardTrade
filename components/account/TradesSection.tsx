@@ -58,7 +58,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
               <Link
                 href={`/trades/${trade.id}`}
                 transitionTypes={['nav-forward']}
-                className="flex items-center gap-group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex items-center gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
               >
                 <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
                   <ArrowLeftRight className="size-5" aria-hidden />

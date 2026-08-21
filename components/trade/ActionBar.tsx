@@ -15,6 +15,7 @@
 //   RECORD_ACCEPTANCE       -> recordAcceptance
 //   RAISE_DISPUTE           -> raiseDispute
 //   REPORT_FRAUD            -> reportFraud
+//   RETRY_COLLATERAL        -> retryTradeCollateral (declined card, replace then retry)
 //
 // COLLATERAL_LOCKED now offers a DIFFERENT control per fulfilment method. Before
 // 0057 it always offered "Record shipment", so two people meeting in a car park were
@@ -48,6 +49,8 @@ import {
   reportFraud,
   reportTradeHandoverFailed,
 } from '@/lib/actions/trades';
+import { retryTradeCollateral } from '@/lib/actions/tradeNegotiation';
+import { SavedCardRow } from '@/components/payments/SavedCardRow';
 
 /** A minimal shape common to every trade action result. */
 type ActionResult = { ok: boolean; error?: string; detail?: string };
@@ -87,6 +90,7 @@ const BAR_ACTIONS = [
   'RECORD_ACCEPTANCE',
   'RAISE_DISPUTE',
   'REPORT_FRAUD',
+  'RETRY_COLLATERAL',
 ] as const satisfies readonly TradeAction[];
 
 type BarAction = (typeof BAR_ACTIONS)[number];
@@ -156,6 +160,11 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
     successMessage: 'Fraud reported. NoDitto support will review it.',
     variant: 'destructive',
   },
+  RETRY_COLLATERAL: {
+    label: 'Retry hold',
+    successMessage: 'Retrying the card hold.',
+    variant: 'default',
+  },
 };
 
 /** Friendly messages for the typed error codes the actions can return. */
@@ -170,6 +179,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     'The trade was just updated by someone else. Please try again.',
   TRADE_NOT_FOUND: 'This trade could not be found.',
   HOLD_NOT_FOUND: 'A collateral hold for this trade could not be found.',
+  'bond-failed': 'The card hold could not be placed.',
 };
 
 /** Resolve a user-facing message for a typed action failure. */
@@ -205,6 +215,12 @@ async function runAction(
       throw new Error(
         `${action} must be raised through its dialog so a reason is captured.`,
       );
+    case 'RETRY_COLLATERAL': {
+      const result = await retryTradeCollateral(tradeId);
+      return result.ok
+        ? { ok: true }
+        : { ok: false, error: result.error, detail: result.message };
+    }
   }
 }
 
@@ -281,6 +297,27 @@ export function ActionBar({
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3" role="group" aria-label="Trade actions">
         {actions.map((action) => {
           const config = ACTION_CONFIG[action];
+
+          if (action === 'RETRY_COLLATERAL') {
+            return (
+              <div key={action} className="flex w-full min-w-0 flex-col gap-2">
+                <p className="text-body text-muted-foreground">
+                  A card declined the hold, so the trade is paused. Nothing was
+                  charged. Replace the card that failed, then retry.
+                </p>
+                <SavedCardRow className="w-full sm:max-w-sm" />
+                <Button
+                  variant="default"
+                  className="w-full sm:w-auto"
+                  onClick={() => invoke(action)}
+                  disabled={isPending}
+                  aria-busy={isPending}
+                >
+                  {isPending ? 'Retrying…' : 'Retry hold'}
+                </Button>
+              </div>
+            );
+          }
 
           // Dispute and fraud collect the claimant's account rather than a bare
           // confirm (0083) — see the note on ACTION_CONFIG.

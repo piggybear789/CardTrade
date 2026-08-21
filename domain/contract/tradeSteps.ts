@@ -117,12 +117,14 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       // characters). 'Holds' matches the release step's "Both holds released".
       short: 'Holds',
       label: 'Both traders post collateral',
-      detail: symmetricDetail(
-        holds,
-        counterpartyName,
-        'posted collateral',
-        'Each trader authorises a hold for the full value of what they receive. Nothing is charged unless the trade goes wrong.',
-      ),
+      detail: facts.collateralSeekFailed
+        ? 'A card declined. Replace it, then retry the hold from the actions on this trade.'
+        : symmetricDetail(
+            holds,
+            counterpartyName,
+            'posted collateral',
+            'Each trader authorises a hold for the full value of what they receive. Nothing is charged unless the trade goes wrong.',
+          ),
       owner: 'both',
       done: state !== 'COLLATERAL_PENDING' && state !== 'NEGOTIATING',
       action: {

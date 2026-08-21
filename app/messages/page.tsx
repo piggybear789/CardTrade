@@ -98,7 +98,7 @@ export default async function MessagesPage() {
                 <Link
                   href={`/messages/${c.id}`}
                   transitionTypes={['nav-forward']}
-                  className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-gold/40"
                 >
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element

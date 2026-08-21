@@ -19,11 +19,13 @@
 // from the page behind it.
 
 import * as React from 'react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { updateProfile } from '@/lib/actions/profile';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { Button } from '@/components/ui/button';
+import { DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -110,35 +112,10 @@ export function ProfileForm({
   const generalError = fieldError && !fieldError.field ? fieldError.message : undefined;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-group">
-      {/* The picture saves on pick, independently of this form's submit — see
-          AvatarUploadField.
-
-          A styled <p>, NOT a <Label>: the control is a button, and a <label> with
-          no labelable form control associates with nothing. The group takes its
-          accessible name from this text; the button carries its own aria-label. */}
-      <div role="group" aria-labelledby="avatar-field-label" className="space-y-snug">
-        <p id="avatar-field-label" className="market-label text-muted-foreground">
-          Profile picture
-        </p>
-        <div className="flex items-center gap-group">
-          <AvatarUploadField
-            avatarPath={avatarPath}
-            displayName={displayName}
-            onChange={setAvatarPath}
-            disabled={isSaving}
-            hideHint
-            compact
-          />
-          {/* Format guidance kept, but beside the badge rather than under a
-              full-width button. The compact picker renders no hint of its own. */}
-          <p className="min-w-0 flex-1 text-body leading-relaxed text-muted-foreground">
-            Optional. PNG, JPEG, or WebP, up to 2 MB. Shown next to your name on
-            listings and in chats — it is not used to verify you.
-          </p>
-        </div>
-      </div>
-
+    // The form is the dialog's only child, so DialogContent's flex gap cannot
+    // reach the fields and the footer. Repeating it here spaces them the way
+    // every other dialog does.
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3 sm:gap-4">
       <div className="space-y-tight">
         <FieldLabel htmlFor="displayName">Display name</FieldLabel>
         <Input
@@ -182,20 +159,55 @@ export function ProfileForm({
         ) : null}
       </div>
 
+      {/* AFTER the two fields, not above them. The picture is optional and saves
+          on pick — independently of this form's submit, see AvatarUploadField —
+          so leading with it gave the one thing that is not part of "Save changes"
+          the most prominent position, above the name people opened this to edit.
+
+          A styled <p>, NOT a <Label>: the control is a button, and a <label> with
+          no labelable form control associates with nothing. The group takes its
+          accessible name from this text; the button carries its own aria-label. */}
+      <div
+        role="group"
+        aria-labelledby="avatar-field-label"
+        className="flex items-center gap-group border-t pt-cozy"
+      >
+        <AvatarUploadField
+          avatarPath={avatarPath}
+          displayName={displayName}
+          onChange={setAvatarPath}
+          disabled={isSaving}
+          hideHint
+          compact
+        />
+        <div className="min-w-0 flex-1 space-y-tight">
+          <p id="avatar-field-label" className="text-body font-medium leading-none">
+            Profile picture{' '}
+            <span className="font-normal text-muted-foreground">(optional)</span>
+          </p>
+          <p className="text-body leading-relaxed text-muted-foreground">
+            PNG, JPEG or WebP, up to 2 MB. Saves as soon as you pick it.
+          </p>
+        </div>
+      </div>
+
       {generalError ? (
         <p role="alert" className="text-body text-destructive">
           {generalError}
         </p>
       ) : null}
 
-      <Button
-        type="submit"
-        disabled={isSaving}
-        aria-busy={isSaving}
-        className="w-full sm:w-auto"
-      >
-        {isSaving ? 'Saving…' : 'Save changes'}
-      </Button>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="ghost" disabled={isSaving}>
+            Cancel
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={isSaving} aria-busy={isSaving}>
+          {isSaving ? <Loader2 className="animate-spin" aria-hidden /> : null}
+          {isSaving ? 'Saving…' : 'Save changes'}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }

@@ -20,10 +20,11 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SavedCardRow } from '@/components/payments/SavedCardRow';
 import {
   Dialog,
   DialogContent,
@@ -95,6 +96,7 @@ export function TradeNegotiationPanel({
   const [counterOpen, setCounterOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [acceptOpen, setAcceptOpen] = useState(false);
+  const [hasCard, setHasCard] = useState(false);
 
   const [cash, setCash] = useState((terms.cashAmountCents / 100).toFixed(2));
   const [direction, setDirection] = useState(terms.cashDirection);
@@ -164,7 +166,8 @@ export function TradeNegotiationPanel({
           them again here made the action card a summary with buttons attached
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex w-full min-w-0 flex-col items-stretch gap-2 sm:items-end">
+        <SavedCardRow className="w-full sm:max-w-sm" />
         <ContractOverflowMenu>
           {actions.includes('PROPOSE_TERMS') ? (
             <Button variant="ghost" disabled={isPending} onClick={() => setCounterOpen(true)}>
@@ -280,25 +283,59 @@ export function TradeNegotiationPanel({
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
+      <Dialog
         open={acceptOpen}
         onOpenChange={(open) => {
           if (isPending) return;
           setAcceptOpen(open);
         }}
-        title="Accept these terms?"
-        description="The last accept places a temporary Stripe card hold (not a charge) and may charge the trade fee."
-        confirmLabel="Accept terms"
-        pending={isPending}
-        helpHref="/help#holds"
-        onConfirm={async () => {
-          const ok = await run(
-            () => acceptTradeTerms(tradeId, termsVersion),
-            'Accepted. Waiting on the other trader.',
-          );
-          if (ok) setAcceptOpen(false);
-        }}
-      />
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accept these terms?</DialogTitle>
+            <DialogDescription>
+              The last accept places a temporary Stripe card hold (not a charge)
+              and may charge the trade fee. Replace the card here if you do not
+              want this one used.
+            </DialogDescription>
+          </DialogHeader>
+          <SavedCardRow inline onStatus={setHasCard} />
+          <p className="text-body">
+            <Link
+              href="/help#holds"
+              className="font-medium underline underline-offset-4 hover:text-foreground"
+            >
+              How holds and disputes work
+            </Link>
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setAcceptOpen(false)}
+              disabled={isPending}
+            >
+              Back
+            </Button>
+            <Button
+              type="button"
+              disabled={isPending || !hasCard}
+              aria-busy={isPending}
+              onClick={() => {
+                void run(
+                  () => acceptTradeTerms(tradeId, termsVersion),
+                  'Accepted. Waiting on the other trader.',
+                ).then((ok) => {
+                  if (ok) setAcceptOpen(false);
+                });
+              }}
+            >
+              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              Accept terms
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <DialogContent>

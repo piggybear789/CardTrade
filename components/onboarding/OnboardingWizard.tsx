@@ -38,8 +38,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRight,
+  Banknote,
+  Info,
   MapPin,
+  ShieldCheck,
   ShoppingBag,
   Store,
 } from 'lucide-react';
@@ -58,11 +62,17 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 export type Step = 'welcome' | 'username' | 'region' | 'intent' | 'seller-onboarding';
@@ -74,6 +84,25 @@ type Intent = 'buyer' | 'seller' | null;
 // are on step 4 of 5 of something they will never see.
 const STEPS: Step[] = ['welcome', 'username', 'region', 'intent'];
 const PROGRESS_STEPS: Step[] = STEPS;
+
+/** What the welcome step promises, one sentence each, in one voice. */
+const WELCOME_POINTS = [
+  {
+    icon: ShieldCheck,
+    title: 'Everyone selling is verified',
+    body: 'A photo ID and a matching selfie, checked by Stripe, before anyone can list or trade.',
+  },
+  {
+    icon: Banknote,
+    title: 'Money is held until delivery',
+    body: 'The buyer pays upfront and the seller is paid once the item arrives and passes inspection.',
+  },
+  {
+    icon: ArrowLeftRight,
+    title: 'Trades are backed by collateral',
+    body: 'Each side puts a temporary hold on their card. No cash moves, and holds release on a confirmed swap.',
+  },
+] as const;
 
 // Region choices are loaded at runtime, not read from the registry, because the real
 // answer depends on which regions have a Stripe platform account configured — see
@@ -228,7 +257,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
           // of it. The fix for the movement is therefore to stop the HEIGHT jumping
           // (see the skeleton in `UnifiedOnboardingSurface`, shaped like what replaces
           // it), not to move the panel off centre.
-          className="w-[calc(100%-2rem)] max-w-lg p-5 sm:p-6"
+          className="w-[calc(100%-2rem)] max-w-2xl p-5 sm:p-6"
         >
           {/* Progress indicator: shows which step you are on. Hidden on the welcome
               step because it has no back button and counting "1 of 5" before the
@@ -256,7 +285,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
           ) : null}
 
           {step === 'welcome' ? (
-            <div className="space-y-5">
+            <div className="space-y-group">
               <DialogHeader className="space-y-2 pr-0 text-center">
                 <DialogTitle className="text-head">Welcome to NoDitto</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
@@ -264,57 +293,45 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-2">
-                <section
-                  className="rounded-xl border bg-muted/25 p-4"
-                  aria-labelledby="eligibility-onboarding-title"
-                >
-                  <h2 id="eligibility-onboarding-title" className="text-body font-semibold">
-                    All Sellers and Traders Are Verified Through Stripe
-                  </h2>
-                  <p className="mt-1 text-pretty text-body leading-relaxed text-muted-foreground">
-                    Sellers and traders pass a Stripe identity check — a photo ID and a selfie — before they can list, sell, or enter a trade. Bank details are collected separately, only when there is money to pay out. Confirmed fraud permanently bans the responsible individual.
-                  </p>
-                </section>
+              {/* THREE LINES, NOT THREE ESSAYS. This was three bordered cards of
+                  Title Case headings and four-sentence paragraphs — a policy page
+                  wearing a wizard's chrome, on the one screen where nobody has
+                  committed to anything yet. Each promise now gets one sentence in
+                  one voice; the detail lives on the pages that enforce it. */}
+              <ul className="space-y-cozy text-left">
+                {WELCOME_POINTS.map(({ icon: Icon, title, body }) => (
+                  <li key={title} className="flex items-center gap-cozy">
+                    <span
+                      className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
+                      aria-hidden
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 space-y-tight">
+                      <p className="text-body font-medium">{title}</p>
+                      <p className="text-pretty text-body leading-relaxed text-muted-foreground">
+                        {body}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
 
-                <section
-                  className="rounded-xl border bg-muted/25 p-4"
-                  aria-labelledby="cash-sale-onboarding-title"
-                >
-                  <h2 id="cash-sale-onboarding-title" className="text-body font-semibold">
-                    Buy & Sell with Payment Protection
-                  </h2>
-                  <p className="mt-1 text-pretty text-body leading-relaxed text-muted-foreground">
-                    Buyer pays upfront; NoDitto holds the proceeds until delivery and inspection resolve, then pays the seller.
-                  </p>
-                </section>
-
-                <section
-                  className="rounded-xl border bg-muted/25 p-4"
-                  aria-labelledby="trade-onboarding-title"
-                >
-                  <h2 id="trade-onboarding-title" className="text-body font-semibold">
-                    Trade with Collateral
-                  </h2>
-                  <p className="mt-1 text-pretty text-body leading-relaxed text-muted-foreground">
-                    Both parties agree on a trade value, backed by a temporary card authorization on each side. No cash changes hands - holds are released after a successful trade is confirmed.
-                  </p>
-                </section>
-              </div>
-
-              <Button type="button" onClick={() => setStep('username')} className="w-full" size="lg">
-                Get started
-                <ArrowRight className="ml-2 size-4" aria-hidden />
-              </Button>
+              <DialogFooter>
+                <Button type="button" onClick={() => setStep('username')}>
+                  Get started
+                  <ArrowRight className="size-4" aria-hidden />
+                </Button>
+              </DialogFooter>
             </div>
           ) : null}
 
           {step === 'username' ? (
-            <div className="space-y-5">
+            <div className="space-y-group">
               <DialogHeader className="space-y-2 pr-0 text-center">
                 <DialogTitle className="text-head">Choose your username</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
-                  This is how other members see you.  
+                  This is how other members see you.
                 </DialogDescription>
               </DialogHeader>
 
@@ -381,26 +398,25 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={goBack} className="flex-1">
-                  <ArrowLeft className="mr-2 size-4" aria-hidden />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={goBack}>
+                  <ArrowLeft className="size-4" aria-hidden />
                   Back
                 </Button>
                 <Button
                   type="button"
                   onClick={handleUsernameContinue}
                   disabled={!displayName.trim()}
-                  className="flex-1"
                 >
                   Continue
-                  <ArrowRight className="ml-2 size-4" aria-hidden />
+                  <ArrowRight className="size-4" aria-hidden />
                 </Button>
-              </div>
+              </DialogFooter>
             </div>
           ) : null}
 
           {step === 'region' ? (
-            <div className="space-y-5">
+            <div className="space-y-group">
               <DialogHeader className="space-y-2 pr-0 text-center">
                 <DialogTitle className="text-head">Where are you trading from?</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
@@ -470,32 +486,31 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 </p>
               ) : null}
 
-              <div className="flex gap-2">
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={goBack}
                   disabled={saving}
-                  className="flex-1"
                 >
-                  <ArrowLeft className="mr-2 size-4" aria-hidden />
+                  <ArrowLeft className="size-4" aria-hidden />
                   Back
                 </Button>
                 <Button
                   type="button"
                   onClick={handleRegionContinue}
                   disabled={!regionCode || saving}
-                  className="flex-1"
+                  aria-busy={saving}
                 >
                   {saving ? 'Saving…' : 'Continue'}
-                  <ArrowRight className="ml-2 size-4" aria-hidden />
+                  <ArrowRight className="size-4" aria-hidden />
                 </Button>
-              </div>
+              </DialogFooter>
             </div>
           ) : null}
 
           {step === 'intent' ? (
-            <div className="space-y-5">
+            <div className="space-y-group">
               <DialogHeader className="space-y-2 pr-0 text-center">
                 <DialogTitle className="text-head">What brings you here?</DialogTitle>
                 <DialogDescription className="text-pretty leading-relaxed">
@@ -553,16 +568,16 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 </p>
               ) : null}
 
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={goBack} disabled={saving} className="flex-1">
-                  <ArrowLeft className="mr-2 size-4" aria-hidden />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={goBack} disabled={saving}>
+                  <ArrowLeft className="size-4" aria-hidden />
                   Back
                 </Button>
                 <Button
                   type="button"
                   onClick={handleIntentContinue}
                   disabled={!intent || saving}
-                  className="flex-1"
+                  aria-busy={saving}
                 >
                   {saving
                     ? intent === 'seller'
@@ -575,20 +590,43 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                       // bought nothing. `Verify Identity` stays different because the
                       // action IS different — it leaves for Stripe.
                       : 'Continue'}
-                  <ArrowRight className="ml-2 size-4" aria-hidden />
+                  <ArrowRight className="size-4" aria-hidden />
                 </Button>
-              </div>
-
+              </DialogFooter>
             </div>
           ) : null}
 
           {step === 'seller-onboarding' ? (
-            <div className="space-y-5">
-              {/* TITLE ONLY. The step spine below states what each step is, and the
-                  embedded provider form states what IT is asking for, so a description
-                  here was a third voice introducing the same thing. */}
-              <DialogHeader className="mx-auto max-w-lg space-y-2 pr-0 text-center">
-                <DialogTitle className="text-head">Two steps to start selling</DialogTitle>
+            <div className="space-y-group">
+              {/* TITLE PLUS WHY. The spine states what each step is; this is only the
+                  reason they exist at all, parked on an (i) so it isn't a third
+                  paragraph competing with the steps. */}
+              <DialogHeader className="mx-auto max-w-2xl space-y-2 pr-0 text-center">
+                <div className="flex items-center justify-center gap-tight">
+                  <DialogTitle className="text-head">
+                    Two steps to start selling
+                  </DialogTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-gold/40"
+                        aria-label="Why we need these details"
+                      >
+                        <Info className="size-3.5" aria-hidden />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="bottom"
+                      align="center"
+                      className="z-[60] max-w-[18rem] text-pretty text-body"
+                    >
+                      Photo ID so other members know who they&apos;re dealing
+                      with. Bank details so we can pay you when a sale settles.
+                      Stripe checks both.
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </DialogHeader>
 
               <UnifiedOnboardingSurface
@@ -607,15 +645,16 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                   prominent of two controls pointing opposite ways — and withheld while
                   still unknown, so it does not appear and then retract. */}
               {sellerSettled === false ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setStep('intent')}
-                  className="mx-auto w-full text-muted-foreground sm:w-auto"
-                >
-                  <ArrowLeft className="mr-2 size-4" aria-hidden />
-                  Back
-                </Button>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep('intent')}
+                  >
+                    <ArrowLeft className="size-4" aria-hidden />
+                    Back
+                  </Button>
+                </DialogFooter>
               ) : null}
             </div>
           ) : null}

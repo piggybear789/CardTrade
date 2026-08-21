@@ -236,7 +236,10 @@ export function CashSaleTermsDialog({
         </DialogTrigger>
       )}
       <DialogContent>
-        <form onSubmit={submit}>
+        {/* The form is DialogContent's only child, so its flex gap cannot reach
+            header, body and footer. Repeating it here replaces the one-off
+            `py-5` that was doing the same job by hand. */}
+        <form onSubmit={submit} className="flex flex-col gap-3 sm:gap-4">
           <DialogHeader>
             <DialogTitle>{sale.fulfillment_method ? 'Edit handover terms' : 'Set handover terms'}</DialogTitle>
             <DialogDescription>
@@ -245,7 +248,7 @@ export function CashSaleTermsDialog({
                 : 'Choose how the item is handed over.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-group py-5">
+          <div className="space-y-group">
             {/* Same picker and same fields as the trade room. They used to be a
                 `Select` here and a pair of tiles there, with different validation
                 behind each — which is how the trade room ended up accepting a
@@ -301,6 +304,14 @@ export function CashSaleTermsDialog({
             ) : null}
           </div>
           <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={pending} aria-busy={pending}>
               {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
               {pending ? 'Saving…' : sale.fulfillment_method ? 'Save changes' : 'Propose terms'}

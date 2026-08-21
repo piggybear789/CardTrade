@@ -25,7 +25,7 @@ export function AccountTabs({ activeTab }: { activeTab: string }) {
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'relative inline-flex items-center px-tight pb-cozy text-body font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'border border-transparent focus-visible:outline-none focus-visible:border-gold/40',
                   active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}
               >

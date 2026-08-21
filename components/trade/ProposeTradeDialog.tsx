@@ -17,10 +17,13 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, ShieldCheck } from 'lucide-react';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
-import { IdentityGatePrompt } from '@/components/identity/IdentityGatePrompt';
+import {
+  IdentityGatePrompt,
+  identityGateDescription,
+} from '@/components/identity/IdentityGatePrompt';
 import {
   TradeOfferForm,
   type TradeOfferRequested,
@@ -85,7 +88,10 @@ export function ProposeTradeDialog({
       <DialogTrigger asChild>
         <ListingActionIcon
           icon={ArrowLeftRight}
-          label="Propose Trade"
+          // Matches the dialog's own title. The chip said "Propose Trade" and
+          // the dialog then said "Offer a trade", so the thing you clicked and
+          // the thing that opened had different names.
+          label="Propose trade"
           variant={emphasize ? 'default' : 'outline'}
           disabled={disabled}
           title={disabledReason ?? undefined}
@@ -110,21 +116,30 @@ export function ProposeTradeDialog({
       >
         {needsVerification ? (
           <>
-            <DialogHeader className="pr-10">
-              <DialogTitle>Verify to trade</DialogTitle>
-              <DialogDescription>Photo ID and a selfie.</DialogDescription>
+            <DialogHeader className="gap-snug">
+              <div className="flex items-center gap-snug">
+                <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+                <div className="min-w-0 space-y-1.5">
+                  <DialogTitle>Verify to trade</DialogTitle>
+                  <DialogDescription className="text-pretty leading-relaxed">
+                    {identityGateDescription(viewerVerification!, 'trade')}
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
             <IdentityGatePrompt
               state={viewerVerification!}
-              blockedAction="trade"
               returnPath={returnPath ?? `/listings/${requested.id}`}
               onVerified={() => setJustVerified(true)}
             />
           </>
         ) : (
           <>
-            <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
-              <DialogTitle>Offer a trade</DialogTitle>
+            {/* `pt-4`, not `pt-2`: the mobile close button is a 40px circle
+                inset 12px from the top, so a title starting at 8px sat above
+                its centre and read as crowded against it. */}
+            <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pr-14 pt-4 sm:px-6 sm:py-4">
+              <DialogTitle>Propose a trade</DialogTitle>
               {/* On a binder nothing is held even AFTER they accept — every other
                   listing reserves on acceptance, so saying "until they accept" here
                   would promise the opposite of what happens. */}

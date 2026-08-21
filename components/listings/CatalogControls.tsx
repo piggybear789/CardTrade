@@ -139,7 +139,7 @@ export function CatalogFilterSearch() {
           type="button"
           onClick={() => setFilter('')}
           aria-label="Clear listing filter"
-          className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40"
         >
           <X className="size-3.5" aria-hidden />
         </button>
@@ -278,7 +278,7 @@ export function CatalogFilters({
             type="button"
             onClick={clearFilters}
             disabled={isPending}
-            className="self-start rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="self-start rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
           >
             Clear all
           </button>
@@ -304,7 +304,7 @@ export function CatalogFilters({
               type="button"
               onClick={clearFilters}
               disabled={isPending}
-              className="hidden rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 md:inline"
+              className="hidden rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50 md:inline"
             >
               Clear all
             </button>
@@ -324,7 +324,7 @@ export function CatalogFilters({
                   disabled={isPending}
                   aria-pressed={active}
                   className={cn(
-                    'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-snug',
+                    'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
                     active
                       ? 'bg-gold/10 font-semibold text-foreground'
                       : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
@@ -393,7 +393,7 @@ export function CatalogFilters({
             disabled={isPending}
             aria-pressed={current.includeSold}
             className={cn(
-              'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 lg:py-snug',
+              'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
               current.includeSold
                 ? 'bg-gold/10 font-semibold text-foreground'
                 : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
@@ -471,7 +471,7 @@ export function CatalogActiveFilters() {
         type="button"
         onClick={reset}
         disabled={isPending}
-        className="rounded-sm px-1 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="rounded-sm px-1 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
       >
         Clear all
       </button>
@@ -493,7 +493,7 @@ function FilterChip({
       type="button"
       onClick={onRemove}
       disabled={disabled}
-      className="inline-flex max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+      className="inline-flex max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
       aria-label={`Remove ${label} filter`}
     >
       <span className="truncate">{label}</span>

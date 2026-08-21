@@ -6,12 +6,13 @@
 // Req 1). Identity first, then payouts, on one vertical spine: the active step expands,
 // a finished one collapses to a confirmed line.
 //
-// IDENTITY IS INLINE, PAYOUTS ARE HOSTED. Identity is a Stripe.js modal, which reads as
-// part of the app. Payouts leave for Stripe's own pages and come back to this same
-// spine — Connect's embedded onboarding brings its own headings, type and buttons, and
-// inside our dialog that looked like a different product wearing our chrome. Req 5
-// specified embedded for this step; that is a deliberate, recorded divergence, and the
-// `EmbeddedPayoutStep` component is still in the tree if it is ever revisited.
+// BOTH STEPS ARE HOSTED. This surface lives inside the onboarding Dialog. Stripe's
+// Identity modal (`stripe.verifyIdentity`) cannot open there: Radix marks everything
+// outside the dialog inert and traps focus, so the session is created, the Stripe UI
+// never paints, and the click looks like a no-op. Payouts already leave for Stripe's
+// own pages for the same reason (Connect embedded chrome plus the dialog). Identity
+// follows that path. `EmbeddedIdentityStep` / `EmbeddedPayoutStep` stay in the tree
+// for a non-dialog surface.
 //
 // THE TWO GATES STAY INDEPENDENT. This unifies the UI only. Identity status comes from
 // `getIdentityCheckState` (the Identity_Gate input) and payout status from
@@ -32,7 +33,6 @@ import { getIdentityCheckState } from '@/lib/actions/identity';
 import { getMerchantState } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { EmbeddedIdentityStep } from './EmbeddedIdentityStep';
 import { OnboardingSpine, OnboardingSpineStep } from './OnboardingSpine';
 import { HostedProviderStep } from './HostedProviderStep';
 
@@ -61,9 +61,6 @@ export function UnifiedOnboardingSurface({
   const [payoutDone, setPayoutDone] = useState(false);
   const [verifiedName, setVerifiedName] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
-  // Set when the provider reports no embedded Identity binding, so that step falls back
-  // to the hosted flow. The payout step needs no flag: it is hosted either way.
-  const [identityFallback, setIdentityFallback] = useState(false);
 
   const settledChange = useRef(onSettledChange);
   settledChange.current = onSettledChange;
@@ -157,23 +154,15 @@ export function UnifiedOnboardingSurface({
           index={1}
           state={identityDone ? 'done' : 'active'}
           title="Verify your identity"
-          description="Photo ID and a selfie, checked by Stripe."
+          description="We verify your identity to block known fraudsters from selling on the platform."
           receipt={verifiedName ? `Verified as ${verifiedName}` : 'Verified'}
           hasNext
         >
-          {identityFallback ? (
-            <HostedProviderStep
-              step="identity"
-              returnPath={returnPath}
-              onComplete={finishIdentity}
-            />
-          ) : (
-            <EmbeddedIdentityStep
-              returnPath={returnPath}
-              onVerified={finishIdentity}
-              onUnsupported={() => setIdentityFallback(true)}
-            />
-          )}
+          <HostedProviderStep
+            step="identity"
+            returnPath={returnPath}
+            onComplete={finishIdentity}
+          />
         </OnboardingSpineStep>
 
         <OnboardingSpineStep
@@ -182,8 +171,8 @@ export function UnifiedOnboardingSurface({
           title="Add payout details"
           description={
             identityDone
-              ? 'Where your sales are paid out.'
-              : 'Available once your identity is verified.'
+              ? 'Add your payout details to receive your funds.'
+              : 'Payout details confirmed'
           }
           receipt="Payouts active"
           hasNext={false}

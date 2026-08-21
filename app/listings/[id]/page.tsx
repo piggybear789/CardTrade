@@ -447,7 +447,7 @@ export default async function ItemDetailPage({
                 ) : (
                   <Link
                     href={`/sellers/${item.owner_id}#reviews`}
-                    className="inline-flex rounded-sm transition-colors hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-gold/40"
                     aria-label="Read seller reviews"
                   >
                     <StarRating

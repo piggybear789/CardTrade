@@ -190,16 +190,22 @@ export function HandoverFailedDialog({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit}>
+        {/* The form is DialogContent's only child, so its flex gap cannot reach
+            header, body and footer. Repeating it here spaces them the same way
+            every other dialog does, instead of a one-off `py-4` on the body. */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{outcomeDescription}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-group py-4">
-            <div className="flex items-start gap-cozy rounded-lg border border-destructive/40 bg-destructive/5 p-cozy">
+          <div className="space-y-group">
+            {/* Tinted but not bordered. The border made this a card inside a card
+                directly under the description, which is a lot of chrome for what
+                is one paragraph of warning — the red still carries the weight. */}
+            <div className="flex items-center gap-cozy rounded-lg bg-destructive/5 p-cozy">
               <AlertTriangle
-                className="mt-0.5 size-4 shrink-0 text-destructive"
+                className="size-4 shrink-0 text-destructive"
                 aria-hidden
               />
               <div className="space-y-tight text-body">
@@ -224,6 +230,7 @@ export function HandoverFailedDialog({
                 maxLength={REASON_MAX}
                 rows={4}
                 disabled={isPending}
+                className="resize-none"
               />
               <p className="text-right text-meta text-muted-foreground">
                 {reason.length}/{REASON_MAX}
@@ -298,7 +305,7 @@ export function HandoverFailedDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => setOpen(false)}
               disabled={isPending}
             >

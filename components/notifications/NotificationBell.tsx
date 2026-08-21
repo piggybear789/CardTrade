@@ -98,7 +98,7 @@ export function NotificationBell({
             ? `Notifications, ${unreadCount} unread`
             : 'Notifications'
         }
-        className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian"
+        className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment border border-transparent focus:outline-none focus-visible:border-gold"
       >
         <Bell className="size-5" aria-hidden />
         {unreadCount > 0 ? (
@@ -127,7 +127,7 @@ export function NotificationBell({
             type="button"
             onClick={handleMarkAll}
             disabled={isPending || unreadCount === 0}
-            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-transparent px-2 text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-gold/40 disabled:pointer-events-none disabled:opacity-50"
           >
             {isPending ? (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -153,7 +153,7 @@ export function NotificationBell({
                       href={n.link || '/notifications'}
                       onClick={() => handleSelect(n)}
                       className={cn(
-                        'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                        'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-gold/40 focus-visible:bg-accent',
                         unread && 'bg-accent/40',
                       )}
                     >

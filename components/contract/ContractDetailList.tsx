@@ -224,7 +224,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   className={cn(
                     'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-meta font-medium transition-colors',
                     explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
-                    'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                    'hover:text-foreground focus:outline-none focus-visible:border-gold/40',
                     isDestructive
                       ? 'text-destructive'
                       : selected ? 'text-foreground' : 'text-muted-foreground',
@@ -240,7 +240,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                         className={cn(
                           'mr-0.5 grid size-8 place-items-center rounded-full transition-colors',
                           'text-muted-foreground hover:text-foreground',
-                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          'focus:outline-none focus-visible:border-gold/40',
                           selected ? 'text-foreground/70' : null,
                         )}
                         aria-label={`What is ${row.props.label}?`}

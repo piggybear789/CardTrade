@@ -5,6 +5,8 @@ import type { TradeRecord } from '@/domain/orchestrator/tradeOrchestrator';
 import {
   proposeTrade,
   createCollateralSideEffects,
+  placeBondsForAgreedTrade,
+  currentHoldsAreActive,
   type CreateTradeParams,
   type HoldRecordInput,
   type ItemRecord,
@@ -24,6 +26,8 @@ class FakeTradeProposalRepository implements TradeProposalRepository {
   items = new Map<string, ItemRecord>();
   trades = new Map<string, TradeRecord>();
   holds: RecordedHold[] = [];
+  /** Extra bundled item ids per trade, on top of the two primary columns. */
+  bundleIds = new Map<string, string[]>();
   private seq = 0;
 
   async getProfile(profileId: string): Promise<ProfileRecord | null> {
@@ -70,6 +74,17 @@ class FakeTradeProposalRepository implements TradeProposalRepository {
 
   async getHolds(tradeId: string): Promise<RecordedHold[]> {
     return this.holds.filter((h) => h.tradeId === tradeId).map((h) => ({ ...h }));
+  }
+
+  async listTradeItemIds(tradeId: string): Promise<string[]> {
+    const trade = this.trades.get(tradeId);
+    if (!trade) return [];
+    const extras = this.bundleIds.get(tradeId) ?? [];
+    return [
+      trade.initiator_item_id as string,
+      trade.counterpart_item_id as string,
+      ...extras,
+    ].filter((id) => typeof id === 'string' && id.length > 0);
   }
 
   async markHoldStatus(holdRef: string, status: PreAuthHold['status']): Promise<void> {
@@ -310,5 +325,90 @@ describe('createCollateralSideEffects — HOLDS_FAILED cancellation (Req 5.6)', 
     expect(repo.items.get('item_a')?.status).toBe('RESERVED');
     const holds = await repo.getHolds(proposal.trade.id);
     expect(holds.every((h) => h.status === 'ACTIVE')).toBe(true);
+  });
+
+  it('restores extra bundled items as well as the two primary ids', async () => {
+    seedTwoTraders(repo, 5000);
+    repo.profiles.set('alice', { id: 'alice', verified: false, payerId: 'payer_alice' });
+    repo.profiles.set('bob', { id: 'bob', verified: false, payerId: 'payer_bob' });
+    repo.items.set('item_c', {
+      id: 'item_c',
+      ownerId: 'alice',
+      fmvCents: 1000,
+      status: 'RESERVED',
+    });
+    const payments = makePayments();
+
+    const proposal = await proposeTrade(
+      { repository: repo, payments },
+      { proposerId: 'alice', initiatorItemId: 'item_a', counterpartItemId: 'item_b' },
+    );
+    expect(proposal.ok).toBe(true);
+    if (!proposal.ok) return;
+    repo.bundleIds.set(proposal.trade.id, ['item_c']);
+
+    const hook = createCollateralSideEffects(repo);
+    await hook({
+      trade: proposal.trade,
+      event: 'HOLDS_FAILED',
+      nextState: 'COLLATERAL_PENDING',
+      actorId: 'system',
+      payments,
+    });
+
+    expect(repo.items.get('item_c')?.status).toBe('AVAILABLE');
+  });
+});
+
+describe('collateral retry uses a new authorisation key', () => {
+  let repo: FakeTradeProposalRepository;
+
+  beforeEach(() => {
+    repo = new FakeTradeProposalRepository();
+  });
+
+  it('places a second hold under a new ref after the first declined', async () => {
+    seedTwoTraders(repo, 5000);
+    repo.profiles.set('alice', { id: 'alice', verified: false, payerId: 'payer_alice' });
+    repo.profiles.set('bob', { id: 'bob', verified: false, payerId: 'payer_bob' });
+    // First placement keys `hold:<trade>:<trader>`. Force those to fail; the
+    // retry key (`:2`) is not listed, so it succeeds.
+    const payments = makePayments({
+      forceFailure: {
+        'hold:trade_1:alice': true,
+        'hold:trade_1:bob': true,
+      },
+    });
+
+    const proposal = await proposeTrade(
+      { repository: repo, payments },
+      { proposerId: 'alice', initiatorItemId: 'item_a', counterpartItemId: 'item_b' },
+    );
+    expect(proposal.ok).toBe(true);
+    if (!proposal.ok) return;
+
+    const first = await repo.getHolds(proposal.trade.id);
+    expect(first.every((h) => h.status === 'FAILED')).toBe(true);
+    expect(currentHoldsAreActive(first)).toBe(false);
+
+    const retry = await placeBondsForAgreedTrade(
+      { repository: repo, payments },
+      {
+        tradeId: proposal.trade.id,
+        initiatorId: 'alice',
+        counterpartId: 'bob',
+        initiatorItemIds: ['item_a'],
+        counterpartItemIds: ['item_b'],
+      },
+    );
+    expect(retry.ok).toBe(true);
+
+    const all = await repo.getHolds(proposal.trade.id);
+    expect(all).toHaveLength(4);
+    expect(currentHoldsAreActive(all)).toBe(true);
+    const firstRefs = new Set(first.map((h) => h.holdRef));
+    const latest = all.filter((h) => h.status === 'ACTIVE');
+    expect(latest).toHaveLength(2);
+    expect(latest.every((h) => !firstRefs.has(h.holdRef))).toBe(true);
   });
 });

@@ -213,7 +213,7 @@ export function SocialLinksEditor({
             <div
               key={platform.slug}
               className={cn(
-                'has-[input:focus-visible]:bg-muted has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-ring',
+                'has-[input:focus-visible]:border-gold/40 has-[input:focus-visible]:bg-muted',
                 issue ? 'bg-destructive/5' : null,
               )}
             >
@@ -254,14 +254,14 @@ export function SocialLinksEditor({
                   disabled={isPending}
                   aria-invalid={issue ? true : undefined}
                   aria-describedby={issue ? errorId : undefined}
-                  className="min-w-0 flex-1 bg-transparent py-cozy text-body font-medium text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground"
+                  className="min-w-0 flex-1 bg-transparent py-cozy text-body font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground"
                 />
                 <button
                   type="button"
                   onClick={() => remove(platform.slug)}
                   disabled={isPending}
                   aria-label={`Remove ${platform.label}`}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-65"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-gold/40 disabled:opacity-65"
                 >
                   <X className="size-4" aria-hidden />
                 </button>
@@ -345,7 +345,7 @@ function AddPlatformControl({
                 onAdd(platform.slug);
                 setOpen(false);
               }}
-              className="flex h-9 items-center gap-snug rounded-md px-2.5 text-left text-body font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-9 items-center gap-snug rounded-md px-2.5 text-left text-body font-medium text-foreground hover:bg-accent border border-transparent focus-visible:outline-none focus-visible:border-gold/40"
             >
               <SocialPlatformIcon slug={platform.slug} className="size-3.5" />
               {platform.label}

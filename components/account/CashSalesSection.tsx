@@ -53,7 +53,7 @@ export function CashSalesSection({
               <Link
                 href={`/sales/${sale.id}`}
                 transitionTypes={['nav-forward']}
-                className="flex items-center gap-group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex items-center gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
               >
                 <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
                   {imageUrl ? (

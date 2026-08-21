@@ -56,7 +56,7 @@ export function ContractLiveRow({
               aria-selected={pane === 'chat'}
               onClick={() => setPane('chat')}
               className={cn(
-                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40',
                 pane === 'chat'
                   ? 'bg-card font-semibold text-foreground shadow-sm'
                   : 'font-medium text-muted-foreground',
@@ -73,7 +73,7 @@ export function ContractLiveRow({
               aria-selected={pane === 'details'}
               onClick={() => setPane('details')}
               className={cn(
-                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40',
                 pane === 'details'
                   ? 'bg-card font-semibold text-foreground shadow-sm'
                   : 'font-medium text-muted-foreground',

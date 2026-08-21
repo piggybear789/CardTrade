@@ -259,6 +259,14 @@ export async function startIdentityVerification(
       prefill,
     );
     if (!submitted.ok && submitted.error !== 'already-onboarded') return submitted;
+  } else {
+    // Shell already exists. Stamp Identity onto it before hosted Connect opens
+    // so a leftover empty account still shows the document-backed name.
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) await pushVerifiedIdentityToConnect(user.id);
   }
 
   const link = await createPayoutOnboardingLink(returnPath);
@@ -317,6 +325,8 @@ export async function beginEmbeddedPayout(): Promise<
     const prefill = await buildIdentityPrefill(user.id, payments);
     const submitted = await submitMerchantOnboarding({ buyerDisclosureConsent: true }, prefill);
     if (!submitted.ok && submitted.error !== 'already-onboarded') return submitted;
+  } else {
+    await pushVerifiedIdentityToConnect(user.id);
   }
 
   // Re-read to get the reference the account was (now) created under.
@@ -373,6 +383,38 @@ async function buildIdentityPrefill(
   } catch {
     // A read failure must not block onboarding — Stripe collects the fields instead.
     return undefined;
+  }
+}
+
+/**
+ * Write the caller's verified Identity outputs onto their connected account, if
+ * one already exists.
+ *
+ * Hosted Connect skips fields already on the account. Used when a leftover
+ * shell was created before Identity completed. Failures are swallowed: Connect
+ * then collects the fields itself (Req 4.6). Never returns the Prefill_Object.
+ */
+export async function pushVerifiedIdentityToConnect(profileId: string): Promise<void> {
+  const payments = getPaymentService(await regionForProfile(profileId));
+  if (!payments.prefillManagedMerchant) return;
+
+  const { data } = await createAdminClient()
+    .from('profiles')
+    .select('merchant_ref')
+    .eq('id', profileId)
+    .maybeSingle();
+  const merchantRef = (data?.merchant_ref as string | null) ?? null;
+  if (!merchantRef) return;
+
+  const prefill = await buildIdentityPrefill(profileId, payments);
+  if (!prefill) return;
+
+  try {
+    await payments.prefillManagedMerchant(merchantRef, prefill);
+  } catch (err) {
+    const message =
+      err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
+    console.warn(`[identity] could not stamp Connect identity for ${profileId}: ${message}`);
   }
 }
 

@@ -168,7 +168,7 @@ export default async function SellerProfilePage({
             {reviews.length > 0 ? (
               <Link
                 href="#reviews"
-                className="w-fit rounded-sm transition-colors hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-gold/40"
                 aria-label={`Jump to ${reviews.length} reviews`}
               >
                 <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />

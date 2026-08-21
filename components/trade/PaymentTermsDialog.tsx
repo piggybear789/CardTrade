@@ -93,40 +93,35 @@ export function PaymentTermsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg gap-3 sm:gap-3">
-        <DialogHeader className="space-y-1">
-          <DialogTitle>Payment Terms</DialogTitle>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Payment terms</DialogTitle>
           <DialogDescription>
             Cash adjustments are handled by Stripe. Valuation and a note
             are optional.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <fieldset className="space-y-2">
+        <div className="space-y-group">
+          <fieldset className="space-y-snug">
             <legend className="text-body font-medium">Cash adjustment</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-snug sm:grid-cols-2">
+              {/* The hints name WHO pays, not the processor. The description one
+                  line above already says Stripe handles it, and repeating it on
+                  both options read as three separate facts about Stripe. */}
               {(
                 [
-                  [
-                    'PROPOSER_PAYS',
-                    'I add cash',
-                    `You pay ${counterpartName} through Stripe.`,
-                  ],
-                  [
-                    'COUNTERPART_PAYS',
-                    'I request cash',
-                    `${counterpartName} pays you through Stripe.`,
-                  ],
+                  ['PROPOSER_PAYS', 'I add cash', `You pay ${counterpartName}.`],
+                  ['COUNTERPART_PAYS', 'I request cash', `${counterpartName} pays you.`],
                 ] as const
               ).map(([value, label, hint]) => (
                 <label
                   key={value}
                   className={cn(
-                    'flex cursor-pointer items-center gap-snug rounded-md border p-snug text-body ring-offset-background transition-colors',
-                    // The row carries the focus ring, matching the item rows on
+                    'flex cursor-pointer items-center gap-snug rounded-md border p-snug text-body transition-colors',
+                    // The row carries the focus edge, matching the item rows on
                     // the offer card.
-                    'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
+                    'has-[:focus-visible]:border-gold/40',
                     draft.cashDirection === value && 'bg-gold/10',
                   )}
                 >
@@ -149,7 +144,7 @@ export function PaymentTermsDialog({
             </div>
           </fieldset>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-group sm:grid-cols-2">
             <div className="space-y-tight">
               <Label htmlFor="terms-cash">Cash</Label>
               <MoneyInput
@@ -184,15 +179,17 @@ export function PaymentTermsDialog({
               maxLength={TRADE_PROPOSAL_MESSAGE_MAX}
               rows={2}
               placeholder="Anything you want them to know…"
+              className="resize-none"
             />
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
+            type="button"
             onClick={() => {
               onSave(draft);
               onOpenChange(false);

@@ -38,7 +38,7 @@ export interface OnboardingSpineStepProps {
   receipt?: string;
   /** Whether a connector should run on to a following step. */
   hasNext: boolean;
-  /** The step's own controls. Rendered only while active. */
+  /** The step's own controls. Rendered on the right of the title while active. */
   children?: ReactNode;
 }
 
@@ -103,35 +103,44 @@ export function OnboardingSpineStep({
         />
       </div>
 
-      {/* Head row, content column. */}
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-x-cozy gap-y-tight">
-          <h3
-            className={cn(
-              'text-lead font-semibold',
-              done ? 'text-muted-foreground' : 'text-foreground',
-            )}
-          >
-            {title}
-          </h3>
-          <span className="sr-only">
-            {done ? '(complete)' : active ? '(current step)' : '(not started)'}
-          </span>
+      {/* Head row, content column. Title and the step's action share one row so the
+          control sits to the RIGHT of the copy. The action column is only as wide as
+          the button — a full-width sibling is what squeezed the heading onto three
+          lines in a narrower dialog. */}
+      <div className="min-w-0 py-tight">
+        <div className="flex flex-col gap-cozy sm:flex-row sm:items-start sm:justify-between sm:gap-group">
+          <div className="min-w-0 flex-1">
+            <h3
+              className={cn(
+                'text-pretty text-lead font-semibold sm:whitespace-nowrap',
+                done ? 'text-muted-foreground' : 'text-foreground',
+              )}
+            >
+              {title}
+            </h3>
+            <span className="sr-only">
+              {done ? '(complete)' : active ? '(current step)' : '(not started)'}
+            </span>
+
+            {done && receipt ? (
+              <p className="mt-tight text-body text-muted-foreground">{receipt}</p>
+            ) : null}
+
+            {!done && description ? (
+              <p className="mt-tight text-pretty text-body leading-relaxed text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
+          </div>
+
+          {active && children ? (
+            <div className="shrink-0 sm:self-start">{children}</div>
+          ) : null}
         </div>
-
-        {done && receipt ? (
-          <p className="mt-tight text-body text-muted-foreground">{receipt}</p>
-        ) : null}
-
-        {!done && description ? (
-          <p className="mt-tight text-pretty text-body leading-relaxed text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
       </div>
 
-      {/* Body row, marker column — the line continues past the head, through whatever
-          height the controls take, to the next step's marker. */}
+      {/* Body row, marker column — the line continues past the head to the next
+          step's marker. */}
       <div className="flex justify-center">
         <span
           aria-hidden
@@ -142,12 +151,7 @@ export function OnboardingSpineStep({
         />
       </div>
 
-      {/* Body row, content column. A finished step gives its vertical space back; only
-          the active step carries controls. The bottom spacing lives here rather than on
-          the head so the connector has something to run through. */}
-      <div className={cn('min-w-0', hasNext ? 'pb-section' : 'pb-0')}>
-        {active && children ? <div className="mt-group">{children}</div> : null}
-      </div>
+      <div className={cn('min-w-0', hasNext ? 'pb-section' : 'pb-0')} />
     </li>
   );
 }

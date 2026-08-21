@@ -88,7 +88,7 @@ export function MarketplaceNav({
                         href={link.href}
                         aria-current={active ? 'page' : undefined}
                         className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          'flex items-center gap-3 rounded-lg px-3 py-2 text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40',
                           active
                             ? 'bg-gold/10 font-semibold text-foreground'
                             : 'font-medium text-foreground/85 hover:bg-muted/70 hover:text-foreground',

@@ -337,7 +337,7 @@ export function PlaceSearch({
               // A location could previously only be reset by guessing that emptying
               // the field was the way out. Fitts's Law: give it a real target.
               aria-label="Clear location"
-              className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40"
             >
               <X className="size-4" aria-hidden />
             </button>

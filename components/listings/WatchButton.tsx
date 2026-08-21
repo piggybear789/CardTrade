@@ -115,7 +115,7 @@ export function WatchButton({
           // Same weight as the watching count: a glyph in the chrome, not a
           // chip on the photo. 闲鱼 keeps the artwork clean and puts 收藏
           // with the price / want-count.
-          'relative inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60',
+          'relative inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60',
           watching && 'text-destructive hover:text-destructive',
           className,
         )}

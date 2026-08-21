@@ -12,6 +12,7 @@
 // confirms a handover instead.
 
 import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -134,7 +135,10 @@ export function RecordShipmentDialog({
           </p>
         ) : null}
 
-        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-snug">
+        {/* Stacked, not a three-column row: "Couriers Please" and a tracking
+            number do not fit side by side, and choosing Other used to add a
+            third field that broke the row and orphaned tracking below it. */}
+        <div className="space-y-group">
           <div className="space-y-snug">
             <Label htmlFor="ship-carrier">Carrier</Label>
             <Select value={carrier} onValueChange={setCarrier} disabled={pending}>
@@ -150,6 +154,7 @@ export function RecordShipmentDialog({
               </SelectContent>
             </Select>
           </div>
+
           {carrier === 'Other' ? (
             <div className="space-y-snug">
               <Label htmlFor="ship-carrier-custom">Carrier name</Label>
@@ -157,26 +162,36 @@ export function RecordShipmentDialog({
                 id="ship-carrier-custom"
                 value={customCarrier}
                 onChange={(event) => setCustomCarrier(event.target.value)}
-                placeholder="Carrier name"
+                placeholder="Who is carrying it"
                 autoComplete="off"
                 disabled={pending}
                 required
               />
             </div>
-          ) : (
-            <div className="space-y-snug">
-              <Label htmlFor="ship-tracking">Tracking number</Label>
-              <Input
-                id="ship-tracking"
-                value={trackingNumber}
-                onChange={(event) => setTrackingNumber(event.target.value)}
-                placeholder="Tracking number"
-                autoComplete="off"
-                disabled={pending}
-                required
-              />
-            </div>
-          )}
+          ) : null}
+
+          <div className="space-y-snug">
+            <Label htmlFor="ship-tracking">Tracking number</Label>
+            <Input
+              id="ship-tracking"
+              value={trackingNumber}
+              onChange={(event) => setTrackingNumber(event.target.value)}
+              placeholder="As printed on the receipt"
+              autoComplete="off"
+              disabled={pending}
+              required
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
           <Button
             disabled={pending || !canSubmit}
             aria-busy={pending}
@@ -186,35 +201,9 @@ export function RecordShipmentDialog({
                 trackingNumber: trackingNumber.trim(),
               })
             }
-            className="shrink-0"
           >
+            {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
             {pending ? 'Saving…' : (submitLabel ?? 'Record')}
-          </Button>
-        </div>
-
-        {carrier === 'Other' ? (
-          <div className="space-y-snug">
-            <Label htmlFor="ship-tracking-other">Tracking number</Label>
-            <Input
-              id="ship-tracking-other"
-              value={trackingNumber}
-              onChange={(event) => setTrackingNumber(event.target.value)}
-              placeholder="Tracking number"
-              autoComplete="off"
-              disabled={pending}
-              required
-            />
-          </div>
-        ) : null}
-
-        <DialogFooter className="sm:justify-start">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            disabled={pending}
-          >
-            Cancel
           </Button>
         </DialogFooter>
       </DialogContent>

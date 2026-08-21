@@ -106,7 +106,7 @@ export function ImageGallery({
               onClick={() => setLightboxIndex(activeIndex)}
               className={cn(
                 'absolute inset-0 z-[1] cursor-zoom-in',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                'border border-transparent focus:outline-none focus-visible:border-gold/40',
               )}
               aria-label={`Enlarge photo ${activeIndex + 1} of ${images.length} for ${title}`}
             >
@@ -143,7 +143,7 @@ export function ImageGallery({
             <button
               type="button"
               onClick={prev}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-gold/40"
               aria-label="Previous image"
             >
               <ChevronLeft className="size-4" aria-hidden />
@@ -158,7 +158,7 @@ export function ImageGallery({
             <button
               type="button"
               onClick={next}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-gold/40"
               aria-label="Next image"
             >
               <ChevronRight className="size-4" aria-hidden />

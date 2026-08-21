@@ -100,7 +100,7 @@ export function NotificationCenter({
                 type="button"
                 onClick={() => handleSelect(n)}
                 className={cn(
-                  'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                  'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-gold/40 focus-visible:bg-accent',
                   unread && 'bg-accent/40',
                 )}
               >

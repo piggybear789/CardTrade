@@ -40,6 +40,7 @@ import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
 import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
+import { currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
 import {
   LIFECYCLE_SPECS,
   factsFromTrade,
@@ -341,11 +342,11 @@ async function syncTradeHoldsFromStripe(tradeId: string, actorId: string): Promi
   const orchestrator = createDefaultTradeOrchestrator({
     payments: getPaymentService(await regionForTrade(tradeId)),
   });
-  if (holds.every((h) => h.status === 'ACTIVE')) {
+  if (currentHoldsAreActive(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
     return;
   }
-  if (holds.some((h) => h.status === 'FAILED')) {
+  if (currentHoldsSeekFailed(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
   }
 }

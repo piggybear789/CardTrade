@@ -17,8 +17,8 @@ const AddPaymentMethodForm = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-gold" aria-hidden />
+      <div className="flex h-40 items-center justify-center" role="status">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
         <span className="sr-only">Loading payment form…</span>
       </div>
     ),
@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -56,11 +57,11 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
         )}
       </DialogTrigger>
       <DialogContent>
-        {/* Negative margin cancels DialogContent's flex gap: with the
-            description gone there is nothing to separate the title from
-            Stripe's own bordered card. */}
-        <DialogHeader className="-mb-3 sm:-mb-4">
+        <DialogHeader>
           <DialogTitle>Add a payment method</DialogTitle>
+          <DialogDescription>
+            Stripe stores the card. Nothing is charged until you agree to a purchase.
+          </DialogDescription>
         </DialogHeader>
         <AddPaymentMethodForm
           onAttached={() => {

@@ -34,7 +34,7 @@ const SelectTrigger = React.forwardRef<
       // switches the span to `display:-webkit-box`, and the ellipsis it produces is
       // sized against the span's own content rather than the space actually
       // available. `min-w-0` is required for either to shrink inside a flex row.
-      "flex h-10 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-lead sm:text-body placeholder:text-muted-foreground focus:border-gold/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      "flex h-10 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-lead sm:text-body placeholder:text-muted-foreground focus:border-gold/40 focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
       className
     )}
     {...props}

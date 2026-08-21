@@ -262,7 +262,7 @@ export default async function HomePage() {
 }
 
 const footerLinkClass =
-  'rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+  'rounded-sm text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40';
 
 function ComparisonRow({
   aspect,

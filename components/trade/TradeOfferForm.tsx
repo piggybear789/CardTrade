@@ -294,7 +294,7 @@ export function TradeOfferForm({
       {/* What is on the table. */}
       <section
         aria-label="Item you are requesting"
-        className="flex items-center gap-3 rounded-lg border bg-muted p-3"
+        className="flex items-center gap-cozy rounded-lg border bg-muted p-cozy"
       >
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -444,17 +444,20 @@ export function TradeOfferForm({
         )}
 
         {counterOfProposalId || unlisted ? null : (
+          // Named for what it opens. Sitting directly above "Payment Terms",
+          // a row called "Offer Terms" read as the second half of one settings
+          // pair rather than as a way to put up a card you never listed.
           <DialogRow
-            label="Offer Terms"
-            hint="Add an unlisted item"
+            label="Unlisted item"
+            hint="Put up something you have not listed"
             onClick={() => setUnlistedDialogOpen(true)}
           />
         )}
       </fieldset>
 
-      {/* Payment Terms: one row summarising whatever the dialog holds. */}
+      {/* Payment terms: one row summarising whatever the dialog holds. */}
       <DialogRow
-        label="Payment Terms"
+        label="Payment terms"
         hint={termsSummary || 'Optional'}
         filled={termsSummary !== ''}
         onClick={() => setTermsDialogOpen(true)}
@@ -566,7 +569,7 @@ export function TradeOfferForm({
   if (isDialog) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 min-w-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-gutter:stable] sm:px-6">
+        <div className="min-h-0 min-w-0 flex-1 space-y-group overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-gutter:stable] sm:px-6">
           {body}
         </div>
         <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:border-t sm:bg-card/95 sm:px-6 sm:pb-4 sm:pt-3">
@@ -586,7 +589,7 @@ export function TradeOfferForm({
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-5">{body}</CardContent>
+      <CardContent className="space-y-group">{body}</CardContent>
 
         <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
         {actions}

@@ -146,7 +146,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
 
   return (
     <Card className="p-cozy">
-      <div className="flex items-start gap-group">
+      <div className="flex items-center gap-group">
         {/* Thumbnail */}
         <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
           {imageUrl ? (

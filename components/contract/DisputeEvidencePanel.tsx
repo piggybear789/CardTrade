@@ -123,7 +123,7 @@ function MediaTile({
     <button
       type="button"
       onClick={onOpen}
-      className="group relative aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:border-gold/40"
     >
       {/* Unoptimised: these are signed, short-lived URLs on a private bucket, so the
           image optimiser cannot cache them and would only add a hop that expires. */}
@@ -341,7 +341,7 @@ export function DisputeEvidencePanel({
               </label>
               {/* The count lives inside the field's own border rather than floating
                   under it, so the control reads as one object. */}
-              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-gold/40 focus-within:ring-2 focus-within:ring-ring/30">
+              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-gold/40">
                 <textarea
                   id="evidence-statement"
                   value={statement}
@@ -395,7 +395,7 @@ export function DisputeEvidencePanel({
                         type="button"
                         onClick={() => removeFile(index)}
                         disabled={busy}
-                        className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex size-5 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:border-gold/40"
                         aria-label={`Remove ${file.name}`}
                       >
                         <X className="size-3.5" aria-hidden />

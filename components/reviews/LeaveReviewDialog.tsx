@@ -13,7 +13,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Star } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -70,15 +70,20 @@ export function LeaveReviewDialog({
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const active = hover || rating;
 
   function handleSubmit() {
     if (rating < 1 || rating > 5) {
-      toast.error('Please pick a rating from 1 to 5.');
+      // Beside the stars, not in a toast. The one thing missing is on screen,
+      // so pointing at it beats a notification in the corner that has to be
+      // read and then mapped back to a control.
+      setError('Pick a rating from 1 to 5.');
       return;
     }
+    setError(null);
     startTransition(async () => {
       const result = await leaveReview({
         revieweeId,
@@ -129,8 +134,8 @@ export function LeaveReviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className="space-y-group">
+          <div className="space-y-snug">
             <Label>Rating</Label>
             <div
               className="flex items-center gap-1"
@@ -138,6 +143,8 @@ export function LeaveReviewDialog({
               aria-label="Star rating"
               tabIndex={0}
               onKeyDown={handleRatingKeyDown}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'review-rating-error' : undefined}
             >
               {[1, 2, 3, 4, 5].map((value) => (
                 <button
@@ -146,10 +153,13 @@ export function LeaveReviewDialog({
                   role="radio"
                   aria-checked={rating === value}
                   aria-label={`${value} star${value === 1 ? '' : 's'}`}
-                  onClick={() => setRating(value)}
+                  onClick={() => {
+                    setRating(value);
+                    setError(null);
+                  }}
                   onMouseEnter={() => setHover(value)}
                   onMouseLeave={() => setHover(0)}
-                  className="rounded p-tight touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded p-tight touch-manipulation border border-transparent focus:outline-none focus-visible:border-gold/40"
                 >
                   <Star
                     className={cn(
@@ -163,9 +173,14 @@ export function LeaveReviewDialog({
                 </button>
               ))}
             </div>
+            {error ? (
+              <p id="review-rating-error" role="alert" className="text-body text-destructive">
+                {error}
+              </p>
+            ) : null}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <Label htmlFor="review-comment">Comment (optional)</Label>
             <Textarea
               id="review-comment"
@@ -174,6 +189,7 @@ export function LeaveReviewDialog({
               onChange={(e) => setComment(e.target.value)}
               placeholder="How was your experience?"
               rows={4}
+              className="resize-none"
             />
             <p className="text-right text-meta text-muted-foreground">
               {comment.length}/{COMMENT_MAX}
@@ -183,11 +199,21 @@ export function LeaveReviewDialog({
 
         <DialogFooter>
           <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
             onClick={handleSubmit}
             disabled={isPending || rating < 1}
             aria-busy={isPending}
           >
-            Submit review
+            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? 'Submitting…' : 'Submit review'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -59,7 +59,7 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
               <Link
                 href={invite.path}
                 transitionTypes={['nav-forward']}
-                className="flex min-w-0 flex-1 items-start gap-group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:items-center"
+                className="flex min-w-0 flex-1 items-start gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40 sm:items-center"
               >
                 <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
                   <Handshake className="size-5" aria-hidden />

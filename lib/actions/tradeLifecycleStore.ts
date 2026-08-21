@@ -137,6 +137,7 @@ export function factsFromTrade(trade: TradeRow): TradeFacts {
     },
     fulfilmentMethod: trade.handover_method,
     holdsActive: { initiator: false, counterpart: false },
+    collateralSeekFailed: false,
   };
 }
 

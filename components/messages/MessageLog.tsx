@@ -214,7 +214,7 @@ function MessageBubble({
           <button
             type="button"
             onClick={onOpenImage}
-            className="block w-full max-w-56 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="block w-full max-w-56 overflow-hidden border border-transparent focus:outline-none focus-visible:border-gold/40"
           >
             {/* Signed URLs are private and short-lived; next/image cannot cache them. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}

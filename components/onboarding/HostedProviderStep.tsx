@@ -23,7 +23,6 @@ import { toast } from 'sonner';
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { startIdentityVerification, refreshPayoutStatus } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
-import { CustodyNote } from './OnboardingSpine';
 
 export interface HostedProviderStepProps {
   step: 'identity' | 'payout';
@@ -44,70 +43,81 @@ export function HostedProviderStep({
   function handleContinue() {
     setError(null);
     startTransition(async () => {
-      if (step === 'identity') {
-        const started = await beginIdentityCheck(returnPath);
+      try {
+        if (step === 'identity') {
+          const started = await beginIdentityCheck(returnPath);
+          if (!started.ok) {
+            setError(started.message);
+            return;
+          }
+          if (started.data.url) {
+            // Hosted provider: full navigation, the destination is off-origin.
+            window.location.assign(started.data.url);
+            return;
+          }
+          // Mock: there is no hosted page, so read back and report.
+          const refreshed = await refreshIdentityCheck();
+          if (refreshed.ok && refreshed.data.status === 'VERIFIED') {
+            toast.success('Identity verified');
+            onComplete();
+            return;
+          }
+          setError('The simulated identity check did not complete. Try again.');
+          return;
+        }
+
+        const started = await startIdentityVerification(returnPath);
         if (!started.ok) {
           setError(started.message);
           return;
         }
         if (started.data.url) {
-          // Hosted provider: full navigation, the destination is off-origin.
           window.location.assign(started.data.url);
           return;
         }
-        // Mock: there is no hosted page, so read back and report.
-        const refreshed = await refreshIdentityCheck();
-        if (refreshed.ok && refreshed.data.status === 'VERIFIED') {
-          toast.success('Identity verified');
-          onComplete();
-          return;
+        // Mock: creating the account was the whole flow.
+        const refreshed = await refreshPayoutStatus();
+        if (refreshed.ok && refreshed.data.settlementsEnabled) {
+          toast.success('Payouts active');
+        } else {
+          toast.success('Payout setup submitted');
         }
-        setError('The simulated identity check did not complete. Try again.');
-        return;
+        onComplete();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Could not open Stripe. Check your connection and try again.',
+        );
       }
-
-      const started = await startIdentityVerification(returnPath);
-      if (!started.ok) {
-        setError(started.message);
-        return;
-      }
-      if (started.data.url) {
-        window.location.assign(started.data.url);
-        return;
-      }
-      // Mock: creating the account was the whole flow.
-      const refreshed = await refreshPayoutStatus();
-      if (refreshed.ok && refreshed.data.settlementsEnabled) {
-        toast.success('Payouts active');
-      } else {
-        toast.success('Payout setup submitted');
-      }
-      onComplete();
     });
   }
 
   return (
-    <div className="space-y-group">
+    <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
       {error ? (
-        <p role="alert" className="text-body leading-relaxed text-destructive">
+        <p
+          role="alert"
+          className="min-w-0 text-pretty break-words text-body leading-relaxed text-destructive sm:text-right"
+        >
           {error}
         </p>
       ) : null}
 
-      <div className="space-y-cozy">
-        <Button type="button" onClick={handleContinue} disabled={isPending} aria-busy={isPending}>
-          {isPending ? (
-            <Loader2 className="animate-spin" aria-hidden />
-          ) : (
-            <ExternalLink className="size-3.5" aria-hidden />
-          )}
-          {isPending ? 'Opening…' : 'Continue with Stripe'}
-        </Button>
-
-        <CustodyNote>
-          This step opens on Stripe&apos;s pages and returns you here when it&apos;s done.
-        </CustodyNote>
-      </div>
+      <Button
+        type="button"
+        onClick={handleContinue}
+        disabled={isPending}
+        aria-busy={isPending}
+        className="w-full sm:w-auto"
+      >
+        {isPending ? (
+          <Loader2 className="animate-spin" aria-hidden />
+        ) : (
+          <ExternalLink className="size-3.5" aria-hidden />
+        )}
+        {isPending ? 'Opening…' : 'Continue with Stripe'}
+      </Button>
     </div>
   );
 }

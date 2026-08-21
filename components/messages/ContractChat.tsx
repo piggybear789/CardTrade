@@ -218,7 +218,7 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full bg-primary px-cozy py-2 text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full border border-transparent bg-primary px-cozy py-2 text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-gold/40"
           >
             <ArrowDown className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}

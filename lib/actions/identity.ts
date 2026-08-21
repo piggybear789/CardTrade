@@ -33,6 +33,8 @@ import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { regionForProfile } from '@/lib/regionBinding';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
+import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
+import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 import { type ActionResult, fail, ok } from './result';
 
 /**
@@ -416,26 +418,34 @@ export async function refreshIdentityCheck(): Promise<
     );
   }
 
+  let decision;
+  try {
+    decision = await applyIdentityDecision({ profileId: user.id, check });
+  } catch (err) {
+    return fail(
+      'PERSIST_FAILED',
+      err instanceof Error
+        ? friendlyWriteFailure(err, 'Could not update identity status.')
+        : 'Could not update identity status.',
+    );
+  }
+
+  if (decision === 'verified') {
+    await pushVerifiedIdentityToConnect(user.id);
+  }
+
   const status: IdentityCheckStatus =
-    check.outcome === 'VERIFIED' ? 'VERIFIED' : check.outcome === 'FAILED' ? 'FAILED' : 'PENDING';
-
-  const { error } = await admin
-    .from('profiles')
-    .update({
-      identity_check_status: status,
-      ...(check.verifiedAt ? { identity_check_verified_at: check.verifiedAt } : {}),
-      // Monotonic: only ever absent -> present.
-      ...(check.verifiedName ? { identity_check_name: check.verifiedName } : {}),
-    })
-    .eq('id', user.id);
-
-  if (error) return fail('PERSIST_FAILED', friendlyWriteFailure(error, 'Could not update identity status.'));
+    decision === 'verified' ? 'VERIFIED' : decision === 'failed' ? 'FAILED' : 'PENDING';
 
   return ok({
     status,
     verifiedName:
-      check.verifiedName ?? ((profile?.identity_check_name as string | null) ?? null),
+      decision === 'verified'
+        ? (check.verifiedName ?? ((profile?.identity_check_name as string | null) ?? null))
+        : ((profile?.identity_check_name as string | null) ?? null),
     verifiedAt:
-      check.verifiedAt ?? ((profile?.identity_check_verified_at as string | null) ?? null),
+      decision === 'verified'
+        ? (check.verifiedAt ?? ((profile?.identity_check_verified_at as string | null) ?? null))
+        : ((profile?.identity_check_verified_at as string | null) ?? null),
   });
 }

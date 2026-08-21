@@ -647,6 +647,18 @@ export interface PaymentService {
    * simply does not offer it.
    */
   createManagedMerchant?(details: ManagedMerchantDetails): Promise<ManagedMerchant>;
+  /**
+   * Write Identity-verified name/DOB/address onto an EXISTING connected account.
+   *
+   * Prefill normally happens at {@link createManagedMerchant}. This is the
+   * backfill for a shell created before Identity completed (or before prefill
+   * existed). Same transience rules as {@link ManagedMerchantDetails.prefill}.
+   * Optional: Mock/Pinch leave it undefined.
+   */
+  prefillManagedMerchant?(
+    merchantRef: string,
+    prefill: NonNullable<ManagedMerchantDetails['prefill']>,
+  ): Promise<void>;
   /** Re-read a sub-merchant's compliance state (polling fallback for webhooks). */
   getManagedMerchant?(merchantRef: string): Promise<ManagedMerchant | null>;
   /**
@@ -766,6 +778,16 @@ export interface IdentityCheck {
     postalCode?: string | null;
     country?: string | null;
   } | null;
+  /**
+   * TRANSIENT, SERVER-ONLY. HMAC person keys derived from the verified document
+   * (government ID, and name+DOB when both are present). Written to
+   * `identity_person_keys` / checked against `identity_bans`. Never the raw ID,
+   * never logged as inputs, never returned to a client. Present only while VERIFIED.
+   */
+  identityFingerprints?: ReadonlyArray<{
+    kind: 'document-id' | 'name-dob';
+    hash: string;
+  }>;
 }
 
 /**
@@ -811,6 +833,9 @@ export interface IdentityService {
    * prove the check passed — the outcome arrives by webhook, or by reading the
    * session back — so callers must not treat the redirect as success. This is the
    * same trap as Connect's hosted onboarding return.
+   *
+   * Identity does not attach to a Connect person. Verified outputs are forwarded
+   * later when the payout account is created.
    */
   createIdentityCheck(params: {
     profileId: string;

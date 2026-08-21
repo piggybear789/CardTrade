@@ -81,14 +81,17 @@ export function CashSalePriceDialog({
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={submit}>
+        {/* The form is DialogContent's only child, so its flex gap cannot reach
+            header, body and footer. Repeating it here replaces the one-off
+            `py-5` that was doing the same job by hand. */}
+        <form onSubmit={submit} className="flex flex-col gap-3 sm:gap-4">
           <DialogHeader>
             <DialogTitle>Request a price change</DialogTitle>
             <DialogDescription>
               Update the item price. Shipping and the platform fee stay separate.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-group py-5">
+          <div className="space-y-group">
             <div className="space-y-snug">
               <Label htmlFor="sale-price">Item price</Label>
               <MoneyInput
@@ -99,9 +102,11 @@ export function CashSalePriceDialog({
                 onChange={(event) => setPrice(event.target.value)}
                 required
               />
+              {/* Just the current number. The description above already says
+                  shipping and the fee stay separate, and saying it twice in one
+                  short dialog reads as two different rules. */}
               <p className="text-body text-muted-foreground">
-                Currently {formatMoney(agreedPriceCents, currency)}. Shipping and the platform fee
-                are shown separately.
+                Currently {formatMoney(agreedPriceCents, currency)}.
               </p>
             </div>
             {error ? (

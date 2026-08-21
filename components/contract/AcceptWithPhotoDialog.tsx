@@ -121,7 +121,7 @@ export function AcceptWithPhotoDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div>
           {preview ? (
             <div className="relative mx-auto w-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -145,11 +145,20 @@ export function AcceptWithPhotoDialog({
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={isPending}
-              className="flex w-full flex-col items-center gap-snug rounded-lg border-2 border-dashed border-input p-section text-muted-foreground transition-colors hover:border-gold/40 hover:bg-muted"
+              // A row, not a tall dashed panel. `p-section` on an OPTIONAL step
+              // made the thing you are allowed to skip the largest object in the
+              // dialog — a void the eye has to cross to reach Accept.
+              className="flex w-full items-center gap-cozy rounded-lg border border-dashed border-input p-cozy text-left text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted"
             >
-              <Camera className="size-8" aria-hidden />
-              <span className="text-body font-medium">Take or upload a photo</span>
-              <span className="text-body">Optional — helps if there's a dispute later</span>
+              <Camera className="size-5 shrink-0" aria-hidden />
+              <span className="min-w-0 space-y-tight">
+                <span className="block text-body font-medium text-foreground">
+                  Take or upload a photo
+                </span>
+                <span className="block text-body">
+                  Optional — helps if there is a dispute later.
+                </span>
+              </span>
             </button>
           )}
 
@@ -168,7 +177,7 @@ export function AcceptWithPhotoDialog({
         <DialogFooter>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             onClick={() => setOpen(false)}
             disabled={isPending}
           >

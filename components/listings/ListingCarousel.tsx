@@ -84,7 +84,7 @@ function MarqueeTile({
         href={`/listings/${item.id}`}
         transitionTypes={['nav-forward']}
         tabIndex={cloned ? -1 : undefined}
-        className="block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+        className="block rounded-lg border border-transparent focus:outline-none focus-visible:border-gold"
       >
         <div className="relative aspect-[5/7] overflow-hidden rounded-lg bg-card shadow-market ring-1 ring-inset ring-border transition-[box-shadow,ring-color] duration-200 group-hover:ring-gold/50">
           {imageUrl ? (

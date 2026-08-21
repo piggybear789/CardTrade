@@ -87,7 +87,7 @@ export function IdentityDemoControls() {
         aria-expanded={open}
         aria-controls="identity-demo-body"
         aria-label={open ? 'Collapse hackathon test controls' : 'Expand hackathon test controls'}
-        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-gold/40"
       >
         <span className="flex min-w-0 items-center gap-snug">
           <FlaskConical className="cardtrade-demo-label size-4 shrink-0" aria-hidden />

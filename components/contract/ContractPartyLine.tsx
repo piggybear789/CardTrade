@@ -225,7 +225,7 @@ export function ContractPartyLine({
             type="button"
             onClick={() => setExpanded((current) => !current)}
             aria-expanded={expanded}
-            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-body text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40"
           >
             Details
             <ChevronDown

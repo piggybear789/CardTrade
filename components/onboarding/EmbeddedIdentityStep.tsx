@@ -6,6 +6,11 @@
 // inline via `stripe.verifyIdentity(clientSecret)` — a Stripe-owned modal — so the
 // document and selfie never touch NoDitto's DOM or server (Req 2.3, 2.4). No redirect.
 //
+// DO NOT MOUNT THIS INSIDE A RADIX DIALOG. The onboarding wizard is one. Radix marks
+// everything outside the dialog inert and traps focus, so the Stripe modal never
+// paints (or cancels immediately as `session_cancelled`). The wizard uses
+// `HostedProviderStep` instead, which leaves for Stripe's own pages.
+//
 // Renders no heading of its own: the surface (or the card that hosts it) owns the
 // title, so this cannot produce a duplicate heading in the outline.
 //

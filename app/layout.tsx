@@ -91,7 +91,7 @@ export default function RootLayout({
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main-content"
-          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-gold px-4 py-2 text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-gold/90 focus:outline-none focus-visible:translate-y-0 focus-visible:ring-2 focus-visible:ring-parchment"
+          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-gold px-4 py-2 text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-gold/90 border border-transparent focus:outline-none focus-visible:translate-y-0 focus-visible:border-parchment"
         >
           Skip to Main Content
         </a>
@@ -100,7 +100,7 @@ export default function RootLayout({
             <Suspense fallback={<SiteHeaderSkeleton />}>
               <SiteHeader />
             </Suspense>
-            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] focus:outline-none">
               {children}
             </div>
           </StartDealProvider>

@@ -102,7 +102,7 @@ export function GenrePills({
   }
 
   return (
-    <nav aria-label="Games" className="relative min-w-0">
+    <nav aria-label="Categories" className="relative min-w-0">
       {canLeft ? (
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center bg-gradient-to-r from-background from-40% to-transparent pr-8">
           <ScrollButton
@@ -160,7 +160,7 @@ function ScrollButton({
       type="button"
       onClick={onClick}
       aria-label={direction === 'left' ? 'Show earlier games' : 'Show more games'}
-      className="pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-gold/40 hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-gold/40 hover:bg-gold/10 focus:outline-none focus-visible:border-gold/40"
     >
       <Icon className="size-3.5" aria-hidden />
     </button>
@@ -186,7 +186,7 @@ function GenrePill({
       title={label}
       className={cn(
         'inline-flex h-11 min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-meta font-semibold tracking-tight transition-colors',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'border border-transparent focus:outline-none focus-visible:border-gold/40',
         active
           ? 'border-border bg-gold/10 text-foreground'
           : 'border-border text-muted-foreground hover:border-gold/40 hover:bg-muted/70 hover:text-foreground',

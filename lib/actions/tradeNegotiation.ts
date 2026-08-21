@@ -29,7 +29,7 @@ import {
   isLivePaymentsProvider,
   operationalRegions,
 } from '@/domain/services';
-import { placeBondsForAgreedTrade } from '@/domain/orchestrator/tradeProposal';
+import { placeBondsForAgreedTrade, currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
 import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
@@ -397,68 +397,20 @@ export async function acceptTradeTerms(
       error: 'bond-failed',
       message:
         bonds.error === 'payer-not-found'
-          ? 'A saved card is needed to place the trade collateral hold. Add one in your profile, then accept again.'
+          ? 'A saved card is needed to place the trade collateral hold. Add one in your profile, then retry the hold.'
           : bonds.error === 'side-unvalued'
             ? 'One side of this trade has no value against it, so there is nothing to hold collateral against. Agree what each side is worth and accept again.'
             : bonds.error === 'hold-failed'
             ? 'Your card declined the collateral hold, so the trade was not started. ' +
-              'Nothing was charged. Try another card and accept again.'
+              'Nothing was charged. Replace the card in this room or on your profile, then retry the hold.'
             : 'Collateral could not be arranged, so the trade was not started. Nothing was charged.',
     };
   }
 
   // The Commitment_Point: both sides are bound and collateral is in place, so the
   // Trade_Fee falls due. Charged AFTER bonds so a trade that cannot get collateral
-  // never gets billed, and deliberately not allowed to block the exchange — a
-  // failed fee is recorded for retry rather than held against the traders.
-  // The SAME rule the bonds were sized with, deliberately. This used to sum
-  // `fmv_cents` over each side independently, which on a binder means 5% of a whole
-  // inventory's indicative price — a second derivation of a money figure that has to
-  // have exactly one (`domain/trade/tradeSideValues.ts`).
-  const sideGoods = async (traderId: string) => {
-    const ids = await itemIdsFor(tradeId, traderId);
-    if (ids.length === 0) return { goodsCents: 0, hasShopfront: false };
-    const { data } = await admin
-      .from('items')
-      .select('fmv_cents, listing_kind')
-      .in('id', ids);
-    const rows = (data ?? []) as { fmv_cents: number | null; listing_kind: string }[];
-    return {
-      goodsCents: rows.reduce((sum, row) => sum + Number(row.fmv_cents ?? 0), 0),
-      hasShopfront: rows.some((row) => row.listing_kind === 'SHOPFRONT'),
-    };
-  };
-  const [initiatorSide, counterpartSide] = await Promise.all([
-    sideGoods(started.initiator_id),
-    sideGoods(started.counterpart_id),
-  ]);
-  const { initiatorSideCents: initiatorGives, counterpartSideCents: counterpartGives } =
-    resolveTradeSideValues({
-      initiatorGoodsCents: initiatorSide.goodsCents,
-      counterpartGoodsCents: counterpartSide.goodsCents,
-      counterpartIsShopfront: counterpartSide.hasShopfront,
-    });
-  // Each trader is charged on what they RECEIVE: the other side's goods, plus any
-  // cash coming their way.
-  const cash = Number(started.cash_amount_cents ?? 0);
-  const initiatorPaysCash = started.cash_direction === 'PROPOSER_PAYS';
-  const fees = await chargeTradeFees({
-    tradeId,
-    initiatorId: started.initiator_id,
-    counterpartId: started.counterpart_id,
-    initiatorReceivesCents: counterpartGives + (initiatorPaysCash ? 0 : cash),
-    counterpartReceivesCents: initiatorGives + (initiatorPaysCash ? cash : 0),
-  });
-  // The result was discarded here, which is why nothing noticed there was no drain
-  // behind the FAILED status. It is deliberately still not fatal — the exchange is the
-  // point of the contract and the traders are not at fault for our collection problem —
-  // but it is now recorded, and `drainFailedTradeFees` retries it hourly.
-  if (fees.anyFailed) {
-    console.warn(
-      `[tradeNegotiation] trade ${tradeId}: at least one Trade_Fee did not collect; ` +
-        'left FAILED for the retry drain.',
-    );
-  }
+  // never gets billed.
+  await chargeFeesForAgreedTrade(started);
 
   if (bonds.bondsRequired === 0) {
     // Nobody owes a bond, so no provider event will ever arrive to confirm one.
@@ -492,6 +444,53 @@ async function itemIdsFor(tradeId: string, traderId: string): Promise<string[]> 
 }
 
 /**
+ * Charge both traders the Trade_Fee once collateral is actually in place.
+ * Shared by the first accept and a later retry so a declined first seek never
+ * bills, and a successful retry does.
+ */
+async function chargeFeesForAgreedTrade(trade: TradeRow): Promise<void> {
+  const admin = createAdminClient();
+  const sideGoods = async (traderId: string) => {
+    const ids = await itemIdsFor(trade.id, traderId);
+    if (ids.length === 0) return { goodsCents: 0, hasShopfront: false };
+    const { data } = await admin
+      .from('items')
+      .select('fmv_cents, listing_kind')
+      .in('id', ids);
+    const rows = (data ?? []) as { fmv_cents: number | null; listing_kind: string }[];
+    return {
+      goodsCents: rows.reduce((sum, row) => sum + Number(row.fmv_cents ?? 0), 0),
+      hasShopfront: rows.some((row) => row.listing_kind === 'SHOPFRONT'),
+    };
+  };
+  const [initiatorSide, counterpartSide] = await Promise.all([
+    sideGoods(trade.initiator_id),
+    sideGoods(trade.counterpart_id),
+  ]);
+  const { initiatorSideCents: initiatorGives, counterpartSideCents: counterpartGives } =
+    resolveTradeSideValues({
+      initiatorGoodsCents: initiatorSide.goodsCents,
+      counterpartGoodsCents: counterpartSide.goodsCents,
+      counterpartIsShopfront: counterpartSide.hasShopfront,
+    });
+  const cash = Number(trade.cash_amount_cents ?? 0);
+  const initiatorPaysCash = trade.cash_direction === 'PROPOSER_PAYS';
+  const fees = await chargeTradeFees({
+    tradeId: trade.id,
+    initiatorId: trade.initiator_id,
+    counterpartId: trade.counterpart_id,
+    initiatorReceivesCents: counterpartGives + (initiatorPaysCash ? 0 : cash),
+    counterpartReceivesCents: initiatorGives + (initiatorPaysCash ? cash : 0),
+  });
+  if (fees.anyFailed) {
+    console.warn(
+      `[tradeNegotiation] trade ${trade.id}: at least one Trade_Fee did not collect; ` +
+        'left FAILED for the retry drain.',
+    );
+  }
+}
+
+/**
  * Stripe authorisations resolve synchronously, so drive the transition from the
  * hold rows rather than waiting for a webhook. Mirrors `syncTradeHoldsFromStripe`
  * in the single-click path.
@@ -503,13 +502,142 @@ async function syncHolds(tradeId: string, actorId: string): Promise<void> {
   const orchestrator = createDefaultTradeOrchestrator({
     payments: getPaymentService(await regionForTrade(tradeId)),
   });
-  if (holds.every((hold) => hold.status === 'ACTIVE')) {
+  // Only the latest hold per trader counts. A retry leaves the declined row on
+  // file, and treating it as current would confirm a successful retry as failed.
+  if (currentHoldsAreActive(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
     return;
   }
-  if (holds.some((hold) => hold.status === 'FAILED')) {
+  if (currentHoldsSeekFailed(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
   }
+}
+
+/**
+ * Re-seek collateral after a card decline. HOLDS_FAILED leaves the trade in
+ * COLLATERAL_PENDING on purpose so this can run without going back to negotiation.
+ *
+ * Replacing the vaulted card is a separate action (`completeCardSetup`); this
+ * only places a new authorisation against whatever is now the default card.
+ */
+export async function retryTradeCollateral(
+  tradeId: string,
+): Promise<TradeNegotiationResult> {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false, error: 'unauthenticated' };
+
+  const admin = createAdminClient();
+  const { data } = await admin.from('trades').select('*').eq('id', tradeId).maybeSingle();
+  const trade = data as TradeRow | null;
+  if (!trade) return { ok: false, error: 'not-participant' };
+  if (trade.initiator_id !== userId && trade.counterpart_id !== userId) {
+    return { ok: false, error: 'not-participant' };
+  }
+  if (trade.state !== 'COLLATERAL_PENDING') {
+    return {
+      ok: false,
+      error: 'not-permitted',
+      message: 'Collateral is not waiting to be retried on this trade.',
+    };
+  }
+
+  for (const partyId of [trade.initiator_id, trade.counterpart_id]) {
+    const gate = await readIdentityGate(partyId);
+    if (!gate.satisfied) {
+      return {
+        ok: false,
+        error: 'not-verified',
+        message:
+          partyId === userId
+            ? identityGateMessage('trade', gate.state)
+            : 'The other trader has not finished identity verification, so this trade cannot lock yet.',
+      };
+    }
+  }
+
+  const repository = createSupabaseTradeProposalRepository(admin);
+  const payments = getPaymentService(await regionForTrade(tradeId));
+  const existing = await repository.getHolds(tradeId);
+
+  // A retry while the first placement is still in flight would race it. Only
+  // continue once a seek has already failed, or both latest holds are already
+  // ACTIVE and just need confirming (process died between place and sync).
+  if (currentHoldsAreActive(existing)) {
+    const orchestrator = createDefaultTradeOrchestrator({ payments });
+    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
+    revalidatePath(`/trades/${tradeId}`);
+    return { ok: true, trade, collateralStarted: true };
+  }
+  if (existing.length === 0 || !currentHoldsSeekFailed(existing)) {
+    return {
+      ok: false,
+      error: 'not-permitted',
+      message: 'Collateral is still being arranged. Wait a moment, then try again if it fails.',
+    };
+  }
+
+  // Compensation already voided live holds, but a crashed retry could leave one
+  // ACTIVE. Release those before placing a new attempt so two authorisations
+  // cannot sit on the same card.
+  for (const hold of existing) {
+    if (hold.status === 'ACTIVE') {
+      await payments.voidHold(hold.holdRef);
+      await repository.markHoldStatus(hold.holdRef, 'VOIDED');
+    }
+  }
+
+  const initiatorItemIds = await itemIdsFor(tradeId, trade.initiator_id);
+  const counterpartItemIds = await itemIdsFor(tradeId, trade.counterpart_id);
+  await repository.reserveItems([...initiatorItemIds, ...counterpartItemIds]);
+
+  const bonds = await placeBondsForAgreedTrade(
+    { repository, payments },
+    {
+      tradeId,
+      initiatorId: trade.initiator_id,
+      counterpartId: trade.counterpart_id,
+      initiatorItemIds,
+      counterpartItemIds,
+    },
+  );
+
+  const orchestrator = createDefaultTradeOrchestrator({ payments });
+  if (!bonds.ok) {
+    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId: userId });
+    await refundTradeFees(tradeId);
+    return {
+      ok: false,
+      error: 'bond-failed',
+      message:
+        bonds.error === 'payer-not-found'
+          ? 'A saved card is needed to place the trade collateral hold. Add one, then retry.'
+          : bonds.error === 'hold-failed'
+            ? 'A card declined the collateral hold again. Nothing was charged. Replace the card, then retry.'
+            : 'Collateral could not be arranged. Nothing was charged.',
+    };
+  }
+
+  await chargeFeesForAgreedTrade(trade);
+
+  if (bonds.bondsRequired === 0) {
+    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
+  } else if (isLivePaymentsProvider()) {
+    await syncHolds(tradeId, userId);
+  }
+
+  const counterpartyId =
+    trade.initiator_id === userId ? trade.counterpart_id : trade.initiator_id;
+  await createNotification({
+    userId: counterpartyId,
+    type: 'TRADE',
+    title: 'Trade collateral retried',
+    body: 'The other trader retried the card hold. Collateral is being arranged.',
+    link: `/trades/${tradeId}`,
+  });
+
+  revalidatePath('/trades');
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true, trade, collateralStarted: true };
 }
 
 /**

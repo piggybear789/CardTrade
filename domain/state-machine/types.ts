@@ -83,6 +83,15 @@ export interface TradeFacts {
   accepted: { initiator: boolean; counterpart: boolean };
   holdsActive: { initiator: boolean; counterpart: boolean };
   /**
+   * True when a collateral seek already ran and did not stick — a hold is
+   * FAILED, VOIDED after compensation, or EXPIRED — so the room may offer a
+   * retry rather than sitting in COLLATERAL_PENDING with no controls.
+   *
+   * False while holds have not been placed yet, and false while they are live.
+   * The first accept is still in flight in those cases; a retry would race it.
+   */
+  collateralSeekFailed: boolean;
+  /**
    * Each trader's confirmation that a face-to-face exchange happened.
    *
    * Always present, and always `false` on a DELIVERY trade. Confirming a handover
@@ -136,4 +145,10 @@ export type TradeAction =
   | 'REPORT_HANDOVER_FAILED'
   | 'RECORD_ACCEPTANCE'
   | 'RAISE_DISPUTE'
-  | 'REPORT_FRAUD';
+  | 'REPORT_FRAUD'
+  /**
+   * Re-seek collateral after a declined or voided hold. Only offered from
+   * COLLATERAL_PENDING once a seek has already failed — the trade stays in that
+   * state on HOLDS_FAILED so this can run without going back to negotiation.
+   */
+  | 'RETRY_COLLATERAL';

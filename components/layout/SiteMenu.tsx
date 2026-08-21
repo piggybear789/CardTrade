@@ -179,7 +179,7 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
         aria-expanded={open}
         aria-controls="site-menu-panel"
         aria-label={open ? 'Close menu' : 'Open menu'}
-        className="flex size-10 touch-manipulation items-center justify-center rounded-md hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+        className="flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-gold"
       >
         {open ? (
           <X className="size-5" aria-hidden />
@@ -214,15 +214,6 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                   <Handshake aria-hidden />
                   Start a Deal
                 </StartDealButton>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/help">Help</Link>
-                </Button>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/terms">Terms</Link>
-                </Button>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/privacy">Privacy</Link>
-                </Button>
                 <div className="my-1 border-t" />
                 <Button asChild variant="ghost" className="justify-start">
                   <SignInLink>Sign in</SignInLink>
@@ -296,16 +287,6 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                   </>
                 ) : null}
 
-                <div className="my-1 border-t" />
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/help">Help</Link>
-                </Button>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/terms">Terms</Link>
-                </Button>
-                <Button asChild variant="ghost" className="justify-start">
-                  <Link href="/privacy">Privacy</Link>
-                </Button>
                 <div className="my-1 border-t" />
                 <SignOutButton className="w-full justify-start" />
               </>

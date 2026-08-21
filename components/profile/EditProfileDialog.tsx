@@ -36,7 +36,7 @@ export function EditProfileDialog({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex items-center gap-1 text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40"
         >
           <Pencil className="size-3" aria-hidden />
           Edit

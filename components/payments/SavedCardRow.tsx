@@ -7,7 +7,7 @@
 // and the trade room both need that control, because accept uses the vaulted
 // default off-session and never asked which card.
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { CreditCard, Loader2 } from 'lucide-react';
 
@@ -47,28 +47,31 @@ export function SavedCardRow({ inline = false, onStatus, className }: SavedCardR
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
 
-  function applyStatus(next: { hasPaymentMethod: boolean; label: string | null; expiry: string | null }) {
-    setHasCard(next.hasPaymentMethod);
-    setLabel(next.label);
-    setExpiry(next.expiry);
-  }
+  const applyStatus = useCallback(
+    (next: { hasPaymentMethod: boolean; label: string | null; expiry: string | null }) => {
+      setHasCard(next.hasPaymentMethod);
+      setLabel(next.label);
+      setExpiry(next.expiry);
+    },
+    [],
+  );
 
   useEffect(() => {
     onStatusRef.current?.(hasCard === true && !replacing);
   }, [hasCard, replacing]);
 
-  function refresh() {
+  const refresh = useCallback(() => {
     void getPaymentMethodStatus()
       .then((result) => {
         if (result.ok) applyStatus(result.data);
         else applyStatus({ hasPaymentMethod: false, label: null, expiry: null });
       })
       .catch(() => applyStatus({ hasPaymentMethod: false, label: null, expiry: null }));
-  }
+  }, [applyStatus]);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   if (inline && (replacing || hasCard === false)) {
     return (

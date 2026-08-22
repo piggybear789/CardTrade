@@ -18,7 +18,6 @@
 
 import type { Step } from '@/components/onboarding/OnboardingWizard';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
-import { isPaymentDemoEnabled } from '@/domain/services';
 
 /** Same-origin absolute paths only, so `redirectTo` cannot become an open redirect. */
 function safeRedirectPath(target: string | null): string | null {

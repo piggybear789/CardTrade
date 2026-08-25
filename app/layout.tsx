@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { SiteHeader, SiteHeaderSkeleton } from '@/components/layout/SiteHeader';
@@ -106,6 +107,7 @@ export default function RootLayout({
           </StartDealProvider>
           <Toaster />
         </MotionProvider>
+        <Analytics />
       </body>
     </html>
   );

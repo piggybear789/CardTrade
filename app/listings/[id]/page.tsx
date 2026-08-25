@@ -42,7 +42,6 @@ import {
   itemImageUrl,
 } from "@/lib/format";
 import { BuyButton, ShopfrontBuyButton } from "@/components/listings/BuyButton";
-import { WatchButton } from "@/components/listings/WatchButton";
 import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
 import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
 import { MessageSellerButton } from "@/components/messages/MessageSellerButton";
@@ -50,20 +49,18 @@ import {
   ImageGallery,
   type GalleryImage,
 } from "@/components/listings/ImageGallery";
+import { ListingBuyerBar } from "@/components/listings/ListingBuyerBar";
+import { ListingDetailStack } from "@/components/listings/ListingDetailStack";
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { CloseShopfrontDialog } from "@/components/listings/CloseShopfrontDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
-import { StarRating } from "@/components/listings/StarRating";
-import { IdentityBadge } from "@/components/identity/IdentityBadge";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
-import { Avatar } from "@/components/ui/avatar";
 import { PlaceMap } from "@/components/location";
 import type { PlacePrecision } from "@/lib/location/types";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { StatusNotice } from "@/components/ui/status-notice";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -307,9 +304,16 @@ export default async function ItemDetailPage({
     .filter((src): src is string => Boolean(src))
     .map((src, index) => ({ src, alt: `${listingTitle} — image ${index + 1}` }));
 
+  // Flutter replaces the tab bar with a buyer bar. Owners keep the hub so they
+  // can still reach Edit / Sell from the thumb. A contract-in-progress or a
+  // closed listing stays in the hub too — there is no Buy to park there.
+  const showBuyerBar =
+    !isOwner && isAvailable && !myContractId;
+
   return (
     <MarketplaceShell
       title="Marketplace"
+      hideMobileNav={showBuyerBar}
     >
       {/* Reconciles payout state when the viewer lands back here from the
           provider's hosted onboarding flow. Renders nothing. Suspense because it
@@ -319,13 +323,17 @@ export default async function ItemDetailPage({
         <PayoutReturnRefresh />
       </Suspense>
 
-      {/* Split view (lg+): photos stay put, details scroll beside them.
-          The wrapper is the workspace content box — 100dvh less the header
-          (4rem + 1px + safe-area) and the section's vertical padding
-          (4.25rem). Below lg the columns stack and the page scrolls. */}
-      <div className="flex min-h-0 flex-col lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))]">
+      {/* Phone: Flutter stack — bleed photo, seller, gold price, sticky bar.
+          Desktop: the same stack beside a cover photo that stays put. */}
+      <div
+        className={
+          showBuyerBar
+            ? 'flex min-h-0 flex-col pb-16 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:pb-0'
+            : 'flex min-h-0 flex-col lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))]'
+        }
+      >
         <nav
-          className="mb-2 flex flex-wrap items-center justify-between gap-2 sm:mb-3"
+          className="mb-2 hidden flex-wrap items-center justify-between gap-2 lg:flex"
           aria-label="Listing"
         >
           <Button asChild variant="outline" size="sm">
@@ -343,239 +351,168 @@ export default async function ItemDetailPage({
               {statusBadge.label}
             </Badge>
             {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
-            <Badge variant="outline">{item.condition}</Badge>
-            {watchCount > 0 ? (
-              <span className="text-meta tabular-nums text-muted-foreground">
-                {watchCount} {watchCount === 1 ? "save" : "saves"}
-              </span>
-            ) : null}
           </div>
         </nav>
 
-        <div className="flex min-h-0 flex-col items-stretch gap-6 lg:flex-1 lg:flex-row">
-          <div className="min-w-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
+        <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
+          <div className="-mx-4 -mt-3 min-w-0 sm:-mx-6 lg:mx-0 lg:mt-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
             <ViewTransition
               name={`listing-image-${item.id}`}
               share="morph"
               default="none"
             >
-              <ImageGallery images={images} title={listingTitle} />
+              <ImageGallery
+                images={images}
+                title={listingTitle}
+                appearance="cover"
+              />
             </ViewTransition>
           </div>
 
-          <div className="flex min-w-0 flex-col lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-7 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
-            <div className="flex h-full flex-col gap-4">
-        <header className="flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-balance text-head font-semibold tracking-tight">
-              {listingTitle}
-            </h2>
-            <p className="mt-1 text-lead font-semibold tabular-nums tracking-tight">
-              {formatAud(item.fmv_cents)}
-            </p>
-          </div>
-          {user && !isOwner ? (
-            <div
-              className="flex shrink-0 items-center"
-              role="group"
-              aria-label="Listing actions"
-            >
-              <WatchButton
-                itemId={item.id}
-                initialWatching={initialWatching}
-                variant="icon"
-              />
-              <ReportDialog
-                targetType="item"
-                targetId={item.id}
-                triggerLabel="Report listing"
-                appearance="icon-only"
-              />
-            </div>
-          ) : null}
-        </header>
-
-        <section aria-labelledby="seller-heading">
-          <h2 id="seller-heading" className="sr-only">
-            Seller
-          </h2>
-          <Card className="p-group">
-            <div className="flex min-w-0 items-center gap-3">
-              <Avatar
-                avatarPath={(sellerRow?.avatar_path as string | null) ?? null}
-                displayName={
-                  isOwner
-                    ? "You"
-                    : ((sellerRow?.display_name as string | null) ?? null)
-                }
-                size="md"
-              />
-              <div className="min-w-0 space-y-tight">
-                <div className="flex min-w-0 items-center gap-1">
-                  {isOwner ? (
-                    <p className="truncate text-lead font-semibold">You</p>
-                  ) : (
-                    <Link
-                      href={`/sellers/${item.owner_id}`}
-                      transitionTypes={['nav-forward']}
-                      className="truncate text-lead font-semibold underline-offset-2 hover:underline"
-                    >
-                      {sellerRow?.display_name ?? "Unknown seller"}
-                    </Link>
-                  )}
-                  {/* ONE mark. A <VerifiedBadge/> used to sit here too, gated on
-                      `sellerIdentity`, which requires APPROVED + settlements —
-                      the same Identity_Gate `is_verified` reports. Two glyphs,
-                      one fact. */}
-                  <IdentityBadge
-                    verified={Boolean(sellerRow?.is_verified)}
-                    firstName={
-                      (sellerRow?.identity_first_name as string | null) ?? null
-                    }
-                    size={14}
-                    iconOnly
-                    className="shrink-0"
-                  />
-                </div>
-                {isOwner ? (
-                  <StarRating
-                    rating={sellerRow?.rating ?? null}
-                    count={sellerRow?.rating_count ?? undefined}
-                    size={12}
-                    className="text-meta"
-                  />
-                ) : (
-                  <Link
-                    href={`/sellers/${item.owner_id}#reviews`}
-                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-gold/40"
-                    aria-label="Read seller reviews"
-                  >
-                    <StarRating
-                      rating={sellerRow?.rating ?? null}
-                      count={sellerRow?.rating_count ?? undefined}
-                      size={12}
-                      className="text-meta"
-                    />
-                  </Link>
-                )}
-                {/* Identity disclosure — visible to buyers so they know who
-                    they're transacting with (Req 4.8). Lives inside the seller
-                    card so the verified facts stay with the person. */}
-                {sellerIdentity && !isOwner ? (
-                  <dl className="flex min-w-0 flex-wrap gap-x-3 gap-y-0 text-meta leading-snug">
-                    {/* "Real name" ONLY when a government document backs it.
-                        `legalEntityName` is `identityCheckName ?? legalEntityName`,
-                        and the fallback is seeded from the seller's own
-                        `display_name` for members grandfathered by 0069 — so on
-                        those rows this value is a self-chosen handle, and calling
-                        it a real name would assert a document check that never
-                        happened. `nameIsDocumentVerified` is the only thing that
-                        can tell the two apart; do not label this from the value. */}
-                    <div className="flex min-w-0 gap-tight">
-                      <dt className="shrink-0 text-muted-foreground">
-                        {sellerIdentity.nameIsDocumentVerified
-                          ? "Real name"
-                          : "Stated name"}
-                      </dt>
-                      <dd className="min-w-0 break-words font-medium">
-                        {sellerIdentity.legalEntityName}
-                      </dd>
-                    </div>
-                    {sellerIdentity.tradingName ? (
-                      <div className="flex min-w-0 gap-tight">
-                        <dt className="shrink-0 text-muted-foreground">
-                          Trading as
-                        </dt>
-                        <dd className="min-w-0 break-words font-medium">
-                          {sellerIdentity.tradingName}
-                        </dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                ) : null}
-              </div>
-            </div>
-          </Card>
-        </section>
-
-        <section aria-labelledby="description-heading">
-          <h2
-            id="description-heading"
-            className="mb-tight text-meta font-semibold uppercase tracking-wide text-muted-foreground"
-          >
-            Description
-          </h2>
-          <p className="whitespace-pre-line break-words text-body leading-relaxed text-foreground">
-            {item.description}
-          </p>
-        </section>
-
-        {item.location_label ||
-        (item.location_lat != null && item.location_lng != null) ? (
-          <section
-            aria-labelledby="location-heading"
-            className="space-y-2"
-          >
-            <h2
-              id="location-heading"
-              className="text-meta font-semibold uppercase tracking-wide text-muted-foreground"
-            >
-              Based near
-            </h2>
-            {/* A listing pin is a locality, never a street address — the
-                precision is what keeps the frame honest about that. */}
-            <PlaceMap
-              lat={item.location_lat}
-              lng={item.location_lng}
-              label={item.location_label}
-              precision={
-                (item.location_precision as PlacePrecision | null) ?? 'suburb'
+          <div className="flex min-w-0 flex-col pt-3 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-7 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+            <ListingDetailStack
+              title={listingTitle}
+              description={item.description ?? ''}
+              priceCents={item.fmv_cents}
+              condition={item.condition}
+              category={item.category}
+              isShopfront={isShopfront}
+              locationLabel={item.location_label}
+              watchCount={watchCount}
+              isOwner={isOwner}
+              sellerId={item.owner_id}
+              sellerDisplayName={
+                isOwner
+                  ? 'You'
+                  : ((sellerRow?.display_name as string | null) ?? null)
               }
-              presentation="inline"
+              sellerAvatarPath={(sellerRow?.avatar_path as string | null) ?? null}
+              sellerVerified={Boolean(sellerRow?.is_verified)}
+              sellerFirstName={
+                (sellerRow?.identity_first_name as string | null) ?? null
+              }
+              sellerRating={sellerRow?.rating ?? null}
+              sellerRatingCount={sellerRow?.rating_count ?? undefined}
+              sellerIdentity={sellerIdentity}
             />
-          </section>
-        ) : null}
 
-        <div className="mt-auto space-y-4 pt-4">
-          <ItemActions
-            itemId={item.id}
-            itemTitle={item.title}
-            itemImagePath={(item.image_paths ?? [])[0] ?? null}
-            sellerId={item.owner_id}
-            sellerDisplayName={sellerDisplayName}
-            fmvCents={item.fmv_cents}
-            isOwner={isOwner}
-            isAuthenticated={Boolean(user)}
-            isAvailable={isAvailable}
-            regionNotice={regionNotice}
-            viewerVerification={viewerVerification}
-            sellerIdentity={sellerIdentity}
-            activeSaleId={activeSaleId}
-            activeTradeId={activeTradeId}
-            isShopfront={isShopfront}
-            isClosed={isClosed}
-            openContracts={openContracts}
-            ownItems={ownItems}
-            myContractId={myContractId}
-          />
+            {showBuyerBar && regionNotice ? (
+              <div className="mt-4 lg:hidden">
+                <StatusNotice description={regionNotice} />
+              </div>
+            ) : null}
 
-          {user && !isOwner && isAvailable && !myContractId ? (
-            <section aria-labelledby="message-seller-heading">
-              <h2 id="message-seller-heading" className="sr-only">
-                Message seller
-              </h2>
-              <MessageSellerButton
+            {showBuyerBar && user && !sellerIdentity ? (
+              <div className="mt-4 lg:hidden">
+                <StatusNotice
+                  title="Payout setup needed"
+                  description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
+                />
+              </div>
+            ) : null}
+
+            {item.location_label ||
+            (item.location_lat != null && item.location_lng != null) ? (
+              <section
+                aria-labelledby="location-heading"
+                className="mt-4 space-y-2"
+              >
+                <h2
+                  id="location-heading"
+                  className="text-meta font-semibold text-muted-foreground"
+                >
+                  Based near
+                </h2>
+                <PlaceMap
+                  lat={item.location_lat}
+                  lng={item.location_lng}
+                  label={item.location_label}
+                  precision={
+                    (item.location_precision as PlacePrecision | null) ?? 'suburb'
+                  }
+                  presentation="inline"
+                />
+              </section>
+            ) : null}
+
+            {user && !isOwner ? (
+              <div className="mt-6">
+                <ReportDialog
+                  targetType="item"
+                  targetId={item.id}
+                  triggerLabel="Report this listing"
+                  triggerVariant="ghost"
+                />
+              </div>
+            ) : null}
+
+            <div
+              className={
+                showBuyerBar
+                  ? 'mt-4 hidden space-y-4 pt-2 lg:mt-auto lg:block lg:pt-4'
+                  : 'mt-4 space-y-4 pt-2 lg:mt-auto lg:pt-4'
+              }
+            >
+              <ItemActions
                 itemId={item.id}
+                itemTitle={item.title}
+                itemImagePath={(item.image_paths ?? [])[0] ?? null}
                 sellerId={item.owner_id}
-                variant="inline"
+                sellerDisplayName={sellerDisplayName}
+                fmvCents={item.fmv_cents}
+                isOwner={isOwner}
+                isAuthenticated={Boolean(user)}
+                isAvailable={isAvailable}
+                regionNotice={regionNotice}
+                viewerVerification={viewerVerification}
+                sellerIdentity={sellerIdentity}
+                activeSaleId={activeSaleId}
+                activeTradeId={activeTradeId}
+                isShopfront={isShopfront}
+                isClosed={isClosed}
+                openContracts={openContracts}
+                ownItems={ownItems}
+                myContractId={myContractId}
               />
-            </section>
-          ) : null}
-        </div>
+
+              {user && !isOwner && isAvailable && !myContractId ? (
+                <section aria-labelledby="message-seller-heading">
+                  <h2 id="message-seller-heading" className="sr-only">
+                    Message seller
+                  </h2>
+                  <MessageSellerButton
+                    itemId={item.id}
+                    sellerId={item.owner_id}
+                    variant="inline"
+                  />
+                </section>
+              ) : null}
             </div>
           </div>
         </div>
       </div>
+
+      {showBuyerBar ? (
+        <ListingBuyerBar
+          itemId={item.id}
+          itemTitle={item.title}
+          itemImagePath={(item.image_paths ?? [])[0] ?? null}
+          sellerId={item.owner_id}
+          sellerDisplayName={sellerDisplayName}
+          fmvCents={item.fmv_cents}
+          isAuthenticated={Boolean(user)}
+          isShopfront={isShopfront}
+          initialWatching={initialWatching}
+          sellerIdentity={sellerIdentity}
+          viewerVerification={viewerVerification}
+          ownItems={ownItems}
+          disabledTradeReason={
+            !sellerIdentity
+              ? 'This seller must finish payout setup before a trade can start.'
+              : null
+          }
+        />
+      ) : null}
     </MarketplaceShell>
   );
 }
@@ -837,7 +774,7 @@ function ItemActions({
             description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
           />
           <div
-            className="flex items-start gap-2"
+            className="flex flex-col items-stretch gap-2 md:flex-row md:items-start"
             role="group"
             aria-label="Start a contract"
           >
@@ -846,7 +783,7 @@ function ItemActions({
         </div>
       ) : (
         <div
-          className="flex items-start gap-2"
+          className="flex flex-col items-stretch gap-2 md:flex-row md:items-start"
           role="group"
           aria-label="Start a contract"
         >

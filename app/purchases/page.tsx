@@ -56,21 +56,22 @@ export default async function PurchasesPage({
     scope === 'past' || !invitesResult.ok ? [] : invitesResult.data;
   const visibleSales = scope === 'past' ? past : active;
   const hasInvites = pendingInvites.length > 0;
+  const hasRows = hasInvites || visibleSales.length > 0;
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   // No plus: browsing the marketplace creates nothing.
-  const primaryAction = (
+  const browseMarketplace = () => (
     <RailPrimaryAction href="/listings" glyph={null}>
       Browse Marketplace
     </RailPrimaryAction>
   );
 
   return (
-    <MarketplaceShell title="Purchases" primaryAction={primaryAction}>
+    <MarketplaceShell title="Purchases" primaryAction={browseMarketplace()}>
       <SectionHeader
         title="Purchases"
         description="Items you are buying. Open a contract to agree terms, pay through Stripe, and confirm handover."
-        mobileAction={primaryAction}
+        mobileAction={hasRows ? browseMarketplace() : undefined}
       />
       <SectionFilter
         scope={scope}

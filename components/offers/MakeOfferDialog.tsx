@@ -12,7 +12,7 @@
 // the server component that renders this button; `makeOffer` re-enforces every
 // gate, so this component only drives the interaction.
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
@@ -63,6 +63,8 @@ export interface MakeOfferDialogProps {
   fmvCents?: number;
   /** Current provider-approved seller identity the buyer must acknowledge. */
   sellerIdentity: SellerIdentityDisclosure;
+  /** Replaces the default listing-action chip — used by the mobile buyer bar. */
+  trigger?: ReactNode;
 }
 
 /**
@@ -73,6 +75,7 @@ export function MakeOfferDialog({
   itemId,
   fmvCents,
   sellerIdentity,
+  trigger,
 }: MakeOfferDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -128,11 +131,13 @@ export function MakeOfferDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <ListingActionIcon
-          icon={HandCoins}
-          label="Make an offer"
-          iconClassName="size-7"
-        />
+        {trigger ?? (
+          <ListingActionIcon
+            icon={HandCoins}
+            label="Make an offer"
+            iconClassName="size-7"
+          />
+        )}
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>

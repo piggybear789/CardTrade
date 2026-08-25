@@ -35,18 +35,19 @@ export default async function MyListingsPage() {
   }
 
   const result = await getMyListings();
+  const hasItems = result.ok && result.data.length > 0;
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
-  const primaryAction = (
+  const createListing = () => (
     <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
   );
 
   return (
-    <MarketplaceShell title="My Listings" primaryAction={primaryAction}>
+    <MarketplaceShell title="My Listings" primaryAction={createListing()}>
       <SectionHeader
         title="My Listings"
         description="Everything you have listed, including reserved and sold items."
-        mobileAction={primaryAction}
+        mobileAction={hasItems ? createListing() : undefined}
       />
       {result.ok ? (
         <ListingsSection items={result.data} />

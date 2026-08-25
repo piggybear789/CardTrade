@@ -43,10 +43,10 @@ export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn('flex min-w-0 items-center gap-2', className)}>
       <LogoMark />
-      {/* Always show the wordmark — the header keeps the logo cluster at its
-          natural width so the name is not squeezed out by flex-1 siblings. */}
+      {/* Wordmark is desktop-only. Below `md` the mark is the home control so
+          the bar can hold search / account without crushing the name. */}
       <span
-        className="truncate font-display text-subhead font-semibold tracking-[-0.025em]"
+        className="hidden font-display text-subhead font-semibold tracking-[-0.025em] md:inline"
         translate="no"
       >
         NoDitto

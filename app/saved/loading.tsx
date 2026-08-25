@@ -1,11 +1,10 @@
 // app/saved/loading.tsx
 //
-// Watchlist uses the same auction-card grid as ItemCard (default variant),
-// plus the section heading and the rail/mobile Browse CTA.
+// Watchlist uses the same compact catalog tiles as browse.
 
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import {
-  AuctionGridSkeleton,
+  CatalogGridSkeleton,
   SectionHeaderSkeleton,
 } from '@/components/layout/WorkspaceSkeletons';
 
@@ -14,7 +13,7 @@ export default function SavedLoading() {
     <MarketplaceShellSkeleton hasPrimaryAction>
       <div className="min-w-0">
         <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
-        <AuctionGridSkeleton count={8} />
+        <CatalogGridSkeleton count={8} />
       </div>
     </MarketplaceShellSkeleton>
   );

@@ -187,9 +187,9 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             sat on top of the active tab's gold underline. The clipped next tab
             is the affordance instead. Edit lives in the card header so the
             tabs stay a navigation strip. */}
-        <div className="flex min-h-10 shrink-0 items-stretch border-b">
+        <div className="flex min-h-11 shrink-0 items-stretch border-b">
           <div
-            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] lg:[mask-image:none]"
+            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 pr-4 sm:px-2 md:pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-0.75rem),transparent)] md:[mask-image:none]"
             role="tablist"
             aria-label="Contract details"
           >
@@ -201,12 +201,10 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
               <div
                 key={rowKey(row, index)}
                 className={cn(
-                  // On phones the tabs share the strip evenly so all of them
-                  // fit without horizontal scrolling; from `sm` they take
-                  // their natural width, left-aligned. Labels must stay on one
-                  // line (`truncate` + `nowrap`) — wrapping grew the strip and
-                  // let text paint over adjacent tabs (e.g. Terms).
-                  'relative flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden sm:flex-none sm:justify-start sm:overflow-visible',
+                  // Natural width + horizontal scroll at every breakpoint.
+                  // Even-split + truncate on phones turned "Protection" into
+                  // "Prot…". The clipped next tab is the scroll affordance.
+                  'relative flex shrink-0 items-center justify-start gap-0.5',
                 )}
               >
                 {selected ? (
@@ -222,8 +220,8 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   onClick={() => selectTab(index)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
-                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-meta font-medium transition-colors',
-                    explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
+                    'min-h-11 min-w-0 whitespace-nowrap touch-manipulation px-3 py-2.5 text-meta font-medium transition-colors',
+                    explainer ? 'pr-1' : null,
                     'hover:text-foreground focus:outline-none focus-visible:border-gold/40',
                     isDestructive
                       ? 'text-destructive'
@@ -238,7 +236,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                       <button
                         type="button"
                         className={cn(
-                          'mr-0.5 grid size-8 place-items-center rounded-full transition-colors',
+                          'mr-0.5 grid size-11 place-items-center rounded-full transition-colors md:size-8',
                           'text-muted-foreground hover:text-foreground',
                           'focus:outline-none focus-visible:border-gold/40',
                           selected ? 'text-foreground/70' : null,

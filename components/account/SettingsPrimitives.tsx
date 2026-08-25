@@ -58,7 +58,7 @@ export function SettingsSection({
       <div className="space-y-tight">
         <SectionLabel>{label}</SectionLabel>
         {description ? (
-          <p className="text-body leading-relaxed text-muted-foreground">{description}</p>
+          <p className="hidden text-body leading-relaxed text-muted-foreground md:block">{description}</p>
         ) : null}
       </div>
       {children}
@@ -247,15 +247,15 @@ export function StatTile({
   tone?: StatusTone;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-group">
+    <div className="rounded-xl border bg-card p-cozy md:p-group">
       <div className="flex items-center gap-snug">
         <IconMedallion icon={icon} tone={tone} />
         <p className="min-w-0 font-sans text-meta text-muted-foreground">{label}</p>
       </div>
       {/* `display-value` is the existing ledger-figure class: sans, bold, with
           tabular figures so columns of money align. */}
-      <p className="display-value mt-4 text-lead">{value}</p>
-      {sub ? <p className="mt-1 font-sans text-body text-muted-foreground">{sub}</p> : null}
+      <p className="display-value mt-snug text-lead md:mt-4">{value}</p>
+      {sub ? <p className="mt-tight font-sans text-body text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }

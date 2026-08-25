@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ViewTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BadgeX, ImageOff, Lock, Star } from 'lucide-react';
+import { BadgeX, ImageOff, Library, Lock, Star } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +13,13 @@ import { formatAud, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { CatalogItem } from '@/lib/actions/listings';
 
+export { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
+
 export interface ItemCardProps {
   item: CatalogItem;
   /**
    * Server-computed save state for the current user. When provided (and the
-   * viewer is not the owner), a save glyph sits on the price row. Omit to
+   * viewer is not the owner), a heart sits on the catalog photo. Omit to
    * hide the affordance (e.g. unauthenticated viewers or the item's owner).
    */
   initialWatching?: boolean;
@@ -37,54 +39,111 @@ function unavailableLabelFor(item: CatalogItem): string | undefined {
 }
 
 /**
- * Compact browse tile for the marketplace grid and My Listings.
- * Scan-first: mosaic photo, two-line description, price as the loudest mark.
+ * Compact browse tile — same Xianyu-style card as the Flutter catalog:
+ * 3:4 cover photo, one-line title, gold price, seller + location, heart on the
+ * photo. Used by the marketplace grid, My Listings, Saved, and seller shops.
  */
 export function CatalogItemCard({ item, initialWatching }: ItemCardProps) {
   const unavailableLabel = unavailableLabelFor(item);
+  const isShopfront = item.listing_kind === 'SHOPFRONT';
+  const showWatch = initialWatching !== undefined;
+  const imageUrl = itemImageUrl(item.image_paths?.[0] ?? null);
 
   return (
     <Card
       className={cn(
-        'group relative flex h-full min-w-0 flex-col border-0 bg-transparent shadow-none [content-visibility:auto] [contain-intrinsic-size:auto_22rem]',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border-0 p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_22rem]',
+        'transition-transform duration-100 active:scale-[0.97]',
         unavailableLabel && 'opacity-70',
       )}
     >
-      <ItemCardHitArea item={item} label={`View ${item.title}`} />
-      <ItemCardStage
+      <ItemCardHitArea
         item={item}
-        unavailableLabel={unavailableLabel}
-        className="aspect-[5/6] overflow-hidden rounded-xl border border-white/15 shadow-market transition-[shadow,transform] duration-150 group-hover:shadow-auction group-active:scale-[0.98]"
-        washClassName="bg-[radial-gradient(ellipse_at_50%_-12%,rgba(255,255,255,0.09),transparent_52%)]"
-        imageClassName="drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)]"
-        emptyIconClassName="size-9"
-        badgeClassName="px-snug py-1 text-meta"
+        label={`View ${item.title}`}
+        className="rounded-lg"
       />
-      <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col pt-snug">
-        {/* Sizes come off the scale (`text-body` / `text-subhead` / `text-meta`)
-            rather than one-off bracket values. Metadata was 10px here, rising to
-            11px at `sm` — under the ~12px floor where text stops being comfortable,
-            on the densest grid in the app, for the seller name a buyer scans before
-            clicking. Contrast was never the problem; size was.
-
-            The proportions follow the reference marketplace: an unemphasised
-            two-line description, then the PRICE as the loudest thing in the tile,
-            then quiet grey chrome. The title is deliberately `font-normal` — when
-            the title and the price are both bold, the tile has no focal point. */}
-        <ItemCardTitle item={item} />
-        <ItemCardPriceRow item={item} initialWatching={initialWatching} />
-        <ItemCardSellerRow
-          seller={item.seller}
-          leading={
-            item.seller ? (
-              <Avatar
-                avatarPath={item.seller.avatarPath}
-                displayName={item.seller.displayName}
-                size="xs"
+      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+        {imageUrl ? (
+          <ViewTransition
+            name={`listing-image-${item.id}`}
+            share="morph"
+            default="none"
+          >
+            <div className="absolute inset-0">
+              <Image
+                src={imageUrl}
+                alt={item.title}
+                fill
+                sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
+                className={cn('object-cover', unavailableLabel && 'grayscale-[35%]')}
+                loading="lazy"
               />
-            ) : null
-          }
-        />
+            </div>
+          </ViewTransition>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <ImageOff className="size-8" aria-hidden="true" />
+            <span className="sr-only">No image available</span>
+          </div>
+        )}
+        {unavailableLabel ? (
+          <span className="absolute inset-0 z-[1] flex items-center justify-center bg-obsidian/45">
+            <span className="text-meta font-semibold tracking-wide text-parchment">
+              {unavailableLabel === 'Sold' ? 'SOLD' : 'RESERVED'}
+            </span>
+          </span>
+        ) : null}
+        {isShopfront ? (
+          <span className="absolute left-1 top-1 z-[1] inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-parchment">
+            <Library className="size-3" aria-hidden />
+            Binder
+          </span>
+        ) : null}
+        {showWatch ? (
+          <WatchButton
+            itemId={item.id}
+            initialWatching={initialWatching}
+            variant="icon"
+            className="pointer-events-auto absolute right-1 top-1 z-10 size-10 rounded-full bg-card/90 text-foreground shadow-sm hover:bg-card hover:text-foreground md:size-10 [&_svg]:size-4"
+          />
+        ) : null}
+      </div>
+      <div className="pointer-events-none relative flex min-w-0 flex-col px-1.5 pb-2 pt-1.5">
+        <h3 className="truncate text-body font-medium leading-snug text-foreground">
+          {item.title}
+        </h3>
+        <p className="mt-px truncate text-lead font-bold leading-tight text-gold">
+          {isShopfront
+            ? `From ${formatAud(item.fmv_cents)}`
+            : formatAud(item.fmv_cents)}
+        </p>
+        {item.seller ? (
+          <Link
+            href={`/sellers/${item.seller.id}`}
+            className="pointer-events-auto relative z-10 mt-0.5 flex min-w-0 items-center gap-1"
+          >
+            <Avatar
+              avatarPath={item.seller.avatarPath}
+              displayName={item.seller.displayName}
+              size="xs"
+              className="size-4 border-0 leading-none"
+            />
+            <span className="truncate text-meta text-muted-foreground">
+              {item.seller.displayName ?? 'Seller'}
+            </span>
+            <IdentityBadge
+              verified={item.seller.isVerified}
+              firstName={item.seller.identityFirstName}
+              size={11}
+              iconOnly
+            />
+          </Link>
+        ) : null}
+        {item.location_label ? (
+          <p className="mt-px truncate text-meta text-muted-foreground">
+            {item.location_label}
+          </p>
+        ) : null}
       </div>
     </Card>
   );
@@ -121,12 +180,23 @@ export function ItemCard({ item, initialWatching }: ItemCardProps) {
   );
 }
 
-function ItemCardHitArea({ item, label }: { item: CatalogItem; label: string }) {
+function ItemCardHitArea({
+  item,
+  label,
+  className,
+}: {
+  item: CatalogItem;
+  label: string;
+  className?: string;
+}) {
   return (
     <Link
       href={`/listings/${item.id}`}
       transitionTypes={['nav-forward']}
-      className="absolute inset-0 z-0 rounded-xl border border-transparent focus:outline-none focus-visible:border-gold/40"
+      className={cn(
+        'absolute inset-0 z-0 rounded-xl border border-transparent focus:outline-none focus-visible:border-gold/40',
+        className,
+      )}
     >
       <span className="sr-only">{label}</span>
     </Link>
@@ -211,7 +281,7 @@ function ItemCardStage({
 
 function ItemCardTitle({ item }: { item: CatalogItem }) {
   return (
-    <h3 className="line-clamp-2 min-h-[2lh] text-body font-normal leading-snug text-foreground">
+    <h3 className="line-clamp-2 text-body font-normal leading-snug text-foreground">
       {item.description}
     </h3>
   );
@@ -229,7 +299,7 @@ function ItemCardPriceRow({
 
   return (
     <div className="mt-tight flex min-w-0 items-center gap-snug">
-      <p className="min-w-0 truncate text-subhead font-semibold leading-tight text-foreground">
+      <p className="min-w-0 truncate text-lead font-semibold leading-tight text-foreground md:text-subhead">
         {isShopfront ? (
           <span className="mr-1 text-meta font-normal text-muted-foreground">
             from
@@ -268,7 +338,7 @@ function ItemCardSellerRow({
   if (!seller) return null;
 
   return (
-    <div className="mt-auto flex min-w-0 items-center justify-between gap-snug pt-snug">
+    <div className="mt-auto flex min-w-0 items-center justify-between gap-snug pt-tight">
       <Link
         href={`/sellers/${seller.id}`}
         className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-tight"
@@ -277,15 +347,6 @@ function ItemCardSellerRow({
         <span className="truncate text-meta text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
           {seller.displayName ?? 'Unknown seller'}
         </span>
-      </Link>
-
-      <span className="flex shrink-0 items-center gap-tight">
-        {seller.rating != null ? (
-          <span className="flex items-center gap-tight text-meta tabular-nums text-muted-foreground">
-            <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
-            {seller.rating.toFixed(1)}
-          </span>
-        ) : null}
         <IdentityBadge
           verified={seller.isVerified}
           firstName={seller.identityFirstName}
@@ -299,7 +360,14 @@ function ItemCardSellerRow({
             aria-label="Unverified seller"
           />
         ) : null}
-      </span>
+      </Link>
+
+      {seller.rating != null ? (
+        <span className="flex shrink-0 items-center gap-tight text-meta tabular-nums text-muted-foreground">
+          <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
+          {seller.rating.toFixed(1)}
+        </span>
+      ) : null}
     </div>
   );
 }

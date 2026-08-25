@@ -46,41 +46,43 @@ export function EmptyState({
         // Sits where the first row of content would: a section empty state
         // belongs under its heading, not floating in the middle of the viewport.
         // Full-page interstitials are centred by their shell instead.
-        'flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-6 text-center',
-        compact ? 'py-10' : 'py-14 sm:py-16',
+        'flex w-full flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-group text-center',
+        compact ? 'py-4 md:py-10' : 'py-5 md:py-14',
         className,
       )}
     >
       {icon ? (
         <div
           aria-hidden="true"
-          className="flex size-12 items-center justify-center rounded-full border bg-muted text-muted-foreground"
+          className="mb-1 hidden size-8 items-center justify-center rounded-full border bg-muted text-muted-foreground md:mb-0 md:flex md:size-12"
         >
           {icon}
         </div>
       ) : null}
-      <Title className={cn('text-lead font-semibold', icon && 'mt-4')}>
+      <Title className={cn('text-body font-semibold md:text-lead', icon && 'md:mt-snug')}>
         {title}
       </Title>
-      <p className="mt-1.5 max-w-sm text-pretty text-body text-muted-foreground">
+      <p className="mt-tight max-w-sm text-pretty text-body text-muted-foreground">
         {description}
       </p>
       {action ? (
         'href' in action && action.href ? (
           <Button
             asChild
+            size="sm"
             variant={action.variant ?? 'default'}
-            className="mt-5 w-full sm:w-auto"
+            className="mt-snug w-auto md:mt-group"
           >
             <Link href={action.href}>{action.label}</Link>
           </Button>
         ) : (
           <Button
             type="button"
+            size="sm"
             variant={action.variant ?? 'default'}
             disabled={action.disabled}
             onClick={'onClick' in action ? action.onClick : undefined}
-            className="mt-5 w-full sm:w-auto"
+            className="mt-snug w-auto md:mt-group"
           >
             {action.label}
           </Button>

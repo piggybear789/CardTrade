@@ -1,11 +1,12 @@
 // app/sellers/[id]/loading.tsx
 //
 // Public seller profile lives in MarketplaceShell: back link, avatar header,
-// then a catalog of auction cards and a reviews block.
+// then the same compact catalog tiles as browse.
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
-import { AuctionCardSkeleton } from '@/components/layout/WorkspaceSkeletons';
+import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
+import { CatalogTileSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 export default function SellerProfileLoading() {
   return (
@@ -17,7 +18,7 @@ export default function SellerProfileLoading() {
 
         <header className="mb-8 space-y-2 border-b pb-6">
           <div className="flex min-w-0 items-start gap-4">
-            <Skeleton className="size-16 shrink-0 rounded-full" />
+            <Skeleton className="size-14 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Skeleton className="h-8 w-44" />
@@ -31,9 +32,9 @@ export default function SellerProfileLoading() {
 
         <section className="mb-10">
           <Skeleton className="mb-4 h-5 w-40" />
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+          <div className={CATALOG_TILE_GRID}>
             {Array.from({ length: 6 }, (_, index) => (
-              <AuctionCardSkeleton key={index} />
+              <CatalogTileSkeleton key={index} />
             ))}
           </div>
         </section>

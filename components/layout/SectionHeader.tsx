@@ -26,13 +26,13 @@ export function SectionHeader({
   mobileAction?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-snug flex flex-col gap-tight border-b border-border pb-snug md:mb-5 md:gap-3 md:pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h2 className="text-balance text-head font-semibold tracking-[-0.025em]">
+        <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
           {title}
         </h2>
         {description ? (
-          <p className="mt-1.5 text-pretty text-body text-muted-foreground">
+          <p className="mt-tight hidden text-pretty text-body text-muted-foreground md:mt-1.5 md:block">
             {description}
           </p>
         ) : null}

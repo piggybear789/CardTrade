@@ -155,13 +155,13 @@ export function ReportDialog({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-9 text-muted-foreground hover:text-foreground"
+            className="size-11 text-muted-foreground hover:text-foreground md:size-9"
             aria-label={triggerLabel}
           >
             <Flag aria-hidden />
           </Button>
         ) : (
-          <Button type="button" variant={triggerVariant} size="sm">
+          <Button type="button" variant={triggerVariant} size="sm" className="min-h-11 w-full sm:w-auto md:min-h-8">
             <Flag aria-hidden />
             {triggerLabel}
           </Button>

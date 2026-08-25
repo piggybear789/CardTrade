@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 // Suspense boundary because it reads search params via next/navigation.
 export default function SignUpPage() {
   return (
-    <main className="relative flex min-h-[calc(100dvh-4rem)] items-center justify-center overflow-x-clip px-4 py-8 sm:px-6">
+    <main className="relative flex min-h-[calc(100dvh-4rem-env(safe-area-inset-top))] items-center justify-center overflow-x-clip px-4 py-8 sm:px-6">
       <div
         className="pointer-events-none absolute inset-0 bg-obsidian"
         aria-hidden="true"

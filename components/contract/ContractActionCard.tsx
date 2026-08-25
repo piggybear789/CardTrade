@@ -97,7 +97,7 @@ export function ContractOverflowMenu({ children }: { children?: ReactNode }) {
           type="button"
           variant="ghost"
           size="icon"
-          className="size-7 text-muted-foreground"
+          className="size-11 text-muted-foreground md:size-7"
           aria-label="More actions"
         >
           <MoreVertical className="size-4" aria-hidden />
@@ -136,7 +136,7 @@ export function ContractActionCard({
     return (
       <div
         aria-live="polite"
-        className={cn('flex items-center justify-end gap-1.5', className)}
+        className={cn('flex w-full items-center justify-end gap-1.5', className)}
       >
         <h3 className="sr-only">
           {title ?? step?.label ?? 'This contract is finished'}
@@ -144,7 +144,7 @@ export function ContractActionCard({
         {children ? (
           <div
             className={cn(
-              'flex flex-wrap items-center justify-end gap-1',
+              'flex min-w-0 flex-1 flex-wrap items-center justify-stretch gap-1 md:flex-none md:justify-end',
               '[&>*]:w-auto [&>a]:min-h-11 [&>button]:min-h-11 [&>button]:px-3',
               '[&_a]:min-h-11 [&_a]:px-3 [&_a]:text-body [&_button]:min-h-11 [&_button]:w-auto [&_button]:px-3 [&_button]:text-body',
               'lg:[&>a]:h-7 lg:[&>a]:min-h-7 lg:[&>button]:h-7 lg:[&>button]:min-h-7 lg:[&>button]:px-2.5',

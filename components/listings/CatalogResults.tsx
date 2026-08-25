@@ -12,7 +12,6 @@ import {
 import {
   CatalogActiveFilters,
   CatalogFilterSearch,
-  CatalogSortControl,
 } from '@/components/listings/CatalogControls';
 import { CatalogInfiniteGrid } from '@/components/listings/CatalogInfiniteGrid';
 import { GenrePills } from '@/components/listings/GenrePills';
@@ -63,26 +62,20 @@ export function CatalogResults() {
   return (
     <div
       role="region"
-      aria-labelledby="catalog-heading"
+      aria-label={resultTitle}
       className="min-w-0"
     >
-      <header className="mb-3 border-b border-border pb-3 sm:mb-4 sm:pb-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <header className="mb-2 pb-1 sm:mb-4 sm:border-b sm:border-border sm:pb-4">
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <div className="hidden flex-col gap-1.5 sm:flex sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="min-w-0">
-              <h2
-                id="catalog-heading"
-                className="text-balance text-head font-semibold tracking-[-0.025em]"
-              >
+              <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
                 {resultTitle}
               </h2>
               <CatalogResultCount note={closerNote} />
             </div>
-            <div className="grid min-w-0 grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex sm:w-auto sm:shrink-0 sm:items-center">
+            <div className="hidden min-w-0 md:flex md:w-auto md:shrink-0 md:items-center">
               {result.total > 0 ? <CatalogFilterSearch /> : null}
-              <div className="min-w-0 md:hidden">
-                <CatalogSortControl />
-              </div>
             </div>
           </div>
           <GenrePills

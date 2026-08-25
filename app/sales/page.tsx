@@ -56,18 +56,19 @@ export default async function SalesPage({
     scope === 'past' || !invitesResult.ok ? [] : invitesResult.data;
   const visibleSales = scope === 'past' ? past : active;
   const hasInvites = pendingInvites.length > 0;
+  const hasRows = hasInvites || visibleSales.length > 0;
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
-  const primaryAction = (
+  const createListing = () => (
     <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
   );
 
   return (
-    <MarketplaceShell title="Sales" primaryAction={primaryAction}>
+    <MarketplaceShell title="Sales" primaryAction={createListing()}>
       <SectionHeader
         title="Sales"
         description="Items you are selling. Open a contract to set terms, ship, and get paid."
-        mobileAction={primaryAction}
+        mobileAction={hasRows ? createListing() : undefined}
       />
       <SectionFilter
         scope={scope}

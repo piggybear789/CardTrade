@@ -34,21 +34,22 @@ export default async function SavedPage() {
   }
 
   const result = await listMyWatchlist();
+  const hasItems = result.ok && result.items.length > 0;
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   // No plus: browsing the marketplace creates nothing.
-  const primaryAction = (
+  const browseMarketplace = () => (
     <RailPrimaryAction href="/listings" glyph={null}>
       Browse Marketplace
     </RailPrimaryAction>
   );
 
   return (
-    <MarketplaceShell title="Saved" primaryAction={primaryAction}>
+    <MarketplaceShell title="Saved" primaryAction={browseMarketplace()}>
       <SectionHeader
         title="Saved"
         description="Listings you are watching. Saving does not reserve an item."
-        mobileAction={primaryAction}
+        mobileAction={hasItems ? browseMarketplace() : undefined}
       />
       {result.ok ? (
         <WatchlistSection items={result.items} />

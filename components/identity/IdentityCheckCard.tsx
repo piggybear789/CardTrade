@@ -140,7 +140,7 @@ export function IdentityCheckCard({
     // return and onboarding fallback now go to `/profile?tab=verification`.
     <Card id="identity" className="h-full scroll-mt-24">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-cozy">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-snug text-lead">
               <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />

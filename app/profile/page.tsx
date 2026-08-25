@@ -139,50 +139,46 @@ export default async function ProfilePage({
           viewport, a short label sits at one edge and its control at the other.
           The heading and tabs share the column so all three left edges line up. */}
       <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-6">
-          <h2 className="text-head font-semibold tracking-[-0.02em]">Settings</h2>
+        <header className="mb-snug md:mb-group">
+          <h2 className="text-subhead font-semibold tracking-[-0.02em] md:text-head">Settings</h2>
         </header>
 
         <AccountTabs activeTab={activeTab} />
 
         {activeTab === 'profile' ? (
-          <div className="space-y-8">
+          <div className="space-y-5 md:space-y-8">
             {/* Picture + identity fields. The avatar saves on pick, so there is no
                 form-submit step to coordinate here.
                 `items-start` + a matching top offset on the avatar: the avatar and the
                 first eyebrow label must share a top edge, which centring broke — a
                 64px circle beside two stacked fields centres itself against their
                 combined height and floats below the label it belongs to. */}
-            <div className="rounded-xl border bg-card p-5">
-              <div className="flex flex-wrap items-start gap-5">
-                <AvatarUploadField
-                  avatarPath={profile.avatar_path}
-                  displayName={profile.display_name}
-                  hideHint
-                  compact
-                />
-                <div className="min-w-0 flex-1 basis-40 space-y-3">
-                  <div>
-                    <SectionLabel>Display name</SectionLabel>
-                    <p className="mt-1 truncate text-lead font-semibold">
-                      {profile.display_name}
-                    </p>
-                  </div>
-                  <div>
-                    <SectionLabel>Email</SectionLabel>
-                    <p className="mt-1 truncate text-body text-muted-foreground">
-                      {profile.contact_email}
-                    </p>
+            <div className="rounded-xl border bg-card p-group">
+              <div className="flex flex-col gap-group">
+                <div className="flex items-start gap-group">
+                  <AvatarUploadField
+                    avatarPath={profile.avatar_path}
+                    displayName={profile.display_name}
+                    hideHint
+                    compact
+                  />
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div>
+                      <SectionLabel>Display name</SectionLabel>
+                      <p className="mt-1 truncate text-lead font-semibold">
+                        {profile.display_name}
+                      </p>
+                    </div>
+                    <div>
+                      <SectionLabel>Email</SectionLabel>
+                      <p className="mt-1 truncate text-body text-muted-foreground">
+                        {profile.contact_email}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* STATUS AND ACTION IN THE CORNER, not on the name line. Three items
-                    inline after the display name made that one row carry the value, a
-                    status and a control, so none of them read as primary — and a long
-                    name pushed the control off the end. A fixed corner also means the
-                    Edit affordance sits in the same place regardless of name length or
-                    whether the verified pill is present at all. */}
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {identityVerified ? (
                     <StatusPill tone="verified" icon={ShieldCheck}>
                       Verified
@@ -309,7 +305,7 @@ export default async function ProfilePage({
         ) : null}
 
         {activeTab === 'payouts' ? (
-          <div className="space-y-8">
+          <div className="space-y-5 md:space-y-8">
             {/* Real figures from the payout read model — the three buckets are a
                 strict partition, so these never double-count a sale. */}
             {payoutDashboard.ok ? (
@@ -348,21 +344,17 @@ export default async function ProfilePage({
               </div>
             ) : null}
 
-            <SettingsSection
-              label="History"
-            >
-              {payoutDashboard.ok ? (
-                <PayoutsDashboard
-                  model={payoutDashboard.data.model}
-                  destination={payoutDashboard.data.destination}
-                  scope={scope}
-                />
-              ) : (
-                <SettingsPlaceholder>
-                  Payout information is unavailable right now. Reload to try again.
-                </SettingsPlaceholder>
-              )}
-            </SettingsSection>
+            {payoutDashboard.ok ? (
+              <PayoutsDashboard
+                model={payoutDashboard.data.model}
+                destination={payoutDashboard.data.destination}
+                scope={scope}
+              />
+            ) : (
+              <SettingsPlaceholder>
+                Payout information is unavailable right now. Reload to try again.
+              </SettingsPlaceholder>
+            )}
           </div>
         ) : null}
       </div>

@@ -244,20 +244,19 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
   }
 
   return (
-    <main className="min-h-dvh bg-muted/30" aria-label="Member onboarding">
+    <main
+      className="min-h-[calc(100dvh-4rem-env(safe-area-inset-top))] bg-muted/30"
+      aria-label="Member onboarding"
+    >
       <Dialog open onOpenChange={() => undefined}>
         <DialogContent
-          mobile="center"
           showClose={false}
-          // CENTRED, which is a deliberate choice with a known cost. Centring means the
-          // top edge sits at (viewport - height) / 2, so any height change moves the
-          // panel — a step swap, a validation message, a status read resolving. An
-          // earlier revision top-anchored it to hold the panel still and that read as
-          // wrong, because a lone modal on an otherwise empty page belongs in the middle
-          // of it. The fix for the movement is therefore to stop the HEIGHT jumping
-          // (see the skeleton in `UnifiedOnboardingSurface`, shaped like what replaces
-          // it), not to move the panel off centre.
-          className="w-[calc(100%-2rem)] max-w-2xl p-5 sm:p-6"
+          // Phone: the default bottom sheet. A centred card on a 320–390px
+          // viewport left a thin gutter and fought the sheet width. From `md`
+          // the panel is the same centred card as before (`max-w-2xl`). Height
+          // still must not jump between steps — see the skeleton in
+          // `UnifiedOnboardingSurface`.
+          className="md:w-[calc(100%-2rem)] md:max-w-2xl md:p-6"
         >
           {/* Progress indicator: shows which step you are on. Hidden on the welcome
               step because it has no back button and counting "1 of 5" before the

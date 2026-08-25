@@ -6,18 +6,18 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
-import { CatalogTileSkeleton } from '@/components/layout/WorkspaceSkeletons';
+import { CatalogGridSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 function FilterRailSkeleton() {
   return (
     <div className="min-w-0">
-      <div className="flex flex-col gap-2 py-3 lg:hidden">
-        <div className="grid grid-cols-2 gap-2">
-          <Skeleton className="h-10 w-full rounded-md" />
-          <Skeleton className="h-10 w-full rounded-md" />
+      <div className="flex flex-col gap-2 py-3 md:hidden">
+        <div className="flex gap-2">
+          <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
+          <Skeleton className="h-10 w-24 shrink-0 rounded-md" />
         </div>
       </div>
-      <div className="hidden flex-col gap-3 border-t border-border pt-5 lg:flex">
+      <div className="hidden flex-col gap-3 border-t border-border pt-5 md:flex">
         <Skeleton className="h-9 w-full rounded-md" />
         <Skeleton className="h-24 w-full rounded-md" />
         {/* Price: label + readout row, track, then the bound captions. */}
@@ -55,11 +55,7 @@ export default function ListingsLoading() {
           </div>
         </header>
 
-        <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
-          {Array.from({ length: 12 }, (_, index) => (
-            <CatalogTileSkeleton key={index} />
-          ))}
-        </div>
+        <CatalogGridSkeleton count={12} />
       </div>
     </MarketplaceShellSkeleton>
   );

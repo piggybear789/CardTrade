@@ -187,6 +187,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                 <>
                   <Button
                     size="sm"
+                    className="min-h-11 md:min-h-8"
                     onClick={() => setConfirming('accept')}
                     disabled={isPending}
                     aria-busy={isPending}
@@ -216,6 +217,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                   />
                   <Button
                     size="sm"
+                    className="min-h-11 md:min-h-8"
                     variant="outline"
                     onClick={() => setConfirming('decline')}
                     disabled={isPending}
@@ -241,6 +243,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                   />
                   <Button
                     size="sm"
+                    className="min-h-11 md:min-h-8"
                     variant="secondary"
                     onClick={() => setCounterOpen(true)}
                     disabled={isPending}
@@ -253,6 +256,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                 <>
                   <Button
                     size="sm"
+                    className="min-h-11 md:min-h-8"
                     variant="outline"
                     onClick={() => setConfirming('withdraw')}
                     disabled={isPending}

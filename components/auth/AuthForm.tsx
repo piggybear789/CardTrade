@@ -263,6 +263,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               placeholder="you@example.com"
               required
               disabled={isPending}
+              className="min-h-11"
               aria-invalid={fieldErrors.email ? true : undefined}
               aria-describedby={fieldErrors.email ? emailErrorId : undefined}
             />
@@ -277,12 +278,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
             {/* The recovery route sits beside the field it rescues, which is where
                 someone looks when the password they typed did not work. Sign-up has no
                 password to recover yet, so it is offered on sign-in only. */}
-            <div className="flex items-baseline justify-between gap-cozy">
+            <div className="flex items-center justify-between gap-cozy">
               <Label htmlFor={passwordId}>Password</Label>
               {mode === 'sign-in' ? (
                 <Link
                   href="/forgot-password"
-                  className="text-meta text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  className="inline-flex min-h-11 items-center text-meta text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   Forgot password?
                 </Link>
@@ -296,6 +297,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               placeholder="At least 8 characters"
               required
               disabled={isPending}
+              className="min-h-11"
               aria-invalid={fieldErrors.password ? true : undefined}
               aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
             />
@@ -304,27 +306,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 {fieldErrors.password}
               </p>
             ) : null}
-            {mode === "sign-in" ? (
-              <p className="text-body">
-                <Link
-                  href={withRedirect("/forgot-password", destination)}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </p>
-            ) : null}
           </div>
 
           {mode === "sign-up" ? (
-            <label className="flex cursor-pointer items-center justify-center gap-2.5 text-center text-body text-muted-foreground">
+            <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2.5 text-center text-body text-muted-foreground">
               <input
                 type="checkbox"
                 name="acceptedTerms"
                 checked={acceptedTerms}
                 onChange={(event) => setAcceptedTerms(event.target.checked)}
                 disabled={isPending}
-                className="size-4 shrink-0"
+                className="size-5 shrink-0"
                 required
               />
               <span>
@@ -349,14 +341,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </CardContent>
 
         <CardFooter className="flex flex-col items-center gap-4">
-          <Button type="submit" className="w-full" disabled={isPending || !isReady} aria-busy={isPending}>
+          <Button type="submit" className="min-h-11 w-full" disabled={isPending || !isReady} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>
           <p className="text-center text-body text-muted-foreground">
             {copy.switchPrompt}{" "}
             <Link
               href={withRedirect(copy.switchHref, destination)}
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
             >
               {copy.switchCta}
             </Link>

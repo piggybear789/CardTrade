@@ -39,6 +39,7 @@ export async function MarketplaceShell({
   filters,
   center = false,
   flush = false,
+  hideMobileNav = false,
   children,
 }: {
   /**
@@ -77,13 +78,18 @@ export async function MarketplaceShell({
    * the document body is incorrect.
    */
   flush?: boolean;
+  /**
+   * Hide the signed-in mobile hub. Listing detail uses this so the Flutter
+   * buyer bar can sit on the thumb reach instead of stacking under five tabs.
+   */
+  hideMobileNav?: boolean;
   children: ReactNode;
 }) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const showMobileNav = Boolean(user);
+  const showMobileNav = Boolean(user) && !hideMobileNav;
 
   // Staff capability for the rail's Staff group. Read through the cookie-bound client,
   // so RLS scopes it to the caller's own row and a member cannot ask about anyone else.
@@ -169,7 +175,7 @@ export async function MarketplaceShell({
             // Below `lg` the content column is the top of the page now that the
             // shell prints no header, so it carries the inset the old mobile
             // title block used to provide.
-            'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-5 sm:px-6 md:w-auto md:px-7 md:py-7 xl:px-8',
+            'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-3 sm:px-6 md:w-auto md:px-7 md:py-7 xl:px-8',
             // `min-h-0` IS THE WHOLE FIX for a full-viewport page, and its absence here
             // was the single break in an otherwise complete shrink chain. `body`,
             // `#main-content`, the PageShell `<main>`, the row, the inner wrapper and the

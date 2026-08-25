@@ -9,6 +9,11 @@ const Toaster = ({ theme = "light", ...props }: ToasterProps) => {
     <Sonner
       theme={theme}
       className="toaster group"
+      // Signed-in phones pin a hub bar at the bottom (`h-14` + safe area).
+      // Default sonner inset sits under that bar.
+      mobileOffset={{
+        bottom: 'calc(3.5rem + env(safe-area-inset-bottom, 0px) + 0.75rem)',
+      }}
       toastOptions={{
         classNames: {
           toast:

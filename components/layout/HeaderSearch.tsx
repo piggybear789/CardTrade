@@ -14,6 +14,7 @@ import {
   useTransition,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -68,7 +69,15 @@ function retainSlashListener() {
   };
 }
 
-function HeaderSearchFallback({ className, ariaLabel }: { className?: string; ariaLabel: string }) {
+function HeaderSearchFallback({
+  className,
+  ariaLabel,
+  appearance = 'default',
+}: {
+  className?: string;
+  ariaLabel: string;
+  appearance?: HeaderSearchAppearance;
+}) {
   return (
     <div role="search" className={cn('relative w-full', className)}>
       <Search
@@ -82,34 +91,78 @@ function HeaderSearchFallback({ className, ariaLabel }: { className?: string; ar
         aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
-        className="h-9 w-full pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+        className={cn(
+          'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          appearance === 'inset' && 'rounded-lg border-0 bg-muted',
+        )}
         disabled
       />
     </div>
   );
 }
 
+export type HeaderSearchAppearance = 'default' | 'inset';
+
 export interface HeaderSearchProps {
   className?: string;
   /**
    * Accessible label distinguishing multiple search fields on one page.
-   * Defaults to "Search listings". The header bar instance and the mobile menu
+   * Defaults to "Search listings". The header bar instance and the mobile sheet
    * instance should carry different labels so assistive tech does not announce
    * two identical controls.
    */
   ariaLabel?: string;
+  /** Focus the field on mount — used by the mobile search sheet. */
+  autoFocus?: boolean;
+  /** Fires after a query or listing pick navigates away. */
+  onNavigate?: () => void;
+  /**
+   * Control parked inside the field, after the clear button — the catalog
+   * filter glyph lives here so search and refine are one bar.
+   */
+  trailing?: ReactNode;
+  /** `inset` fills the muted chip the Flutter catalog uses. */
+  appearance?: HeaderSearchAppearance;
 }
 
 /** Keeps useSearchParams behind Suspense so non-dynamic pages can prerender. */
-export function HeaderSearch({ className, ariaLabel = 'Search listings' }: HeaderSearchProps) {
+export function HeaderSearch({
+  className,
+  ariaLabel = 'Search listings',
+  autoFocus = false,
+  onNavigate,
+  trailing,
+  appearance = 'default',
+}: HeaderSearchProps) {
   return (
-    <Suspense fallback={<HeaderSearchFallback className={className} ariaLabel={ariaLabel} />}>
-      <HeaderSearchInner className={className} ariaLabel={ariaLabel} />
+    <Suspense fallback={<HeaderSearchFallback className={className} ariaLabel={ariaLabel} appearance={appearance} />}>
+      <HeaderSearchInner
+        className={className}
+        ariaLabel={ariaLabel}
+        autoFocus={autoFocus}
+        onNavigate={onNavigate}
+        trailing={trailing}
+        appearance={appearance}
+      />
     </Suspense>
   );
 }
 
-function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaLabel: string }) {
+function HeaderSearchInner({
+  className,
+  ariaLabel,
+  autoFocus,
+  onNavigate,
+  trailing,
+  appearance,
+}: {
+  className?: string;
+  ariaLabel: string;
+  autoFocus: boolean;
+  onNavigate?: () => void;
+  trailing?: ReactNode;
+  appearance: HeaderSearchAppearance;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -130,6 +183,11 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
   const [highlight, setHighlight] = useState(0);
 
   useEffect(() => retainSlashListener(), []);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    inputRef.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     return () => {
@@ -189,8 +247,10 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
     const trimmed = query.trim();
     if (onCatalog && requestCatalogBrowse({ q: trimmed || null })) {
+      onNavigate?.();
       return;
     }
+    onNavigate?.();
     startTransition(() => router.push(listingsHref(query)));
   }
 
@@ -213,6 +273,7 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
 
   function openListing(id: string) {
     setOpen(false);
+    onNavigate?.();
     startTransition(() => router.push(`/listings/${id}`));
   }
 
@@ -304,8 +365,9 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
         spellCheck={false}
         enterKeyHint="search"
         className={cn(
-          'h-9 w-full pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
-          query ? 'pr-9' : 'pr-3',
+          'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          appearance === 'inset' && 'rounded-lg border-0 bg-muted',
+          trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-3',
         )}
       />
       {query ? (
@@ -314,10 +376,18 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
           onMouseDown={(event) => event.preventDefault()}
           onClick={clearQuery}
           aria-label="Clear search"
-          className="absolute right-1 top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-gold/40"
+          className={cn(
+            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-gold/40',
+            trailing ? 'right-9' : 'right-1',
+          )}
         >
           <X className="size-3.5" aria-hidden />
         </button>
+      ) : null}
+      {trailing ? (
+        <div className="absolute right-1 top-1/2 z-[1] -translate-y-1/2">
+          {trailing}
+        </div>
       ) : null}
 
       {showList ? (

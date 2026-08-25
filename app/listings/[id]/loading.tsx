@@ -1,7 +1,6 @@
 // app/listings/[id]/loading.tsx
 //
-// Mirrors the item detail split: breadcrumb, ImageGallery frame, and the
-// details rail (title, price, seller, action pair, description).
+// Mirrors the Flutter-style listing: full-bleed cover, seller row, gold price.
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
@@ -16,45 +15,28 @@ export default function ItemDetailLoading() {
         aria-label="Loading listing"
       >
         <span className="sr-only">Loading…</span>
-        <div className="mb-4 sm:mb-6">
-          <Skeleton className="h-9 w-40 rounded-md" />
-        </div>
 
-        <div className="flex min-h-0 flex-col items-stretch gap-8 lg:flex-1 lg:flex-row">
-          <div className="min-w-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
-            <Skeleton className="h-full min-h-[22rem] max-h-[calc(100dvh-10rem-env(safe-area-inset-top))] w-full rounded-lg lg:max-h-[calc(100%-3.5rem)]" />
+        <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
+          <div className="-mx-4 -mt-3 min-w-0 sm:-mx-6 lg:mx-0 lg:mt-0 lg:flex-1">
+            <Skeleton className="h-[min(350px,70dvh)] w-full rounded-none lg:h-full lg:min-h-[22rem] lg:rounded-lg" />
           </div>
 
-          <div className="flex min-w-0 flex-col lg:flex-1">
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <Skeleton className="h-8 w-3/5" />
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                </div>
-                <Skeleton className="h-8 w-32" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-6 w-24 rounded-full" />
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                </div>
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <Skeleton className="size-10 shrink-0 rounded-full" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Skeleton className="h-12 w-full rounded-md" />
-                <Skeleton className="h-12 w-full rounded-md" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-              </div>
+          <div className="flex min-w-0 flex-col pt-3 lg:flex-1 lg:pt-0">
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-7 shrink-0 rounded-full" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="ml-auto h-3 w-20" />
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <Skeleton className="h-8 w-28" />
+              <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton className="mt-2 h-3 w-2/3" />
+            <Skeleton className="mt-4 h-6 w-4/5" />
+            <div className="mt-2 space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
             </div>
           </div>
         </div>

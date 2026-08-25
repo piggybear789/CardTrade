@@ -51,7 +51,7 @@ export function ChoiceTile({
     <label
       htmlFor={id}
       className={cn(
-        'flex cursor-pointer items-center gap-2 rounded-md border border-border p-cozy text-body transition-colors',
+        'flex cursor-pointer items-center gap-2 rounded-md border border-border p-snug text-body transition-colors md:p-cozy',
         // The whole tile takes the focus edge: at this size the native control's
         // own border is easy to miss.
         'has-[:focus-visible]:border-gold/40',

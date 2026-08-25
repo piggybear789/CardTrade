@@ -45,7 +45,7 @@ function HubSheetLinks({
               onClick={onNavigate}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-h-12 touch-manipulation items-center gap-3 rounded-lg px-3 py-3 text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40',
+                'flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40',
                 active
                   ? 'bg-gold/10 font-semibold text-foreground'
                   : 'font-medium text-foreground/85 hover:bg-muted/70',
@@ -155,7 +155,7 @@ export function MobileBottomNav() {
             side="bottom"
             className="max-h-[min(28rem,75dvh)] gap-0 rounded-t-xl border-border bg-card p-0"
           >
-            <SheetHeader className="border-b border-border px-5 py-4 text-left">
+            <SheetHeader className="border-b border-border px-5 py-3 text-left">
               <SheetTitle>{hub.title}</SheetTitle>
               <SheetDescription>{hub.description}</SheetDescription>
             </SheetHeader>

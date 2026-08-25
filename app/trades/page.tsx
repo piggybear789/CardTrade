@@ -70,7 +70,7 @@ export default async function TradesPage({
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   // Declared once so the two can never drift apart.
-  const primaryAction = <StartDealRailAction />;
+  const startDeal = () => <StartDealRailAction />;
 
   const pendingInvites =
     scope === 'past' || !invitesResult.ok ? [] : invitesResult.data;
@@ -78,11 +78,11 @@ export default async function TradesPage({
   const hasTrades = visibleTrades.length > 0;
 
   return (
-    <MarketplaceShell title="Trades" primaryAction={primaryAction}>
+    <MarketplaceShell title="Trades" primaryAction={startDeal()}>
       <SectionHeader
         title="Trades"
         description="Swap goods, with or without cash on top. Open an offer from a listing, or send a private deal link."
-        mobileAction={primaryAction}
+        mobileAction={hasInvites || hasTrades ? startDeal() : undefined}
       />
 
       <SectionFilter

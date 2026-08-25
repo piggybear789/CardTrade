@@ -14,10 +14,11 @@
 // Children and conversation mount ONCE (F36). The Breakpoint utility selects
 // the layout so DOM ids stay unique and realtime subscriptions aren't doubled.
 
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { MessageCircle, ScrollText } from 'lucide-react';
 
 import { MobileOnly, DesktopOnly } from '@/components/layout/Breakpoint';
+import { useContractFocus } from '@/components/contract/ContractFocus';
 import { cn } from '@/lib/utils';
 
 export interface ContractLiveRowProps {
@@ -28,15 +29,13 @@ export interface ContractLiveRowProps {
   className?: string;
 }
 
-type MobilePane = 'details' | 'chat';
-
 /** Equal-height details/chat workspace; the chat panel carries the live step. */
 export function ContractLiveRow({
   conversation,
   children,
   className,
 }: ContractLiveRowProps) {
-  const [pane, setPane] = useState<MobilePane>('chat');
+  const { mobilePane: pane, setMobilePane: setPane } = useContractFocus();
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-group', className)}>
@@ -90,7 +89,7 @@ export function ContractLiveRow({
             aria-labelledby="contract-tab-chat"
             hidden={pane !== 'chat'}
             className={cn(
-              'min-h-[min(32rem,70dvh)] min-w-0 flex-col [&>*]:h-full',
+              'min-h-0 min-w-0 flex-1 flex-col [&>*]:h-full',
               pane === 'chat' ? 'flex' : 'hidden',
             )}
           >
@@ -102,7 +101,7 @@ export function ContractLiveRow({
             aria-labelledby="contract-tab-details"
             hidden={pane !== 'details'}
             className={cn(
-              'min-w-0',
+              'min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [&>*]:h-full',
               pane === 'details' ? 'block' : 'hidden',
             )}
           >

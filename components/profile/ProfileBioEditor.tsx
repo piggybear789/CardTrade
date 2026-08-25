@@ -51,10 +51,9 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
         value={bio}
         onChange={(event) => setBio(event.target.value.slice(0, BIO_MAX))}
         placeholder="Tell other collectors what you trade, how you pack, how fast you post…"
-        // Roomy by default. At three rows a 280-character bio scrolled inside its own
-        // field while typing, which hides the start of what you wrote; five fits the
-        // full cap without scrolling at this width.
-        rows={5}
+        // Three rows on the empty phone form so Settings is not a tall blank
+        // well. The field is still `resize-y` if someone writes the full 280.
+        rows={3}
         maxLength={BIO_MAX}
         disabled={isPending}
         aria-describedby="bio-counter"

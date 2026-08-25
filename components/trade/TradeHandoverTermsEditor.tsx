@@ -198,7 +198,7 @@ export function TradeHandoverTermsEditor({
           type="button"
           variant="outline"
           size="sm"
-          className="h-6 gap-tight px-2 text-meta font-medium [&_svg]:size-3"
+          className="min-h-11 gap-tight px-3 text-meta font-medium md:h-6 md:min-h-6 md:px-2 [&_svg]:size-3"
         >
           <Pencil aria-hidden />
           {triggerLabel}

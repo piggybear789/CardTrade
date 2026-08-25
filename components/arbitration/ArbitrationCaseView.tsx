@@ -137,23 +137,15 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
 
   return (
     <div className="space-y-section">
-      {/* Nav + status bar */}
-      <div className="flex flex-wrap items-center justify-between gap-cozy">
+      {/* Back only. The case page header already links to the contract room. */}
+      <div>
         <Link
           href="/admin/arbitration"
-          className="inline-flex items-center gap-tight text-body text-muted-foreground hover:text-foreground"
+          className="inline-flex min-h-11 items-center gap-tight text-body text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden />
           Back to queue
         </Link>
-        {detail.contractHref ? (
-          <Button asChild variant="outline" size="sm">
-            <Link href={detail.contractHref}>
-              <ExternalLink className="size-3.5" aria-hidden />
-              View contract room
-            </Link>
-          </Button>
-        ) : null}
       </div>
 
       {/* Status strip */}
@@ -193,7 +185,9 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         </span>
       </div>
 
-      {/* Two-column layout: context on left, actions on right */}
+      {/* Two-column layout: context on left, actions on right. On phones the
+          workspace (notes + Decision) leads — that is the job, and stacking
+          it after the claim/timeline buried the controls. */}
       <div className="grid gap-section lg:grid-cols-[1fr_380px]">
         {/* LEFT: Context — what happened */}
         <div className="space-y-section">
@@ -413,7 +407,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         </div>
 
         {/* RIGHT: Workspace — notes + decision */}
-        <div className="space-y-section">
+        <div className="order-first space-y-section lg:order-none">
           {/* Staff notes */}
           <Card>
             <CardHeader className="pb-3">

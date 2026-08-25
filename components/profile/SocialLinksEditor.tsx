@@ -217,14 +217,15 @@ export function SocialLinksEditor({
                 issue ? 'bg-destructive/5' : null,
               )}
             >
-              <div className="flex items-center gap-snug px-group">
+              <div className="flex flex-col gap-1 px-group py-snug sm:flex-row sm:items-center sm:gap-snug sm:py-0">
                 <label
                   htmlFor={inputId}
-                  className="flex w-28 shrink-0 cursor-text items-center gap-snug py-cozy text-body text-muted-foreground"
+                  className="flex w-auto shrink-0 cursor-text items-center gap-snug pt-snug text-body text-muted-foreground sm:w-28 sm:py-cozy sm:pt-cozy"
                 >
                   <SocialPlatformIcon slug={platform.slug} className="size-4" />
                   <span className="truncate">{platform.label}</span>
                 </label>
+                <div className="flex min-w-0 flex-1 items-center gap-snug">
                 {showAt ? (
                   <span
                     className="shrink-0 text-body text-muted-foreground"
@@ -261,10 +262,11 @@ export function SocialLinksEditor({
                   onClick={() => remove(platform.slug)}
                   disabled={isPending}
                   aria-label={`Remove ${platform.label}`}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-gold/40 disabled:opacity-65"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-gold/40 disabled:opacity-65 sm:size-8"
                 >
                   <X className="size-4" aria-hidden />
                 </button>
+                </div>
               </div>
               {issue ? (
                 <p

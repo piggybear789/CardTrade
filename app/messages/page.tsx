@@ -135,13 +135,13 @@ export default async function MessagesPage() {
                           taller for no gain. The name keeps priority when space is tight —
                           it truncates last, because two conversations about one item are
                           told apart by who they are with. */}
-                      <p className="flex min-w-0 items-center gap-tight text-lead font-medium">
+                      <p className="flex min-w-0 flex-wrap items-center gap-x-tight gap-y-0.5 text-lead font-medium">
                         <Avatar
                           avatarPath={c.other.avatarPath}
                           displayName={name}
                           size="xs"
                         />
-                        <span className="max-w-[60%] truncate">{name}</span>
+                        <span className="truncate">{name}</span>
                         {c.dispute ? (
                           <span className="truncate text-body font-medium text-destructive">
                             Dispute: {c.dispute.itemTitle}

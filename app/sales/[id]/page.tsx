@@ -183,7 +183,7 @@ export default async function CashSalePage({
     // purchase, not a sale.
     <MarketplaceShell
       title={sale.buyer_id === user.id ? 'Purchase' : 'Sale'}
-      flush
+      flush={sale.status !== 'COMPLETED'}
     >
       <ContractBackLink
         fallbackHref={sale.buyer_id === user.id ? '/purchases' : '/sales'}

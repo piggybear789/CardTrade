@@ -734,20 +734,20 @@ function CashSaleRoom({
             ) : null}
 
             {sale.status === 'ESCROW_HELD' && isDelivery && iAmSeller ? (
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
+              <div className="flex w-full flex-col items-stretch gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                 <Input
                   value={carrier}
                   onChange={(event) => setCarrier(event.target.value)}
                   placeholder="Carrier"
                   aria-label="Carrier"
-                  className="h-8 w-36"
+                  className="min-h-11 w-full sm:h-8 sm:min-h-8 sm:w-36"
                 />
                 <Input
                   value={trackingNumber}
                   onChange={(event) => setTrackingNumber(event.target.value)}
                   placeholder="Tracking"
                   aria-label="Tracking number"
-                  className="h-8 w-36"
+                  className="min-h-11 w-full sm:h-8 sm:min-h-8 sm:w-36"
                 />
                 <Button
                   type="button"
@@ -932,7 +932,7 @@ function CashSaleRoom({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-6 gap-tight px-2 text-meta font-medium [&_svg]:size-3"
+                className="min-h-11 gap-tight px-3 text-meta font-medium md:h-6 md:min-h-6 md:px-2 [&_svg]:size-3"
                 onClick={() => setDetailsFor(sale.fulfillment_method!)}
               >
                 <Pencil aria-hidden />

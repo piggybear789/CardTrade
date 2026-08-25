@@ -14,7 +14,7 @@ const TABS = [
 
 export function AccountTabs({ activeTab }: { activeTab: string }) {
   return (
-    <nav aria-label="Account sections" className="mb-8 border-b">
+    <nav aria-label="Account sections" className="mb-4 border-b md:mb-8">
       <ul className="-mb-px flex gap-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-section [&::-webkit-scrollbar]:hidden">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;

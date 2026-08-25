@@ -31,14 +31,19 @@ import {
 /** How long a focused section keeps its highlight ring, in ms. */
 const HIGHLIGHT_MS = 2000;
 
+export type ContractMobilePane = 'details' | 'chat';
+
 interface ContractFocusState {
   /** The section currently highlighted, or `null`. */
   focusedId: string | null;
+  /** Chat / Details tab below `md`. */
+  mobilePane: ContractMobilePane;
 }
 
 interface ContractFocusActions {
   /** Expand, scroll to, and briefly highlight a section. */
   focusSection: (sectionId: string) => void;
+  setMobilePane: (pane: ContractMobilePane) => void;
 }
 
 interface ContractFocusContextValue {
@@ -47,16 +52,18 @@ interface ContractFocusContextValue {
 }
 
 const ContractFocusContext = createContext<ContractFocusContextValue>({
-  state: { focusedId: null },
-  actions: { focusSection: () => {} },
+  state: { focusedId: null, mobilePane: 'chat' },
+  actions: { focusSection: () => {}, setMobilePane: () => {} },
 });
 
 /** Provides focus coordination to every section in one contract room. */
 export function ContractFocusProvider({ children }: { children: ReactNode }) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [mobilePane, setMobilePane] = useState<ContractMobilePane>('chat');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const focusSection = useCallback((sectionId: string) => {
+    setMobilePane('details');
     setFocusedId(sectionId);
 
     // The target tab may not be selected yet; it is selected on the same render
@@ -80,10 +87,10 @@ export function ContractFocusProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      state: { focusedId },
-      actions: { focusSection },
+      state: { focusedId, mobilePane },
+      actions: { focusSection, setMobilePane },
     }),
-    [focusedId, focusSection],
+    [focusedId, mobilePane, focusSection],
   );
 
   return (
@@ -99,5 +106,10 @@ export function ContractFocusProvider({ children }: { children: ReactNode }) {
  */
 export function useContractFocus() {
   const { state, actions } = use(ContractFocusContext);
-  return { focusedId: state.focusedId, focusSection: actions.focusSection };
+  return {
+    focusedId: state.focusedId,
+    mobilePane: state.mobilePane,
+    focusSection: actions.focusSection,
+    setMobilePane: actions.setMobilePane,
+  };
 }

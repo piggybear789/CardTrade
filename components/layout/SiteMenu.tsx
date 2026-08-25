@@ -14,7 +14,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Handshake, Menu, PackagePlus, Repeat2, X } from 'lucide-react';
+import { Banknote, Handshake, Menu, Repeat2, X } from 'lucide-react';
 
 import { StartDealButton } from '@/components/deals/StartDealButton';
 import { Button } from '@/components/ui/button';
@@ -36,16 +36,13 @@ import { cn } from '@/lib/utils';
  *
  * They are not added to `MARKETPLACE_NAV_GROUPS` on purpose: that constant drives
  * the desktop rail and the mobile hub sheets, and the hubs read it BY INDEX, so
- * growing it would repoint the Contracts and Sell sheets. These rows are also the
- * only way in on a phone, where `PrimaryNav` (which carries Sell and Start a
- * Deal) is `md:` only. Start a Deal is a dialog, not a route — the Create
- * group injects it between Sell and Propose a trade.
+ * growing it would repoint the Contracts and Sell sheets. Start a Deal is a
+ * dialog, not a route — the Create group injects it above Propose a trade.
  */
 const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
   {
     label: 'Create',
     links: [
-      { href: '/listings/new', label: 'Sell an item', icon: PackagePlus },
       { href: '/trades/new', label: 'Propose a trade', icon: Repeat2 },
     ],
   },
@@ -60,9 +57,9 @@ const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
  *
  * The bell has always been Notifications and the avatar has always been Account, so
  * two of the menu's rows were restating the bar above them. Saved and Messages are
- * now icons up there too. All four rows are therefore hidden from `sm` up — the
+ * now icons up there too. All four rows are therefore hidden from `md` up — the
  * breakpoint at which those header controls appear — and kept below it, because the
- * two new icons are `hidden sm:inline-flex` and removing the rows outright would
+ * two new icons are `hidden md:inline-flex` and removing the rows outright would
  * make Saved unreachable on a phone.
  *
  * NOT removed from `MARKETPLACE_NAV_GROUPS`: that constant also drives the desktop
@@ -124,9 +121,10 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
         key={link.href}
         asChild
         variant="ghost"
+        size="sm"
         className={cn(
-          'justify-start',
-          promoted && 'sm:hidden',
+          'h-10 justify-start',
+          promoted && 'md:hidden',
           active && 'bg-accent text-accent-foreground',
         )}
       >
@@ -179,7 +177,7 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
         aria-expanded={open}
         aria-controls="site-menu-panel"
         aria-label={open ? 'Close menu' : 'Open menu'}
-        className="flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-gold"
+        className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-gold"
       >
         {open ? (
           <X className="size-5" aria-hidden />
@@ -191,34 +189,35 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
       {open ? (
         <div
           id="site-menu-panel"
-          className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-auction animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 motion-reduce:animate-none"
+          className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-auction animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 motion-reduce:animate-none"
         >
           <nav aria-label="Menu" className="grid gap-1">
             {!isAuthenticated ? (
               <>
-                <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
+                <p className="market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground">
                   Browse
                 </p>
-                <Button asChild variant="ghost" className="justify-start">
+                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
                   <Link href="/listings">Marketplace</Link>
                 </Button>
-                <Button asChild variant="ghost" className="justify-start">
+                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
                   <Link href="/listings/new">Sell an item</Link>
                 </Button>
                 <StartDealButton
                   isAuthenticated={false}
                   variant="ghost"
-                  className="justify-start"
+                  size="sm"
+                  className="h-10 justify-start"
                   onOpen={() => setOpen(false)}
                 >
                   <Handshake aria-hidden />
                   Start a Deal
                 </StartDealButton>
                 <div className="my-1 border-t" />
-                <Button asChild variant="ghost" className="justify-start">
+                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
                   <SignInLink>Sign in</SignInLink>
                 </Button>
-                <Button asChild className="justify-start">
+                <Button asChild size="sm" className="h-10 justify-start">
                   <SignInLink target="/sign-up">Get started</SignInLink>
                 </Button>
               </>
@@ -232,12 +231,12 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                   return (
                     <Fragment key={group.label}>
                       {index > 0 ? (
-                        <div className={cn('my-1 border-t', fullyPromoted && 'sm:hidden')} />
+                        <div className={cn('my-1 border-t', fullyPromoted && 'md:hidden')} />
                       ) : null}
                       <p
                         className={cn(
-                          'market-label px-3 pb-1 pt-2 text-muted-foreground',
-                          fullyPromoted && 'sm:hidden',
+                          'market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground',
+                          fullyPromoted && 'md:hidden',
                         )}
                       >
                         {group.label}
@@ -250,26 +249,22 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                 {MENU_ONLY_GROUPS.map((group) => (
                   <Fragment key={group.label}>
                     <div className="my-1 border-t" />
-                    <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
+                    <p className="market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground">
                       {group.label}
                     </p>
                     {group.label === 'Create' ? (
                       <>
-                        {group.links
-                          .filter((link) => link.href === '/listings/new')
-                          .map((link) => renderLink(link, false))}
                         <StartDealButton
                           isAuthenticated
                           variant="ghost"
-                          className="justify-start"
+                          size="sm"
+                          className="h-10 justify-start"
                           onOpen={() => setOpen(false)}
                         >
                           <Handshake aria-hidden />
                           Start a Deal
                         </StartDealButton>
-                        {group.links
-                          .filter((link) => link.href !== '/listings/new')
-                          .map((link) => renderLink(link, false))}
+                        {group.links.map((link) => renderLink(link, false))}
                       </>
                     ) : (
                       group.links.map((link) => renderLink(link, false))
@@ -280,7 +275,7 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                 {staffLinks.length > 0 ? (
                   <>
                     <div className="my-1 border-t" />
-                    <p className="market-label px-3 pb-1 pt-2 text-muted-foreground">
+                    <p className="market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground">
                       {STAFF_NAV_GROUP.label}
                     </p>
                     {staffLinks.map((link) => renderLink(link))}
@@ -288,7 +283,7 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                 ) : null}
 
                 <div className="my-1 border-t" />
-                <SignOutButton className="w-full justify-start" />
+                <SignOutButton className="h-10 w-full justify-start" />
               </>
             )}
           </nav>

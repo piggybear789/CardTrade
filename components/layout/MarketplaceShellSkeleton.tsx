@@ -14,14 +14,14 @@ import { cn } from '@/lib/utils';
 
 /**
  * Link-row counts per rail group, mirroring `MARKETPLACE_NAV_GROUPS`
- * (Marketplace 2, Contracts 3, Selling 2, You 3).
+ * (Marketplace 2, Contracts 3, Selling 3, You 3).
  *
  * Members only, deliberately. Staff additionally see a Staff group, but that depends on
  * a profile read this skeleton must not perform — a placeholder that queries the
  * database is no longer a placeholder. The result is a small one-group settle on the
  * rail for staff, and none for everyone else.
  */
-const NAV_GROUPS = [2, 3, 2, 3];
+const NAV_GROUPS = [2, 3, 3, 3];
 
 function NavGroupSkeleton() {
   return (

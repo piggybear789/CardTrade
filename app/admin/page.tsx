@@ -297,6 +297,7 @@ export default async function AdminPage({
           {
             key: 'reconciliation',
             label: 'Reconciliation',
+            shortLabel: 'Reconcile',
             count: flaggedTrades,
             href: '/admin?tab=reconciliation',
           },

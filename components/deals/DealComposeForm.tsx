@@ -173,10 +173,10 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
           Send a private link. They join, and you finish in a sale or trade room.
         </DialogDescription>
       </DialogHeader>
-      <div className="space-y-5">
+      <div className="space-y-4">
         <fieldset className="space-y-2">
           <legend className="text-body font-medium">What kind of deal?</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2">
             <ChoiceTile
               id="deal-kind-cash"
               name="deal-kind"
@@ -203,7 +203,7 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
         {kind === 'CASH_SALE' ? (
           <fieldset className="space-y-2">
             <legend className="text-body font-medium">Your side</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               <ChoiceTile
                 id="deal-role-seller"
                 name="deal-role"

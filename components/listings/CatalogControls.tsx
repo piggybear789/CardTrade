@@ -5,15 +5,16 @@
 // Prices stay readable dollars in the URL and integer cents at the action.
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import Link from 'next/link';
 import {
   Check,
   ChevronRight,
-  Plus,
   Search,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
+
+import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
+import { HeaderSearch } from '@/components/layout/HeaderSearch';
 
 import { useCatalogView } from '@/components/listings/CatalogView';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
 import { CURRENCY_CODE, CURRENCY_LOCALE } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -148,31 +158,28 @@ export function CatalogFilterSearch() {
   );
 }
 
-export interface CatalogFiltersProps {
-  /** Mobile Sell button target; omitted when the page keeps Sell elsewhere. */
-  mobileSellHref?: string;
-}
-/** Marketplace navigation and filter rail, collapsed into a disclosure on mobile. */
-export function CatalogFilters({
-  mobileSellHref = '/listings/new',
-}: CatalogFiltersProps) {
+/** Marketplace navigation and filter rail. Phone: sheet. Desktop: in-page rail. */
+export function CatalogFilters() {
   const { current, facets } = useCatalogView();
   const { isPending, pushWith, reset } = useCatalogNav();
-  const [filtersOpen, setFiltersOpen] = useState(() =>
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('filters') === '1',
-  );
+  // Closed until mount so a `?filters=1` deep link cannot open a portaled
+  // sheet on desktop during SSR (MobileOnly assumes the phone snapshot).
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  function toggleFilters() {
-    setFiltersOpen((open) => {
-      const next = !open;
-      const params = new URLSearchParams(window.location.search);
-      if (next) params.set('filters', '1');
-      else params.delete('filters');
-      const qs = params.toString();
-      window.history.replaceState(window.history.state, '', qs ? `/listings?${qs}` : '/listings');
-      return next;
-    });
+  useEffect(() => {
+    if (window.matchMedia('(min-width: 768px)').matches) return;
+    if (new URLSearchParams(window.location.search).get('filters') === '1') {
+      setFiltersOpen(true);
+    }
+  }, []);
+
+  function setFiltersOpenAndUrl(next: boolean) {
+    setFiltersOpen(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next) params.set('filters', '1');
+    else params.delete('filters');
+    const qs = params.toString();
+    window.history.replaceState(window.history.state, '', qs ? `/listings?${qs}` : '/listings');
   }
 
   // Rounding the ceiling up to a legible figure keeps the track's top end
@@ -210,8 +217,8 @@ export function CatalogFilters({
     current.max !== '' ||
     current.includeSold;
 
-  // Search has its own field on mobile; games live in the header pills.
-  // The Filters badge counts refine-only (condition, price, sold).
+  // Marketplace search sits in this toolbar on mobile. Games live in the
+  // header pills. The Filters badge counts refine-only (condition, price, sold).
   const refineCount =
     current.conditions.length +
     Number(Boolean(current.min || current.max)) +
@@ -248,171 +255,240 @@ export function CatalogFilters({
       )}
       aria-busy={isPending}
     >
-      <div className="flex flex-col gap-snug py-cozy md:hidden">
-        <div className="grid grid-cols-2 gap-snug">
-          <Button
-            asChild
-            className="border border-white/15 bg-obsidian font-semibold text-parchment shadow-sm hover:border-white/25 hover:bg-obsidian/80"
-          >
-            <Link href={mobileSellHref}>
-              <Plus aria-hidden="true" className="text-gold" />
-              Sell
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={toggleFilters}
-            aria-expanded={filtersOpen}
-            aria-controls="catalog-filter-panel"
-          >
-            Filters
-            {refineCount > 0 ? (
-              <span className="flex size-5 items-center justify-center rounded-full border border-gold/40 bg-gold/20 text-meta font-semibold text-foreground">
-                {refineCount}
-              </span>
-            ) : null}
-          </Button>
-        </div>
-        {hasActiveFilters ? (
-          <button
-            type="button"
-            onClick={clearFilters}
-            disabled={isPending}
-            className="self-start rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
-          >
-            Clear all
-          </button>
-        ) : null}
+      <div className="py-1 md:hidden">
+        <HeaderSearch
+          className="min-w-0"
+          ariaLabel="Search marketplace"
+          appearance="inset"
+          trailing={
+            <button
+              type="button"
+              onClick={() => setFiltersOpenAndUrl(true)}
+              aria-expanded={filtersOpen}
+              aria-haspopup="dialog"
+              aria-label={refineCount > 0 ? `Filters, ${refineCount} active` : 'Filters'}
+              className="relative grid size-8 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-gold/40"
+            >
+              <SlidersHorizontal className="size-4" aria-hidden />
+              {refineCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-gold text-[10px] font-semibold leading-none text-primary-foreground">
+                  {refineCount}
+                </span>
+              ) : null}
+            </button>
+          }
+        />
       </div>
 
-      <div
-        id="catalog-filter-panel"
-        className={cn(
-          'space-y-5 rounded-xl border border-border bg-card p-group shadow-market md:mt-4 md:block md:rounded-none md:border-x-0 md:border-b-0 md:border-t md:bg-transparent md:px-0 md:pb-1 md:pt-group md:shadow-none',
-          filtersOpen ? 'mb-3 block' : 'hidden',
-        )}
-      >
-        <div className="hidden border-b border-border pb-group md:block">
-          <p className="market-label mb-2 text-muted-foreground">Sort</p>
-          <CatalogSortControl fullWidth />
-        </div>
+      <MobileOnly>
+        <Sheet open={filtersOpen} onOpenChange={setFiltersOpenAndUrl}>
+          <SheetContent side="bottom" className="gap-0 p-0">
+            <SheetHeader className="border-b border-border px-5 py-3">
+              <SheetTitle>Filters</SheetTitle>
+              <SheetDescription>
+                Sort, condition, price, and sold items. Changes apply immediately.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
+              <CatalogRefineFields
+                current={current}
+                isPending={isPending}
+                hasActiveFilters={hasActiveFilters}
+                onClear={clearFilters}
+                onToggleCondition={toggleCondition}
+                onToggleSold={() => pushWith({ sold: current.includeSold ? null : '1' })}
+                priceStops={priceStops}
+                onPriceStopsChange={setPriceStops}
+                onPriceCommit={commitPrices}
+                priceLadder={priceLadder}
+                topStop={topStop}
+                ceilingCents={ceilingCents}
+                showHeading={false}
+              />
+            </div>
+            <SheetFooter className="border-t border-border p-4">
+              <SheetClose asChild>
+                <Button type="button">Done</Button>
+              </SheetClose>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      </MobileOnly>
 
+      <DesktopOnly>
+        <div
+          id="catalog-filter-panel"
+          className="mt-4 space-y-5 border-t border-border bg-transparent pt-group"
+        >
+          <CatalogRefineFields
+            current={current}
+            isPending={isPending}
+            hasActiveFilters={hasActiveFilters}
+            onClear={clearFilters}
+            onToggleCondition={toggleCondition}
+            onToggleSold={() => pushWith({ sold: current.includeSold ? null : '1' })}
+            priceStops={priceStops}
+            onPriceStopsChange={setPriceStops}
+            onPriceCommit={commitPrices}
+            priceLadder={priceLadder}
+            topStop={topStop}
+            ceilingCents={ceilingCents}
+            showHeading
+          />
+        </div>
+      </DesktopOnly>
+    </div>
+  );
+}
+
+function CatalogRefineFields({
+  current,
+  isPending,
+  hasActiveFilters,
+  onClear,
+  onToggleCondition,
+  onToggleSold,
+  priceStops,
+  onPriceStopsChange,
+  onPriceCommit,
+  priceLadder,
+  topStop,
+  ceilingCents,
+  showHeading,
+}: {
+  current: Pick<CatalogFilterState, 'conditions' | 'includeSold'>;
+  isPending: boolean;
+  hasActiveFilters: boolean;
+  onClear: () => void;
+  onToggleCondition: (condition: string) => void;
+  onToggleSold: () => void;
+  priceStops: [number, number];
+  onPriceStopsChange: (next: [number, number]) => void;
+  onPriceCommit: (next: [number, number]) => void;
+  priceLadder: number[];
+  topStop: number;
+  ceilingCents: number;
+  showHeading: boolean;
+}) {
+  return (
+    <>
+      <div className="border-b border-border pb-group">
+        <p className="market-label mb-2 text-muted-foreground">Sort</p>
+        <CatalogSortControl fullWidth />
+      </div>
+
+      {showHeading ? (
         <div className="flex items-center justify-between">
           <h2 className="text-subhead font-semibold tracking-tight">Refine results</h2>
           {hasActiveFilters ? (
             <button
               type="button"
-              onClick={clearFilters}
+              onClick={onClear}
               disabled={isPending}
-              className="hidden rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50 md:inline"
+              className="rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
             >
               Clear all
             </button>
           ) : null}
         </div>
+      ) : null}
 
-        <fieldset className="border-t border-border pt-group">
-          <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
-          <div className="space-y-tight">
-            {CONDITION_OPTIONS.map((condition) => {
-              const active = current.conditions.includes(condition);
-              return (
-                <button
-                  key={condition}
-                  type="button"
-                  onClick={() => toggleCondition(condition)}
-                  disabled={isPending}
-                  aria-pressed={active}
-                  className={cn(
-                    'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
-                    active
-                      ? 'bg-gold/10 font-semibold text-foreground'
-                      : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
+      <fieldset className="border-t border-border pt-group">
+        <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
+        <div className="space-y-tight">
+          {CONDITION_OPTIONS.map((condition) => {
+            const active = current.conditions.includes(condition);
+            return (
+              <button
+                key={condition}
+                type="button"
+                onClick={() => onToggleCondition(condition)}
+                disabled={isPending}
+                aria-pressed={active}
+                className={cn(
+                  'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
+                  active
+                    ? 'bg-gold/10 font-semibold text-foreground'
+                    : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
+                )}
+              >
+                <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                  {active ? (
+                    <Check className="size-4 text-gold" />
+                  ) : (
+                    <span className="size-1.5 rounded-full bg-muted-foreground/50" />
                   )}
-                >
-                  <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-                    {active ? (
-                      <Check className="size-4 text-gold" />
-                    ) : (
-                      <span className="size-1.5 rounded-full bg-muted-foreground/50" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{condition}</span>
-                  {active ? <ChevronRight className="size-4 text-gold" aria-hidden="true" /> : null}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        <div className="border-t border-border pt-group">
-          <div className="mb-3 flex items-baseline justify-between gap-2">
-            <p className="market-label text-muted-foreground">Price</p>
-            {/* Tabular figures so the readout does not jitter mid-drag. */}
-            <p className="text-body font-semibold tabular-nums">
-              {priceRangeLabel(priceLadder, priceStops, topStop)}
-            </p>
-          </div>
-          <Slider
-            value={priceStops}
-            onValueChange={(next) => setPriceStops([next[0], next[1]])}
-            // Commit on release, not on change: every drag step would otherwise
-            // be its own navigation and re-query.
-            onValueCommit={(next) => commitPrices([next[0], next[1]])}
-            min={0}
-            max={topStop}
-            step={1}
-            minStepsBetweenThumbs={1}
-            thumbLabels={['Minimum price', 'Maximum price']}
-            // Thumbs carry a ladder position; announce the price it stands for.
-            thumbValueText={(stop) => priceStopLabel(priceLadder, stop, topStop)}
-            // Room for the thumbs' focus rings, which sit outside the track.
-            className="px-tight py-2"
-          />
-          <div
-            className="mt-1 flex justify-between text-meta text-muted-foreground tabular-nums"
-            aria-hidden="true"
-          >
-            <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
-            <span>{AUD_WHOLE_FORMATTER.format(ceilingCents / 100)}+</span>
-          </div>
+                </span>
+                <span className="min-w-0 flex-1 truncate">{condition}</span>
+                {active ? <ChevronRight className="size-4 text-gold" aria-hidden="true" /> : null}
+              </button>
+            );
+          })}
         </div>
+      </fieldset>
 
-        {/* The "ID-verified sellers only" toggle used to sit here. Removed because
-            publishing a listing now requires the Identity_Gate, so every item in
-            the catalog has a verified seller and the filter matched all of them.
-            Offering it implied the unfiltered catalog contained unverified
-            sellers, which is the opposite of what is true. Per-card badges still
-            show each seller's verified given name. */}
-
-        <div className="border-t border-border pt-group">
-          <p className="market-label mb-2 text-muted-foreground">Availability</p>
-          <button
-            type="button"
-            onClick={() => pushWith({ sold: current.includeSold ? null : '1' })}
-            disabled={isPending}
-            aria-pressed={current.includeSold}
-            className={cn(
-              'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
-              current.includeSold
-                ? 'bg-gold/10 font-semibold text-foreground'
-                : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
-            )}
-          >
-            <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-              {current.includeSold ? (
-                <Check className="size-4 text-gold" />
-              ) : (
-                <span className="size-1.5 rounded-full bg-muted-foreground/50" />
-              )}
-            </span>
-            <span className="flex min-w-0 flex-1 items-center gap-tight">
-              Include sold items
-            </span>
-          </button>
+      <div className="border-t border-border pt-group">
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <p className="market-label text-muted-foreground">Price</p>
+          <p className="text-body font-semibold tabular-nums">
+            {priceRangeLabel(priceLadder, priceStops, topStop)}
+          </p>
+        </div>
+        <Slider
+          value={priceStops}
+          onValueChange={(next) => onPriceStopsChange([next[0], next[1]])}
+          onValueCommit={(next) => onPriceCommit([next[0], next[1]])}
+          min={0}
+          max={topStop}
+          step={1}
+          minStepsBetweenThumbs={1}
+          thumbLabels={['Minimum price', 'Maximum price']}
+          thumbValueText={(stop) => priceStopLabel(priceLadder, stop, topStop)}
+          className="px-tight py-2"
+        />
+        <div
+          className="mt-1 flex justify-between text-meta text-muted-foreground tabular-nums"
+          aria-hidden="true"
+        >
+          <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
+          <span>{AUD_WHOLE_FORMATTER.format(ceilingCents / 100)}+</span>
         </div>
       </div>
-    </div>
+
+      {/* The "ID-verified sellers only" toggle used to sit here. Removed because
+          publishing a listing now requires the Identity_Gate, so every item in
+          the catalog has a verified seller and the filter matched all of them.
+          Offering it implied the unfiltered catalog contained unverified
+          sellers, which is the opposite of what is true. Per-card badges still
+          show each seller's verified given name. */}
+
+      <div className="border-t border-border pt-group">
+        <p className="market-label mb-2 text-muted-foreground">Availability</p>
+        <button
+          type="button"
+          onClick={onToggleSold}
+          disabled={isPending}
+          aria-pressed={current.includeSold}
+          className={cn(
+            'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
+            current.includeSold
+              ? 'bg-gold/10 font-semibold text-foreground'
+              : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
+          )}
+        >
+          <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+            {current.includeSold ? (
+              <Check className="size-4 text-gold" />
+            ) : (
+              <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+            )}
+          </span>
+          <span className="flex min-w-0 flex-1 items-center gap-tight">
+            Include sold items
+          </span>
+        </button>
+      </div>
+    </>
   );
 }
 /** Removable chips summarizing every active catalog constraint. */
@@ -471,7 +547,7 @@ export function CatalogActiveFilters() {
         type="button"
         onClick={reset}
         disabled={isPending}
-        className="rounded-sm px-1 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
+        className="min-h-10 rounded-sm px-2 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50 md:min-h-0 md:px-1"
       >
         Clear all
       </button>
@@ -493,7 +569,7 @@ function FilterChip({
       type="button"
       onClick={onRemove}
       disabled={disabled}
-      className="inline-flex max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
+      className="inline-flex min-h-9 max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-1.5 text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:border-gold/40 disabled:opacity-50 md:min-h-0 md:py-tight"
       aria-label={`Remove ${label} filter`}
     >
       <span className="truncate">{label}</span>
@@ -521,7 +597,7 @@ export function CatalogSortControl({
         onValueChange={(value) => pushWith({ sort: value === 'newest' ? null : value })}
       >
         <SelectTrigger
-          className={cn(fullWidth ? 'w-full' : 'w-full min-w-0 sm:w-[190px]')}
+          className={cn(fullWidth ? 'h-11 w-full' : 'w-full min-w-0 sm:w-[190px]')}
           aria-label="Sort listings"
         >
           <SelectValue />

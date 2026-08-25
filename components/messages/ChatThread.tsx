@@ -112,7 +112,7 @@ export function ChatThread({
       {/* Item / contract context card: what this thread is about, what it costs,
           and the one place to jump to the listing or the live contract. */}
       {item || trade ? (
-        <div className="flex shrink-0 items-center gap-3 border-b bg-muted px-1 py-3">
+        <div className="flex shrink-0 flex-col items-stretch gap-3 border-b bg-muted px-1 py-3 md:flex-row md:items-center">
           {itemThumb ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -140,7 +140,7 @@ export function ChatThread({
               ) : null}
             </div>
           </div>
-          <Button asChild size="sm" variant="outline" className="shrink-0">
+          <Button asChild size="sm" variant="outline" className="min-h-11 w-full shrink-0 md:min-h-8 md:w-auto">
             {trade ? (
               <Link
                 href={`/trades/${trade.id}`}

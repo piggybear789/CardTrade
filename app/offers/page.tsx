@@ -56,18 +56,18 @@ export default async function OffersPage({
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   // No plus: browsing the marketplace creates nothing.
-  const primaryAction = (
+  const browseMarketplace = () => (
     <RailPrimaryAction href="/listings" glyph={null}>
       Browse Marketplace
     </RailPrimaryAction>
   );
 
   return (
-    <MarketplaceShell title="Offers" primaryAction={primaryAction}>
+    <MarketplaceShell title="Offers" primaryAction={browseMarketplace()}>
       <SectionHeader
         title="Offers"
         description="Prices you have sent and received. An accepted offer opens a purchase contract."
-        mobileAction={primaryAction}
+        mobileAction={visibleOffers.length > 0 ? browseMarketplace() : undefined}
       />
 
       <SectionFilter

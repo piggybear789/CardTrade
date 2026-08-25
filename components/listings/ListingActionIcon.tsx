@@ -28,7 +28,7 @@ type ListingActionIconProps = SharedProps &
 
 function chipClass(variant: 'default' | 'outline') {
   return cn(
-    'flex size-12 items-center justify-center rounded-full border transition-[colors,transform] group-active:scale-95 group-focus-visible:border-gold/40',
+    'flex size-9 shrink-0 items-center justify-center rounded-md border transition-[colors,transform] group-active:scale-95 group-focus-visible:border-gold/40 md:size-12 md:rounded-full',
     variant === 'default'
       ? 'border-primary bg-primary text-primary-foreground group-hover:bg-primary/90'
       : 'border-border bg-card text-foreground shadow-sm group-hover:border-gold/40 group-hover:bg-accent group-hover:text-accent-foreground',
@@ -58,14 +58,14 @@ export function ListingActionIcon({
   const body: ReactNode = (
     <>
       {chip}
-      <span className="w-full text-center text-body font-semibold leading-tight tracking-[0.01em]">
+      <span className="min-w-0 text-left text-body font-semibold leading-tight tracking-[0.01em] md:w-full md:text-center">
         {label}
       </span>
     </>
   );
 
   const sharedClass = cn(
-    'group inline-flex w-full touch-manipulation flex-col items-center gap-tight rounded-md focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+    'group inline-flex w-full min-h-12 touch-manipulation flex-row items-center justify-start gap-3 rounded-lg border border-border bg-card px-4 py-3 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:flex-col md:items-center md:justify-center md:gap-tight md:rounded-md md:border-transparent md:bg-transparent md:px-0 md:py-0',
     className,
   );
 

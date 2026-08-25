@@ -16,8 +16,11 @@
 // `UnifiedOnboardingSurface` re-reads the identity and payout status from the provider
 // on mount and that read is what decides. Anyone can type `?payouts=complete`.
 
+import { redirect } from 'next/navigation';
+
 import type { Step } from '@/components/onboarding/OnboardingWizard';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
+import { getCachedProfile } from '@/lib/supabase/cachedAuth';
 
 /** Same-origin absolute paths only, so `redirectTo` cannot become an open redirect. */
 function safeRedirectPath(target: string | null): string | null {
@@ -44,11 +47,22 @@ export default async function OnboardingPage({
   const redirectTo = Array.isArray(params.redirectTo)
     ? params.redirectTo[0]
     : params.redirectTo;
+  const nextPath = safeRedirectPath(redirectTo ?? null);
+
+  // Completed members who type /onboarding (or follow a stale bookmark) should
+  // not restart the welcome wizard. Stripe return visits still land on the
+  // seller step so hosted identity/payout can finish.
+  if (!returningFromProvider) {
+    const profile = await getCachedProfile();
+    if (profile?.onboarding_completed_at) {
+      redirect(nextPath ?? '/listings');
+    }
+  }
 
   return (
     <OnboardingWizard
       initialStep={initialStep}
-      redirectTo={safeRedirectPath(redirectTo ?? null)}
+      redirectTo={nextPath}
     />
   );
 }

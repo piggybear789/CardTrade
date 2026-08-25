@@ -7,13 +7,14 @@ import {
   BookmarkCheck,
   HandCoins,
   Handshake,
+  LayoutGrid,
   MessageCircle,
   Package,
+  PackagePlus,
   Repeat2,
   Scale,
   ShieldCheck,
   ShoppingBag,
-  Sparkles,
   Tag,
   Tags,
   UserRound,
@@ -75,7 +76,7 @@ export const MARKETPLACE_NAV_GROUPS = [
   {
     label: 'Marketplace',
     links: [
-      { href: '/listings', label: 'Browse All', icon: Sparkles },
+      { href: '/listings', label: 'Browse All', icon: LayoutGrid },
       { href: '/saved', label: 'Saved', icon: BookmarkCheck },
     ],
   },
@@ -92,6 +93,7 @@ export const MARKETPLACE_NAV_GROUPS = [
   {
     label: 'Selling',
     links: [
+      { href: '/listings/new', label: 'Sell an item', icon: PackagePlus },
       { href: '/listings/mine', label: 'My Listings', icon: Tags },
       { href: '/offers', label: 'Offers', icon: HandCoins },
     ],
@@ -129,13 +131,15 @@ export function isMarketplaceSectionActive(
     // way Browse would light up on My Listings.
     return pathname === '/admin';
   }
+  if (href === '/listings/new') {
+    return pathname === '/listings/new';
+  }
   if (href === '/listings/mine') {
-    // Create + edit listing flows belong to Selling (My Listings), not Browse.
+    // Edit listing flows belong to Selling (My Listings), not Browse.
     // Desktop rail and mobile Sell hub both use this helper, so keep them aligned.
     return (
       pathname === '/listings/mine' ||
       pathname.startsWith('/listings/mine/') ||
-      pathname === '/listings/new' ||
       (pathname.startsWith('/listings/') && pathname.endsWith('/edit'))
     );
   }
@@ -179,7 +183,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     kind: 'link',
     href: '/listings',
     label: 'Browse',
-    icon: Sparkles,
+    icon: LayoutGrid,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/listings') ||
       pathname.startsWith('/sellers/'),

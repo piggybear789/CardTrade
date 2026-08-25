@@ -78,35 +78,42 @@ export function ContractChatBar({
   const offline = connectionStatus === 'error';
 
   return (
-    <header className="flex shrink-0 items-center gap-cozy border-b px-group py-3.5">
-      <Avatar
-        avatarPath={counterpartyAvatarPath}
-        displayName={counterpartyName}
-        size="md"
-      />
-      <div className="min-w-0 flex-1">
-        <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
-          {subject?.title ?? counterpartyName}
-        </h2>
-        {subject || offline ? (
-          <p className="truncate text-body leading-tight text-muted-foreground">
-            {subject?.price ? (
-              <span className="display-value font-semibold text-foreground">
-                {subject.price}
-              </span>
-            ) : null}
-            {subject?.price && subject ? ' · ' : null}
-            {subject ? counterpartyName : null}
-            {offline ? (
-              <span className="text-destructive">
-                {subject ? ' · Offline' : 'Offline'}
-              </span>
-            ) : null}
-          </p>
-        ) : null}
+    <header
+      className={cn(
+        'flex shrink-0 gap-cozy border-b px-group py-3.5',
+        actions ? 'flex-col md:flex-row md:items-center' : 'items-center',
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-cozy">
+        <Avatar
+          avatarPath={counterpartyAvatarPath}
+          displayName={counterpartyName}
+          size="md"
+        />
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
+            {subject?.title ?? counterpartyName}
+          </h2>
+          {subject || offline ? (
+            <p className="truncate text-body leading-tight text-muted-foreground">
+              {subject?.price ? (
+                <span className="display-value font-semibold text-foreground">
+                  {subject.price}
+                </span>
+              ) : null}
+              {subject?.price && subject ? ' · ' : null}
+              {subject ? counterpartyName : null}
+              {offline ? (
+                <span className="text-destructive">
+                  {subject ? ' · Offline' : 'Offline'}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
       </div>
       {actions ? (
-        <div className="flex min-w-0 shrink-0 items-center justify-end gap-1">
+        <div className="flex min-w-0 w-full items-center md:w-auto md:shrink-0 md:justify-end">
           {actions}
         </div>
       ) : null}

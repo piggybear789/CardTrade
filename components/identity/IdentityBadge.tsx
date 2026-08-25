@@ -51,6 +51,11 @@ export interface IdentityBadgeProps {
   size?: number;
   /** Hide the text, leaving only the icon. */
   iconOnly?: boolean;
+  /**
+   * When the given name already appears next to this badge, drop it from the
+   * label so the row does not read "test · ID verified · test".
+   */
+  hideNameWhen?: string | null;
   className?: string;
 }
 
@@ -66,12 +71,18 @@ export function IdentityBadge({
   firstName,
   size = 14,
   iconOnly = false,
+  hideNameWhen,
   className,
 }: IdentityBadgeProps) {
   if (!verified) return null;
 
   const name = firstName?.trim();
-  const label = name ? `ID verified · ${name}` : 'ID verified';
+  const redundant =
+    Boolean(name) &&
+    Boolean(hideNameWhen?.trim()) &&
+    name!.toLowerCase() === hideNameWhen!.trim().toLowerCase();
+  const shownName = redundant ? undefined : name;
+  const label = shownName ? `ID verified · ${shownName}` : 'ID verified';
 
   return (
     <span
@@ -83,8 +94,8 @@ export function IdentityBadge({
       // one trust signal a buyer is looking for.
       role="img"
       aria-label={
-        name
-          ? `Identity verified by Stripe with a photo ID and a selfie, given name ${name}`
+        shownName
+          ? `Identity verified by Stripe with a photo ID and a selfie, given name ${shownName}`
           : 'Identity verified by Stripe with a photo ID and a selfie'
       }
     >

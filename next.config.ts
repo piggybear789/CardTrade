@@ -52,6 +52,9 @@ const cspDirectives = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // The circular Next badge sits on the Account hub on phones. Production
+  // builds have no indicator; this only affects `next dev`.
+  devIndicators: false,
   experimental: {
     // Native <ViewTransition> / Link `transitionTypes`. Typed as experimental in
     // Next 16.3 even though the shipped ExperimentalConfig typings omit the flag.

@@ -68,9 +68,12 @@ type SalePrep =
 export function BuyButton({
   itemId,
   sellerIdentity,
+  trigger,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
+  /** Replaces the default listing-action chip — used by the mobile buyer bar. */
+  trigger?: ReactNode;
 }) {
   return (
     <PurchaseDialog
@@ -79,6 +82,7 @@ export function BuyButton({
       description="This reserves the item and opens a contract with the seller. You do not pay yet."
       confirmLabel="Reserve item and agree terms"
       prepareSale={() => ({ ok: true })}
+      trigger={trigger}
     />
   );
 }
@@ -90,9 +94,11 @@ export function BuyButton({
 export function ShopfrontBuyButton({
   itemId,
   sellerIdentity,
+  trigger,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
+  trigger?: ReactNode;
 }) {
   const [request, setRequest] = useState(emptyRequest);
 
@@ -103,6 +109,7 @@ export function ShopfrontBuyButton({
       description="Describe your desired items. You do not pay yet."
       confirmLabel="Open contract and agree terms"
       onReset={() => setRequest(emptyRequest())}
+      trigger={trigger}
       prepareSale={() => {
         if (toRequestLineItems(request).length === 0) {
           return { ok: false, error: 'Describe what you want from this listing.' };
@@ -125,6 +132,7 @@ function PurchaseDialog({
   confirmLabel,
   prepareSale,
   onReset,
+  trigger,
   children,
 }: {
   itemId: string;
@@ -133,6 +141,7 @@ function PurchaseDialog({
   confirmLabel: string;
   prepareSale: () => SalePrep;
   onReset?: () => void;
+  trigger?: ReactNode;
   children?: ReactNode;
 }) {
   const router = useRouter();
@@ -221,7 +230,9 @@ function PurchaseDialog({
       }}
     >
       <DialogTrigger asChild>
-        <ListingActionIcon icon={ShoppingCart} label="Buy now" variant="default" />
+        {trigger ?? (
+          <ListingActionIcon icon={ShoppingCart} label="Buy now" variant="default" />
+        )}
       </DialogTrigger>
       <DialogContent>
         {loading ? (

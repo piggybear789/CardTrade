@@ -93,11 +93,14 @@ export function StartDealEmptyState({
   isAuthenticated,
   actionLabel = 'Start a Deal',
   actionVariant,
+  showAction = true,
   ...props
 }: Omit<Parameters<typeof EmptyState>[0], 'action'> & {
   isAuthenticated: boolean;
   actionLabel?: string;
   actionVariant?: 'default' | 'outline';
+  /** Set false when a sibling already offers the same action. */
+  showAction?: boolean;
 }) {
   const { openDeal } = useStartDeal();
 
@@ -105,17 +108,19 @@ export function StartDealEmptyState({
     <EmptyState
       {...props}
       action={
-        isAuthenticated
-          ? {
-              label: actionLabel,
-              variant: actionVariant,
-              onClick: openDeal,
-            }
-          : {
-              label: actionLabel,
-              variant: actionVariant,
-              href: `/sign-up?redirectTo=${encodeURIComponent(DEAL_OPEN_PATH)}`,
-            }
+        !showAction
+          ? undefined
+          : isAuthenticated
+            ? {
+                label: actionLabel,
+                variant: actionVariant,
+                onClick: openDeal,
+              }
+            : {
+                label: actionLabel,
+                variant: actionVariant,
+                href: `/sign-up?redirectTo=${encodeURIComponent(DEAL_OPEN_PATH)}`,
+              }
       }
     />
   );

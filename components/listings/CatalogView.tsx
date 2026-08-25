@@ -268,7 +268,7 @@ export function CatalogResultCount({ note }: { note?: string }) {
   const count = filtering ? (matchCount ?? 0) : result.total;
 
   return (
-    <p className="mt-0.5 text-pretty text-body text-muted-foreground" aria-live="polite">
+    <p className="text-pretty text-meta text-muted-foreground sm:mt-0.5 sm:text-body" aria-live="polite">
       <span className="tabular-nums">
         {filtering
           ? `${COUNT_FORMATTER.format(count)} matching`

@@ -237,7 +237,7 @@ export default async function TradePage({
   }
 
   return (
-    <MarketplaceShell title="Trade" flush>
+    <MarketplaceShell title="Trade" flush={trade.state !== 'COMPLETED'}>
       <ContractBackLink fallbackHref="/trades" />
       <TradeContract
         tradeId={trade.id}

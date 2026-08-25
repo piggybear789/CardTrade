@@ -24,11 +24,16 @@ import 'server-only';
 // bad direct upload — for path (2) our server never sees the bytes, so bucket
 // constraints and `verifyStoredImage` are the enforcement, not `assertValidImage`.
 //
+// New listing photos are scanned with Rekognition (`lib/moderation/scanImage.ts`)
+// before the path is persisted. Kept paths on edit are not re-scanned. The scan
+// is deliberately loose so TCG art is not blocked; see `lib/moderation/policy.ts`.
+//
 // Object paths (never URLs) are what callers persist; `itemImageUrl()` in
 // `lib/format.ts` resolves them for display.
 
 import { randomUUID } from 'node:crypto';
 import type { createAdminClient } from '@/lib/supabase/admin';
+import { moderateImageBytes, moderateStoredPublicImage } from '@/lib/moderation/scanImage';
 import { ITEM_IMAGES_BUCKET } from '@/lib/storage/itemImagesShared';
 
 // The bucket name lives in `itemImagesShared` so the browser uploader can import
@@ -208,6 +213,10 @@ export async function createSignedImageUploads(
  *  - the object actually exists;
  *  - its recorded MIME type and size are within our limits.
  *
+ * Pixel moderation is NOT done here. Kept paths on an edit already survived a
+ * scan at upload; re-scanning them would block a title tweak if the model
+ * changed its mind. New files are scanned in {@link uploadImages}.
+ *
  * Throws with a caller-safe message, matching `assertValidImage`.
  */
 async function verifyStoredImage(
@@ -279,12 +288,16 @@ export async function uploadImages(
       // pulling the bytes back through this server for no benefit.
       if (typeof image === 'string') {
         await verifyStoredImage(admin, ownerId, image);
+        if (!/^https?:\/\//i.test(image)) {
+          await moderateStoredPublicImage(admin, ITEM_IMAGES_BUCKET, image);
+        }
         paths.push(image);
         continue;
       }
 
       const decoded = await decodeImage(image);
       assertValidImage(decoded);
+      await moderateImageBytes(decoded.bytes);
       const path = `${folder}/${i}.${decoded.ext}`;
       const { error } = await admin.storage
         .from(ITEM_IMAGES_BUCKET)

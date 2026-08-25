@@ -56,8 +56,13 @@ export function MessageSellerButton({
   sellerId: string;
   /** Trigger button size (button variant only). */
   size?: 'default' | 'sm' | 'lg';
-  /** "button" renders a standalone button; "inline" renders a compose row. */
-  variant?: 'button' | 'inline';
+  /**
+   * `button` — labeled control.
+   * `inline` — compose row on the listing.
+   * `icon` — 44px chat glyph for the mobile buyer bar.
+   * `bar` — filled "Chat" in the same bar.
+   */
+  variant?: 'button' | 'inline' | 'icon' | 'bar';
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -113,6 +118,48 @@ export function MessageSellerButton({
     });
   }
 
+  if (variant === 'icon') {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={isPending}
+          aria-busy={isPending}
+          aria-label="Message seller"
+          className="grid size-11 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground focus:outline-none focus-visible:border-gold/40 disabled:opacity-60"
+        >
+          {isPending ? (
+            <Loader2 className="size-5 animate-spin" aria-hidden />
+          ) : (
+            <MessageCircle className="size-5" aria-hidden />
+          )}
+        </button>
+        {error ? (
+          <p role="alert" className="sr-only">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (variant === 'bar') {
+    return (
+      <Button
+        type="button"
+        variant="action"
+        className="h-11 min-h-11 min-w-0 flex-1"
+        onClick={handleClick}
+        disabled={isPending}
+        aria-busy={isPending}
+      >
+        {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+        Chat
+      </Button>
+    );
+  }
+
   if (variant === 'inline') {
     return (
       <div className="space-y-2">
@@ -124,7 +171,7 @@ export function MessageSellerButton({
             <MessageCircle className="size-4 text-muted-foreground" aria-hidden />
             Send seller a message
           </label>
-          <form onSubmit={handleInlineSend} className="flex items-center gap-2">
+          <form onSubmit={handleInlineSend} className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               id="message-seller-input"
               type="text"
@@ -133,12 +180,13 @@ export function MessageSellerButton({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={isPending}
-              className="min-w-0 flex-1"
+              className="min-h-11 min-w-0 flex-1"
             />
             <Button
               type="submit"
               disabled={isPending || message.trim() === ''}
               aria-busy={isPending}
+              className="min-h-11 w-full sm:w-auto"
             >
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />

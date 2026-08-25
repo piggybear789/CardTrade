@@ -6,8 +6,9 @@
 // `getPayoutsDashboard`, so nothing here recomputes money from partial data. The
 // only interactive part is the payout-setup link, which is an ordinary anchor.
 //
-// FOUR SECTIONS IN A FIXED ORDER (Req 1.5): what is being released now, where it
-// is going, what has already moved, and what is under arbitration.
+// THREE SECTIONS IN A FIXED ORDER after the page-level tiles (Req 1.5): active
+// sales, where money is going, transfer history, then arbitration when present.
+// Headline balances live in the profile tiles so they are not repeated here.
 //
 // WORDING IS LOAD-BEARING. The reference dashboard this is modelled on labels its
 // headline "Available Now", which implies a withdraw button. CardTrade has no
@@ -19,7 +20,6 @@
 
 import Link from 'next/link';
 import {
-  AlertTriangle,
   ArrowUpRight,
   Scale,
   ShieldCheck,
@@ -156,7 +156,6 @@ export interface PayoutsDashboardProps {
 export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboardProps) {
   return (
     <div className="space-y-section font-sans">
-      <BalanceSummary model={model} />
       <ActiveSalesSummary model={model} />
       {/* ONE payout destination card, not two.
           
@@ -187,93 +186,6 @@ export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboard
  */
 function isHistoryPast(entry: TransferHistoryEntry): boolean {
   return entry.kind === 'SENT' || entry.kind === 'FRAUD_RESTITUTION';
-}
-
-function BalanceSummary({ model }: { model: PayoutReadModel }) {
-  // A page of zeroes reads as an error, so a member who has never sold gets an
-  // explanation instead of the figures (Req 10.1, 10.2).
-  if (model.noSales) {
-    return (
-      <section aria-labelledby="balance-heading">
-        <h3 id="balance-heading" className="sr-only">
-          Pending payouts
-        </h3>
-        <Card className="h-full">
-          <CardHeader className="p-4">
-            <p className="font-sans text-meta text-muted-foreground">Owed to you</p>
-            <p className="display-value mt-4 text-subhead">{formatAud(0)}</p>
-            <p className="mt-1 font-sans text-body text-muted-foreground">
-              Funds are released after a contract resolves.
-            </p>
-          </CardHeader>
-        </Card>
-      </section>
-    );
-  }
-
-  return (
-    <section aria-labelledby="balance-heading" className="h-full">
-      <h3 id="balance-heading" className="sr-only">
-        Pending payouts
-      </h3>
-
-      <Card className="h-full">
-        <CardHeader className="pb-3">
-          <p className="font-sans text-meta text-muted-foreground">Owed to you</p>
-          <p className="display-value mt-4 text-subhead">
-            {formatAud(model.releasingNowCents)}
-          </p>
-          <p className="mt-1 font-sans text-body text-muted-foreground">
-            Queued and released automatically.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-group">
-          <dl className="grid gap-group sm:grid-cols-2">
-            <div>
-              <dt className="text-meta uppercase tracking-wide text-muted-foreground">
-                Upcoming
-              </dt>
-              <dd className="mt-0.5 text-body font-semibold tabular-nums">
-                {formatAud(model.upcomingProceedsCents)}
-              </dd>
-              <p className="mt-0.5 text-body text-muted-foreground">
-                Pending until the buyer accepts or inspection closes.
-              </p>
-            </div>
-            {model.atRiskProceedsCents > 0 ? (
-              <div>
-                <dt className="text-meta uppercase tracking-wide text-muted-foreground">
-                  Under dispute
-                </dt>
-                <dd className="mt-0.5 text-body font-semibold tabular-nums">
-                  {formatAud(model.atRiskProceedsCents)}
-                </dd>
-                <p className="mt-0.5 text-body text-muted-foreground">
-                  Counted in neither figure above while an outcome is owed. See
-                  disputes below.
-                </p>
-              </div>
-            ) : null}
-          </dl>
-
-          <p className="text-body text-muted-foreground">
-            All figures are net of the 5% platform fee. Shipping is a pass-through.
-          </p>
-
-          {model.hasBlockedRelease ? (
-            <p className="flex items-start gap-snug rounded-lg border border-destructive/40 bg-destructive/10 p-cozy text-body text-destructive">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-              <span>
-                Part of this is blocked. The reason and what fixes it are listed
-                below.
-              </span>
-            </p>
-          ) : null}
-
-        </CardContent>
-      </Card>
-    </section>
-  );
 }
 
 function DestinationAccountSummary({

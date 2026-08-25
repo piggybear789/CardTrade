@@ -378,7 +378,7 @@ export function TradeOfferForm({
               type="button"
               variant="ghost"
               size="sm"
-              className="size-8 shrink-0 p-0"
+              className="size-11 shrink-0 p-0 md:size-8"
               onClick={() => setUnlistedDialogOpen(true)}
             >
               <Pencil aria-hidden="true" />
@@ -388,7 +388,7 @@ export function TradeOfferForm({
               type="button"
               variant="ghost"
               size="sm"
-              className="size-8 shrink-0 p-0"
+              className="size-11 shrink-0 p-0 md:size-8"
               onClick={() => setUnlisted(null)}
             >
               <X aria-hidden="true" />
@@ -418,7 +418,7 @@ export function TradeOfferForm({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="size-8 shrink-0 p-0"
+                    className="size-11 shrink-0 p-0 md:size-8"
                     onClick={() => removeSelectedItem(item.id)}
                   >
                     <X aria-hidden="true" />

@@ -16,7 +16,7 @@
 // form would only lead to a refusal at submit.
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowLeftRight, ShieldCheck } from 'lucide-react';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
@@ -55,6 +55,8 @@ export interface ProposeTradeDialogProps {
   disabled?: boolean;
   /** Member-safe explanation displayed by the containing listing action area. */
   disabledReason?: string | null;
+  /** Replaces the default listing-action chip — used by the mobile buyer bar. */
+  trigger?: ReactNode;
 }
 
 export function ProposeTradeDialog({
@@ -65,6 +67,7 @@ export function ProposeTradeDialog({
   returnPath,
   disabled = false,
   disabledReason = null,
+  trigger,
 }: ProposeTradeDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -86,16 +89,18 @@ export function ProposeTradeDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => setOpen(disabled ? false : next)}>
       <DialogTrigger asChild>
-        <ListingActionIcon
-          icon={ArrowLeftRight}
-          // Matches the dialog's own title. The chip said "Propose Trade" and
-          // the dialog then said "Offer a trade", so the thing you clicked and
-          // the thing that opened had different names.
-          label="Propose trade"
-          variant={emphasize ? 'default' : 'outline'}
-          disabled={disabled}
-          title={disabledReason ?? undefined}
-        />
+        {trigger ?? (
+          <ListingActionIcon
+            icon={ArrowLeftRight}
+            // Matches the dialog's own title. The chip said "Propose Trade" and
+            // the dialog then said "Offer a trade", so the thing you clicked and
+            // the thing that opened had different names.
+            label="Propose trade"
+            variant={emphasize ? 'default' : 'outline'}
+            disabled={disabled}
+            title={disabledReason ?? undefined}
+          />
+        )}
       </DialogTrigger>
       {/*
         Long form: pin header + footer, scroll the middle. Default DialogContent

@@ -10,12 +10,14 @@ import { DittoNotWelcome } from '@/components/brand/DittoNotWelcome';
 import { LogoMark } from '@/components/layout/Logo';
 
 import { StartDealButton, StartDealEmptyState } from '@/components/deals/StartDealButton';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ListingCarousel } from '@/components/listings/ListingCarousel';
 import { DirectionalTransition } from '@/components/motion/DirectionalTransition';
 import { Button } from '@/components/ui/button';
 import { searchCatalog } from '@/lib/actions/listings';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
+import { cn } from '@/lib/utils';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -43,8 +45,15 @@ export default async function HomePage() {
   const isAuthenticated = Boolean(user);
 
   return (
+    <>
+    {isAuthenticated ? <MobileBottomNav /> : null}
     <DirectionalTransition>
-    <div className="landing-selection flex flex-col bg-background text-foreground">
+    <div
+      className={cn(
+        'landing-selection flex flex-col bg-background text-foreground',
+        isAuthenticated && 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0',
+      )}
+    >
       {/* Clip only the horizontal axis: decorative layers can bleed sideways,
           but vertical clipping would eat focus rings at section edges. */}
       <main className="flex-1 overflow-x-clip">
@@ -55,15 +64,15 @@ export default async function HomePage() {
           />
           {/* CENTRED HERO. The card wall below carries the visual weight, using
               listings that actually exist — the hero stays clean copy and CTAs. */}
-          <div className="relative z-10 mx-auto max-w-workspace px-6 pb-16 pt-20 sm:pt-24 lg:px-24 lg:pt-28">
+          <div className="relative z-10 mx-auto max-w-workspace px-6 pb-4 pt-8 sm:pt-24 md:pb-16 lg:px-24 lg:pt-28">
             <div className="mx-auto max-w-2xl text-center">
               <DittoNotWelcome />
-              <h1 className="mt-5 break-words text-balance font-display text-4xl font-semibold leading-[1.02] tracking-[-0.04em] text-foreground sm:text-5xl lg:text-7xl">
+              <h1 className="mt-3 break-words text-balance font-display text-display font-semibold leading-[1.08] tracking-[-0.04em] text-foreground sm:text-5xl lg:text-7xl">
                 A marketplace without{' '}
                 <span className="group relative inline-block isolate">
                   {/* Easter egg: the imposter itself peeks out from behind the
                       struck word on hover. */}
-                  <LogoMark className="absolute -top-2 right-6 -z-10 size-7 rotate-[10deg] opacity-0 motion-safe:translate-y-3 motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out group-hover:opacity-100 motion-safe:group-hover:-translate-y-3" />
+                  <LogoMark className="absolute -top-2 right-6 -z-10 size-7 rotate-[10deg] opacity-80 motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-out [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:translate-y-3 [@media(hover:hover)]:group-hover:opacity-100 motion-safe:[@media(hover:hover)]:group-hover:-translate-y-3" />
                   <span className="text-muted-foreground">imposters.</span>
                   {/* The same squiggle as the "ditto not welcome" underline,
                       stretched across the word as a strike. `non-scaling-stroke`
@@ -86,11 +95,11 @@ export default async function HomePage() {
                   </svg>
                 </span>
               </h1>
-              <p className="mx-auto mt-6 max-w-xl text-pretty text-lead leading-6 text-muted-foreground">
+              <p className="mx-auto mt-3 max-w-xl text-pretty text-body leading-6 text-muted-foreground md:mt-6 md:text-lead">
                 Buy, sell, and trade cards with full protection.   
               </p>
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                <Button asChild size="lg">
+              <div className="mx-auto mt-5 flex w-full max-w-xs flex-col items-stretch gap-2 md:mt-10 md:max-w-none md:flex-row md:flex-wrap md:items-center md:justify-center md:gap-3">
+                <Button asChild className="h-11 w-full md:h-11 md:w-auto">
                   <Link href="/listings" transitionTypes={['nav-forward']}>
                     Browse Marketplace
                     <ArrowRight aria-hidden="true" />
@@ -98,13 +107,12 @@ export default async function HomePage() {
                 </Button>
                 <StartDealButton
                   isAuthenticated={isAuthenticated}
-                  size="lg"
                   variant="outline"
-                  className="hover:border-ditto/50 hover:bg-ditto/10"
+                  className="h-11 w-full hover:border-ditto/50 hover:bg-ditto/10 md:w-auto"
                 />
               </div>
 
-              <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-body font-medium text-foreground">
+              <ul className="mt-10 hidden flex-wrap items-center justify-center gap-x-6 gap-y-2 text-body font-medium text-foreground md:flex">
                 <li className="flex items-center gap-tight">
                   <Check className="size-3.5 shrink-0 text-trust" aria-hidden="true" />
                   Photo ID on every seller
@@ -133,13 +141,13 @@ export default async function HomePage() {
               </p>
             </div>
           ) : previewItems.length > 0 ? (
-            <div className="relative py-8">
+            <div className="relative pt-2 pb-5 md:py-8">
               <div
-                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background to-transparent"
+                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent md:w-24"
                 aria-hidden="true"
               />
               <div
-                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-background to-transparent"
+                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent md:w-24"
                 aria-hidden="true"
               />
               <ListingCarousel items={previewItems} />
@@ -153,6 +161,7 @@ export default async function HomePage() {
                 help={{ label: 'How it works', href: '/help' }}
                 titleAs="h2"
                 compact
+                showAction={false}
               />
             </div>
           )}
@@ -181,10 +190,10 @@ export default async function HomePage() {
             </header>
 
             <div className="border-t border-border">
-              {/* Below `sm` the rows stack and carry their own inline
+              {/* Below `md` the rows stack and carry their own inline
                   "Elsewhere:"/"Us:" labels, so a column-header row has nothing
                   to line up with — hide it entirely. */}
-              <div className="market-label hidden gap-x-6 border-b border-border py-3 text-muted-foreground sm:grid sm:grid-cols-[1.1fr_1fr_1fr]">
+              <div className="market-label hidden gap-x-6 border-b border-border py-3 text-muted-foreground md:grid md:grid-cols-[1.1fr_1fr_1fr]">
                 <span aria-hidden="true" />
                 <span className="text-center">The usual</span>
                 <span className="text-center text-gold">NoDitto</span>
@@ -258,11 +267,12 @@ export default async function HomePage() {
       </footer>
     </div>
     </DirectionalTransition>
+    </>
   );
 }
 
 const footerLinkClass =
-  'rounded-sm text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40';
+  'inline-flex min-h-11 items-center rounded-sm text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40';
 
 function ComparisonRow({
   aspect,
@@ -274,12 +284,12 @@ function ComparisonRow({
   ours: string;
 }) {
   return (
-    <div className="grid gap-2 border-b border-border py-5 sm:grid-cols-[1.1fr_1fr_1fr] sm:items-center sm:gap-6">
+    <div className="grid gap-2 border-b border-border py-5 md:grid-cols-[1.1fr_1fr_1fr] md:items-center md:gap-6">
       <h3 className="text-body font-semibold">{aspect}</h3>
       <p className="flex items-center gap-2 text-body text-muted-foreground">
         <X className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span>
-          <span className="market-label mr-1.5 text-muted-foreground sm:hidden">
+          <span className="market-label mr-1.5 text-muted-foreground md:hidden">
             Elsewhere:
           </span>
           {typical}
@@ -288,7 +298,7 @@ function ComparisonRow({
       <p className="flex items-center gap-2 text-body font-medium">
         <Check className="size-4 shrink-0 text-trust" aria-hidden="true" />
         <span>
-          <span className="market-label mr-1.5 text-gold sm:hidden">Us:</span>
+          <span className="market-label mr-1.5 text-gold md:hidden">Us:</span>
           {ours}
         </span>
       </p>

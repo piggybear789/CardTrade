@@ -391,12 +391,12 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // is what keeps that field usable inside a definite-height card — do not assume a
   // popover in this rail can grow downwards.
   return (
-    <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7">
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="hidden md:block">
           {isShopfront
             ? "Describe what buyers can pick from. You agree the cards and the price with each buyer separately."
             : "Describe your collectible and set its price in Australian dollars."}
@@ -404,7 +404,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       </CardHeader>
 
       <form onSubmit={handleSubmit} noValidate className="lg:contents">
-        <CardContent className="grid gap-8 lg:contents">
+        <CardContent className="grid gap-5 lg:contents">
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
           {/* `lg:min-h-0` + `lg:overflow-hidden` are what make the photo actually
@@ -430,17 +430,16 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 way: `aspect-[3/4]` ties height to WIDTH, which on the wide side of
                 the grid resolved to roughly 900px, and a `max-h` cap fought the flex.
 
-                Below `lg` the card is stacked, there is no rail alongside and so
-                nothing to match: the portrait ratio sets the shape and `60svh` keeps
-                it off the whole screen. `svh` rather than `dvh` so the target does
-                not resize as a mobile URL bar hides on scroll.
+                Below `lg` the card is stacked: a 4:3 target with a `28svh` cap
+                leaves the details in the first screen. `svh` rather than `dvh`
+                so the target does not resize as a mobile URL bar hides on scroll.
 
                 The image is `object-contain` throughout, so nothing crops. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-gold/40 hover:bg-accent focus:outline-none focus-visible:border-gold/40 disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
+              className={`flex aspect-[16/10] max-h-[22svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-gold/40 hover:bg-accent focus:outline-none focus-visible:border-gold/40 disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -510,7 +509,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                         type="button"
                         onClick={() => removeKeptPath(path)}
                         disabled={isSubmitting}
-                        className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-gold/40"
+                        className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-gold/40 md:size-8"
                         aria-label="Remove image"
                       >
                         <X className="size-4" aria-hidden />
@@ -538,7 +537,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => removeNewFile(index)}
                       disabled={isSubmitting}
-                      className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-gold/40"
+                      className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-gold/40 md:size-8"
                       aria-label={`Remove ${file.name}`}
                     >
                       <X className="size-4" aria-hidden />
@@ -581,7 +580,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               <legend className="mb-2 text-body font-medium leading-none">
                 What are you listing?
               </legend>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 {LISTING_KINDS.map((kind) => (
                   <ChoiceTile
                     key={kind.value}
@@ -590,6 +589,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     type="radio"
                     icon={kind.icon}
                     label={kind.label}
+                    align="center"
                     checked={listingKind === kind.value}
                     onChange={() => setListingKind(kind.value)}
                   />
@@ -621,7 +621,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
-                rows={6}
+                rows={4}
                 aria-invalid={descriptionError ? true : undefined}
                 aria-describedby={
                   descriptionError ? "description-error" : undefined

@@ -403,6 +403,13 @@
   animation: none;
 }
 
+/* next dev paints a circular N on the bottom-right, on top of Account. */
+@media (max-width: 767px) {
+  nextjs-portal {
+    display: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -160,7 +160,7 @@ function ScrollButton({
       type="button"
       onClick={onClick}
       aria-label={direction === 'left' ? 'Show earlier games' : 'Show more games'}
-      className="pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-gold/40 hover:bg-gold/10 focus:outline-none focus-visible:border-gold/40"
+      className="pointer-events-auto flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:border-gold/40 hover:bg-gold/10 focus:outline-none focus-visible:border-gold/40 md:size-11"
     >
       <Icon className="size-3.5" aria-hidden />
     </button>
@@ -185,7 +185,7 @@ function GenrePill({
       aria-pressed={active}
       title={label}
       className={cn(
-        'inline-flex h-11 min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-meta font-semibold tracking-tight transition-colors',
+        'inline-flex h-9 min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-3',
         'border border-transparent focus:outline-none focus-visible:border-gold/40',
         active
           ? 'border-border bg-gold/10 text-foreground'

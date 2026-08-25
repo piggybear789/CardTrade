@@ -24,6 +24,7 @@
     "ux-review:capture": "playwright test --config=playwright.ux-review.config.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "3.682.0",
     "@aws-sdk/client-sesv2": "3.682.0",
     "@hookform/resolvers": "^5.4.0",
     "@radix-ui/react-dialog": "^1.1.21",
@@ -51,6 +52,7 @@
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.82.0",
+    "sharp": "0.34.4",
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "stripe": "^22.4.0",

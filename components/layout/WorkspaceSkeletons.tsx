@@ -6,6 +6,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
+import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { cn } from '@/lib/utils';
 
 export function SectionHeaderSkeleton({
@@ -18,10 +19,10 @@ export function SectionHeaderSkeleton({
   descriptionClassName?: string;
 }) {
   return (
-    <header className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-snug flex flex-col gap-tight border-b border-border pb-snug md:mb-5 md:gap-3 md:pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-2">
-        <Skeleton className={cn('h-8', titleClassName)} />
-        <Skeleton className={cn('h-4 max-w-full', descriptionClassName)} />
+        <Skeleton className={cn('h-6 md:h-8', titleClassName)} />
+        <Skeleton className={cn('hidden h-4 max-w-full md:block', descriptionClassName)} />
       </div>
       {hasMobileAction ? (
         <Skeleton className="h-10 w-full shrink-0 rounded-md sm:w-36 md:hidden" />
@@ -33,7 +34,7 @@ export function SectionHeaderSkeleton({
 /** Active / Past tab strip — same geometry as `SectionFilter`. */
 export function SectionFilterSkeleton({ tabs = 2 }: { tabs?: number }) {
   return (
-    <div className="mb-5 flex gap-1 border-b border-border pb-px">
+    <div className="mb-3 flex gap-1 border-b border-border pb-px md:mb-5">
       {Array.from({ length: tabs }, (_, index) => (
         <Skeleton key={index} className="h-10 w-24 rounded-t-md" />
       ))}
@@ -44,11 +45,11 @@ export function SectionFilterSkeleton({ tabs = 2 }: { tabs?: number }) {
 /** Compact catalog tile — `CatalogItemCard`. */
 export function CatalogTileSkeleton() {
   return (
-    <div>
-      <Skeleton className="aspect-[5/6] w-full rounded-xl" />
-      <div className="space-y-2 pt-2.5">
+    <div className="overflow-hidden rounded-lg bg-card shadow-sm">
+      <Skeleton className="aspect-[3/4] w-full rounded-none" />
+      <div className="space-y-1.5 px-1.5 pb-2 pt-1.5">
         <Skeleton className="h-4 w-4/5" />
-        <Skeleton className="h-5 w-2/5" />
+        <Skeleton className="h-4 w-2/5" />
         <Skeleton className="h-3 w-3/5" />
       </div>
     </div>
@@ -57,7 +58,7 @@ export function CatalogTileSkeleton() {
 
 export function CatalogGridSkeleton({ count = 12 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+    <div className={CATALOG_TILE_GRID}>
       {Array.from({ length: count }, (_, index) => (
         <CatalogTileSkeleton key={index} />
       ))}
@@ -89,7 +90,7 @@ export function AuctionGridSkeleton({
   return (
     <div
       className={cn(
-        'grid grid-cols-1 gap-group min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
+        CATALOG_TILE_GRID,
         className,
       )}
     >

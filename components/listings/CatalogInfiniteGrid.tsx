@@ -12,6 +12,7 @@ import {
   type CatalogSort,
   type SearchCatalogParams,
 } from '@/lib/actions/listings';
+import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { useCatalogView } from '@/components/listings/CatalogView';
 
@@ -176,7 +177,7 @@ export function CatalogInfiniteGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+      <div className={CATALOG_TILE_GRID}>
         {visibleItems.length === 0 ? (
           <p className="col-span-full py-10 text-center text-body text-muted-foreground">
             No listings here match “{filter.trim()}”.

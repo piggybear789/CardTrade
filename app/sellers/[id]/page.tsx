@@ -16,7 +16,8 @@ import { createClient } from '@/lib/supabase/server';
 import { CARD_GAME_NAMES } from '@/lib/catalog/cardGames';
 import { getReviewsFor } from '@/lib/actions/reviews';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
-import { ItemCard } from '@/components/listings/ItemCard';
+import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
+import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { ReviewList } from '@/components/reviews/ReviewList';
 import { ReportDialog } from '@/components/reports/ReportDialog';
@@ -123,7 +124,7 @@ export default async function SellerProfilePage({
 
   return (
     <MarketplaceShell title="Seller">
-      <nav className="mb-6" aria-label="Breadcrumb">
+      <nav className="mb-3" aria-label="Breadcrumb">
         <Link
           href="/listings"
           transitionTypes={['nav-back']}
@@ -134,23 +135,23 @@ export default async function SellerProfilePage({
       </nav>
 
       {/* Header */}
-      <header className="mb-8 space-y-2 border-b pb-6">
-        <div className="flex items-start justify-between gap-4">
+      <header className="mb-5 space-y-2 border-b pb-4">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
           {/* The avatar sits OUTSIDE the name/rating column so it stays a fixed
               square beside a wrapping name rather than being pushed around by it.
               Decorative: the name is the h2 immediately beside it. */}
-          <div className="flex min-w-0 items-start gap-4">
+          <div className="flex min-w-0 items-start gap-3">
             <Avatar
               avatarPath={seller.avatarPath}
               displayName={displayName}
-              size="xl"
+              size="md"
             />
-            <div className="min-w-0 space-y-2">
+            <div className="min-w-0 space-y-1.5">
             {/* The shell rail already renders the page h1 ("Seller"), so the
                 name is an h2 to keep the document outline hierarchical —
                 mirroring the listing detail page. */}
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="min-w-0 break-words text-head font-semibold tracking-[-0.025em]">
+              <h2 className="min-w-0 break-words text-subhead font-semibold tracking-[-0.025em] md:text-head">
                 {displayName}
               </h2>
               {/* ONE mark. This row used to also render a <VerifiedBadge/>, on the
@@ -162,7 +163,8 @@ export default async function SellerProfilePage({
               <IdentityBadge
                 verified={seller.isVerified}
                 firstName={seller.identityFirstName}
-                size={16}
+                hideNameWhen={displayName}
+                size={14}
               />
             </div>
             {reviews.length > 0 ? (
@@ -171,10 +173,10 @@ export default async function SellerProfilePage({
                 className="w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-gold/40"
                 aria-label={`Jump to ${reviews.length} reviews`}
               >
-                <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
+                <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
               </Link>
             ) : (
-              <StarRating rating={seller.rating} count={seller.ratingCount} size={18} />
+              <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
             )}
             <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
             {/* MEMBER-AUTHORED, so it is presented as their words and nothing more.
@@ -202,7 +204,7 @@ export default async function SellerProfilePage({
         </div>
 
         {sellerIdentity ? (
-          <div className="mt-3 rounded-lg border bg-muted p-4">
+          <div className="mt-2 rounded-lg border bg-muted p-3">
             <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
               {/* Same glyph as IdentityBadge: one fact, one icon vocabulary. */}
               <ShieldCheck className="h-4 w-4" aria-hidden />
@@ -241,8 +243,8 @@ export default async function SellerProfilePage({
       </header>
 
       {/* Listings */}
-      <section aria-labelledby="listings-heading" className="mb-10">
-        <h2 id="listings-heading" className="mb-4 text-subhead font-semibold">
+      <section aria-labelledby="listings-heading" className="mb-8">
+        <h2 id="listings-heading" className="mb-3 text-body font-semibold md:mb-4 md:text-subhead">
           Available listings
         </h2>
         {itemsError ? (
@@ -255,9 +257,9 @@ export default async function SellerProfilePage({
             compact
           />
         ) : (
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+          <div className={CATALOG_TILE_GRID}>
             {catalogItems.map((item) => (
-              <ItemCard key={item.id} item={item} />
+              <CatalogItemCard key={item.id} item={item} />
             ))}
           </div>
         )}
@@ -265,7 +267,7 @@ export default async function SellerProfilePage({
 
       {/* Reviews */}
       <section id="reviews" aria-labelledby="reviews-heading" className="scroll-mt-24">
-        <h2 id="reviews-heading" className="mb-4 text-subhead font-semibold">
+        <h2 id="reviews-heading" className="mb-3 text-body font-semibold md:mb-4 md:text-subhead">
           Reviews {reviews.length > 0 ? `(${reviews.length})` : ''}
         </h2>
         <ReviewList reviews={reviews} revieweeName={displayName} />

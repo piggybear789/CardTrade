@@ -23,7 +23,6 @@
 // Visual language comes from `components/account/SettingsPrimitives.tsx` — see the
 // note there on why the reference's dark classes are translated rather than copied.
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CreditCard, ShieldCheck, Wallet } from 'lucide-react';
 
@@ -52,10 +51,8 @@ import {
   SettingsListRow,
   SettingsPanelRow,
   SettingsPlaceholder,
-  SettingsSection,
   TrustLine,
 } from '@/components/account/SettingsPrimitives';
-import { Button } from '@/components/ui/button';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import {

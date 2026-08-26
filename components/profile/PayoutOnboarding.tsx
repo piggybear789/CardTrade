@@ -154,7 +154,7 @@ export function PayoutOnboarding({
 
   if (compact && Boolean(state.merchantRef)) {
     return (
-      <Card id="payout-setup" className="h-full scroll-mt-24">
+      <Card id="payout-setup" className="h-full scroll-mt-24 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
         <CardHeader className="pb-3">
           {/* SAYS PAYOUT DESTINATION, NOT "Merchant identity". Connect answers where
               money goes; it says nothing about who the member is since 0069. */}
@@ -227,8 +227,8 @@ export function PayoutOnboarding({
 
   return (
     // `id` is the anchor target for `/profile/payouts#payout-setup`.
-    <Card id="payout-setup" className="h-full scroll-mt-24">
-      <CardHeader className="pb-3">
+    <Card id="payout-setup" className="h-full scroll-mt-24 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+      <CardHeader className="pb-3 max-md:px-group">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-snug text-lead mb-2">

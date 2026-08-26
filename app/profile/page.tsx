@@ -5,8 +5,7 @@
 //   Profile       who you are to other members: picture, name, bio, socials, and the
 //                 card you BUY with.
 //   Verification  the two sequential gates, in order: Stripe Identity (unlocks
-//                 listing/selling/trading) then Stripe Connect (unlocks being PAID),
-//                 plus the trading region those contracts are scoped to.
+//                 listing/selling/trading) then Stripe Connect (unlocks being PAID).
 //   Payouts       what you are owed and what has landed.
 //
 // WHY CONNECT LIVES UNDER VERIFICATION. `product.md` defines verification as TWO
@@ -15,17 +14,18 @@
 // deliberately left as reporting only; it never hosts onboarding, which is what kept
 // the old two-page split competing over the same card.
 //
+// THE TAB DOES NOT DRAW THOSE STEPS ITSELF. It mounts `VerificationSequence`, the same
+// spine the signup wizard uses, so the ordering is expressed by the sequence rather
+// than restated by this page. Rendering its own identity and payout cards here is what
+// let the two drift: the pair showed both "Verify with Stripe" buttons at once, on a
+// flow where the second step is not reachable until the first has passed.
+//
 // Visual language comes from `components/account/SettingsPrimitives.tsx` — see the
 // note there on why the reference's dark classes are translated rather than copied.
 
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import {
-  Clock,
-  CreditCard,
-  ScaleIcon,
-  ShieldCheck,
-  Wallet,
-} from 'lucide-react';
+import { CreditCard, ShieldCheck, Wallet } from 'lucide-react';
 
 import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -33,28 +33,35 @@ import { getPayoutSetupContext } from '@/lib/actions/merchant';
 import { getPayoutsDashboard } from '@/lib/actions/payouts';
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { isPaymentDemoEnabled } from '@/domain/services';
-import { formatAud } from '@/lib/format';
-import { IdentityCheckCard } from '@/components/identity/IdentityCheckCard';
 import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
-import { PayoutOnboarding } from '@/components/profile/PayoutOnboarding';
+import { PayoutReturnRefresh } from '@/components/payouts/PayoutReturnRefresh';
+import { VerificationSequence } from '@/components/profile/VerificationSequence';
 import { PayoutsDashboard } from '@/components/payouts/PayoutsDashboard';
+import { PayoutSummary } from '@/components/payouts/PayoutSummary';
 import { EditProfileDialog } from '@/components/profile/EditProfileDialog';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
-import { SocialLinksEditor } from '@/components/profile/SocialLinksEditor';
-import { ProfileBioEditor } from '@/components/profile/ProfileBioEditor';
+import {
+  BioSettingRow,
+  LinksSettingRow,
+} from '@/components/profile/ProfileSettingRows';
 import { AccountTabs } from '@/components/account/AccountTabs';
 import {
-  SectionLabel,
+  SettingsGroup,
+  SettingsListRow,
+  SettingsPanelRow,
   SettingsPlaceholder,
-  SettingsRow,
   SettingsSection,
-  StatTile,
-  StatusPill,
+  TrustLine,
 } from '@/components/account/SettingsPrimitives';
 import { Button } from '@/components/ui/button';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
+import { SignOutButton } from '@/components/layout/SignOutButton';
+import {
+  STAFF_NAV_GROUP,
+  staffNavLinksFor,
+} from '@/components/layout/marketplace-nav-config';
 import { EmptyState } from '@/components/ui/empty-state';
 import { resolveScope } from '@/components/layout/SectionFilter';
 
@@ -88,7 +95,7 @@ export default async function ProfilePage({
     await Promise.all([
       supabase
         .from('profiles')
-        .select('display_name, contact_email, avatar_path, social_links, bio')
+        .select('display_name, contact_email, avatar_path, social_links, bio, is_admin, is_support')
         .eq('id', user.id)
         .single(),
       getPaymentMethodStatus(),
@@ -102,6 +109,7 @@ export default async function ProfilePage({
     return (
       <MarketplaceShell title="Settings" center>
         <EmptyState
+          variant="page"
           title="Profile unavailable"
           description="We could not load your account details. Reload to try again."
           action={{ label: 'Try again', href: '/profile' }}
@@ -127,11 +135,21 @@ export default async function ProfilePage({
   );
 
   const socialLinks = (profile.social_links as Record<string, string> | null) ?? null;
+  const staffLinks = staffNavLinksFor({
+    isAdmin: Boolean(profile.is_admin),
+    isStaff: Boolean(profile.is_admin) || Boolean(profile.is_support),
+  });
 
   return (
     <MarketplaceShell title="Settings">
-      {/* Reconciles a return from Stripe's hosted identity flow. Renders nothing. */}
+      {/* Reconcile a return from either hosted Stripe flow. Both render nothing, and
+          each ignores a marker that is not its own. The payout half used to live in an
+          effect inside `PayoutOnboarding`; with that card gone the page needs the
+          standalone reconciler, or a member coming back from Connect would land on
+          whatever the database last heard — still PENDING until the webhook arrives,
+          and in local development without `stripe listen` that is never. */}
       <IdentityReturnRefresh />
+      <PayoutReturnRefresh />
 
       {/* ONE CENTRED COLUMN for the whole surface — heading, tabs and content.
           `mx-auto` centres the COLUMN; text inside it stays left-aligned. Capping
@@ -139,209 +157,147 @@ export default async function ProfilePage({
           viewport, a short label sits at one edge and its control at the other.
           The heading and tabs share the column so all three left edges line up. */}
       <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-snug md:mb-group">
-          <h2 className="text-subhead font-semibold tracking-[-0.02em] md:text-head">Settings</h2>
+        {/* IDENTITY ABOVE THE TABS, because it is true of all three of them. It also
+            gives the tab strip something to belong to: on its own under a bare
+            "Settings" heading it read as a second navigation bar bolted to the page.
+            The name is the heading here — "Settings" is already the page's own title
+            in the shell, and stacking a title, an identity block and a tab strip is
+            three headers before any content. */}
+        <header className="mb-group flex items-center gap-group px-tight md:mb-section">
+          <AvatarUploadField
+            avatarPath={profile.avatar_path}
+            displayName={profile.display_name}
+            hideHint
+            compact
+          />
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <h2 className="truncate text-subhead font-semibold tracking-[-0.02em] md:text-head">
+              {profile.display_name}
+            </h2>
+            <TrustLine
+              identityVerified={identityVerified}
+              payoutsActive={payoutsActive}
+            />
+          </div>
         </header>
 
         <AccountTabs activeTab={activeTab} />
 
         {activeTab === 'profile' ? (
-          <div className="space-y-5 md:space-y-8">
-            {/* Picture + identity fields. The avatar saves on pick, so there is no
-                form-submit step to coordinate here.
-                `items-start` + a matching top offset on the avatar: the avatar and the
-                first eyebrow label must share a top edge, which centring broke — a
-                64px circle beside two stacked fields centres itself against their
-                combined height and floats below the label it belongs to. */}
-            <div className="rounded-xl border bg-card p-group">
-              <div className="flex flex-col gap-group">
-                <div className="flex items-start gap-group">
-                  <AvatarUploadField
-                    avatarPath={profile.avatar_path}
-                    displayName={profile.display_name}
-                    hideHint
-                    compact
+          // NO GROUP HEADINGS ON THIS TAB. It carried four ("Public profile",
+          // "Payment", and two more on the sibling tabs) — tracked uppercase labels
+          // introducing rows that already say what they are, each one visually louder
+          // than the setting beneath it. A run of rows separated by space needs no
+          // heading; the tab name is the heading.
+          <div className="space-y-group md:space-y-section">
+            <SettingsGroup>
+              <EditProfileDialog
+                avatarPath={profile.avatar_path}
+                displayName={profile.display_name}
+                contactEmail={profile.contact_email}
+                trigger={
+                  <SettingsListRow label="Name and email" value={profile.contact_email} />
+                }
+              />
+              <BioSettingRow bio={(profile.bio as string | null) ?? ''} />
+              <LinksSettingRow links={socialLinks} />
+            </SettingsGroup>
+
+            <SettingsGroup>
+              <AddPaymentMethodDialog
+                trigger={
+                  <SettingsListRow
+                    icon={CreditCard}
+                    label="Payment method"
+                    // ONE LINE. The card used to be the value beside a two-line label
+                    // carrying the expiry, so it floated against the middle of a block
+                    // it was supposed to be reading out. The expiry belongs in the
+                    // editor, not in a list whose job is "what is set".
+                    value={hasCard ? (paymentMethod?.label ?? 'Card saved') : 'Add a card'}
+                    description={
+                      hasCard ? undefined : 'Required to buy or back a trade.'
+                    }
                   />
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <div>
-                      <SectionLabel>Display name</SectionLabel>
-                      <p className="mt-1 truncate text-lead font-semibold">
-                        {profile.display_name}
-                      </p>
-                    </div>
-                    <div>
-                      <SectionLabel>Email</SectionLabel>
-                      <p className="mt-1 truncate text-body text-muted-foreground">
-                        {profile.contact_email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {identityVerified ? (
-                    <StatusPill tone="verified" icon={ShieldCheck}>
-                      Verified
-                    </StatusPill>
-                  ) : null}
-                  <EditProfileDialog
-                    avatarPath={profile.avatar_path}
-                    displayName={profile.display_name}
-                    contactEmail={profile.contact_email}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <SettingsSection
-              label="About"
-            >
-              <ProfileBioEditor initialBio={(profile.bio as string | null) ?? ''} />
-            </SettingsSection>
-
-            <SettingsSection
-              label="Links"
-              description="Shown on your public profile. Usernames for socials; a full https link for your store."
-            >
-              <SocialLinksEditor initialLinks={socialLinks} />
-            </SettingsSection>
-
-            <SettingsSection
-              label="Payment method"
-            >
-              {hasCard ? (
-                <SettingsRow
-                  icon={CreditCard}
-                  inverse
-                  title={paymentMethod?.label ?? 'Card saved with Stripe'}
-                  subtitle={
-                    paymentMethod?.expiry
-                      ? `Expires ${paymentMethod.expiry}`
-                      : null
-                  }
-                  trailing={
-                    <AddPaymentMethodDialog
-                      trigger={
-                        <Button
-                          type="button"
-                          variant="link"
-                          size="sm"
-                          className="h-auto p-0 text-body font-medium text-parchment no-underline hover:text-parchment hover:underline"
-                        >
-                          Replace
-                        </Button>
-                      }
-                    />
-                  }
-                />
-              ) : (
-                <SettingsPlaceholder
-                  action={
-                    <AddPaymentMethodDialog
-                      trigger={
-                        <Button type="button" variant="outline" size="sm">
-                          <CreditCard aria-hidden />
-                          Add card
-                        </Button>
-                      }
-                    />
-                  }
-                >
-                  Required to buy or back a trade.
-                </SettingsPlaceholder>
-              )}
-            </SettingsSection>
+                }
+              />
+            </SettingsGroup>
           </div>
         ) : null}
 
         {activeTab === 'verification' ? (
-          <div className="space-y-6">
+          <div className="space-y-group md:space-y-section">
             {/* Identity and payout setup only. The member summary (avatar, name,
                 ratings, region) already lives on the Profile tab — repeating it
                 here made Verification look like a second profile page. */}
             {identityVerified && payoutsActive ? (
-              <SettingsRow
-                icon={ShieldCheck}
-                title="You're set up"
-                subtitle="Identity verified and payouts are active."
-              />
-            ) : null}
-
-            {!identityVerified ? (
-              <SettingsSection
-                label="Identity"
-              >
-                {identity.ok ? (
-                  <IdentityCheckCard
-                    status={identity.data.status}
-                    verifiedName={identity.data.verifiedName}
-                    returnPath="/profile?tab=verification"
+              // A RESULT, THEN ITS EVIDENCE. Two equal grey rows made the finished
+              // state read as an inventory; the member came here to learn one thing,
+              // so say it, then show the two facts that back it up.
+              <>
+                <div className="px-tight">
+                  <h3 className="text-lead font-semibold">You&apos;re set up to sell</h3>
+                  <p className="mt-0.5 text-body text-muted-foreground">
+                    Both checks are complete. There is nothing else to do here.
+                  </p>
+                </div>
+                <SettingsGroup>
+                  <SettingsListRow
+                    icon={ShieldCheck}
+                    tone="verified"
+                    label="Identity"
+                    value={
+                      identity.ok && identity.data.verifiedName
+                        ? identity.data.verifiedName
+                        : 'Checked by Stripe'
+                    }
                   />
-                ) : (
-                  <SettingsPlaceholder>
-                    Verification status is unavailable right now. Reload to try again.
-                  </SettingsPlaceholder>
-                )}
-                {paymentDemoEnabled && identity.ok ? (
-                  <IdentityDemoControls />
-                ) : null}
-              </SettingsSection>
-            ) : null}
+                  <SettingsListRow
+                    icon={Wallet}
+                    tone="verified"
+                    label="Payouts"
+                    value="Active"
+                  />
+                </SettingsGroup>
+              </>
+            ) : identity.ok || payoutContext.ok ? (
+              // ONE SEQUENCE, ONE BUTTON. Both gates are rendered by the surface the
+              // signup wizard uses, which shows a control for the ACTIVE step only —
+              // so an ordered pair of steps presents as a single call to action that
+              // advances. This tab previously drew its own identity and payout cards
+              // side by side, each with a "Verify with Stripe" button, which put two
+              // competing entry points on a strictly sequential flow.
+              <SettingsGroup>
+                <SettingsPanelRow>
+                  <VerificationSequence
+                    identityDone={identityVerified}
+                    payoutDone={payoutsActive}
+                    verifiedName={identity.ok ? identity.data.verifiedName : null}
+                  />
+                </SettingsPanelRow>
+              </SettingsGroup>
+            ) : (
+              // Only when BOTH reads failed. Either one alone still leaves a usable
+              // step, and the surface re-reads on mount regardless.
+              <SettingsPlaceholder>
+                Verification is unavailable right now. Reload to try again.
+              </SettingsPlaceholder>
+            )}
 
-            {!payoutsActive ? (
-              <SettingsSection
-                label="Payout account"
-              >
-                {payoutContext.ok ? (
-                  <PayoutOnboarding context={payoutContext.data} />
-                ) : (
-                  <SettingsPlaceholder>
-                    Payout setup is unavailable right now. Reload to try again.
-                  </SettingsPlaceholder>
-                )}
-              </SettingsSection>
+            {/* The crank that drives a mock check forward, since `MockService` lands
+                every check PENDING on purpose. Dropped once verified — there is
+                nothing left for it to simulate. */}
+            {paymentDemoEnabled && identity.ok && !identityVerified ? (
+              <IdentityDemoControls />
             ) : null}
           </div>
         ) : null}
 
         {activeTab === 'payouts' ? (
-          <div className="space-y-5 md:space-y-8">
+          <div className="space-y-group md:space-y-section">
             {/* Real figures from the payout read model — the three buckets are a
                 strict partition, so these never double-count a sale. */}
             {payoutDashboard.ok ? (
-              <div className="grid gap-3 sm:grid-cols-3">
-                <StatTile
-                  label="Owed to you"
-                  value={formatAud(payoutDashboard.data.model.releasingNowCents)}
-                  sub={
-                    payoutDashboard.data.model.hasBlockedRelease
-                      ? 'Part of this is held up'
-                      : 'Released automatically'
-                  }
-                  icon={Wallet}
-                  tone={
-                    payoutDashboard.data.model.hasBlockedRelease ? 'pending' : 'verified'
-                  }
-                />
-                <StatTile
-                  label="Held for open sales"
-                  value={formatAud(payoutDashboard.data.model.upcomingProceedsCents)}
-                  sub="Collected, not yet complete"
-                  icon={Clock}
-                  tone="neutral"
-                />
-                <StatTile
-                  label="Under dispute"
-                  value={formatAud(payoutDashboard.data.model.atRiskProceedsCents)}
-                  sub="Outcome not yet decided"
-                  icon={ScaleIcon}
-                  tone={
-                    payoutDashboard.data.model.atRiskProceedsCents > 0
-                      ? 'pending'
-                      : 'neutral'
-                  }
-                />
-              </div>
+              <PayoutSummary model={payoutDashboard.data.model} />
             ) : null}
 
             {payoutDashboard.ok ? (
@@ -357,6 +313,34 @@ export default async function ProfilePage({
             )}
           </div>
         ) : null}
+
+        {/* Signed-in phones no longer have the header burger, so sign-out and
+            staff destinations live here — the Account hub's home. Desktop still
+            has the overflow menu; repeating them on settings is the usual place. */}
+        {/* SAME ROWS AS EVERYTHING ABOVE. These were outline buttons in a stack — a
+            third control vocabulary on a page that had just settled on two, and the
+            only bordered pills on the surface. Staff destinations are ordinary
+            navigation, so they are ordinary rows; the label stays because "Staff" is
+            the one heading here that is not obvious from its contents.
+
+            Sign out keeps a container of its own rather than joining them: it ends
+            the session, and a destructive action sharing a group with navigation is
+            the kind of adjacency that gets mis-tapped. */}
+        <div className="mt-section space-y-group border-t border-border pt-section">
+          {staffLinks.length > 0 ? (
+            <SettingsGroup label={STAFF_NAV_GROUP.label}>
+              {staffLinks.map((link) => (
+                <SettingsListRow
+                  key={link.href}
+                  href={link.href}
+                  icon={link.icon}
+                  label={link.label}
+                />
+              ))}
+            </SettingsGroup>
+          ) : null}
+          <SignOutButton className="h-12 w-full justify-start rounded-xl border border-border bg-card px-group text-body font-medium text-destructive hover:bg-destructive/5 hover:text-destructive" />
+        </div>
       </div>
     </MarketplaceShell>
   );

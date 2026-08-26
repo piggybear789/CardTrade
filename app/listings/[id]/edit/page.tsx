@@ -8,20 +8,13 @@
 //   - Blocks editing of items that are not AVAILABLE (Req 3.5) with a message,
 //     matching the guard the update action itself applies.
 
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Lock } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { getItem } from "@/lib/actions/listings";
 import { ItemForm } from "@/components/listings/ItemForm";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -87,19 +80,18 @@ export default async function EditListingPage({
 /** Shown when an item can't be edited because it isn't AVAILABLE (Req 3.5). */
 function NotEditable({ itemId, status }: { itemId: string; status: string }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lead">This listing can&apos;t be edited</CardTitle>
-        <CardDescription>
-          It&apos;s currently {status.toLowerCase()} and can only be modified
-          while it is available.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button asChild variant="outline">
-          <Link href={`/listings/${itemId}`} transitionTypes={['nav-back']}>Back to listing</Link>
-        </Button>
-      </CardContent>
-    </Card>
+    <EmptyState
+      variant="page"
+      icon={<Lock className="size-6" aria-hidden />}
+      title="This listing can't be edited"
+      titleAs="h3"
+      description={`It's currently ${status.toLowerCase()} and can only be modified while it is available.`}
+      action={{
+        label: 'Back to listing',
+        href: `/listings/${itemId}`,
+        variant: 'outline',
+        transitionTypes: ['nav-back'],
+      }}
+    />
   );
 }

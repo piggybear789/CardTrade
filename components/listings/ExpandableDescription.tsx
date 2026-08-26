@@ -19,7 +19,9 @@ export function ExpandableDescription({
   className?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const needsExpand = text.length > COLLAPSE_AT;
+  const body = text.trim();
+  if (!body) return null;
+  const needsExpand = body.length > COLLAPSE_AT;
 
   return (
     <div className={className}>
@@ -29,7 +31,7 @@ export function ExpandableDescription({
           needsExpand && !expanded && 'line-clamp-4',
         )}
       >
-        {text}
+        {body}
       </p>
       {needsExpand ? (
         <button

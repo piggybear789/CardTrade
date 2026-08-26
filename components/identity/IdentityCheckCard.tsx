@@ -138,7 +138,7 @@ export function IdentityCheckCard({
   return (
     // `id` is the in-page anchor if a fragment still lands here. The hosted
     // return and onboarding fallback now go to `/profile?tab=verification`.
-    <Card id="identity" className="h-full scroll-mt-24">
+    <Card id="identity" className="h-full scroll-mt-24 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
       <CardHeader className="pb-3">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
           <div className="min-w-0">

@@ -3,6 +3,7 @@ import { Suspense, type ReactNode } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
+import { KeyboardInset } from '@/components/layout/KeyboardInset';
 import { SiteHeader, SiteHeaderSkeleton } from '@/components/layout/SiteHeader';
 import { MotionProvider } from '@/components/providers/MotionProvider';
 import { Toaster } from '@/components/ui/sonner';
@@ -61,9 +62,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // The app ships a single light theme; the browser chrome colour matches the
-  // obsidian header bar (and the manifest's theme_color) in both OS modes.
-  themeColor: '#0c0b0a',
+  // Phone chrome is cream; desktop keeps the obsidian marketplace header.
+  themeColor: [
+    { media: '(min-width: 768px)', color: '#0c0b0a' },
+    { media: '(max-width: 767px)', color: '#f4efe4' },
+  ],
   colorScheme: 'light',
   // Draw under notches/home indicators so the sticky header can pad itself
   // with safe-area insets instead of leaving a hardware-coloured gap.
@@ -100,11 +103,12 @@ export default function RootLayout({
             <Suspense fallback={<SiteHeaderSkeleton />}>
               <SiteHeader />
             </Suspense>
-            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] focus:outline-none">
+            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">
               {children}
             </div>
           </StartDealProvider>
           <Toaster />
+          <KeyboardInset />
         </MotionProvider>
       </body>
     </html>

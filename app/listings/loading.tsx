@@ -46,7 +46,14 @@ export default function ListingsLoading() {
               </div>
               <Skeleton className="h-9 w-36 shrink-0 rounded-md" />
             </div>
-            <div className="flex min-w-0 gap-1.5 overflow-hidden">
+            <div className="flex min-w-0 gap-0.5 overflow-hidden md:hidden">
+              <Skeleton className="h-11 w-12 shrink-0 rounded-md" />
+              <Skeleton className="h-11 w-16 shrink-0 rounded-md" />
+              <Skeleton className="h-11 w-[4.5rem] shrink-0 rounded-md" />
+              <Skeleton className="h-11 w-16 shrink-0 rounded-md" />
+              <Skeleton className="h-11 w-14 shrink-0 rounded-md" />
+            </div>
+            <div className="hidden min-w-0 gap-1.5 overflow-hidden md:flex">
               <Skeleton className="h-7 w-10 shrink-0 rounded-full" />
               <Skeleton className="h-7 w-20 shrink-0 rounded-full" />
               <Skeleton className="h-7 w-24 shrink-0 rounded-full" />

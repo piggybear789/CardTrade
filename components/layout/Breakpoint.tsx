@@ -23,16 +23,16 @@ function getLgServerSnapshot() {
   return false;
 }
 
-function useIsLg() {
+export function useIsDesktop() {
   return useSyncExternalStore(subscribeLg, getLgSnapshot, getLgServerSnapshot);
 }
 
 /** Renders children only below the desktop chrome split (`md` = 768px). */
 export function MobileOnly({ children }: { children: ReactNode }) {
-  return useIsLg() ? null : children;
+  return useIsDesktop() ? null : children;
 }
 
 /** Renders children only at the desktop chrome split and up (`md` = 768px). */
 export function DesktopOnly({ children }: { children: ReactNode }) {
-  return useIsLg() ? children : null;
+  return useIsDesktop() ? children : null;
 }

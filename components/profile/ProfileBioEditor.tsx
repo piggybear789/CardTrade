@@ -2,10 +2,14 @@
 
 // components/profile/ProfileBioEditor.tsx
 //
-// The bio is always an editable textarea rather than a click-to-reveal control.
-// The previous version rendered as plain text until clicked, which gave an empty
-// bio no affordance at all — a line of placeholder italics that did not look
-// interactive. A field that looks like a field needs no discovery.
+// The bio editor, now the body of a sheet opened from the Bio row rather than a
+// textarea sitting open on the Settings page.
+//
+// WHY IT MOVED. It was inline on the reasoning that "a field that looks like a field
+// needs no discovery" — true of a form, but Settings is read far more often than it
+// is edited, and an always-open textarea carrying placeholder prose and a `0/280`
+// counter made a screen at rest look like an abandoned draft. The row now states
+// whether a bio is set and shows it; the field appears when asked for.
 //
 // Saves explicitly. Auto-saving prose on blur means a half-written sentence
 // becomes your public bio the moment focus moves.
@@ -21,7 +25,14 @@ import { Textarea } from '@/components/ui/textarea';
 /** Matches the server-side cap in `updateBio`. */
 const BIO_MAX = 280;
 
-export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
+export function ProfileBioEditor({
+  initialBio,
+  onSaved,
+}: {
+  initialBio: string;
+  /** Raised after a successful save, so a host sheet can dismiss itself. */
+  onSaved?: () => void;
+}) {
   const [bio, setBio] = useState(initialBio);
   const [isPending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
@@ -39,6 +50,7 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
         setJustSaved(true);
         toast.success('Bio saved.');
         window.setTimeout(() => setJustSaved(false), 2000);
+        onSaved?.();
       } catch {
         toast.error('Network error saving bio. Please try again.');
       }
@@ -46,18 +58,17 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
   }
 
   return (
-    <div className="space-y-snug">
+    <div className="space-y-cozy">
       <Textarea
         value={bio}
         onChange={(event) => setBio(event.target.value.slice(0, BIO_MAX))}
         placeholder="Tell other collectors what you trade, how you pack, how fast you post…"
-        // Three rows on the empty phone form so Settings is not a tall blank
-        // well. The field is still `resize-y` if someone writes the full 280.
-        rows={3}
+        rows={5}
         maxLength={BIO_MAX}
         disabled={isPending}
         aria-describedby="bio-counter"
-        className="resize-y"
+        autoFocus
+        className="resize-none"
       />
       <div className="flex items-center justify-between gap-cozy">
         {/* Not a live region: it updates on every keystroke, which would make a
@@ -65,22 +76,23 @@ export function ProfileBioEditor({ initialBio }: { initialBio: string }) {
         <span id="bio-counter" className="text-meta text-muted-foreground">
           {bio.length}/{BIO_MAX}
         </span>
-        {dirty || justSaved ? (
-          <Button
-            type="button"
-            size="sm"
-            onClick={save}
-            disabled={isPending || !dirty}
-            aria-busy={isPending}
-          >
-            {isPending ? (
-              <Loader2 className="animate-spin" aria-hidden />
-            ) : justSaved ? (
-              <Check aria-hidden />
-            ) : null}
-            {justSaved && !dirty ? 'Saved' : 'Save bio'}
-          </Button>
-        ) : null}
+        {/* ALWAYS RENDERED, disabled until there is something to save. In a sheet the
+            primary action cannot appear only once the field is dirty — opening an
+            editor whose only visible control is the close button reads as broken. */}
+        <Button
+          type="button"
+          size="sm"
+          onClick={save}
+          disabled={isPending || !dirty}
+          aria-busy={isPending}
+        >
+          {isPending ? (
+            <Loader2 className="animate-spin" aria-hidden />
+          ) : justSaved && !dirty ? (
+            <Check aria-hidden />
+          ) : null}
+          {justSaved && !dirty ? 'Saved' : 'Save bio'}
+        </Button>
       </div>
     </div>
   );

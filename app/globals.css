@@ -69,7 +69,9 @@
 
   html {
     scroll-padding-top: calc(4rem + 1px + env(safe-area-inset-top));
-    scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(
+      3.5rem + env(safe-area-inset-bottom) + var(--keyboard-inset, 0px)
+    );
     /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
   }
@@ -124,11 +126,11 @@
   }
 
   .market-search input::placeholder {
-    color: hsl(var(--primary-foreground) / 0.58);
+    color: hsl(var(--primary-foreground) / 0.78);
   }
 
   .market-search > svg {
-    color: hsl(var(--primary-foreground) / 0.5);
+    color: hsl(var(--primary-foreground) / 0.92);
   }
 
   /* Native search cancel fights our X and is unstyled on the dark bar. */
@@ -401,6 +403,51 @@
 }
 ::view-transition-new(persistent-mobile-nav) {
   animation: none;
+}
+
+/* Catalog mosaic (phone). See `components/listings/catalogGrid.ts`.
+
+   Three rules, all scoped to below md, because the md-and-up grid must stay
+   exactly what it has always been: a uniform grid of 3:4 covers. */
+
+/* The cover's own shape, from `items.image_dims` (0106).
+
+   The base ratio is the 3:4 the md-and-up grid has always used, and only the
+   phone override below reads the stored dimensions. A tile whose dimensions are
+   unknown — a row the backfill has not reached, an external seeded URL, a photo
+   neither reader could decode — falls back through the custom property to
+   square on phone, rather than collapsing to nothing. */
+.catalog-cover {
+  aspect-ratio: 3 / 4;
+}
+
+@media (max-width: 767px) {
+  .catalog-cover {
+    aspect-ratio: var(--catalog-cover-aspect, 1 / 1);
+  }
+
+  /* `content-visibility: auto` needs a height for tiles it has skipped, and in a
+     mosaic that height differs per tile. Overrides the flat 18rem the card
+     carries as a Tailwind utility; wins on source order, since this file's
+     plain rules come after `@tailwind utilities`. */
+  .catalog-tile {
+    contain-intrinsic-size: auto var(--catalog-tile-height, 18rem);
+  }
+}
+
+/* Pre-hydration only, and only at md and up.
+
+   The mosaic is what the server renders, because the layout cannot be chosen
+   until the viewport is known and a phone is the safe assumption. On a desktop
+   that markup is briefly on screen before React swaps in the flat grid, and
+   without this it would paint as two columns of column-major tiles and then
+   snap. `display: contents` on the mosaic's wrappers hands the tiles straight
+   to the md grid, and `order` puts them back in feed order, so the interim
+   paint is identical to the final one and there is nothing to snap. */
+@media (min-width: 768px) {
+  .catalog-tile-slot {
+    order: var(--tile-order, 0);
+  }
 }
 
 /* next dev paints a circular N on the bottom-right, on top of Account. */

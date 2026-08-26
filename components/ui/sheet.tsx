@@ -37,7 +37,7 @@ const sheetVariants = cva(
       side: {
         top: "inset-x-0 top-0 border-b pt-[max(1.5rem,env(safe-area-inset-top))] data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
         bottom:
-          "inset-x-0 bottom-0 max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] overflow-y-auto overscroll-contain rounded-t-2xl border-t bg-card pb-[max(1.5rem,env(safe-area-inset-bottom))] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "inset-x-0 bottom-[var(--keyboard-inset,0px)] max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] overflow-y-auto overscroll-contain rounded-t-2xl border-t bg-card pb-[max(1.5rem,env(safe-area-inset-bottom))] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
@@ -51,21 +51,31 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /** Extra classes for the dimmed backdrop — used to keep the mobile hub clear. */
+  overlayClassName?: string;
+  /** Override the default close chip (needed on dark sheets — `muted` is cream). */
+  closeClassName?: string;
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, overlayClassName, closeClassName, children, ...props }, ref) => (
   <SheetPortal>
-    <SheetOverlay />
+    <SheetOverlay className={overlayClassName} />
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute right-3 top-3 flex size-11 touch-manipulation items-center justify-center rounded-full bg-muted/80 opacity-90 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:pointer-events-none md:size-8 md:rounded-sm md:bg-transparent md:opacity-70">
+      <SheetPrimitive.Close
+        className={cn(
+          "absolute right-3 top-3 flex size-11 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:pointer-events-none md:size-8 md:opacity-70",
+          closeClassName,
+        )}
+      >
         <X className="size-4" aria-hidden="true" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>

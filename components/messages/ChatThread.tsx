@@ -87,7 +87,7 @@ export function ChatThread({
           <Link
             href="/messages"
             transitionTypes={['nav-back']}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-gold/40"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border border-transparent text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-gold/40 md:size-10"
             aria-label="Back to messages"
           >
             <ArrowLeft className="size-4" aria-hidden />

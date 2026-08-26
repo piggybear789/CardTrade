@@ -44,3 +44,24 @@ export function subscribeCatalogQuery(onQuery: (q: string) => void): () => void 
   window.addEventListener(CATALOG_QUERY_EVENT, handle);
   return () => window.removeEventListener(CATALOG_QUERY_EVENT, handle);
 }
+
+const CATALOG_FILTERS_EVENT = 'noditto:catalog-filters';
+
+/** Opens or closes the catalog refine sheet from chrome that sits outside CatalogView. */
+export function requestCatalogFilters(open: boolean) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(CATALOG_FILTERS_EVENT, { detail: { open } }),
+  );
+}
+
+export function subscribeCatalogFilters(
+  onOpen: (open: boolean) => void,
+): () => void {
+  function handle(event: Event) {
+    const open = (event as CustomEvent<{ open: boolean }>).detail?.open;
+    if (typeof open === 'boolean') onOpen(open);
+  }
+  window.addEventListener(CATALOG_FILTERS_EVENT, handle);
+  return () => window.removeEventListener(CATALOG_FILTERS_EVENT, handle);
+}

@@ -2,8 +2,9 @@
 //
 // Item detail page (Req 3.8, 4.1, 5.1). A Server Component that loads a single
 // Item via `getItem` (RLS returns it only when AVAILABLE or owned by the
-// caller) and renders a split view: photos stay in the left pane, title, price,
-// seller, and Buy / Propose trade sit in the right pane.
+// caller). Desktop is a split view: photos in the left pane, title / seller
+// card / description / Buy in the right. On phones the same facts stack, then
+// original-aspect photos, with Buy / Trade in the sticky buyer bar.
 //
 // Transaction entry points are gated by the viewer's context:
 //   * Owner            -> Edit / Delete links (to /listings/[id]/edit).
@@ -49,7 +50,10 @@ import {
   ImageGallery,
   type GalleryImage,
 } from "@/components/listings/ImageGallery";
+import { readImageDims, type ImageDim } from "@/lib/images/dimensions";
 import { ListingBuyerBar } from "@/components/listings/ListingBuyerBar";
+import { ListingChromePublisher } from "@/components/listings/ListingChromePublisher";
+import { ListingDesktopPane } from "@/components/listings/ListingDesktopPane";
 import { ListingDetailStack } from "@/components/listings/ListingDetailStack";
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
@@ -299,22 +303,74 @@ export default async function ItemDetailPage({
     activeTradeId = tradeRow?.id ?? null;
   }
 
+  // Dimensions are index-aligned with `image_paths` (0106), so they have to be
+  // zipped BEFORE unresolvable paths are dropped or every photo after a gap
+  // would carry the next one's shape. Feeds the stacked phone gallery, which
+  // draws at natural aspect and would otherwise re-flow as each photo loads.
+  const storedImageDims = readImageDims(
+    item.image_dims,
+    (item.image_paths ?? []).length,
+  );
   const images: GalleryImage[] = (item.image_paths ?? [])
-    .map((path) => itemImageUrl(path))
-    .filter((src): src is string => Boolean(src))
-    .map((src, index) => ({ src, alt: `${listingTitle} — image ${index + 1}` }));
+    .map((path, index) => ({
+      src: itemImageUrl(path),
+      dim: storedImageDims[index],
+    }))
+    .filter(
+      (entry): entry is { src: string; dim: ImageDim | null } =>
+        Boolean(entry.src),
+    )
+    .map((entry, index) => ({
+      src: entry.src,
+      dim: entry.dim,
+      alt: `${listingTitle} — image ${index + 1}`,
+    }));
 
-  // Flutter replaces the tab bar with a buyer bar. Owners keep the hub so they
-  // can still reach Edit / Sell from the thumb. A contract-in-progress or a
-  // closed listing stays in the hub too — there is no Buy to park there.
   const showBuyerBar =
     !isOwner && isAvailable && !myContractId;
 
+  function renderListingActions(headingId: string) {
+    return (
+      <>
+        <ItemActions
+          itemId={item.id}
+          itemTitle={item.title}
+          itemImagePath={(item.image_paths ?? [])[0] ?? null}
+          sellerId={item.owner_id}
+          sellerDisplayName={sellerDisplayName}
+          fmvCents={item.fmv_cents}
+          isOwner={isOwner}
+          isAuthenticated={Boolean(user)}
+          isAvailable={isAvailable}
+          regionNotice={regionNotice}
+          viewerVerification={viewerVerification}
+          sellerIdentity={sellerIdentity}
+          activeSaleId={activeSaleId}
+          activeTradeId={activeTradeId}
+          isShopfront={isShopfront}
+          isClosed={isClosed}
+          openContracts={openContracts}
+          ownItems={ownItems}
+          myContractId={myContractId}
+        />
+        {user && !isOwner && isAvailable && !myContractId ? (
+          <section aria-labelledby={headingId}>
+            <h2 id={headingId} className="sr-only">
+              Message seller
+            </h2>
+            <MessageSellerButton
+              itemId={item.id}
+              sellerId={item.owner_id}
+              variant="inline"
+            />
+          </section>
+        ) : null}
+      </>
+    );
+  }
+
   return (
-    <MarketplaceShell
-      title="Marketplace"
-      hideMobileNav={showBuyerBar}
-    >
+    <MarketplaceShell title="Marketplace">
       {/* Reconciles payout state when the viewer lands back here from the
           provider's hosted onboarding flow. Renders nothing. Suspense because it
           reads searchParams; the page is force-dynamic, so this never blocks a
@@ -323,13 +379,13 @@ export default async function ItemDetailPage({
         <PayoutReturnRefresh />
       </Suspense>
 
-      {/* Phone: Flutter stack — bleed photo, seller, gold price, sticky bar.
-          Desktop: the same stack beside a cover photo that stays put. */}
+      {/* Phone: seller, price, description, then stacked original-aspect photos.
+          Desktop: stage gallery left, the older title / seller-card column right. */}
       <div
         className={
           showBuyerBar
-            ? 'flex min-h-0 flex-col pb-16 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:pb-0'
-            : 'flex min-h-0 flex-col lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))]'
+            ? 'flex min-h-0 flex-col pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:pb-0'
+            : 'flex min-h-0 flex-col pb-8 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:pb-0'
         }
       >
         <nav
@@ -351,11 +407,17 @@ export default async function ItemDetailPage({
               {statusBadge.label}
             </Badge>
             {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
+            <Badge variant="outline">{item.condition}</Badge>
+            {watchCount > 0 ? (
+              <span className="text-meta tabular-nums text-muted-foreground">
+                {watchCount} {watchCount === 1 ? "save" : "saves"}
+              </span>
+            ) : null}
           </div>
         </nav>
 
         <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
-          <div className="-mx-4 -mt-3 min-w-0 sm:-mx-6 lg:mx-0 lg:mt-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
+          <div className="hidden min-w-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
             <ViewTransition
               name={`listing-image-${item.id}`}
               share="morph"
@@ -364,27 +426,121 @@ export default async function ItemDetailPage({
               <ImageGallery
                 images={images}
                 title={listingTitle}
-                appearance="cover"
+                emptyHint={
+                  isOwner
+                    ? 'Add a photo so buyers can see the card.'
+                    : 'No photo yet'
+                }
               />
             </ViewTransition>
           </div>
 
           <div className="flex min-w-0 flex-col pt-3 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-7 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
-            <ListingDetailStack
+            <div className="lg:hidden">
+              <ListingDetailStack
+                title={listingTitle}
+                description={item.description ?? ''}
+                priceCents={item.fmv_cents}
+                condition={item.condition}
+                category={item.category}
+                isShopfront={isShopfront}
+                locationLabel={item.location_label}
+                watchCount={watchCount}
+                isOwner={isOwner}
+                sellerId={item.owner_id}
+                sellerDisplayName={
+                  isOwner
+                    ? 'You'
+                    : ((sellerRow?.display_name as string | null) ?? null)
+                }
+                sellerAvatarPath={(sellerRow?.avatar_path as string | null) ?? null}
+                sellerVerified={Boolean(sellerRow?.is_verified)}
+                sellerFirstName={
+                  (sellerRow?.identity_first_name as string | null) ?? null
+                }
+                sellerRating={sellerRow?.rating ?? null}
+                sellerRatingCount={sellerRow?.rating_count ?? undefined}
+                sellerIdentity={sellerIdentity}
+                afterDescription={
+                  images.length > 0 ? (
+                    <div className="mt-4">
+                      <ImageGallery
+                        images={images}
+                        title={listingTitle}
+                        appearance="stack"
+                      />
+                    </div>
+                  ) : null
+                }
+              />
+
+              {showBuyerBar && regionNotice ? (
+                <div className="mt-4">
+                  <StatusNotice description={regionNotice} />
+                </div>
+              ) : null}
+
+              {showBuyerBar && user && !sellerIdentity ? (
+                <div className="mt-4">
+                  <StatusNotice
+                    title="Payout setup needed"
+                    description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
+                  />
+                </div>
+              ) : null}
+
+              {item.location_label ||
+              (item.location_lat != null && item.location_lng != null) ? (
+                <section aria-label="Based near" className="mt-4">
+                  <PlaceMap
+                    lat={item.location_lat}
+                    lng={item.location_lng}
+                    label={item.location_label}
+                    precision={
+                      (item.location_precision as PlacePrecision | null) ?? 'suburb'
+                    }
+                    presentation="inline"
+                  />
+                </section>
+              ) : null}
+
+              {/* Phones get Report in the header instead; the desktop pane has
+                  its own. This covers only the band between, where neither the
+                  phone chrome (`md:hidden`) nor the pane (`lg:flex`) renders. */}
+              {user && !isOwner ? (
+                <div className="mt-6 hidden md:block">
+                  <ReportDialog
+                    targetType="item"
+                    targetId={item.id}
+                    triggerLabel="Report this listing"
+                    triggerVariant="ghost"
+                  />
+                </div>
+              ) : null}
+
+              <div
+                className={
+                  showBuyerBar
+                    ? 'mt-4 hidden space-y-4 pt-2 md:block'
+                    : 'mt-4 space-y-4 pt-2'
+                }
+              >
+                {renderListingActions('message-seller-heading')}
+              </div>
+            </div>
+
+            <ListingDesktopPane
               title={listingTitle}
               description={item.description ?? ''}
               priceCents={item.fmv_cents}
-              condition={item.condition}
-              category={item.category}
               isShopfront={isShopfront}
-              locationLabel={item.location_label}
-              watchCount={watchCount}
+              itemId={item.id}
               isOwner={isOwner}
+              showWatch={Boolean(user && !isOwner)}
+              initialWatching={initialWatching}
               sellerId={item.owner_id}
               sellerDisplayName={
-                isOwner
-                  ? 'You'
-                  : ((sellerRow?.display_name as string | null) ?? null)
+                (sellerRow?.display_name as string | null) ?? null
               }
               sellerAvatarPath={(sellerRow?.avatar_path as string | null) ?? null}
               sellerVerified={Boolean(sellerRow?.is_verified)}
@@ -394,103 +550,25 @@ export default async function ItemDetailPage({
               sellerRating={sellerRow?.rating ?? null}
               sellerRatingCount={sellerRow?.rating_count ?? undefined}
               sellerIdentity={sellerIdentity}
-            />
-
-            {showBuyerBar && regionNotice ? (
-              <div className="mt-4 lg:hidden">
-                <StatusNotice description={regionNotice} />
-              </div>
-            ) : null}
-
-            {showBuyerBar && user && !sellerIdentity ? (
-              <div className="mt-4 lg:hidden">
-                <StatusNotice
-                  title="Payout setup needed"
-                  description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
-                />
-              </div>
-            ) : null}
-
-            {item.location_label ||
-            (item.location_lat != null && item.location_lng != null) ? (
-              <section
-                aria-labelledby="location-heading"
-                className="mt-4 space-y-2"
-              >
-                <h2
-                  id="location-heading"
-                  className="text-meta font-semibold text-muted-foreground"
-                >
-                  Based near
-                </h2>
-                <PlaceMap
-                  lat={item.location_lat}
-                  lng={item.location_lng}
-                  label={item.location_label}
-                  precision={
-                    (item.location_precision as PlacePrecision | null) ?? 'suburb'
-                  }
-                  presentation="inline"
-                />
-              </section>
-            ) : null}
-
-            {user && !isOwner ? (
-              <div className="mt-6">
-                <ReportDialog
-                  targetType="item"
-                  targetId={item.id}
-                  triggerLabel="Report this listing"
-                  triggerVariant="ghost"
-                />
-              </div>
-            ) : null}
-
-            <div
-              className={
-                showBuyerBar
-                  ? 'mt-4 hidden space-y-4 pt-2 lg:mt-auto lg:block lg:pt-4'
-                  : 'mt-4 space-y-4 pt-2 lg:mt-auto lg:pt-4'
+              locationLabel={item.location_label}
+              locationLat={item.location_lat}
+              locationLng={item.location_lng}
+              locationPrecision={
+                (item.location_precision as PlacePrecision | null) ?? 'suburb'
               }
             >
-              <ItemActions
-                itemId={item.id}
-                itemTitle={item.title}
-                itemImagePath={(item.image_paths ?? [])[0] ?? null}
-                sellerId={item.owner_id}
-                sellerDisplayName={sellerDisplayName}
-                fmvCents={item.fmv_cents}
-                isOwner={isOwner}
-                isAuthenticated={Boolean(user)}
-                isAvailable={isAvailable}
-                regionNotice={regionNotice}
-                viewerVerification={viewerVerification}
-                sellerIdentity={sellerIdentity}
-                activeSaleId={activeSaleId}
-                activeTradeId={activeTradeId}
-                isShopfront={isShopfront}
-                isClosed={isClosed}
-                openContracts={openContracts}
-                ownItems={ownItems}
-                myContractId={myContractId}
-              />
-
-              {user && !isOwner && isAvailable && !myContractId ? (
-                <section aria-labelledby="message-seller-heading">
-                  <h2 id="message-seller-heading" className="sr-only">
-                    Message seller
-                  </h2>
-                  <MessageSellerButton
-                    itemId={item.id}
-                    sellerId={item.owner_id}
-                    variant="inline"
-                  />
-                </section>
-              ) : null}
-            </div>
+              {renderListingActions('message-seller-heading-desktop')}
+            </ListingDesktopPane>
           </div>
         </div>
       </div>
+
+      {/* Tells the phone header whether to offer Report. The header sits above
+          this subtree, so it cannot be reached with props. */}
+      <ListingChromePublisher
+        itemId={item.id}
+        canReport={Boolean(user && !isOwner)}
+      />
 
       {showBuyerBar ? (
         <ListingBuyerBar
@@ -584,8 +662,11 @@ function ItemActions({
     ? 'This seller must finish payout setup before a trade can start.'
     : null;
 
+  // Desktop never shows a dead Propose Trade chip — the payout banner already
+  // says why a trade cannot start, and Message is still available underneath.
+  // Mobile keeps a disabled Trade slot in the sticky buyer bar.
   const proposeTrade =
-    isAuthenticated && !isOwner && isAvailable ? (
+    isAuthenticated && !isOwner && isAvailable && !disabledTradeReason ? (
       <ProposeTradeDialog
         requested={{
           id: itemId,
@@ -596,11 +677,8 @@ function ItemActions({
           isShopfront,
         }}
         ownItems={ownItems}
-        emphasize={!sellerIdentity}
         viewerVerification={viewerVerification}
         returnPath={`/listings/${itemId}`}
-        disabled={Boolean(disabledTradeReason)}
-        disabledReason={disabledTradeReason}
       />
     ) : null;
 
@@ -651,11 +729,11 @@ function ItemActions({
               description="Buyers will ask for the cards they want, then you agree a price with each of them."
             />
           )}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button asChild variant="outline" className="w-full sm:w-auto">
+          <div className="grid grid-cols-2 gap-2">
+            <Button asChild variant="outline" className="min-w-0 w-full px-2">
               <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
                 <Pencil aria-hidden />
-                Edit listing
+                <span className="truncate">Edit</span>
               </Link>
             </Button>
             {isClosed ? null : (
@@ -688,15 +766,20 @@ function ItemActions({
     }
 
     return (
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <Button asChild variant="outline" className="w-full sm:w-auto">
+      <div className="grid grid-cols-3 gap-2">
+        <Button asChild variant="outline" className="min-w-0 w-full px-2">
           <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
             <Pencil aria-hidden />
-            Edit listing
+            <span className="truncate">Edit</span>
           </Link>
         </Button>
-        <CopyTradeLink itemId={itemId} />
-        <DeleteListingDialog itemId={itemId} itemTitle={itemTitle} />
+        <CopyTradeLink itemId={itemId} className="min-w-0 w-full px-2" />
+        <DeleteListingDialog
+          itemId={itemId}
+          itemTitle={itemTitle}
+          className="min-w-0 w-full px-2"
+          compact
+        />
       </div>
     );
   }
@@ -768,19 +851,10 @@ function ItemActions({
   return (
     <div className="space-y-4">
       {!sellerIdentity ? (
-        <div className="space-y-3">
-          <StatusNotice
-            title="Payout setup needed"
-            description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
-          />
-          <div
-            className="flex flex-col items-stretch gap-2 md:flex-row md:items-start"
-            role="group"
-            aria-label="Start a contract"
-          >
-            <div className="min-w-0 flex-1">{proposeTrade}</div>
-          </div>
-        </div>
+        <StatusNotice
+          title="Payout setup needed"
+          description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
+        />
       ) : (
         <div
           className="flex flex-col items-stretch gap-2 md:flex-row md:items-start"

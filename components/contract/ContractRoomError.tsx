@@ -30,6 +30,7 @@ export function ContractRoomError({
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-16 sm:px-6">
       <EmptyState
+        variant="page"
         icon={<AlertTriangle className="size-6" aria-hidden />}
         title="Contract Unavailable"
         description="Something went wrong loading this contract room. Try again, or go back to your list."

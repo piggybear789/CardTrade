@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { ViewTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { BadgeX, ImageOff, Library, Lock, Star } from 'lucide-react';
+import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,8 @@ import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
+import { tileIntrinsicHeight } from '@/components/listings/catalogGrid';
 import type { CatalogItem } from '@/lib/actions/listings';
 
 export { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
@@ -23,6 +26,21 @@ export interface ItemCardProps {
    * hide the affordance (e.g. unauthenticated viewers or the item's owner).
    */
   initialWatching?: boolean;
+  /**
+   * Intrinsic size of the cover photo, which opts this tile into the phone
+   * mosaic: below md the cover is drawn at the photo's own shape instead of
+   * square, so tiles vary in height and the two columns stagger.
+   *
+   * Three states, all meaningful. `undefined` — the default — means the caller
+   * is not laying out a mosaic, and the tile stays square at every breakpoint,
+   * which is what My Listings, Saved, and seller shops want. `null` means the
+   * caller IS laying out a mosaic but this photo's size is unknown, so the tile
+   * falls back to square rather than collapsing. A value draws that shape,
+   * clamped by `coverAspectRatio` so one panorama cannot wreck a column.
+   *
+   * Never affects md and up.
+   */
+  coverDim?: ImageDim | null;
 }
 
 /** Human-readable label for a non-AVAILABLE item, shown as an overlay badge. */
@@ -39,30 +57,53 @@ function unavailableLabelFor(item: CatalogItem): string | undefined {
 }
 
 /**
- * Compact browse tile — same Xianyu-style card as the Flutter catalog:
- * 3:4 cover photo, one-line title, gold price, seller + location, heart on the
- * photo. Used by the marketplace grid, My Listings, Saved, and seller shops.
+ * Compact browse tile. 3:4 cover at md and up, unchanged; below md it is square
+ * by default, or the photo's own shape when the caller passes
+ * {@link ItemCardProps.coverDim}, which is what staggers the phone
+ * mosaic. Title, gold price, seller. Location stays off the phone tile.
+ * Marketplace grid, My Listings, Saved, and seller shops.
  */
-export function CatalogItemCard({ item, initialWatching }: ItemCardProps) {
+export function CatalogItemCard({
+  item,
+  initialWatching,
+  coverDim,
+}: ItemCardProps) {
   const unavailableLabel = unavailableLabelFor(item);
   const isShopfront = item.listing_kind === 'SHOPFRONT';
   const showWatch = initialWatching !== undefined;
   const imageUrl = itemImageUrl(item.image_paths?.[0] ?? null);
+  // `undefined` means "not in a mosaic" and leaves every class untouched; see
+  // the prop doc. `null` is an opted-in tile with an unknown photo.
+  const inMosaic = coverDim !== undefined;
 
   return (
     <Card
       className={cn(
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border-0 p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_22rem]',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border-0 p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_18rem]',
         'transition-transform duration-100 active:scale-[0.97]',
+        inMosaic && 'catalog-tile',
         unavailableLabel && 'opacity-70',
       )}
+      style={
+        inMosaic
+          ? ({
+              '--catalog-cover-aspect': coverAspectCss(coverDim),
+              '--catalog-tile-height': tileIntrinsicHeight(coverDim),
+            } as CSSProperties)
+          : undefined
+      }
     >
       <ItemCardHitArea
         item={item}
         label={`View ${item.title}`}
         className="rounded-lg"
       />
-      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+      <div
+        className={cn(
+          'relative overflow-hidden bg-muted',
+          inMosaic ? 'catalog-cover' : 'aspect-square md:aspect-[3/4]',
+        )}
+      >
         {imageUrl ? (
           <ViewTransition
             name={`listing-image-${item.id}`}
@@ -81,10 +122,15 @@ export function CatalogItemCard({ item, initialWatching }: ItemCardProps) {
             </div>
           </ViewTransition>
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <ImageOff className="size-8" aria-hidden="true" />
-            <span className="sr-only">No image available</span>
-          </div>
+          <>
+            <div className="h-full w-full md:hidden">
+              <ListingPhotoEmpty title={item.title} compact />
+            </div>
+            <div className="hidden h-full w-full items-center justify-center text-muted-foreground md:flex">
+              <ImageOff className="size-8" aria-hidden="true" />
+              <span className="sr-only">No image available</span>
+            </div>
+          </>
         )}
         {unavailableLabel ? (
           <span className="absolute inset-0 z-[1] flex items-center justify-center bg-obsidian/45">
@@ -109,7 +155,7 @@ export function CatalogItemCard({ item, initialWatching }: ItemCardProps) {
         ) : null}
       </div>
       <div className="pointer-events-none relative flex min-w-0 flex-col px-1.5 pb-2 pt-1.5">
-        <h3 className="truncate text-body font-medium leading-snug text-foreground">
+        <h3 className="line-clamp-2 text-body font-medium leading-snug text-foreground md:truncate">
           {item.title}
         </h3>
         <p className="mt-px truncate text-lead font-bold leading-tight text-gold">
@@ -120,27 +166,28 @@ export function CatalogItemCard({ item, initialWatching }: ItemCardProps) {
         {item.seller ? (
           <Link
             href={`/sellers/${item.seller.id}`}
-            className="pointer-events-auto relative z-10 mt-0.5 flex min-w-0 items-center gap-1"
+            className="pointer-events-auto relative z-10 mt-0.5 flex w-full min-w-0 items-center gap-1.5"
           >
             <Avatar
               avatarPath={item.seller.avatarPath}
               displayName={item.seller.displayName}
               size="xs"
-              className="size-4 border-0 leading-none"
+              className="border-0"
             />
-            <span className="truncate text-meta text-muted-foreground">
+            <span className="min-w-0 flex-1 truncate text-body text-muted-foreground">
               {item.seller.displayName ?? 'Seller'}
             </span>
             <IdentityBadge
               verified={item.seller.isVerified}
               firstName={item.seller.identityFirstName}
-              size={11}
+              size={16}
               iconOnly
+              className="ml-auto shrink-0"
             />
           </Link>
         ) : null}
         {item.location_label ? (
-          <p className="mt-px truncate text-meta text-muted-foreground">
+          <p className="mt-px hidden truncate text-meta text-muted-foreground md:block">
             {item.location_label}
           </p>
         ) : null}

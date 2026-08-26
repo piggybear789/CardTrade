@@ -14,9 +14,10 @@ import { Button } from '@/components/ui/button';
 
 interface CopyTradeLinkProps {
   itemId: string;
+  className?: string;
 }
 
-export function CopyTradeLink({ itemId }: CopyTradeLinkProps) {
+export function CopyTradeLink({ itemId, className }: CopyTradeLinkProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -34,11 +35,12 @@ export function CopyTradeLink({ itemId }: CopyTradeLinkProps) {
   return (
     <Button
       variant="outline"
-      className="w-full sm:w-auto"
+      className={className ?? 'w-full sm:w-auto'}
       onClick={handleCopy}
+      aria-label={copied ? 'Trade link copied' : 'Copy trade link'}
     >
       {copied ? <Check aria-hidden /> : <LinkIcon aria-hidden />}
-      {copied ? 'Copied!' : 'Copy trade link'}
+      {copied ? 'Copied' : 'Copy'}
     </Button>
   );
 }

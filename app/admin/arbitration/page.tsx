@@ -75,12 +75,12 @@ export default async function ArbitrationQueuePage({
     return (
       <MarketplaceShell title="Cases" center>
         <EmptyState
+          variant="page"
           icon={<ShieldAlert className="size-6" aria-hidden />}
           title="Not Authorized"
           titleAs="h3"
           description="Cases are limited to NoDitto support staff."
           action={{ label: 'Return home', href: '/', variant: 'outline' }}
-          className="border-none"
         />
       </MarketplaceShell>
     );

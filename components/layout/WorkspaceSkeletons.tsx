@@ -4,9 +4,16 @@
 // mirrors a live workspace pattern (section heading, Active/Past tabs, catalog
 // tile, contract card, inbox row) so the swap on data arrival does not jump.
 
+import type { CSSProperties } from 'react';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
+import {
+  balanceMosaicColumns,
+  CATALOG_MOSAIC_GAP,
+  CATALOG_TILE_GRID,
+} from '@/components/listings/catalogGrid';
+import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
 import { cn } from '@/lib/utils';
 
 export function SectionHeaderSkeleton({
@@ -42,11 +49,29 @@ export function SectionFilterSkeleton({ tabs = 2 }: { tabs?: number }) {
   );
 }
 
-/** Compact catalog tile — `CatalogItemCard`. */
-export function CatalogTileSkeleton() {
+/**
+ * Compact catalog tile — `CatalogItemCard`. Square like the real cover unless
+ * `coverDim` puts it in the phone mosaic, where it takes that shape below md.
+ */
+export function CatalogTileSkeleton({
+  coverDim,
+}: {
+  coverDim?: ImageDim | null;
+}) {
+  const inMosaic = coverDim !== undefined;
   return (
     <div className="overflow-hidden rounded-lg bg-card shadow-sm">
-      <Skeleton className="aspect-[3/4] w-full rounded-none" />
+      <Skeleton
+        className={cn(
+          'w-full rounded-none',
+          inMosaic ? 'catalog-cover' : 'aspect-square md:aspect-[3/4]',
+        )}
+        style={
+          inMosaic
+            ? ({ '--catalog-cover-aspect': coverAspectCss(coverDim) } as CSSProperties)
+            : undefined
+        }
+      />
       <div className="space-y-1.5 px-1.5 pb-2 pt-1.5">
         <Skeleton className="h-4 w-4/5" />
         <Skeleton className="h-4 w-2/5" />
@@ -56,13 +81,66 @@ export function CatalogTileSkeleton() {
   );
 }
 
+/**
+ * A repeating run of plausible cover shapes for the phone skeleton.
+ *
+ * Fixed rather than random so the server and the browser draw the same
+ * placeholder, and chosen to span the mosaic's clamp range — trading-card
+ * portrait (63x88), square, and landscape — so the placeholder staggers the way
+ * the arriving content will. A uniform square grid here would itself be the
+ * layout shift the stored dimensions exist to prevent.
+ */
+const SKELETON_COVER_SHAPES: ImageDim[] = [
+  { w: 63, h: 88 },
+  { w: 1, h: 1 },
+  { w: 4, h: 3 },
+  { w: 4, h: 5 },
+  { w: 1, h: 1 },
+  { w: 63, h: 88 },
+];
+
+const skeletonDim = (tile: { dim: ImageDim }) => tile.dim;
+
+/**
+ * Catalog placeholder in both layouts.
+ *
+ * Unlike the live grid this renders the phone mosaic AND the md grid, hiding
+ * one with CSS: a skeleton owns no view-transition names, so duplicating it is
+ * free, and doing it this way keeps the placeholder correct at both breakpoints
+ * without waiting for JavaScript to discover the viewport.
+ */
 export function CatalogGridSkeleton({ count = 12 }: { count?: number }) {
+  const tiles = Array.from({ length: count }, (_, index) => ({
+    index,
+    dim: SKELETON_COVER_SHAPES[index % SKELETON_COVER_SHAPES.length],
+  }));
+  // The real balancer, so the placeholder's columns break where the content's
+  // will rather than merely looking uneven.
+  const columns = balanceMosaicColumns(tiles, skeletonDim);
+
   return (
-    <div className={CATALOG_TILE_GRID}>
-      {Array.from({ length: count }, (_, index) => (
-        <CatalogTileSkeleton key={index} />
-      ))}
-    </div>
+    <>
+      <div
+        className={cn('grid grid-cols-2 items-start md:hidden', CATALOG_MOSAIC_GAP)}
+        aria-hidden="true"
+      >
+        {columns.map((column, columnIndex) => (
+          <div
+            key={columnIndex}
+            className={cn('flex min-w-0 flex-col', CATALOG_MOSAIC_GAP)}
+          >
+            {column.map(({ item }) => (
+              <CatalogTileSkeleton key={item.index} coverDim={item.dim} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className={cn(CATALOG_TILE_GRID, 'max-md:hidden')} aria-hidden="true">
+        {tiles.map((tile) => (
+          <CatalogTileSkeleton key={tile.index} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -108,8 +186,8 @@ export function ContractRowSkeleton({
   thumbSize?: 'sm' | 'md';
 }) {
   return (
-    <Card className="p-cozy">
-      <div className="flex items-center gap-group">
+    <Card className="p-cozy max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
+      <div className="flex min-h-11 items-center gap-group py-3.5 md:py-0">
         <Skeleton
           className={cn(
             'shrink-0 rounded-md',
@@ -134,7 +212,7 @@ export function ContractCardListSkeleton({
   thumbSize?: 'sm' | 'md';
 }) {
   return (
-    <div className="space-y-cozy">
+    <div className="max-md:divide-y max-md:divide-border md:space-y-cozy">
       {Array.from({ length: count }, (_, index) => (
         <ContractRowSkeleton key={index} thumbSize={thumbSize} />
       ))}
@@ -144,16 +222,27 @@ export function ContractCardListSkeleton({
 
 export function InboxRowSkeleton() {
   return (
-    <div className="flex items-center gap-3 p-4">
-      <Skeleton className="size-12 shrink-0 rounded-md" />
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex items-center justify-between gap-2">
+    <>
+      <div className="flex items-start gap-3 py-3.5 md:hidden">
+        <Skeleton className="size-12 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-2">
           <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-3 w-12 shrink-0" />
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-3 w-12" />
         </div>
-        <Skeleton className="h-3 w-3/4" />
+        <Skeleton className="size-11 shrink-0 rounded-md" />
       </div>
-    </div>
+      <div className="hidden items-center gap-3 p-4 md:flex">
+        <Skeleton className="size-12 shrink-0 rounded-md" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-3 w-12 shrink-0" />
+          </div>
+          <Skeleton className="h-3 w-3/4" />
+        </div>
+      </div>
+    </>
   );
 }
 

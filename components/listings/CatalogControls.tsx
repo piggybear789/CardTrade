@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
-import { HeaderSearch } from '@/components/layout/HeaderSearch';
+import { subscribeCatalogFilters } from '@/lib/catalog/browseEvents';
 
 import { useCatalogView } from '@/components/listings/CatalogView';
 import { Button } from '@/components/ui/button';
@@ -47,17 +47,17 @@ const SORT_LABELS: Record<CatalogSort, string> = {
   rating: 'Seller Rating: High to Low',
 };
 
+/**
+ * Whole dollars for the price slider readout. Exact rather than rounded: the
+ * slider's step is always a whole number of dollars, so every reachable value
+ * lands on one.
+ */
 const AUD_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
   style: 'currency',
   currency: CURRENCY_CODE,
   maximumFractionDigits: 2,
 });
 
-/**
- * Whole dollars for the price slider readout. Exact rather than rounded: the
- * slider's step is always a whole number of dollars, so every reachable value
- * lands on one.
- */
 const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
   style: 'currency',
   currency: CURRENCY_CODE,
@@ -166,13 +166,6 @@ export function CatalogFilters() {
   // sheet on desktop during SSR (MobileOnly assumes the phone snapshot).
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  useEffect(() => {
-    if (window.matchMedia('(min-width: 768px)').matches) return;
-    if (new URLSearchParams(window.location.search).get('filters') === '1') {
-      setFiltersOpen(true);
-    }
-  }, []);
-
   function setFiltersOpenAndUrl(next: boolean) {
     setFiltersOpen(next);
     const params = new URLSearchParams(window.location.search);
@@ -181,6 +174,15 @@ export function CatalogFilters() {
     const qs = params.toString();
     window.history.replaceState(window.history.state, '', qs ? `/listings?${qs}` : '/listings');
   }
+
+  useEffect(() => {
+    if (window.matchMedia('(min-width: 768px)').matches) return;
+    if (new URLSearchParams(window.location.search).get('filters') === '1') {
+      setFiltersOpen(true);
+    }
+  }, []);
+
+  useEffect(() => subscribeCatalogFilters(setFiltersOpenAndUrl), []);
 
   // Rounding the ceiling up to a legible figure keeps the track's top end
   // stable as inventory comes and goes, rather than shifting on every new
@@ -217,13 +219,6 @@ export function CatalogFilters() {
     current.max !== '' ||
     current.includeSold;
 
-  // Marketplace search sits in this toolbar on mobile. Games live in the
-  // header pills. The Filters badge counts refine-only (condition, price, sold).
-  const refineCount =
-    current.conditions.length +
-    Number(Boolean(current.min || current.max)) +
-    Number(current.includeSold);
-
   function toggleCondition(condition: string) {
     const next = current.conditions.includes(condition)
       ? current.conditions.filter((value) => value !== condition)
@@ -247,47 +242,31 @@ export function CatalogFilters() {
 
   return (
     <div
-      className={cn(
-        'min-w-0 transition-opacity',
-        // Filtering is a server round trip, so show the wait rather than
-        // leaving the rail looking unresponsive.
-        isPending && 'opacity-60',
-      )}
+      className={cn('min-w-0', isPending && 'md:opacity-60 md:transition-opacity')}
       aria-busy={isPending}
     >
-      <div className="py-1 md:hidden">
-        <HeaderSearch
-          className="min-w-0"
-          ariaLabel="Search marketplace"
-          appearance="inset"
-          trailing={
-            <button
-              type="button"
-              onClick={() => setFiltersOpenAndUrl(true)}
-              aria-expanded={filtersOpen}
-              aria-haspopup="dialog"
-              aria-label={refineCount > 0 ? `Filters, ${refineCount} active` : 'Filters'}
-              className="relative grid size-8 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-gold/40"
-            >
-              <SlidersHorizontal className="size-4" aria-hidden />
-              {refineCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-gold text-[10px] font-semibold leading-none text-primary-foreground">
-                  {refineCount}
-                </span>
-              ) : null}
-            </button>
-          }
-        />
-      </div>
-
       <MobileOnly>
         <Sheet open={filtersOpen} onOpenChange={setFiltersOpenAndUrl}>
           <SheetContent side="bottom" className="gap-0 p-0">
             <SheetHeader className="border-b border-border px-5 py-3">
-              <SheetTitle>Filters</SheetTitle>
-              <SheetDescription>
-                Sort, condition, price, and sold items. Changes apply immediately.
-              </SheetDescription>
+              <div className="flex items-start justify-between gap-3 pr-10">
+                <div className="min-w-0">
+                  <SheetTitle>Filters</SheetTitle>
+                  <SheetDescription>
+                    Sort, condition, price, and sold items. Changes apply immediately.
+                  </SheetDescription>
+                </div>
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    disabled={isPending}
+                    className="shrink-0 rounded-sm pt-0.5 text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
+                  >
+                    Clear all
+                  </button>
+                ) : null}
+              </div>
             </SheetHeader>
             <div className="space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
               <CatalogRefineFields
@@ -304,6 +283,7 @@ export function CatalogFilters() {
                 topStop={topStop}
                 ceilingCents={ceilingCents}
                 showHeading={false}
+                choiceStyle="squares"
               />
             </div>
             <SheetFooter className="border-t border-border p-4">
@@ -334,6 +314,7 @@ export function CatalogFilters() {
             topStop={topStop}
             ceilingCents={ceilingCents}
             showHeading
+            choiceStyle="list"
           />
         </div>
       </DesktopOnly>
@@ -355,6 +336,7 @@ function CatalogRefineFields({
   topStop,
   ceilingCents,
   showHeading,
+  choiceStyle,
 }: {
   current: Pick<CatalogFilterState, 'conditions' | 'includeSold'>;
   isPending: boolean;
@@ -369,6 +351,7 @@ function CatalogRefineFields({
   topStop: number;
   ceilingCents: number;
   showHeading: boolean;
+  choiceStyle: 'squares' | 'list';
 }) {
   return (
     <>
@@ -395,36 +378,30 @@ function CatalogRefineFields({
 
       <fieldset className="border-t border-border pt-group">
         <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
-        <div className="space-y-tight">
-          {CONDITION_OPTIONS.map((condition) => {
-            const active = current.conditions.includes(condition);
-            return (
-              <button
+        {choiceStyle === 'squares' ? (
+          <div className="flex flex-wrap gap-1.5">
+            {CONDITION_OPTIONS.map((condition) => (
+              <FilterSquare
                 key={condition}
-                type="button"
+                label={condition}
+                pressed={current.conditions.includes(condition)}
+                onClick={() => onToggleCondition(condition)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-tight">
+            {CONDITION_OPTIONS.map((condition) => (
+              <FilterCheckRow
+                key={condition}
+                label={condition}
+                pressed={current.conditions.includes(condition)}
                 onClick={() => onToggleCondition(condition)}
                 disabled={isPending}
-                aria-pressed={active}
-                className={cn(
-                  'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
-                  active
-                    ? 'bg-gold/10 font-semibold text-foreground'
-                    : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
-                )}
-              >
-                <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-                  {active ? (
-                    <Check className="size-4 text-gold" />
-                  ) : (
-                    <span className="size-1.5 rounded-full bg-muted-foreground/50" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{condition}</span>
-                {active ? <ChevronRight className="size-4 text-gold" aria-hidden="true" /> : null}
-              </button>
-            );
-          })}
-        </div>
+              />
+            ))}
+          </div>
+        )}
       </fieldset>
 
       <div className="border-t border-border pt-group">
@@ -464,34 +441,24 @@ function CatalogRefineFields({
 
       <div className="border-t border-border pt-group">
         <p className="market-label mb-2 text-muted-foreground">Availability</p>
-        <button
-          type="button"
-          onClick={onToggleSold}
-          disabled={isPending}
-          aria-pressed={current.includeSold}
-          className={cn(
-            'flex w-full items-center gap-cozy rounded-lg px-cozy py-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60 lg:py-snug',
-            current.includeSold
-              ? 'bg-gold/10 font-semibold text-foreground'
-              : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
-          )}
-        >
-          <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-            {current.includeSold ? (
-              <Check className="size-4 text-gold" />
-            ) : (
-              <span className="size-1.5 rounded-full bg-muted-foreground/50" />
-            )}
-          </span>
-          <span className="flex min-w-0 flex-1 items-center gap-tight">
-            Include sold items
-          </span>
-        </button>
+        {choiceStyle === 'squares' ? (
+          <FilterSquare
+            label="Include sold"
+            pressed={current.includeSold}
+            onClick={onToggleSold}
+          />
+        ) : (
+          <FilterCheckRow
+            label="Include sold items"
+            pressed={current.includeSold}
+            onClick={onToggleSold}
+            disabled={isPending}
+          />
+        )}
       </div>
     </>
   );
 }
-/** Removable chips summarizing every active catalog constraint. */
 export function CatalogActiveFilters() {
   const { current, settled } = useCatalogView();
   const { isPending, pushWith, reset } = useCatalogNav();
@@ -511,7 +478,7 @@ export function CatalogActiveFilters() {
       : `Up to ${AUD_FORMATTER.format(Number(settled.max))}`;
 
   return (
-    <div className="mt-snug flex flex-wrap items-center gap-snug sm:mt-group" aria-label="Active filters">
+    <div className="mt-group flex flex-wrap items-center gap-snug" aria-label="Active filters">
       {settled.q ? (
         <FilterChip
           label={`“${settled.q}”`}
@@ -547,11 +514,74 @@ export function CatalogActiveFilters() {
         type="button"
         onClick={reset}
         disabled={isPending}
-        className="min-h-10 rounded-sm px-2 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50 md:min-h-0 md:px-1"
+        className="rounded-sm px-1 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
       >
         Clear all
       </button>
     </div>
+  );
+}
+
+function FilterCheckRow({
+  label,
+  pressed,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  pressed: boolean;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={pressed}
+      className={cn(
+        'flex w-full items-center gap-cozy rounded-lg px-cozy py-snug text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60',
+        pressed
+          ? 'bg-gold/10 font-semibold text-foreground'
+          : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
+      )}
+    >
+      <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+        {pressed ? (
+          <Check className="size-4 text-gold" />
+        ) : (
+          <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {pressed ? <ChevronRight className="size-4 text-gold" aria-hidden="true" /> : null}
+    </button>
+  );
+}
+
+function FilterSquare({
+  label,
+  pressed,
+  onClick,
+}: {
+  label: string;
+  pressed: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={pressed}
+      className={cn(
+        'min-h-9 rounded-md border px-2.5 py-1.5 text-body font-medium transition-colors focus:outline-none focus-visible:border-gold/40',
+        pressed
+          ? 'border-gold bg-gold/10 text-foreground'
+          : 'border-border bg-card text-muted-foreground hover:border-gold/40 hover:text-foreground',
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -569,7 +599,7 @@ function FilterChip({
       type="button"
       onClick={onRemove}
       disabled={disabled}
-      className="inline-flex min-h-9 max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-1.5 text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:border-gold/40 disabled:opacity-50 md:min-h-0 md:py-tight"
+      className="inline-flex min-h-9 max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
       aria-label={`Remove ${label} filter`}
     >
       <span className="truncate">{label}</span>

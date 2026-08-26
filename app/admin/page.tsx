@@ -99,12 +99,12 @@ function NotAuthorized() {
   return (
     <PageShell centered>
       <EmptyState
+        variant="page"
         icon={<ShieldAlert className="size-6" aria-hidden />}
         title="Not Authorized"
         titleAs="h1"
         description="You don't have permission to view the operations console."
         action={{ label: 'Return home', href: '/', variant: 'outline' }}
-        className="border-none"
       />
     </PageShell>
   );

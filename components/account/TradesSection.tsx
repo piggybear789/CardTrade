@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { ArrowLeftRight } from 'lucide-react';
 
-import { Card } from '@/components/ui/card';
+import { MobileList, MobileListItem } from '@/components/ui/mobile-list';
 import { StateBadge } from '@/components/trade/StateBadge';
 import type { TradeSummary } from '@/lib/actions/account';
 import { EmptyState } from '@/components/account/EmptyState';
@@ -49,38 +49,36 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
   }
 
   return (
-    <ul role="list" className="space-y-cozy">
+    <MobileList variant="cards">
       {trades.map((trade) => {
         const { yours, theirs } = tradePairLabel(trade);
         return (
-          <li key={trade.id}>
-            <Card className="p-cozy">
-              <Link
-                href={`/trades/${trade.id}`}
-                transitionTypes={['nav-forward']}
-                className="flex items-center gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
-              >
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                  <ArrowLeftRight className="size-5" aria-hidden />
-                </div>
+          <MobileListItem key={trade.id}>
+            <Link
+              href={`/trades/${trade.id}`}
+              transitionTypes={['nav-forward']}
+              className="flex min-h-11 items-center gap-group py-3.5 md:py-0 rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
+            >
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+                <ArrowLeftRight className="size-5" aria-hidden />
+              </div>
 
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 break-words text-lead font-medium">
-                    Your item {yours}
-                    <span className="mx-1.5 text-muted-foreground">↔</span>
-                    Their item {theirs}
-                  </p>
-                  <p className="mt-0.5 text-body capitalize text-muted-foreground">
-                    You are the {trade.role}
-                  </p>
-                </div>
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 break-words text-lead font-medium">
+                  Your item {yours}
+                  <span className="mx-1.5 text-muted-foreground">↔</span>
+                  Their item {theirs}
+                </p>
+                <p className="mt-0.5 text-body capitalize text-muted-foreground">
+                  You are the {trade.role}
+                </p>
+              </div>
 
-                <StateBadge state={trade.state} className="shrink-0" />
-              </Link>
-            </Card>
-          </li>
+              <StateBadge state={trade.state} className="shrink-0" />
+            </Link>
+          </MobileListItem>
         );
       })}
-    </ul>
+    </MobileList>
   );
 }

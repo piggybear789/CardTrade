@@ -3,7 +3,7 @@
 // Site-wide jump search. Finds a listing from anywhere: typeahead opens the
 // card, Enter starts a marketplace query. Already on `/listings`, that query
 // is applied in place so the page is not remounted. It does not live-filter
-// the grid — that is `CatalogFilterSearch`.
+// the grid — that is `CatalogFilterSearch`. Phone chrome uses `appearance="pill"`.
 
 import {
   Suspense,
@@ -72,28 +72,38 @@ function retainSlashListener() {
 function HeaderSearchFallback({
   className,
   ariaLabel,
+  placeholder = PLACEHOLDER,
   appearance = 'default',
 }: {
   className?: string;
   ariaLabel: string;
+  placeholder?: string;
   appearance?: HeaderSearchAppearance;
 }) {
   return (
     <div role="search" className={cn('relative w-full', className)}>
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        className={cn(
+          'pointer-events-none absolute top-1/2 -translate-y-1/2',
+          appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
+          appearance === 'default' ? 'text-parchment' : 'text-foreground',
+        )}
+        strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
       />
       <Input
         type="search"
         name="q"
-        placeholder={PLACEHOLDER}
+        placeholder={placeholder}
         aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
         className={cn(
-          'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
-          appearance === 'inset' && 'rounded-lg border-0 bg-muted',
+          'h-10 w-full pl-9 text-body md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          appearance === 'inset' &&
+            'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
+          appearance === 'pill' &&
+            'h-8 rounded-full border-border bg-card py-0 pl-8 text-body leading-none text-foreground placeholder:text-body placeholder:text-muted-foreground',
         )}
         disabled
       />
@@ -101,7 +111,7 @@ function HeaderSearchFallback({
   );
 }
 
-export type HeaderSearchAppearance = 'default' | 'inset';
+export type HeaderSearchAppearance = 'default' | 'inset' | 'pill';
 
 export interface HeaderSearchProps {
   className?: string;
@@ -112,6 +122,12 @@ export interface HeaderSearchProps {
    * two identical controls.
    */
   ariaLabel?: string;
+  /**
+   * Overrides the default prompt. Listing detail runs a shorter one, because
+   * the trailing Report and Share buttons leave the pill too narrow for the
+   * full sentence.
+   */
+  placeholder?: string;
   /** Focus the field on mount — used by the mobile search sheet. */
   autoFocus?: boolean;
   /** Fires after a query or listing pick navigates away. */
@@ -121,7 +137,7 @@ export interface HeaderSearchProps {
    * filter glyph lives here so search and refine are one bar.
    */
   trailing?: ReactNode;
-  /** `inset` fills the muted chip the Flutter catalog uses. */
+  /** `inset` is a cream in-page field. `pill` is the seamless mobile chrome. */
   appearance?: HeaderSearchAppearance;
 }
 
@@ -129,16 +145,27 @@ export interface HeaderSearchProps {
 export function HeaderSearch({
   className,
   ariaLabel = 'Search listings',
+  placeholder = PLACEHOLDER,
   autoFocus = false,
   onNavigate,
   trailing,
   appearance = 'default',
 }: HeaderSearchProps) {
   return (
-    <Suspense fallback={<HeaderSearchFallback className={className} ariaLabel={ariaLabel} appearance={appearance} />}>
+    <Suspense
+      fallback={
+        <HeaderSearchFallback
+          className={className}
+          ariaLabel={ariaLabel}
+          placeholder={placeholder}
+          appearance={appearance}
+        />
+      }
+    >
       <HeaderSearchInner
         className={className}
         ariaLabel={ariaLabel}
+        placeholder={placeholder}
         autoFocus={autoFocus}
         onNavigate={onNavigate}
         trailing={trailing}
@@ -151,6 +178,7 @@ export function HeaderSearch({
 function HeaderSearchInner({
   className,
   ariaLabel,
+  placeholder,
   autoFocus,
   onNavigate,
   trailing,
@@ -158,6 +186,7 @@ function HeaderSearchInner({
 }: {
   className?: string;
   ariaLabel: string;
+  placeholder: string;
   autoFocus: boolean;
   onNavigate?: () => void;
   trailing?: ReactNode;
@@ -324,7 +353,12 @@ function HeaderSearchInner({
       className={cn('relative w-full', className)}
     >
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 z-[1] size-4 -translate-y-1/2 text-muted-foreground"
+        className={cn(
+          'pointer-events-none absolute top-1/2 z-[1] -translate-y-1/2',
+          appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
+          appearance === 'default' ? 'text-parchment' : 'text-foreground',
+        )}
+        strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
       />
       <Input
@@ -359,14 +393,19 @@ function HeaderSearchInner({
             setOpen(false);
           }, 150);
         }}
-        placeholder={PLACEHOLDER}
+        placeholder={placeholder}
         aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
         enterKeyHint="search"
         className={cn(
-          'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
-          appearance === 'inset' && 'rounded-lg border-0 bg-muted',
+          // Default / inset keep Input's 16px mobile size so iOS will not zoom.
+          // The compact chrome pill is `text-body` — same size as the games row.
+          'h-10 w-full pl-9 text-body md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          appearance === 'inset' &&
+            'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
+          appearance === 'pill' &&
+            'h-8 rounded-full border-border bg-card py-0 pl-8 text-body leading-none text-foreground placeholder:text-body placeholder:text-muted-foreground',
           trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-3',
         )}
       />
@@ -395,7 +434,12 @@ function HeaderSearchInner({
           id={listId}
           role="listbox"
           aria-label="Matching listings"
-          className="absolute inset-x-0 top-full z-50 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md"
+          className={cn(
+            'absolute inset-x-0 top-full z-50 mt-1 max-h-80 overflow-auto rounded-md border border-border py-1 shadow-md',
+            appearance === 'default'
+              ? 'bg-popover text-popover-foreground'
+              : 'bg-card text-foreground',
+          )}
         >
           {loading && hits.length === 0 ? (
             <li className="px-3 py-2 text-meta text-muted-foreground" aria-live="polite">
@@ -416,8 +460,14 @@ function HeaderSearchInner({
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-2 py-2 text-left focus:outline-none focus-visible:border-gold/40 focus-visible:bg-accent',
-                    active ? 'bg-accent' : 'hover:bg-muted/70',
+                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-2 py-2 text-left focus:outline-none focus-visible:border-gold/40',
+                    appearance === 'default'
+                      ? active
+                        ? 'bg-accent'
+                        : 'hover:bg-muted/70 focus-visible:bg-accent'
+                      : active
+                        ? 'bg-muted'
+                        : 'bg-card hover:bg-muted/70',
                   )}
                 >
                   <span className="relative size-9 shrink-0 overflow-hidden rounded-sm border border-border bg-muted">
@@ -451,7 +501,13 @@ function HeaderSearchInner({
               onMouseEnter={() => setHighlight(showAllIndex)}
               className={cn(
                 'flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-body',
-                highlight === showAllIndex ? 'bg-accent' : 'hover:bg-muted/70',
+                appearance === 'default'
+                  ? highlight === showAllIndex
+                    ? 'bg-accent'
+                    : 'hover:bg-muted/70'
+                  : highlight === showAllIndex
+                    ? 'bg-muted'
+                    : 'bg-card',
                 hits.length > 0 && 'mt-1 border-t border-border',
               )}
             >

@@ -2,10 +2,10 @@
 
 // components/layout/SiteMenu.tsx
 //
-// Overflow menu for the site header. It lists the FULL workspace map, so every
-// section is reachable from the burger on any viewport — the desktop rail is
-// hidden on narrow screens and the mobile hubs only surface five destinations,
-// which left several tabs with no route in from here.
+// Overflow menu for the site header. On desktop it lists the FULL workspace
+// map so every section is reachable from the burger. On a phone the signed-in
+// hub bar already owns that map, so this menu hides there and stays for guests
+// (who have no hubs) and for signed-in desktop.
 //
 // The groups are read from `marketplace-nav-config` rather than restated, so the
 // menu cannot drift from the rail and the mobile hubs the way a second hardcoded
@@ -58,9 +58,8 @@ const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
  * The bell has always been Notifications and the avatar has always been Account, so
  * two of the menu's rows were restating the bar above them. Saved and Messages are
  * now icons up there too. All four rows are therefore hidden from `md` up — the
- * breakpoint at which those header controls appear — and kept below it, because the
- * two new icons are `hidden md:inline-flex` and removing the rows outright would
- * make Saved unreachable on a phone.
+ * breakpoint at which this menu appears for a signed-in member. On a phone the
+ * hubs and header icons cover them, and the menu itself is hidden.
  *
  * NOT removed from `MARKETPLACE_NAV_GROUPS`: that constant also drives the desktop
  * rail, which is a workspace sidebar that SHOULD list Messages and Account, and the
@@ -113,8 +112,8 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
    */
   function renderLink(link: MarketplaceNavLink, trackCurrent = true) {
     const active = trackCurrent && isMarketplaceSectionActive(pathname, link.href);
-    // A row the header already carries stays reachable on a phone and disappears
-    // from `sm` up, where the icon for it exists.
+    // A row the header already carries is hidden from `md` up, where this
+    // menu and those header icons both exist.
     const promoted = PROMOTED_TO_HEADER.includes(link.href);
     return (
       <Button
@@ -169,7 +168,13 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
   return (
     <div
       ref={containerRef}
-      className={cn('relative', !isAuthenticated && 'md:hidden')}
+      className={cn(
+        'relative',
+        // Guests still need the burger on a phone (no hub bar). Signed-in
+        // members reach the same map from the bottom hubs, so the header
+        // copy of that list is desktop-only.
+        isAuthenticated ? 'hidden md:block' : 'md:hidden',
+      )}
     >
       <button
         type="button"
@@ -209,15 +214,12 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                   size="sm"
                   className="h-10 justify-start"
                   onOpen={() => setOpen(false)}
-                >
-                  <Handshake aria-hidden />
-                  Start a Deal
-                </StartDealButton>
+                />
                 <div className="my-1 border-t" />
                 <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
                   <SignInLink>Sign in</SignInLink>
                 </Button>
-                <Button asChild size="sm" className="h-10 justify-start">
+                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
                   <SignInLink target="/sign-up">Get started</SignInLink>
                 </Button>
               </>

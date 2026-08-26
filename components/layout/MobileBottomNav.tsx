@@ -8,7 +8,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Handshake } from 'lucide-react';
 
+import { useStartDeal } from '@/components/deals/StartDealProvider';
 import {
   MOBILE_HUBS,
   isMarketplaceSectionActive,
@@ -33,8 +35,28 @@ function HubSheetLinks({
   pathname: string;
   onNavigate: () => void;
 }) {
+  const { openDeal } = useStartDeal();
+
   return (
-    <ul className="flex flex-col gap-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <ul className="flex flex-col gap-1 pb-2">
+      {hub.id === 'contracts' ? (
+        <li>
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate();
+              openDeal();
+            }}
+            className="flex min-h-11 w-full touch-manipulation items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left text-body font-medium text-foreground/85 transition-colors hover:bg-muted/70 focus:outline-none focus-visible:border-gold/40"
+          >
+            <Handshake
+              className="size-5 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            Start a Deal
+          </button>
+        </li>
+      ) : null}
       {hub.links.map((link) => {
         const active = isMarketplaceSectionActive(pathname, link.href);
         const Icon = link.icon;
@@ -80,7 +102,10 @@ export function MobileBottomNav() {
       <nav
         aria-label="Marketplace hubs"
         style={{ viewTransitionName: 'persistent-mobile-nav' }}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] shadow-[0_-8px_28px_hsl(var(--foreground)/0.06)] md:hidden"
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] shadow-[0_-8px_28px_hsl(var(--foreground)/0.06)] md:hidden',
+          openHub && 'z-[60]',
+        )}
       >
         <ul className="mx-auto grid h-14 max-w-lg grid-cols-5">
           {MOBILE_HUBS.map((hub) => {
@@ -153,7 +178,8 @@ export function MobileBottomNav() {
           <SheetContent
             id={`mobile-hub-${hub.id}`}
             side="bottom"
-            className="max-h-[min(28rem,75dvh)] gap-0 rounded-t-xl border-border bg-card p-0"
+            overlayClassName="inset-x-0 top-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]"
+            className="bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] max-h-[min(28rem,75dvh)] gap-0 rounded-t-xl border-border bg-card p-0 pb-2"
           >
             <SheetHeader className="border-b border-border px-5 py-3 text-left">
               <SheetTitle>{hub.title}</SheetTitle>

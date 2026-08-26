@@ -23,18 +23,15 @@ export function GuestHeaderCtas() {
 
   return (
     <nav aria-label="Account" className="flex items-center gap-1">
-      <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
+      <Button asChild variant="ghost" size="sm">
         <SignInLink>Sign in</SignInLink>
       </Button>
       <Button
         asChild
         size="sm"
-        className="min-h-11 border-parchment/20 bg-parchment text-obsidian hover:bg-parchment/90 md:min-h-9"
+        className="border-parchment/20 bg-parchment text-obsidian hover:bg-parchment/90"
       >
-        <SignInLink target="/sign-up">
-          <span className="hidden md:inline">Get started</span>
-          <span className="md:hidden">Sign up</span>
-        </SignInLink>
+        <SignInLink target="/sign-up">Get started</SignInLink>
       </Button>
     </nav>
   );

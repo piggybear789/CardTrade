@@ -38,7 +38,12 @@ import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
+import {
+  ITEM_FORM_ID,
+  publishItemFormChrome,
+} from "@/lib/listings/itemFormChrome";
 import { uploadItemImages } from "@/lib/storage/uploadItemImages";
+import type { ImageDim } from "@/lib/images/dimensions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -186,6 +191,12 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  React.useEffect(() => {
+    if (mode !== "create") return;
+    publishItemFormChrome({ submitting: isSubmitting });
+    return () => publishItemFormChrome(null);
+  }, [mode, isSubmitting]);
+
   const totalImages = keptPaths.length + newFiles.length;
 
   function errorFor(field: Exclude<ErrorField, null>): string | undefined {
@@ -272,6 +283,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       // body, which Next caps at `serverActions.bodySizeLimit`, and a single
       // phone photo can exceed it.
       let uploadedPaths: string[] = [];
+      // Measured in the browser, because on this path the server never holds
+      // the bytes and so cannot measure them itself. They let the catalog
+      // mosaic reserve the right shape before the photo loads; the action
+      // treats them as an untrusted claim.
+      let uploadedDims: (ImageDim | null)[] = [];
       if (newFiles.length > 0) {
         const uploaded = await uploadItemImages(newFiles);
         if (!uploaded.ok) {
@@ -280,6 +296,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           return;
         }
         uploadedPaths = uploaded.paths;
+        uploadedDims = uploaded.dims;
       }
 
       if (mode === "create") {
@@ -289,6 +306,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           condition,
           fmvCents,
           images: uploadedPaths,
+          imageDims: uploadedDims,
           location: locationPayload,
           listingKind,
         });
@@ -310,6 +328,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           condition,
           fmvCents,
           images,
+          // Kept photos are left null: the action reads their stored sizes back
+          // off the row rather than trusting the form to resend them.
+          imageDims: [...keptPaths.map(() => null), ...uploadedDims],
           location: locationPayload,
         });
 
@@ -392,7 +413,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // popover in this rail can grow downwards.
   return (
     <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
-      <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7">
+      <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
         </CardTitle>
@@ -403,7 +424,12 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         </CardDescription>
       </CardHeader>
 
-      <form onSubmit={handleSubmit} noValidate className="lg:contents">
+      <form
+        id={mode === "create" ? ITEM_FORM_ID : undefined}
+        onSubmit={handleSubmit}
+        noValidate
+        className="lg:contents"
+      >
         <CardContent className="grid gap-5 lg:contents">
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
@@ -411,7 +437,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               yield space to the filmstrip instead of overflowing the fixed panel: a
               grid item defaults to `min-height:auto`, which refuses to shrink below
               its content. */}
-          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-muted lg:p-8">
+          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-card lg:p-8">
             <Label htmlFor="images">Photos</Label>
             <p className="text-body text-muted-foreground">
               Add {IMAGES_MIN}–{IMAGES_MAX} photos. {totalImages} selected.
@@ -737,7 +763,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
+        <CardFooter className="flex-col items-stretch gap-2 border-t bg-card px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
           <Button
             type="button"
             variant="outline"
@@ -757,7 +783,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             type="submit"
             disabled={isSubmitting}
             aria-busy={isSubmitting}
-            className="w-full sm:w-auto"
+            className={
+              mode === "create"
+                ? "hidden w-full md:inline-flex md:w-auto"
+                : "w-full sm:w-auto"
+            }
           >
             {isSubmitting
               ? "Saving…"

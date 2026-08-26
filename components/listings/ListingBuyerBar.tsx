@@ -15,8 +15,8 @@ const BAR_TRIGGER =
   'h-11 min-h-11 w-full rounded-md px-2 text-body font-semibold';
 
 /**
- * Flutter-style sticky buyer chrome. Replaces the mobile hub on an available
- * listing so Buy / Chat sit under the thumb the way they do in the app.
+ * Sticky buyer chrome. Sits above the mobile hub when the viewer is signed
+ * in, so Browse / Contracts stay reachable on every listing.
  */
 export function ListingBuyerBar({
   itemId,
@@ -49,7 +49,7 @@ export function ListingBuyerBar({
 }) {
   if (!isAuthenticated) {
     return (
-      <div className={barClass}>
+      <div className={guestBarClass}>
         <Button asChild className="h-11 w-full">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
             <LogIn aria-hidden />
@@ -64,7 +64,7 @@ export function ListingBuyerBar({
   const showBuy = Boolean(sellerIdentity);
 
   return (
-    <div className={barClass}>
+    <div className={memberBarClass}>
       <MessageSellerButton itemId={itemId} sellerId={sellerId} variant="icon" />
       <WatchButton
         itemId={itemId}
@@ -114,8 +114,8 @@ export function ListingBuyerBar({
             itemId={itemId}
             sellerIdentity={sellerIdentity!}
             trigger={
-              <Button type="button" variant="outline" className={`${BAR_TRIGGER} flex-1`}>
-                Browse & Buy
+              <Button type="button" variant="action" className={`${BAR_TRIGGER} flex-1`}>
+                Browse
               </Button>
             }
           />
@@ -124,21 +124,25 @@ export function ListingBuyerBar({
             itemId={itemId}
             sellerIdentity={sellerIdentity!}
             trigger={
-              <Button type="button" variant="outline" className={`${BAR_TRIGGER} flex-1`}>
-                Buy Now
+              <Button type="button" variant="action" className={`${BAR_TRIGGER} flex-1`}>
+                Buy
               </Button>
             }
           />
         )
-      ) : null}
-      <MessageSellerButton
-        itemId={itemId}
-        sellerId={sellerId}
-        variant="bar"
-      />
+      ) : (
+        <MessageSellerButton
+          itemId={itemId}
+          sellerId={sellerId}
+          variant="bar"
+        />
+      )}
     </div>
   );
 }
 
-const barClass =
+const guestBarClass =
   'fixed inset-x-0 bottom-0 z-30 flex items-center gap-1 border-t border-border bg-card px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden';
+
+const memberBarClass =
+  'fixed inset-x-0 z-30 flex items-center gap-1 border-t border-border bg-card px-3 pb-2 pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]';

@@ -67,9 +67,9 @@ export function CloseShopfrontDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" className="w-full sm:w-auto">
+        <Button type="button" variant="outline" className="min-w-0 w-full px-2">
           <Archive aria-hidden />
-          Close listing
+          <span className="truncate">Close</span>
         </Button>
       </DialogTrigger>
       <DialogContent>

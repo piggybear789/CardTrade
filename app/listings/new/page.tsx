@@ -45,25 +45,25 @@ export default async function NewListingPage() {
   const gate = await readIdentityGate(user.id);
   if (!gate.satisfied) {
     return (
-      <MarketplaceShell title="Sell an Item" center>
+      <MarketplaceShell title="New Listing" center>
         {/* SENDS THEM TO THE IDENTITY CHECK, NOT PAYOUTS. This used to read "Set Up
             Payouts First" and link to payout setup, which after 0069 does not open
             this gate at all — a blocked seller would have handed over their bank
             details and still been unable to list. */}
         <EmptyState
+          variant="page"
           icon={<ShieldAlert className="size-6" aria-hidden />}
           title="Verify Your Identity First"
           titleAs="h3"
           description={identityGateMessage('list', gate.state)}
           action={{ label: 'Verify identity', href: '/profile?tab=verification' }}
-          className="border-none bg-transparent"
         />
       </MarketplaceShell>
     );
   }
 
   return (
-    <MarketplaceShell title="Sell an Item">
+    <MarketplaceShell title="New Listing">
       <ItemForm mode="create" />
     </MarketplaceShell>
   );

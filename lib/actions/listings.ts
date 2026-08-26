@@ -40,7 +40,12 @@ import {
   verifyStoredImages,
   type ImageInput,
   type ImageUpload,
+  type UploadedImage,
 } from '@/lib/storage/itemImages';
+import {
+  sanitizeImageDimList,
+  type ImageDim,
+} from '@/lib/images/dimensions';
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import { normalizeRegionCode } from '@/domain/region';
@@ -99,6 +104,17 @@ export interface CreateItemInput {
    * against the caller's own prefix before anything is persisted.
    */
   images: ImageInput[];
+  /**
+   * Intrinsic pixel size per entry in {@link images}, same order, for the
+   * catalog mosaic (`items.image_dims`, 0106).
+   *
+   * Only meaningful for entries that are already-stored paths: the browser
+   * uploaded those straight to Storage and is the only party that saw the
+   * bytes. Entries that arrive as bytes are measured server-side and their
+   * claim here is ignored. Untrusted either way — sanitized on arrival, and a
+   * value that fails is dropped to `null` rather than stored.
+   */
+  imageDims?: (ImageDim | null)[];
   /** Required for public catalog listings; optional for private trade items. */
   location?: ItemLocationInput | null;
   /**
@@ -121,6 +137,8 @@ export interface UpdateItemInput {
   condition: string;
   fmvCents: number;
   images: (string | ImageUpload)[];
+  /** See {@link CreateItemInput.imageDims}. */
+  imageDims?: (ImageDim | null)[];
   location?: ItemLocationInput | null;
 }
 
@@ -240,6 +258,53 @@ function resolveListingTitle(input: { title?: string; description: string }): st
 }
 
 /**
+ * Settle the intrinsic size of every image on a listing (`items.image_dims`,
+ * migration 0106), index-aligned with the resolved paths.
+ *
+ * There is exactly one authority per image, and the point of this function is
+ * to pick it rather than to average opinions:
+ *
+ *  - Bytes that came through this action were measured server-side while they
+ *    were being uploaded (`uploadImages`). That reading is definitive.
+ *  - A path already attached to the item keeps whatever is already stored for
+ *    it, so editing a title does not discard a size that an upload — or the
+ *    backfill — established earlier.
+ *  - A path we have not seen before is a photo the browser sent straight to
+ *    Storage. This process never held those bytes, so the browser's own
+ *    measurement is the only one that exists. It is a claim from a client and
+ *    is filtered through `sanitizeImageDimList` before it gets here.
+ *
+ * Anything unresolved stays `null`, which the catalog renders as a square tile.
+ */
+function resolveImageDims(
+  uploaded: UploadedImage[],
+  claimed: (ImageDim | null)[],
+  stored: ReadonlyMap<string, ImageDim | null>,
+): (ImageDim | null)[] {
+  return uploaded.map(
+    (image, index) =>
+      image.dim ?? stored.get(image.path) ?? claimed[index] ?? null,
+  );
+}
+
+/** Path → stored dimension for an item's current photos. Empty when unknown. */
+function storedDimsByPath(
+  imagePaths: unknown,
+  imageDims: unknown,
+): Map<string, ImageDim | null> {
+  const paths = Array.isArray(imagePaths) ? (imagePaths as string[]) : [];
+  const dims = sanitizeImageDimList(imageDims, paths.length);
+  const byPath = new Map<string, ImageDim | null>();
+  for (let i = 0; i < paths.length; i += 1) {
+    if (dims[i]) byPath.set(paths[i], dims[i]);
+  }
+  return byPath;
+}
+
+/** No prior row to read from — used by the create paths. */
+const NO_STORED_DIMS: ReadonlyMap<string, ImageDim | null> = new Map();
+
+/**
  * Create an Item (Req 3.1, 3.2, 3.3, 14.1).
  *
  * GATED ON THE IDENTITY_GATE. A published listing is an offer to sell for cash,
@@ -324,9 +389,9 @@ export async function createItem(
 
   // Upload images to Storage and collect their object paths.
   const admin = createAdminClient();
-  let imagePaths: string[];
+  let uploaded: UploadedImage[];
   try {
-    imagePaths = await uploadImages(admin, userId, input.images);
+    uploaded = await uploadImages(admin, userId, input.images);
   } catch (e) {
     return {
       ok: false,
@@ -334,6 +399,14 @@ export async function createItem(
       message: e instanceof Error ? e.message : 'Image upload failed',
     };
   }
+  const imagePaths = uploaded.map((image) => image.path);
+  // Nothing is stored yet, so a path that arrived as a string can only be a
+  // fresh direct-to-Storage upload and the browser's measurement is all there is.
+  const imageDims = resolveImageDims(
+    uploaded,
+    sanitizeImageDimList(input.imageDims, input.images.length),
+    NO_STORED_DIMS,
+  );
 
   // Final validation over the real submission (with uploaded paths).
   const validated = validateItemSubmission({
@@ -376,6 +449,7 @@ export async function createItem(
       condition: validated.value.condition,
       fmv_cents: validated.value.fmvCents,
       image_paths: validated.value.images,
+      image_dims: imageDims,
       status: 'AVAILABLE',
       listing_kind: input.listingKind ?? 'SINGLE',
       ...(location.value ?? {}),
@@ -451,9 +525,9 @@ export async function createPrivateTradeItem(
   }
 
   const admin = createAdminClient();
-  let imagePaths: string[];
+  let uploaded: UploadedImage[];
   try {
-    imagePaths = await uploadImages(admin, userId, input.images);
+    uploaded = await uploadImages(admin, userId, input.images);
   } catch (e) {
     return {
       ok: false,
@@ -461,6 +535,15 @@ export async function createPrivateTradeItem(
       message: e instanceof Error ? e.message : 'Image upload failed',
     };
   }
+  const imagePaths = uploaded.map((image) => image.path);
+  // A private trade item is never browsed, so the mosaic never draws it — but
+  // the same photos become dispute evidence and can be rendered in a contract
+  // room, so the sizes are recorded on the same terms as a public listing.
+  const imageDims = resolveImageDims(
+    uploaded,
+    sanitizeImageDimList(input.imageDims, input.images.length),
+    NO_STORED_DIMS,
+  );
 
   const validated = validateItemSubmission({
     title: derivedTitle,
@@ -490,6 +573,7 @@ export async function createPrivateTradeItem(
       condition: validated.value.condition,
       fmv_cents: validated.value.fmvCents,
       image_paths: validated.value.images,
+      image_dims: imageDims,
       status: 'AVAILABLE',
       hidden: true,
     })
@@ -530,16 +614,31 @@ export async function updateItem(
   const listingTitle = resolveListingTitle(input);
 
   // Resolve images: keep existing string paths, upload any new binary/base64.
+  //
+  // The two groups are rejoined below as `[...kept, ...uploaded]`, which is NOT
+  // the order they arrived in when the seller interleaved a new photo with the
+  // ones being kept. Every per-image array therefore has to be split and
+  // rejoined the same way, or `image_dims[i]` would end up describing a
+  // different photo than `image_paths[i]` and the mosaic would reserve the
+  // wrong shape for both.
   const admin = createAdminClient();
+  const claimedDims = sanitizeImageDimList(
+    input.imageDims,
+    (input.images ?? []).length,
+  );
   const keptPaths: string[] = [];
+  const keptClaimedDims: (ImageDim | null)[] = [];
   const newUploads: ImageUpload[] = [];
-  for (const image of input.images ?? []) {
+  const newClaimedDims: (ImageDim | null)[] = [];
+  (input.images ?? []).forEach((image, index) => {
     if (typeof image === 'string') {
       keptPaths.push(image);
+      keptClaimedDims.push(claimedDims[index]);
     } else {
       newUploads.push(image);
+      newClaimedDims.push(claimedDims[index]);
     }
-  }
+  });
 
   // A path arriving as a string is a client claim, whether it is an image being
   // kept from this Item or one the browser just uploaded through a signed URL.
@@ -555,10 +654,10 @@ export async function updateItem(
     };
   }
 
-  let uploadedPaths: string[] = [];
+  let uploaded: UploadedImage[] = [];
   if (newUploads.length > 0) {
     try {
-      uploadedPaths = await uploadImages(admin, userId, newUploads);
+      uploaded = await uploadImages(admin, userId, newUploads);
     } catch (e) {
       return {
         ok: false,
@@ -567,8 +666,34 @@ export async function updateItem(
       };
     }
   }
+  const uploadedPaths = uploaded.map((image) => image.path);
 
   const resolvedImages = [...keptPaths, ...uploadedPaths];
+
+  // What the row already knows about the photos being kept. Read rather than
+  // taken from the client, so an edit that only changes the title cannot
+  // discard a size established by an earlier upload or by the backfill — the
+  // form has no reason to resend those, and a missing field must not read as
+  // "this image has no size".
+  const { data: currentImages } = await supabase
+    .from('items')
+    .select('image_paths, image_dims')
+    .eq('id', itemId)
+    .maybeSingle();
+  const storedDims = storedDimsByPath(
+    currentImages?.image_paths,
+    currentImages?.image_dims,
+  );
+
+  const resolvedDims = [
+    // A kept path already in the row uses its stored size; one that is not is a
+    // photo the browser just sent straight to Storage, so its own measurement
+    // is the only one in existence.
+    ...keptPaths.map(
+      (path, index) => storedDims.get(path) ?? keptClaimedDims[index] ?? null,
+    ),
+    ...resolveImageDims(uploaded, newClaimedDims, NO_STORED_DIMS),
+  ];
 
   const location = normalizeItemLocation(input.location, true);
   if (!location.ok) {
@@ -593,6 +718,7 @@ export async function updateItem(
       fmvCents: input.fmvCents,
       images: resolvedImages,
     },
+    imageDims: resolvedDims,
   });
 
   if (!result.ok) {

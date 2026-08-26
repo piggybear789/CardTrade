@@ -18,8 +18,8 @@ export default function Loading() {
     >
       <span className="sr-only">Loading…</span>
 
-      <div className="mx-auto w-full max-w-workspace px-6 pb-16 pt-20 sm:pt-24 lg:px-24 lg:pt-28">
-        <div className="mx-auto max-w-2xl space-y-5 text-center">
+      <div className="mx-auto w-full max-w-workspace px-6 pb-20 pt-20 sm:pt-24 md:pb-16 lg:px-24 lg:pt-28">
+        <div className="mx-auto max-w-2xl space-y-6 text-center md:space-y-5">
           <Skeleton className="mx-auto h-5 w-40" />
           <Skeleton className="mx-auto h-14 w-full max-w-xl sm:h-16" />
           <Skeleton className="mx-auto h-5 w-72 max-w-full" />
@@ -35,7 +35,7 @@ export default function Loading() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden py-8">
+      <div className="relative overflow-hidden py-12 md:py-8">
         <div className="flex gap-4 px-6">
           {Array.from({ length: 6 }, (_, index) => (
             <Skeleton
@@ -47,7 +47,7 @@ export default function Loading() {
       </div>
 
       <div className="border-t border-border bg-card">
-        <div className="mx-auto grid max-w-workspace gap-12 px-6 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-24 lg:py-24">
+        <div className="mx-auto grid max-w-workspace gap-16 px-6 py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-24 lg:py-24">
           <div className="space-y-4">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="h-9 w-56 max-w-full" />

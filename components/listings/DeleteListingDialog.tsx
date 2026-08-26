@@ -38,9 +38,13 @@ const ERROR_MESSAGES: Record<string, string> = {
 export function DeleteListingDialog({
   itemId,
   itemTitle,
+  className,
+  compact = false,
 }: {
   itemId: string;
   itemTitle: string;
+  className?: string;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -65,9 +69,14 @@ export function DeleteListingDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="destructive" className="w-full sm:w-auto">
+        <Button
+          type="button"
+          variant="destructive"
+          className={className ?? 'w-full sm:w-auto'}
+          aria-label="Delete listing"
+        >
           <Trash2 aria-hidden />
-          Delete listing
+          {compact ? null : 'Delete listing'}
         </Button>
       </DialogTrigger>
       <DialogContent>

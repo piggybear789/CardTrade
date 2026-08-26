@@ -34,7 +34,7 @@
 // Stripe. Three clicks and a dead-end anchor stood between asking to verify and
 // the only screen that can verify anything.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -103,6 +103,19 @@ const WELCOME_POINTS = [
     body: 'Each side puts a temporary hold on their card. No cash moves, and holds release on a confirmed swap.',
   },
 ] as const;
+
+/** Phone: fills leftover viewport so Back/Continue pin to the bottom. md+: in-flow. */
+const WIZARD_SCROLL =
+  'max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:overscroll-contain';
+
+/** Phone: pinned under the scroll region. md+: in-card, matching DialogFooter. */
+function WizardFooter({ children }: { children: ReactNode }) {
+  return (
+    <DialogFooter className="max-md:mt-auto max-md:shrink-0 max-md:border-t max-md:pt-3">
+      {children}
+    </DialogFooter>
+  );
+}
 
 // Region choices are loaded at runtime, not read from the registry, because the real
 // answer depends on which regions have a Stripe platform account configured — see
@@ -251,11 +264,12 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
       <Dialog open onOpenChange={() => undefined}>
         <DialogContent
           showClose={false}
-          // Phone: the default bottom sheet. A centred card on a 320–390px
-          // viewport left a thin gutter and fought the sheet width. From `md`
-          // the panel is the same centred card as before (`max-w-2xl`). Height
-          // still must not jump between steps — see the skeleton in
-          // `UnifiedOnboardingSurface`.
+          // Phone: full-viewport page (`mobile="page"`), not the default
+          // bottom sheet — a sheet only fills ~⅔ of the screen and then
+          // Back/Continue eat the leftover. From `md` the panel is the same
+          // centred card as before (`max-w-2xl`). Height still must not jump
+          // between steps — see the skeleton in `UnifiedOnboardingSurface`.
+          mobile="page"
           className="md:w-[calc(100%-2rem)] md:max-w-2xl md:p-6"
         >
           {/* Progress indicator: shows which step you are on. Hidden on the welcome
@@ -266,7 +280,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
               an `aria-label` on a plain <div> has no role to attach to and is not
               reliably announced. */}
           {step !== 'welcome' && step !== 'seller-onboarding' ? (
-            <div className="mb-2 flex items-center justify-center gap-tight">
+            <div className="mb-2 flex shrink-0 items-center justify-center gap-tight">
               <span className="sr-only">
                 Step {progressIndex + 1} of {PROGRESS_STEPS.length}
               </span>
@@ -283,6 +297,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
             </div>
           ) : null}
 
+          <div className={WIZARD_SCROLL}>
           {step === 'welcome' ? (
             <div className="space-y-group">
               <DialogHeader className="space-y-2 pr-0 text-center">
@@ -315,13 +330,6 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                   </li>
                 ))}
               </ul>
-
-              <DialogFooter>
-                <Button type="button" onClick={() => setStep('username')}>
-                  Get started
-                  <ArrowRight className="size-4" aria-hidden />
-                </Button>
-              </DialogFooter>
             </div>
           ) : null}
 
@@ -396,21 +404,6 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                   </p>
                 </div>
               </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={goBack}>
-                  <ArrowLeft className="size-4" aria-hidden />
-                  Back
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleUsernameContinue}
-                  disabled={!displayName.trim()}
-                >
-                  Continue
-                  <ArrowRight className="size-4" aria-hidden />
-                </Button>
-              </DialogFooter>
             </div>
           ) : null}
 
@@ -484,27 +477,6 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                   {error}
                 </p>
               ) : null}
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={goBack}
-                  disabled={saving}
-                >
-                  <ArrowLeft className="size-4" aria-hidden />
-                  Back
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleRegionContinue}
-                  disabled={!regionCode || saving}
-                  aria-busy={saving}
-                >
-                  {saving ? 'Saving…' : 'Continue'}
-                  <ArrowRight className="size-4" aria-hidden />
-                </Button>
-              </DialogFooter>
             </div>
           ) : null}
 
@@ -566,32 +538,6 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                   {error}
                 </p>
               ) : null}
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={goBack} disabled={saving}>
-                  <ArrowLeft className="size-4" aria-hidden />
-                  Back
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleIntentContinue}
-                  disabled={!intent || saving}
-                  aria-busy={saving}
-                >
-                  {saving
-                    ? intent === 'seller'
-                      ? 'Opening Stripe…'
-                      : 'Saving…'
-                    : intent === 'seller'
-                      ? 'Verify Identity'
-                      // "Continue", matching every other step in this wizard. It read
-                      // "Next" here alone, which is a second word for one action and
-                      // bought nothing. `Verify Identity` stays different because the
-                      // action IS different — it leaves for Stripe.
-                      : 'Continue'}
-                  <ArrowRight className="size-4" aria-hidden />
-                </Button>
-              </DialogFooter>
             </div>
           ) : null}
 
@@ -637,25 +583,104 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 }}
               />
 
-              {/* A way back to the intent question — this step sits off the wizard's
-                  main spine, so `goBack` does not reach it. Rendered only once the status
-                  is KNOWN and outstanding: dropped when both steps are done, because the
-                  surface renders its own forward action and "Back" beside it is the more
-                  prominent of two controls pointing opposite ways — and withheld while
-                  still unknown, so it does not appear and then retract. */}
-              {sellerSettled === false ? (
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStep('intent')}
-                  >
-                    <ArrowLeft className="size-4" aria-hidden />
-                    Back
-                  </Button>
-                </DialogFooter>
-              ) : null}
             </div>
+          ) : null}
+          </div>
+
+          {step === 'welcome' ? (
+            <WizardFooter>
+              <Button type="button" onClick={() => setStep('username')}>
+                Get started
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
+            </WizardFooter>
+          ) : null}
+
+          {step === 'username' ? (
+            <WizardFooter>
+              <Button type="button" variant="outline" onClick={goBack}>
+                <ArrowLeft className="size-4" aria-hidden />
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={handleUsernameContinue}
+                disabled={!displayName.trim()}
+              >
+                Continue
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
+            </WizardFooter>
+          ) : null}
+
+          {step === 'region' ? (
+            <WizardFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goBack}
+                disabled={saving}
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={handleRegionContinue}
+                disabled={!regionCode || saving}
+                aria-busy={saving}
+              >
+                {saving ? 'Saving…' : 'Continue'}
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
+            </WizardFooter>
+          ) : null}
+
+          {step === 'intent' ? (
+            <WizardFooter>
+              <Button type="button" variant="outline" onClick={goBack} disabled={saving}>
+                <ArrowLeft className="size-4" aria-hidden />
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={handleIntentContinue}
+                disabled={!intent || saving}
+                aria-busy={saving}
+              >
+                {saving
+                  ? intent === 'seller'
+                    ? 'Opening Stripe…'
+                    : 'Saving…'
+                  : intent === 'seller'
+                    ? 'Verify Identity'
+                    // "Continue", matching every other step in this wizard. It read
+                    // "Next" here alone, which is a second word for one action and
+                    // bought nothing. `Verify Identity` stays different because the
+                    // action IS different — it leaves for Stripe.
+                    : 'Continue'}
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
+            </WizardFooter>
+          ) : null}
+
+          {/* A way back to the intent question — this step sits off the wizard's
+              main spine, so `goBack` does not reach it. Rendered only once the status
+              is KNOWN and outstanding: dropped when both steps are done, because the
+              surface renders its own forward action and "Back" beside it is the more
+              prominent of two controls pointing opposite ways — and withheld while
+              still unknown, so it does not appear and then retract. */}
+          {step === 'seller-onboarding' && sellerSettled === false ? (
+            <WizardFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep('intent')}
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                Back
+              </Button>
+            </WizardFooter>
           ) : null}
 
           {/* NO ESCAPE FOOTER. It used to offer the catalog and a sign-out on every

@@ -86,8 +86,11 @@ function valueIssue(platform: SocialPlatform, raw: string): string | null {
 
 export function SocialLinksEditor({
   initialLinks,
+  onSaved,
 }: {
   initialLinks: Record<string, string> | null;
+  /** Raised after a successful save, so a host sheet can dismiss itself. */
+  onSaved?: () => void;
 }) {
   const [values, setValues] = useState(() => valuesFromStored(initialLinks));
   const [baseline, setBaseline] = useState(() => valuesFromStored(initialLinks));
@@ -163,6 +166,7 @@ export function SocialLinksEditor({
       setJustSaved(true);
       toast.success('Links saved.');
       window.setTimeout(() => setJustSaved(false), 2000);
+      onSaved?.();
     });
   }
 
@@ -201,7 +205,7 @@ export function SocialLinksEditor({
 
   return (
     <div className="flex flex-col gap-cozy">
-      <div className="divide-y overflow-hidden rounded-xl border bg-card">
+      <div className="divide-y overflow-hidden rounded-xl border bg-card max-md:rounded-none max-md:border-0 max-md:bg-transparent">
         {visible.map((platform) => {
           const inputId = `social-${platform.slug}`;
           const errorId = `${inputId}-error`;

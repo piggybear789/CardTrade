@@ -12,11 +12,19 @@ import {
   type CatalogSort,
   type SearchCatalogParams,
 } from '@/lib/actions/listings';
-import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
+import { useIsDesktop } from '@/components/layout/Breakpoint';
+import {
+  CatalogMosaic,
+  catalogCoverDim,
+} from '@/components/listings/CatalogMosaic';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { useCatalogView } from '@/components/listings/CatalogView';
 
 const MOBILE_MAX = '(max-width: 1023px)';
+
+/** Hoisted: these are inputs to the mosaic's column balance, which is memoised. */
+const itemKey = (item: CatalogItem) => item.id;
+const itemCoverDim = (item: CatalogItem) => catalogCoverDim(item);
 
 export interface CatalogInfiniteGridProps {
   /** Bumps when the browse query is replaced so we reset without remounting. */
@@ -63,6 +71,7 @@ export function CatalogInfiniteGrid({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { filter, setMatchCount } = useCatalogView();
+  const isDesktop = useIsDesktop();
   const deferredFilter = useDeferredValue(filter);
   const visibleItems = useMemo(
     () => filterCatalogItems(items, deferredFilter),
@@ -177,16 +186,21 @@ export function CatalogInfiniteGrid({
 
   return (
     <>
-      <div className={CATALOG_TILE_GRID}>
-        {visibleItems.length === 0 ? (
-          <p className="col-span-full py-10 text-center text-body text-muted-foreground">
-            No listings here match “{filter.trim()}”.
-          </p>
-        ) : (
-          visibleItems.map((item) => (
-            <ViewTransition key={item.id} enter="fade-in" exit="fade-out" default="none">
+      {visibleItems.length === 0 ? (
+        <p className="py-10 text-center text-body text-muted-foreground">
+          No listings here match “{filter.trim()}”.
+        </p>
+      ) : (
+        <CatalogMosaic items={visibleItems} keyOf={itemKey} dimOf={itemCoverDim}>
+          {(item, coverDim) => (
+            <ViewTransition
+              enter={isDesktop ? 'fade-in' : undefined}
+              exit={isDesktop ? 'fade-out' : undefined}
+              default="none"
+            >
               <CatalogItemCard
                 item={item}
+                coverDim={coverDim}
                 initialWatching={
                   currentUserId && item.owner_id !== currentUserId
                     ? watchingIds.has(item.id)
@@ -194,9 +208,9 @@ export function CatalogInfiniteGrid({
                 }
               />
             </ViewTransition>
-          ))
-        )}
-      </div>
+          )}
+        </CatalogMosaic>
+      )}
 
       {/* Sentinel + status — mobile only; desktop uses the page nav below. */}
       <div className="lg:hidden">
@@ -210,26 +224,25 @@ export function CatalogInfiniteGrid({
             Load more listings
           </button>
         ) : null}
-        <div className="flex flex-col items-center gap-snug py-6" aria-live="polite">
-          {loadingMore ? (
-            <p className="flex items-center gap-snug text-body text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Loading more…
-            </p>
-          ) : null}
-          {error ? (
-            <button
-              type="button"
-              onClick={() => void loadMoreRef.current({ force: true })}
-              className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40"
-            >
-              {error}
-            </button>
-          ) : null}
-          {!hasMore && !loadingMore && visibleItems.length > 0 ? (
-            <p className="text-body text-muted-foreground">End of results</p>
-          ) : null}
-        </div>
+        {loadingMore || error ? (
+          <div className="flex flex-col items-center gap-snug py-6" aria-live="polite">
+            {loadingMore ? (
+              <p className="flex items-center gap-snug text-body text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                Loading more…
+              </p>
+            ) : null}
+            {error ? (
+              <button
+                type="button"
+                onClick={() => void loadMoreRef.current({ force: true })}
+                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40"
+              >
+                {error}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </>
   );

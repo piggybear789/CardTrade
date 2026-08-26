@@ -14,6 +14,9 @@ import {
   validateItemSubmission,
   type ItemSubmission,
 } from '../validation';
+// Type-only, and `lib/images/dimensions` is dependency-free and isomorphic, so
+// this does not compromise the "no server-only, no Supabase" rule above.
+import type { ImageDim } from '@/lib/images/dimensions';
 
 /** Availability status of an Item (mirrors the `item_status` enum). */
 export type ItemStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD';
@@ -32,10 +35,25 @@ export interface ItemRecord {
   [column: string]: unknown;
 }
 
+/**
+ * Intrinsic pixel size per image, index-aligned with `ItemSubmission.images`.
+ *
+ * Carried BESIDE the validated submission rather than inside it, because it is
+ * not item content: nothing about a listing's validity depends on it, and the
+ * validation schema (Req 3.2, 3.3) has no opinion on it. It is display metadata
+ * for the catalog mosaic (`items.image_dims`, migration 0106), resolved by the
+ * storage layer at the same moment the paths are, and written in the same
+ * statement so the two arrays can never disagree about their own length.
+ *
+ * Omitted or `null` leaves the stored column untouched.
+ */
+export type ItemImageDims = (ImageDim | null)[] | null | undefined;
+
 /** Parameters for persisting a validated item update. */
 export interface UpdateItemParams {
   itemId: string;
   update: ItemSubmission;
+  imageDims?: ItemImageDims;
 }
 
 /**
@@ -100,7 +118,12 @@ export interface ItemOrchestratorDeps {
  */
 export async function updateItem(
   deps: ItemOrchestratorDeps,
-  params: { itemId: string; actorId: string; update: unknown },
+  params: {
+    itemId: string;
+    actorId: string;
+    update: unknown;
+    imageDims?: ItemImageDims;
+  },
 ): Promise<UpdateItemResult> {
   const { repository } = deps;
 
@@ -141,6 +164,7 @@ export async function updateItem(
   const updated = await repository.updateItem({
     itemId: item.id,
     update: validated.value,
+    imageDims: params.imageDims,
   });
   if (!updated) {
     // The row disappeared or a concurrent write changed it out from under us.
@@ -156,6 +180,7 @@ export interface ItemOrchestrator {
     itemId: string;
     actorId: string;
     update: unknown;
+    imageDims?: ItemImageDims;
   }): Promise<UpdateItemResult>;
 }
 

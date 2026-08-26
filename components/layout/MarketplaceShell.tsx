@@ -23,7 +23,6 @@ import {
   DesktopOnly,
   MobileOnly,
 } from '@/components/layout/Breakpoint';
-import { KycRailStatus } from '@/components/layout/KycRailStatus';
 import { MarketplaceNav } from '@/components/layout/MarketplaceNav';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { PageShell } from '@/components/layout/PageShell';
@@ -79,8 +78,8 @@ export async function MarketplaceShell({
    */
   flush?: boolean;
   /**
-   * Hide the signed-in mobile hub. Listing detail uses this so the Flutter
-   * buyer bar can sit on the thumb reach instead of stacking under five tabs.
+   * Hide the signed-in mobile hub. Leave unset so the hub stays on every
+   * marketplace page, including listing detail.
    */
   hideMobileNav?: boolean;
   children: ReactNode;
@@ -138,8 +137,7 @@ export async function MarketplaceShell({
           className="hidden w-full min-w-0 px-4 sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-card/90 md:px-5 md:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)]"
         >
           {/* The rail background stretches the full column; its contents stay in
-              view, with identity status held at the bottom of the rail.
-              The inset px-1/-mx-1 pair gives focus rings room to draw: setting
+              view. The inset px-1/-mx-1 pair gives focus rings room to draw: setting
               overflow on one axis makes this a scroll container on both, which
               otherwise clips the ring-offset on controls at the rail's edges.
               The rail still scrolls by wheel, drag, and keyboard when its
@@ -163,10 +161,6 @@ export async function MarketplaceShell({
               primaryExtras={<DesktopOnly>{filters}</DesktopOnly>}
               staff={staff}
             />
-
-            <div className="hidden md:mt-auto md:block">
-              <KycRailStatus />
-            </div>
           </div>
         </aside>
 
@@ -175,7 +169,7 @@ export async function MarketplaceShell({
             // Below `lg` the content column is the top of the page now that the
             // shell prints no header, so it carries the inset the old mobile
             // title block used to provide.
-            'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-3 sm:px-6 md:w-auto md:px-7 md:py-7 xl:px-8',
+            'flex w-full min-w-0 flex-1 flex-col items-center bg-background px-4 pt-3 sm:px-6 md:w-auto md:bg-transparent md:px-7 md:py-7 xl:px-8',
             // `min-h-0` IS THE WHOLE FIX for a full-viewport page, and its absence here
             // was the single break in an otherwise complete shrink chain. `body`,
             // `#main-content`, the PageShell `<main>`, the row, the inner wrapper and the
@@ -201,14 +195,14 @@ export async function MarketplaceShell({
             // sizing. So a short thread still stretches to fill the column, and only a
             // long one stops at the viewport edge.
             //
-            // The subtrahends are real chrome, not round numbers: the header is `h-16`
-            // (4rem) + its 1px bottom border + the top safe-area inset, and the mobile hub
-            // bar is `h-14` (3.5rem) + its 1px top border + the bottom inset. The rail
-            // computes its own height from the same header terms, and for the same reason.
+            // The subtrahends are real chrome. Phone flush routes use compact cream
+            // chrome (safe-area only). Desktop still subtracts the dark header:
+            // `h-16` (4rem) + 1px border + the top inset. The mobile hub bar is
+            // `h-14` (3.5rem) + 1px top border + the bottom inset.
             flush &&
               (showMobileNav
-                ? 'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'
-                : 'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'),
+                ? 'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'
+                : 'max-h-[calc(100dvh-env(safe-area-inset-top))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'),
             // Leave room for the fixed mobile hub bar when it is mounted.
             //
             // A flush page takes ORDINARY bottom padding, and this is a reversal worth

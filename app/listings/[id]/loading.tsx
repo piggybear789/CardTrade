@@ -1,6 +1,6 @@
 // app/listings/[id]/loading.tsx
 //
-// Mirrors the Flutter-style listing: full-bleed cover, seller row, gold price.
+// Phone: seller, price, copy, then a photo frame. Desktop: left-pane cover.
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
@@ -17,11 +17,11 @@ export default function ItemDetailLoading() {
         <span className="sr-only">Loading…</span>
 
         <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
-          <div className="-mx-4 -mt-3 min-w-0 sm:-mx-6 lg:mx-0 lg:mt-0 lg:flex-1">
-            <Skeleton className="h-[min(350px,70dvh)] w-full rounded-none lg:h-full lg:min-h-[22rem] lg:rounded-lg" />
+          <div className="hidden min-w-0 lg:block lg:flex-1">
+            <Skeleton className="h-full min-h-[22rem] w-full rounded-lg" />
           </div>
 
-          <div className="flex min-w-0 flex-col pt-3 lg:flex-1 lg:pt-0">
+          <div className="flex min-w-0 flex-col pt-0 lg:flex-1 lg:pt-0">
             <div className="flex items-center gap-2">
               <Skeleton className="size-7 shrink-0 rounded-full" />
               <Skeleton className="h-4 w-28" />
@@ -38,6 +38,7 @@ export default function ItemDetailLoading() {
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-2/3" />
             </div>
+            <Skeleton className="mt-4 h-48 w-full rounded-lg lg:hidden" />
           </div>
         </div>
       </div>

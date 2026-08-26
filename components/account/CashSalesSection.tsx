@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { ImageOff, ShoppingBag, Tag } from 'lucide-react';
 
-import { Card } from '@/components/ui/card';
+import { MobileList, MobileListItem } from '@/components/ui/mobile-list';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import type { CashSaleSummary } from '@/lib/actions/account';
 import { EmptyState } from '@/components/account/EmptyState';
@@ -43,48 +43,46 @@ export function CashSalesSection({
   }
 
   return (
-    <ul role="list" className="space-y-cozy">
+    <MobileList variant="cards">
       {sales.map((sale) => {
         const imageUrl = itemImageUrl(sale.itemImagePath);
         const title = sale.itemTitle ?? 'Item';
         return (
-          <li key={sale.id}>
-            <Card className="p-cozy">
-              <Link
-                href={`/sales/${sale.id}`}
-                transitionTypes={['nav-forward']}
-                className="flex items-center gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
-              >
-                <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                  {imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={imageUrl}
-                      alt={title}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                      <ImageOff className="size-6" aria-hidden />
-                      <span className="sr-only">No image available</span>
-                    </div>
-                  )}
-                </div>
+          <MobileListItem key={sale.id}>
+            <Link
+              href={`/sales/${sale.id}`}
+              transitionTypes={['nav-forward']}
+              className="flex min-h-11 items-center gap-group py-3.5 md:py-0 rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
+            >
+              <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted md:size-16">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={imageUrl}
+                    alt={title}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                    <ImageOff className="size-6" aria-hidden />
+                    <span className="sr-only">No image available</span>
+                  </div>
+                )}
+              </div>
 
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-lead font-medium">{title}</p>
-                  <p className="mt-0.5 text-body font-semibold tabular-nums tracking-tight">
-                    {formatAud(sale.amountCents)}
-                  </p>
-                </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-lead font-medium">{title}</p>
+                <p className="mt-0.5 text-body font-semibold tabular-nums tracking-tight">
+                  {formatAud(sale.amountCents)}
+                </p>
+              </div>
 
-                <CashSaleStatusBadge status={sale.status} className="shrink-0" />
-              </Link>
-            </Card>
-          </li>
+              <CashSaleStatusBadge status={sale.status} className="shrink-0" />
+            </Link>
+          </MobileListItem>
         );
       })}
-    </ul>
+    </MobileList>
   );
 }

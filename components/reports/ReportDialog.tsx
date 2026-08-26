@@ -44,6 +44,7 @@ import {
   type ReportTargetType,
 } from '@/lib/actions/reports';
 import { DETAILS_MAX } from '@/lib/marketplace-constants';
+import { cn } from '@/lib/utils';
 
 /** Reasons when the target is a listing. */
 const ITEM_REASONS = [
@@ -93,6 +94,9 @@ export interface ReportDialogProps {
    * `icon-only` — flag only, for compact toolbars.
    */
   appearance?: 'button' | 'icon' | 'icon-only';
+  /** Extra classes for the `icon-only` trigger, so chrome can size it to match
+   *  the buttons beside it. */
+  triggerClassName?: string;
 }
 
 /**
@@ -106,6 +110,7 @@ export function ReportDialog({
   triggerLabel,
   triggerVariant = 'ghost',
   appearance = 'button',
+  triggerClassName,
 }: ReportDialogProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -155,7 +160,10 @@ export function ReportDialog({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-11 text-muted-foreground hover:text-foreground md:size-9"
+            className={cn(
+              'size-11 text-muted-foreground hover:text-foreground md:size-9',
+              triggerClassName,
+            )}
             aria-label={triggerLabel}
           >
             <Flag aria-hidden />

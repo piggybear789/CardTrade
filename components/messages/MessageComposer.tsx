@@ -130,7 +130,14 @@ export function MessageComposer({
   }
 
   return (
-    <form onSubmit={handleSubmit} className={cn(compact ? 'border-t p-cozy' : 'border-t pt-4')}>
+    <form
+      onSubmit={handleSubmit}
+      className={cn(
+        compact ? 'border-t p-cozy' : 'border-t pt-4',
+        'max-md:border-border max-md:bg-background max-md:pt-2',
+        compact ? 'max-md:px-0 max-md:pb-0' : 'max-md:pb-0',
+      )}
+    >
       <label htmlFor={inputId} className="sr-only">
         Write a message
       </label>
@@ -171,7 +178,7 @@ export function MessageComposer({
           type="button"
           size="icon"
           variant="ghost"
-          className="size-10 shrink-0"
+          className="size-11 shrink-0 md:size-10"
           aria-label="Attach a file"
           disabled={isPending}
           onClick={() => fileRef.current?.click()}
@@ -195,7 +202,11 @@ export function MessageComposer({
           placeholder={placeholder}
           maxLength={MESSAGE_BODY_MAX}
           rows={compact ? 1 : 2}
-          className={cn('resize-none', compact ? 'max-h-24 min-h-10' : 'min-h-[44px]')}
+          className={cn(
+            'resize-none text-body',
+            compact ? 'max-h-24 min-h-10' : 'min-h-[44px]',
+            'max-md:rounded-2xl max-md:bg-muted max-md:min-h-11',
+          )}
           readOnly={isPending}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${inputId}-error` : undefined}
@@ -203,7 +214,7 @@ export function MessageComposer({
         <Button
           type="submit"
           size="icon"
-          className="size-10 shrink-0"
+          className="size-11 shrink-0 md:size-10"
           disabled={!canSend}
           aria-label="Send message"
         >

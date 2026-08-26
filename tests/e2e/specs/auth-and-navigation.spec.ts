@@ -136,47 +136,68 @@ test.describe('navigation structure (regular user)', () => {
   test('main nav links visible', async ({ page }) => {
     await page.goto('/listings');
 
-    const menuButton = page.getByRole('button', { name: /open menu/i });
-    await expect(menuButton).toBeVisible({ timeout: RENDERED });
-    await menuButton.click();
-
-    // The menu panel contains a <nav aria-label="Menu">.
-    const nav = page.getByRole('navigation', { name: 'Menu' });
-    await expect(nav).toBeVisible({ timeout: 10_000 });
-
-    await expect(nav.getByRole('link', { name: /browse all|marketplace/i })).toBeVisible();
-    await expect(nav.getByRole('link', { name: /trades/i }).first()).toBeVisible();
-    await expect(nav.getByRole('link', { name: /sales/i })).toBeVisible();
-
-    // Saved and Messages live in the header from `sm` up, and stay in the menu
-    // below that so a phone is not a dead end. Account is the avatar/name in
-    // the header on every authenticated viewport.
     const header = page.locator('header');
-    const isWide = (page.viewportSize()?.width ?? 0) >= 640;
-    if (isWide) {
+    const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
+
+    if (isDesktop) {
+      const menuButton = page.getByRole('button', { name: /open menu/i });
+      await expect(menuButton).toBeVisible({ timeout: RENDERED });
+      await menuButton.click();
+
+      const nav = page.getByRole('navigation', { name: 'Menu' });
+      await expect(nav).toBeVisible({ timeout: 10_000 });
+
+      await expect(nav.getByRole('link', { name: /browse all|marketplace/i })).toBeVisible();
+      await expect(nav.getByRole('link', { name: /trades/i }).first()).toBeVisible();
+      await expect(nav.getByRole('link', { name: /sales/i })).toBeVisible();
+
       await expect(header.getByRole('link', { name: 'Messages' })).toBeVisible();
       await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
       await expect(header.getByRole('link', { name: ALICE.displayName })).toBeVisible();
     } else {
-      await expect(nav.getByRole('link', { name: /messages/i })).toBeVisible();
-      await expect(nav.getByRole('link', { name: /account/i })).toBeVisible();
+      // Signed-in phones drop the header burger; hubs and header icons cover
+      // the same map.
+      await expect(header.getByRole('button', { name: /open menu/i })).toHaveCount(0);
+      await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
+
+      const hubs = page.getByRole('navigation', { name: 'Marketplace hubs' });
+      await expect(hubs.getByRole('link', { name: /browse/i })).toBeVisible();
+      await expect(hubs.getByRole('link', { name: /inbox/i })).toBeVisible();
+      await expect(hubs.getByRole('link', { name: /account/i })).toBeVisible();
+
+      await hubs.getByRole('button', { name: /contracts/i }).click();
+      const sheet = page.getByRole('dialog');
+      await expect(sheet.getByRole('heading', { name: 'Contracts' })).toBeVisible({
+        timeout: 10_000,
+      });
+      await expect(sheet.getByRole('button', { name: /start a deal/i })).toBeVisible();
+      await expect(sheet.getByRole('link', { name: /purchases/i })).toBeVisible();
+      await expect(sheet.getByRole('link', { name: /sales/i })).toBeVisible();
+      await expect(sheet.getByRole('link', { name: /trades/i })).toBeVisible();
     }
   });
 
   test('staff nav NOT visible to a regular member', async ({ page }) => {
-    await page.goto('/listings');
+    const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
 
-    const menuButton = page.getByRole('button', { name: /open menu/i });
-    await expect(menuButton).toBeVisible({ timeout: RENDERED });
-    await menuButton.click();
+    if (isDesktop) {
+      await page.goto('/listings');
+      const menuButton = page.getByRole('button', { name: /open menu/i });
+      await expect(menuButton).toBeVisible({ timeout: RENDERED });
+      await menuButton.click();
 
-    const nav = page.getByRole('navigation', { name: 'Menu' });
-    await expect(nav).toBeVisible({ timeout: 10_000 });
+      const nav = page.getByRole('navigation', { name: 'Menu' });
+      await expect(nav).toBeVisible({ timeout: 10_000 });
 
-    // Hiding a link is not authorization — `requireStaff` re-checks on every staff
-    // surface — but offering one that always refuses is its own defect.
-    await expect(nav.getByRole('link', { name: /cases/i })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: /operations/i })).toHaveCount(0);
+      // Hiding a link is not authorization — `requireStaff` re-checks on every staff
+      // surface — but offering one that always refuses is its own defect.
+      await expect(nav.getByRole('link', { name: /cases/i })).toHaveCount(0);
+      await expect(nav.getByRole('link', { name: /operations/i })).toHaveCount(0);
+    } else {
+      await page.goto('/profile');
+      await expect(page.getByRole('link', { name: /cases/i })).toHaveCount(0);
+      await expect(page.getByRole('link', { name: /operations/i })).toHaveCount(0);
+    }
   });
 });
 
@@ -184,18 +205,27 @@ test.describe('navigation structure (admin user)', () => {
   test.use({ storageState: storageStatePath(FRANK_ADMIN) });
 
   test('staff nav visible to an admin', async ({ page }) => {
-    await page.goto('/listings');
+    const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
 
-    const menuButton = page.getByRole('button', { name: /open menu/i });
-    await expect(menuButton).toBeVisible({ timeout: RENDERED });
-    await menuButton.click();
+    if (isDesktop) {
+      await page.goto('/listings');
+      const menuButton = page.getByRole('button', { name: /open menu/i });
+      await expect(menuButton).toBeVisible({ timeout: RENDERED });
+      await menuButton.click();
 
-    const nav = page.getByRole('navigation', { name: 'Menu' });
-    await expect(nav).toBeVisible({ timeout: 10_000 });
+      const nav = page.getByRole('navigation', { name: 'Menu' });
+      await expect(nav).toBeVisible({ timeout: 10_000 });
 
-    // Frank holds is_admin, so both staff surfaces are offered.
-    await expect(nav.getByRole('link', { name: /cases/i })).toBeVisible();
-    await expect(nav.getByRole('link', { name: /operations/i })).toBeVisible();
+      // Frank holds is_admin, so both staff surfaces are offered.
+      await expect(nav.getByRole('link', { name: /cases/i })).toBeVisible();
+      await expect(nav.getByRole('link', { name: /operations/i })).toBeVisible();
+    } else {
+      await page.goto('/profile');
+      await expect(page.getByRole('link', { name: /cases/i })).toBeVisible({
+        timeout: RENDERED,
+      });
+      await expect(page.getByRole('link', { name: /operations/i })).toBeVisible();
+    }
   });
 });
 
@@ -226,19 +256,10 @@ test.describe('sign-out', () => {
     await signInAs(page, ALICE.email, ALICE.password);
     await expect(page).toHaveURL(/\/(listings|onboarding)/, { timeout: COLD_ROUTE });
 
-    const menuButton = page.getByRole('button', { name: /open menu/i });
-    await expect(menuButton).toBeVisible({ timeout: RENDERED });
-    await menuButton.click();
-
+    // Sign-out lives on Settings so a phone without the header burger can
+    // still leave. Desktop still has it in the overflow menu too.
+    await page.goto('/profile');
     const signOutButton = page.getByRole('button', { name: /sign out/i });
-    // On mobile the menu panel is shorter than its content (max-h constrains it)
-    // and sign-out sits at the bottom. Playwright's actionability-check scroll does
-    // not reliably reach elements inside an overflow container on WebKit: the button
-    // sits at y ≈ 958 while the viewport is 844px and the panel's own overflow-y-auto
-    // starts from the header. `scrollIntoViewIfNeeded` scrolls the panel, and
-    // `dispatchEvent('click')` bypasses Playwright's hit-test which would re-check
-    // visibility against the viewport rather than the scrolled panel. This is a
-    // REAL mobile UX issue (F62): on iPhone the sign-out requires scrolling the menu.
     await signOutButton.waitFor({ state: 'attached', timeout: 10_000 });
     await signOutButton.scrollIntoViewIfNeeded();
     await signOutButton.dispatchEvent('click');

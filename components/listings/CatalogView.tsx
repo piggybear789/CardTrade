@@ -63,9 +63,6 @@ interface CatalogResultState {
   matchedQuery?: string;
 }
 
-/** Floor so a cached fetch does not snap the grid in. */
-const CATALOG_SWAP_HOLD_MS = 260;
-
 interface CatalogViewValue {
   filter: string;
   setFilter: (value: string) => void;
@@ -120,7 +117,6 @@ export function CatalogViewProvider({
 
   const runFetch = useCallback(async (next: CatalogBrowseCurrent) => {
     const gen = ++fetchGen.current;
-    const started = Date.now();
     setPending(true);
     const fetched = await fetchCatalogPage({
       q: next.q || undefined,
@@ -133,8 +129,6 @@ export function CatalogViewProvider({
       page: next.page,
       regionCode: regionCodeRef.current,
     });
-    if (gen !== fetchGen.current) return;
-    await holdCatalogSwap(started);
     if (gen !== fetchGen.current) return;
     startTransition(() => {
       setPending(false);
@@ -326,15 +320,6 @@ function asString(value: string | string[] | null | undefined): string {
 function asList(value: string | string[] | null | undefined): string[] {
   if (value == null || value === '') return [];
   return Array.isArray(value) ? value.filter(Boolean) : [value];
-}
-
-async function holdCatalogSwap(started: number) {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const wait = CATALOG_SWAP_HOLD_MS - (Date.now() - started);
-  if (wait <= 0) return;
-  await new Promise<void>((resolve) => {
-    window.setTimeout(resolve, wait);
-  });
 }
 
 function dollarsToCents(value: string): number | undefined {

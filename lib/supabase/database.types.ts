@@ -326,6 +326,15 @@ export type Database = {
           /** When the owner closed a SHOPFRONT. SINGLE listings use status. */
           closed_at: string | null;
           image_paths: string[];
+          /**
+           * Intrinsic pixel size per photo, index-aligned with `image_paths`
+           * (0106): `[{"w":800,"h":1120}, null, ...]`. `null` for the whole
+           * column means the row has never been examined; a `null` entry means
+           * that one photo's size is unknown. Read through
+           * `readImageDims()` in `lib/images/dimensions.ts`, never raw — part
+           * of what lands here is measured by a browser.
+           */
+          image_dims: Json | null;
           hidden: boolean;
           seller_rating: number | null;
           /**
@@ -382,6 +391,7 @@ export type Database = {
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
           image_paths: string[];
+          image_dims?: Json | null;
           hidden?: boolean;
           seller_rating?: number | null;
           seller_fraud_banned?: boolean;
@@ -408,6 +418,7 @@ export type Database = {
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
           image_paths?: string[];
+          image_dims?: Json | null;
           hidden?: boolean;
           seller_rating?: number | null;
           seller_fraud_banned?: boolean;

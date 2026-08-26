@@ -59,12 +59,12 @@ export default async function ArbitrationCasePage({
       return (
         <MarketplaceShell title="Cases" center>
           <EmptyState
+            variant="page"
             icon={<ShieldAlert className="size-6" aria-hidden />}
             title="Not Authorized"
             titleAs="h3"
             description="Cases are limited to NoDitto support staff."
             action={{ label: 'Return home', href: '/', variant: 'outline' }}
-            className="border-none"
           />
         </MarketplaceShell>
       );
@@ -74,11 +74,11 @@ export default async function ArbitrationCasePage({
     return (
       <MarketplaceShell title="Cases" center>
         <EmptyState
+          variant="page"
           title="Case Closed"
           titleAs="h3"
           description="This case is no longer open. It may have been resolved by another arbitrator."
           action={{ label: 'Back to the queue', href: '/admin/arbitration' }}
-          className="border-none"
         />
       </MarketplaceShell>
     );

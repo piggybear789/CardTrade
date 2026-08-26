@@ -194,7 +194,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     label: 'Contracts',
     icon: Handshake,
     title: 'Contracts',
-    description: 'Active contracts for purchases, sales, and trades.',
+    description: 'Start a deal, or open purchases, sales, and trades.',
     links: CONTRACT_LINKS,
     isActive: (pathname) =>
       CONTRACT_LINKS.some((link) =>

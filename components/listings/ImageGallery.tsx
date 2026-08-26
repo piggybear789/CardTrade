@@ -2,22 +2,36 @@
 
 // components/listings/ImageGallery.tsx
 //
-// An accessible image gallery: one large image, plus a compact "1/N < >"
-// control in the top-right. Clicking the image opens a full-size lightbox —
-// the same popout used by contract thumbnails and dispute evidence — so every
-// product photo enlarges the same way.
+// An accessible image gallery: one large image with optional "1/N < >"
+// controls, a full-bleed cover, or a stacked natural-aspect list. Clicking
+// a photo opens the same lightbox used by contract thumbnails.
 
 import { useCallback, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ImageOff, ZoomIn } from 'lucide-react';
 
 import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
+import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
 import { cn } from '@/lib/utils';
+import type { ImageDim } from '@/lib/images/dimensions';
 
 export interface GalleryImage {
   /** Public image URL (already resolved from the stored object path). */
   src: string;
   /** Accessible label for this image. */
   alt: string;
+  /**
+   * Intrinsic pixel size from `items.image_dims` (0106), when known.
+   *
+   * Only the `stack` appearance uses it, and it is what stops the listing page
+   * from shuffling downward as each photo arrives: `stack` deliberately draws
+   * photos at their natural aspect, so without a reserved height the page has
+   * no idea how tall a frame will be until the file has loaded. `stage` and
+   * `cover` draw into fixed frames and never had the problem.
+   *
+   * Unclamped, unlike the catalog mosaic — a panorama on its own listing page
+   * should be a panorama.
+   */
+  dim?: ImageDim | null;
 }
 
 /**
@@ -32,6 +46,10 @@ const FRAME_HEIGHT =
 /** Flutter listing photo: 350px cover, edge-to-edge on a phone. */
 const COVER_FRAME =
   'h-[min(350px,70dvh)] w-full lg:h-full lg:min-h-[22rem] lg:max-h-[calc(100%-3.5rem)]';
+
+/** Empty cover stays shorter so price and description sit above the thumb chrome. */
+const COVER_EMPTY_FRAME =
+  'h-[min(11.5rem,42dvh)] w-full lg:h-full lg:min-h-[22rem] lg:max-h-[calc(100%-3.5rem)]';
 
 /** Horizontal travel (px) that counts as a swipe, not a tap-to-enlarge. */
 const SWIPE_THRESHOLD_PX = 40;
@@ -48,15 +66,20 @@ export function ImageGallery({
   /**
    * `stage` — mosaic + contain (contracts, peeks).
    * `cover` — full-bleed photo like the Flutter listing, with page dots.
+   * `stack` — one full-width frame per photo, natural aspect, no crop.
    */
   appearance = 'stage',
+  emptyHint,
 }: {
   images: GalleryImage[];
   title: string;
   frameClassName?: string;
-  appearance?: 'stage' | 'cover';
+  appearance?: 'stage' | 'cover' | 'stack';
+  /** Cover empty-state copy. Owners get a prompt to add a photo. */
+  emptyHint?: string;
 }) {
   const isCover = appearance === 'cover';
+  const isStack = appearance === 'stack';
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Track image URLs that fail to load so we can swap in a graceful placeholder
@@ -114,19 +137,42 @@ export function ImageGallery({
     setLightboxIndex(activeIndex);
   }, [activeIndex]);
 
-  const frame = frameClassName ?? (isCover ? COVER_FRAME : FRAME_HEIGHT);
+  const frame =
+    frameClassName ??
+    (isCover
+      ? images.length === 0
+        ? COVER_EMPTY_FRAME
+        : COVER_FRAME
+      : FRAME_HEIGHT);
+
+  if (isStack) {
+    return (
+      <StackedGallery
+        images={images}
+        title={title}
+        failedSrcs={failedSrcs}
+        onFail={(src) =>
+          setFailedSrcs((prevFailed) => ({ ...prevFailed, [src]: true }))
+        }
+        lightboxIndex={lightboxIndex}
+        onLightboxChange={(next) => {
+          setLightboxIndex(next);
+          if (next !== null) setActiveIndex(next);
+        }}
+      />
+    );
+  }
 
   if (images.length === 0) {
     return (
       <div
         className={cn(
           frame,
-          'flex w-full items-center justify-center bg-muted text-muted-foreground',
+          'w-full overflow-hidden',
           isCover ? 'rounded-none lg:rounded-lg lg:border' : 'rounded-lg border',
         )}
       >
-        <ImageOff className="size-12" aria-hidden />
-        <span className="sr-only">No image available for {title}</span>
+        <GalleryMissing title={title} hint={emptyHint} />
       </div>
     );
   }
@@ -144,10 +190,7 @@ export function ImageGallery({
         )}
       >
         {activeFailed ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <ImageOff className="size-12" aria-hidden />
-            <span className="sr-only">{active.alt} failed to load</span>
-          </div>
+          <GalleryMissing title={title} hint="Photo could not be loaded" />
         ) : (
           <>
             {!isCover ? (
@@ -260,6 +303,96 @@ export function ImageGallery({
         }}
         label={title}
       />
+    </>
+  );
+}
+
+function StackedGallery({
+  images,
+  title,
+  failedSrcs,
+  onFail,
+  lightboxIndex,
+  onLightboxChange,
+}: {
+  images: GalleryImage[];
+  title: string;
+  failedSrcs: Record<string, true>;
+  onFail: (src: string) => void;
+  lightboxIndex: number | null;
+  onLightboxChange: (next: number | null) => void;
+}) {
+  if (images.length === 0) return null;
+
+  return (
+    <>
+      <ul className="flex flex-col gap-3">
+        {images.map((image, index) => {
+          const failed = Boolean(failedSrcs[image.src]);
+          return (
+            <li key={image.src}>
+              {failed ? (
+                <div className="flex min-h-24 w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground">
+                  <ImageOff className="size-8" aria-hidden />
+                  <span className="sr-only">Photo could not be loaded for {title}</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onLightboxChange(index)}
+                  className="block w-full cursor-zoom-in overflow-hidden rounded-lg border bg-muted focus:outline-none focus-visible:border-gold/40"
+                  aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${title}`}
+                >
+                  {/* Natural aspect: width fills the column, height follows the
+                      file. `aspect-ratio` reserves that height up front when the
+                      size is stored, so the description above does not jump as
+                      each photo lands; once loaded the intrinsic ratio is the
+                      same value, so nothing moves. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    className="block h-auto w-full"
+                    style={
+                      image.dim
+                        ? { aspectRatio: `${image.dim.w} / ${image.dim.h}` }
+                        : undefined
+                    }
+                    draggable={false}
+                    onError={() => onFail(image.src)}
+                  />
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <ContractImageLightbox
+        images={images.map((image) => image.src)}
+        openIndex={lightboxIndex}
+        onOpenChange={onLightboxChange}
+        label={title}
+      />
+    </>
+  );
+}
+
+function GalleryMissing({
+  title,
+  hint,
+}: {
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <>
+      <div className="h-full w-full md:hidden">
+        <ListingPhotoEmpty title={title} hint={hint} />
+      </div>
+      <div className="hidden h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground md:flex">
+        <ImageOff className="size-12" aria-hidden />
+        <span className="sr-only">No image available for {title}</span>
+      </div>
     </>
   );
 }

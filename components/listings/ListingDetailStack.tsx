@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Library } from 'lucide-react';
 
@@ -26,6 +27,7 @@ export function ListingDetailStack({
   sellerRating,
   sellerRatingCount,
   sellerIdentity,
+  afterDescription,
 }: {
   title: string;
   description: string;
@@ -44,11 +46,19 @@ export function ListingDetailStack({
   sellerRating: number | null;
   sellerRatingCount: number | undefined;
   sellerIdentity: SellerIdentityDisclosure | null;
+  /** Photos (or anything else) that should sit immediately under the copy. */
+  afterDescription?: ReactNode;
 }) {
   const kindLabel = isShopfront ? 'Binder listing' : 'Single item';
-  const savesLabel =
-    watchCount === 1 ? '1 save' : `${watchCount} saves`;
-  const meta = [savesLabel, category, kindLabel].filter(Boolean).join(' · ');
+  const savesLabel = watchCount === 1 ? '1 save' : `${watchCount} saves`;
+  const desktopMeta = [savesLabel, category, kindLabel].filter(Boolean).join(' · ');
+  const mobileMeta = [
+    watchCount > 0 ? savesLabel : null,
+    category,
+    kindLabel,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const name = isOwner ? 'You' : (sellerDisplayName ?? 'Seller');
 
   return (
@@ -74,7 +84,7 @@ export function ListingDetailStack({
           className="shrink-0"
         />
         {locationLabel ? (
-          <span className="ml-auto truncate pl-2 text-meta text-muted-foreground">
+          <span className="ml-auto hidden truncate pl-2 text-meta text-muted-foreground lg:inline">
             {locationLabel}
           </span>
         ) : null}
@@ -119,10 +129,10 @@ export function ListingDetailStack({
         )
       ) : null}
 
-      <div className="mt-4 flex items-center gap-3">
-        <p className="min-w-0 flex-1 truncate font-display text-head font-bold leading-none tracking-[-0.03em] text-gold">
+      <div className="mt-3 flex items-center gap-3 md:mt-4">
+        <p className="min-w-0 flex-1 truncate font-display text-display font-bold leading-none tracking-[-0.03em] text-gold">
           {isShopfront ? (
-            <span className="mr-1 text-body font-medium">from </span>
+            <span className="mr-1 text-lead font-medium">from </span>
           ) : null}
           {formatAud(priceCents)}
         </p>
@@ -131,7 +141,12 @@ export function ListingDetailStack({
         </span>
       </div>
 
-      <p className="mt-2 text-meta text-muted-foreground">{meta}</p>
+      {mobileMeta ? (
+        <p className="mt-2 text-meta text-muted-foreground md:hidden">{mobileMeta}</p>
+      ) : null}
+      {desktopMeta ? (
+        <p className="mt-2 hidden text-meta text-muted-foreground md:block">{desktopMeta}</p>
+      ) : null}
 
       {isShopfront ? (
         <p className="mt-4 flex gap-2 rounded-md border border-gold/30 bg-gold/10 p-2 text-body text-foreground">
@@ -143,13 +158,19 @@ export function ListingDetailStack({
         </p>
       ) : null}
 
-      <h2 className="mt-4 line-clamp-2 text-balance text-subhead font-semibold tracking-tight">
+      <h2 className="sr-only md:hidden">{title}</h2>
+      <h2 className="mt-4 hidden line-clamp-2 text-balance text-subhead font-semibold tracking-tight md:block">
         {title}
       </h2>
+      <ExpandableDescription text={description} className="mt-3 md:hidden" />
+      <ExpandableDescription
+        text={descriptionBodyAfterTitle(title, description)}
+        className="mt-2 hidden md:block"
+      />
 
-      <ExpandableDescription text={description} className="mt-2" />
+      {afterDescription}
 
-      <dl className="mt-4 space-y-1">
+      <dl className="mt-4 hidden space-y-1 lg:block">
         <DetailRow label="Condition" value={condition} />
         {category ? <DetailRow label="Game" value={category} /> : null}
         <DetailRow label="Listing type" value={kindLabel} />
@@ -157,6 +178,14 @@ export function ListingDetailStack({
       </dl>
     </div>
   );
+}
+
+function descriptionBodyAfterTitle(title: string, description: string): string {
+  const heading = title.trim();
+  const body = description.trim();
+  if (!heading || !body || body === heading) return body === heading ? '' : body;
+  if (!body.startsWith(heading)) return body;
+  return body.slice(heading.length).replace(/^\s+/, '');
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {

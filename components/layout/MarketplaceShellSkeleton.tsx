@@ -3,9 +3,8 @@
 // Static loading chrome for every route.tsx that renders <MarketplaceShell>.
 // Mirrors its rail geometry exactly (widths, breakpoints, sticky offsets) so
 // swapping in the real shell on data arrival causes no layout shift, but
-// never fetches anything itself — the rail's nav groups and identity status
-// are drawn as plain placeholder bars instead of the live `MarketplaceNav` /
-// `KycRailStatus` Server Components.
+// never fetches anything itself — the rail's nav groups are drawn as plain
+// placeholder bars instead of the live `MarketplaceNav` Server Component.
 
 import { ViewTransition, type ReactNode } from 'react';
 
@@ -94,10 +93,6 @@ export function MarketplaceShellSkeleton({
             </div>
 
             <div className="hidden md:block">{filters}</div>
-
-            <div className="mt-auto hidden md:block">
-              <Skeleton className="h-[4.5rem] w-full rounded-lg" />
-            </div>
           </div>
         </aside>
 
@@ -106,7 +101,7 @@ export function MarketplaceShellSkeleton({
             'flex w-full min-w-0 flex-1 flex-col items-center px-4 pt-5 sm:px-6 md:w-auto md:px-7 md:py-7 xl:px-8',
             flush && 'min-h-0 overflow-hidden',
             flush &&
-              'max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
+              'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
             flush
               ? 'pb-4 md:pb-7'
               : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',

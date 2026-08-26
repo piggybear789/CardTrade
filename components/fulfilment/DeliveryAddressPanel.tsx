@@ -134,7 +134,7 @@ export function DeliveryAddressPanel({
             type="button"
             variant="outline"
             size="sm"
-            className="min-h-11 shrink-0 gap-tight px-snug font-medium md:h-8 md:min-h-8 [&_svg]:size-3.5"
+            className="shrink-0 gap-tight px-snug font-medium [&_svg]:size-3.5"
             onClick={() => handleOpenChange(true)}
           >
             <Pencil aria-hidden />

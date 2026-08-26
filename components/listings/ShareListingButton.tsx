@@ -33,7 +33,7 @@ export function ShareListingButton({ className }: { className?: string }) {
       onClick={() => void handleShare()}
       aria-label="Share listing"
       className={cn(
-        'inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40',
+        'inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40',
         className,
       )}
     >

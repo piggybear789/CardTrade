@@ -140,7 +140,7 @@ export function ChatThread({
               ) : null}
             </div>
           </div>
-          <Button asChild size="sm" variant="outline" className="min-h-11 w-full shrink-0 md:min-h-8 md:w-auto">
+          <Button asChild size="sm" variant="outline" className="w-full shrink-0 md:w-auto">
             {trade ? (
               <Link
                 href={`/trades/${trade.id}`}

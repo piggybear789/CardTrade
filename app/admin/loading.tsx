@@ -1,29 +1,32 @@
 // app/admin/loading.tsx
 //
 // Operations console chrome: section header with the Cases hand-off, the three queue
-// tabs, then list rows. Mirrors the real page's order so the swap causes no jump.
+// tabs, then list rows.
+//
+// USES THE SHARED HEADER AND FILTER SKELETONS rather than redrawing them. The
+// hand-drawn versions applied the header's DESKTOP spacing at every width — `mb-5`,
+// `pb-5`, `gap-3` where `SectionHeader` uses `mb-snug`, `pb-snug`, `gap-tight` below
+// `md` — so the console header was roughly 24px too tall on a phone, and it drew a
+// description line that the real header hides below `md`.
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import {
+  SectionFilterSkeleton,
+  SectionHeaderSkeleton,
+} from '@/components/layout/WorkspaceSkeletons';
 
 export default function AdminLoading() {
   return (
     <MarketplaceShellSkeleton>
       <div className="min-w-0">
-        <header className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 space-y-2">
-            <Skeleton className="h-8 w-44" />
-            <Skeleton className="h-4 w-96 max-w-full" />
-          </div>
-          {/* SectionHeader's `actions` slot — the Cases button. */}
-          <Skeleton className="h-10 w-28 shrink-0 rounded-md" />
-        </header>
+        <SectionHeaderSkeleton
+          hasActions
+          titleClassName="w-44"
+          descriptionClassName="w-96"
+        />
 
-        <div className="mb-5 flex gap-1 border-b border-border pb-px">
-          {Array.from({ length: 3 }, (_, index) => (
-            <Skeleton key={index} className="h-10 w-32 rounded-t-md" />
-          ))}
-        </div>
+        <SectionFilterSkeleton tabs={3} />
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Skeleton className="h-7 w-56" />

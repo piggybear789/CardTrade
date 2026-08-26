@@ -7,7 +7,6 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { CashSaleView, type SaleParty } from '@/components/sales/CashSaleView';
-import { ContractBackLink } from '@/components/contract/ContractBackLink';
 import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -185,9 +184,6 @@ export default async function CashSalePage({
       title={sale.buyer_id === user.id ? 'Purchase' : 'Sale'}
       flush={sale.status !== 'COMPLETED'}
     >
-      <ContractBackLink
-        fallbackHref={sale.buyer_id === user.id ? '/purchases' : '/sales'}
-      />
       <CashSaleView
         initialSale={sale}
         myUserId={user.id}

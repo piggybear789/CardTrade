@@ -7,7 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function MarketingLoading() {
   return (
     <article
-      className="mx-auto max-w-3xl px-6 py-12 lg:px-8"
+      // `py-8 md:py-12`, matching `policy-article.tsx`. A flat `py-12` put an extra
+      // 16px above and below the column on every phone.
+      className="mx-auto max-w-3xl px-6 py-8 md:py-12 lg:px-8"
       role="status"
       aria-busy="true"
       aria-label="Loading"

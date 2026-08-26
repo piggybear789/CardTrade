@@ -87,7 +87,6 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="min-h-11 md:min-h-8"
                   disabled={isPending}
                   onClick={() => setPendingId(invite.id)}
                 >

@@ -1,6 +1,6 @@
 // app/profile/page.tsx
 //
-// Account settings — three tabs: Profile, Verification, Payouts.
+// The Account hub — three tabs: Profile, Verification, Payouts.
 //
 //   Profile       who you are to other members: picture, name, bio, socials, and the
 //                 card you BUY with.
@@ -23,6 +23,7 @@
 // Visual language comes from `components/account/SettingsPrimitives.tsx` — see the
 // note there on why the reference's dark classes are translated rather than copied.
 
+import { ViewTransition } from 'react';
 import { redirect } from 'next/navigation';
 import { CreditCard, ShieldCheck, Wallet } from 'lucide-react';
 
@@ -62,7 +63,12 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { resolveScope } from '@/components/layout/SectionFilter';
 
-export const metadata = { title: 'Settings · NoDitto' };
+// ACCOUNT, NOT SETTINGS. One destination was called three things depending on where
+// you stood: the bottom nav said "Account", the desktop rail and the document title
+// said "Settings", and the phone screen — since the identity block became the visible
+// heading — said the member's own name. The nav label is the one a member sees most
+// and the one they navigate by, so the rest now agrees with it.
+export const metadata = { title: 'Account · NoDitto' };
 export const dynamic = 'force-dynamic';
 
 /** The tabs this page renders. Anything else falls back to Profile. */
@@ -104,7 +110,7 @@ export default async function ProfilePage({
   const profile = profileResult.data;
   if (!profile) {
     return (
-      <MarketplaceShell title="Settings" center>
+      <MarketplaceShell title="Account" center>
         <EmptyState
           variant="page"
           title="Profile unavailable"
@@ -138,7 +144,7 @@ export default async function ProfilePage({
   });
 
   return (
-    <MarketplaceShell title="Settings">
+    <MarketplaceShell title="Account">
       {/* Reconcile a return from either hosted Stripe flow. Both render nothing, and
           each ignores a marker that is not its own. The payout half used to live in an
           effect inside `PayoutOnboarding`; with that card gone the page needs the
@@ -155,11 +161,15 @@ export default async function ProfilePage({
           The heading and tabs share the column so all three left edges line up. */}
       <div className="mx-auto w-full max-w-2xl">
         {/* IDENTITY ABOVE THE TABS, because it is true of all three of them. It also
-            gives the tab strip something to belong to: on its own under a bare
-            "Settings" heading it read as a second navigation bar bolted to the page.
-            The name is the heading here — "Settings" is already the page's own title
-            in the shell, and stacking a title, an identity block and a tab strip is
-            three headers before any content. */}
+            gives the tab strip something to belong to: under a bare "Account" heading
+            it read as a second navigation bar bolted to the page.
+
+            THE NAME IS THE VISIBLE HEADING, and that is the whole heading on a phone.
+            `MarketplaceShell` keeps "Account" as the page `<h1>` — visible in the rail
+            on desktop, screen-reader-only below `md` — so the outline still starts
+            correctly while the phone shows what every other app shows on this screen:
+            who you are. Printing "Account" here as well would be the page named twice,
+            one line apart, before any content. */}
         <header className="mb-group flex items-center gap-group px-tight md:mb-section">
           <AvatarUploadField
             avatarPath={profile.avatar_path}
@@ -180,6 +190,18 @@ export default async function ProfilePage({
 
         <AccountTabs activeTab={activeTab} />
 
+        {/* TAB SWITCHING IS A NAVIGATION, so without this it is a hard cut: the panel
+            blanks and repaints, which is the single loudest "this is a web page" tell
+            on the surface. `key` + `name` + `share` is the codebase's established
+            shape for a same-route content swap — `CatalogResults` uses it for filter
+            changes — and it is the right one here because the route never changes, so
+            enter/exit would never fire on their own. `default="none"` keeps every
+            other trigger off, so this animates on tab changes and nothing else.
+
+            Lateral, so it crossfades rather than sliding: a directional slide between
+            Profile and Payouts would imply a depth relationship that does not exist. */}
+        <ViewTransition key={activeTab} name="account-tab-panel" share="auto" default="none">
+          <div>
         {activeTab === 'profile' ? (
           // NO GROUP HEADINGS ON THIS TAB. It carried four ("Public profile",
           // "Payment", and two more on the sibling tabs) — tracked uppercase labels
@@ -218,6 +240,38 @@ export default async function ProfilePage({
                 }
               />
             </SettingsGroup>
+
+            {/* ACCOUNT-LEVEL ACTIONS, AND ONLY ON THIS TAB. Signed-in phones no longer
+                have the header burger, so sign-out and staff destinations live on the
+                Account hub — but they belong to the account, not to any one section of
+                it, and repeating them under Verification and Payouts put a destructive
+                control at the foot of every tab. Profile is the hub's landing tab, so
+                they sit here once.
+
+                SAME ROWS AS EVERYTHING ABOVE. These were outline buttons in a stack — a
+                third control vocabulary on a page that had settled on two. Staff
+                destinations are ordinary navigation, so they are ordinary rows; the
+                label stays because "Staff" is the one heading here that is not obvious
+                from its contents.
+
+                Sign out keeps a container of its own rather than joining them: it ends
+                the session, and a destructive action sharing a group with navigation is
+                the kind of adjacency that gets mis-tapped. */}
+            <div className="space-y-group border-t border-border pt-section">
+              {staffLinks.length > 0 ? (
+                <SettingsGroup label={STAFF_NAV_GROUP.label}>
+                  {staffLinks.map((link) => (
+                    <SettingsListRow
+                      key={link.href}
+                      href={link.href}
+                      icon={link.icon}
+                      label={link.label}
+                    />
+                  ))}
+                </SettingsGroup>
+              ) : null}
+              <SignOutButton className="h-12 w-full justify-start rounded-xl border border-border bg-card px-group text-body font-medium text-destructive hover:bg-destructive/5 hover:text-destructive" />
+            </div>
           </div>
         ) : null}
 
@@ -310,34 +364,8 @@ export default async function ProfilePage({
             )}
           </div>
         ) : null}
-
-        {/* Signed-in phones no longer have the header burger, so sign-out and
-            staff destinations live here — the Account hub's home. Desktop still
-            has the overflow menu; repeating them on settings is the usual place. */}
-        {/* SAME ROWS AS EVERYTHING ABOVE. These were outline buttons in a stack — a
-            third control vocabulary on a page that had just settled on two, and the
-            only bordered pills on the surface. Staff destinations are ordinary
-            navigation, so they are ordinary rows; the label stays because "Staff" is
-            the one heading here that is not obvious from its contents.
-
-            Sign out keeps a container of its own rather than joining them: it ends
-            the session, and a destructive action sharing a group with navigation is
-            the kind of adjacency that gets mis-tapped. */}
-        <div className="mt-section space-y-group border-t border-border pt-section">
-          {staffLinks.length > 0 ? (
-            <SettingsGroup label={STAFF_NAV_GROUP.label}>
-              {staffLinks.map((link) => (
-                <SettingsListRow
-                  key={link.href}
-                  href={link.href}
-                  icon={link.icon}
-                  label={link.label}
-                />
-              ))}
-            </SettingsGroup>
-          ) : null}
-          <SignOutButton className="h-12 w-full justify-start rounded-xl border border-border bg-card px-group text-body font-medium text-destructive hover:bg-destructive/5 hover:text-destructive" />
-        </div>
+          </div>
+        </ViewTransition>
       </div>
     </MarketplaceShell>
   );

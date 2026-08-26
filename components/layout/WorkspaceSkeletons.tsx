@@ -18,21 +18,35 @@ import { cn } from '@/lib/utils';
 
 export function SectionHeaderSkeleton({
   hasMobileAction = false,
+  hasActions = false,
+  actionsClassName = 'w-28',
   titleClassName = 'w-40',
   descriptionClassName = 'w-64',
 }: {
   hasMobileAction?: boolean;
+  /**
+   * Match `SectionHeader.actions` — the slot that stays visible at every width (the
+   * Operations console's hand-off to Cases, for instance). Distinct from
+   * `hasMobileAction`, which is the `md:hidden` one.
+   */
+  hasActions?: boolean;
+  actionsClassName?: string;
   titleClassName?: string;
   descriptionClassName?: string;
 }) {
   return (
-    <header className="mb-snug flex flex-col gap-tight border-b border-border pb-snug md:mb-5 md:gap-3 md:pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-snug flex flex-row items-center justify-between gap-cozy border-b border-border pb-snug md:mb-5 md:items-end md:gap-3 md:pb-5">
       <div className="min-w-0 space-y-2">
         <Skeleton className={cn('h-6 md:h-8', titleClassName)} />
         <Skeleton className={cn('hidden h-4 max-w-full md:block', descriptionClassName)} />
       </div>
+      {hasActions ? (
+        <div className="flex shrink-0 gap-2">
+          <Skeleton className={cn('h-10 shrink-0 rounded-md', actionsClassName)} />
+        </div>
+      ) : null}
       {hasMobileAction ? (
-        <Skeleton className="h-10 w-full shrink-0 rounded-md sm:w-36 md:hidden" />
+        <Skeleton className="h-10 w-36 shrink-0 rounded-md md:hidden" />
       ) : null}
     </header>
   );
@@ -261,11 +275,15 @@ export function NotificationRowSkeleton() {
   );
 }
 
-/** Contract room: compact header + mobile tabs + desktop details/chat split. */
+/**
+ * Contract room. Below `md` that is a thread — bar, log, composer — because the
+ * details are a sheet, not a pane; from `md` it is the identity card above the
+ * details/chat split.
+ */
 export function ContractRoomSkeleton() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-group lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
-      <Card className="border-border shadow-sm">
+      <Card className="hidden border-border shadow-sm md:block">
         <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug px-group py-cozy">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-1">
             <Skeleton className="h-5 w-40" />
@@ -283,41 +301,58 @@ export function ContractRoomSkeleton() {
         </div>
       </Card>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-group">
-        <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted p-1 lg:hidden">
-          <Skeleton className="h-11 rounded-md" />
-          <Skeleton className="h-11 rounded-md" />
-        </div>
-
-        <div className="min-h-0 flex-1 gap-group lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
-          <div className="space-y-3">
-            <Card className="p-5">
-              <Skeleton className="mb-3 h-5 w-56" />
-              <Skeleton className="mb-4 h-4 w-full max-w-md" />
-              <Skeleton className="h-10 w-36 rounded-md" />
-            </Card>
-            <Card className="p-5">
-              <Skeleton className="mb-3 h-4 w-24" />
-              <Skeleton className="h-20 w-full" />
-            </Card>
-            <Card className="p-5">
-              <Skeleton className="mb-3 h-4 w-28" />
-              <Skeleton className="h-16 w-full" />
-            </Card>
+      {/* Phone: the thread. Mirrors ContractChatBar's back + thumb + two-line
+          subject, then the log, then the composer. */}
+      <div className="flex min-h-0 flex-1 flex-col md:hidden">
+        <div className="flex shrink-0 items-center gap-cozy border-b px-cozy py-2.5">
+          <Skeleton className="size-10 shrink-0 rounded-full" />
+          <Skeleton className="size-9 shrink-0 rounded-md" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-28" />
           </div>
-          <Card className="mt-4 hidden min-h-[22rem] flex-col p-4 lg:mt-0 lg:flex">
-            <div className="mb-4 flex items-center gap-3 border-b pb-3">
-              <Skeleton className="size-8 rounded-full" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <div className="flex-1 space-y-3">
-              <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
-              <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
-            </div>
-            <Skeleton className="mt-4 h-11 w-full rounded-md" />
+          <Skeleton className="h-9 w-24 shrink-0 rounded-md" />
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 p-cozy">
+          <Skeleton className="h-12 w-2/3 rounded-2xl" />
+          <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
+          <Skeleton className="h-10 w-1/2 rounded-2xl" />
+        </div>
+        <div className="flex shrink-0 items-end gap-2 border-t p-cozy">
+          <Skeleton className="size-11 shrink-0 rounded-md" />
+          <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl" />
+          <Skeleton className="size-11 shrink-0 rounded-md" />
+        </div>
+      </div>
+
+      <div className="hidden min-h-0 flex-1 gap-group md:block lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
+        <div className="space-y-3">
+          <Card className="p-5">
+            <Skeleton className="mb-3 h-5 w-56" />
+            <Skeleton className="mb-4 h-4 w-full max-w-md" />
+            <Skeleton className="h-10 w-36 rounded-md" />
+          </Card>
+          <Card className="p-5">
+            <Skeleton className="mb-3 h-4 w-24" />
+            <Skeleton className="h-20 w-full" />
+          </Card>
+          <Card className="p-5">
+            <Skeleton className="mb-3 h-4 w-28" />
+            <Skeleton className="h-16 w-full" />
           </Card>
         </div>
+        <Card className="mt-4 hidden min-h-[22rem] flex-col p-4 lg:mt-0 lg:flex">
+          <div className="mb-4 flex items-center gap-3 border-b pb-3">
+            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="flex-1 space-y-3">
+            <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
+            <Skeleton className="h-12 w-2/3 rounded-2xl" />
+            <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
+          </div>
+          <Skeleton className="mt-4 h-11 w-full rounded-md" />
+        </Card>
       </div>
     </div>
   );

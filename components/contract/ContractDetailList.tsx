@@ -31,9 +31,19 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useContractFocus } from './ContractFocus';
+import { useContractSplit } from './useContractSplit';
 
 export interface ContractDetailListProps {
   children: ReactNode;
+  /**
+   * Drop the card shell and the "Contract Details" heading, moving the active
+   * row's `action` control onto the tab strip.
+   *
+   * Defaults to true below the split, where `ContractLiveRow` shows this list
+   * in a sheet that already carries a title: the card would be a card inside a
+   * card and the heading a second heading under the sheet's own.
+   */
+  embedded?: boolean;
   className?: string;
 }
 
@@ -63,7 +73,13 @@ function rowKey(row: ReactElement<ContractDetailRowProps>, index: number): strin
 }
 
 /** A fixed-height, single-selection inspector for binding contract details. */
-export function ContractDetailList({ children, className }: ContractDetailListProps) {
+export function ContractDetailList({
+  children,
+  embedded,
+  className,
+}: ContractDetailListProps) {
+  const split = useContractSplit();
+  const inSheet = embedded ?? !split;
   // `Children.toArray` already drops null, undefined and booleans, so what remains is
   // everything a caller meant to supply — the right denominator for the check below.
   const supplied = Children.toArray(children);
@@ -158,35 +174,41 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
 
   if (!activeRow) return null;
 
+  const Root = inSheet ? 'div' : Card;
+
   return (
-      <Card
+      <Root
         className={cn(
-          'flex h-full min-h-0 flex-col overflow-hidden border-border shadow-sm',
+          'flex h-full min-h-0 flex-col overflow-hidden',
+          inSheet ? 'bg-transparent' : 'border-border shadow-sm',
           className,
         )}
       >
         {/* One card surface, divided by rules — matching the chat panel this
             sits beside. See the note in ContractChat. */}
-        <div className="flex items-center gap-cozy border-b px-group py-cozy">
-          <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
-            <ScrollText className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lead font-semibold">Contract Details</h2>
-            <p className="truncate text-body text-muted-foreground">
-              Review one part of the agreement at a time
-            </p>
+        {inSheet ? null : (
+          <div className="flex items-center gap-cozy border-b px-group py-cozy">
+            <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
+              <ScrollText className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lead font-semibold">Contract Details</h2>
+              <p className="truncate text-body text-muted-foreground">
+                Review one part of the agreement at a time
+              </p>
+            </div>
+            {activeRow.props.action ? (
+              <div className="shrink-0">{activeRow.props.action}</div>
+            ) : null}
           </div>
-          {activeRow.props.action ? (
-            <div className="shrink-0">{activeRow.props.action}</div>
-          ) : null}
-        </div>
+        )}
 
         {/* The strip scrolls when the labels outrun the panel, but the native
             bar is suppressed: it drew a grey rail across the full width and
             sat on top of the active tab's gold underline. The clipped next tab
             is the affordance instead. Edit lives in the card header so the
-            tabs stay a navigation strip. */}
+            tabs stay a navigation strip — or, with no header to put it in, at
+            the end of this strip. */}
         <div className="flex min-h-11 shrink-0 items-stretch border-b">
           <div
             className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 pr-4 sm:px-2 md:pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-0.75rem),transparent)] md:[mask-image:none]"
@@ -264,6 +286,11 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             );
           })}
           </div>
+          {inSheet && activeRow.props.action ? (
+            <div className="flex shrink-0 items-center border-l px-cozy">
+              {activeRow.props.action}
+            </div>
+          ) : null}
         </div>
 
         <section
@@ -279,13 +306,14 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
           <div
             ref={panelRef}
             className={cn(
-              // `overscroll-contain` only from `lg`, where this panel sits in a
-              // bounded split and the page behind it does not scroll. Below `lg`
-              // the room stacks and the PAGE is the scroller, so containment
-              // dead-ended the gesture: a swipe that reached the bottom of the
-              // panel stopped there instead of carrying on down the page, and the
-              // reader had to lift and re-swipe outside the panel to continue.
-              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-group text-body lg:overscroll-contain',
+              // Contained wherever this panel is the bounded scroller: the
+              // desktop split, and the phone sheet. It stays uncontained in
+              // between, where the room stacks and the PAGE scrolls — there,
+              // containment dead-ended the gesture, so a swipe reaching the
+              // bottom of the panel stopped instead of carrying on down the
+              // page, and the reader had to lift and re-swipe outside it.
+              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-group text-body',
+              inSheet ? 'overscroll-contain' : 'lg:overscroll-contain',
               activeRow.props.contentClassName,
             )}
           >
@@ -295,7 +323,7 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
             {activeRow.props.children}
           </div>
         </section>
-      </Card>
+      </Root>
   );
 }
 

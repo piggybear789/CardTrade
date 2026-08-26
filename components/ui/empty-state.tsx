@@ -71,14 +71,14 @@ export function EmptyState({
   variant?: 'section' | 'page';
 }) {
   const isPage = variant === 'page';
-  const actionSize = isPage ? 'default' : 'sm';
+  const actionSize = 'sm';
 
-  // A page's action is the only thing to press on the route, so on phones it takes a
-  // full 44px target capped at the reading width rather than the inline chip a
-  // section empty state uses next to the rows it stands in for.
+  // A page's action is the only thing to press on the route, so on phones it
+  // stretches to the reading width. Height stays the compact listing control
+  // (`size="sm"` / h-9), not a second oversized bar.
   const actionClassName = cn(
     'mt-snug md:mt-group',
-    isPage ? 'max-md:h-11 max-md:w-full max-md:max-w-xs' : 'w-auto',
+    isPage ? 'max-md:w-full max-md:max-w-xs' : 'w-auto',
     hideActionOnMobile && 'max-md:hidden',
   );
 

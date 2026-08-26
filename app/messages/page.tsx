@@ -60,14 +60,7 @@ export default async function MessagesPage() {
       <div aria-live="polite" className="sr-only">
         {result.ok ? countLabel : null}
       </div>
-      <header className="mb-1 md:hidden">
-        <h2 className="font-display text-display font-semibold tracking-[-0.03em]">
-          Inbox
-        </h2>
-      </header>
-      <div className="hidden md:block">
-        <SectionHeader title="Inbox" description={countLabel} />
-      </div>
+      <SectionHeader title="Inbox" description={countLabel} />
       {!result.ok ? (
         <div className="mb-5">
           <SectionLoadError label="conversations" />

@@ -5,18 +5,18 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { SectionHeaderSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 export default function ArbitrationCaseLoading() {
   return (
     <MarketplaceShellSkeleton>
       <div className="min-w-0">
-        <header className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 space-y-2">
-            <Skeleton className="h-8 w-64 max-w-full" />
-            <Skeleton className="h-4 w-80 max-w-full" />
-          </div>
-          <Skeleton className="h-9 w-28 shrink-0 rounded-md" />
-        </header>
+        {/* Shared, not redrawn — see the note in the queue's loading state. */}
+        <SectionHeaderSkeleton
+          hasActions
+          titleClassName="w-64"
+          descriptionClassName="w-80"
+        />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
           <div className="space-y-4">

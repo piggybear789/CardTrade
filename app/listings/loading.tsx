@@ -42,7 +42,7 @@ export default function ListingsLoading() {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1 space-y-2">
                 <Skeleton className="h-7 w-40" />
-                <Skeleton className="h-4 w-52" />
+                <Skeleton className="hidden h-4 w-52 sm:block" />
               </div>
               <Skeleton className="h-9 w-36 shrink-0 rounded-md" />
             </div>

@@ -57,7 +57,7 @@ export function CatalogResults() {
     ? settled.q
     : settled.categories.length === 1
       ? settled.categories[0]
-      : 'All listings';
+      : 'All Listings';
 
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
   const closerNote = result.matchedQuery
@@ -72,12 +72,14 @@ export function CatalogResults() {
     >
       <header className="mb-group bg-background pb-0 sm:mb-4 sm:border-b sm:border-border md:bg-transparent sm:pb-4">
         <div className="flex flex-col gap-group sm:gap-3">
-          <div className="hidden flex-col gap-1.5 sm:flex sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="min-w-0">
               <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
                 {resultTitle}
               </h2>
-              <CatalogResultCount note={closerNote} />
+              <div className="hidden sm:block">
+                <CatalogResultCount note={closerNote} />
+              </div>
             </div>
             <div className="hidden min-w-0 md:flex md:w-auto md:shrink-0 md:items-center">
               {result.total > 0 ? <CatalogFilterSearch /> : null}

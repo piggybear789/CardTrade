@@ -17,8 +17,11 @@ import {
   type ReactNode,
   type UIEvent,
 } from 'react';
-import { ArrowDown } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
+import { useContractFocus } from '@/components/contract/ContractFocus';
+import { useContractSplit } from '@/components/contract/useContractSplit';
 import { markConversationRead } from '@/lib/actions/messages';
 import { useConversationRealtime } from '@/lib/realtime/useConversationRealtime';
 import { MessageComposer } from '@/components/messages/MessageComposer';
@@ -59,6 +62,13 @@ export interface ContractChatProps {
    * 我想要 / 去支付 beside the goods — not next to the person's name.
    */
   actions?: ReactNode;
+  /**
+   * Where the phone's back control goes. Below `md` this bar is the whole top
+   * of the room, so it carries navigation; above `md` the workspace rail does.
+   */
+  backHref?: string;
+  /** The flow's status in words, e.g. "In transit". Joins the subline. */
+  statusLabel?: string | null;
   className?: string;
 }
 
@@ -68,52 +78,111 @@ export function ContractChatBar({
   subject,
   actions,
   connectionStatus,
+  backHref,
+  statusLabel,
 }: {
   counterpartyName: string;
   counterpartyAvatarPath?: string | null;
   subject?: ContractChatSubject | null;
   actions?: ReactNode;
   connectionStatus?: 'ok' | 'error' | string;
+  backHref?: string;
+  statusLabel?: string | null;
 }) {
   const offline = connectionStatus === 'error';
+  const split = useContractSplit();
+  const { openDetails } = useContractFocus();
+
+  // In the thread the details are a sheet, so the identity block is the way in.
+  // In the split they are a pane already on screen and this stays inert text.
+  const opensDetails = !split;
+
+  // Everything after the price, in order. Joined with the same separator so an
+  // absent status or a bare person both read correctly.
+  const meta = [statusLabel, subject ? counterpartyName : null].filter(
+    (part): part is string => Boolean(part),
+  );
+  const showSubline = Boolean(subject?.price) || meta.length > 0 || offline;
 
   return (
-    <header
-      className={cn(
-        'flex shrink-0 gap-cozy border-b px-group py-3.5',
-        actions ? 'flex-col md:flex-row md:items-center' : 'items-center',
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-cozy">
-        <Avatar
-          avatarPath={counterpartyAvatarPath}
-          displayName={counterpartyName}
-          size="md"
-        />
+    // `flex-wrap` rather than a hard `flex-col` on phones: a short control set
+    // ("Track", "Cancel") rides on the identity row, and only a wide one
+    // ("Accept terms and pay") drops to a second line. Sticky so the subject
+    // and the live control stay reachable while the log scrolls under them.
+    <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-x-cozy gap-y-snug border-b bg-card px-group py-2.5 max-md:px-cozy">
+      {backHref ? (
+        <Link
+          href={backHref}
+          transitionTypes={['nav-back']}
+          aria-label="Back"
+          className="-ml-1.5 inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40 md:hidden"
+        >
+          <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden />
+        </Link>
+      ) : null}
+
+      <div className="relative flex min-w-0 flex-1 basis-40 items-center gap-cozy">
+        {subject?.thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={subject.thumb}
+            alt=""
+            width={80}
+            height={80}
+            className="size-9 shrink-0 rounded-md border object-cover"
+          />
+        ) : (
+          <Avatar
+            avatarPath={counterpartyAvatarPath}
+            displayName={counterpartyName}
+            size="md"
+          />
+        )}
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
             {subject?.title ?? counterpartyName}
           </h2>
-          {subject || offline ? (
+          {showSubline ? (
             <p className="truncate text-body leading-tight text-muted-foreground">
               {subject?.price ? (
                 <span className="display-value font-semibold text-foreground">
                   {subject.price}
                 </span>
               ) : null}
-              {subject?.price && subject ? ' · ' : null}
-              {subject ? counterpartyName : null}
+              {meta.length > 0
+                ? `${subject?.price ? ' · ' : ''}${meta.join(' · ')}`
+                : null}
               {offline ? (
                 <span className="text-destructive">
-                  {subject ? ' · Offline' : 'Offline'}
+                  {subject?.price || meta.length > 0 ? ' · ' : ''}Offline
                 </span>
               ) : null}
             </p>
           ) : null}
         </div>
+        {opensDetails ? (
+          <>
+            <ChevronRight
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            {/* Overlay rather than a wrapper, because the title is an <h2> and a
+                heading is not valid inside a <button>. Covering the block keeps
+                the whole subject tappable and still gives one focus ring. */}
+            <button
+              type="button"
+              onClick={openDetails}
+              aria-haspopup="dialog"
+              className="absolute inset-0 rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
+            >
+              <span className="sr-only">Contract details</span>
+            </button>
+          </>
+        ) : null}
       </div>
+
       {actions ? (
-        <div className="flex min-w-0 w-full items-center md:w-auto md:shrink-0 md:justify-end">
+        <div className="flex min-w-0 shrink-0 items-center justify-end">
           {actions}
         </div>
       ) : null}
@@ -136,6 +205,8 @@ export function ContractChat({
   emptyHint = 'Use chat to coordinate. Only the saved terms are binding.',
   subject,
   actions,
+  backHref,
+  statusLabel,
   className,
 }: ContractChatProps) {
   const { messages, connectionStatus } = useConversationRealtime(conversationId);
@@ -192,21 +263,19 @@ export function ContractChat({
         subject={subject}
         actions={actions}
         connectionStatus={connectionStatus}
+        backHref={backHref}
+        statusLabel={statusLabel}
       />
       <div className="relative min-h-0 flex-1">
         <div
           ref={logRef}
           onScroll={handleLogScroll}
-          // `overscroll-contain` only from `lg`, matching the details panel this
-          // sits beside (see ContractDetailList). At `lg` the room is bounded and
-          // the page behind does not scroll, so containment costs nothing and
-          // stops the gesture escaping to the pane wrapper. Below `lg` the room
-          // stacks and the PAGE is the scroller, so containing here dead-ended
-          // the swipe: reaching the end of the log stopped the gesture instead of
-          // carrying on down the page, and the reader had to lift and re-swipe
-          // outside the log to continue. The two panes stack at the same
-          // breakpoint, so they must make the same choice.
-          className="h-full overflow-y-auto p-cozy lg:overscroll-contain"
+          // Contained at every width now. This used to be `lg:` only because
+          // below the split the room stacked and the PAGE was the scroller, so
+          // containing here dead-ended the swipe at the end of the log. The
+          // phone room is a thread: the log is the only scroller, the composer
+          // is pinned under it, and there is nothing behind to scroll on to.
+          className="h-full overflow-y-auto overscroll-contain p-cozy"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"

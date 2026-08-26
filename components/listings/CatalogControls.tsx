@@ -268,7 +268,7 @@ export function CatalogFilters() {
                 ) : null}
               </div>
             </SheetHeader>
-            <div className="space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
+            <div className="space-y-group overflow-y-auto overscroll-contain px-5 py-group">
               <CatalogRefineFields
                 current={current}
                 isPending={isPending}
@@ -286,9 +286,11 @@ export function CatalogFilters() {
                 choiceStyle="squares"
               />
             </div>
-            <SheetFooter className="border-t border-border p-4">
+            <SheetFooter className="border-t border-border p-group">
               <SheetClose asChild>
-                <Button type="button">Done</Button>
+                <Button type="button" size="sm">
+                  Done
+                </Button>
               </SheetClose>
             </SheetFooter>
           </SheetContent>
@@ -574,7 +576,7 @@ function FilterSquare({
       onClick={onClick}
       aria-pressed={pressed}
       className={cn(
-        'min-h-9 rounded-md border px-2.5 py-1.5 text-body font-medium transition-colors focus:outline-none focus-visible:border-gold/40',
+        'inline-flex h-9 min-h-9 items-center rounded-md border px-2.5 text-meta font-semibold tracking-tight transition-colors focus:outline-none focus-visible:border-gold/40',
         pressed
           ? 'border-gold bg-gold/10 text-foreground'
           : 'border-border bg-card text-muted-foreground hover:border-gold/40 hover:text-foreground',
@@ -627,7 +629,7 @@ export function CatalogSortControl({
         onValueChange={(value) => pushWith({ sort: value === 'newest' ? null : value })}
       >
         <SelectTrigger
-          className={cn(fullWidth ? 'h-11 w-full' : 'w-full min-w-0 sm:w-[190px]')}
+          className={cn(fullWidth ? 'h-9 w-full' : 'h-9 w-full min-w-0 sm:w-[190px]')}
           aria-label="Sort listings"
         >
           <SelectValue />

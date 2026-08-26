@@ -36,6 +36,7 @@ import {
   ShieldAlert,
   Truck,
 } from 'lucide-react';
+import { DesktopOnly } from '@/components/layout/Breakpoint';
 import { PlaceMap } from '@/components/location';
 import { ImageGallery } from '@/components/listings/ImageGallery';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +70,7 @@ import {
   currentStep,
   deriveCashSaleSteps,
 } from '@/domain/contract';
+import { CASH_SALE_STATUS_MAP, CashSaleStatusBadge } from './CashSaleStatusBadge';
 import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
 import { EditContractItemsDialog } from './EditContractItemsDialog';
@@ -593,26 +595,42 @@ function CashSaleRoom({
        the page instead of being clipped. `lg:flex-none` retires the `flex-1` that
        carries the stacked layout below `lg`, where the page scrolls normally. */
     <div className="flex min-h-0 flex-1 flex-col gap-group lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
-      <ContractHeader
-        title={sale.item_title}
-        money={`${money(sale.amount_cents)} total`}
-        parties={
-          <ContractPartyLine
-            me={toContractParty(me)}
-            them={toContractParty(them)}
-            showDetails={false}
-          />
-        }
-        connectionStatus={connectionStatus}
-      />
+      {/* Desktop only. Below `md` the room is a thread, and the chat bar
+          already carries this exact title, price and counterparty — a second
+          copy of them was the first 76px of every phone contract. */}
+      <DesktopOnly>
+        <ContractHeader
+          title={sale.item_title}
+          money={`${money(sale.amount_cents)} total`}
+          parties={
+            <ContractPartyLine
+              me={toContractParty(me)}
+              them={toContractParty(them)}
+              showDetails={false}
+            />
+          }
+          connectionStatus={connectionStatus}
+        />
+      </DesktopOnly>
 
       <ContractLiveRow
+        detailsTitle={sale.item_title}
+        detailsMeta={
+          <>
+            <CashSaleStatusBadge status={sale.status} />
+            <span className="display-value text-foreground">
+              {money(sale.amount_cents)} total
+            </span>
+          </>
+        }
         conversation={
           <ContractConversationPanel
             conversationId={chat.conversationId}
             currentUserId={myUserId}
             counterpartyName={them.name}
             counterpartyAvatarPath={them.avatarPath}
+            backHref={iAmBuyer ? '/purchases' : '/sales'}
+            statusLabel={CASH_SALE_STATUS_MAP[sale.status]?.label ?? null}
             subject={{
               title: sale.item_title,
               thumb: itemImages[0] ?? null,
@@ -740,14 +758,14 @@ function CashSaleRoom({
                   onChange={(event) => setCarrier(event.target.value)}
                   placeholder="Carrier"
                   aria-label="Carrier"
-                  className="min-h-11 w-full sm:h-8 sm:min-h-8 sm:w-36"
+                  className="w-full sm:w-36"
                 />
                 <Input
                   value={trackingNumber}
                   onChange={(event) => setTrackingNumber(event.target.value)}
                   placeholder="Tracking"
                   aria-label="Tracking number"
-                  className="min-h-11 w-full sm:h-8 sm:min-h-8 sm:w-36"
+                  className="w-full sm:w-36"
                 />
                 <Button
                   type="button"
@@ -932,7 +950,7 @@ function CashSaleRoom({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="min-h-11 gap-tight px-3 text-meta font-medium md:h-6 md:min-h-6 md:px-2 [&_svg]:size-3"
+                className="gap-tight px-3 text-meta font-medium [&_svg]:size-3"
                 onClick={() => setDetailsFor(sale.fulfillment_method!)}
               >
                 <Pencil aria-hidden />

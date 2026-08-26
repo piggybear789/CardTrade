@@ -14,6 +14,7 @@ import type { ComponentPropsWithoutRef, HTMLAttributes, ReactNode, Ref } from 'r
 import Link from 'next/link';
 import { ChevronRight, ShieldAlert, ShieldCheck, type LucideIcon } from 'lucide-react';
 
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -55,7 +56,20 @@ export function SettingsGroup({
     <section className={cn('space-y-snug', className)}>
       {label ? (
         <div className="space-y-tight px-tight">
-          <SectionLabel>{label}</SectionLabel>
+          {/* A REAL HEADING, not `SectionLabel`. This looked like a heading and was a
+              `<p>`, so it sat outside the document outline: a screen-reader user
+              skimming by heading jumped straight from the member's name to the rows
+              with nothing naming the group in between. `SectionLabel` keeps its `<p>`
+              for the places that want the look without the semantics — see the note in
+              `ProfileForm` about not confusing it with a form `<Label>`.
+
+              SENTENCE CASE AT BODY SIZE, not the app's `market-label`. That class is
+              11px uppercase on wide tracking — a web-dashboard eyebrow, and the last
+              thing on this surface that read as a website rather than an app. Native
+              group headers are sentence case and close to body size, de-emphasised by
+              colour rather than by shrinking, which is also what this project's own
+              type-scale note asks for. */}
+          <h3 className="text-body font-medium text-muted-foreground">{label}</h3>
           {description ? (
             <p className="text-body leading-relaxed text-muted-foreground">{description}</p>
           ) : null}
@@ -67,6 +81,21 @@ export function SettingsGroup({
     </section>
   );
 }
+
+/**
+ * The row's box, shared by the real row and {@link SettingsRowSkeleton}.
+ *
+ * ONE DEFINITION SO THE PLACEHOLDER CANNOT DRIFT. Loading states here used to be
+ * hand-drawn boxes with their own paddings and heights, so every change to the real
+ * layout silently invalidated them and the page visibly re-laid-out on data arrival.
+ * A skeleton whose geometry is a copy of the geometry is a skeleton that is wrong by
+ * default; this makes them the same object.
+ */
+const ROW_SHAPE = [
+  'relative flex w-full items-center gap-cozy px-group py-cozy text-left min-h-12',
+  'before:absolute before:left-group before:right-0 before:top-0 before:h-px',
+  'before:bg-border first:before:hidden',
+].join(' ');
 
 /**
  * One row in a {@link SettingsGroup}: label on the left, current value on the right,
@@ -150,10 +179,11 @@ export function SettingsListRow({
   // `divide-y` on the group: a full-bleed rule between rows reads as a table, and the
   // inset one is what makes a run of rows read as a single grouped list.
   const shape = cn(
-    'relative flex w-full items-center gap-cozy px-group py-cozy text-left',
-    'min-h-12 before:absolute before:left-group before:right-0 before:top-0 before:h-px',
-    'before:bg-border first:before:hidden',
-    interactive && 'transition-colors active:bg-muted/70 md:hover:bg-muted/40',
+    ROW_SHAPE,
+    // `touch-manipulation` opts out of double-tap-to-zoom, which is what removes the
+    // ~300ms delay browsers otherwise hold before firing the tap. On a list you flick
+    // through, that delay is most of the difference between "app" and "website".
+    interactive && 'touch-manipulation transition-colors active:bg-muted/70 md:hover:bg-muted/40',
     // Ring rather than the app's usual border-colour focus: these rows sit inside an
     // `overflow-hidden` group, so an outset ring would be clipped on the first and
     // last row. `ring-inset` stays visible on every row.
@@ -241,6 +271,31 @@ export function TrustLine({
         {payoutsActive ? 'Payouts active' : 'Payouts not set up'}
       </span>
     </p>
+  );
+}
+
+/**
+ * A loading placeholder occupying exactly one {@link SettingsListRow}.
+ *
+ * Built from `ROW_SHAPE`, so it inherits the row's height, padding and divider
+ * rather than approximating them. The trailing spacer is deliberate: it reserves the
+ * chevron's footprint, without which every label and value shifts sideways by 16px
+ * the instant real content arrives.
+ */
+export function SettingsRowSkeleton({
+  labelClassName = 'w-28',
+  valueClassName = 'w-20',
+}: {
+  labelClassName?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className={ROW_SHAPE} aria-hidden>
+      <Skeleton className={cn('h-4', labelClassName)} />
+      <span className="flex-1" />
+      <Skeleton className={cn('h-4', valueClassName)} />
+      <span className="size-4 shrink-0" />
+    </div>
   );
 }
 

@@ -15,7 +15,9 @@ export default function NewTradeLoading() {
           <Skeleton className="h-6 w-36" />
           <Skeleton className="mt-2 h-4 w-64 max-w-full" />
         </CardHeader>
-        <CardContent className="space-y-5">
+        {/* `space-y-group`, matching `TradeOfferForm`'s CardContent. `space-y-5` put
+            an extra 4px between every block. */}
+        <CardContent className="space-y-group">
           <div className="flex items-center gap-3 rounded-lg border bg-muted p-3">
             <Skeleton className="size-12 shrink-0 rounded-md" />
             <div className="min-w-0 flex-1 space-y-2">

@@ -72,7 +72,7 @@ const SheetContent = React.forwardRef<
       {children}
       <SheetPrimitive.Close
         className={cn(
-          "absolute right-3 top-3 flex size-11 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:pointer-events-none md:size-8 md:opacity-70",
+          "absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:pointer-events-none md:size-8 md:opacity-70",
           closeClassName,
         )}
       >

@@ -161,7 +161,7 @@ export function ReportDialog({
             variant="ghost"
             size="icon"
             className={cn(
-              'size-11 text-muted-foreground hover:text-foreground md:size-9',
+              'size-10 text-muted-foreground hover:text-foreground md:size-9',
               triggerClassName,
             )}
             aria-label={triggerLabel}
@@ -169,7 +169,7 @@ export function ReportDialog({
             <Flag aria-hidden />
           </Button>
         ) : (
-          <Button type="button" variant={triggerVariant} size="sm" className="min-h-11 w-full sm:w-auto md:min-h-8">
+          <Button type="button" variant={triggerVariant} size="sm" className="w-full sm:w-auto">
             <Flag aria-hidden />
             {triggerLabel}
           </Button>

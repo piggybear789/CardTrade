@@ -10,6 +10,10 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import {
+  SectionFilterSkeleton,
+  SectionHeaderSkeleton,
+} from '@/components/layout/WorkspaceSkeletons';
 
 export default function ArbitrationLoading() {
   return (
@@ -17,13 +21,10 @@ export default function ArbitrationLoading() {
     // height here would drop the rail by that much when the real shell arrives.
     <MarketplaceShellSkeleton>
       <div className="min-w-0">
-        {/* SectionHeader: title + description, with the assign control on the right. */}
-        <header className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 space-y-2">
-            <Skeleton className="h-8 w-56" />
-            <Skeleton className="h-4 w-80 max-w-full" />
-          </div>
-        </header>
+        {/* Shared, not redrawn: the hand-drawn copy applied `SectionHeader`'s desktop
+            spacing at every width and drew a description the real header hides below
+            `md`. */}
+        <SectionHeaderSkeleton titleClassName="w-56" descriptionClassName="w-80" />
 
         {/* The four triage stats. */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -35,12 +36,7 @@ export default function ArbitrationLoading() {
           ))}
         </div>
 
-        {/* SectionTabs. */}
-        <div className="mb-5 flex gap-1 border-b border-border pb-px">
-          {Array.from({ length: 3 }, (_, index) => (
-            <Skeleton key={index} className="h-10 w-28 rounded-t-md" />
-          ))}
-        </div>
+        <SectionFilterSkeleton tabs={3} />
 
         <div className="space-y-3">
           {Array.from({ length: 4 }, (_, index) => (

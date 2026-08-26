@@ -150,7 +150,7 @@ export function CatalogItemCard({
             itemId={item.id}
             initialWatching={initialWatching}
             variant="icon"
-            className="pointer-events-auto absolute right-1 top-1 z-10 size-10 rounded-full bg-card/90 text-foreground shadow-sm hover:bg-card hover:text-foreground md:size-10 [&_svg]:size-4"
+            className="pointer-events-auto absolute right-1 top-1 z-10 size-8 rounded-full bg-card/90 text-foreground shadow-sm hover:bg-card hover:text-foreground md:size-10 [&_svg]:size-3.5 md:[&_svg]:size-4"
           />
         ) : null}
       </div>

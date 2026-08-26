@@ -44,6 +44,7 @@ import {
 import { inspectionHoldRisk } from '@/domain/fulfilment';
 import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
 
+import { DesktopOnly } from '@/components/layout/Breakpoint';
 import { FadeSwap } from '@/components/motion/FadeSwap';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -54,7 +55,7 @@ import { SavedCardRow } from '@/components/payments/SavedCardRow';
 import { TRADE_FEE_BPS, tradeFeeCentsFor } from '@/domain/trade/tradeFee';
 import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
-import { StateBadge } from '@/components/trade/StateBadge';
+import { StateBadge, TRADE_STATUS_MAP } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { PlaceMap } from '@/components/location';
@@ -811,28 +812,33 @@ function TradeContractRoom({
           details/chat row divide it and the panes scroll internally instead of
           growing the page (F37). */}
       <div className="flex min-h-0 flex-1 flex-col gap-group lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
-        <ContractHeader
-          title="2-way trade"
-          money={
-            goods
-              ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}${
-                  goods.cashAmountCents > 0
-                    ? ` + ${formatAud(goods.cashAmountCents)} cash`
-                    : ''
-                }`
-              : undefined
-          }
-          parties={
-            me && them ? (
-              <ContractPartyLine
-                me={toContractParty(me)}
-                them={toContractParty(them)}
-              />
-            ) : null
-          }
-          status={trade ? <StateBadge state={trade.state} /> : null}
-          connectionStatus={connectionStatus}
-        />
+        {/* Desktop only. Below `md` the room is a thread, and the chat bar
+            already carries this title, value and counterparty — a second copy
+            of them was the first 76px of every phone contract. */}
+        <DesktopOnly>
+          <ContractHeader
+            title="2-way trade"
+            money={
+              goods
+                ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}${
+                    goods.cashAmountCents > 0
+                      ? ` + ${formatAud(goods.cashAmountCents)} cash`
+                      : ''
+                  }`
+                : undefined
+            }
+            parties={
+              me && them ? (
+                <ContractPartyLine
+                  me={toContractParty(me)}
+                  them={toContractParty(them)}
+                />
+              ) : null
+            }
+            status={trade ? <StateBadge state={trade.state} /> : null}
+            connectionStatus={connectionStatus}
+          />
+        </DesktopOnly>
 
         {trade === null ? (
           <Card>
@@ -874,12 +880,25 @@ function TradeContractRoom({
             ) : null}
 
             <ContractLiveRow
+              detailsTitle="2-way trade"
+              detailsMeta={
+                <>
+                  <StateBadge state={trade.state} />
+                  {goods ? (
+                    <span className="display-value text-foreground">
+                      {formatAud(yoursValueCents)} ⇄ {formatAud(theirsValueCents)}
+                    </span>
+                  ) : null}
+                </>
+              }
               conversation={
                 <ContractConversationPanel
                   conversationId={chat.conversationId}
                   currentUserId={myUserId}
                   counterpartyName={theirName}
                   counterpartyAvatarPath={them?.avatarPath}
+                  backHref="/trades"
+                  statusLabel={TRADE_STATUS_MAP[trade.state]?.label ?? null}
                   subject={{
                     title: (goods?.yours[0] ?? goods?.theirs[0])?.title ?? '2-way trade',
                     thumb: itemImageUrl(

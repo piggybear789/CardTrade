@@ -37,6 +37,10 @@ export interface ContractConversationPanelProps {
   subject?: ContractChatSubject | null;
   /** Live-step controls, rendered on the product strip. */
   actions?: ReactNode;
+  /** Phone back target. The bar is the top of the room below `md`. */
+  backHref?: string;
+  /** The flow's status in words, e.g. "In transit". */
+  statusLabel?: string | null;
   /** True once opening the thread failed. */
   failed?: boolean;
   /** Re-run the self-heal; renders a "Try again" control when provided. */
@@ -53,6 +57,8 @@ export function ContractConversationPanel({
   emptyHint,
   subject,
   actions,
+  backHref,
+  statusLabel,
   failed = false,
   onRetry,
 }: ContractConversationPanelProps) {
@@ -67,17 +73,21 @@ export function ContractConversationPanel({
         emptyHint={emptyHint}
         subject={subject}
         actions={actions}
+        backHref={backHref}
+        statusLabel={statusLabel}
       />
     );
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
       <ContractChatBar
         counterpartyName={counterpartyName}
         counterpartyAvatarPath={counterpartyAvatarPath}
         subject={subject}
         actions={actions}
+        backHref={backHref}
+        statusLabel={statusLabel}
       />
       <div className="grid min-h-0 flex-1 place-items-center p-cozy text-center text-body text-muted-foreground">
         {failed ? (

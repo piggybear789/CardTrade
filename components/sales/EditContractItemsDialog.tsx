@@ -121,7 +121,7 @@ export function EditContractItemsDialog({
           type="button"
           variant="outline"
           size="sm"
-          className="min-h-11 gap-tight px-3 text-meta font-medium leading-none md:h-6 md:min-h-6 md:px-2 [&_svg]:size-3"
+          className="gap-tight px-3 text-meta font-medium leading-none [&_svg]:size-3"
         >
           <PencilLine aria-hidden />
           Edit

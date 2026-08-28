@@ -7,7 +7,8 @@
 // a photo opens the same lightbox used by contract thumbnails.
 
 import { useCallback, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ImageOff, ZoomIn } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronLeftIcon, ChevronRightIcon, ImageOffIcon, ZoomInIcon } from '@hugeicons/core-free-icons';
 
 import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
 import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
@@ -216,7 +217,7 @@ export function ImageGallery({
               }}
               className={cn(
                 'absolute inset-0 z-[1] cursor-zoom-in touch-pan-y',
-                'border border-transparent focus:outline-none focus-visible:border-gold/40',
+                'border border-transparent focus:outline-none focus-visible:border-iris',
               )}
               aria-label={`Enlarge photo ${activeIndex + 1} of ${images.length} for ${title}`}
             >
@@ -239,7 +240,7 @@ export function ImageGallery({
             aria-hidden="true"
             className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-full border border-white/15 bg-obsidian/65 px-snug py-1 text-meta font-medium text-white/90 shadow-sm backdrop-blur"
           >
-            <ZoomIn className="size-3.5" />
+            <HugeiconsIcon icon={ZoomInIcon} className="size-3.5" />
             <span className="[@media(hover:none)]:hidden">Click to enlarge</span>
             <span className="hidden [@media(hover:none)]:inline">Tap to enlarge</span>
           </p>
@@ -255,7 +256,7 @@ export function ImageGallery({
                 key={image.src}
                 className={cn(
                   'size-2 rounded-full',
-                  index === activeIndex ? 'bg-gold' : 'bg-card/60',
+                  index === activeIndex ? 'bg-iris' : 'bg-card/60',
                 )}
               />
             ))}
@@ -270,10 +271,10 @@ export function ImageGallery({
             <button
               type="button"
               onClick={prev}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-gold/40"
+              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-iris"
               aria-label="Previous image"
             >
-              <ChevronLeft className="size-4" aria-hidden />
+              <HugeiconsIcon icon={ChevronLeftIcon} className="size-4" aria-hidden />
             </button>
             <span
               className="min-w-[3ch] text-center text-meta font-medium tabular-nums text-white/90"
@@ -285,10 +286,10 @@ export function ImageGallery({
             <button
               type="button"
               onClick={next}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-gold/40"
+              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-iris"
               aria-label="Next image"
             >
-              <ChevronRight className="size-4" aria-hidden />
+              <HugeiconsIcon icon={ChevronRightIcon} className="size-4" aria-hidden />
             </button>
           </nav>
         ) : null}
@@ -333,14 +334,14 @@ function StackedGallery({
             <li key={image.src}>
               {failed ? (
                 <div className="flex min-h-24 w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground">
-                  <ImageOff className="size-8" aria-hidden />
+                  <HugeiconsIcon icon={ImageOffIcon} className="size-8" aria-hidden />
                   <span className="sr-only">Photo could not be loaded for {title}</span>
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => onLightboxChange(index)}
-                  className="block w-full cursor-zoom-in overflow-hidden rounded-lg border bg-muted focus:outline-none focus-visible:border-gold/40"
+                  className="block w-full cursor-zoom-in overflow-hidden rounded-lg border bg-muted focus:outline-none focus-visible:border-iris"
                   aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${title}`}
                 >
                   {/* Natural aspect: width fills the column, height follows the
@@ -390,7 +391,7 @@ function GalleryMissing({
         <ListingPhotoEmpty title={title} hint={hint} />
       </div>
       <div className="hidden h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground md:flex">
-        <ImageOff className="size-12" aria-hidden />
+        <HugeiconsIcon icon={ImageOffIcon} className="size-12" aria-hidden />
         <span className="sr-only">No image available for {title}</span>
       </div>
     </>

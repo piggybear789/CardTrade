@@ -7,7 +7,8 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -31,7 +32,7 @@ export function ContractRoomError({
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-16 sm:px-6">
       <EmptyState
         variant="page"
-        icon={<AlertTriangle className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={TriangleAlertIcon} className="size-6" aria-hidden />}
         title="Contract Unavailable"
         description="Something went wrong loading this contract room. Try again, or go back to your list."
         compact

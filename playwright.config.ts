@@ -46,6 +46,11 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PORT}`;
  */
 const useProductionServer = process.env.E2E_PRODUCTION_SERVER === '1' || !!process.env.CI;
 
+/** Safari/WebKit project. CI always runs it; locally it doubles wall-clock time
+ *  against one `next dev` server (and is what made `npm run test:e2e` feel stuck).
+ *  Opt in with `E2E_MOBILE=1`. */
+const includeMobile = !!process.env.CI || process.env.E2E_MOBILE === '1';
+
 /** Identical env for both server modes — see the note on the debug config. */
 const SERVER_ENV = {
   PAYMENTS_PROVIDER: 'mock',
@@ -81,6 +86,27 @@ const SERVER_ENV = {
   // Intercepting keeps the app's real autocomplete -> details -> PlaceValue path and
   // produces a resolved place the domain accepts.
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
+  // SEVEN SEEDED MEMBERS SIGN IN FROM ONE ADDRESS DURING SETUP.
+  //
+  // `authLimiter` allows 5 per minute per IP (lib/rateLimiters.ts), so frank and
+  // grace — the two staff accounts, and the last two in SEED_USERS — were
+  // refused with "Too many attempts" and all 210 specs were skipped. The limit
+  // is right; it is the suite that is unusual in logging seven people in from
+  // one machine in ten seconds.
+  //
+  // Raised for THIS server only. The default stays 5 wherever the variable is
+  // unset, which is everywhere else.
+  AUTH_RATE_LIMIT_PER_MINUTE: '100',
+  // ITS OWN BUILD DIRECTORY, so the suite never shares `.next` with a developer's
+  // `next dev`. Sharing it put a production build under a running dev server and
+  // surfaced as Tailwind stat-ing a file that a rename had moved
+  // (`ENOENT ... app/offers/loading.tsx` while compiling `globals.css`) — a cache
+  // collision wearing a stylesheet error's clothes.
+  //
+  // Must match `E2E_BUILD_DIR` in scripts/e2e/build-for-e2e.mjs: that script
+  // builds there and this tells `next start` where to look. `next.config.ts`
+  // reads the variable for `distDir`; `.next-*` is gitignored.
+  NEXT_BUILD_DIR: '.next-e2e',
 };
 
 export default defineConfig({
@@ -132,16 +158,17 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
-    {
-      // Real WebKit, not Chromium mobile-viewport emulation: several open
-      // findings in ux-audit-findings.md (e.g. F19 iOS Safari input-zoom,
-      // F24 touch/pointer semantics) are Safari-engine-specific, so Chromium
-      // emulation would silently pass on exactly the bugs this project exists
-      // to catch.
-      name: 'mobile',
-      testMatch: /specs\/.*\.spec\.ts/,
-      use: { ...devices['iPhone 14'] },
-      dependencies: ['setup'],
-    },
+    ...(includeMobile
+      ? [
+          {
+            // Real WebKit, not Chromium mobile-viewport emulation. Several
+            // findings in ux-audit-findings.md are Safari-engine-specific.
+            name: 'mobile',
+            testMatch: /specs\/.*\.spec\.ts/,
+            use: { ...devices['iPhone 14'] },
+            dependencies: ['setup'],
+          },
+        ]
+      : []),
   ],
 });

@@ -9,7 +9,8 @@
 // marketplace header below is desktop-only (`md+`).
 
 import Link from 'next/link';
-import { BookmarkCheck, MessageCircle } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BookmarkCheck01Icon, MessageCircleIcon } from '@hugeicons/core-free-icons';
 
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 import { listMyNotifications } from '@/lib/actions/notifications';
@@ -67,14 +68,14 @@ export async function SiteHeader() {
       className="sticky top-0 z-40"
     >
       <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent md:block"
+        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
       >
         <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1">
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-parchment focus:outline-none focus-visible:border-gold"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris"
             >
               <Logo />
             </Link>
@@ -85,7 +86,7 @@ export async function SiteHeader() {
             <HeaderSearch className="market-search" />
           </div>
 
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-parchment md:flex-1 md:gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-2">
             <RegionIndicator regionCode={region.code} source={region.source} />
             {isAuthenticated && user ? (
               <>
@@ -93,17 +94,17 @@ export async function SiteHeader() {
                   href="/saved"
                   aria-label="Saved listings"
                   title="Saved"
-                  className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:border-gold md:inline-flex"
+                  className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris md:inline-flex"
                 >
-                  <BookmarkCheck className="size-5" aria-hidden />
+                  <HugeiconsIcon icon={BookmarkCheck01Icon} className="size-5" aria-hidden />
                 </Link>
                 <Link
                   href="/messages"
                   aria-label="Messages"
                   title="Messages"
-                  className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:border-gold md:inline-flex"
+                  className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris md:inline-flex"
                 >
-                  <MessageCircle className="size-5" aria-hidden />
+                  <HugeiconsIcon icon={MessageCircleIcon} className="size-5" aria-hidden />
                 </Link>
                 <NotificationBell
                   userId={user.id}
@@ -111,7 +112,13 @@ export async function SiteHeader() {
                     initialNotifications?.ok ? initialNotifications.notifications : []
                   }
                 />
-                <Button asChild variant="ghost" size="sm" className="hidden min-w-0 max-w-[9rem] overflow-hidden md:inline-flex md:max-w-[14rem]">
+                {/* `!h-10` to match the 40px icon targets beside it. The `sm`
+                    size collapses to 24px from `md`, which is the same height as
+                    the 24px avatar inside it — the circle had no room and the
+                    button's clip cropped it top and bottom into an ellipse.
+                    Truncation of a long name is the inner span's `truncate`
+                    job, so no `overflow-hidden` here to do the cropping. */}
+                <Button asChild variant="ghost" size="sm" className="hidden !h-10 min-w-0 max-w-[9rem] px-2 md:inline-flex md:max-w-[14rem]">
                   <Link
                     href="/profile"
                     className="flex min-w-0 items-center gap-2"
@@ -132,8 +139,15 @@ export async function SiteHeader() {
               <GuestHeaderCtas />
             )}
 
-            {isAuthenticated ? (
-              <SiteMenu isAuthenticated isAdmin={isAdmin} isStaff={isStaff} />
+            {user ? (
+              <SiteMenu
+                isAuthenticated
+                isAdmin={isAdmin}
+                isStaff={isStaff}
+                displayName={displayName}
+                avatarPath={avatarPath}
+                email={user.email ?? null}
+              />
             ) : null}
           </div>
         </div>
@@ -150,14 +164,14 @@ export function SiteHeaderSkeleton() {
       className="sticky top-0 z-40"
     >
       <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-gold/65 after:to-transparent md:block"
+        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
       >
         <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1">
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-parchment border border-transparent focus:outline-none focus-visible:border-gold"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-mist border border-transparent focus:outline-none focus-visible:border-iris"
             >
               <Logo />
             </Link>
@@ -172,7 +186,7 @@ export function SiteHeaderSkeleton() {
           </div>
         </div>
       </header>
-      <header className="bg-background pt-[calc(env(safe-area-inset-top)+0.75rem)] md:hidden">
+      <header className="bg-background pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
         <div className="flex min-h-10 items-center gap-1.5 px-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-1.5">
           <div className="h-10 min-w-0 flex-1 animate-pulse rounded-full bg-card" />
           <div className="size-10 shrink-0 animate-pulse rounded-full bg-secondary" />

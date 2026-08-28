@@ -4,6 +4,7 @@
 // bordered action cards. Same 2-up / auto-fill grid as the marketplace.
 
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 import {
   CatalogGridSkeleton,
   SectionHeaderSkeleton,
@@ -11,7 +12,12 @@ import {
 
 export default function MyListingsLoading() {
   return (
-    <MarketplaceShellSkeleton hasPrimaryAction>
+    <MarketplaceShellSkeleton
+      title="My Listings"
+      primaryAction={
+        <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
+      }
+    >
       <div className="min-w-0">
         <SectionHeaderSkeleton hasMobileAction />
         <CatalogGridSkeleton count={8} />

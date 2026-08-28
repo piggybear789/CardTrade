@@ -24,10 +24,9 @@ import {
   MobileOnly,
 } from '@/components/layout/Breakpoint';
 import { MarketplaceNav } from '@/components/layout/MarketplaceNav';
-import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { PageShell } from '@/components/layout/PageShell';
 import { DirectionalTransition } from '@/components/motion/DirectionalTransition';
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { cn } from '@/lib/utils';
 
 export { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
@@ -38,7 +37,6 @@ export async function MarketplaceShell({
   filters,
   center = false,
   flush = false,
-  hideMobileNav = false,
   children,
 }: {
   /**
@@ -77,42 +75,15 @@ export async function MarketplaceShell({
    * the document body is incorrect.
    */
   flush?: boolean;
-  /**
-   * Hide the signed-in mobile hub. Leave unset so the hub stays on every
-   * marketplace page, including listing detail.
-   */
-  hideMobileNav?: boolean;
   children: ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const showMobileNav = Boolean(user) && !hideMobileNav;
-
-  // Staff capability for the rail's Staff group. Read through the cookie-bound client,
-  // so RLS scopes it to the caller's own row and a member cannot ask about anyone else.
-  //
-  // TWO BOOLEANS, not the resolved links. `MarketplaceNav` is a Client Component and a
-  // nav link carries a Lucide `icon` — a component, not data — so handing it the
-  // resolved array threw "Only plain objects can be passed to Client Components from
-  // Server Components" on every page mounting the shell. The nav resolves its own icons.
-  //
-  // One indexed primary-key lookup, and navigation only: `requireStaff` and
-  // `requireAdmin` re-check on every staff surface and action, because hiding a link is
-  // not authorization.
-  let staff: { isStaff: boolean; isAdmin: boolean } | undefined;
-  if (user) {
-    const { data: capability } = await supabase
-      .from('profiles')
-      .select('is_admin, is_support')
-      .eq('id', user.id)
-      .maybeSingle();
-    staff = {
-      isAdmin: Boolean(capability?.is_admin),
-      isStaff: Boolean(capability?.is_support),
-    };
-  }
+  // A cache hit. `app/(workspace)/layout.tsx` resolved this for the request
+  // before the page began rendering, so the shell no longer appends a round trip
+  // to the end of every page's critical path. Only the padding below depends on
+  // it — the hub bar itself is mounted by the layout, where it survives
+  // navigation instead of being torn down and rebuilt.
+  const user = await getCachedAuthUser();
+  const showMobileNav = Boolean(user);
 
   return (
     <DirectionalTransition>
@@ -134,7 +105,12 @@ export async function MarketplaceShell({
             nothing is left to mount. */}
         <aside
           style={{ viewTransitionName: 'persistent-nav' }}
-          className="hidden w-full min-w-0 px-4 sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-card/90 md:px-5 md:shadow-[8px_0_28px_hsl(var(--foreground)/0.045)]"
+          // `bg-sidebar`, not `bg-card`: the rail is the layer BELOW the page
+          // (96% against the page's 98%), where a card sits above it at 100%.
+          // The old 28px/4.5% shadow is gone — it was below the perceptual
+          // floor, so the border and the surface step do the separating on
+          // their own.
+          className="hidden w-full min-w-0 px-4 sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-sidebar md:px-5"
         >
           {/* The rail background stretches the full column; its contents stay in
               view. The inset px-1/-mx-1 pair gives focus rings room to draw: setting
@@ -147,29 +123,66 @@ export async function MarketplaceShell({
               must appear here, or the rail runs 1px taller than the space
               under the header and stretches the whole workspace row 1px past
               the viewport — a permanent hairline page scroll. */}
-          <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-1 md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-1 md:py-7 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
+          {/* `py-5`, down from `py-7`. The rail has a hard ceiling — the
+              viewport minus the header — and its contents are a fixed height
+              that does not respond to it, so every 8px of padding is 8px the
+              nav does not get. See MarketplaceNav for the rest of that trim. */}
+          <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-1 md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-1 md:py-5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
             <div className="hidden md:block">
-              <h1 className="text-balance font-display text-head font-semibold tracking-[-0.03em]">
+              {/* SUBORDINATE TO THE CONTENT HEADING, ON PURPOSE. This and the
+                  page's own heading were both `text-head` semibold, so two
+                  titles sat 200px apart at identical weight and neither led.
+                  The rail names the SECTION ("Marketplace"); the content names
+                  the VIEW ("All Listings"). That is a real hierarchy — it just
+                  needed a size difference to read as one. Semantics are
+                  unchanged: this is still the h1 for every shell route. */}
+              <h1 className="text-balance font-display text-subhead font-semibold tracking-[-0.02em] text-foreground/80">
                 {title}
               </h1>
-              {primaryAction ? <div className="mt-4">{primaryAction}</div> : null}
+              {/* The rail CTA is sized HERE, not on RailPrimaryAction: the same
+                  node is also handed to SectionHeader's `mobileAction` by half a
+                  dozen sections, so raising the component's own size would grow
+                  a phone header button nobody asked to grow. Scoping it to the
+                  rail slot keeps every other button in the app untouched. */}
+              {primaryAction ? (
+                <div className="mt-4 md:[&>a]:!h-11 md:[&>a]:text-nav md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-nav md:[&>button>svg]:size-4">
+                  {primaryAction}
+                </div>
+              ) : null}
             </div>
 
             {/* Filters sit under Marketplace on desktop; below `lg` they render
                 in the content column instead (see MobileOnly below). */}
-            <MarketplaceNav
-              primaryExtras={<DesktopOnly>{filters}</DesktopOnly>}
-              staff={staff}
-            />
+            <MarketplaceNav primaryExtras={<DesktopOnly>{filters}</DesktopOnly>} />
           </div>
         </aside>
 
         <section
           className={cn(
-            // Below `lg` the content column is the top of the page now that the
-            // shell prints no header, so it carries the inset the old mobile
-            // title block used to provide.
-            'flex w-full min-w-0 flex-1 flex-col items-center bg-background px-4 pt-3 sm:px-6 md:w-auto md:bg-transparent md:px-7 md:py-7 xl:px-8',
+            'flex w-full min-w-0 flex-1 flex-col items-center bg-background md:w-auto md:bg-transparent',
+            // Flush routes (thread, live contract) take no inset of their own on
+            // three sides, because the two consumers want different frames and
+            // only one of them wants none. The thread's own chrome — the thread
+            // bar, the muted item bar — IS the top of the page and docks against
+            // the chrome above it, edge to edge; an outer inset there is a band
+            // of page background between two bars, which reads as the room
+            // hanging below the header rather than filling the viewport. A
+            // contract room is bordered cards and needs a gutter, so it paints
+            // its own `md:px-4 md:pt-4` (see CashSaleView). Bottom is the
+            // exception and is set below: the composer needs clearance from the
+            // viewport edge, and a room that frames itself matches it.
+            //
+            // A flush room that declares a `100dvh - chrome` height must subtract
+            // THIS branch's padding — 4rem header + 1px + the `pb-4` below — not
+            // the non-flush figures on the next line.
+            //
+            // Below `lg` the non-flush column is the top of the page now that the
+            // shell prints no header, so it carries the inset the old mobile title
+            // block used to provide.
+            //
+            // Do not pair this with a later `px-0` override: competing
+            // `md:px-7` / `xl:px-8` in one `cn()` is how the 28px columns come back.
+            flush ? 'px-0 pt-0' : 'px-4 pt-3 sm:px-6 md:px-7 md:py-7 xl:px-8',
             // `min-h-0` IS THE WHOLE FIX for a full-viewport page, and its absence here
             // was the single break in an otherwise complete shrink chain. `body`,
             // `#main-content`, the PageShell `<main>`, the row, the inner wrapper and the
@@ -214,8 +227,14 @@ export async function MarketplaceShell({
             // exactly itself and gives the composer breathing room instead of welding it
             // to the viewport edge. The mobile hub bar is already subtracted from the cap,
             // so this is clearance from the bar, not a substitute for it.
+            //
+            // Kept at a single 16px at every width so a docked composer can sit
+            // optically centred in the band below its own rule: the composer
+            // supplies the space above the field, this supplies the space below,
+            // and the two have to match. At `md:pb-7` there was 28px under the
+            // field against 12px over it, which read as the field riding high.
             flush
-              ? 'pb-4 md:pb-7'
+              ? 'pb-4'
               : showMobileNav
                 ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10'
                 : 'pb-10',
@@ -239,8 +258,6 @@ export async function MarketplaceShell({
           </div>
         </section>
       </div>
-
-      {showMobileNav ? <MobileBottomNav /> : null}
     </PageShell>
     </DirectionalTransition>
   );

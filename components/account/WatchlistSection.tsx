@@ -3,7 +3,8 @@
 // The "Saved" section of the Account hub: the caller's watchlist (saved items),
 // newest-saved first, rendered as the same compact catalog tiles as browse.
 
-import { Heart } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HeartIcon } from '@hugeicons/core-free-icons';
 
 import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
@@ -21,11 +22,11 @@ export function WatchlistSection({ items }: { items: WatchlistEntry[] }) {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<Heart className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={HeartIcon} className="size-6" aria-hidden />}
         title="No Saved Listings Yet"
         description="Tap the heart on any listing to save it here for later."
         ctaLabel="Browse the marketplace"
-        ctaHref="/listings"
+        ctaHref="/"
       />
     );
   }

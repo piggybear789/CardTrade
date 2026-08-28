@@ -13,7 +13,8 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { EyeOff, Check, X, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, EyeOffIcon, LoaderCircleIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -46,14 +47,10 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  function run(
-    action: () => Promise<AdminActionResult>,
-    successMessage: string,
-  ) {
+  function run(action: () => Promise<AdminActionResult>) {
     startTransition(async () => {
       const result = await action();
       if (result.ok) {
-        toast.success(successMessage);
         router.refresh();
         return;
       }
@@ -68,12 +65,12 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
           type="button"
           variant="outline"
           disabled={isPending}
-          onClick={() => run(() => hideItem(targetId), 'Listing hidden from the catalog.')}
+          onClick={() => run(() => hideItem(targetId))}
         >
           {isPending ? (
-            <Loader2 className="animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
           ) : (
-            <EyeOff aria-hidden />
+            <HugeiconsIcon icon={EyeOffIcon} aria-hidden />
           )}
           Hide listing
         </Button>
@@ -84,13 +81,13 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
         variant="default"
         disabled={isPending}
         onClick={() =>
-          run(() => setReportStatus(reportId, 'ACTIONED'), 'Report marked as actioned.')
+          run(() => setReportStatus(reportId, 'ACTIONED'))
         }
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : (
-          <Check aria-hidden />
+          <HugeiconsIcon icon={CheckIcon} aria-hidden />
         )}
         Mark actioned
       </Button>
@@ -100,13 +97,13 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
         variant="ghost"
         disabled={isPending}
         onClick={() =>
-          run(() => setReportStatus(reportId, 'DISMISSED'), 'Report dismissed.')
+          run(() => setReportStatus(reportId, 'DISMISSED'))
         }
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : (
-          <X aria-hidden />
+          <HugeiconsIcon icon={XIcon} aria-hidden />
         )}
         Dismiss
       </Button>

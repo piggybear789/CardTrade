@@ -64,11 +64,49 @@ export interface ContractStep {
   /** Imperative where the viewer must act, descriptive otherwise. */
   label: string;
   /**
+   * The same sentence with the subject dropped, for `ContractActionCard`'s dock
+   * BELOW `md`. Falls back to `label`.
+   *
+   * On a phone the dock is pinned over the conversation and the title shares one
+   * row with a 40px control, so a `label` that names its actor — "Buyer confirms
+   * the item" — wraps to the second line and spends it restating who the reader
+   * already is. "Confirm item" says the same thing in the space available.
+   *
+   * NOT a third rail label: `short` is one or two words under a numbered circle
+   * and gets truncated, this is the imperative phrase and gets clamped. A step
+   * can want one, both, or neither.
+   */
+  compactLabel?: string;
+  /**
    * One or two words for the progress rail, where there is only room for a tick
    * label. Falls back to `label`.
    */
   short?: string;
-  /** One line of context: who is outstanding, what is missing, what happens next. */
+  /**
+   * Three or four words naming what the step consists of, for a rail that has room
+   * for a second line under the tick label.
+   *
+   * Distinct from `detail`, which is a full sentence written for a reader who has
+   * asked. A caption has to survive being read at a glance beside three others, so
+   * it is a noun phrase — "Both sides add an address" — not an explanation.
+   */
+  caption?: string;
+  /**
+   * One line of context: who is outstanding, what is missing, what happens next.
+   *
+   * KEEP IT UNDER ABOUT 85 CHARACTERS, INCLUDING AN INTERPOLATED NAME.
+   *
+   * `ContractActionCard` clamps this — one line in the dock, two in the banner —
+   * because the card is pinned over the conversation and every line it takes is a
+   * line of the conversation it covers. So a longer sentence does not push the
+   * layout around; it just gets cut off mid-word, and the reader loses the end of
+   * it with no way to see the rest.
+   *
+   * If a step genuinely needs more than a sentence, the extra belongs in the tab
+   * that owns the subject — settlement rules in Collateral, address privacy in
+   * Terms — where someone who wants it will go looking, rather than in a line
+   * that has to be read at a glance by everyone else.
+   */
   detail?: string;
   owner: ContractStepOwner;
   status: ContractStepStatus;
@@ -83,8 +121,12 @@ export interface ContractStep {
 export interface ContractStepDraft {
   id: string;
   label: string;
+  /** Subject-less `label` for the phone dock. See {@link ContractStep.compactLabel}. */
+  compactLabel?: string;
   /** One or two words for the progress rail. */
   short?: string;
+  /** Noun phrase under the rail label. See {@link ContractStep.caption}. */
+  caption?: string;
   detail?: string;
   owner: ContractStepOwner;
   /** True once this step is finished. */
@@ -118,7 +160,9 @@ export function sequenceSteps(drafts: ContractStepDraft[]): ContractStep[] {
       return {
         id: draft.id,
         label: draft.label,
+        compactLabel: draft.compactLabel,
         short: draft.short,
+        caption: draft.caption,
         detail: draft.detail,
         owner: draft.owner,
         status: 'done' as const,
@@ -137,7 +181,9 @@ export function sequenceSteps(drafts: ContractStepDraft[]): ContractStep[] {
     return {
       id: draft.id,
       label: draft.label,
+      compactLabel: draft.compactLabel,
       short: draft.short,
+      caption: draft.caption,
       detail: draft.detail,
       owner: draft.owner,
       status,
@@ -175,7 +221,9 @@ export function sequenceHaltedSteps(
     const base = {
       id: draft.id,
       label: draft.label,
+      compactLabel: draft.compactLabel,
       short: draft.short,
+      caption: draft.caption,
       detail: draft.detail,
       owner: draft.owner,
       // A closed contract offers no controls, whatever the draft suggested.
@@ -189,6 +237,12 @@ export function sequenceHaltedSteps(
       return {
         ...base,
         label: outcome.label,
+        // Dropped, not carried like `short`. The rail tick is positional — it
+        // still marks the step the contract reached — but `compactLabel` is a
+        // shorthand for THIS step's `label`, and the halted step's label is now
+        // the outcome's. Keeping it would leave a phone reading "Confirm item"
+        // on a sale that was cancelled at inspection.
+        compactLabel: undefined,
         short: outcome.short ?? draft.short,
         detail: outcome.detail,
         owner: 'platform' as const,

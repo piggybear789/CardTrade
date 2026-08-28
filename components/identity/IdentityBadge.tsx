@@ -28,7 +28,8 @@
 // stores, that would let anyone assemble "real person, this area, this much inventory".
 // A given name plus a badge carries the trust signal without being a lookup key.
 
-import { ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -99,7 +100,7 @@ export function IdentityBadge({
           : 'Identity verified by Stripe with a photo ID and a selfie'
       }
     >
-      <ShieldCheck style={{ width: size, height: size, minWidth: size }} aria-hidden />
+      <HugeiconsIcon icon={ShieldCheckIcon} style={{ width: size, height: size, minWidth: size }} aria-hidden />
       {!iconOnly && <span className="text-meta">{label}</span>}
     </span>
   );

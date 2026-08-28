@@ -2,15 +2,11 @@
 
 import { ViewTransition } from 'react';
 import Link from 'next/link';
-import {
-  ChevronLeft,
-  ChevronRight,
-  PackageOpen,
-  Search,
-} from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronLeftIcon, ChevronRightIcon, PackageOpenIcon, Search01Icon } from '@hugeicons/core-free-icons';
 
-import { DesktopOnly, useIsDesktop } from '@/components/layout/Breakpoint';
-import { CatalogActiveFilters, CatalogFilterSearch } from '@/components/listings/CatalogControls';
+import { useIsDesktop } from '@/components/layout/Breakpoint';
+import { CatalogSortControl } from '@/components/listings/CatalogControls';
 import { CatalogInfiniteGrid } from '@/components/listings/CatalogInfiniteGrid';
 import { GenrePills } from '@/components/listings/GenrePills';
 import {
@@ -42,6 +38,8 @@ export function CatalogResults() {
     regionCode,
     selectGame,
     hrefForPage,
+    error,
+    retry,
   } = useCatalogView();
   const isDesktop = useIsDesktop();
 
@@ -51,7 +49,8 @@ export function CatalogResults() {
     settled.conditions.length > 0 ||
     settled.min !== '' ||
     settled.max !== '' ||
-    settled.includeSold;
+    settled.includeSold ||
+    settled.includeReserved;
 
   const resultTitle = settled.q
     ? settled.q
@@ -72,17 +71,25 @@ export function CatalogResults() {
     >
       <header className="mb-group bg-background pb-0 sm:mb-4 sm:border-b sm:border-border md:bg-transparent sm:pb-4">
         <div className="flex flex-col gap-group sm:gap-3">
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          {/* `sm:flex-wrap` is kept as a floor even though sort is the only
+              control left here: a long single-category title plus a 180px
+              select can still outgrow a narrow desktop column, and without wrap
+              the only give is the title's `min-w-0`, which breaks the heading
+              across lines to keep the select beside it. */}
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4">
             <div className="min-w-0">
               <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
                 {resultTitle}
               </h2>
-              <div className="hidden sm:block">
-                <CatalogResultCount note={closerNote} />
-              </div>
+              <CatalogResultCount note={closerNote} />
             </div>
-            <div className="hidden min-w-0 md:flex md:w-auto md:shrink-0 md:items-center">
-              {result.total > 0 ? <CatalogFilterSearch /> : null}
+            {/* Sort only. It belongs beside the result count — the thing being
+                ordered is on screen — whereas the keyword filter belongs with
+                the other filters and now lives in the rail. Below `md` the rail
+                is gone and sort lives in the filter sheet, which is why this
+                group is desktop-only. */}
+            <div className="hidden min-w-0 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
+              {result.total > 0 ? <CatalogSortControl /> : null}
             </div>
           </div>
           <GenrePills
@@ -90,11 +97,30 @@ export function CatalogResults() {
             onSelect={selectGame}
             games={PILL_GAMES}
           />
-          <DesktopOnly>
-            <CatalogActiveFilters />
-          </DesktopOnly>
         </div>
       </header>
+
+      {/* The controls have already rolled back to the query the grid below is
+          actually showing, so this only has to explain and offer another go. */}
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-group py-cozy"
+        >
+          <p className="text-body text-foreground">
+            {error} Showing your previous results.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={retry}
+            disabled={isPending}
+          >
+            Try again
+          </Button>
+        </div>
+      ) : null}
 
       <div
         aria-busy={isPending}
@@ -139,13 +165,13 @@ export function CatalogResults() {
           {result.page > 1 ? (
             <Button asChild variant="outline">
               <Link href={hrefForPage(result.page - 1)} prefetch={false}>
-                <ChevronLeft aria-hidden />
+                <HugeiconsIcon icon={ChevronLeftIcon} aria-hidden />
                 Previous
               </Link>
             </Button>
           ) : (
             <Button variant="outline" disabled>
-              <ChevronLeft aria-hidden />
+              <HugeiconsIcon icon={ChevronLeftIcon} aria-hidden />
               Previous
             </Button>
           )}
@@ -156,13 +182,13 @@ export function CatalogResults() {
             <Button asChild variant="outline">
               <Link href={hrefForPage(result.page + 1)} prefetch={false}>
                 Next
-                <ChevronRight aria-hidden />
+                <HugeiconsIcon icon={ChevronRightIcon} aria-hidden />
               </Link>
             </Button>
           ) : (
             <Button variant="outline" disabled>
               Next
-              <ChevronRight aria-hidden />
+              <HugeiconsIcon icon={ChevronRightIcon} aria-hidden />
             </Button>
           )}
         </nav>
@@ -213,6 +239,7 @@ function CatalogGridBody({
         minCents: dollarsToCents(current.min),
         maxCents: dollarsToCents(current.max),
         includeSold: current.includeSold,
+        includeReserved: current.includeReserved,
         sort: current.sort,
         regionCode,
       }}
@@ -231,7 +258,7 @@ function dollarsToCents(value: string): number | undefined {
 function EmptyCatalog() {
   return (
     <EmptyState
-      icon={<PackageOpen className="size-6" aria-hidden />}
+      icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
       title="The Marketplace Is Ready for Its First Listing"
       description="List a collectible for sale or trade and it will appear here."
       action={{ label: 'List an Item', href: '/listings/new' }}
@@ -243,12 +270,12 @@ function EmptyCatalog() {
 function EmptyRegion({ regionCode }: { regionCode: string }) {
   return (
     <EmptyState
-      icon={<PackageOpen className="size-6" aria-hidden />}
+      icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
       title={`Nothing Listed in ${regionLabel(regionCode)} Yet`}
       description={`Listings stay in ${regionLabel(regionCode)}, because a deal completes in one region. Browse every region, or list the first item from Sell.`}
       action={{
         label: 'Browse All Regions',
-        href: `/listings?region=${ALL_REGIONS}`,
+        href: `/?region=${ALL_REGIONS}`,
         variant: 'outline',
       }}
       compact
@@ -266,11 +293,12 @@ function NoMatches({ regionCode }: { regionCode: string | null }) {
     settled.conditions.length === 0 &&
     settled.min === '' &&
     settled.max === '' &&
-    !settled.includeSold;
+    !settled.includeSold &&
+    !settled.includeReserved;
 
   return (
     <EmptyState
-      icon={<Search className="size-6" aria-hidden />}
+      icon={<HugeiconsIcon icon={Search01Icon} className="size-6" aria-hidden />}
       title={isSearch ? 'No Listings Match This Search' : 'No Collectibles Match These Filters'}
       description={
         isSearch

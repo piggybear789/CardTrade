@@ -16,8 +16,15 @@ import { ContractConnectionStatus } from './ContractConnectionStatus';
 import type { ContractConnectionStatus as Status } from './types';
 
 export interface ContractHeaderProps {
-  /** The contract's own title — the item, the deal name, the swap. */
-  title: string;
+  /**
+   * The contract's own title — the item, the deal name, the counterparty.
+   *
+   * Say what this contract IS, not what type it is. A bare "Trade" duplicates the
+   * rail beside it; "Trade with Ada" does not, and it answers the first question
+   * a reader opening the room actually has. A cash sale passes the item for the
+   * same reason.
+   */
+  title?: string;
   /** The money, in a few words. Right-aligned beside the title. */
   money?: ReactNode;
   /** The compact party line, usually `<ContractPartyLine/>`. */
@@ -50,13 +57,19 @@ export function ContractHeader({
             status · money on the right, wrapping only when it must. */}
         <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-1">
-            {/* The page shell renders the route <h1>; this is the contract's own title. */}
-            <h2
-              className="min-w-0 max-w-full truncate text-subhead font-semibold tracking-tight"
-              title={title}
-            >
-              {title}
-            </h2>
+            {/* The page shell renders the route <h1>; this is the contract's own
+                title.
+
+                NO `title` ATTRIBUTE on it. One was there to reveal the full text
+                when the heading truncates, but a native tooltip fires on every
+                hover — and this heading sits at the top of a room people move the
+                pointer across constantly, so it popped up all day for a string
+                that is almost never truncated in the first place. */}
+            {title ? (
+              <h2 className="min-w-0 max-w-full truncate font-display text-subhead font-semibold tracking-[-0.02em]">
+                {title}
+              </h2>
+            ) : null}
             {parties ? <div className="min-w-0">{parties}</div> : null}
           </div>
 

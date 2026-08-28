@@ -31,7 +31,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, RotateCcw, Undo2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, RotateCcwIcon, Undo02Icon } from '@hugeicons/core-free-icons';
 
 import {
   settleCashSaleDispute,
@@ -71,7 +72,6 @@ export function CashSaleDisputeResolution({
   function run(
     which: Exclude<Pending, null>,
     call: () => Promise<{ ok: boolean; message?: string; error?: string }>,
-    success: string,
   ) {
     setRunning(which);
     startTransition(async () => {
@@ -79,7 +79,6 @@ export function CashSaleDisputeResolution({
       setRunning(null);
       setPending(null);
       if (result.ok) {
-        toast.success(success);
         router.refresh();
       } else {
         toast.error(result.message ?? 'That did not work. Try again.');
@@ -110,9 +109,9 @@ export function CashSaleDisputeResolution({
             onClick={() => setPending('withdraw')}
           >
             {busy('withdraw') ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
             ) : (
-              <Undo2 className="size-4" aria-hidden />
+              <HugeiconsIcon icon={Undo02Icon} className="size-4" aria-hidden />
             )}
             Withdraw my dispute
           </Button>
@@ -127,9 +126,9 @@ export function CashSaleDisputeResolution({
           onClick={() => setPending('settle')}
         >
           {busy('settle') ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
           ) : (
-            <RotateCcw className="size-4" aria-hidden />
+            <HugeiconsIcon icon={RotateCcwIcon} className="size-4" aria-hidden />
           )}
           {iAmBuyer ? 'Release the payment anyway' : 'Refund the buyer in full'}
         </Button>
@@ -143,7 +142,7 @@ export function CashSaleDisputeResolution({
         confirmLabel="Withdraw dispute"
         pending={busy('withdraw')}
         onConfirm={() =>
-          run('withdraw', () => withdrawCashSaleDispute(cashSaleId), 'Dispute withdrawn.')
+          run('withdraw', () => withdrawCashSaleDispute(cashSaleId))
         }
       />
 
@@ -180,7 +179,6 @@ export function CashSaleDisputeResolution({
                 cashSaleId,
                 iAmBuyer ? 'RELEASE_SELLER' : 'REFUND_BUYER',
               ),
-            iAmBuyer ? 'Payment released.' : 'Buyer refunded.',
           )
         }
       />

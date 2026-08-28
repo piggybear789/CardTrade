@@ -17,8 +17,8 @@
 // Renders no heading of its own — the surface owns the step title.
 
 import { useState, useTransition } from 'react';
-import { ExternalLink, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ExternalLinkIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { startIdentityVerification, refreshPayoutStatus } from '@/lib/actions/merchant';
@@ -58,7 +58,7 @@ export function HostedProviderStep({
           // Mock: there is no hosted page, so read back and report.
           const refreshed = await refreshIdentityCheck();
           if (refreshed.ok && refreshed.data.status === 'VERIFIED') {
-            toast.success('Identity verified');
+            
             onComplete();
             return;
           }
@@ -78,9 +78,9 @@ export function HostedProviderStep({
         // Mock: creating the account was the whole flow.
         const refreshed = await refreshPayoutStatus();
         if (refreshed.ok && refreshed.data.settlementsEnabled) {
-          toast.success('Payouts active');
+          
         } else {
-          toast.success('Payout setup submitted');
+          
         }
         onComplete();
       } catch (err) {
@@ -112,9 +112,9 @@ export function HostedProviderStep({
         className="w-full sm:w-auto"
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : (
-          <ExternalLink className="size-3.5" aria-hidden />
+          <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
         )}
         {isPending ? 'Opening…' : 'Continue with Stripe'}
       </Button>

@@ -8,18 +8,8 @@
 // understand what happened, then act.
 
 import Link from 'next/link';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Clock,
-  ExternalLink,
-  FileText,
-  Gavel,
-  Package,
-  RotateCcw,
-  Scale,
-  Users,
-} from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon, Clock01Icon, ExternalLinkIcon, FileTextIcon, GavelIcon, PackageIcon, RotateCcwIcon, ScaleIcon, TriangleAlertIcon, UsersIcon } from '@hugeicons/core-free-icons';
 
 import type { ArbitrationCaseDetail, ArbitrationShipmentLeg } from '@/lib/actions/arbitration';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
@@ -90,9 +80,9 @@ function ShipmentLeg({ label, leg }: { label: string; leg: ArbitrationShipmentLe
     <div>
       <p className="flex items-center gap-tight text-meta font-medium uppercase tracking-wide text-muted-foreground">
         {label.includes('Return') ? (
-          <RotateCcw className="size-3 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={RotateCcwIcon} className="size-3 shrink-0" aria-hidden />
         ) : (
-          <Package className="size-3 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={PackageIcon} className="size-3 shrink-0" aria-hidden />
         )}
         {label}
       </p>
@@ -143,7 +133,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           href="/admin/arbitration"
           className="inline-flex min-h-11 items-center gap-tight text-body text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4" aria-hidden />
+          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
           Back to queue
         </Link>
       </div>
@@ -160,7 +150,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             overdue ? 'text-destructive' : 'text-muted-foreground',
           )}
         >
-          <Clock className="size-3.5 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={Clock01Icon} className="size-3.5 shrink-0" aria-hidden />
           Opened {c.openedAt ? formatRelativeTime(c.openedAt) : 'unknown'}
           {overdue ? ` · overdue` : ''}
         </span>
@@ -173,7 +163,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 : 'text-muted-foreground',
             )}
           >
-            <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5 shrink-0" aria-hidden />
             {c.hoursToDeadline < 0
               ? 'Evidence deadline passed'
               : `${c.hoursToDeadline}h to deadline`}
@@ -195,7 +185,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-snug">
-                <FileText className="size-4 text-muted-foreground" aria-hidden />
+                <HugeiconsIcon icon={FileTextIcon} className="size-4 text-muted-foreground" aria-hidden />
                 <CardTitle className="text-lead">The dispute</CardTitle>
               </div>
             </CardHeader>
@@ -221,11 +211,11 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               because this is the material the decision is meant to rest on — before it
               existed an arbitrator had one sentence from one side and nothing from the
               other. */}
-          <Card className={evidence.length > 0 ? 'border-gold/40' : undefined}>
+          <Card className={evidence.length > 0 ? 'border-iris/40' : undefined}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-snug">
                 <div className="flex items-center gap-snug">
-                  <Gavel className="size-4 text-muted-foreground" aria-hidden />
+                  <HugeiconsIcon icon={GavelIcon} className="size-4 text-muted-foreground" aria-hidden />
                   <CardTitle className="text-lead">Evidence filed by the parties</CardTitle>
                 </div>
                 {evidence.length > 0 ? (
@@ -258,7 +248,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-snug">
-                  <Package className="size-4 text-muted-foreground" aria-hidden />
+                  <HugeiconsIcon icon={PackageIcon} className="size-4 text-muted-foreground" aria-hidden />
                   <CardTitle className="text-lead">Shipment evidence</CardTitle>
                 </div>
               </CardHeader>
@@ -282,8 +272,8 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   </div>
                 ) : null}
                 {shipment.returnLapsedAt ? (
-                  <div className="rounded-md border border-gold/40 bg-gold/10 p-cozy">
-                    <p className="text-meta font-medium uppercase tracking-wide text-gold">
+                  <div className="rounded-md border border-iris/40 bg-iris/10 p-cozy">
+                    <p className="text-meta font-medium uppercase tracking-wide text-iris-ink">
                       Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
                     </p>
                     <p className="mt-1 text-body text-muted-foreground">
@@ -331,7 +321,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-snug">
-                <Users className="size-4 text-muted-foreground" aria-hidden />
+                <HugeiconsIcon icon={UsersIcon} className="size-4 text-muted-foreground" aria-hidden />
                 <CardTitle className="text-lead">Parties</CardTitle>
               </div>
             </CardHeader>
@@ -444,10 +434,10 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           </Card>
 
           {/* Decision */}
-          <Card className="border-gold/40">
+          <Card className="border-iris/40">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-snug">
-                <Scale className="size-4 text-gold" aria-hidden />
+                <HugeiconsIcon icon={ScaleIcon} className="size-4 text-iris-ink" aria-hidden />
                 <CardTitle className="text-lead">Decision</CardTitle>
               </div>
             </CardHeader>
@@ -460,7 +450,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 <div className="space-y-cozy">
                   {resolution.refundStatus === 'FAILED' ? (
                     <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-body text-destructive">
-                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                      <HugeiconsIcon icon={TriangleAlertIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                       A previous refund attempt failed. Retrying is safe (deduplicated).
                     </p>
                   ) : null}
@@ -549,7 +539,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       rel="noopener noreferrer"
                     >
                       Open in Stripe
-                      <ExternalLink className="size-3.5" aria-hidden />
+                      <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
                     </a>
                   </Button>
                 </div>

@@ -3,7 +3,8 @@
 import { Suspense, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { SlidersHorizontalIcon } from '@hugeicons/core-free-icons';
 
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { LogoMark } from '@/components/layout/Logo';
@@ -33,14 +34,16 @@ import {
 export function CatalogChrome({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <MobileChromeFrame>
+      {/* Brand mark, not a link: the catalog IS `/`, so a "home" link here would
+          point at the page it sits on. Guests still get the mark for orientation;
+          members have the bottom nav and do not need the width spent. */}
       {isAuthenticated ? null : (
-        <Link
-          href="/"
-          aria-label="NoDitto home"
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-transparent focus:outline-none focus-visible:border-gold/40"
-        >
+        <span className="inline-flex size-10 shrink-0 items-center justify-center">
           <LogoMark className="size-6" />
-        </Link>
+          <span className="sr-only" translate="no">
+            NoDitto
+          </span>
+        </span>
       )}
       <HeaderSearch
         className="min-w-0 flex-1"
@@ -76,9 +79,9 @@ function FiltersButton({ refineCount }: { refineCount: number }) {
       aria-label={refineCount > 0 ? `Filters, ${refineCount} active` : 'Filters'}
       className="size-10"
     >
-      <SlidersHorizontal className="size-4" strokeWidth={1.75} aria-hidden />
+      <HugeiconsIcon icon={SlidersHorizontalIcon} className="size-4" strokeWidth={1.75} aria-hidden />
       {refineCount > 0 ? (
-        <span className="absolute right-1 top-1 flex size-3.5 items-center justify-center rounded-full bg-gold text-[10px] font-semibold leading-none text-primary-foreground">
+        <span className="absolute right-1 top-1 flex size-3.5 items-center justify-center rounded-full bg-iris text-[10px] font-semibold leading-none text-primary-foreground">
           {refineCount}
         </span>
       ) : null}
@@ -107,8 +110,8 @@ export function ListingDetailChrome({
   return (
     <MobileChromeFrame>
       <MobileChromeBack
-        href="/listings"
-        label="Back to listings"
+        href="/"
+        label="Back to marketplace"
         className="size-10 [&_svg]:size-5"
       />
       <HeaderSearch
@@ -156,7 +159,7 @@ function NewListingChrome() {
 
   return (
     <MobileChromeFrame>
-      <MobileChromeBack href="/listings" label="Back to listings" />
+      <MobileChromeBack href="/" label="Back to marketplace" />
       <p
         aria-hidden="true"
         className="min-w-0 flex-1 truncate font-display text-body font-semibold tracking-[-0.025em]"
@@ -189,7 +192,7 @@ export function AuthChrome() {
       <Link
         href="/"
         aria-label="NoDitto home"
-        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-transparent px-1 focus:outline-none focus-visible:border-gold/40"
+        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-transparent px-1 focus:outline-none focus-visible:border-iris"
       >
         <LogoMark className="size-7" />
         <span
@@ -209,7 +212,7 @@ export function MarketingChrome() {
       <Link
         href="/"
         aria-label="NoDitto home"
-        className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-md border border-transparent px-1 focus:outline-none focus-visible:border-gold/40"
+        className="inline-flex min-h-10 min-w-0 items-center gap-2 rounded-md border border-transparent px-1 focus:outline-none focus-visible:border-iris"
       >
         <LogoMark className="size-7" />
         <span
@@ -220,7 +223,7 @@ export function MarketingChrome() {
         </span>
       </Link>
       <div className="ml-auto">
-        <SignInLink className="inline-flex h-11 items-center rounded-md border border-transparent px-3 text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40">
+        <SignInLink className="inline-flex h-10 items-center rounded-md border border-transparent px-3 text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-iris">
           Sign in
         </SignInLink>
       </div>

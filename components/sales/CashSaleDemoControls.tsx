@@ -8,7 +8,8 @@
 // never read as production payment steps.
 
 import { useState, useTransition } from 'react';
-import { ChevronDown, ChevronUp, FlaskConical, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronDownIcon, ChevronUpIcon, FlaskConicalIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -26,11 +27,6 @@ const ERROR_MESSAGES: Record<FireCashSaleWebhookError, string> = {
   rejected: 'This sale cannot accept that event in its current state.',
 };
 
-const SUCCESS_MESSAGES: Record<DemoCashSaleWebhookKind, string> = {
-  'settle-payment': 'Payment settled — NoDitto is now holding the funds.',
-  'fail-payment': 'Payment failure delivered — the sale has been cancelled.',
-};
-
 export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
   const [open, setOpen] = useState(false);
   const [activeKind, setActiveKind] = useState<DemoCashSaleWebhookKind | null>(null);
@@ -44,7 +40,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
         if (result.deduped) {
           toast.info('That webhook was already processed for this sale.');
         } else {
-          toast.success(SUCCESS_MESSAGES[kind]);
+          
         }
       } else {
         toast.error(result.detail ?? ERROR_MESSAGES[result.error]);
@@ -66,10 +62,10 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
         aria-expanded={open}
         aria-controls="cash-sale-demo-body"
         aria-label={open ? 'Collapse hackathon test controls' : 'Expand hackathon test controls'}
-        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-gold/40"
+        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris"
       >
         <span className="flex min-w-0 items-center gap-snug">
-          <FlaskConical className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={FlaskConicalIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
           <span className="min-w-0">
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode
@@ -80,9 +76,9 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
           </span>
         </span>
         {open ? (
-          <ChevronUp className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={ChevronUpIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         ) : (
-          <ChevronDown className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={ChevronDownIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         )}
       </button>
 
@@ -100,7 +96,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               aria-busy={busy('settle-payment')}
             >
               {busy('settle-payment') ? (
-                <Loader2 className="animate-spin" aria-hidden />
+                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
               ) : null}
               Simulate payment settled
             </Button>
@@ -112,7 +108,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               aria-busy={busy('fail-payment')}
             >
               {busy('fail-payment') ? (
-                <Loader2 className="animate-spin" aria-hidden />
+                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
               ) : null}
               Simulate Stripe failure
             </Button>

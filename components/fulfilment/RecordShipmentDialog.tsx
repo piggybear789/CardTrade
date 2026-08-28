@@ -12,7 +12,8 @@
 // confirms a handover instead.
 
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -128,7 +129,7 @@ export function RecordShipmentDialog({
         {!recipientAddressKnown ? (
           <p
             role="alert"
-            className="rounded-md border border-dashed border-gold/40 bg-gold/10 px-cozy py-snug text-body"
+            className="rounded-md border border-dashed border-iris/40 bg-iris/10 px-cozy py-snug text-body"
           >
             You do not have a delivery address for this contract yet. Ask the other
             party to add theirs before you post anything.
@@ -202,7 +203,7 @@ export function RecordShipmentDialog({
               })
             }
           >
-            {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             {pending ? 'Saving…' : (submitLabel ?? 'Record')}
           </Button>
         </DialogFooter>

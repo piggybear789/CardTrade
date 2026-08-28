@@ -10,7 +10,8 @@
 // on the Item seller block.
 
 import { useState, type ReactNode } from 'react';
-import { ChevronDown, ShieldCheck, Star, UserPlus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronDownIcon, ShieldCheckIcon, StarIcon, UserPlusIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 import type { ContractParty } from './types';
@@ -32,10 +33,10 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
       <span className="truncate text-body font-medium">
         {isMe ? 'You' : party.name}
       </span>
-      <ShieldCheck
+      <HugeiconsIcon icon={ShieldCheckIcon}
         className={cn(
           'size-3.5 shrink-0',
-          party.verified ? 'text-trust' : 'text-gold',
+          party.verified ? 'text-trust' : 'text-iris-ink',
         )}
         aria-hidden
       />
@@ -44,7 +45,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
       </span>
       {party.rating === null ? null : (
         <span className="flex shrink-0 items-center gap-0.5 text-meta text-muted-foreground">
-          <Star className="size-3 fill-gold text-gold" aria-hidden />
+          <HugeiconsIcon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden />
           {Number(party.rating).toFixed(1)}
         </span>
       )}
@@ -75,17 +76,17 @@ export function ContractPartyStats({
     <span
       className={cn(
         'inline-flex items-center gap-1 font-medium',
-        party.verified ? 'text-trust' : 'text-gold',
+        party.verified ? 'text-trust' : 'text-iris-ink',
       )}
     >
-      <ShieldCheck className="size-3 shrink-0" aria-hidden />
+      <HugeiconsIcon icon={ShieldCheckIcon} className="size-3 shrink-0" aria-hidden />
       {party.verified ? 'Identity verified' : 'Unverified'}
     </span>,
     party.rating === null ? (
-      <span className="text-muted-foreground">New</span>
+      <span className="text-muted-foreground">New to NoDitto</span>
     ) : (
       <span className="inline-flex items-center gap-1">
-        <Star className="size-3 fill-gold text-gold" aria-hidden />
+        <HugeiconsIcon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden />
         <span className="font-medium tabular-nums">
           {Number(party.rating).toFixed(1)}
         </span>
@@ -121,7 +122,15 @@ export function ContractPartyStats({
         )}
       >
         {bits.map((bit, idx) => (
-          <span key={idx} className="inline-flex items-center">
+          <span key={idx} className="inline-flex items-center gap-x-2">
+            {/* Separator, not spacing. Two trust claims set apart by whitespace
+                alone read as two columns of a table that isn't there; a middot
+                says they are one sentence. */}
+            {idx > 0 ? (
+              <span className="text-muted-foreground" aria-hidden>
+                ·
+              </span>
+            ) : null}
             {bit}
           </span>
         ))}
@@ -216,7 +225,7 @@ export function ContractPartyLine({
           <PartyChip party={them} isMe={false} />
         ) : (
           <span className="flex min-w-0 items-center gap-tight text-body text-muted-foreground">
-            <UserPlus className="size-3.5 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={UserPlusIcon} className="size-3.5 shrink-0" aria-hidden />
             Open seat
           </span>
         )}
@@ -225,10 +234,10 @@ export function ContractPartyLine({
             type="button"
             onClick={() => setExpanded((current) => !current)}
             aria-expanded={expanded}
-            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40"
+            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
           >
             Details
-            <ChevronDown
+            <HugeiconsIcon icon={ChevronDownIcon}
               className={cn('size-3 transition-transform', expanded && 'rotate-180')}
               aria-hidden
             />

@@ -17,7 +17,8 @@
 // with certainty whether the buyer will see it.
 
 import { useRef, useState, useTransition } from 'react';
-import { Loader2, MessageSquarePlus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, MessageSquarePlusIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { addArbitrationNote } from '@/lib/actions/arbitration';
@@ -59,7 +60,7 @@ export function CaseNoteComposer({ caseKind, caseRef }: CaseNoteComposerProps) {
         // paragraph of reasoning is worse than a stale field.
         setBody('');
         fieldRef.current?.focus();
-        toast.success('Note added.');
+        
         return;
       }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'The note could not be saved.');
@@ -95,9 +96,9 @@ export function CaseNoteComposer({ caseKind, caseRef }: CaseNoteComposerProps) {
         </p>
         <Button type="submit" size="sm" disabled={!canSubmit}>
           {isPending ? (
-            <Loader2 className="animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
           ) : (
-            <MessageSquarePlus aria-hidden />
+            <HugeiconsIcon icon={MessageSquarePlusIcon} aria-hidden />
           )}
           Save note
         </Button>

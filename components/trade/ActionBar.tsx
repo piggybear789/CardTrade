@@ -50,7 +50,10 @@ import {
   reportTradeHandoverFailed,
 } from '@/lib/actions/trades';
 import { retryTradeCollateral } from '@/lib/actions/tradeNegotiation';
-import { SavedCardRow } from '@/components/payments/SavedCardRow';
+import {
+  SavedCardRow,
+  type SavedCardStatus,
+} from '@/components/payments/SavedCardRow';
 
 /** A minimal shape common to every trade action result. */
 type ActionResult = { ok: boolean; error?: string; detail?: string };
@@ -59,7 +62,6 @@ type ActionResult = { ok: boolean; error?: string; detail?: string };
 interface ActionConfig {
   label: string;
   /** Toast shown on success. */
-  successMessage: string;
   variant: NonNullable<ButtonProps['variant']>;
   /** Irreversible actions require an explicit confirmation dialog. */
   confirm?: {
@@ -102,13 +104,11 @@ function isBarAction(action: TradeAction): action is BarAction {
 const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   RECORD_SHIPMENT: {
     label: 'Record shipment',
-    successMessage: 'Shipment recorded.',
-    variant: 'default',
+    variant: 'contrast',
   },
   CONFIRM_HANDOVER: {
     label: 'Confirm handover',
-    successMessage: 'Handover confirmed.',
-    variant: 'default',
+    variant: 'contrast',
     // Worth a confirmation step, but note what it does and does not say. Confirming
     // means "we met and swapped", and the trade moves to INSPECTION — it does NOT
     // release the collateral, which is what accepting the item does afterwards.
@@ -124,8 +124,7 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   },
   RECORD_RECEIPT: {
     label: 'Record receipt',
-    successMessage: 'Receipt recorded.',
-    variant: 'default',
+    variant: 'contrast',
     confirm: {
       title: 'Confirm you received the item?',
       description: 'This starts your inspection window.',
@@ -135,8 +134,7 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   },
   RECORD_ACCEPTANCE: {
     label: 'Accept item',
-    successMessage: 'Acceptance recorded.',
-    variant: 'default',
+    variant: 'contrast',
   },
   // Both of these describe what RAISING does, not what resolving does. Neither
   // moves money any more: a participant freezes the trade and states their case, and
@@ -152,18 +150,15 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   // trade case got three ids and a timestamp.
   RAISE_DISPUTE: {
     label: 'Raise dispute',
-    successMessage: 'Dispute raised. NoDitto support will review it.',
     variant: 'destructive',
   },
   REPORT_FRAUD: {
     label: 'Report fraud',
-    successMessage: 'Fraud reported. NoDitto support will review it.',
     variant: 'destructive',
   },
   RETRY_COLLATERAL: {
     label: 'Retry hold',
-    successMessage: 'Retrying the card hold.',
-    variant: 'default',
+    variant: 'contrast',
   },
 };
 
@@ -234,6 +229,8 @@ export interface ActionBarProps {
   counterpartName?: string | null;
   /** Whether the sender has the recipient's postal address yet. */
   recipientAddressKnown?: boolean;
+  /** Server-known saved card, so the retry branch's card row paints complete. */
+  paymentMethod?: SavedCardStatus | null;
 }
 
 /**
@@ -247,6 +244,7 @@ export function ActionBar({
   handoverMethod = null,
   counterpartName,
   recipientAddressKnown = true,
+  paymentMethod = null,
 }: ActionBarProps) {
   const [isPending, startTransition] = useTransition();
   const [pendingConfirm, setPendingConfirm] = useState<BarAction | null>(null);
@@ -261,12 +259,10 @@ export function ActionBar({
   }
 
   function invoke(action: BarAction, shipment?: ShipmentInput): Promise<boolean> {
-    const config = ACTION_CONFIG[action];
     return new Promise((resolve) => {
       startTransition(async () => {
         const result = await runAction(action, tradeId, shipment);
         if (result.ok) {
-          toast.success(config.successMessage);
           setShipOpen(false);
           resolve(true);
         } else {
@@ -294,7 +290,16 @@ export function ActionBar({
 
   return (
     <>
-      <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3" role="group" aria-label="Trade actions">
+      {/* WRAP, DO NOT STACK. This was `flex-col` until `sm` (640px), so on every
+          phone both controls went full width on their own rows — two 44px bars
+          plus a gap, inside a dock that is already permanently docked over the
+          conversation. The action labels are all short ("Record shipment",
+          "Item never arrived" are the longest at roughly 180px), so two of them
+          sit side by side inside a 390px viewport with room to spare, and
+          `flex-wrap` drops the second to its own line at its NATURAL width if a
+          future label is longer. Nothing here can overflow: a button at its
+          natural width is about half the container. */}
+      <div className="flex w-full flex-wrap gap-2 sm:gap-3" role="group" aria-label="Trade actions">
         {actions.map((action) => {
           const config = ACTION_CONFIG[action];
 
@@ -305,9 +310,12 @@ export function ActionBar({
                   A card declined the hold, so the trade is paused. Nothing was
                   charged. Replace the card that failed, then retry.
                 </p>
-                <SavedCardRow className="w-full sm:max-w-sm" />
+                <SavedCardRow
+                  initialStatus={paymentMethod}
+                  className="w-full sm:max-w-sm"
+                />
                 <Button
-                  variant="default"
+                  variant="contrast"
                   className="w-full sm:w-auto"
                   onClick={() => invoke(action)}
                   disabled={isPending}
@@ -329,7 +337,6 @@ export function ActionBar({
                 triggerVariant="outline"
                 title="Raise a condition dispute"
                 outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while NoDitto support reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — support decides on what you write here."
-                successMessage={config.successMessage}
                 reasonPlaceholder="e.g. the card was described as Near Mint but has a crease down the front and whitening on all four corners…"
                 evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
                 onSubmit={async (reason) => {
@@ -350,7 +357,6 @@ export function ActionBar({
                 triggerVariant="destructive"
                 title="Report fraud"
                 outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to NoDitto support, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
-                successMessage={config.successMessage}
                 reasonPlaceholder="e.g. the sleeve was sealed but empty; the card fails a light test and the print pattern is wrong…"
                 evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
                 onSubmit={async (reason) => {
@@ -369,15 +375,13 @@ export function ActionBar({
                 key={action}
                 onAccept={async () => {
                   const result = await recordAcceptance(tradeId);
-                  if (result.ok) toast.success(config.successMessage);
-                  else toast.error(errorMessage(result));
+                  if (!result.ok) toast.error(errorMessage(result));
                   return result;
                 }}
                 evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
                 triggerLabel="Accept item"
                 title="Accept what you received"
-                description="Optionally photograph the item as you received it. This becomes your baseline evidence if a dispute arises later."
-                successMessage={config.successMessage}
+                description="We recommend photographing or filming the item as you received it. This becomes your baseline evidence if a dispute arises later."
               />
             );
           }
@@ -386,7 +390,6 @@ export function ActionBar({
             <Button
               key={action}
               variant={config.variant}
-              className="w-full sm:w-auto"
               onClick={() => handleClick(action)}
               disabled={isPending}
               aria-busy={isPending}
@@ -416,7 +419,6 @@ export function ActionBar({
                 ? 'Use this if the other trader did not show up, refused to hand over, or the exchange went wrong. The trade freezes for review and NOTHING is charged to either of you — NoDitto support decides what happens next.'
                 : 'Use this if the parcel has not arrived or arrived empty. The trade freezes for review and NOTHING is charged to either of you — a lost parcel is nobody’s fault, so no deposit is taken while an operator looks at it.'
             }
-            successMessage="Reported. The trade is frozen and an operator will review it."
             reasonPlaceholder={
               handoverMethod === 'IN_PERSON'
                 ? 'e.g. they did not turn up at the agreed time and have not replied…'

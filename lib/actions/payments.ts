@@ -19,6 +19,7 @@
 // resolves provider configuration.
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import { type ActionResult, fail, ok } from './result';
@@ -220,10 +221,7 @@ export interface PaymentMethodStatus {
 export async function getPaymentMethodStatus(): Promise<
   ActionResult<PaymentMethodStatus, 'NOT_AUTHENTICATED'>
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   if (!user) {
     return fail('NOT_AUTHENTICATED', 'You must be signed in.');
   }

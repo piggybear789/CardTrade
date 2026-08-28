@@ -12,9 +12,10 @@
 // Both call `getOrCreateConversation` and, on success, route the buyer to the
 // conversation thread at `/messages/[conversationId]`.
 
-import { useState, useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, MessageCircle, Send } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, MessageCircleIcon, SendIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +69,7 @@ export function MessageSellerButton({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const inlineInputId = useId();
 
   function handleClick() {
     setError(null);
@@ -127,12 +129,12 @@ export function MessageSellerButton({
           disabled={isPending}
           aria-busy={isPending}
           aria-label="Message seller"
-          className="grid size-11 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground focus:outline-none focus-visible:border-gold/40 disabled:opacity-60"
+          className="grid size-11 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground focus:outline-none focus-visible:border-iris disabled:opacity-60"
         >
           {isPending ? (
-            <Loader2 className="size-5 animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin" aria-hidden />
           ) : (
-            <MessageCircle className="size-5" aria-hidden />
+            <HugeiconsIcon icon={MessageCircleIcon} className="size-5" aria-hidden />
           )}
         </button>
         {error ? (
@@ -149,12 +151,12 @@ export function MessageSellerButton({
       <Button
         type="button"
         variant="action"
-        className="h-11 min-h-11 min-w-0 flex-1"
+        className="h-10 min-h-10 min-w-0 flex-1"
         onClick={handleClick}
         disabled={isPending}
         aria-busy={isPending}
       >
-        {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+        {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
         Chat
       </Button>
     );
@@ -164,34 +166,41 @@ export function MessageSellerButton({
     return (
       <div className="space-y-2">
         <div className="rounded-lg border bg-muted p-cozy">
+          {/* UNIQUE PER INSTANCE, and the listing page mounts two of these — one
+              in the `lg:hidden` phone stack, one in the desktop pane. Both used
+              a hardcoded `message-seller-input`, so the document carried the id
+              twice and BOTH labels resolved to whichever came first: the phone
+              copy. On a desktop viewport that copy is display:none, so the
+              desktop composer had no working label at all and was unreachable
+              by anything addressing it by name — assistive tech included. */}
           <label
-            htmlFor="message-seller-input"
+            htmlFor={inlineInputId}
             className="mb-2 flex items-center gap-tight text-body font-medium text-foreground"
           >
-            <MessageCircle className="size-4 text-muted-foreground" aria-hidden />
+            <HugeiconsIcon icon={MessageCircleIcon} className="size-4 text-muted-foreground" aria-hidden />
             Send seller a message
           </label>
           <form onSubmit={handleInlineSend} className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
-              id="message-seller-input"
+              id={inlineInputId}
               type="text"
               name="message"
               placeholder="Is this still available?"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={isPending}
-              className="min-h-11 min-w-0 flex-1"
+              className="min-h-10 min-w-0 flex-1"
             />
             <Button
               type="submit"
               disabled={isPending || message.trim() === ''}
               aria-busy={isPending}
-              className="min-h-11 w-full sm:w-auto"
+              className="min-h-10 w-full sm:w-auto"
             >
               {isPending ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
               ) : (
-                <Send className="size-4" aria-hidden />
+                <HugeiconsIcon icon={SendIcon} className="size-4" aria-hidden />
               )}
               Send
             </Button>
@@ -218,9 +227,9 @@ export function MessageSellerButton({
         aria-busy={isPending}
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : (
-          <MessageCircle aria-hidden />
+          <HugeiconsIcon icon={MessageCircleIcon} aria-hidden />
         )}
         {isPending ? 'Opening…' : 'Message seller'}
       </Button>

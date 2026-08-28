@@ -17,8 +17,6 @@ import {
 } from '@/components/contract';
 import { ContractConversationPanel } from '@/components/contract/ContractConversationPanel';
 
-export const dynamic = 'force-dynamic';
-
 export default function RoomCheckPage() {
   return (
     <MarketplaceShell title="Purchase" flush>

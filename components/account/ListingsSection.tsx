@@ -3,7 +3,8 @@
 // The "My Listings" section: the caller's items across all statuses, rendered
 // with the same compact catalog tiles as the marketplace grid.
 
-import { PackagePlus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PackagePlusIcon } from '@hugeicons/core-free-icons';
 
 import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
@@ -22,7 +23,7 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<PackagePlus className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={PackagePlusIcon} className="size-6" aria-hidden />}
         title="You haven't listed anything yet"
         description="List a collectible to start selling or trading on NoDitto."
         ctaLabel="List an item"

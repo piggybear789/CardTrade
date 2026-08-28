@@ -18,13 +18,17 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
 import { Button } from '@/components/ui/button';
-import { SavedCardRow } from '@/components/payments/SavedCardRow';
+import {
+  SavedCardRow,
+  type SavedCardStatus,
+} from '@/components/payments/SavedCardRow';
 import {
   Dialog,
   DialogContent,
@@ -81,6 +85,21 @@ export interface TradeNegotiationPanelProps {
      */
     counterpartGoodsDescription: string | null;
   };
+  /**
+   * Server-known saved card. Seeds both card rows here — the one above the
+   * Accept control and the one inside the accept dialog, which would otherwise
+   * resize while the reader is partway through it.
+   */
+  paymentMethod?: SavedCardStatus | null;
+  /**
+   * Whether the room's Realtime channel is connected.
+   *
+   * Every action here writes to the `trades` row and nothing else, and that row
+   * is Realtime-published — so when the channel is up it delivers the result and
+   * a server refetch would only re-run the whole route to learn what the socket
+   * already said. When it is down, the refetch is the only way the UI moves.
+   */
+  liveUpdates?: boolean;
 }
 
 export function TradeNegotiationPanel({
@@ -90,6 +109,8 @@ export function TradeNegotiationPanel({
   counterpartyName,
   termsVersion,
   terms,
+  paymentMethod = null,
+  liveUpdates = false,
 }: TradeNegotiationPanelProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -111,19 +132,18 @@ export function TradeNegotiationPanel({
 
   function run(
     operation: () => Promise<TradeNegotiationResult>,
-    success: string,
   ): Promise<boolean> {
     setError(null);
     return new Promise((resolve) => {
       startTransition(async () => {
         const result = await operation();
         if (result.ok) {
-          toast.success(
-            result.collateralStarted ? 'Terms agreed. Collateral is being arranged.' : success,
-          );
           setCounterOpen(false);
           setDeclineOpen(false);
-          router.refresh();
+          // Only when the socket cannot tell us. `/trades/[id]` is five queries
+          // and a live Stripe call, and it ran on every accept, counter and
+          // decline to fetch a row the channel had already pushed.
+          if (!liveUpdates) router.refresh();
           resolve(true);
         } else {
           const message = result.message ?? 'Something went wrong. Please try again.';
@@ -153,10 +173,7 @@ export function TradeNegotiationPanel({
       message: note,
       counterpartGoodsDescription: isShopfrontTrade ? counterpartGoods.trim() : null,
     };
-    run(
-      () => proposeTradeTerms(tradeId, termsVersion, payload),
-      'Cash updated. They need to accept the new amount.',
-    );
+    run(() => proposeTradeTerms(tradeId, termsVersion, payload));
   }
 
   return (
@@ -167,7 +184,10 @@ export function TradeNegotiationPanel({
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}
       <div className="flex w-full min-w-0 flex-col items-stretch gap-2 sm:items-end">
-        <SavedCardRow className="w-full sm:max-w-sm" />
+        <SavedCardRow
+          initialStatus={paymentMethod}
+          className="w-full sm:max-w-sm"
+        />
         <ContractOverflowMenu>
           {actions.includes('PROPOSE_TERMS') ? (
             <Button variant="ghost" disabled={isPending} onClick={() => setCounterOpen(true)}>
@@ -192,7 +212,7 @@ export function TradeNegotiationPanel({
             aria-haspopup="dialog"
             onClick={() => setAcceptOpen(true)}
           >
-            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             Accept terms
           </Button>
         ) : null}
@@ -276,7 +296,7 @@ export function TradeNegotiationPanel({
               Cancel
             </Button>
             <Button onClick={submitCounter} disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               Save cash
             </Button>
           </DialogFooter>
@@ -299,7 +319,7 @@ export function TradeNegotiationPanel({
               want this one used.
             </DialogDescription>
           </DialogHeader>
-          <SavedCardRow inline onStatus={setHasCard} />
+          <SavedCardRow inline initialStatus={paymentMethod} onStatus={setHasCard} />
           <p className="text-body">
             <Link
               href="/help#holds"
@@ -322,15 +342,12 @@ export function TradeNegotiationPanel({
               disabled={isPending || !hasCard}
               aria-busy={isPending}
               onClick={() => {
-                void run(
-                  () => acceptTradeTerms(tradeId, termsVersion),
-                  'Accepted. Waiting on the other trader.',
-                ).then((ok) => {
+                void run(() => acceptTradeTerms(tradeId, termsVersion)).then((ok) => {
                   if (ok) setAcceptOpen(false);
                 });
               }}
             >
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               Accept terms
             </Button>
           </DialogFooter>
@@ -354,7 +371,7 @@ export function TradeNegotiationPanel({
               variant="destructive"
               disabled={isPending}
               aria-busy={isPending}
-              onClick={() => run(() => declineTradeOffer(tradeId), 'Offer closed.')}
+              onClick={() => run(() => declineTradeOffer(tradeId))}
             >
               Decline offer
             </Button>

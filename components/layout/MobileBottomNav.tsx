@@ -8,7 +8,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Handshake } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HandshakeIcon } from '@hugeicons/core-free-icons';
 
 import { useStartDeal } from '@/components/deals/StartDealProvider';
 import {
@@ -47,13 +48,13 @@ function HubSheetLinks({
               onNavigate();
               openDeal();
             }}
-            className="flex min-h-11 w-full touch-manipulation items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left text-body font-medium text-foreground/85 transition-colors hover:bg-muted/70 focus:outline-none focus-visible:border-gold/40"
+            className="flex min-h-11 w-full touch-manipulation items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left text-body font-medium text-foreground/85 transition-colors hover:bg-muted/70 focus:outline-none focus-visible:border-iris"
           >
-            <Handshake
+            <HugeiconsIcon icon={HandshakeIcon}
               className="size-5 shrink-0 text-muted-foreground"
               aria-hidden="true"
             />
-            Start a Deal
+            Private Deal
           </button>
         </li>
       ) : null}
@@ -67,16 +68,16 @@ function HubSheetLinks({
               onClick={onNavigate}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40',
+                'flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris',
                 active
-                  ? 'bg-gold/10 font-semibold text-foreground'
+                  ? 'bg-accent font-semibold text-accent-foreground'
                   : 'font-medium text-foreground/85 hover:bg-muted/70',
               )}
             >
-              <Icon
+              <HugeiconsIcon icon={Icon}
                 className={cn(
                   'size-5 shrink-0',
-                  active ? 'text-gold' : 'text-muted-foreground',
+                  active ? 'text-iris-ink' : 'text-muted-foreground',
                 )}
                 aria-hidden="true"
               />
@@ -112,7 +113,7 @@ export function MobileBottomNav() {
             const active = hub.isActive(pathname);
             const Icon = hub.icon;
             const className = cn(
-              'flex h-full min-h-14 w-full touch-manipulation flex-col items-center justify-center gap-0.5 px-1 text-meta transition-colors active:opacity-70 border border-transparent focus:outline-none focus-visible:border-gold/40',
+              'flex h-full min-h-14 w-full touch-manipulation flex-col items-center justify-center gap-0.5 px-1 text-meta transition-colors active:opacity-70 border border-transparent focus:outline-none focus-visible:border-iris',
               active
                 ? 'font-semibold text-foreground'
                 : 'font-medium text-muted-foreground',
@@ -126,10 +127,10 @@ export function MobileBottomNav() {
                     aria-current={active ? 'page' : undefined}
                     className={className}
                   >
-                    <Icon
+                    <HugeiconsIcon icon={Icon}
                       className={cn(
                         'size-5',
-                        active ? 'text-gold' : 'text-muted-foreground',
+                        active ? 'text-iris-ink' : 'text-muted-foreground',
                       )}
                       aria-hidden="true"
                     />
@@ -151,10 +152,10 @@ export function MobileBottomNav() {
                   }
                   className={className}
                 >
-                  <Icon
+                  <HugeiconsIcon icon={Icon}
                     className={cn(
                       'size-5',
-                      active ? 'text-gold' : 'text-muted-foreground',
+                      active ? 'text-iris-ink' : 'text-muted-foreground',
                     )}
                     aria-hidden="true"
                   />

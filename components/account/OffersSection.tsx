@@ -15,7 +15,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
-import { HandCoins, ImageOff, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HandCoinsIcon, ImageOffIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { Card } from '@/components/ui/card';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -67,18 +68,18 @@ export function OffersSection({
   if (offers.length === 0) {
     return scope === 'past' ? (
       <SharedEmptyState
-        icon={<HandCoins className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={HandCoinsIcon} className="size-6" aria-hidden />}
         title="No Past Offers"
         description="Decided or withdrawn offers will be kept here."
         compact
       />
     ) : (
       <EmptyState
-        icon={<HandCoins className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={HandCoinsIcon} className="size-6" aria-hidden />}
         title="No Offers Yet"
         description="Make an offer on a listing, or wait for buyers to send you one."
         ctaLabel="Browse the marketplace"
-        ctaHref="/listings"
+        ctaHref="/"
       />
     );
   }
@@ -115,14 +116,14 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
         const result = await respondToOffer(offer.offerId, action);
         if (result.ok) {
           if (action === 'accept') {
-            toast.success('Offer accepted — opening the sale…');
+            
             if (result.saleId) {
               navigateWithType(router, `/sales/${result.saleId}`, 'nav-forward');
               resolve(true);
               return;
             }
           } else {
-            toast.success(action === 'decline' ? 'Offer declined.' : 'Offer withdrawn.');
+            
           }
           router.refresh();
           resolve(true);
@@ -159,7 +160,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-              <ImageOff className="size-6" aria-hidden />
+              <HugeiconsIcon icon={ImageOffIcon} className="size-6" aria-hidden />
               <span className="sr-only">No image available</span>
             </div>
           )}
@@ -193,7 +194,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                     aria-haspopup="dialog"
                   >
                     {isPending ? (
-                      <Loader2 className="animate-spin" aria-hidden />
+                      <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
                     ) : null}
                     Accept
                   </Button>
@@ -260,7 +261,7 @@ function OfferRow({ offer }: { offer: MyOfferEntry }) {
                     aria-haspopup="dialog"
                   >
                     {isPending ? (
-                      <Loader2 className="animate-spin" aria-hidden />
+                      <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
                     ) : null}
                     Withdraw
                   </Button>
@@ -336,7 +337,7 @@ function CounterOfferDialog({
     startTransition(async () => {
       const result = await counterOffer(offerId, amountCents, message || undefined);
       if (result.ok) {
-        toast.success(`Counter offer of ${formatAud(result.offer.amount_cents)} sent.`);
+        
         onOpenChange(false);
         setAmount('');
         setMessage('');
@@ -396,7 +397,7 @@ function CounterOfferDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Sending…' : 'Send counter'}
             </Button>
           </DialogFooter>

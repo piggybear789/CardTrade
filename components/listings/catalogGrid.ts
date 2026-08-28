@@ -4,10 +4,9 @@
 //
 // Two layouts live here, and which one you get depends only on the viewport:
 //
-//   * md and up — a uniform grid. Three columns on a tablet, then fluid
-//     auto-fill once there is room for a 13rem cell. Every cover is square, so
-//     rows line up. This is the long-standing desktop layout and nothing in the
-//     mosaic work below changes it.
+//   * md and up — a uniform grid, three to five columns by breakpoint, each row
+//     divided exactly so no gutter is left over. Every cover is square, so rows
+//     line up. Nothing in the mosaic work below changes it.
 //   * below md — a staggered two-column mosaic. Each tile is as tall as its own
 //     cover photo, so the columns run out of sync, the way Xianyu and every
 //     other phone-first marketplace feed does it. Made possible by
@@ -22,8 +21,49 @@ import { coverAspectRatio, type ImageDim } from '@/lib/images/dimensions';
  * are not the mosaic — My Listings, Saved, a seller's shop — where a tidy grid
  * of equal tiles reads better than a mosaic of six items.
  */
+// AN EXPLICIT COLUMN COUNT PER BREAKPOINT. The count is the design decision;
+// the tile width follows from it.
+//
+// This replaces `repeat(auto-fill, 15rem)`, which pinned every tile at 240px and
+// left whatever did not divide evenly as trailing gutter. That was a deliberate
+// choice — a ragged right edge, as fixed-tile feeds have — but measured against
+// this shell it was not a ragged edge, it was a hole:
+//
+//   1280px viewport  3 tiles, 209px empty  (22% of the row)
+//   1440px           4 tiles,  81px empty
+//   1536px           4 tiles, 161px empty
+//   1920px+          5 tiles, 177px empty  (content caps at 90rem, so it never
+//                                           grows out of it)
+//
+// The rail takes a fifth of the viewport and the content column caps at 90rem,
+// so the grid only ever sees a few discrete widths — and none of them is a clean
+// multiple of 240 + 16. A fixed track cannot fill a container it does not divide.
+//
+// `grid-cols-N` is `repeat(N, minmax(0, 1fr))`: tracks share the row exactly, so
+// there is no remainder to leave anywhere, and `minmax(0, …)` keeps a long title
+// from pushing its own track wider than its share. `justify-start` is gone with
+// the remainder it used to park.
+//
+// The counts are chosen to hold the rendered tile near 240px — the size the old
+// fixed track named, and what the square cover and three text rows were drawn
+// for — rather than to maximise how many fit:
+//
+//   md   768-1279   3 cols   153-311px
+//   xl   1280-1535  4 cols   226-280px
+//   2xl  1536+      5 cols   219-273px   (content caps at 90rem, so 273 is the
+//                                         widest a tile ever gets)
+//
+// Two denser ladders were measured and rejected. Five columns from xl puts 191px
+// tiles at 1366px, the most common laptop width, where four give 243px and the
+// old layout was only wasting 22px anyway. Four columns from lg puts 174px tiles
+// at 1024px, too cramped for a title, a price and a seller row. Filling the row
+// is the goal; shrinking the card is not, so where a breakpoint had to choose,
+// the wider tile won.
+//
+// Adding a column necessarily shrinks the tile at that boundary. That is the
+// trade for filling the row, and it is only visible while dragging a window.
 export const CATALOG_TILE_GRID =
-  'grid grid-cols-2 gap-1.5 sm:gap-3 md:grid-cols-3 md:gap-4 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]';
+  'grid grid-cols-2 gap-1.5 sm:gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4 2xl:grid-cols-5';
 
 /**
  * The md-and-up half of {@link CATALOG_TILE_GRID}, with the phone rules left
@@ -35,7 +75,7 @@ export const CATALOG_TILE_GRID =
  * their tiles straight to it.
  */
 export const CATALOG_TILE_GRID_FROM_MD =
-  'md:grid md:grid-cols-3 md:gap-4 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]';
+  'md:grid md:grid-cols-3 md:gap-4 xl:grid-cols-4 2xl:grid-cols-5';
 
 /** Gap between mosaic tiles. Matches the phone gap in the uniform grid. */
 export const CATALOG_MOSAIC_GAP = 'gap-1.5 sm:gap-3';

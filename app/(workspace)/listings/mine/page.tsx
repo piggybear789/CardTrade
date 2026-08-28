@@ -17,9 +17,6 @@ import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHead
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
-// Reads the caller's session and live listing state.
-export const dynamic = 'force-dynamic';
-
 export const metadata = {
   title: 'My Listings · NoDitto',
   description: 'Items you have listed for sale or trade.',

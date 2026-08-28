@@ -25,7 +25,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { TradeOfferForm } from '@/components/trade/TradeOfferForm';
+import {
+  TradeOfferForm,
+  type TradeOfferOwnItem,
+} from '@/components/trade/TradeOfferForm';
 import {
   MarketplaceShell,
   RailPrimaryAction,
@@ -40,9 +43,6 @@ export const metadata = {
   title: 'Offer a trade · NoDitto',
   description: 'Offer goods, cash, or both in exchange for a listing.',
 };
-
-// Reads the authenticated user's session, so it must render dynamically.
-export const dynamic = 'force-dynamic';
 
 /** The shell used by every state of this page. */
 function Shell({
@@ -172,24 +172,31 @@ export default async function NewTradePage({
     );
   }
 
-  const { data: ownerRow } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', requested.owner_id)
-    .maybeSingle();
-
-  // The caller's own AVAILABLE items, including ones held privately from a
-  // previous offer, as candidates to put up.
-  const { data: ownItemsData } = await supabase
-    .from('items')
-    .select('*')
-    .eq('owner_id', user.id)
-    .eq('status', 'AVAILABLE')
-    // A binder still cannot go INTO a trade. It can be traded FOR (0081), where it
-    // is valued at whatever is offered against it — but as the OFFERING side there
-    // would be no figure to derive that from, only an inventory's "from" price.
-    .eq('listing_kind', 'SINGLE')
-    .order('created_at', { ascending: false });
+  // Independent of each other — one is keyed on the listing's owner, the other on
+  // the caller — so they run together rather than in sequence.
+  const [{ data: ownerRow }, { data: ownItemsData }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', requested.owner_id)
+      .maybeSingle(),
+    // The caller's own AVAILABLE items, including ones held privately from a
+    // previous offer, as candidates to put up.
+    //
+    // Three columns, not `*`: these cross into a Client Component, and the form
+    // reads only the id, the title and the value. See `TradeOfferOwnItem`.
+    supabase
+      .from('items')
+      .select('id, title, fmv_cents')
+      .eq('owner_id', user.id)
+      .eq('status', 'AVAILABLE')
+      // A binder still cannot go INTO a trade. It can be traded FOR (0081), where
+      // it is valued at whatever is offered against it — but as the OFFERING side
+      // there would be no figure to derive that from, only an inventory's "from"
+      // price.
+      .eq('listing_kind', 'SINGLE')
+      .order('created_at', { ascending: false }),
+  ]);
 
   // The form is a short, self-contained interstitial, so it sits centred rather
   // than filling the workspace column.
@@ -206,7 +213,7 @@ export default async function NewTradePage({
             'The other trader',
           isShopfront: requestedIsShopfront,
         }}
-        ownItems={(ownItemsData ?? []) as ItemRow[]}
+        ownItems={(ownItemsData ?? []) as TradeOfferOwnItem[]}
         counterOfProposalId={counterOfProposalId ?? null}
       />
     </Shell>

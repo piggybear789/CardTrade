@@ -51,9 +51,6 @@ export const metadata = {
   title: 'Cases · NoDitto',
 };
 
-// Reads live case state and the caller's staff capability — never prerender.
-export const dynamic = 'force-dynamic';
-
 // Priority badges and kind labels are shared with the case page rather than declared
 // twice, so a queue row and the case it opens can never disagree about what a case is
 // or how urgent it looks.

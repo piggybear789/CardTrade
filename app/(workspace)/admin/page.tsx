@@ -67,9 +67,6 @@ export const metadata = {
   title: 'Operations · NoDitto',
 };
 
-// Reads the caller's session + live queue state — never prerender.
-export const dynamic = 'force-dynamic';
-
 type ReportRow = Tables<'reports'>;
 type TradeRow = Tables<'trades'>;
 type CashSaleRow = Tables<'cash_sales'>;
@@ -94,6 +91,86 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
   ACTIONED: 'secondary',
   DISMISSED: 'outline',
 };
+
+/** Rows for whichever queue is on screen. Every other queue stays unread. */
+interface ConsoleQueue {
+  reports: ReportRow[];
+  owedPayouts: CashSaleRow[];
+  trades: TradeRow[];
+  /** One per operational region (0068), not one overall. */
+  custodyPositions: CustodyReport[];
+}
+
+const EMPTY_QUEUE: ConsoleQueue = {
+  reports: [],
+  owedPayouts: [],
+  trades: [],
+  custodyPositions: [],
+};
+
+/**
+ * Read only the visible tab's rows.
+ *
+ * Extracted from the page body so it can be STARTED alongside the tab-badge
+ * counts and awaited with them. It reads nothing those counts produce, so
+ * sequencing it after them bought nothing and cost a round trip — two, on the
+ * Payouts tab, where it also calls Stripe once per region.
+ */
+async function loadQueueForTab(
+  tab: ConsoleTab,
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<ConsoleQueue> {
+  if (tab === 'reports') {
+    const { data } = await admin
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false });
+    // OPEN to the top, newest-first within each group.
+    const reports = [...((data ?? []) as ReportRow[])].sort((a, b) => {
+      const aOpen = a.status === 'OPEN' ? 0 : 1;
+      const bOpen = b.status === 'OPEN' ? 0 : 1;
+      if (aOpen !== bOpen) return aOpen - bOpen;
+      return b.created_at.localeCompare(a.created_at);
+    });
+    return { ...EMPTY_QUEUE, reports };
+  }
+
+  if (tab === 'payouts') {
+    // Oldest due first: that is the seller who has been waiting longest.
+    //
+    // Custody is read ONCE PER REGION (0068). Each region is a separate Stripe
+    // platform account with its own balance, and there is no meaningful sum across
+    // them — adding a GBP balance to an AUD one produces a number that looks
+    // reassuring and says nothing, which `getPlatformBalance` already refuses to do
+    // across currencies. So the tab shows one solvency panel per platform account.
+    const regions = [...operationalRegions()];
+    const [{ data }, ...positions] = await Promise.all([
+      admin
+        .from('cash_sales')
+        .select('*')
+        .eq('status', 'COMPLETED')
+        .in('seller_payout_status', ['PENDING', 'FAILED'])
+        .order('seller_payout_due_at', { ascending: true, nullsFirst: true }),
+      // Only on this tab: each one calls the provider, so they should not cost
+      // anything on the Reports or Reconciliation views.
+      ...regions.map((region) => getCustodyPosition(region)),
+    ]);
+    return {
+      ...EMPTY_QUEUE,
+      owedPayouts: (data ?? []) as CashSaleRow[],
+      custodyPositions: positions
+        .filter((position) => position.ok)
+        .map((position) => (position as { ok: true; data: CustodyReport }).data),
+    };
+  }
+
+  const { data } = await admin
+    .from('trades')
+    .select('*')
+    .eq('manual_reconciliation', true)
+    .order('created_at', { ascending: false });
+  return { ...EMPTY_QUEUE, trades: (data ?? []) as TradeRow[] };
+}
 
 /** Render the 403-style "Not authorized" page without leaking any data. */
 function NotAuthorized() {
@@ -140,6 +217,13 @@ export default async function AdminPage({
   }
 
   const admin = createAdminClient();
+
+  // Started here, awaited with the counts below. The visible tab's rows do not
+  // depend on any count, so running the two stages in sequence — which is what
+  // writing the `if` chain after the `await` did — was a round trip of pure
+  // latency, and on the Payouts tab that second stage includes a live Stripe
+  // balance call per region.
+  const queuePromise = loadQueueForTab(tab, admin);
 
   // Tab badges and the arbitration hand-off need counts, not rows. `head: true` asks
   // Postgres for the count alone, so the six queues this page does NOT currently show
@@ -189,57 +273,7 @@ export default async function AdminPage({
     (disputedTradeCount.count ?? 0) +
     (openChargebackCount.count ?? 0);
 
-  // Only the visible tab's rows are read.
-  let reports: ReportRow[] = [];
-  let owedPayouts: CashSaleRow[] = [];
-  let trades: TradeRow[] = [];
-  // One per operational region (0068), not one overall — see the fetch below.
-  let custodyPositions: CustodyReport[] = [];
-
-  if (tab === 'reports') {
-    const { data } = await admin
-      .from('reports')
-      .select('*')
-      .order('created_at', { ascending: false });
-    // OPEN to the top, newest-first within each group.
-    reports = [...((data ?? []) as ReportRow[])].sort((a, b) => {
-      const aOpen = a.status === 'OPEN' ? 0 : 1;
-      const bOpen = b.status === 'OPEN' ? 0 : 1;
-      if (aOpen !== bOpen) return aOpen - bOpen;
-      return b.created_at.localeCompare(a.created_at);
-    });
-  } else if (tab === 'payouts') {
-    // Oldest due first: that is the seller who has been waiting longest.
-    //
-    // Custody is read ONCE PER REGION (0068). Each region is a separate Stripe
-    // platform account with its own balance, and there is no meaningful sum across
-    // them — adding a GBP balance to an AUD one produces a number that looks
-    // reassuring and says nothing, which `getPlatformBalance` already refuses to do
-    // across currencies. So the tab shows one solvency panel per platform account.
-    const regions = [...operationalRegions()];
-    const [{ data }, ...positions] = await Promise.all([
-      admin
-        .from('cash_sales')
-        .select('*')
-        .eq('status', 'COMPLETED')
-        .in('seller_payout_status', ['PENDING', 'FAILED'])
-        .order('seller_payout_due_at', { ascending: true, nullsFirst: true }),
-      // Only on this tab: each one calls the provider, so they should not cost
-      // anything on the Reports or Reconciliation views.
-      ...regions.map((region) => getCustodyPosition(region)),
-    ]);
-    owedPayouts = (data ?? []) as CashSaleRow[];
-    custodyPositions = positions
-      .filter((position) => position.ok)
-      .map((position) => (position as { ok: true; data: CustodyReport }).data);
-  } else {
-    const { data } = await admin
-      .from('trades')
-      .select('*')
-      .eq('manual_reconciliation', true)
-      .order('created_at', { ascending: false });
-    trades = (data ?? []) as TradeRow[];
-  }
+  const { reports, owedPayouts, trades, custodyPositions } = await queuePromise;
 
   // Resolve display names for the rows actually on screen, so no list shows a raw UUID.
   // Exact ids stay reachable through each row's "View" link.

@@ -17,7 +17,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
-import { ArrowLeftRight, ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeftRightIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import {
@@ -37,11 +38,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import type { VerificationState } from '@/domain/identity/identityGate';
-import type { ItemRow } from '@/lib/actions/listings';
+import type { TradeOfferOwnItem } from '@/components/trade/TradeOfferForm';
 
 export interface ProposeTradeDialogProps {
   requested: TradeOfferRequested;
-  ownItems: ItemRow[];
+  ownItems: TradeOfferOwnItem[];
   /** Filled chip when this is the only transactional CTA (trades-only sellers). */
   emphasize?: boolean;
   /**
@@ -91,7 +92,7 @@ export function ProposeTradeDialog({
       <DialogTrigger asChild>
         {trigger ?? (
           <ListingActionIcon
-            icon={ArrowLeftRight}
+            icon={ArrowLeftRightIcon}
             // Matches the dialog's own title. The chip said "Propose Trade" and
             // the dialog then said "Offer a trade", so the thing you clicked and
             // the thing that opened had different names.
@@ -123,7 +124,7 @@ export function ProposeTradeDialog({
           <>
             <DialogHeader className="gap-snug">
               <div className="flex items-center gap-snug">
-                <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+                <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
                 <div className="min-w-0 space-y-1.5">
                   <DialogTitle>Verify to trade</DialogTitle>
                   <DialogDescription className="text-pretty leading-relaxed">

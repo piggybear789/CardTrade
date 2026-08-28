@@ -91,12 +91,30 @@ export function ContractLiveRow({
             sizing it to the shortest panel opened a 178px sliver whose tab
             strip then jumped as the reader moved between tabs. Fixed height,
             panel scrolls inside. */}
+        {/* NO ✕. It sat on top of a title that already truncates, so a long
+            contract name ran under it — and the backdrop above the sheet is
+            tappable, which is how a docked sheet is dismissed anyway.
+
+            WHERE IT MEETS THE HUB BAR. Two white surfaces stack here, so exactly
+            one line has to separate them and it has to be crisp. Both previous
+            attempts failed in opposite directions: the sheet's all-round
+            `shadow-lg` bled down over the bar and smeared the bar's own 1px
+            border into a soft grey band, and removing the 1px offset so the
+            sheet covered that border left no boundary at all — the tab content
+            simply ran into the navigation.
+
+            So: sit one pixel clear of the bar and let ITS border do the
+            separating. The downward shadow is gone at the source — see the
+            `bottom` variant in `ui/sheet`. */}
         <SheetContent
           side="bottom"
+          hideClose
           overlayClassName="inset-x-0 top-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]"
           className="bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] flex h-[min(80dvh,calc(100dvh-env(safe-area-inset-top)-7rem))] max-h-none flex-col gap-0 rounded-t-2xl border-border bg-card p-0 pb-0"
         >
-          <SheetHeader className="shrink-0 border-b border-border px-group py-cozy">
+          {/* `pr-group`, overriding SheetHeader's `pr-12`: that inset exists to
+              keep the title clear of the ✕, which this sheet does not have. */}
+          <SheetHeader className="shrink-0 border-b border-border px-group py-cozy pr-group">
             <SheetTitle className="truncate text-lead">{detailsTitle}</SheetTitle>
             {detailsMeta ? (
               <div className="flex flex-wrap items-center gap-cozy text-body text-muted-foreground">

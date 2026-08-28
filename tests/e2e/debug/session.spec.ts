@@ -8,6 +8,7 @@
 // signs Alice in interactively. Two guesses at the cause were already wrong, so this
 // measures instead.
 import { test, expect } from '../support/fixtures';
+import { isSignedInDestination } from '../support/auth';
 import { ALICE, storageStatePath } from '../support/users';
 
 test('does a fresh sign-in revoke the stored session?', async ({ browser }) => {
@@ -26,7 +27,7 @@ test('does a fresh sign-in revoke the stored session?', async ({ browser }) => {
   await freshPage.getByLabel('Email').fill(ALICE.email);
   await freshPage.getByLabel('Password').fill(ALICE.password);
   await freshPage.getByRole('button', { name: 'Sign in' }).click();
-  await freshPage.waitForURL(/\/(listings|onboarding)/, { timeout: 30_000 });
+  await freshPage.waitForURL(isSignedInDestination, { timeout: 30_000 });
   console.log('--- second sign-in completed');
 
   // C. Is the stored session still good?

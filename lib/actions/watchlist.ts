@@ -15,6 +15,7 @@
 // module).
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { CatalogItem, CatalogSeller } from '@/lib/actions/listings';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -29,13 +30,16 @@ export interface ActionFailure<E extends string> {
   detail?: string;
 }
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`.
+ * `getUser` revalidates the JWT against the auth server on every call, and a
+ * single page render reaches this helper from the page body, the shell, and
+ * sibling actions — previously one network round trip each.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -60,7 +64,7 @@ export type ToggleWatchResult =
 export async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   // Is the item already saved by this user?
@@ -112,7 +116,7 @@ export async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
 export async function isWatching(itemId: string): Promise<boolean> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return false;
 
   const { data } = await supabase
@@ -175,7 +179,7 @@ export async function getWatchingSet(itemIds: string[]): Promise<Set<string>> {
 /** Every listing the caller has saved. Safe to start before catalog IDs exist. */
 export async function getMyWatchingSet(): Promise<Set<string>> {
   const supabase = await createClient();
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return new Set();
 
   const { data } = await supabase
@@ -217,12 +221,19 @@ export type ListMyWatchlistResult =
 export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
+  // ONE QUERY FOR THE SAVED ROWS AND THEIR ITEMS. This was two: read the
+  // watchlist, collect the ids, then read the items. The second could not start
+  // until the first landed, so /saved paid a round trip for a join Postgres can
+  // do itself — `watchlist_item_id_fkey` is what lets PostgREST embed here.
+  //
+  // `!inner` preserves the previous behaviour: a saved row whose item RLS no
+  // longer exposes drops out of the results rather than rendering empty.
   const { data: rows, error } = await supabase
     .from('watchlist')
-    .select('item_id, created_at')
+    .select('item_id, created_at, items!inner(*)')
     .eq('user_id', me)
     .order('created_at', { ascending: false });
 
@@ -234,23 +245,17 @@ export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
     };
   }
 
-  const watchRows = (rows ?? []) as Pick<WatchlistRow, 'item_id' | 'created_at'>[];
-  if (watchRows.length === 0) {
-    return { ok: true, items: [] };
-  }
+  const watchRows = (rows ?? []) as unknown as {
+    item_id: string;
+    created_at: string;
+    items: Tables<'items'>;
+  }[];
 
-  const itemIds = watchRows.map((r) => r.item_id);
   const savedAtByItem = new Map<string, string>(
     watchRows.map((r) => [r.item_id, r.created_at]),
   );
+  const items = watchRows.map((r) => r.items);
 
-  // Load the underlying items (RLS returns those still visible to the caller).
-  const { data: itemsData } = await supabase
-    .from('items')
-    .select('*')
-    .in('id', itemIds);
-
-  const items = (itemsData ?? []) as Tables<'items'>[];
   if (items.length === 0) {
     return { ok: true, items: [] };
   }

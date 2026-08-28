@@ -24,7 +24,7 @@ import {
 
 export default function ProfileLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Account">
       <div className="mx-auto w-full max-w-2xl">
         {/* Mirrors the identity header: a 40px avatar (`Avatar size="md"`, what
             `AvatarUploadField compact` renders) beside the name and the trust line. */}

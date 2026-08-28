@@ -18,7 +18,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -85,11 +85,12 @@ export interface TradeTermsInput {
   message?: string | null;
 }
 
+/**
+ * Reads through the request-cached lookup rather than `auth.getUser()`, which
+ * revalidates the JWT against the auth server on every call.
+ */
 async function currentUserId(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 

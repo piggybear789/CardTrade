@@ -7,7 +7,8 @@
 // the same way. Keyboard users are unaffected.
 
 import { useCallback, useRef, useState } from 'react';
-import { ZoomIn } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ZoomInIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -113,7 +114,7 @@ export function ZoomableImage({
           zoomPoint ? 'opacity-0' : 'opacity-100',
         )}
       >
-        <ZoomIn className="size-3.5" />
+        <HugeiconsIcon icon={ZoomInIcon} className="size-3.5" />
         <span className="[@media(hover:none)]:hidden">Click to zoom</span>
         <span className="hidden [@media(hover:none)]:inline">Tap to zoom</span>
       </p>

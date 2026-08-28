@@ -282,7 +282,7 @@ export function NotificationRowSkeleton() {
  */
 export function ContractRoomSkeleton() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-group lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
+    <div className="flex min-h-0 flex-1 flex-col gap-group md:px-4 md:pt-4 lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
       <Card className="hidden border-border shadow-sm md:block">
         <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug px-group py-cozy">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-1">
@@ -364,26 +364,39 @@ export function ChatThreadSkeleton() {
       className="flex min-h-0 w-full flex-1 flex-col"
       aria-label="Loading conversation"
     >
-      <header className="flex items-center gap-3 border-b pb-3">
-        <Skeleton className="size-10 shrink-0 rounded-full" />
-        <Skeleton className="size-8 shrink-0 rounded-full" />
-        <Skeleton className="h-5 w-36" />
-      </header>
-      <div className="flex shrink-0 items-center gap-3 border-b bg-muted px-1 py-3">
-        <Skeleton className="size-14 shrink-0 rounded-md" />
-        <div className="min-w-0 flex-1 space-y-2">
+      {/* Matches ChatThread band for band: the bar (phone-only back, thumb,
+          title + subline, contract button), the log, the standing note, the
+          composer.
+
+          THE IRIS DOCK IS GONE FROM BOTH. This used to draw a three-element
+          tinted action strip above the composer, because that is where the
+          thread's contract control lived. It moved up into the bar — the room's
+          dock holds live actions on a contract and a thread has none, so all
+          that was left down there was navigation. The stale copy was ~100px of
+          tinted block that the real thread never renders: a jump AND a colour
+          flash on every thread open. What remains at the bottom is the one-line
+          "nothing is held while you are only talking" note. */}
+      <header className="flex shrink-0 items-center gap-cozy border-b px-group py-2.5 max-md:px-cozy">
+        <Skeleton className="-ml-1.5 size-11 shrink-0 rounded-full md:hidden" />
+        <Skeleton className="size-9 shrink-0 rounded-md" />
+        <div className="min-w-0 flex-1 space-y-1.5">
           <Skeleton className="h-4 w-2/5" />
-          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-3 w-28" />
         </div>
         <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
-      </div>
-      <div className="min-h-0 flex-1 space-y-3 py-4">
+      </header>
+      <div className="min-h-0 flex-1 space-y-3 px-group pt-5 max-md:px-cozy">
         <Skeleton className="h-12 w-3/5 rounded-2xl" />
         <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
         <Skeleton className="h-10 w-2/5 rounded-2xl" />
         <Skeleton className="ml-auto h-16 w-3/5 rounded-2xl" />
       </div>
-      <Skeleton className="h-12 w-full rounded-md" />
+      <div className="shrink-0 border-t px-group py-cozy max-md:px-cozy">
+        <Skeleton className="h-4 w-4/5" />
+      </div>
+      <div className="px-group pt-4 max-md:px-cozy">
+        <Skeleton className="h-12 w-full rounded-md" />
+      </div>
     </section>
   );
 }

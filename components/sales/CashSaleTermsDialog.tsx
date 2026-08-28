@@ -6,8 +6,8 @@
 
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Pencil } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, PencilIcon } from '@hugeicons/core-free-icons';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -210,9 +210,7 @@ export function CashSaleTermsDialog({
         meetingAt: method === 'IN_PERSON' ? scheduledAt!.toISOString() : null,
       });
       if (result.ok) {
-        toast.success(
-          'Handover terms updated.',
-        );
+        
         router.refresh();
         setOpen(false);
       } else {
@@ -230,7 +228,7 @@ export function CashSaleTermsDialog({
       {hideTrigger ? null : (
         <DialogTrigger asChild>
           <Button type="button" variant="outline" size="sm" className="gap-tight px-3 text-meta font-medium leading-none [&_svg]:size-3">
-            <Pencil aria-hidden />
+            <HugeiconsIcon icon={PencilIcon} aria-hidden />
             Edit
           </Button>
         </DialogTrigger>
@@ -313,7 +311,7 @@ export function CashSaleTermsDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={pending} aria-busy={pending}>
-              {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {pending ? 'Saving…' : sale.fulfillment_method ? 'Save changes' : 'Propose terms'}
             </Button>
           </DialogFooter>

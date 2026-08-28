@@ -6,7 +6,8 @@
 // empty-state copy/CTA between buying and selling.
 
 import Link from 'next/link';
-import { ImageOff, ShoppingBag, Tag } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ImageOffIcon, ShoppingBag01Icon, Tag01Icon } from '@hugeicons/core-free-icons';
 
 import { MobileList, MobileListItem } from '@/components/ui/mobile-list';
 import { formatAud, itemImageUrl } from '@/lib/format';
@@ -25,15 +26,15 @@ export function CashSalesSection({
   if (sales.length === 0) {
     return variant === 'purchases' ? (
       <EmptyState
-        icon={<ShoppingBag className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={ShoppingBag01Icon} className="size-6" aria-hidden />}
         title="No Purchases Yet"
         description="Browse the marketplace and buy your first collectible."
         ctaLabel="Browse the marketplace"
-        ctaHref="/listings"
+        ctaHref="/"
       />
     ) : (
       <EmptyState
-        icon={<Tag className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={Tag01Icon} className="size-6" aria-hidden />}
         title="No Sales Yet"
         description="List an item so buyers can purchase it outright."
         ctaLabel="List an item"
@@ -52,7 +53,7 @@ export function CashSalesSection({
             <Link
               href={`/sales/${sale.id}`}
               transitionTypes={['nav-forward']}
-              className="flex min-h-11 items-center gap-group py-3.5 md:py-0 rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
+              className="flex min-h-11 items-center gap-group py-3.5 md:py-0 rounded-md border border-transparent focus:outline-none focus-visible:border-iris"
             >
               <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted md:size-16">
                 {imageUrl ? (
@@ -65,7 +66,7 @@ export function CashSalesSection({
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                    <ImageOff className="size-6" aria-hidden />
+                    <HugeiconsIcon icon={ImageOffIcon} className="size-6" aria-hidden />
                     <span className="sr-only">No image available</span>
                   </div>
                 )}

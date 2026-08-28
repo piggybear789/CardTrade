@@ -14,10 +14,13 @@
 // nothing — an empty panel with no explanation reads like a bug, which is how people
 // end up pasting their address into the chat thread instead.
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Home, Loader2, Pencil } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, ChevronRightIcon, InfoIcon, LoaderCircleIcon, TruckIcon } from '@hugeicons/core-free-icons';
+
+import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +34,150 @@ import {
 import { PlacePicker } from '@/components/location';
 import { isResolvedPlace, type DeliveryAddress } from '@/domain/fulfilment';
 import type { PlaceValue } from '@/lib/location/types';
+
+/** A party at one end of a lane. The destination end is the emphasised one. */
+function Endpoint({
+  children,
+  destination = false,
+}: {
+  children: ReactNode;
+  destination?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        // Badge's own geometry — `rounded-md`, `px-2.5 py-0.5`, `text-meta
+        // font-medium` — rather than a second pill shape. Not the component
+        // itself, because an endpoint needs to truncate a long display name and
+        // Badge has no width story; but it must not look like a different kind
+        // of chip from the status badge two rows above it.
+        'max-w-[8rem] shrink-0 truncate rounded-md border px-2.5 py-0.5 text-meta font-medium',
+        // The destination goes SOLID. Two grey chips either end of a grey line
+        // made the direction something you worked out from the arrowhead; a
+        // filled end and a hollow one says which way this parcel travels before
+        // you have read either name.
+        destination
+          ? 'border-obsidian bg-obsidian text-mist'
+          : 'border-border bg-card text-muted-foreground',
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * One direction of travel: who posts, to whom, and whether that end has an
+ * address yet.
+ *
+ * THE DIAGRAM IS THE POINT. This was two stacked labels — "Your delivery
+ * address" and "{name}'s delivery address" — and the label was actively
+ * misleading: "your" address is the one THEY post to, so a reader looking for
+ * "where do I send it" found their own street first. An arrow from a sender to
+ * a recipient says which is which without a sentence, and a trade posting in
+ * both directions is then obviously two of them.
+ */
+function Lane({
+  from,
+  to,
+  status,
+  ready,
+  parcel,
+  detail,
+  action,
+}: {
+  from: string;
+  to: string;
+  /** Two or three words on the right of the route: "Ready", "Waiting on Sam". */
+  status: string;
+  ready: boolean;
+  /**
+   * What is travelling this way.
+   *
+   * The lanes used to carry only addresses, which meant a two-way swap showed two
+   * routes and two streets and never once named a card — the reader had to hold
+   * "the Vaporeon is the one coming to me" in their head while reading a postcode.
+   */
+  parcel?: ReactNode;
+  /** The address itself, or why there isn't one. */
+  detail: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    // The lane awaiting the viewer gets a darker edge. Two identically bordered
+    // boxes gave equal billing to the one that needs them and the one that does
+    // not; the weight difference does the sorting before any of it is read.
+    <li
+      className={cn(
+        'rounded-lg border p-cozy',
+        !ready && action ? 'border-obsidian/30' : 'border-border',
+      )}
+    >
+      {/* Route, state and control on one row; the address itself gets the row
+          below, where it has the width to not wrap mid-street. */}
+      <div className="flex items-center gap-cozy">
+        {/* The route reads as a picture. The same fact is spelled out below for
+            assistive tech, where an arrow made of borders is nothing. */}
+        <span className="flex min-w-0 flex-1 items-center gap-snug" aria-hidden>
+          <Endpoint>{from}</Endpoint>
+          <span className="relative flex h-4 min-w-10 flex-1 items-center">
+            <span className="h-px w-full bg-border" />
+            {/* The padding belongs to the gap in the line, not to the glyph:
+                putting it on the SVG shrinks the truck inside its own box. */}
+            <span className="absolute left-1/2 -translate-x-1/2 bg-card px-1.5">
+              <HugeiconsIcon icon={TruckIcon} className="size-4 text-muted-foreground" />
+            </span>
+            <HugeiconsIcon icon={ChevronRightIcon} className="absolute right-0 size-3.5 -translate-y-px text-muted-foreground" />
+          </span>
+          <Endpoint destination>{to}</Endpoint>
+        </span>
+        <span className="sr-only">{`${from} posts to ${to}.`}</span>
+
+        {/* A chip, not loose text. The status is a verdict on the lane — ready,
+            or someone is being waited on — and next to a route diagram it needs
+            an edge or it reads as a caption on the arrow. */}
+        <span
+          className={cn(
+            'flex shrink-0 items-center gap-tight rounded-md border px-2.5 py-0.5 text-meta font-medium',
+            // The one that needs the viewer carries the accent, so a glance at
+            // the two lanes lands on the one they can do something about.
+            ready
+              ? 'cardtrade-success-chip'
+              : action
+                ? 'noditto-character'
+                : 'border-border bg-muted text-muted-foreground',
+          )}
+        >
+          {ready ? <HugeiconsIcon icon={CheckIcon} className="size-3" aria-hidden /> : null}
+          {status}
+        </span>
+      </div>
+
+      {/* Facts left, control right, on one baseline. The button was a third
+          stacked block under the address, which made every lane three rows tall
+          and pushed the second lane most of a screen down. Beside the text it
+          costs no height, and it lands in the column the eye is already using
+          for this lane's verdict — the status chip sits directly above it. */}
+      <div className="mt-snug flex items-end justify-between gap-cozy">
+        <div className="min-w-0 flex-1">
+          {parcel ? (
+            <p className="min-w-0 break-words text-body font-semibold">{parcel}</p>
+          ) : null}
+          <p
+            className={cn(
+              'min-w-0 break-words text-body',
+              parcel ? 'mt-0.5' : null,
+              ready ? null : 'text-muted-foreground',
+            )}
+          >
+            {detail}
+          </p>
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+    </li>
+  );
+}
 
 /** Map a stored address into the picker's value shape. */
 function toPlaceValue(address: DeliveryAddress | null): PlaceValue | null {
@@ -57,6 +204,10 @@ export interface DeliveryAddressPanelProps {
   theirsPending?: string | null;
   /** Whose address `theirs` is, for labelling. */
   counterpartName?: string | null;
+  /** What is being posted TO the viewer, named on that lane. */
+  mineParcel?: ReactNode;
+  /** What the viewer is posting to the counterparty. */
+  theirsParcel?: ReactNode;
   /** Whether the viewer may still add or replace their own address. */
   editable: boolean;
   /** Saves the viewer's own address. Returns a message on failure. */
@@ -68,6 +219,8 @@ export function DeliveryAddressPanel({
   theirs = null,
   theirsPending = null,
   counterpartName,
+  mineParcel,
+  theirsParcel,
   editable,
   onSave,
 }: DeliveryAddressPanelProps) {
@@ -103,7 +256,7 @@ export function DeliveryAddressPanel({
         lng: place.lng,
       });
       if (result.ok) {
-        toast.success('Delivery address saved.');
+        
         setOpen(false);
         router.refresh();
         return;
@@ -113,53 +266,62 @@ export function DeliveryAddressPanel({
     });
   }
 
+  const them = counterpartName?.trim() || 'They';
+  const twoWay = Boolean(theirs || theirsPending);
+
   return (
-    <div className="space-y-cozy">
-      <div className="flex items-start justify-between gap-cozy">
-        <div className="min-w-0">
-          <p className="flex items-center gap-tight text-body font-medium text-muted-foreground">
-            <Home className="size-3.5" aria-hidden />
-            Your delivery address
-          </p>
-          <p className="mt-0.5 break-words text-body">
-            {mine?.label ?? (
-              <span className="text-muted-foreground">
-                Not set — the other party cannot post to you until you add one.
-              </span>
-            )}
-          </p>
-        </div>
-        {editable ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-tight px-snug font-medium [&_svg]:size-3.5"
-            onClick={() => handleOpenChange(true)}
-          >
-            <Pencil aria-hidden />
-            {mine ? 'Change' : 'Add address'}
-          </Button>
+    <div className="space-y-snug">
+      <ul className="space-y-snug">
+        <Lane
+          from={them}
+          to="You"
+          ready={Boolean(mine)}
+          status={mine ? 'Ready' : 'Your move'}
+          parcel={mineParcel}
+          detail={mine?.label ?? 'No address yet.'}
+          action={
+            editable ? (
+              // SOLID while the address is missing, outline once it exists.
+              // "Add address" is the only thing standing between this trade and
+              // a parcel, so it carries the weight; "Change" is maintenance on a
+              // lane that is already done and must not compete with the lane
+              // that is not.
+              <Button
+                type="button"
+                variant={mine ? 'outline' : 'default'}
+                size="sm"
+                className={cn(
+                  'shrink-0 gap-tight px-snug font-medium [&_svg]:size-3.5',
+                  mine
+                    ? null
+                    : 'bg-obsidian text-mist hover:bg-obsidian/90 focus-visible:ring-obsidian',
+                )}
+                onClick={() => handleOpenChange(true)}
+              >
+                {mine ? 'Change' : 'Add address'}
+              </Button>
+            ) : undefined
+          }
+        />
+
+        {twoWay ? (
+          <Lane
+            from="You"
+            to={them}
+            ready={Boolean(theirs)}
+            status={theirs ? 'Ready' : `Waiting on ${them}`}
+            parcel={theirsParcel}
+            detail={theirs?.label ?? theirsPending}
+          />
         ) : null}
-      </div>
+      </ul>
 
-      {theirs || theirsPending ? (
-        <div>
-          <p className="text-body font-medium text-muted-foreground">
-            {counterpartName ? `${counterpartName}'s delivery address` : 'Their delivery address'}
-          </p>
-          <p className="mt-0.5 break-words text-body">
-            {theirs?.label ?? (
-              <span className="text-muted-foreground">{theirsPending}</span>
-            )}
-          </p>
-        </div>
-      ) : null}
-
-      <p className="text-body text-muted-foreground">
-        Addresses are stored separately from the contract and are never shown on a
-        map or in chat. Only the person posting to you can see yours, and only once
-        collateral is locked.
+      {/* One sentence, on a surface with an icon. Two sentences of grey text was
+          the fourth muted paragraph in the tab and got skipped — and this is the
+          one that stops people pasting their street into the chat thread. */}
+      <p className="flex items-center gap-snug rounded-md bg-muted px-cozy py-snug text-body text-muted-foreground">
+        <HugeiconsIcon icon={InfoIcon} className="size-4 shrink-0" aria-hidden />
+        <span>Addresses are never shown in chat, and only to the sender.</span>
       </p>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -191,7 +353,7 @@ export function DeliveryAddressPanel({
               Cancel
             </Button>
             <Button type="button" onClick={handleSave} disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Saving…' : 'Save address'}
             </Button>
           </DialogFooter>

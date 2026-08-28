@@ -10,7 +10,7 @@ import {
 
 export default function MessagesLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Messages">
       <div className="min-w-0">
         <SectionHeaderSkeleton titleClassName="w-24" descriptionClassName="w-40" />
         <div className="max-md:divide-y max-md:divide-border md:divide-y md:divide-border md:overflow-hidden md:rounded-xl md:border md:border-border md:bg-card">

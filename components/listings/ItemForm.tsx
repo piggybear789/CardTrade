@@ -29,7 +29,8 @@ import { useRouter } from "next/navigation";
 import { navigateWithType } from "@/lib/motion/navigate";
 import { FieldError } from "@/components/motion/FieldError";
 import { toast } from "sonner";
-import { ImageOff, ImagePlus, Library, Package, X } from "lucide-react";
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ImageOffIcon, ImagePlusIcon, LibraryIcon, PackageIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
@@ -128,12 +129,12 @@ export interface ItemFormProps {
 const LISTING_KINDS = [
   {
     value: "SINGLE" as const,
-    icon: Package,
+    icon: PackageIcon,
     label: "One item",
   },
   {
     value: "SHOPFRONT" as const,
-    icon: Library,
+    icon: LibraryIcon,
     label: "Multiple items",
   },
 ];
@@ -312,7 +313,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         });
 
         if (result.ok) {
-          toast.success("Listing created");
+          
           navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
@@ -335,7 +336,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         });
 
         if (result.ok) {
-          toast.success("Listing updated");
+          
           navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
@@ -465,7 +466,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[16/10] max-h-[22svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-gold/40 hover:bg-accent focus:outline-none focus-visible:border-gold/40 disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
+              className={`flex aspect-[16/10] max-h-[22svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-iris/50 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -479,7 +480,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 />
               ) : (
                 <>
-                  <ImagePlus className="size-8" aria-hidden />
+                  <HugeiconsIcon icon={ImagePlusIcon} className="size-8" aria-hidden />
                   <span className="text-body font-medium">Add photos</span>
                 </>
               )}
@@ -528,17 +529,17 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <ImageOff className="size-5" aria-hidden />
+                          <HugeiconsIcon icon={ImageOffIcon} className="size-5" aria-hidden />
                         </div>
                       )}
                       <button
                         type="button"
                         onClick={() => removeKeptPath(path)}
                         disabled={isSubmitting}
-                        className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-gold/40 md:size-8"
+                        className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-iris md:size-8"
                         aria-label="Remove image"
                       >
-                        <X className="size-4" aria-hidden />
+                        <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
                       </button>
                     </li>
                   );
@@ -563,10 +564,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => removeNewFile(index)}
                       disabled={isSubmitting}
-                      className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-gold/40 md:size-8"
+                      className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-iris md:size-8"
                       aria-label={`Remove ${file.name}`}
                     >
-                      <X className="size-4" aria-hidden />
+                      <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
                     </button>
                   </li>
                 ))}
@@ -576,10 +577,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex aspect-square w-full items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-gold/40 hover:bg-muted focus:outline-none focus-visible:border-gold/40 disabled:cursor-not-allowed disabled:text-muted-foreground"
+                      className="flex aspect-square w-full items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-iris/50 hover:bg-muted focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground"
                       aria-label="Add another photo"
                     >
-                      <ImagePlus className="size-5" aria-hidden />
+                      <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
                     </button>
                   </li>
                 ) : null}
@@ -770,7 +771,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             onClick={() =>
               navigateWithType(
                 router,
-                item ? `/listings/${item.id}` : "/listings",
+                item ? `/listings/${item.id}` : "/",
                 "nav-back",
               )
             }

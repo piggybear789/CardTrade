@@ -23,10 +23,6 @@ export const metadata = {
   title: 'Notifications · NoDitto',
 };
 
-// Reads the authenticated user's session and reflects live data, so it must
-// render dynamically (never statically prerendered at build time).
-export const dynamic = 'force-dynamic';
-
 export default async function NotificationsPage() {
   const supabase = await createClient();
   const {

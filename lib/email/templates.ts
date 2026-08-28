@@ -13,7 +13,7 @@ function wrap(body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0c0b0a;padding:24px;max-width:560px;margin:0 auto;">
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f1c22;padding:24px;max-width:560px;margin:0 auto;">
 ${body}
 <hr style="border:none;border-top:1px solid #e5e5e5;margin:32px 0 16px;">
 <p style="font-size:12px;color:#666;">This is an automated message from ${BRAND}. Do not reply to this email.</p>
@@ -21,8 +21,11 @@ ${body}
 </html>`;
 }
 
+// Hex, not tokens: email clients do not resolve CSS custom properties. These
+// are the literal `--foreground` and `--primary` values — keep them in step
+// with `app/globals.css`.
 function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;padding:12px 24px;background:#0c0b0a;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">${label}</a>`;
+  return `<a href="${href}" style="display:inline-block;padding:12px 24px;background:#77469b;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">${label}</a>`;
 }
 
 export function inspectionDeadlineWarning(params: {

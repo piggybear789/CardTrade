@@ -24,6 +24,7 @@
 import { z } from 'zod';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import type { ManagedMerchantDetails } from '@/domain/services/types';
@@ -44,10 +45,7 @@ import { type ActionResult, fail, ok } from './result';
  * actions themselves then refuse for want of a user.
  */
 async function viewerRegion(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   return user ? regionForProfile(user.id) : DEFAULT_CONFIG_REGION;
 }
 
@@ -112,10 +110,7 @@ export type MerchantOnboardingInput = z.input<typeof onboardingSchema>;
 export async function getMerchantState(): Promise<
   ActionResult<MerchantStateData, 'not-authenticated' | 'profile-not-found'>
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'You must be signed in.');
 
   // Read through the admin client: the merchant columns are provider-controlled

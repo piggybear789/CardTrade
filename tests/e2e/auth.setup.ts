@@ -8,7 +8,13 @@
 // navigation, so a stored session behaves exactly like a real browser's
 // cookie jar for as long as this suite runs.
 import { test as setup, expect } from '@playwright/test';
+import { isSignedInDestination } from './support/auth';
 import { SEED_USERS, storageStatePath } from './support/users';
+
+// SEVEN SIGN-INS FROM ONE ADDRESS. `authLimiter` allows 5 per minute per IP, so
+// frank and grace were refused with "Too many attempts" and every spec was
+// skipped. The limit is correct and stays 5 in production; the suite's own
+// server raises it via `AUTH_RATE_LIMIT_PER_MINUTE` — see `playwright.config.ts`.
 
 for (const user of SEED_USERS) {
   setup(`authenticate as ${user.email}`, async ({ page }) => {
@@ -38,8 +44,7 @@ for (const user of SEED_USERS) {
       'the form submitted natively as GET — hydration had not completed (see F15)',
     ).not.toHaveURL(/[?&]password=/);
 
-    // AuthForm redirects to /listings (or a preserved redirectTo) on success.
-    await expect(page).toHaveURL(/\/(listings|onboarding)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(isSignedInDestination, { timeout: 20_000 });
 
     await page.context().storageState({ path: storageStatePath(user) });
   });

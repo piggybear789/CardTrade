@@ -1,8 +1,8 @@
 'use client';
 
 // Site-wide jump search. Finds a listing from anywhere: typeahead opens the
-// card, Enter starts a marketplace query. Already on `/listings`, that query
-// is applied in place so the page is not remounted. It does not live-filter
+// card, Enter starts a marketplace query. Already on the catalog (`/`), that
+// query is applied in place so the page is not remounted. It does not live-filter
 // the grid — that is `CatalogFilterSearch`. Phone chrome uses `appearance="pill"`.
 
 import {
@@ -18,7 +18,8 @@ import {
 } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Search, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Search01Icon, XIcon } from '@hugeicons/core-free-icons';
 
 import { suggestCatalogItems, type CatalogSuggestion } from '@/lib/actions/listings';
 import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/browseEvents';
@@ -82,11 +83,11 @@ function HeaderSearchFallback({
 }) {
   return (
     <div role="search" className={cn('relative w-full', className)}>
-      <Search
+      <HugeiconsIcon icon={Search01Icon}
         className={cn(
           'pointer-events-none absolute top-1/2 -translate-y-1/2',
           appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
-          appearance === 'default' ? 'text-parchment' : 'text-foreground',
+          appearance === 'default' ? 'text-mist' : 'text-foreground',
         )}
         strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
@@ -99,7 +100,7 @@ function HeaderSearchFallback({
         autoComplete="off"
         spellCheck={false}
         className={cn(
-          'h-10 w-full pl-9 text-body md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          'h-10 w-full pl-9 text-body md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
@@ -195,7 +196,7 @@ function HeaderSearchInner({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const onCatalog = pathname === '/listings';
+  const onCatalog = pathname === '/';
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimerRef = useRef<number | null>(null);
@@ -240,9 +241,9 @@ function HeaderSearchInner({
       else params.delete('q');
       params.delete('page');
       const qs = params.toString();
-      return qs ? `/listings?${qs}` : '/listings';
+      return qs ? `/?${qs}` : '/';
     }
-    return trimmed ? `/listings?q=${encodeURIComponent(trimmed)}` : '/listings';
+    return trimmed ? `/?q=${encodeURIComponent(trimmed)}` : '/';
   }
 
   function scheduleSuggest(nextQuery: string) {
@@ -352,11 +353,11 @@ function HeaderSearchInner({
       onSubmit={handleSubmit}
       className={cn('relative w-full', className)}
     >
-      <Search
+      <HugeiconsIcon icon={Search01Icon}
         className={cn(
           'pointer-events-none absolute top-1/2 z-[1] -translate-y-1/2',
           appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
-          appearance === 'default' ? 'text-parchment' : 'text-foreground',
+          appearance === 'default' ? 'text-mist' : 'text-foreground',
         )}
         strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
@@ -401,7 +402,7 @@ function HeaderSearchInner({
         className={cn(
           // Default / inset keep Input's 16px mobile size so iOS will not zoom.
           // The compact chrome pill is `text-body` — same size as the games row.
-          'h-10 w-full pl-9 text-body md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          'h-10 w-full pl-9 text-body md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
@@ -416,11 +417,11 @@ function HeaderSearchInner({
           onClick={clearQuery}
           aria-label="Clear search"
           className={cn(
-            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-gold/40',
+            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-iris',
             trailing ? 'right-9' : 'right-1',
           )}
         >
-          <X className="size-3.5" aria-hidden />
+          <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
         </button>
       ) : null}
       {trailing ? (
@@ -460,7 +461,7 @@ function HeaderSearchInner({
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-2 py-2 text-left focus:outline-none focus-visible:border-gold/40',
+                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-2 py-2 text-left focus:outline-none focus-visible:border-iris',
                     appearance === 'default'
                       ? active
                         ? 'bg-accent'
@@ -511,7 +512,7 @@ function HeaderSearchInner({
                 hits.length > 0 && 'mt-1 border-t border-border',
               )}
             >
-              <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <span className="min-w-0 truncate">
                 Search listings for “{query.trim()}”
               </span>

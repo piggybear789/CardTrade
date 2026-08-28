@@ -13,7 +13,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Star } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, StarIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -93,7 +94,7 @@ export function LeaveReviewDialog({
         sourceId,
       });
       if (result.ok) {
-        toast.success('Thanks for your review!');
+        
         setOpen(false);
         router.refresh();
       } else {
@@ -121,8 +122,7 @@ export function LeaveReviewDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-auto">
-          <Star aria-hidden />
+        <Button variant="outline" className="w-full sm:w-auto">
           Leave a review
         </Button>
       </DialogTrigger>
@@ -159,13 +159,13 @@ export function LeaveReviewDialog({
                   }}
                   onMouseEnter={() => setHover(value)}
                   onMouseLeave={() => setHover(0)}
-                  className="rounded p-tight touch-manipulation border border-transparent focus:outline-none focus-visible:border-gold/40"
+                  className="rounded p-tight touch-manipulation border border-transparent focus:outline-none focus-visible:border-iris"
                 >
-                  <Star
+                  <HugeiconsIcon icon={StarIcon}
                     className={cn(
                       'size-7 transition-colors',
                       value <= active
-                        ? 'fill-gold text-gold'
+                        ? 'fill-iris text-iris-ink'
                         : 'text-muted-foreground/40',
                     )}
                     aria-hidden
@@ -212,7 +212,7 @@ export function LeaveReviewDialog({
             disabled={isPending || rating < 1}
             aria-busy={isPending}
           >
-            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             {isPending ? 'Submitting…' : 'Submit review'}
           </Button>
         </DialogFooter>

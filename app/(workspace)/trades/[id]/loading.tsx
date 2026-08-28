@@ -8,7 +8,7 @@ import { ContractRoomSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 export default function TradeContractLoading() {
   return (
-    <MarketplaceShellSkeleton flush>
+    <MarketplaceShellSkeleton title="Trade" flush>
       <ContractRoomSkeleton />
     </MarketplaceShellSkeleton>
   );

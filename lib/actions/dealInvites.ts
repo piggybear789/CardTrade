@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createPrivateTradeItem } from '@/lib/actions/listings';
 import { fail, ok, type ActionResult } from '@/lib/actions/result';
@@ -127,11 +128,13 @@ export type ClaimDealInviteInput = {
   buyerConfirmedSellerIdentity?: boolean;
 };
 
+/**
+ * Reads through the request-cached lookup rather than `auth.getUser()`, which
+ * revalidates the JWT against the auth server on every call. The purchases and
+ * sales pages both list invites alongside their own auth-gated reads.
+ */
 async function currentUserId(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -209,7 +212,7 @@ export async function createDealInvite(
   input: CreateDealInviteInput,
 ): Promise<ActionResult<{ token: string; path: string }, DealInviteError>> {
   const userId = await currentUserId();
-  if (!userId) return fail('unauthenticated', 'Sign in to start a deal.');
+  if (!userId) return fail('unauthenticated', 'Sign in to start a private deal.');
 
   const region = await requireTradingRegion(userId);
   if (!region.ok) return region;

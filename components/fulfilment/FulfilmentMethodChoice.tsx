@@ -10,7 +10,7 @@
 // two sets of copy, so the same choice read differently depending on which room you
 // were standing in.
 
-import { MapPin, Truck } from 'lucide-react';
+import { MapPinIcon, TruckIcon } from '@hugeicons/core-free-icons';
 
 import { ChoiceTile } from '@/components/ui/choice-tile';
 import type { FulfilmentMethod } from '@/domain/fulfilment';
@@ -20,19 +20,19 @@ const OPTIONS: {
   value: FulfilmentMethod;
   label: string;
   hint: string;
-  icon: typeof MapPin;
+  icon: typeof MapPinIcon;
 }[] = [
   {
     value: 'IN_PERSON',
     label: 'Face to face',
     hint: 'Meet and swap',
-    icon: MapPin,
+    icon: MapPinIcon,
   },
   {
     value: 'DELIVERY',
     label: 'Delivery',
     hint: 'Post it with tracking',
-    icon: Truck,
+    icon: TruckIcon,
   },
 ];
 

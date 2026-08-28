@@ -2,16 +2,20 @@
 
 // components/contract/AcceptWithPhotoDialog.tsx
 //
-// Prompts the user to optionally photograph what they received before confirming
-// acceptance. The photo becomes baseline evidence: if a dispute arises later, the
+// Prompts the user to photograph or film what they received before confirming
+// acceptance. The capture becomes baseline evidence: if a dispute arises later, the
 // arbitrator can see what the item looked like at the moment the recipient said yes.
 //
-// The photo is OPTIONAL — a user can skip and accept without one. The value is in
+// Recommended, not required — a user can skip and accept without one. The value is in
 // having it, not in blocking people who don't.
+//
+// Video is accepted because an unboxing clip is the single most useful artefact in a
+// condition dispute. Limits and MIME list come from `disputeEvidenceShared` so this
+// dialog cannot drift from what Storage will actually take.
 
 import { useRef, useState, useTransition, type ChangeEvent } from 'react';
-import { toast } from 'sonner';
-import { Camera, Check, Loader2, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Camera01Icon, LoaderCircleIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +29,12 @@ import {
 } from '@/components/ui/dialog';
 import { uploadDisputeEvidence } from '@/lib/storage/uploadDisputeEvidence';
 import { submitDisputeEvidence } from '@/lib/actions/disputeEvidence';
+import {
+  EVIDENCE_ACCEPT,
+  EVIDENCE_FILE_MAX_BYTES,
+} from '@/lib/storage/disputeEvidenceShared';
+
+const EVIDENCE_MAX_MB = Math.round(EVIDENCE_FILE_MAX_BYTES / (1024 * 1024));
 
 export interface AcceptWithPhotoDialogProps {
   /** Fire the acceptance action. */
@@ -39,11 +49,9 @@ export interface AcceptWithPhotoDialogProps {
   /** Shown in the dialog header. */
   title?: string;
   description?: string;
-  /** Toast on success. */
-  successMessage?: string;
-  /** Confirm button when a photo is attached. Trades keep the Accept default. */
+  /** Confirm button when a photo or video is attached. Trades keep the Accept default. */
   confirmWithPhotoLabel?: string;
-  /** Confirm button with no photo. Trades keep the Accept default. */
+  /** Confirm button with nothing attached. Trades keep the Accept default. */
   confirmWithoutPhotoLabel?: string;
 }
 
@@ -52,55 +60,74 @@ export function AcceptWithPhotoDialog({
   evidenceContext,
   triggerLabel = 'Accept the item',
   title = 'Accept and complete',
-  description = 'Optionally photograph what you received. This becomes your evidence if a dispute arises later.',
-  successMessage = 'Accepted.',
-  confirmWithPhotoLabel = 'Accept with photo',
-  confirmWithoutPhotoLabel = 'Accept without photo',
+  description = 'We recommend photographing or filming what you received. This becomes your evidence if a dispute arises later.',
+  confirmWithPhotoLabel = 'Accept with evidence',
+  confirmWithoutPhotoLabel = 'Accept without evidence',
 }: AcceptWithPhotoDialogProps) {
   const [open, setOpen] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const isVideo = photo?.type.startsWith('video/') ?? false;
+
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    if (fileRef.current) fileRef.current.value = '';
     if (!file) return;
+
+    // Fail here rather than after a long upload Storage would reject at the end.
+    if (file.size > EVIDENCE_FILE_MAX_BYTES) {
+      setError(`That file is larger than ${EVIDENCE_MAX_MB} MB. Try a shorter clip.`);
+      return;
+    }
+
+    clearPhoto();
     setPhoto(file);
     setPreview(URL.createObjectURL(file));
-    if (fileRef.current) fileRef.current.value = '';
   }
 
   function clearPhoto() {
     if (preview) URL.revokeObjectURL(preview);
     setPhoto(null);
     setPreview(null);
+    setError(null);
   }
 
   function handleAccept() {
     startTransition(async () => {
-      // Upload photo first if one was taken.
+      // Upload the capture first if one was taken.
       if (photo) {
         const uploaded = await uploadDisputeEvidence([photo]);
-        if (uploaded.ok && uploaded.paths.length > 0) {
-          // Attach as a "receipt photo" evidence submission. This uses the
-          // existing dispute evidence system — the photo lives in the same
-          // bucket and is visible to both parties and staff.
+        if (!uploaded.ok) {
+          // Don't accept silently without the evidence the user chose to attach —
+          // acceptance is one-way, so they'd have no second chance to record it.
+          setError(uploaded.message);
+          return;
+        }
+        if (uploaded.paths.length > 0) {
+          // Attach as a receipt evidence submission. This uses the existing
+          // dispute evidence system — the file lives in the same bucket and is
+          // visible to both parties and staff.
           await submitDisputeEvidence({
             caseKind: evidenceContext.caseKind,
             caseRef: evidenceContext.caseRef,
-            statement: 'Photo taken at acceptance — record of item condition when received.',
+            statement: isVideo
+              ? 'Video taken at acceptance — record of item condition when received.'
+              : 'Photo taken at acceptance — record of item condition when received.',
             mediaPaths: uploaded.paths,
           }).catch(() => {
-            // Best-effort: if attaching fails, still accept. The photo is in
-            // the bucket either way.
+            // Best-effort: if attaching fails, still accept. The file is in the
+            // bucket either way.
           });
         }
       }
 
       const result = await onAccept();
       if (result.ok) {
-        toast.success(successMessage);
+        
         setOpen(false);
         clearPhoto();
       }
@@ -111,7 +138,7 @@ export function AcceptWithPhotoDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button type="button" variant="action">
-          <Check className="size-4" aria-hidden />
+
           {triggerLabel}
         </Button>
       </DialogTrigger>
@@ -124,20 +151,29 @@ export function AcceptWithPhotoDialog({
         <div>
           {preview ? (
             <div className="relative mx-auto w-fit">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={preview}
-                alt="Photo of received item"
-                className="max-h-48 rounded-lg border object-contain"
-              />
+              {isVideo ? (
+                <video
+                  src={preview}
+                  controls
+                  playsInline
+                  className="max-h-48 rounded-lg border object-contain"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={preview}
+                  alt="Photo of received item"
+                  className="max-h-48 rounded-lg border object-contain"
+                />
+              )}
               <button
                 type="button"
                 onClick={clearPhoto}
                 disabled={isPending}
                 className="absolute -right-2 -top-2 rounded-full bg-background p-1 shadow-sm border hover:bg-muted"
-                aria-label="Remove photo"
+                aria-label={isVideo ? 'Remove video' : 'Remove photo'}
               >
-                <X className="size-3.5" aria-hidden />
+                <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
               </button>
             </div>
           ) : (
@@ -150,13 +186,13 @@ export function AcceptWithPhotoDialog({
               // dialog — a void the eye has to cross to reach Accept.
               className="flex w-full items-center gap-cozy rounded-lg border border-dashed border-input p-cozy text-left text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted"
             >
-              <Camera className="size-5 shrink-0" aria-hidden />
+              <HugeiconsIcon icon={Camera01Icon} className="size-5 shrink-0" aria-hidden />
               <span className="min-w-0 space-y-tight">
                 <span className="block text-body font-medium text-foreground">
-                  Take or upload a photo
+                  Add a photo or video
                 </span>
                 <span className="block text-body">
-                  Optional — helps if there is a dispute later.
+                  Recommended — it is your evidence if there is a dispute later.
                 </span>
               </span>
             </button>
@@ -165,13 +201,18 @@ export function AcceptWithPhotoDialog({
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
-            capture="environment"
+            accept={EVIDENCE_ACCEPT}
             onChange={handleFile}
             className="sr-only"
-            aria-label="Photograph the item"
+            aria-label="Photograph or film the item"
             disabled={isPending}
           />
+
+          {error ? (
+            <p role="alert" className="mt-cozy text-body text-destructive">
+              {error}
+            </p>
+          ) : null}
         </div>
 
         <DialogFooter>
@@ -190,7 +231,7 @@ export function AcceptWithPhotoDialog({
             disabled={isPending}
             aria-busy={isPending}
           >
-            {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden /> : null}
             {isPending
               ? 'Confirming…'
               : photo

@@ -8,7 +8,7 @@ import { ChatThreadSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 export default function ConversationLoading() {
   return (
-    <MarketplaceShellSkeleton flush>
+    <MarketplaceShellSkeleton title="Messages" flush>
       <ChatThreadSkeleton />
     </MarketplaceShellSkeleton>
   );

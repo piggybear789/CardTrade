@@ -4,19 +4,27 @@
 // call CatalogView.apply — fetch in place, rewrite the URL, do not navigate.
 // Prices stay readable dollars in the URL and integer cents at the action.
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
-  Check,
-  ChevronRight,
-  Search,
-  SlidersHorizontal,
-  X,
-} from 'lucide-react';
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, Search01Icon, XIcon } from '@hugeicons/core-free-icons';
 
 import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
 import { subscribeCatalogFilters } from '@/lib/catalog/browseEvents';
 
 import { useCatalogView } from '@/components/listings/CatalogView';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -46,17 +54,6 @@ const SORT_LABELS: Record<CatalogSort, string> = {
   'price-desc': 'Price: High to Low',
   rating: 'Seller Rating: High to Low',
 };
-
-/**
- * Whole dollars for the price slider readout. Exact rather than rounded: the
- * slider's step is always a whole number of dollars, so every reachable value
- * lands on one.
- */
-const AUD_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
-  style: 'currency',
-  currency: CURRENCY_CODE,
-  maximumFractionDigits: 2,
-});
 
 const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
   style: 'currency',
@@ -97,6 +94,8 @@ export interface CatalogFilterState {
   max: string;
   /** Include sold items in results. */
   includeSold: boolean;
+  /** Include items under an active contract. Independent of {@link includeSold}. */
+  includeReserved: boolean;
 }
 
 /** Browse updates stay on the client — see CatalogViewProvider. */
@@ -117,8 +116,11 @@ export function CatalogFilterSearch() {
   }
 
   return (
-    <form role="search" onSubmit={handleSubmit} className="relative min-w-0 w-full sm:w-56">
-      <Search
+    // Width comes from the container now. The old `sm:w-56` was sized for a
+    // toolbar slot and would overflow the rail, whose content box is narrower
+    // than 224px at its minimum width.
+    <form role="search" onSubmit={handleSubmit} className="relative w-full min-w-0">
+      <HugeiconsIcon icon={Search01Icon}
         className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden
       />
@@ -149,9 +151,9 @@ export function CatalogFilterSearch() {
           type="button"
           onClick={() => setFilter('')}
           aria-label="Clear listing filter"
-          className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-gold/40"
+          className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
         >
-          <X className="size-3.5" aria-hidden />
+          <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
         </button>
       ) : null}
     </form>
@@ -172,7 +174,7 @@ export function CatalogFilters() {
     if (next) params.set('filters', '1');
     else params.delete('filters');
     const qs = params.toString();
-    window.history.replaceState(window.history.state, '', qs ? `/listings?${qs}` : '/listings');
+    window.history.replaceState(window.history.state, '', qs ? `/?${qs}` : '/');
   }
 
   useEffect(() => {
@@ -212,12 +214,18 @@ export function CatalogFilters() {
 
   useEffect(() => setPriceStops([urlMinStop, urlMaxStop]), [urlMinStop, urlMaxStop]);
 
+  // `categories` belongs in here. Without it, picking a game pill produced no
+  // "Clear all" anywhere on the page — four of five filter types were
+  // reversible and the most prominent one was not, even though `reset()` would
+  // have cleared it if anything had offered to.
   const hasActiveFilters =
     current.q !== '' ||
+    current.categories.length > 0 ||
     current.conditions.length > 0 ||
     current.min !== '' ||
     current.max !== '' ||
-    current.includeSold;
+    current.includeSold ||
+    current.includeReserved;
 
   function toggleCondition(condition: string) {
     const next = current.conditions.includes(condition)
@@ -261,7 +269,7 @@ export function CatalogFilters() {
                     type="button"
                     onClick={clearFilters}
                     disabled={isPending}
-                    className="shrink-0 rounded-sm pt-0.5 text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
+                    className="shrink-0 rounded-sm pt-0.5 text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50"
                   >
                     Clear all
                   </button>
@@ -269,20 +277,28 @@ export function CatalogFilters() {
               </div>
             </SheetHeader>
             <div className="space-y-group overflow-y-auto overscroll-contain px-5 py-group">
+              {/* Sort belongs to the sheet, not to the shared refine fields.
+                  On desktop it sits beside the result count in the catalog
+                  header, where the thing being ordered is on screen; the sheet
+                  is the only place a phone can reach it, so it leads here. */}
+              <div>
+                <p className="market-label mb-2 text-muted-foreground">Sort</p>
+                <CatalogSortControl fullWidth />
+              </div>
               <CatalogRefineFields
                 current={current}
                 isPending={isPending}
-                hasActiveFilters={hasActiveFilters}
-                onClear={clearFilters}
                 onToggleCondition={toggleCondition}
                 onToggleSold={() => pushWith({ sold: current.includeSold ? null : '1' })}
+                onToggleReserved={() =>
+                  pushWith({ reserved: current.includeReserved ? null : '1' })
+                }
                 priceStops={priceStops}
                 onPriceStopsChange={setPriceStops}
                 onPriceCommit={commitPrices}
                 priceLadder={priceLadder}
                 topStop={topStop}
                 ceilingCents={ceilingCents}
-                showHeading={false}
                 choiceStyle="squares"
               />
             </div>
@@ -298,25 +314,45 @@ export function CatalogFilters() {
       </MobileOnly>
 
       <DesktopOnly>
-        <div
-          id="catalog-filter-panel"
-          className="mt-4 space-y-5 border-t border-border bg-transparent pt-group"
-        >
+        {/* No heading and no chrome of its own. "Refine results" titled a panel
+            that had nothing to be distinguished from — the rail's h1 already
+            says Marketplace and every block below carries its own label — and
+            it cost 25px of a rail that did not have 25px to spare. Each block
+            brings its own `border-t`, so a border here as well would draw two
+            rules a hair apart.
+
+            No "Clear all" either. Every filter in the rail reverses where it
+            was set: chips toggle off, the slider drags back, the checkbox
+            unticks. A bulk reset is still one click away on the one screen that
+            needs it — the empty state offers "Clear Filters" when a search
+            returns nothing, which is the case where undoing filters one at a
+            time is genuinely tedious. */}
+        <div id="catalog-filter-panel" className="mt-4 space-y-5 bg-transparent">
+          {/* The keyword box sits ABOVE the facets, which is where faceted
+              search has always put it, and it is a filter so the filter rail is
+              its home. It used to sit in the results toolbar, one row under the
+              site header's search — two rounded inputs with a magnifier, about
+              60px apart, one querying the marketplace and the other narrowing
+              only what was already on the page. Nothing distinguished them but
+              their placeholder. Moving it here separates the two by the width of
+              the rail and groups it with the controls it actually belongs to. */}
+          <CatalogFilterSearch />
           <CatalogRefineFields
             current={current}
             isPending={isPending}
-            hasActiveFilters={hasActiveFilters}
-            onClear={clearFilters}
             onToggleCondition={toggleCondition}
             onToggleSold={() => pushWith({ sold: current.includeSold ? null : '1' })}
+            onToggleReserved={() =>
+              pushWith({ reserved: current.includeReserved ? null : '1' })
+            }
             priceStops={priceStops}
             onPriceStopsChange={setPriceStops}
             onPriceCommit={commitPrices}
             priceLadder={priceLadder}
             topStop={topStop}
             ceilingCents={ceilingCents}
-            showHeading
             choiceStyle="list"
+            collapsibleCondition
           />
         </div>
       </DesktopOnly>
@@ -327,84 +363,77 @@ export function CatalogFilters() {
 function CatalogRefineFields({
   current,
   isPending,
-  hasActiveFilters,
-  onClear,
   onToggleCondition,
   onToggleSold,
+  onToggleReserved,
   priceStops,
   onPriceStopsChange,
   onPriceCommit,
   priceLadder,
   topStop,
   ceilingCents,
-  showHeading,
   choiceStyle,
+  collapsibleCondition = false,
 }: {
-  current: Pick<CatalogFilterState, 'conditions' | 'includeSold'>;
+  current: Pick<
+    CatalogFilterState,
+    'conditions' | 'includeSold' | 'includeReserved'
+  >;
   isPending: boolean;
-  hasActiveFilters: boolean;
-  onClear: () => void;
   onToggleCondition: (condition: string) => void;
   onToggleSold: () => void;
+  onToggleReserved: () => void;
   priceStops: [number, number];
   onPriceStopsChange: (next: [number, number]) => void;
   onPriceCommit: (next: [number, number]) => void;
   priceLadder: number[];
   topStop: number;
   ceilingCents: number;
-  showHeading: boolean;
   choiceStyle: 'squares' | 'list';
+  /**
+   * Put Condition behind a disclosure, closed unless it is already filtering.
+   *
+   * For the rail only. Seven stacked rows measured 348px — a third of the whole
+   * rail, and enough on its own to push the price slider off a 1366x768 screen.
+   * The sheet has the room and its chips are half the height, so it stays flat.
+   */
+  collapsibleCondition?: boolean;
 }) {
+  // CHIPS EVERYWHERE, INCLUDING THE RAIL. Condition used to render as seven
+  // full-width checkbox rows on desktop: 40px each, 348px in total, and the
+  // single largest block in a rail with a 703px ceiling. Wrapping chips carry
+  // the same seven `aria-pressed` toggles in three rows of ~120px, which is what
+  // lets the section open without pushing the price slider off a laptop screen.
+  //
+  // Width is the real argument. The rail gives these ~225px, and a full-width
+  // row spends all of it on one short label; the sheet reached the same answer
+  // for the same reason.
+  const conditionRows = (
+    <div className="flex flex-wrap gap-1.5">
+      {CONDITION_OPTIONS.map((condition) => (
+        <FilterSquare
+          key={condition}
+          label={condition}
+          pressed={current.conditions.includes(condition)}
+          onClick={() => onToggleCondition(condition)}
+          disabled={isPending}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <>
-      <div className="border-b border-border pb-group">
-        <p className="market-label mb-2 text-muted-foreground">Sort</p>
-        <CatalogSortControl fullWidth />
-      </div>
-
-      {showHeading ? (
-        <div className="flex items-center justify-between">
-          <h2 className="text-subhead font-semibold tracking-tight">Refine results</h2>
-          {hasActiveFilters ? (
-            <button
-              type="button"
-              onClick={onClear}
-              disabled={isPending}
-              className="rounded-sm text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
-            >
-              Clear all
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      <fieldset className="border-t border-border pt-group">
-        <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
-        {choiceStyle === 'squares' ? (
-          <div className="flex flex-wrap gap-1.5">
-            {CONDITION_OPTIONS.map((condition) => (
-              <FilterSquare
-                key={condition}
-                label={condition}
-                pressed={current.conditions.includes(condition)}
-                onClick={() => onToggleCondition(condition)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-tight">
-            {CONDITION_OPTIONS.map((condition) => (
-              <FilterCheckRow
-                key={condition}
-                label={condition}
-                pressed={current.conditions.includes(condition)}
-                onClick={() => onToggleCondition(condition)}
-                disabled={isPending}
-              />
-            ))}
-          </div>
-        )}
-      </fieldset>
+      {collapsibleCondition ? (
+        <ConditionDisclosure selectedCount={current.conditions.length}>
+          {conditionRows}
+        </ConditionDisclosure>
+      ) : (
+        <fieldset className="border-t border-border pt-group">
+          <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
+          {conditionRows}
+        </fieldset>
+      )}
 
       <div className="border-t border-border pt-group">
         <div className="mb-3 flex items-baseline justify-between gap-2">
@@ -441,86 +470,115 @@ function CatalogRefineFields({
           sellers, which is the opposite of what is true. Per-card badges still
           show each seller's verified given name. */}
 
+      {/* TWO INDEPENDENT TOGGLES, not one "show unavailable". They answer
+          different questions and a buyer wants them separately.
+
+          Reserved leads because it is the one you might still get. It is a live
+          contract that has not landed — no buying, trading, or offering, every
+          one of those guards on AVAILABLE — but it is not terminal either: a
+          failed trade restores its items, as does a failed collateral hold. So
+          the reason to surface one is to save it and hear if it frees up.
+
+          Sold is settled history, and is there for a different job: pricing a
+          card against what comparable ones actually went for. Folding the two
+          into a single control would imply the states mean the same thing. */}
       <div className="border-t border-border pt-group">
         <p className="market-label mb-2 text-muted-foreground">Availability</p>
         {choiceStyle === 'squares' ? (
-          <FilterSquare
-            label="Include sold"
-            pressed={current.includeSold}
-            onClick={onToggleSold}
-          />
+          <div className="flex flex-wrap gap-1.5">
+            <FilterSquare
+              label="Include reserved"
+              pressed={current.includeReserved}
+              onClick={onToggleReserved}
+              disabled={isPending}
+            />
+            <FilterSquare
+              label="Include sold"
+              pressed={current.includeSold}
+              onClick={onToggleSold}
+              disabled={isPending}
+            />
+          </div>
         ) : (
-          <FilterCheckRow
-            label="Include sold items"
-            pressed={current.includeSold}
-            onClick={onToggleSold}
-            disabled={isPending}
-          />
+          <div className="space-y-tight">
+            <FilterCheckRow
+              label="Include reserved items"
+              pressed={current.includeReserved}
+              onClick={onToggleReserved}
+              disabled={isPending}
+            />
+            <FilterCheckRow
+              label="Include sold items"
+              pressed={current.includeSold}
+              onClick={onToggleSold}
+              disabled={isPending}
+            />
+          </div>
         )}
       </div>
     </>
   );
 }
-export function CatalogActiveFilters() {
-  const { current, settled } = useCatalogView();
-  const { isPending, pushWith, reset } = useCatalogNav();
-  const hasFilters =
-    settled.q !== '' ||
-    settled.conditions.length > 0 ||
-    Boolean(settled.min) ||
-    Boolean(settled.max) ||
-    settled.includeSold;
 
-  if (!hasFilters) return null;
-
-  const priceLabel = settled.min && settled.max
-    ? `${AUD_FORMATTER.format(Number(settled.min))}–${AUD_FORMATTER.format(Number(settled.max))}`
-    : settled.min
-      ? `From ${AUD_FORMATTER.format(Number(settled.min))}`
-      : `Up to ${AUD_FORMATTER.format(Number(settled.max))}`;
+/**
+ * Condition behind a disclosure, for the rail.
+ *
+ * Closed by default, but open on mount when the URL already carries
+ * `?condition=` — a shared or bookmarked filtered link must never hide the
+ * filter it is applying. After mount the state belongs to the user: selecting
+ * or clearing conditions does not force it back open, and the count on the
+ * trigger keeps a collapsed section from ever filtering silently.
+ */
+function ConditionDisclosure({
+  selectedCount,
+  children,
+}: {
+  selectedCount: number;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(() => (selectedCount > 0 ? 'condition' : ''));
 
   return (
-    <div className="mt-group flex flex-wrap items-center gap-snug" aria-label="Active filters">
-      {settled.q ? (
-        <FilterChip
-          label={`“${settled.q}”`}
-          onRemove={() => pushWith({ q: null })}
-          disabled={isPending}
-        />
-      ) : null}
-      {settled.conditions.map((condition) => (
-        <FilterChip
-          key={condition}
-          label={condition}
-          onRemove={() => pushWith({
-            condition: current.conditions.filter((value) => value !== condition),
-          })}
-          disabled={isPending}
-        />
-      ))}
-      {settled.min || settled.max ? (
-        <FilterChip
-          label={priceLabel}
-          onRemove={() => pushWith({ min: null, max: null })}
-          disabled={isPending}
-        />
-      ) : null}
-      {settled.includeSold ? (
-        <FilterChip
-          label="Including sold"
-          onRemove={() => pushWith({ sold: null })}
-          disabled={isPending}
-        />
-      ) : null}
-      <button
-        type="button"
-        onClick={reset}
-        disabled={isPending}
-        className="rounded-sm px-1 py-tight text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
-      >
-        Clear all
-      </button>
-    </div>
+    <Accordion
+      type="single"
+      collapsible
+      value={open}
+      onValueChange={setOpen}
+      className="border-t border-border pt-2"
+    >
+      {/* `border-b-0`: the next block draws the rule below this one, the same
+          way every other block in the panel separates itself with a top border. */}
+      <AccordionItem value="condition" className="border-b-0">
+        <AccordionTrigger headingAs="div" className="group py-1.5">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="market-label text-muted-foreground transition-colors group-hover:text-foreground">
+              Condition
+            </span>
+            {selectedCount > 0 ? (
+              <>
+                <Badge
+                  className="border-foreground bg-foreground px-1.5 py-0 tabular-nums text-primary-foreground"
+                  aria-hidden="true"
+                >
+                  {selectedCount}
+                </Badge>
+                {/* The badge alone would read as a bare "2" appended to the
+                    label. Spelling it out makes the trigger announce
+                    "Condition, 2 selected". */}
+                <span className="sr-only">({selectedCount} selected)</span>
+              </>
+            ) : null}
+          </span>
+        </AccordionTrigger>
+        {/* No max-height and no inner scroll. As chips the seven options are
+            ~120px, so the section opens inside the rail's budget on a 1366x768
+            laptop with room to spare. A capped, internally scrolling list was
+            the alternative and it was worse: it showed three of seven with no
+            visible scrollbar, which is the same silent clip this change set
+            exists to remove, just moved one container inwards. */}
+        <AccordionContent className="pb-cozy pt-1">{children}</AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }
 
@@ -542,21 +600,37 @@ function FilterCheckRow({
       disabled={disabled}
       aria-pressed={pressed}
       className={cn(
-        'flex w-full items-center gap-cozy rounded-lg px-cozy py-snug text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-gold/40 disabled:opacity-60',
+        'flex w-full items-center gap-cozy rounded-lg px-cozy py-snug text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-60',
+        // No violet wash behind a ticked row. The box IS the state — it is the
+        // thing that changes shape when you click — and tinting the whole row
+        // as well put a second, much larger violet element in the rail for the
+        // same one bit of information.
         pressed
-          ? 'bg-gold/10 font-semibold text-foreground'
+          ? 'font-semibold text-foreground'
           : 'text-foreground/85 hover:bg-muted/70 hover:text-foreground',
       )}
     >
-      <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-        {pressed ? (
-          <Check className="size-4 text-gold" />
-        ) : (
-          <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+      {/* AN EMPTY BOX, NOT A DOT. The unchecked state used to be a 6px circle at
+          50% alpha — 2.18:1, and the visual vocabulary of a list bullet rather
+          than a control, so the largest block in the filter rail did not read as
+          interactive at all. A square outline is the one shape users already
+          know means "you can tick this". */}
+      <span
+        className={cn(
+          'flex size-4 shrink-0 items-center justify-center rounded-[0.25rem] border transition-colors',
+          // Ink, not violet, so the whole panel speaks one language: a chosen
+          // thing goes near-black, whether it is a chip or a tickbox. That
+          // leaves the price slider as the only violet left down here, which is
+          // the one control the colour is actually reserved for.
+          pressed
+            ? 'border-foreground bg-foreground text-primary-foreground'
+            : 'border-input bg-card',
         )}
+        aria-hidden="true"
+      >
+        {pressed ? <HugeiconsIcon icon={CheckIcon} className="size-3" strokeWidth={3} /> : null}
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {pressed ? <ChevronRight className="size-4 text-gold" aria-hidden="true" /> : null}
     </button>
   );
 }
@@ -565,47 +639,31 @@ function FilterSquare({
   label,
   pressed,
   onClick,
+  disabled = false,
 }: {
   label: string;
   pressed: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={pressed}
       className={cn(
-        'inline-flex h-9 min-h-9 items-center rounded-md border px-2.5 text-meta font-semibold tracking-tight transition-colors focus:outline-none focus-visible:border-gold/40',
+        'inline-flex h-9 min-h-9 items-center rounded-md border px-2.5 text-meta font-semibold tracking-tight transition-colors focus:outline-none focus-visible:border-iris disabled:opacity-60',
+        // Selected inverts to near-black, the same treatment the genre pills
+        // above the grid already use for exactly this — a chosen filter chip.
+        // It was a violet border over a violet wash with violet text, three
+        // uses of the hue on one 9px-tall control.
         pressed
-          ? 'border-gold bg-gold/10 text-foreground'
-          : 'border-border bg-card text-muted-foreground hover:border-gold/40 hover:text-foreground',
+          ? 'border-foreground bg-foreground text-primary-foreground'
+          : 'border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground',
       )}
     >
       {label}
-    </button>
-  );
-}
-
-function FilterChip({
-  label,
-  onRemove,
-  disabled,
-}: {
-  label: string;
-  onRemove: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onRemove}
-      disabled={disabled}
-      className="inline-flex min-h-9 max-w-full items-center gap-tight rounded-full border border-gold/40 bg-gold/8 px-cozy py-tight text-meta font-medium transition-colors hover:bg-gold/16 focus:outline-none focus-visible:border-gold/40 disabled:opacity-50"
-      aria-label={`Remove ${label} filter`}
-    >
-      <span className="truncate">{label}</span>
-      <X className="size-3.5 shrink-0" aria-hidden />
     </button>
   );
 }
@@ -619,28 +677,27 @@ export function CatalogSortControl({
   const { current } = useCatalogView();
   const { pushWith } = useCatalogNav();
 
+  // No leading glyph. A sliders icon sat here, decorative and `aria-hidden`,
+  // and it was the wrong sign for the control it labelled — faders mean FILTER
+  // everywhere else in this app, including the phone chrome's filter trigger,
+  // and this is the sort select. The trigger already names itself.
   return (
-    <div className="flex items-center gap-2">
-      {fullWidth ? null : (
-        <SlidersHorizontal className="hidden size-4 text-muted-foreground sm:block" aria-hidden />
-      )}
-      <Select
-        value={current.sort}
-        onValueChange={(value) => pushWith({ sort: value === 'newest' ? null : value })}
+    <Select
+      value={current.sort}
+      onValueChange={(value) => pushWith({ sort: value === 'newest' ? null : value })}
+    >
+      <SelectTrigger
+        className={cn('text-body', fullWidth ? 'h-9 w-full' : 'h-9 w-full min-w-0 sm:w-[190px]')}
+        aria-label="Sort listings"
       >
-        <SelectTrigger
-          className={cn(fullWidth ? 'h-9 w-full' : 'h-9 w-full min-w-0 sm:w-[190px]')}
-          aria-label="Sort listings"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {(Object.keys(SORT_LABELS) as CatalogSort[]).map((key) => (
-            <SelectItem key={key} value={key}>{SORT_LABELS[key]}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {(Object.keys(SORT_LABELS) as CatalogSort[]).map((key) => (
+          <SelectItem key={key} value={key}>{SORT_LABELS[key]}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

@@ -7,9 +7,11 @@
 // permanently: accepting an offer opens a Cash_Sale, which flips
 // `items.status` to RESERVED, and nothing in the suite puts it back. A spec built
 // on a seed item therefore passes exactly once and fails on every later run with
-// "no longer available" — and it takes the catalog specs with it, because
-// `items_catalog_select` treats availability as visibility, so the item silently
-// leaves the catalog other tests assert on.
+// "no longer available" — and it takes the catalog specs with it, because the
+// default catalog query asks for AVAILABLE only, so the item silently leaves the
+// grid other tests assert on. (Since 0108 the row is still READABLE — reserved
+// listings are browsable behind an Availability toggle — but an unfiltered `/`
+// does not ask for it, which is what those specs look at.)
 //
 // So flows that consume an item create their own, marked, and teardown deletes it.
 // Flows that only READ an item (browse, detail, messaging) use the seed fixtures.
@@ -169,9 +171,12 @@ export async function createListing(
   await expect(page.locator('#condition')).toBeFocused({ timeout: 10_000 });
 
   // One prose field, and the marked label leads it so the derived title contains it.
-  await page
-    .getByLabel(/Describe what you are selling/)
-    .fill(`${title}. ${description}`);
+  //
+  // The field's label is "Description". It was "Describe what you are selling",
+  // and that sentence still appears on the form — as the card's subtitle, not as
+  // a label — so the stale selector matched nothing while the page plainly showed
+  // the words, which is why this read as a hang rather than a rename.
+  await page.getByLabel('Description').fill(`${title}. ${description}`);
   await page.getByLabel('Price').fill(priceDollars);
 
   // PLACE BEFORE PHOTOS, and the order matters.

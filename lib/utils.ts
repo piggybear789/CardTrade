@@ -39,7 +39,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       spacing: ["tight", "snug", "cozy", "group", "section", "region"],
-      text: ["meta", "body", "lead", "subhead", "head", "display"],
+      text: ["meta", "body", "nav", "lead", "subhead", "head", "display"],
     },
   },
 });

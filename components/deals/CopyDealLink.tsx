@@ -7,7 +7,8 @@
 // labeled field, then a full-width copy action — never a side-stretched pair.
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Check, LinkIcon } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, LinkIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,7 @@ export function CopyDealLink({
     try {
       await navigator.clipboard.writeText(full);
       setCopied(true);
-      toast.success('Deal link copied');
+      
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Could not copy that link');
@@ -54,8 +55,8 @@ export function CopyDealLink({
           className="text-body"
         />
         <div className="grid grid-cols-2 gap-snug">
-          <Button type="button" variant="ditto" onClick={handleCopy}>
-            {copied ? <Check aria-hidden /> : <LinkIcon aria-hidden />}
+          <Button type="button" variant="secondary" onClick={handleCopy}>
+            {copied ? <HugeiconsIcon icon={CheckIcon} aria-hidden /> : <HugeiconsIcon icon={LinkIcon} aria-hidden />}
             {copied ? 'Copied' : 'Copy deal link'}
           </Button>
           {children}
@@ -72,7 +73,7 @@ export function CopyDealLink({
       className={appearance === 'icon' ? 'size-10 shrink-0 p-0 lg:size-8' : undefined}
       onClick={handleCopy}
     >
-      {copied ? <Check aria-hidden /> : <LinkIcon aria-hidden />}
+      {copied ? <HugeiconsIcon icon={CheckIcon} aria-hidden /> : <HugeiconsIcon icon={LinkIcon} aria-hidden />}
       {appearance === 'icon' ? (
         <span className="sr-only">{copied ? 'Copied' : 'Copy deal link'}</span>
       ) : copied ? (

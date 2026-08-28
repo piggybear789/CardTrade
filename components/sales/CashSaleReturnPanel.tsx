@@ -21,7 +21,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { PackageCheck, RotateCcw } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PackageCheckIcon, RotateCcwIcon } from '@hugeicons/core-free-icons';
 
 import {
   disputeCashSaleReturn,
@@ -83,8 +84,7 @@ export function CashSaleReturnPanel({
         lat: address.lat ?? null,
         lng: address.lng ?? null,
       });
-      if (result.ok) toast.success('Return address saved');
-      else toast.error('Could not save that address');
+      if (!result.ok) toast.error('Could not save that address');
     });
   }
 
@@ -97,7 +97,7 @@ export function CashSaleReturnPanel({
       );
       if (result.ok) {
         setShipOpen(false);
-        toast.success('Return tracking added');
+        
       } else {
         toast.error('Could not record that return');
       }
@@ -118,7 +118,7 @@ export function CashSaleReturnPanel({
     return (
       <section className="space-y-snug border-t pt-6">
         <h3 className="flex items-center gap-snug font-semibold">
-          <RotateCcw className="size-4 text-destructive" aria-hidden="true" />
+          <HugeiconsIcon icon={RotateCcwIcon} className="size-4 text-destructive" aria-hidden="true" />
           Return under review
         </h3>
         <p className="text-body text-muted-foreground">
@@ -140,7 +140,7 @@ export function CashSaleReturnPanel({
     <section className="space-y-group border-t pt-6">
       <div className="space-y-1">
         <h3 className="flex items-center gap-snug font-semibold">
-          <RotateCcw className="size-4 text-gold" aria-hidden="true" />
+          <HugeiconsIcon icon={RotateCcwIcon} className="size-4 text-iris-ink" aria-hidden="true" />
           {inTransit ? 'Return on its way' : 'Return needed before the refund'}
         </h3>
         <p className="text-body text-muted-foreground">
@@ -229,7 +229,7 @@ export function CashSaleReturnPanel({
           disabled={pending || !returnAddressLabel}
           className="w-full"
         >
-          <PackageCheck className="mr-2 size-4" aria-hidden="true" />
+          <HugeiconsIcon icon={PackageCheckIcon} className="mr-2 size-4" aria-hidden="true" />
           {returnAddressLabel ? 'Add return tracking' : 'Waiting on a return address'}
         </Button>
       ) : null}
@@ -250,7 +250,6 @@ export function CashSaleReturnPanel({
             + 'arrived if you can — an empty or wrong parcel is much easier to act on with them.'
           }
           reasonPlaceholder="What arrived, or what did not?"
-          successMessage="Our team will review this return"
           evidenceContext={{ caseKind: 'CASH_SALE', caseRef: cashSaleId }}
         />
       ) : null}

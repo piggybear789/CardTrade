@@ -12,7 +12,7 @@ import {
 
 export default function NotificationsLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Notifications">
       <div className="min-w-0">
         <SectionHeaderSkeleton titleClassName="w-28" />
         <div className="space-y-4">

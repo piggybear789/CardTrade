@@ -16,7 +16,8 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Loader2, MailCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon, LoaderCircleIcon, MailCheckIcon } from '@hugeicons/core-free-icons';
 
 import { requestPasswordReset, resendConfirmation } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ export function RequestResetForm() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-snug text-subhead">
-            <MailCheck className="size-4 shrink-0 text-trust" aria-hidden />
+            <HugeiconsIcon icon={MailCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
             Check your inbox
           </CardTitle>
           <CardDescription className="text-pretty leading-relaxed">
@@ -89,7 +90,7 @@ export function RequestResetForm() {
             </Button>
             <Button asChild size="sm" variant="ghost">
               <Link href="/sign-in">
-                <ArrowLeft className="size-3.5" aria-hidden />
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" aria-hidden />
                 Back to sign in
               </Link>
             </Button>
@@ -145,7 +146,7 @@ export function RequestResetForm() {
           </div>
 
           <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
-            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             {isPending
               ? 'Sending…'
               : intent === 'reset'

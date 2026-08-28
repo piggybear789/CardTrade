@@ -1,0 +1,376 @@
+﻿
+> cardtrade@0.1.0 test:e2e:prod
+> node scripts/e2e/run-prod.mjs --project=desktop
+
+
+[e2e] building with the suite's client env...
+
+▲ Next.js 16.3.0 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 111ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.1s
+  Running TypeScript ...
+  Finished TypeScript in 7.2s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/82) ...
+  Generating static pages using 7 workers (20/82) 
+  Generating static pages using 7 workers (40/82) 
+  Generating static pages using 7 workers (61/82) 
+✓ Generating static pages using 7 workers (82/82) in 2.2s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /account-suspended
+├ ƒ /admin
+├ ƒ /admin/arbitration
+├ ƒ /admin/arbitration/[kind]/[ref]
+├ ƒ /api/health
+├ ƒ /api/jobs/cash-sale-payouts
+├ ƒ /api/jobs/trade-inspections
+├ ƒ /api/mobile/cash-sale/accept-inspection
+├ ƒ /api/mobile/cash-sale/accept-terms
+├ ƒ /api/mobile/cash-sale/cancel
+├ ƒ /api/mobile/cash-sale/confirm-handover
+├ ƒ /api/mobile/cash-sale/initiate
+├ ƒ /api/mobile/cash-sale/list-items
+├ ƒ /api/mobile/cash-sale/propose-price
+├ ƒ /api/mobile/cash-sale/raise-dispute
+├ ƒ /api/mobile/cash-sale/record-receipt
+├ ƒ /api/mobile/cash-sale/record-shipment
+├ ƒ /api/mobile/cash-sale/sync-tracking
+├ ƒ /api/mobile/cash-sale/update-items
+├ ƒ /api/mobile/cash-sale/update-terms
+├ ƒ /api/mobile/listings/close
+├ ƒ /api/mobile/listings/create
+├ ƒ /api/mobile/listings/delete
+├ ƒ /api/mobile/listings/update
+├ ƒ /api/mobile/messages/get-conversation
+├ ƒ /api/mobile/messages/get-or-create
+├ ƒ /api/mobile/messages/list-conversations
+├ ƒ /api/mobile/messages/mark-read
+├ ƒ /api/mobile/messages/send
+├ ƒ /api/mobile/offers/counter
+├ ƒ /api/mobile/offers/list-for-item
+├ ƒ /api/mobile/offers/list-mine
+├ ƒ /api/mobile/offers/make
+├ ƒ /api/mobile/offers/respond
+├ ƒ /api/mobile/payments/begin-card-setup
+├ ƒ /api/mobile/payments/complete-card-setup
+├ ƒ /api/mobile/payments/get-status
+├ ƒ /api/mobile/trades/accept-terms
+├ ƒ /api/mobile/trades/confirm-handover
+├ ƒ /api/mobile/trades/decline
+├ ƒ /api/mobile/trades/get-delivery-addresses
+├ ƒ /api/mobile/trades/open
+├ ƒ /api/mobile/trades/propose-terms
+├ ƒ /api/mobile/trades/raise-dispute
+├ ƒ /api/mobile/trades/record-acceptance
+├ ƒ /api/mobile/trades/record-receipt
+├ ƒ /api/mobile/trades/record-shipment
+├ ƒ /api/mobile/trades/report-fraud
+├ ƒ /api/mobile/trades/report-handover-failed
+├ ƒ /api/mobile/trades/retry-collateral
+├ ƒ /api/mobile/trades/save-delivery-address
+├ ƒ /api/mobile/trades/sync-tracking
+├ ƒ /api/mobile/trades/update-handover-terms
+├ ƒ /api/webhooks/ship24
+├ ƒ /api/webhooks/stripe
+├ ƒ /auth/callback
+├ ƒ /auth/confirm
+├ ƒ /auth/update-password
+├ ƒ /deals/new
+├ ƒ /forgot-password
+├ ƒ /help
+├ ○ /icon.png
+├ ƒ /listings/[id]
+├ ƒ /listings/[id]/edit
+├ ƒ /listings/mine
+├ ƒ /listings/new
+├ ○ /manifest.webmanifest
+├ ƒ /messages
+├ ƒ /messages/[id]
+├ ƒ /notifications
+├ ƒ /offers
+├ ƒ /onboarding
+├ ƒ /privacy
+├ ƒ /profile
+├ ƒ /profile/payouts
+├ ƒ /purchases
+├ ○ /robots.txt
+├ ƒ /roomcheck-temp
+├ ƒ /roomcheck-temp/chips
+├ ƒ /sales
+├ ƒ /sales/[id]
+├ ƒ /saved
+├ ƒ /sellers/[id]
+├ ƒ /sign-in
+├ ƒ /sign-up
+├ ○ /sitemap.xml
+├ ƒ /t/[token]
+├ ƒ /terms
+├ ƒ /trades
+├ ƒ /trades/[id]
+└ ƒ /trades/new
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+[e2e] running against the production server...
+
+Resolving [E2E]-marked rows...
+Found 0 profile(s), 0 item(s), 0 trade(s), 0 cash sale(s), 0 offer(s), 0 conversation(s).
+
+Deleting dependent rows (children before parents):
+  messages: already clean
+  notifications: already clean
+  watchlist: already clean
+  reviews: already clean
+  reports: already clean
+  arbitration_assignments: already clean
+  charge_disputes: already clean
+  webhook_logs: already clean
+  trade_state_transitions: already clean
+  pre_auth_holds: already clean
+  trade_fees: already clean
+  trade_delivery_details: already clean
+  trade_items: already clean
+  cash_sale_items: already clean
+  cash_sale_events: already clean
+  cash_sale_delivery_details: already clean
+  deal_invites: already clean
+  conversations: already clean
+  offers: already clean
+  trades: already clean
+  cash_sales: already clean
+  items: already clean
+
+Clearing third-party staff references before removing profiles:
+
+Removing profiles and their auth accounts:
+  profiles: already clean
+  auth.users: already clean
+
+Removing [E2E]-marked content on seeded members:
+  notifications (marked body): already clean
+  messages (marked body): already clean
+  conversations (left empty): already clean
+  offers (marked note): already clean
+
+Done. 0 row(s) removed.
+
+Running 112 tests using 4 workers
+
+node.exe : (node:34356) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:34356) Wa... env being set.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok   1 [setup] › tests\e2e\auth.setup.ts:20:8 › authenticate as alice@example.com (3.3s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok   2 [setup] › tests\e2e\auth.setup.ts:20:8 › authenticate as bob@example.com (2.5s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok   3 [setup] › tests\e2e\auth.setup.ts:20:8 › authenticate as carol@example.com (2.2s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok   4 [setup] › tests\e2e\auth.setup.ts:20:8 › authenticate as dave@example.com (3.0s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok   5 [setup] › tests\e2e\auth.setup.ts:20:8 › authenticate as erin@example.com (2.6s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok   6 [setup] › tests\e2e\auth.setup.ts:20:8 › authenticate as frank@example.com (2.9s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok   7 [setup] › tests\e2e\auth.setup.ts:20:8 › authenticate as grace@example.com (2.3s)
+(node:43924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41692) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30092) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   9 [desktop] › tests\e2e\specs\admin.spec.ts:115:7 › Admin dashboard › Reports tab shows community reports section (4.4s)
+  ok  10 [desktop] › tests\e2e\specs\admin.spec.ts:68:7 › Admin access control › Unauthenticated user visiting /admin is redirected to /sign-in (2.4s)
+  ok  13 [desktop] › tests\e2e\specs\admin.spec.ts:78:7 › Admin access control › Unauthenticated user visiting /admin/arbitration is redirected to /sign-in (1.7s)
+  ok  11 [desktop] › tests\e2e\specs\admin.spec.ts:160:7 › Arbitration workspace › Frank sees the "Operations" link on arbitration page (admin-only) (4.9s)
+  ok   8 [desktop] › tests\e2e\specs\admin.spec.ts:30:7 › Admin access control › Frank (is_admin) can access /admin (7.6s)
+  ok  12 [desktop] › tests\e2e\specs\admin.spec.ts:121:7 › Admin dashboard › Reconciliation tab shows flagged trades section (5.9s)
+  ok  14 [desktop] › tests\e2e\specs\admin.spec.ts:94:7 › Admin dashboard › Frank sees the operations console with tabs (5.1s)
+  ok  15 [desktop] › tests\e2e\specs\admin.spec.ts:175:7 › Staff capabilities distinction › Grace (is_support) is refused by /admin (admin-only surface) (4.7s)
+  ok  17 [desktop] › tests\e2e\specs\admin.spec.ts:133:7 › Arbitration workspace › Grace sees the arbitration case list (4.1s)
+  ok  16 [desktop] › tests\e2e\specs\admin.spec.ts:39:7 › Admin access control › Grace (is_support) can access /admin/arbitration (4.6s)
+  ok  18 [desktop] › tests\e2e\specs\admin.spec.ts:109:7 › Admin dashboard › Payouts tab shows seller releases section (3.8s)
+  ok  19 [desktop] › tests\e2e\specs\admin.spec.ts:185:7 › Staff capabilities distinction › Grace does NOT see the "Operations" link on arbitration page (3.8s)
+  ok  22 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:43:9 › protected routes redirect unauthenticated users › /profile -> /sign-in?redirectTo=/profile (2.8s)
+  ok  21 [desktop] › tests\e2e\specs\admin.spec.ts:48:7 › Admin access control › Alice (regular user) sees "Not Authorized" on /admin (4.1s)
+  ok  20 [desktop] › tests\e2e\specs\admin.spec.ts:151:7 › Arbitration workspace › Frank (is_admin) also has access to /admin/arbitration (4.6s)
+  ok  24 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:43:9 › protected routes redirect unauthenticated users › /trades -> /sign-in?redirectTo=/trades (1.9s)
+  ok  26 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:43:9 › protected routes redirect unauthenticated users › /messages -> /sign-in?redirectTo=/messages (1.2s)
+  ok  28 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:43:9 › protected routes redirect unauthenticated users › /listings/new -> /sign-in?redirectTo=/listings/new (1.2s)
+  ok  27 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:43:9 › protected routes redirect unauthenticated users › /admin -> /sign-in?redirectTo=/admin (2.2s)
+  ok  23 [desktop] › tests\e2e\specs\admin.spec.ts:195:7 › Staff capabilities distinction › Frank (is_admin) sees the "Operations" link — can navigate between surfaces (6.5s)
+  ok  25 [desktop] › tests\e2e\specs\admin.spec.ts:58:7 › Admin access control › Alice (regular user) sees "Not Authorized" on /admin/arbitration (4.3s)
+  ok  29 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:43:9 › protected routes redirect unauthenticated users › /deals/new -> /sign-in?redirectTo=/deals/new (1.9s)
+  ok  30 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:61:7 › public routes are accessible without auth › / -> catalog loads (2.8s)
+  ok  31 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:68:7 › public routes are accessible without auth › /listings -> permanently redirects to the catalog at / (3.2s)
+  ok  32 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:76:7 › public routes are accessible without auth › /sign-in -> sign-in page loads (3.3s)
+  ok  33 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:81:7 › public routes are accessible without auth › /sign-up -> sign-up page loads (3.1s)
+  ok  37 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:192:7 › navigation structure (regular user) › staff nav NOT visible to a regular member (3.9s)
+  ok  36 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:143:7 › navigation structure (regular user) › main nav links visible (4.2s)
+  ok  35 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:116:7 › sign-up flow › a new account lands in onboarding (5.5s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok  34 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:96:7 › sign-in preserves redirectTo › returns to /trades after signing in (6.7s)
+  ok  38 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:219:7 › navigation structure (admin user) › staff nav visible to an admin (4.0s)
+  ok  39 [desktop] › tests\e2e\specs\auth-and-navigation.spec.ts:267:7 › sign-out › signs out and the session is really gone (10.5s)
+  ok  41 [desktop] › tests\e2e\specs\guards.spec.ts:164:7 › Region guard › a GB buyer is warned on an AU listing and refused at buy (10.0s)
+  ok  42 [desktop] › tests\e2e\specs\guards.spec.ts:231:7 › Identity gate › an unverified member is refused when trying to publish a listing (7.3s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok  44 [desktop] › tests\e2e\specs\guards.spec.ts:194:7 › Region guard › the region refusal appears on a direct URL visit (not just catalog) (9.3s)
+  ok  45 [desktop] › tests\e2e\specs\guards.spec.ts:256:7 › Identity gate › an unverified member is refused when entering trade escrow (10.0s)
+  ok  43 [desktop] › tests\e2e\specs\guards.spec.ts:284:7 › Identity gate › an unverified member is NOT refused from buying (11.0s)
+  ok  46 [desktop] › tests\e2e\specs\listings.spec.ts:70:7 › Catalog › lists AVAILABLE items (2.6s)
+  ok  47 [desktop] › tests\e2e\specs\listings.spec.ts:114:7 › Item detail › shows title, price, description and condition (2.3s)
+[WebServer] ⨯ upstream image response failed for 
+https://emojqulpbiyqoyggespp.supabase.co/storage/v1/object/public/item-images/items/aaaaaaa1/front.jpg 400
+  ok  48 [desktop] › tests\e2e\specs\listings.spec.ts:175:7 › My listings › shows the caller's RESERVED and SOLD items too (2.2s)
+  ok  49 [desktop] › tests\e2e\specs\listings.spec.ts:79:7 › Catalog › hides RESERVED and SOLD items by default (2.2s)
+[WebServer] ⨯ upstream image response failed for 
+https://emojqulpbiyqoyggespp.supabase.co/storage/v1/object/public/item-images/items/cccccccc2/framed.jpg 400
+  ok  50 [desktop] › tests\e2e\specs\listings.spec.ts:142:7 › Item detail › offers the owner edit rather than buy (2.9s)
+  ok  52 [desktop] › tests\e2e\specs\listings.spec.ts:91:7 › Catalog › search narrows to matching items (2.5s)
+[WebServer] ⨯ upstream image response failed for 
+https://emojqulpbiyqoyggespp.supabase.co/storage/v1/object/public/item-images/items/aaaaaaa1/front.jpg 400
+  ok  53 [desktop] › tests\e2e\specs\listings.spec.ts:162:7 › My listings › shows only the caller's own items (2.3s)
+[WebServer] ⨯ upstream image response failed for 
+https://emojqulpbiyqoyggespp.supabase.co/storage/v1/object/public/item-images/items/cccccccc2/framed.jpg 400
+  ok  54 [desktop] › tests\e2e\specs\listings.spec.ts:237:7 › Listing form › refuses a listing with no title (1.8s)
+  ok  55 [desktop] › tests\e2e\specs\messages.spec.ts:76:7 › Inbox › loads for an authenticated member (1.6s)
+  ok  51 [desktop] › tests\e2e\specs\listings.spec.ts:189:7 › Listing form › creates a SINGLE listing (13.7s)
+  ok  56 [desktop] › tests\e2e\specs\messages.spec.ts:92:7 › Composer on a listing › sends and opens the conversation (9.6s)
+  ok  57 [desktop] › tests\e2e\specs\messages.spec.ts:102:7 › Thread › the seller receives the message and can reply (11.7s)
+  ok  59 [desktop] › tests\e2e\specs\notifications.spec.ts:47:7 › Notification centre › loads (2.0s)
+  ok  58 [desktop] › tests\e2e\specs\listings.spec.ts:201:7 › Listing form › edits a listing title (18.5s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok  60 [desktop] › tests\e2e\specs\notifications.spec.ts:59:7 › Notification delivery › a message raises a notification, and marking read clears it (11.9s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok  63 [desktop] › tests\e2e\specs\onboarding.spec.ts:95:7 › Onboarding › a new member can finish and is written to Australia (7.0s)
+  ok  64 [desktop] › tests\e2e\specs\onboarding.spec.ts:135:7 › Onboarding › the region step offers only regions open for deals (3.6s)
+  ok  62 [desktop] › tests\e2e\specs\offers.spec.ts:133:7 › Offer countered then accepted › the seller lists an item (13.5s)
+  ok  65 [desktop] › tests\e2e\specs\onboarding.spec.ts:156:7 › Onboarding › an unfinished member is sent back to the wizard from the catalog (6.5s)
+  ok  67 [desktop] › tests\e2e\specs\onboarding.spec.ts:173:7 › Onboarding › the wizard has no guest escape (3.1s)
+  x   40 [desktop] › tests\e2e\specs\cash-sale.spec.ts:67:7 › Cash sale lifecycle › the seller lists an item (1.5m)
+  -   69 [desktop] › tests\e2e\specs\cash-sale.spec.ts:76:7 › Cash sale lifecycle › the buyer opens a contract, which reserves the item
+  -   70 [desktop] › tests\e2e\specs\cash-sale.spec.ts:123:7 › Cash sale lifecycle › the reserved item leaves the catalog
+  -   71 [desktop] › tests\e2e\specs\cash-sale.spec.ts:152:7 › Cash sale lifecycle › free text alone is refused as a delivery address
+  -   72 [desktop] › tests\e2e\specs\cash-sale.spec.ts:194:7 › Cash sale lifecycle › the buyer proposes delivery terms with a resolved address
+  -   73 [desktop] › tests\e2e\specs\cash-sale.spec.ts:228:7 › Cash sale lifecycle › the buyer pays as soon as terms are set
+  -   74 [desktop] › tests\e2e\specs\cash-sale.spec.ts:248:7 › Cash sale lifecycle › payment settles into escrow, held by the platform
+  -   75 [desktop] › tests\e2e\specs\cash-sale.spec.ts:289:7 › Cash sale lifecycle › the seller ships and the buyer confirms receipt
+  -   76 [desktop] › tests\e2e\specs\cash-sale.spec.ts:343:7 › Cash sale lifecycle › the buyer accepts and the sale completes
+  -   77 [desktop] › tests\e2e\specs\cash-sale.spec.ts:362:7 › Cash sale lifecycle › the item is now sold
+(node:8688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok  68 [desktop] › tests\e2e\specs\onboarding.spec.ts:187:7 › Onboarding › onboarding still completes when the member has no profile row (9.0s)
+  x   61 [desktop] › tests\e2e\specs\offers.spec.ts:81:7 › Offer declined › the buyer makes an offer and can only withdraw it (1.5m)
+  -   80 [desktop] › tests\e2e\specs\offers.spec.ts:96:7 › Offer declined › the seller sees it and declines
+  -   81 [desktop] › tests\e2e\specs\offers.spec.ts:114:7 › Offer declined › the buyer finds it under Past
+(node:5644) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   66 [desktop] › tests\e2e\specs\offers.spec.ts:144:7 › Offer countered then accepted › the buyer offers under asking (1.5m)
+  -   83 [desktop] › tests\e2e\specs\offers.spec.ts:152:7 › Offer countered then accepted › the seller counters
+  -   84 [desktop] › tests\e2e\specs\offers.spec.ts:186:7 › Offer countered then accepted › the buyer saves a card, accepts, and a Cash_Sale opens
+  -   85 [desktop] › tests\e2e\specs\offers.spec.ts:216:7 › Offer countered then accepted › the item is now reserved and out of the catalog
+(node:44296) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   86 [desktop] › tests\e2e\specs\profile-and-payouts.spec.ts:40:7 › Profile page › renders the details card with the contact email (6.8s)
+(node:36128) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   78 [desktop] › tests\e2e\specs\private-deal.spec.ts:36:7 › Private cash deal → sale room › the host composes a cash deal from an unlisted card (1.5m)
+  -   88 [desktop] › tests\e2e\specs\private-deal.spec.ts:61:7 › Private cash deal → sale room › the unlisted card is not in the catalog
+  -   89 [desktop] › tests\e2e\specs\private-deal.spec.ts:70:7 › Private cash deal → sale room › a signed-out visitor sees the preview and is sent to sign in
+  -   90 [desktop] › tests\e2e\specs\private-deal.spec.ts:82:7 › Private cash deal → sale room › the host cannot join their own deal
+  -   91 [desktop] › tests\e2e\specs\private-deal.spec.ts:92:7 › Private cash deal → sale room › the buyer claims the invite and both land in the sale room
+  -   92 [desktop] › tests\e2e\specs\private-deal.spec.ts:111:7 › Private cash deal → sale room › a second claim is refused
+(node:3684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   79 [desktop] › tests\e2e\specs\private-deal.spec.ts:126:7 › Private trade deal → trade room › the host composes a trade from an unlisted card (1.5m)
+  -   94 [desktop] › tests\e2e\specs\private-deal.spec.ts:142:7 › Private trade deal → trade room › the counterpart claims with their own unlisted card
+(node:14836) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x   87 [desktop] › tests\e2e\specs\profile-and-payouts.spec.ts:61:7 › Profile page › exposes the edit and add-card affordances (6.6s)
+(node:46528) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  96 [desktop] › tests\e2e\specs\public\home.spec.ts:8:5 › catalog homepage loads (1.9s)
+  ok  97 [desktop] › tests\e2e\specs\routes.spec.ts:38:7 › /purchases › loads for an authenticated buyer (1.8s)
+  ok  98 [desktop] › tests\e2e\specs\routes.spec.ts:58:7 › /saved › loads for an authenticated member (1.5s)
+  ok  99 [desktop] › tests\e2e\specs\routes.spec.ts:78:7 › /sellers/[id] › shows the seller profile with listings and reviews sections (1.3s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '3104738523'
+[WebServer] }
+  ok 100 [desktop] › tests\e2e\specs\routes.spec.ts:120:7 › /messages/[id] › loads a conversation thread (6.9s)
+  x   95 [desktop] › tests\e2e\specs\profile-and-payouts.spec.ts:169:7 › Payouts page › shows the release surfaces (18.7s)
+(node:45904) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 101 [desktop] › tests\e2e\specs\routes.spec.ts:168:7 › /sales › loads for an authenticated seller (2.7s)
+  ok 103 [desktop] › tests\e2e\specs\routes.spec.ts:192:7 › /account-suspended › renders the suspension notice (1.0s)
+  ok 102 [desktop] › tests\e2e\specs\profile-and-payouts.spec.ts:181:7 › Payouts page › hides the identity demo controls once verified (4.1s)
+  x   82 [desktop] › tests\e2e\specs\private-deal.spec.ts:164:7 › Revoke unused invite › a cancelled invite cannot be claimed (1.5m)

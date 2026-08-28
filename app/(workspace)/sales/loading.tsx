@@ -4,6 +4,7 @@
 // tabs, then cash-sale cards.
 
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 import {
   ContractCardListSkeleton,
   SectionFilterSkeleton,
@@ -12,7 +13,12 @@ import {
 
 export default function SalesLoading() {
   return (
-    <MarketplaceShellSkeleton hasPrimaryAction>
+    <MarketplaceShellSkeleton
+      title="Sales"
+      primaryAction={
+        <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
+      }
+    >
       <div className="min-w-0">
         <SectionHeaderSkeleton hasMobileAction />
         <SectionFilterSkeleton />

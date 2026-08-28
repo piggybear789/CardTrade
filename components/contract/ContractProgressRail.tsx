@@ -14,19 +14,57 @@
 // Steps come from the same pure derivation in `domain/contract` that feeds the action
 // card, so the two can never disagree.
 
-import { useEffect, useRef, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 import type { ContractStep } from '@/domain/contract';
 
 export interface ContractProgressRailProps {
   steps: ContractStep[];
+  /**
+   * Number the ticks 1..n instead of marking them with a dot.
+   *
+   * REPLACED A PER-STEP ICON MAP. Four different glyphs — a pin, a truck, a box,
+   * a tick — carried nothing the label beneath them did not already say, and
+   * asked the reader to decode a picture to find out how far along they were.
+   * A numeral answers "how many, in what order, where am I" outright.
+   *
+   * Completed and halted steps keep their ✓ and ✕: those say something a numeral
+   * cannot.
+   */
+  numbered?: boolean;
+  /**
+   * Extra content under a step's caption, keyed by step id — a deadline, a
+   * figure, a count.
+   *
+   * Attaches a fact to the step it belongs to instead of floating it above the
+   * rail as a banner of its own. Keep them to a chip's worth: a rail column is
+   * roughly a quarter of the panel.
+   */
+  annotations?: Record<string, ReactNode>;
+  /**
+   * Render each step's `caption` under its label.
+   *
+   * Off by default: the contract-wide rail is five or six ticks across the top of
+   * a room and a second line of prose per tick turns it into a paragraph. Worth
+   * turning on for a short rail that owns its surface — the four-step postage plan
+   * in the Terms tab — where the captions are what make the sequence legible
+   * without clicking anything.
+   */
+  captions?: boolean;
   className?: string;
 }
 
 /** The contract lifecycle as a row of ticks. */
-export function ContractProgressRail({ steps, className }: ContractProgressRailProps) {
+export function ContractProgressRail({
+  steps,
+  numbered = false,
+  annotations,
+  captions = false,
+  className,
+}: ContractProgressRailProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const open = steps.find((step) => step.id === openId) ?? null;
 
@@ -75,6 +113,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
           const first = index === 0;
           const last = index === steps.length - 1;
           const animating = justCompleted.has(step.id);
+          const annotation = annotations?.[step.id];
 
           return (
             <li key={step.id} className="flex min-w-0 flex-1 flex-col items-center">
@@ -91,7 +130,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                       : done
                         ? 'bg-trust/60'
                         : live
-                          ? 'bg-gold/60'
+                          ? 'bg-iris/60'
                           : halted
                             ? 'bg-destructive/50'
                             : 'bg-border',
@@ -111,15 +150,16 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                   }`}
                   aria-expanded={selected}
                   className={cn(
-                    'grid size-5 shrink-0 touch-manipulation place-items-center rounded-full border',
+                    'grid shrink-0 touch-manipulation place-items-center rounded-full border',
+                    numbered ? 'size-7 text-meta font-semibold tabular-nums' : 'size-5',
                     'transition-[background-color,border-color,box-shadow,color] duration-300',
                     // The tick stays 20px visually, but an invisible overlay
                     // stretches the hit area to ~44px for touch guidelines.
                     "relative before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']",
-                    'hover:border-gold/40 hover:text-foreground',
-                    'border border-transparent focus:outline-none focus-visible:border-gold/40',
+                    'hover:border-iris/50 hover:text-foreground',
+                    'border border-transparent focus:outline-none focus-visible:border-iris',
                     done && 'cardtrade-success-chip',
-                    live && 'animate-step-active border-gold bg-gold/25 text-foreground ring-2 ring-gold/25',
+                    live && 'animate-step-active border-iris bg-iris/25 text-foreground ring-2 ring-iris/25',
                     halted &&
                       'border-destructive/40 bg-destructive/10 text-destructive',
                     !done && !live && !halted && 'border-border bg-card text-muted-foreground',
@@ -128,9 +168,11 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                   )}
                 >
                   {done ? (
-                    <Check className="size-3" aria-hidden />
+                    <HugeiconsIcon icon={CheckIcon} className={numbered ? 'size-3.5' : 'size-3'} aria-hidden />
                   ) : halted ? (
-                    <X className="size-3" aria-hidden />
+                    <HugeiconsIcon icon={XIcon} className={numbered ? 'size-3.5' : 'size-3'} aria-hidden />
+                  ) : numbered ? (
+                    index + 1
                   ) : (
                     <span
                       className={cn(
@@ -150,7 +192,7 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
                       : steps[index + 1]?.status === 'done'
                         ? 'bg-trust/60'
                         : steps[index + 1]?.status === 'active'
-                          ? 'bg-gold/60'
+                          ? 'bg-iris/60'
                           : steps[index + 1]?.status === 'halted'
                             ? 'bg-destructive/50'
                             : 'bg-border',
@@ -160,7 +202,8 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
 
               <span
                 className={cn(
-                  'mt-1.5 max-w-full truncate px-1 text-meta transition-colors duration-300',
+                  'mt-1.5 max-w-full px-1 text-meta transition-colors duration-300',
+                  captions ? 'text-center' : 'truncate',
                   live
                     ? 'font-semibold text-foreground'
                     : halted
@@ -172,6 +215,18 @@ export function ContractProgressRail({ steps, className }: ContractProgressRailP
               >
                 {step.short ?? step.label}
               </span>
+
+              {/* `text-balance` and no truncation: a caption that clips to one
+                  ellipsised line tells the reader less than no caption at all. */}
+              {captions && step.caption ? (
+                <span className="mt-0.5 max-w-full text-balance px-1 text-center text-meta text-muted-foreground">
+                  {step.caption}
+                </span>
+              ) : null}
+
+              {annotation ? (
+                <span className="mt-1 max-w-full px-1 text-center">{annotation}</span>
+              ) : null}
             </li>
           );
         })}

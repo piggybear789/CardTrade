@@ -9,7 +9,7 @@ import { ItemFormSkeleton } from '@/components/listings/ItemFormSkeleton';
 
 export default function NewListingLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="New Listing">
       <ItemFormSkeleton />
     </MarketplaceShellSkeleton>
   );

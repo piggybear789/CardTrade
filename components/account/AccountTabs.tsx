@@ -40,8 +40,16 @@ const TRACK_SHAPE = [
   // Desktop: back to an inline underlined strip.
   'md:-mb-px md:flex md:gap-section md:rounded-none md:bg-transparent md:p-0',
 ].join(' ');
+// NO `truncate` ON THE ITEM. Truncation belongs to the label span, which is the
+// box the text actually overflows; putting it here as well bought nothing and
+// cost `overflow: hidden`, which clipped the desktop underline. `TabIndicator`
+// sits at `-bottom-px` so 1px of its 2px hangs outside the item's box to
+// straddle the strip's rule — with the clip it painted at half height, its
+// `rounded-t-full` ends reduced to the narrowest slice of the radius, so the
+// active marker read as a thin tapered hairline sitting ON the rule rather than
+// a bar under it.
 const ITEM_SHAPE = [
-  'relative flex min-h-9 items-center justify-center truncate rounded-md px-tight',
+  'relative flex min-h-9 items-center justify-center rounded-md px-tight',
   'text-body font-medium',
   'md:min-h-0 md:justify-start md:rounded-none md:px-tight md:pb-cozy',
 ].join(' ');
@@ -60,7 +68,7 @@ export function AccountTabs({ activeTab }: { activeTab: string }) {
                 className={cn(
                   ITEM_SHAPE,
                   'touch-manipulation transition-colors',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold/60',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
                   active ? 'text-foreground' : 'text-muted-foreground md:hover:text-foreground',
                 )}
               >

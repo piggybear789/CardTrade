@@ -8,6 +8,7 @@
 // files plus a wrong diagnosis.
 
 import { test, expect } from '../support/fixtures';
+import { isSignedInDestination } from '../support/auth';
 import { ALICE, FRANK_ADMIN, storageStatePath } from '../support/users';
 import { markedEmail } from '../support/marker';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
@@ -57,16 +58,19 @@ test.describe('protected routes redirect unauthenticated users', () => {
 test.describe('public routes are accessible without auth', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('/ -> landing page loads', async ({ page }) => {
+  test('/ -> catalog loads', async ({ page }) => {
+    // Browsing crosses regions and needs no account; only CONTRACTS are gated.
     await page.goto('/');
     await expect(page).toHaveTitle(/NoDitto/);
+    await expect(page).not.toHaveURL(/\/sign-in/);
   });
 
-  test('/listings -> catalog loads', async ({ page }) => {
-    // Browsing crosses regions and needs no account; only CONTRACTS are gated.
-    await page.goto('/listings');
-    await expect(page).toHaveURL(/\/listings/);
-    await expect(page).not.toHaveURL(/\/sign-in/);
+  test('/listings -> permanently redirects to the catalog at /', async ({ page }) => {
+    // The catalog moved to the root. Bookmarks and inbound links must survive,
+    // and the child routes beneath `/listings` must not be swept up by it.
+    const response = await page.goto('/listings');
+    await expect(page).toHaveURL(/\/$/);
+    expect(response?.request().redirectedFrom()).not.toBeNull();
   });
 
   test('/sign-in -> sign-in page loads', async ({ page }) => {
@@ -96,8 +100,9 @@ test.describe('sign-in preserves redirectTo', () => {
     await signInAs(page, ALICE.email, ALICE.password);
 
     // Seed members have completed onboarding, so they land on the preserved
-    // destination or the default — either proves the round trip worked.
-    await expect(page).toHaveURL(/\/(trades|listings)/, { timeout: COLD_ROUTE });
+    // destination or the default (the catalog at `/`) — either proves the round
+    // trip worked.
+    await expect(page).toHaveURL(/\/(trades)?$/, { timeout: COLD_ROUTE });
   });
 });
 
@@ -117,6 +122,8 @@ test.describe('sign-up flow', () => {
     await expect(emailField).toBeEditable({ timeout: RENDERED });
     await emailField.fill(email);
     await page.getByLabel('Password').fill('TestPassword123!');
+    // Sign-up refuses without consent — see `acceptedTerms` in AuthForm.
+    await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
     await page.getByRole('button', { name: 'Create account' }).click();
 
     // Middleware sends a member with no `onboarding_completed_at` to /onboarding
@@ -134,7 +141,7 @@ test.describe('navigation structure (regular user)', () => {
   test.use({ storageState: storageStatePath(ALICE) });
 
   test('main nav links visible', async ({ page }) => {
-    await page.goto('/listings');
+    await page.goto('/');
 
     const header = page.locator('header');
     const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
@@ -153,7 +160,12 @@ test.describe('navigation structure (regular user)', () => {
 
       await expect(header.getByRole('link', { name: 'Messages' })).toBeVisible();
       await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
-      await expect(header.getByRole('link', { name: ALICE.displayName })).toBeVisible();
+      // `.first()`: with the menu open the header holds two links to /profile —
+      // the avatar chip and the menu's own account row — and both are named for
+      // the member.
+      await expect(
+        header.getByRole('link', { name: ALICE.displayName }).first(),
+      ).toBeVisible();
     } else {
       // Signed-in phones drop the header burger; hubs and header icons cover
       // the same map.
@@ -170,7 +182,7 @@ test.describe('navigation structure (regular user)', () => {
       await expect(sheet.getByRole('heading', { name: 'Contracts' })).toBeVisible({
         timeout: 10_000,
       });
-      await expect(sheet.getByRole('button', { name: /start a deal/i })).toBeVisible();
+      await expect(sheet.getByRole('button', { name: /private deal/i })).toBeVisible();
       await expect(sheet.getByRole('link', { name: /purchases/i })).toBeVisible();
       await expect(sheet.getByRole('link', { name: /sales/i })).toBeVisible();
       await expect(sheet.getByRole('link', { name: /trades/i })).toBeVisible();
@@ -181,7 +193,7 @@ test.describe('navigation structure (regular user)', () => {
     const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
 
     if (isDesktop) {
-      await page.goto('/listings');
+      await page.goto('/');
       const menuButton = page.getByRole('button', { name: /open menu/i });
       await expect(menuButton).toBeVisible({ timeout: RENDERED });
       await menuButton.click();
@@ -208,7 +220,7 @@ test.describe('navigation structure (admin user)', () => {
     const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
 
     if (isDesktop) {
-      await page.goto('/listings');
+      await page.goto('/');
       const menuButton = page.getByRole('button', { name: /open menu/i });
       await expect(menuButton).toBeVisible({ timeout: RENDERED });
       await menuButton.click();
@@ -254,7 +266,7 @@ test.describe('sign-out', () => {
 
   test('signs out and the session is really gone', async ({ page }) => {
     await signInAs(page, ALICE.email, ALICE.password);
-    await expect(page).toHaveURL(/\/(listings|onboarding)/, { timeout: COLD_ROUTE });
+    await expect(page).toHaveURL(isSignedInDestination, { timeout: COLD_ROUTE });
 
     // Sign-out lives on Settings so a phone without the header burger can
     // still leave. Desktop still has it in the overflow menu too.

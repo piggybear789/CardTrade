@@ -9,7 +9,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { CreditCard, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CreditCardIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
@@ -21,12 +22,19 @@ const AddPaymentMethodForm = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-40 items-center justify-center" role="status">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
         <span className="sr-only">Loading payment form…</span>
       </div>
     ),
   },
 );
+
+/** What `getPaymentMethodStatus` resolves to. */
+export interface SavedCardStatus {
+  hasPaymentMethod: boolean;
+  label: string | null;
+  expiry: string | null;
+}
 
 export interface SavedCardRowProps {
   /**
@@ -34,15 +42,32 @@ export interface SavedCardRowProps {
    * card form). Off: Replace opens the standalone dialog, for the trade room.
    */
   inline?: boolean;
+  /**
+   * The status as the server already knew it, so the real row is in the first
+   * paint. Without it this renders a one-line "Checking your card…" and then
+   * grows into a ~76px bordered row — directly above the Accept button in the
+   * trade room, and inside the accept dialog, which then resizes mid-read.
+   *
+   * Omit it and the component falls back to fetching on mount, which is still
+   * correct for surfaces with no server parent to seed from.
+   */
+  initialStatus?: SavedCardStatus | null;
   /** True when a vaulted card is on file and not mid-replace. */
   onStatus?: (hasCard: boolean) => void;
   className?: string;
 }
 
-export function SavedCardRow({ inline = false, onStatus, className }: SavedCardRowProps) {
-  const [label, setLabel] = useState<string | null>(null);
-  const [expiry, setExpiry] = useState<string | null>(null);
-  const [hasCard, setHasCard] = useState<boolean | null>(null);
+export function SavedCardRow({
+  inline = false,
+  initialStatus = null,
+  onStatus,
+  className,
+}: SavedCardRowProps) {
+  const [label, setLabel] = useState<string | null>(initialStatus?.label ?? null);
+  const [expiry, setExpiry] = useState<string | null>(initialStatus?.expiry ?? null);
+  const [hasCard, setHasCard] = useState<boolean | null>(
+    initialStatus ? initialStatus.hasPaymentMethod : null,
+  );
   const [replacing, setReplacing] = useState(false);
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
@@ -69,7 +94,15 @@ export function SavedCardRow({ inline = false, onStatus, className }: SavedCardR
       .catch(() => applyStatus({ hasPaymentMethod: false, label: null, expiry: null }));
   }, [applyStatus]);
 
+  // A seeded row is already showing the answer, so re-asking on mount would
+  // spend a round trip to redraw the same thing. Later refreshes (after a card
+  // is added or replaced) still go through `refresh`.
+  const skipInitialFetch = useRef(initialStatus !== null);
   useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
+      return;
+    }
     refresh();
   }, [refresh]);
 
@@ -123,7 +156,7 @@ export function SavedCardRow({ inline = false, onStatus, className }: SavedCardR
   return (
     <div className={className}>
       <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-        <CreditCard className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-medium">
             {hasCard ? (label ?? 'Card on file') : 'No card on file'}

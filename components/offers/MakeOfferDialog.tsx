@@ -16,7 +16,8 @@ import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
-import { HandCoins, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HandCoinsIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
@@ -113,9 +114,7 @@ export function MakeOfferDialog({
         true,
       );
       if (result.ok) {
-        toast.success(
-          `Offer of ${formatAud(result.offer.amount_cents)} sent to the seller.`,
-        );
+        
         setOpen(false);
         setAmount('');
         setMessage('');
@@ -133,7 +132,7 @@ export function MakeOfferDialog({
       <DialogTrigger asChild>
         {trigger ?? (
           <ListingActionIcon
-            icon={HandCoins}
+            icon={HandCoinsIcon}
             label="Make an offer"
             iconClassName="size-7"
           />
@@ -194,7 +193,7 @@ export function MakeOfferDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Sending…' : 'Send offer'}
             </Button>
           </DialogFooter>

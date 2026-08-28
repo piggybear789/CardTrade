@@ -9,64 +9,18 @@
 // rooms are server-rendered and hydrated, and a relative label computed at two
 // different instants mismatches on hydration.
 
-import {
-  Check,
-  CircleAlert,
-  CircleDot,
-  XCircle,
-} from 'lucide-react';
-
 import { formatContractDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import {
+  ContractEventIcon,
+  classifyContractEvent,
+} from '@/components/contract/contractEventTone';
 import type { ContractEvent } from './types';
 
 /** Turn `COLLATERAL_LOCKED` into `Collateral locked`. Capitalise first word. */
 function humanise(event: string): string {
   const lower = event.toLowerCase().replace(/_/g, ' ');
   return lower.charAt(0).toUpperCase() + lower.slice(1);
-}
-
-/** Classify an event name into a visual tone for the timeline dot. */
-type EventTone = 'success' | 'warning' | 'destructive' | 'neutral';
-
-function classifyEvent(event: string): EventTone {
-  const upper = event.toUpperCase();
-  if (
-    upper.includes('COMPLETED') ||
-    upper.includes('ACCEPTED') ||
-    upper.includes('CONFIRMED') ||
-    upper.includes('SETTLED') ||
-    upper.includes('RELEASED') ||
-    upper.includes('PAID')
-  ) {
-    return 'success';
-  }
-  if (
-    upper.includes('FAILED') ||
-    upper.includes('CANCELLED') ||
-    upper.includes('FRAUD') ||
-    upper.includes('EXPIRED')
-  ) {
-    return 'destructive';
-  }
-  if (upper.includes('DISPUTE') || upper.includes('HALTED')) {
-    return 'warning';
-  }
-  return 'neutral';
-}
-
-function EventIcon({ tone }: { tone: EventTone }) {
-  const base = 'size-4 shrink-0';
-  switch (tone) {
-    case 'success':
-      return <Check className={cn(base, 'text-emerald-600')} aria-hidden />;
-    case 'destructive':
-      return <XCircle className={cn(base, 'text-destructive')} aria-hidden />;
-    case 'warning':
-      return <CircleAlert className={cn(base, 'text-gold')} aria-hidden />;
-    default:
-      return <CircleDot className={cn(base, 'text-muted-foreground')} aria-hidden />;
-  }
 }
 
 export interface ContractTimelineProps {
@@ -95,11 +49,11 @@ export function ContractTimeline({
   return (
     <ol className={cn('space-y-cozy', className)} aria-label={ariaLabel}>
       {events.map((event) => {
-        const tone = classifyEvent(event.event);
+        const tone = classifyContractEvent(event.event);
         return (
           <li key={event.id} className="flex items-center gap-cozy text-body">
             <span className="flex size-5 shrink-0 items-center justify-center">
-              <EventIcon tone={tone} />
+              <ContractEventIcon tone={tone} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-medium leading-5">

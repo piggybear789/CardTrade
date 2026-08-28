@@ -60,6 +60,14 @@ const RECONNECT_MAX_DELAY_MS = 30_000;
 /** Maximum number of automatic reconnect attempts before giving up. */
 const MAX_RECONNECT_ATTEMPTS = 10;
 
+/**
+ * How long UPDATE events are buffered before being applied as one batch.
+ *
+ * A bulk read-marking emits one event per row; without a window each becomes its
+ * own render, in every mounted instance of this hook.
+ */
+const UPDATE_COALESCE_MS = 50;
+
 /** Compute an exponential backoff delay, capped at {@link RECONNECT_MAX_DELAY_MS}. */
 function backoffDelay(attempt: number): number {
   return Math.min(RECONNECT_BASE_DELAY_MS * 2 ** attempt, RECONNECT_MAX_DELAY_MS);
@@ -135,15 +143,59 @@ export function useNotifications(
    * Rows are merged, never appended: an UPDATE for a row this instance has not
    * loaded (older than its 50-row window) is ignored rather than being inserted
    * out of position.
+   *
+   * COALESCED, BECAUSE "MARK ALL READ" IS N WRITES. Postgres emits one change
+   * event per ROW, so clearing thirty notifications delivered thirty separate
+   * payloads. Applying each one individually meant thirty `setNotifications`
+   * calls — and this hook is mounted twice per page (the header bell and the
+   * notification centre), so sixty renders for one button press. That is the
+   * jitter, and it scales with how long you leave the badge unread.
+   *
+   * Events inside {@link UPDATE_COALESCE_MS} are merged and applied once. The
+   * window is short enough to read as immediate and long enough to swallow a
+   * bulk write's fan-out.
    */
+  const pendingUpdates = useRef<Map<string, NotificationRow>>(new Map());
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const applyUpdate = useCallback(
     (payload: RealtimePostgresChangesPayload<NotificationRow>) => {
       const next = payload.new as NotificationRow;
       if (!next?.id) return;
-      setNotifications((prev) => {
-        if (!prev.some((n) => n.id === next.id)) return prev;
-        return prev.map((n) => (n.id === next.id ? { ...n, ...next } : n));
-      });
+
+      pendingUpdates.current.set(next.id, next);
+      if (flushTimer.current !== null) return;
+
+      flushTimer.current = setTimeout(() => {
+        flushTimer.current = null;
+        const batch = pendingUpdates.current;
+        pendingUpdates.current = new Map();
+
+        setNotifications((prev) => {
+          let changed = false;
+          const merged = prev.map((row) => {
+            const incoming = batch.get(row.id);
+            if (!incoming) return row;
+            // The only field that moves is `read_at`, and the local optimistic
+            // update has usually already set it — with a slightly different
+            // timestamp than the server's. Comparing read/unread rather than the
+            // value keeps the echo of our own write from causing a render.
+            if ((row.read_at === null) === (incoming.read_at === null)) return row;
+            changed = true;
+            return { ...row, ...incoming };
+          });
+          return changed ? merged : prev;
+        });
+      }, UPDATE_COALESCE_MS);
+    },
+    [],
+  );
+
+  // The buffer outlives any one channel, so it is cleared on unmount rather than
+  // in the subscription effect below.
+  useEffect(
+    () => () => {
+      if (flushTimer.current !== null) clearTimeout(flushTimer.current);
     },
     [],
   );

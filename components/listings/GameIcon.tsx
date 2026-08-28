@@ -11,7 +11,8 @@
 // foreground, but a `currentColor` mark can.
 
 import type { ReactNode, SVGProps } from 'react';
-import { LayoutGrid } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LayoutGridIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -267,7 +268,7 @@ export function GameMark({
   className?: string;
 }) {
   if (slug === 'all') {
-    return <LayoutGrid className={cn('size-3.5 shrink-0', className)} aria-hidden />;
+    return <HugeiconsIcon icon={LayoutGridIcon} className={cn('size-3.5 shrink-0', className)} aria-hidden />;
   }
   const Mark = GAME_MARKS[slug] ?? OtherTcgMark;
   return <Mark className={className} />;
@@ -281,7 +282,7 @@ export function GameIcon({
   slug: string;
   className?: string;
   /** Drives the icon's own treatment: brand logos dim when inactive, drawn
-   *  marks switch to gold. Callers only need to say which state they're in. */
+   *  marks switch to iris. Callers only need to say which state they're in. */
   active?: boolean;
 }) {
   const aspect = GAME_LOGO_ASPECT[slug];
@@ -291,7 +292,7 @@ export function GameIcon({
       <span
         className={cn(
           'inline-grid shrink-0 place-items-center',
-          active ? 'text-gold' : 'text-muted-foreground',
+          active ? 'text-iris-ink' : 'text-muted-foreground',
           className,
         )}
         style={{ height: LOGO_HEIGHT_PX, width: LOGO_HEIGHT_PX }}

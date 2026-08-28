@@ -1,0 +1,167 @@
+---
+target: the message thread UI (/messages/[id])
+total_score: 21
+p0_count: 0
+p1_count: 4
+timestamp: 2026-08-27T09-31-49Z
+slug: components-messages-chatthread-tsx
+---
+## Design Health Score
+
+| # | Heuristic | Score | Key Issue |
+|---|-----------|-------|-----------|
+| 1 | Visibility of System Status | 2 | No optimistic "sending" bubble. `MessageComposer.tsx:104-107` clears the draft on server success and the bubble only appears when the realtime INSERT lands, so on a slow link the text vanishes with nothing replacing it. |
+| 2 | Match System / Real World | 3 | Two copy grammars in one log ("Payment confirmed. The seller can now ship or meet." vs "Test — shipped: …"), and "test — received: Delivery confirmed by carrier" attributes the carrier's action to the buyer. |
+| 3 | User Control and Freedom | 2 | A cash-sale thread cannot reach its contract room. The only trailing action is "View listing" (`ChatThread.tsx:158-160`), a dead end on a Sold item. |
+| 4 | Consistency and Standards | 2 | `classifyContractEvent` returns four tones; `MessageLog.tsx:248-250` renders two, while the audit panel renders four glyphs. The same event looks different in two places, which `contractEventTone.tsx` exists to prevent. |
+| 5 | Error Prevention | 2 | `maxLength` enforces `MESSAGE_BODY_MAX` with no counter (`MessageComposer.tsx:203`), so a long pasted condition report silently truncates. Navigating back discards an unsent draft with no guard. |
+| 6 | Recognition Rather Than Recall | 2 | The deal's state is stated nowhere. The header shows the *listing's* status ("Sold", `ChatThread.tsx:74-77`), so the contract state must be reconstructed by reading the whole log. |
+| 7 | Flexibility and Efficiency | 2 | Enter-to-send and paste-to-attach are real accelerators, but there is no jump-to-latest, no thread search, and no way to isolate the contract record in a long dispute log. |
+| 8 | Aesthetic and Minimalist Design | 3 | Genuinely restrained, but three unrelated measures share one screen: bubbles `max-w-[82%]`, events `max-w-[26rem]`, composer full width. |
+| 9 | Error Recovery | 2 | `useConversationRealtime.ts:137-139` gives up permanently after 10 attempts; the entire UI response is the word "Offline" in a metadata run, with no reconnect control. |
+| 10 | Help and Documentation | 1 | Nothing explains the inspection window, the dispute path, or what any contract event implies — on the surface where someone watches $780 move. |
+| **Total** | | **21/40** | **Acceptable (bottom of band) — significant improvements needed** |
+
+## Anti-Patterns Verdict
+
+**LLM assessment. Not AI slop, and this was verified rather than assumed.** Every shared absolute ban is clean on this surface: no side-stripe borders, no gradient text, no glassmorphism, no hero-metric block, no identical card grids, no numbered section markers, no sketchy SVG, no repeating-gradient stripes. The surface uses no cards at all, which is the right answer for a chat log. The ghost-card pattern is structurally impossible here — `shadow-market` is 4px/10px and `shadow-lift` is 8px/14px, and `tailwind.config.ts:156-159` documents pulling them back from 30px/44px for exactly that reason. Bubbles cap at `rounded-2xl` (16px), at the ceiling rather than over it.
+
+Product-register rules hold too: one typeface app-wide with `mono` deliberately aliased to the same stack (`tailwind.config.ts:94-106`) so a stray `font-mono` cannot reintroduce a second family; a fixed rem type scale rather than clamp; no invented affordances. The most common AI readability failure — light grey body text "for elegance" — is actively avoided: `--muted-foreground` computes to **5.73:1** on white.
+
+The `.market-label` / `.cardtrade-eyebrow` classes at `globals.css:167-181` (11px, uppercase, `tracking-[0.12em]`) are the *shape* of the banned eyebrow trope, but they are not mounted on this route. Project-level risk, not a finding here.
+
+What a fluent user *would* pause at is not a generator tell — it reads as a bug. Roughly 160px of unexplained white sits between the last message and the composer, because the log is top-anchored. Every chat product bottom-anchors a short thread.
+
+**Deterministic scan.** `detect.mjs --json` over `components/messages`, `components/contract/contractEventTone.tsx`, `components/layout/MarketplaceShell.tsx`, `app/messages`: **0 findings, exit 0**. This was validated rather than trusted — a `--no-config` rerun also returned clean, the target paths were confirmed to resolve to 12 real files, and the same detector over `components app` returned 4 findings with exit 2, proving it was functional. Those 4 whole-tree hits are all `broken-image` in `components/ui/storage-image.tsx` (lines 11, 19, 35, 46) and **all four are false positives** — every match is the literal string `<img>` inside a `//` comment or a JSDoc block. The one real `<img>` in that file, at line 52, was not flagged. Precision on the control run: 0/4.
+
+**Where the two assessments diverge, and it matters.** The mechanical pass measured the `focus-visible:border-iris` indicator at **3.92:1** against `--background` and `--card` and marked it PASS. That is correct for every control it checked — but it never checked the one case that fails. The design review found that the image-attachment button at `MessageLog.tsx:318` sits inside a bubble that is `bg-primary` when the message is yours (`MessageLog.tsx:303`), where iris measures **1.72:1** against primary, below SC 1.4.11's 3:1 floor. A clean deterministic scan is not the same as an accessible surface.
+
+**Visual overlays.** Not available. No browser-injected overlay exists for this run — Playwright and browser automation were explicitly forbidden by the user, so the detector's Puppeteer URL mode was not used and no dev server was started. All contrast figures are computed from token source (HSL → sRGB → relative luminance → ratio, arithmetic shown in the assessment), and all sizes are derived from Tailwind class values rather than measured pixels.
+
+## Overall Impression
+
+This is a well-built surface with a genuine information-design problem, and the two are easy to confuse.
+
+The craft is real and unusually well-documented: the bubble tail geometry, the hover-capability gate on Enter-to-send, the load-bearing `min-h-0` chain. Nothing here was picked by reflex, which is exactly why the anti-pattern scan comes back clean.
+
+The problem is rank. On a screen whose whole job is to answer "is my $780 safe", the heaviest object is a violet bubble reading "Hey mate - what's the happ", and the record of a completed transaction is the lightest content present — sharing its exact treatment with the date separators. Payment confirmations and "Fri, Jul 17" are the same visual object, differing only by 12px versus 14px.
+
+The recent correction was right in direction and overshot. The bordered, tinted, icon-and-timestamp version genuinely did read as a table dropped into a conversation. But it was fixed by deleting all differentiation rather than by changing register, so the four tones `classifyContractEvent` computes now collapse into two, and a dispute renders identically to a routine state transition.
+
+The single biggest opportunity: the thread never states where the deal actually is. Dock one persistent status line under the subject bar — state, responsible party, next action — and the quiet centred log becomes *correct* rather than lossy, because it no longer has to carry status on its own.
+
+## What's Working
+
+**The decision record embedded in the code is why this surface has no slop tells.** `ChatThread.tsx:166-171` explains why `min-h-0` is load-bearing and names the sibling component that proved it. `lib/utils.ts:24-36` explains why the custom type scale had to be registered with tailwind-merge and names the exact rendered bug it caused — 16px text where the source asked for 12px. Most codebases at this polish level cannot tell you why any of it is the way it is.
+
+**The composer's input handling beats most shipping chat.** `MessageComposer.tsx:121-130` gates Enter-to-send on `window.matchMedia('(hover: hover)')`, so a phone's Enter inserts a newline and a desktop Enter sends — decided by input capability rather than viewport width, which is the distinction almost everyone gets wrong. Paste-to-attach routes `clipboardData.files` through the same MIME and size validation as the file picker.
+
+**The bubble tail geometry is real craft.** `MessageLog.tsx:304-310` gives the last bubble in a cluster `rounded-br-md` (6px) and the preceding ones `rounded-br-sm` (4px), correctly mirrored for incoming. A two-pixel difference nobody consciously registers, and exactly what makes three messages read as one utterance.
+
+## Priority Issues
+
+### [P1] The log is top-anchored, so a short thread orphans its newest message in dead space
+
+The scroll container at `ChatThread.tsx:172-177` is `min-h-0 flex-1 overflow-y-auto` with block-flow children, so content that does not fill the container sits at the top and all slack collects at the bottom. `bottomRef.scrollIntoView` (`ChatThread.tsx:83`) does nothing when there is nothing to scroll. Compounding it, that container has `px-7` and **no vertical padding at all**, so the first day divider sits ~9px under the header border and, once the thread scrolls, the newest bubble welds itself to the composer.
+
+**Why it matters:** every chat product the user knows bottom-anchors. This reads as a rendering bug within two seconds, before a word of content is read, on the surface whose emotional payload is "did my card ship".
+
+**Fix:** add `flex flex-col` to the scroll container and `mt-auto` to the log's cluster wrapper (`MessageLog.tsx:106`). Use `mt-auto`, not `justify-end` — `justify-content: flex-end` on an overflow-scroll container clips the top of overflowing content in several engines. Add `py-group` to the container.
+
+**Suggested command:** `$impeccable layout`
+
+### [P1] Contract events and date separators are the same visual object, so the legal record reads as chrome
+
+`MessageLog.tsx:108-115` renders a day divider as centred `text-meta font-medium text-muted-foreground`. `MessageLog.tsx:240-276` renders a contract event as centred `text-body text-muted-foreground`. Same position, same colour, same absence of surface. In the screenshot "Fri, Jul 17" and "Payment confirmed. The seller can now ship or meet." occupy an identical register. Meanwhile `MessageLog.tsx:248-250` collapses four computed tones into two, so a dispute looks like routine progress.
+
+**Why it matters:** a user scanning the thread cannot triage it. The dates are chrome you are meant to skip; the events are the thing you are meant to read; the eye cannot tell them apart. This is the record an arbitrator reads.
+
+**Fix, preserving what the last correction got right:** change the day divider's *kind* rather than its size — a full-width hairline with an inset label, or a small pill on `bg-muted` — so it reads as a rule, not a sentence. Then restore rank *inside* the centred register: events that change what the user can do (`PAYMENT_CLEARED`, `SHIPMENT_RECORDED`, `CARRIER_DELIVERED`, `COMPLETED`, disputes) take `font-medium text-foreground`; pure state transitions stay muted. Separate `warning` from `destructive`. The centred, author-less, surface-less shape survives — it just stops treating every line as equally unimportant.
+
+**Suggested command:** `$impeccable typeset`
+
+### [P1] The thread never states the deal's state, and a cash sale cannot reach its contract room
+
+`ChatThread.tsx:74-77` derives the header status from `item.status`, so a completed contract shows "Sold" — the listing's state, not the deal's. `PRODUCT.md` requires users always know "the current state, responsible party, next action, and consequence"; none of the four is on this screen. And `ChatThread.tsx:151-162` only offers "Open contract" when `trade` is set, so every cash sale falls through to "View listing", a dead end on a Sold item.
+
+This is not a data limitation. `lib/actions/messages.ts:429-430` already reads `conv.cash_sale_id` and uses it to fetch tracking, then `ConversationDetail` declines to return it — so `ChatThread` cannot link to `/sales/[id]` even though the route exists and the id is loaded one scope away.
+
+**Why it matters:** this is where someone finds out whether their money and their card are safe, and it answers neither without a full read of the log. A buyer with seven days to inspect has no idea how many are left.
+
+**Fix:** dock a single non-card status line under the subject bar carrying state, responsible party and next action, derived from the last contract event. Separately, return `sale: cashSaleId ? { id: cashSaleId } : null` from `getConversation`, add it to `ChatThreadProps`, and branch the trailing button to "Open contract" for sales, demoting "View listing" to an overflow.
+
+**Suggested command:** `$impeccable shape`
+
+### [P1] The composer re-enables iOS focus zoom inside a layout that cannot scroll out of it
+
+`textarea.tsx:12` sets `text-lead sm:text-body` — 16px on phone, 14px from `sm` up. That is the standard iOS auto-zoom guard. `MessageComposer.tsx:206` then passes `text-body` in the override. `cn()` is `extendTailwindMerge` with the project's own `text` scale registered (`lib/utils.ts:38-45`), so the unprefixed `text-body` from the call site beats the unprefixed `text-lead` in the base and the phone size drops to 14px. iOS Safari auto-zooms any focused control below 16px.
+
+This route is `flush`, which means `overflow-hidden` plus `max-h-[calc(100dvh-…)]` on the content section (`MarketplaceShell.tsx:208, 227-230`). The user zooms into a container that cannot scroll back out, on the one tap they came to make.
+
+**Verified directly:** `textarea.tsx:12` and `MessageComposer.tsx:206` both read as described.
+
+**Fix:** delete `text-body` from the override and let the primitive's `text-lead sm:text-body` stand. One token.
+
+**Suggested command:** `$impeccable adapt`
+
+### [P2] The focus indicator on your own photo attachment measures 1.72:1
+
+`MessageLog.tsx:318` uses `border border-transparent focus:outline-none focus-visible:border-iris` on the image button, inside a bubble that is `bg-primary` when the message is yours (`MessageLog.tsx:303`). `--iris` (`275 34% 58%`) has relative luminance 0.2182; `--primary` (`275 38% 44%`) has 0.1063; contrast is **1.72:1** against SC 1.4.11's 3:1 floor. Against `--muted` the same border is 3.55:1 and passes — so only the outgoing case fails, which is exactly the case where a seller tabs through photos they sent as condition evidence.
+
+**Fix:** move the indicator off the bubble fill — `focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-iris` puts it on the white page, where iris measures 3.69:1 and clears the floor in both bubble colours.
+
+**Suggested command:** `$impeccable audit`
+
+## Persona Red Flags
+
+**Casey (Distracted Mobile User)** — the most exposed persona, and the surface breaks on her only tap.
+- Tapping the message field zooms the viewport (`MessageComposer.tsx:206`) into a container that is `overflow-hidden` with a hard `max-h`. She cannot scroll out.
+- The draft is component state (`MessageComposer.tsx:40`). Interrupted, backgrounded, tab discarded — the message is gone. No localStorage, no server draft.
+- "Track with Australia Post" (`MessageLog.tsx:257-266`) is an inline link inside centred prose at `leading-5` — a ~20px-tall thumb target for the single thing she opens the thread to tap while a card is in transit.
+- At 375px the header's `px-7` gutters, 44px back button, 40px thumbnail, three `gap-cozy` gaps and the CTA leave roughly **100px** for two truncating text lines. The "Offline" indicator is appended last (`ChatThread.tsx:142-146`), so it is the *first* thing truncated away, on the device most likely to go offline.
+- Passing: the composer is bottom-anchored in the thumb zone and icon buttons are `size-11` (44px).
+
+**Riley (Deliberate Stress Tester)** — finds four failures without trying.
+- Sends on a throttled connection, watches the draft clear with no bubble appearing, retypes, double-sends.
+- Kills the network. `useConversationRealtime.ts:137-139` gives up permanently after ten attempts; the entire UI response is the word "Offline" in a metadata run, with no reconnect control and no recovery short of refresh.
+- Pastes a 5,000-character condition report; `maxLength` truncates silently with no counter (`MessageComposer.tsx:203`).
+- Compares an empty thread to a one-message thread: empty centres itself (`MessageLog.tsx:98`), one-message top-aligns. Two vertical behaviours for two near-identical states.
+- Opens a 500-message dispute thread: every bubble mounts, every signed URL resolves, no windowing, no "load earlier", no jump-to-latest.
+
+**Sam (Accessibility-Dependent)** — better than most, with two real defects.
+- Focus indicator on his own photo attachments computes to 1.72:1 (see P2).
+- Every focus indicator on the surface is a 1px transparent-to-iris border. At 3.92:1 on white these clear 1.4.11, but a 1px edge on a 44px circle is the thinnest compliant indicator that exists; SC 2.4.13 wants a ≥2px perimeter.
+- The whole scroll container is `role="log" aria-live="polite"` (`ChatThread.tsx:174-176`) and `useConversationRealtime.ts:200-209` re-runs `loadInitial()` on every successful re-subscribe, so a reconnect can re-announce the conversation. The `· Read` string is appended inside that live region, so a read receipt re-announces a timestamp.
+- Tone in the contract log is carried by colour alone (`contractEventTone.tsx`). It survives SC 1.4.1 because the sentence states the fact in text, but it violates PRODUCT.md's own stricter rule: "Never rely on color alone for … payment … or dispute states."
+- The hidden file input at `MessageComposer.tsx:167-176` is `sr-only` — still in the tab order, with no accessible name and no focus indicator. It is the one unnamed interactive element on the surface.
+- Passing and worth credit: heading order is clean (h1 → h2, no skips, exactly one h1 per breakpoint); the log has an accessible name; every icon button has an `aria-label`; the tracking link carries an sr-only "(opens in a new tab)"; errors use `role="alert"` with `aria-describedby`; body text measures 5.73:1.
+
+**Project-specific — "Priya, the buyer with a cracked card."** She paid $780 through Stripe, the card arrived creased, she is inside the 7-day inspection window, and this timeline decides arbitration.
+- She needs days remaining. The delivery and completion events render as identical grey sentences; the deadline appears nowhere.
+- She needs to open a dispute. There is no dispute affordance on this screen; the one trailing action is "View listing".
+- She needs the record. Contract events are visually indistinguishable from date separators, interleaved with banter, and cannot be isolated, copied or exported — even though `groupMessages.ts:78-88` already separates system clusters and `MessageLog.tsx:230` already renders them as `<ol aria-label="Contract activity">`. The structure exists; nothing surfaces it.
+- She needs to attach four photographs of the crease. The composer holds one `File | null` (`MessageComposer.tsx:41`) — four separate messages, four bubbles, nothing grouping them as evidence.
+
+## Minor Observations
+
+- `ChatThread.tsx:106` claims "a single 56px row". It computes to 64px on phone (`size-11` + `py-2.5` twice) and 60px at `md`. The comment asserts a number the code does not produce.
+- `MessageLog.tsx:106` uses `gap-4` while `MessageLog.tsx:230` uses `space-y-snug` — two spacing vocabularies in one file, and `gap-4` is exactly `gap-group`. The named scale exists to prevent this.
+- Uniform `gap-4` between every cluster type means a day break gets the same air as two consecutive messages from one person. A day divider needs more space above than below; there is no rhythm, only a constant.
+- Three unrelated measures share one screen. Bubbles at `max-w-[82%]` reach ~113ch at 1024px and ~162ch at the 1440px workspace cap, both far past the 65–75ch ceiling. Events cap at ~59ch. The composer runs the full width. Nothing shares a spine.
+- The thread applies the *desktop* gutter at phone width: `ChatThread.tsx:107, 173` and `MessageComposer.tsx:136` all use `px-7` unconditionally, while the rest of the app scales `px-4 sm:px-6 md:px-7`. On a 375px phone that is 15% of the viewport in gutters versus 8.5% everywhere else.
+- `ChatThread.tsx:174-176` sets both `role="log"` and `aria-live="polite"`; `role="log"` already implies polite.
+- `--duration-move: 400ms` (`globals.css:113`) drives the page slides on the back link and "View listing". The product register puts most transitions at 150–250ms; 400ms on every entry and exit from a task surface is felt.
+- The offline indicator announces once via `role="status"` when it appears and never announces recovery.
+- `MessageLog.tsx:99` caps the empty hint at `max-w-56` (224px), narrow enough that a 50-character sentence wraps to four short lines. The empty state is also "nothing here" plus a nudge, where the product register asks for an empty state that teaches — this is the one moment to say what is protected and what happens next.
+- The item thumbnail (`ChatThread.tsx:121-127`) carries `alt=""` and is inert, as is the title beside it. The card's photograph is the strongest recognition cue on screen and neither is clickable.
+- `MessageComposer.tsx:210` uses `readOnly={isPending}` rather than `disabled`, keeping focus and preserving the value. Deliberate and correct; keep it.
+
+## Questions to Consider
+
+**If this log is the record an arbitrator reads, why is it the quietest thing on screen — and the only content with no way to isolate, copy or export it?** `groupMessages.ts:78-88` already separates the system clusters and `MessageLog.tsx:230` already renders them as a labelled `<ol>`. The structure is built. Nothing surfaces it.
+
+**The previous version was rejected for reading "like a table dropped into a conversation." Is the real problem that these events were ever *in* the conversation?** What if the thread carried a persistent state strip, the log carried only events that change what you can do, and the full audit trail lived in the contract room where a table is the correct register?
+
+**`--primary` is documented as the colour of "current state, primary action, focus" that "never decorates."** It is currently the fill of every sentence the user has ever typed. At forty messages the screen is a column of primary-violet slabs and the Send button is the same violet. What does the accent have left to say on the one screen where "what do I do next" matters most?
+
+**A buyer opens this thread for exactly one reason while a card is in transit: to find out where it is.** Today the answer is a 20px-tall link inside a grey centred sentence, four scroll positions up. What would this screen look like if that single question were the thing it was designed around?

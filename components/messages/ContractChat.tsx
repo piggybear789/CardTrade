@@ -18,14 +18,19 @@ import {
   type UIEvent,
 } from 'react';
 import Link from 'next/link';
-import { ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, ChevronLeftIcon, InfoIcon } from '@hugeicons/core-free-icons';
 import { Avatar } from '@/components/ui/avatar';
+import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
 import { useContractFocus } from '@/components/contract/ContractFocus';
 import { useContractSplit } from '@/components/contract/useContractSplit';
 import { markConversationRead } from '@/lib/actions/messages';
 import { useConversationRealtime } from '@/lib/realtime/useConversationRealtime';
 import { MessageComposer } from '@/components/messages/MessageComposer';
-import { MessageLog } from '@/components/messages/MessageLog';
+import {
+  MessageLog,
+  type MessageLogShipment,
+} from '@/components/messages/MessageLog';
 import { cn } from '@/lib/utils';
 
 /** How close to the bottom (px) still counts as "already reading the latest". */
@@ -58,10 +63,16 @@ export interface ContractChatProps {
   /** Item strip under the person bar: thumb, title, price, then the live CTAs. */
   subject?: ContractChatSubject | null;
   /**
-   * Live-step controls. Sit on the product strip (right), the way 闲鱼 puts
-   * 我想要 / 去支付 beside the goods — not next to the person's name.
+   * The live-step control, docked between the log and the composer.
+   *
+   * Pass `ContractActionCard` with `appearance="dock"`. It used to ride the
+   * subject bar as `appearance="header"`, which made a wide control ("Accept
+   * terms and pay") wrap the bar onto a second line and put the thing you have
+   * to DO furthest from the thing you just read.
    */
   actions?: ReactNode;
+  /** Secondary actions about the counterparty, in the subject bar's ⋯ menu. */
+  menu?: ReactNode;
   /**
    * Where the phone's back control goes. Below `md` this bar is the whole top
    * of the room, so it carries navigation; above `md` the workspace rail does.
@@ -69,6 +80,8 @@ export interface ContractChatProps {
   backHref?: string;
   /** The flow's status in words, e.g. "In transit". Joins the subline. */
   statusLabel?: string | null;
+  /** Carrier details, so the shipped milestone can link out to tracking. */
+  shipment?: MessageLogShipment | null;
   className?: string;
 }
 
@@ -76,18 +89,19 @@ export function ContractChatBar({
   counterpartyName,
   counterpartyAvatarPath,
   subject,
-  actions,
   connectionStatus,
   backHref,
   statusLabel,
+  menu,
 }: {
   counterpartyName: string;
   counterpartyAvatarPath?: string | null;
   subject?: ContractChatSubject | null;
-  actions?: ReactNode;
   connectionStatus?: 'ok' | 'error' | string;
   backHref?: string;
   statusLabel?: string | null;
+  /** Secondary actions about the PERSON, e.g. reporting them. */
+  menu?: ReactNode;
 }) {
   const offline = connectionStatus === 'error';
   const split = useContractSplit();
@@ -105,19 +119,20 @@ export function ContractChatBar({
   const showSubline = Boolean(subject?.price) || meta.length > 0 || offline;
 
   return (
-    // `flex-wrap` rather than a hard `flex-col` on phones: a short control set
-    // ("Track", "Cancel") rides on the identity row, and only a wide one
-    // ("Accept terms and pay") drops to a second line. Sticky so the subject
-    // and the live control stay reachable while the log scrolls under them.
-    <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-x-cozy gap-y-snug border-b bg-card px-group py-2.5 max-md:px-cozy">
+    // Identity and subject only. The controls used to ride this row and wrap to
+    // a second line when they were wide ("Accept terms and pay"); they dock
+    // below the log now, so the bar is a fixed single row again.
+    <header className="sticky top-0 z-10 flex shrink-0 items-center gap-cozy border-b bg-card px-group py-2.5 max-md:px-cozy">
       {backHref ? (
         <Link
           href={backHref}
           transitionTypes={['nav-back']}
           aria-label="Back"
-          className="-ml-1.5 inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40 md:hidden"
+          // `size-11`: this control only exists below `md`, so it is a touch
+          // target in every case it renders and has no business being 40px.
+          className="-ml-1.5 inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
         >
-          <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden />
+          <HugeiconsIcon icon={ChevronLeftIcon} className="size-6" strokeWidth={1.75} aria-hidden />
         </Link>
       ) : null}
 
@@ -162,10 +177,12 @@ export function ContractChatBar({
         </div>
         {opensDetails ? (
           <>
-            <ChevronRight
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
+            {/* NAMES THE DESTINATION, does not point. This was a `ChevronRight`,
+                which put a right-facing chevron at one end of the bar and the
+                back arrow at the other — the universal prev/next pager shape, on
+                a row that has no next. Nothing here pages between contracts:
+                this opens the details sheet for the one already on screen. */}
+            <HugeiconsIcon icon={InfoIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             {/* Overlay rather than a wrapper, because the title is an <h2> and a
                 heading is not valid inside a <button>. Covering the block keeps
                 the whole subject tappable and still gives one focus ring. */}
@@ -173,7 +190,7 @@ export function ContractChatBar({
               type="button"
               onClick={openDetails}
               aria-haspopup="dialog"
-              className="absolute inset-0 rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
+              className="absolute inset-0 rounded-md border border-transparent focus:outline-none focus-visible:border-iris"
             >
               <span className="sr-only">Contract details</span>
             </button>
@@ -181,11 +198,12 @@ export function ContractChatBar({
         ) : null}
       </div>
 
-      {actions ? (
-        <div className="flex min-w-0 shrink-0 items-center justify-end">
-          {actions}
-        </div>
-      ) : null}
+      {/* Outside the subject block on purpose: that block is covered by an
+          absolutely positioned button that opens the details sheet, and a menu
+          inside it would be unclickable. Reporting is about the person, which
+          is what this bar is, so it belongs here rather than in the action
+          dock's menu — the dock is the contract's current step. */}
+      <ContractOverflowMenu>{menu}</ContractOverflowMenu>
     </header>
   );
 }
@@ -205,11 +223,14 @@ export function ContractChat({
   emptyHint = 'Use chat to coordinate. Only the saved terms are binding.',
   subject,
   actions,
+  menu,
   backHref,
   statusLabel,
+  shipment = null,
   className,
 }: ContractChatProps) {
-  const { messages, connectionStatus } = useConversationRealtime(conversationId);
+  const { messages, connectionStatus, addOptimistic, settleOptimistic } =
+    useConversationRealtime(conversationId);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [unseenCount, setUnseenCount] = useState(0);
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -248,7 +269,11 @@ export function ContractChat({
   return (
     <section
       className={cn(
-        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none',
+        // `bg-card` at every width now. Below `md` this was transparent, which
+        // dropped the column onto the page's tinted `--background` while its
+        // own bar stayed white; the inbox thread had the same split, and the
+        // two surfaces are meant to be indistinguishable.
+        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none',
         className,
       )}
     >
@@ -257,25 +282,43 @@ export function ContractChat({
           separately banded the panel, and with only 3 points of lightness
           between `--card` and `--background` the tints read as dirt, not depth.
           Depth comes from the bubbles instead. */}
+      {/* No `actions` here any more — they dock below the log instead. The bar
+          is identity and subject; the live control belongs at the end of the
+          conversation, where the next thing to happen would appear. */}
       <ContractChatBar
         counterpartyName={counterpartyName}
         counterpartyAvatarPath={counterpartyAvatarPath}
         subject={subject}
-        actions={actions}
         connectionStatus={connectionStatus}
         backHref={backHref}
         statusLabel={statusLabel}
+        menu={menu}
       />
-      <div className="relative min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <div
           ref={logRef}
           onScroll={handleLogScroll}
-          // Contained at every width now. This used to be `lg:` only because
-          // below the split the room stacked and the PAGE was the scroller, so
+          // `flex-1 min-h-0`, NOT `h-full`, AND THAT IS THE SCROLL BUG.
+          // `height: 100%` here resolved against a parent sized by `flex: 1 1 0%`
+          // and did not resolve — it fell back to the content height. Measured on
+          // a 390x844 phone the parent was 521px while this element was 819px,
+          // with `scrollHeight === clientHeight`: not a scroll container at all.
+          // The log laid itself out at full length, ran under the docked action
+          // strip and the composer, and got clipped. The newest messages sat
+          // behind the dock and could not be reached, and `scrollTo` on a new
+          // message was a no-op because there was nothing to scroll. Every other
+          // rung of this chain already used `flex-1 min-h-0`, and every one of
+          // them resolved correctly — this was the only `h-full`.
+          //
+          // `overflow-hidden` on the parent is not the fix and was masking it:
+          // it stops the bleed and leaves the log just as unscrollable.
+          //
+          // Contained at every width. This used to be `lg:` only because below
+          // the split the room stacked and the PAGE was the scroller, so
           // containing here dead-ended the swipe at the end of the log. The
           // phone room is a thread: the log is the only scroller, the composer
           // is pinned under it, and there is nothing behind to scroll on to.
-          className="h-full overflow-y-auto overscroll-contain p-cozy"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-cozy"
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
           aria-live="polite"
@@ -287,6 +330,7 @@ export function ContractChat({
             counterpartyName={counterpartyName}
             counterpartyAvatarPath={counterpartyAvatarPath}
             emptyHint={emptyHint}
+            shipment={shipment}
             showNames
           />
         </div>
@@ -294,18 +338,38 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full border border-transparent bg-primary px-cozy py-2 text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-gold/40"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full border border-transparent bg-primary px-cozy py-2 text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-iris"
           >
-            <ArrowDown className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}
           </button>
         ) : null}
       </div>
+      {/* THE ONE LIVE CONTROL, docked between the log and the composer.
+          Pinned rather than threaded into the log on purpose. The log is a
+          historical record and the action is a function of CURRENT status, so a
+          card attached to the event that triggered it would still be offering
+          "Add details" on a dispute that has since been resolved. Sitting here
+          it reads as the next thing in the conversation, stays put when the log
+          scrolls, and there is still only one of it. */}
+      {/* `relative z-10` and an opaque surface, not decoration. The log above is
+          a positioned box, so a static dock loses the paint-order fight and the
+          last bubbles draw straight over this strip; and the dock's tone is a
+          tint, which needs something opaque under it — the panel itself is
+          transparent below `md`. */}
+      {actions ? (
+        <div className="relative z-10 shrink-0 border-t bg-card">{actions}</div>
+      ) : null}
       <MessageComposer
         conversationId={conversationId}
         placeholder={placeholder}
         inputId={`contract-chat-${conversationId}`}
         compact
+        optimistic={{
+          currentUserId,
+          add: addOptimistic,
+          settle: settleOptimistic,
+        }}
       />
     </section>
   );

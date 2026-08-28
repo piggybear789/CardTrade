@@ -36,7 +36,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { ArrowRight } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { getMerchantState } from '@/lib/actions/merchant';
@@ -145,7 +146,7 @@ export function UnifiedOnboardingSurface({
   function finishPayout() {
     setPayoutDone(true);
     if (onComplete) onComplete();
-    else router.push('/listings');
+    else router.push('/');
   }
 
   if (!loaded) {
@@ -190,7 +191,7 @@ export function UnifiedOnboardingSurface({
     completion === undefined ? (
       <Button type="button" onClick={finishPayout} className="w-full">
         Start listing
-        <ArrowRight className="ml-2 size-4" aria-hidden />
+        <HugeiconsIcon icon={ArrowRight01Icon} className="ml-2 size-4" aria-hidden />
       </Button>
     ) : (
       completion

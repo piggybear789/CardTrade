@@ -22,10 +22,6 @@ import { InboxThreadList } from '@/components/messages/InboxThreadList';
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
-// Reads the signed-in user's session + live conversation state, so it must
-// render dynamically (never statically prerendered).
-export const dynamic = 'force-dynamic';
-
 export const metadata = {
   title: 'Messages · NoDitto',
   description: 'Your buyer and seller conversations.',

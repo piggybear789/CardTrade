@@ -29,7 +29,7 @@ export function GuestHeaderCtas() {
       <Button
         asChild
         size="sm"
-        className="border-parchment/20 bg-parchment text-obsidian hover:bg-parchment/90"
+        className="border-mist/20 bg-mist text-obsidian hover:bg-mist/90"
       >
         <SignInLink target="/sign-up">Get started</SignInLink>
       </Button>

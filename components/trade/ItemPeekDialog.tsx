@@ -14,7 +14,8 @@
 // The gallery is the same `ImageGallery` the listing page uses, so click-to-enlarge
 // opens the same lightbox on both surfaces rather than being re-implemented smaller.
 
-import { ArrowUpRight, ImageOff } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowUpRight01Icon, ImageOffIcon } from '@hugeicons/core-free-icons';
 import Link from 'next/link';
 
 import { ImageGallery, type GalleryImage } from '@/components/listings/ImageGallery';
@@ -87,7 +88,7 @@ export function ItemPeekDialog({
           />
         ) : (
           <p className="flex items-center gap-snug rounded-lg border border-dashed p-6 text-body text-muted-foreground">
-            <ImageOff className="size-4 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={ImageOffIcon} className="size-4 shrink-0" aria-hidden />
             No photos were attached to this item.
           </p>
         )}
@@ -98,7 +99,7 @@ export function ItemPeekDialog({
           ) : null}
           {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
           {item.hidden ? (
-            <Badge variant="outline" className="text-gold">
+            <Badge variant="outline" className="text-iris-ink">
               Offered privately — not listed publicly
             </Badge>
           ) : null}
@@ -117,7 +118,7 @@ export function ItemPeekDialog({
             <Button asChild variant="outline">
               <Link href={`/listings/${item.id}`}>
                 Open full listing
-                <ArrowUpRight className="size-3.5" aria-hidden />
+                <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" aria-hidden />
               </Link>
             </Button>
           </DialogFooter>

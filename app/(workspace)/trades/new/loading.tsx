@@ -6,10 +6,19 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 
 export default function NewTradeLoading() {
   return (
-    <MarketplaceShellSkeleton hasPrimaryAction center>
+    <MarketplaceShellSkeleton
+      title="Offer a Trade"
+      primaryAction={
+        <RailPrimaryAction href="/" glyph={null}>
+          Browse Marketplace
+        </RailPrimaryAction>
+      }
+      center
+    >
       <Card className="mx-auto w-full max-w-lg">
         <CardHeader className="pb-4">
           <Skeleton className="h-6 w-36" />

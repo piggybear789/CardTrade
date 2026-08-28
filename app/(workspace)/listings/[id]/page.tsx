@@ -20,7 +20,8 @@ import { notFound } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
 
-import { getItem, type ItemRow } from "@/lib/actions/listings";
+import { getItem } from "@/lib/actions/listings";
+import type { TradeOfferOwnItem } from "@/components/trade/TradeOfferForm";
 import { getWatchCount, isWatching } from "@/lib/actions/watchlist";
 import { deriveItemTitle } from "@/domain/validation";
 import { createClient } from "@/lib/supabase/server";
@@ -65,10 +66,6 @@ import { StatusNotice } from "@/components/ui/status-notice";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-
-// The page reads the signed-in user's cookies and reflects live availability,
-// so it must render dynamically (never statically prerendered).
-export const dynamic = "force-dynamic";
 
 type ItemStatus = "AVAILABLE" | "RESERVED" | "SOLD";
 
@@ -177,14 +174,19 @@ export default async function ItemDetailPage({
     canProposeTrade
       ? supabase
           .from("items")
-          .select("*")
+          // THREE COLUMNS, NOT `*`. These rows cross into a Client Component, so
+          // every column is serialised into this page's RSC payload — including
+          // the 2000-character description — for a trade dialog that most
+          // visitors never open. The picker reads the id, the title and the
+          // value; see `TradeOfferOwnItem`.
+          .select("id, title, fmv_cents")
           .eq("owner_id", user!.id)
           .eq("status", "AVAILABLE")
           // A shopfront cannot be offered into a trade: its FMV is a whole
           // binder, so the other trader would be bonded against an inventory.
           .eq("listing_kind", "SINGLE")
           .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as ItemRow[] }),
+      : Promise.resolve({ data: [] as TradeOfferOwnItem[] }),
     canProposeTrade ? readIdentityGate(user!.id) : Promise.resolve(null),
     viewerRegionPromise,
     user && !isOwner
@@ -201,7 +203,7 @@ export default async function ItemDetailPage({
   ]);
 
   const sellerRow = sellerRowResult.data;
-  const ownItems = (ownItemsResult.data ?? []) as ItemRow[];
+  const ownItems = (ownItemsResult.data ?? []) as TradeOfferOwnItem[];
   // The viewer's own gate no longer disables Propose Trade: an unverified viewer
   // gets a pressable button that opens verification (see ProposeTradeDialog).
   // `null` means "nothing to resolve".
@@ -647,7 +649,7 @@ function ItemActions({
   isClosed: boolean;
   /** Every live contract against a shopfront; the owner sees them all. */
   openContracts: { id: string; buyerName: string; amountCents: number }[];
-  ownItems: ItemRow[];
+  ownItems: TradeOfferOwnItem[];
   /** The viewer's own live contract on this item, if any. */
   myContractId: string | null;
 }) {

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Library } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LibraryIcon } from '@hugeicons/core-free-icons';
 
 import { ExpandableDescription } from '@/components/listings/ExpandableDescription';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
@@ -66,7 +67,7 @@ export function ListingDetailStack({
       <Link
         href={isOwner ? '/profile' : `/sellers/${sellerId}`}
         transitionTypes={['nav-forward']}
-        className="flex min-h-11 items-center gap-2 rounded-md border border-transparent py-1 focus:outline-none focus-visible:border-gold/40"
+        className="flex min-h-11 items-center gap-2 rounded-md border border-transparent py-1 focus:outline-none focus-visible:border-iris"
       >
         <Avatar
           avatarPath={sellerAvatarPath}
@@ -116,7 +117,7 @@ export function ListingDetailStack({
         ) : (
           <Link
             href={`/sellers/${sellerId}#reviews`}
-            className="mt-1 inline-flex w-fit rounded-sm border border-transparent focus:outline-none focus-visible:border-gold/40"
+            className="mt-1 inline-flex w-fit rounded-sm border border-transparent focus:outline-none focus-visible:border-iris"
             aria-label="Read seller reviews"
           >
             <StarRating
@@ -130,13 +131,13 @@ export function ListingDetailStack({
       ) : null}
 
       <div className="mt-3 flex items-center gap-3 md:mt-4">
-        <p className="min-w-0 flex-1 truncate font-display text-display font-bold leading-none tracking-[-0.03em] text-gold">
+        <p className="min-w-0 flex-1 truncate font-display text-display font-bold leading-none tracking-[-0.03em] text-iris-ink">
           {isShopfront ? (
             <span className="mr-1 text-lead font-medium">from </span>
           ) : null}
           {formatAud(priceCents)}
         </p>
-        <span className="shrink-0 rounded-full bg-parchment px-2 py-0.5 text-meta font-semibold text-muted-foreground">
+        <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-meta font-semibold text-muted-foreground">
           {condition}
         </span>
       </div>
@@ -149,8 +150,8 @@ export function ListingDetailStack({
       ) : null}
 
       {isShopfront ? (
-        <p className="mt-4 flex gap-2 rounded-md border border-gold/30 bg-gold/10 p-2 text-body text-foreground">
-          <Library className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
+        <p className="mt-4 flex gap-2 rounded-md border border-iris/30 bg-iris/10 p-2 text-body text-foreground">
+          <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
           <span>
             This is a binder listing. Browse the collection and request specific
             items — nothing is held until you agree on terms.

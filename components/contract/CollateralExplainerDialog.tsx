@@ -7,7 +7,8 @@
 // member's pace without turning the inspector into a wall of text.
 
 import type { ReactNode } from 'react';
-import { CircleHelp } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HelpCircleIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -42,7 +43,7 @@ export function CollateralExplainerDialog({
     <Dialog>
       <DialogTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto">
-          <CircleHelp className="mr-2 size-4" aria-hidden />
+          <HugeiconsIcon icon={HelpCircleIcon} className="mr-2 size-4" aria-hidden />
           {triggerLabel}
         </Button>
       </DialogTrigger>

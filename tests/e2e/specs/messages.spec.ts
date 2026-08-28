@@ -26,6 +26,7 @@ import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { ensureFreshSessions } from '../support/auth';
+import { messageSellerComposer } from '../support/messageSeller';
 
 // Repair any stored cookie jar this file relies on before its first test.
 // Refresh-token rotation retires the token a jar holds as soon as another context
@@ -54,16 +55,16 @@ async function sendFromListing(
   await page.goto(`/listings/${itemId}`);
   await page.waitForLoadState('domcontentloaded');
 
-  const composer = page.getByLabel('Send seller a message');
+  const { input: composer, send } = messageSellerComposer(page);
   await expect(composer).toBeEnabled({ timeout: 15_000 });
 
   // Send is gated on content: an empty message is not sendable.
-  await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+  await expect(send).toBeDisabled();
   await composer.click();
   await composer.fill(body);
-  await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled({ timeout: 5_000 });
+  await expect(send).toBeEnabled({ timeout: 5_000 });
 
-  await page.getByRole('button', { name: 'Send' }).click();
+  await send.click();
 
   await expect(page).toHaveURL(/\/messages\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
   return page.url();

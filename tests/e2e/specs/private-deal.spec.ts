@@ -38,7 +38,7 @@ test.describe.serial('Private cash deal → sale room', () => {
 
     await page.goto('/deals/new');
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('heading', { name: 'Start a Deal' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Start a Private Deal' })).toBeVisible({
       timeout: COLD_ROUTE,
     });
 

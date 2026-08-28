@@ -53,14 +53,18 @@ function isThreadRoute(pathname: string): boolean {
 }
 
 /**
- * Pick the phone chrome for this path. Signed-in home is a hub (the landing
- * already titles itself); signed-out home is marketing.
+ * Pick the phone chrome for this path.
+ *
+ * `/` is the catalog, so it gets the search-and-filters bar. That mapping must
+ * stay in step with the route: served from `/` with hub or marketing chrome, the
+ * catalog would render with no search field and no way to open filters — a
+ * silent failure, since the grid itself still paints.
  */
 export function resolveMobileChrome(
   pathname: string,
   isAuthenticated: boolean,
 ): MobileChromeKind {
-  if (pathname === '/listings') return 'catalog';
+  if (pathname === '/') return 'catalog';
   if (pathname === '/listings/new' || pathname.endsWith('/edit')) {
     return 'hierarchical';
   }
@@ -78,18 +82,14 @@ export function resolveMobileChrome(
   ) {
     return 'hierarchical';
   }
-  if (pathname === '/') return isAuthenticated ? 'hub' : 'marketing';
   return isAuthenticated ? 'hub' : 'marketing';
 }
 
 /** Explicit back target — `router.back()` skips view transitions. */
 export function hierarchicalBackHref(pathname: string): string {
   if (pathname.endsWith('/edit')) return pathname.replace(/\/edit$/, '');
-  if (pathname === '/listings/new') return '/listings';
   if (pathname.startsWith('/profile/')) return '/profile';
-  if (pathname.startsWith('/sellers/')) return '/listings';
   if (pathname === '/trades/new') return '/trades';
-  if (pathname === '/deals/new') return '/listings';
-  if (pathname.startsWith('/onboarding')) return '/';
-  return '/listings';
+  // Everything else falls back to the catalog, which is now the homepage.
+  return '/';
 }

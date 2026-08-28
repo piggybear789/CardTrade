@@ -23,10 +23,12 @@ import {
   useElements,
   useStripe,
 } from '@stripe/react-stripe-js';
-import { Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, LockIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { beginCardSetup, completeCardSetup } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * Sentinel publishable key returned by the MockService. Stripe.js would reject
@@ -105,10 +107,13 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
   if (!session) {
     return (
-      <p className="flex items-center gap-snug text-body text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" aria-hidden />
-        Loading secure card entry…
-      </p>
+      // Shaped like the field it stands in for, rather than a spinner and a
+      // sentence announcing that something is happening.
+      <div className="space-y-snug" role="status" aria-busy="true">
+        <span className="sr-only">Loading secure card entry…</span>
+        <Skeleton className="h-10 w-full rounded-md" />
+        <Skeleton className="h-10 w-2/3 rounded-md" />
+      </div>
     );
   }
 
@@ -191,10 +196,10 @@ function CardSetupFields({
       ) : null}
 
       <Button type="submit" disabled={busy} aria-busy={busy} className="w-full">
-        {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
+        {busy ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
         {!ready ? 'Loading secure checkout…' : isPending ? 'Saving…' : (
           <>
-            <Lock className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={LockIcon} className="size-3.5" aria-hidden />
             Save card
           </>
         )}
@@ -250,7 +255,7 @@ function SimulatedCardSetup({
       ) : null}
 
       <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
-        {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+        {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
         {isPending ? 'Saving…' : 'Save demo card'}
       </Button>
     </form>
@@ -260,7 +265,7 @@ function SimulatedCardSetup({
 function ProcessorNote() {
   return (
     <p className="flex items-start justify-center gap-tight text-center text-body leading-relaxed text-muted-foreground">
-      <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
+      <HugeiconsIcon icon={ShieldCheckIcon} className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
       <span>
         Payments processed by{' '}
         <a

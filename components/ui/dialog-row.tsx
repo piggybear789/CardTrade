@@ -9,7 +9,8 @@
 // whichever path the user took through it, without hiding anything: the hint is
 // the summary, so the state is readable from the card.
 
-import { Pencil, Plus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PencilIcon, PlusIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -40,17 +41,17 @@ export function DialogRow({
   invalid = false,
   onClick,
 }: DialogRowProps) {
-  const Icon = filled ? Pencil : Plus;
+  const Icon = filled ? PencilIcon : PlusIcon;
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-body font-medium transition-colors hover:border-gold/40 hover:bg-muted focus-visible:border-gold/40 focus-visible:outline-none',
+        'flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-body font-medium transition-colors hover:border-iris/50 hover:bg-muted focus-visible:border-iris focus-visible:outline-none',
         invalid && 'border-destructive',
       )}
     >
-      <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      <HugeiconsIcon icon={Icon} aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <span className="min-w-0 shrink-0">
         {label}
         {required ? (

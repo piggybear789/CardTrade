@@ -29,6 +29,22 @@ import { expect, type Browser } from '@playwright/test';
 import { storageStatePath, type SeedUser } from './users';
 
 /**
+ * Where a successful sign-in lands.
+ *
+ * `AuthForm`'s `DEFAULT_DESTINATION` is `/` — the catalog moved off `/listings`,
+ * and `next.config.ts` now permanently redirects the old path — or `/onboarding`
+ * when the member has not finished it. Every sign-in assertion in the suite
+ * shares this, so the next move costs one edit rather than a scavenger hunt.
+ *
+ * A pathname predicate rather than a regex on the whole URL: `/` as a substring
+ * matches everything, and matching the bare origin as a string would bake the
+ * suite's port into the assertion.
+ */
+export function isSignedInDestination(url: URL): boolean {
+  return url.pathname === '/' || url.pathname.startsWith('/onboarding');
+}
+
+/**
  * Make sure the stored cookie jar for `user` still authenticates, re-signing in if
  * it does not.
  *
@@ -64,7 +80,7 @@ export async function ensureFreshSession(browser: Browser, user: SeedUser): Prom
     await emailField.fill(user.email);
     await page.getByLabel('Password').fill(user.password);
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL(/\/(listings|onboarding)/, { timeout: 30_000 });
+    await expect(page).toHaveURL(isSignedInDestination, { timeout: 30_000 });
 
     await context.storageState({ path: statePath });
   } finally {

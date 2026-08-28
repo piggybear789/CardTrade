@@ -20,10 +20,14 @@ export function ItemFormSkeleton() {
 
       <CardContent className="grid gap-8 lg:contents">
         {/* Photos panel */}
-        <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:bg-muted lg:p-8">
+        {/* `lg:bg-card` and the cover's aspect ratio both mirror ItemForm: the
+            panel used to paint `lg:bg-muted`, so it visibly changed colour on
+            swap, and the cover was `aspect-square` against the form's
+            `aspect-[16/10] max-h-[22svh]` — a large jump on phones. */}
+        <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:bg-card lg:p-8">
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-48" />
-          <Skeleton className="aspect-square w-full rounded-lg" />
+          <Skeleton className="aspect-[16/10] max-h-[22svh] w-full rounded-lg md:aspect-auto md:min-h-[10rem] md:max-h-none" />
           <div className="grid grid-cols-4 gap-2">
             {Array.from({ length: 4 }, (_, index) => (
               <Skeleton key={index} className="aspect-square w-full rounded-md" />

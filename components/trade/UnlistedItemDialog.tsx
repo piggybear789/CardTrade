@@ -15,7 +15,8 @@
 // offer leaves nothing behind.
 
 import { useEffect, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ImagePlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -248,9 +249,9 @@ export function UnlistedItemDialog({
                   <button
                     type="button"
                     onClick={() => removeImageAt(index)}
-                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-obsidian/75 text-parchment transition-colors hover:bg-obsidian border border-transparent focus-visible:outline-none focus-visible:border-gold/40"
+                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-obsidian/75 text-mist transition-colors hover:bg-obsidian border border-transparent focus-visible:outline-none focus-visible:border-iris"
                   >
-                    <X aria-hidden="true" className="size-3" />
+                    <HugeiconsIcon icon={XIcon} aria-hidden="true" className="size-3" />
                     <span className="sr-only">Remove photo {index + 1}</span>
                   </button>
                 </li>
@@ -261,8 +262,8 @@ export function UnlistedItemDialog({
                   {/* The input lives inside its label so the tile is the control:
                       clicking anywhere on it opens the picker, and `has-` puts the
                       focus ring on the tile rather than the hidden input. */}
-                  <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-solid hover:bg-muted has-[:focus-visible]:border-gold/40">
-                    <ImagePlus aria-hidden="true" className="size-5" />
+                  <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-solid hover:bg-muted has-[:focus-visible]:border-iris">
+                    <HugeiconsIcon icon={ImagePlusIcon} aria-hidden="true" className="size-5" />
                     <span className="text-meta font-medium">Add</span>
                     <input
                       type="file"

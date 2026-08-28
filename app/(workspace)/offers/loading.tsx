@@ -4,6 +4,7 @@
 // a listing thumbnail — not a boxed table.
 
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 import {
   ContractCardListSkeleton,
   SectionFilterSkeleton,
@@ -12,7 +13,14 @@ import {
 
 export default function OffersLoading() {
   return (
-    <MarketplaceShellSkeleton hasPrimaryAction>
+    <MarketplaceShellSkeleton
+      title="Offers"
+      primaryAction={
+        <RailPrimaryAction href="/" glyph={null}>
+          Browse Marketplace
+        </RailPrimaryAction>
+      }
+    >
       <div className="min-w-0">
         <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
         <SectionFilterSkeleton />

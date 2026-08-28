@@ -10,7 +10,8 @@ import { useEffect, useState, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CreditCardIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { FieldError } from '@/components/motion/FieldError';
@@ -47,7 +48,7 @@ const AddPaymentMethodForm = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-40 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={LoaderCircleIcon} className="size-6 animate-spin text-muted-foreground" aria-hidden />
         <span className="sr-only">Loading payment form…</span>
       </div>
     ),
@@ -238,7 +239,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
 
         {loading ? (
           <div className="flex items-center justify-center py-6" role="status">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="size-6 animate-spin text-muted-foreground" aria-hidden />
             <span className="sr-only">Loading payment details…</span>
           </div>
         ) : showCardForm ? (
@@ -282,7 +283,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
               </p>
             )}
             <div className="flex items-center gap-3 rounded-lg border p-3">
-              <CreditCard className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-body font-medium">
                   {paymentLabel ?? 'Card on file'}
@@ -319,7 +320,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
             }
             aria-busy={isPending}
           >
-            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             {isPending ? 'Opening…' : 'Join this deal'}
           </Button>
         </CardFooter>

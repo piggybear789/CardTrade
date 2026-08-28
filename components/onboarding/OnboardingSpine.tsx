@@ -15,10 +15,11 @@
 // carries information the seller needs.
 //
 // The colour vocabulary is deliberately borrowed from the contract rail so the two
-// read as the same product: `trust` for travelled/complete, `gold` for "you are here".
+// read as the same product: `trust` for travelled/complete, `iris` for "you are here".
 
 import type { ReactNode } from 'react';
-import { Check } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -87,12 +88,12 @@ export function OnboardingSpineStep({
           className={cn(
             'my-tight grid size-7 shrink-0 place-items-center rounded-full border text-meta font-semibold transition-all duration-300',
             done && 'cardtrade-success-chip',
-            active && 'border-gold bg-gold/20 text-foreground ring-2 ring-gold/25',
+            active && 'border-iris bg-iris/20 text-foreground ring-2 ring-iris/25',
             !done && !active && 'border-border bg-card text-muted-foreground',
           )}
           aria-hidden
         >
-          {done ? <Check className="size-3.5" /> : index}
+          {done ? <HugeiconsIcon icon={CheckIcon} className="size-3.5" /> : index}
         </span>
         <span
           aria-hidden

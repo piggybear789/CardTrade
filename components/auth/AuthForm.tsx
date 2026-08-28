@@ -75,7 +75,7 @@ const COPY: Record<
 };
 
 /** Where a User with no explicit destination lands after signing in. */
-const DEFAULT_DESTINATION = "/listings";
+const DEFAULT_DESTINATION = "/";
 
 /**
  * Only permit same-origin, absolute-path redirects to avoid an open-redirect
@@ -166,7 +166,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           applyError(result.field, result.message);
           return;
         }
-        toast.success("Signed in.");
+        
         router.push(destination ?? DEFAULT_DESTINATION);
         router.refresh();
         return;
@@ -183,11 +183,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
       if (result.data.emailConfirmationRequired) {
-        toast.success("Account created. Check your email to confirm, then sign in.");
+        
         router.push(withRedirect("/sign-in", destination));
         return;
       }
-      toast.success("Account created.");
+      
       router.push(withRedirect("/onboarding", destination));
       router.refresh();
     });

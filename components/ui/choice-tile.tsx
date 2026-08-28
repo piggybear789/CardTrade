@@ -9,7 +9,7 @@
 // Works as either a radio or a checkbox; the caller owns the group and the
 // selection.
 
-import type { LucideIcon } from 'lucide-react';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 
 import { cn } from '@/lib/utils';
 
@@ -20,7 +20,7 @@ export interface ChoiceTileProps {
   type: 'radio' | 'checkbox';
   checked: boolean;
   onChange: () => void;
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
   label: string;
   /**
    * Short line beneath the label. OPTIONAL: where the options are
@@ -54,8 +54,8 @@ export function ChoiceTile({
         'flex cursor-pointer items-center gap-2 rounded-md border border-border p-snug text-body transition-colors md:p-cozy',
         // The whole tile takes the focus edge: at this size the native control's
         // own border is easy to miss.
-        'has-[:focus-visible]:border-gold/40',
-        checked ? 'bg-gold/10' : 'hover:border-gold/40 hover:bg-muted/40',
+        'has-[:focus-visible]:border-iris',
+        checked ? 'bg-accent text-accent-foreground' : 'hover:border-iris/50 hover:bg-muted/40',
         invalid && 'border-destructive',
         align === 'center' && 'justify-center text-center',
       )}
@@ -71,7 +71,7 @@ export function ChoiceTile({
         className={type === 'radio' ? 'sr-only' : 'size-4 shrink-0'}
       />
       {Icon ? (
-        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       ) : null}
       <span className="min-w-0 space-y-tight">
         <span className="block truncate font-medium">{label}</span>

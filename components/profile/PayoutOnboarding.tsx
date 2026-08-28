@@ -29,8 +29,8 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from 'sonner';
-import { BadgeCheck, ExternalLink, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BadgeCheckIcon, ExternalLinkIcon, LoaderCircleIcon, RefreshCwIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import {
   createPayoutOnboardingLink,
@@ -131,7 +131,7 @@ export function PayoutOnboarding({
       const refreshed = await refreshPayoutStatus();
       if (refreshed.ok) setState(refreshed.data);
       router.refresh();
-      toast.success('Payout setup submitted.');
+      
     });
   }
 
@@ -143,11 +143,7 @@ export function PayoutOnboarding({
         return;
       }
       setState(result.data);
-      toast.success(
-        result.data.settlementsEnabled
-          ? 'Payouts are active. You can receive funds through Stripe.'
-          : 'Stripe has not finished your setup yet. Continue with Stripe to complete it.',
-      );
+      
       router.refresh();
     });
   }
@@ -162,9 +158,9 @@ export function PayoutOnboarding({
           <div className="flex items-center justify-between gap-cozy">
             <CardTitle className="flex items-center gap-snug text-lead">
               {state.settlementsEnabled ? (
-                <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+                <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
               ) : (
-                <ShieldAlert className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <HugeiconsIcon icon={ShieldAlertIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               )}
               {/* NEVER "Verified Account". That wording is the 0060 mistake this card
                   is named in `product.md` for making — it once read "Verified Account"
@@ -212,9 +208,9 @@ export function PayoutOnboarding({
               className="w-full"
             >
               {isPending ? (
-                <Loader2 className="animate-spin" aria-hidden />
+                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
               ) : (
-                <ExternalLink className="size-3.5" aria-hidden />
+                <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
               )}
               {needsPayoutCompletion ? 'Continue with Stripe' : 'Manage with Stripe'}
             </Button>
@@ -232,7 +228,7 @@ export function PayoutOnboarding({
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-snug text-lead mb-2">
-              <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+              <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
               Stripe Connect
             </CardTitle>
             <CardDescription>
@@ -292,13 +288,13 @@ export function PayoutOnboarding({
             </p>
             <div className="flex flex-wrap gap-snug">
               <Button onClick={openHostedOnboarding} disabled={isPending}>
-                {isPending ? <Loader2 className="animate-spin" aria-hidden /> : (
-                  <ExternalLink className="size-3.5" aria-hidden />
+                {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : (
+                  <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
                 )}
                 Continue with Stripe
               </Button>
               <Button variant="outline" onClick={handleRecheck} disabled={isPending}>
-                <RefreshCw className="size-3.5" aria-hidden />
+                <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" aria-hidden />
                 Check status
               </Button>
             </div>
@@ -309,7 +305,7 @@ export function PayoutOnboarding({
           <div className="space-y-group">
             {state.merchantStatus === 'REJECTED' ? (
               <p className="flex gap-snug text-body text-destructive">
-                <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
                 Payout setup did not complete last time. You can start again.
               </p>
             ) : null}
@@ -328,8 +324,8 @@ export function PayoutOnboarding({
             ) : null}
 
             <Button type="button" onClick={handleStart} disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : (
-                <BadgeCheck className="size-3.5" aria-hidden />
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : (
+                <HugeiconsIcon icon={BadgeCheckIcon} className="size-3.5" aria-hidden />
               )}
               {context.hostedOnboarding ? 'Verify with Stripe' : 'Submit payout setup'}
             </Button>

@@ -15,7 +15,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Flag, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Flag01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button, type ButtonProps } from '@/components/ui/button';
@@ -137,7 +138,7 @@ export function ReportDialog({
           : await reportUser(targetId, reason, details || undefined);
 
       if (result.ok) {
-        toast.success('Thanks — your report has been submitted for review.');
+        
         setOpen(false);
         setReason('');
         setDetails('');
@@ -154,23 +155,23 @@ export function ReportDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {appearance === 'icon' ? (
-          <ListingActionIcon icon={Flag} label="Report" />
+          <ListingActionIcon icon={Flag01Icon} label="Report" />
         ) : appearance === 'icon-only' ? (
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className={cn(
-              'size-10 text-muted-foreground hover:text-foreground md:size-9',
+              'size-10 text-muted-foreground hover:text-foreground md:size-8',
               triggerClassName,
             )}
             aria-label={triggerLabel}
           >
-            <Flag aria-hidden />
+            <HugeiconsIcon icon={Flag01Icon} aria-hidden />
           </Button>
         ) : (
           <Button type="button" variant={triggerVariant} size="sm" className="w-full sm:w-auto">
-            <Flag aria-hidden />
+            <HugeiconsIcon icon={Flag01Icon} aria-hidden />
             {triggerLabel}
           </Button>
         )}
@@ -238,7 +239,7 @@ export function ReportDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Submitting…' : 'Submit report'}
             </Button>
           </DialogFooter>

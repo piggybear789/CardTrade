@@ -12,7 +12,14 @@ const CLUSTER_GAP_MS = 5 * 60 * 1000;
 
 export type MessageCluster =
   | { type: 'day'; key: string; label: string }
-  | { type: 'system'; message: ChatMessage }
+  /**
+   * A RUN of consecutive contract events, not a single line. A contract
+   * advances in bursts — pay, then ship, then deliver — and rendering each as
+   * its own centred sentence turned the room's own record into six
+   * indistinguishable lines of grey. Grouped, the run reads as one block of
+   * "what the contract did" between two stretches of what people said.
+   */
+  | { type: 'system'; key: string; messages: ChatMessage[] }
   | {
       type: 'user';
       key: string;
@@ -37,7 +44,10 @@ function dayLabel(iso: string): string {
   yesterday.setDate(today.getDate() - 1);
   if (dayKey(iso) === localDayKey(today)) return 'Today';
   if (dayKey(iso) === localDayKey(yesterday)) return 'Yesterday';
-  return date.toLocaleDateString([], {
+  // Pin en-AU: `[]` follows the host locale, so SSR (often en-AU) and the
+  // browser (often en-US) disagree — "Tue, 25 Aug" vs "Tue, Aug 25" — and
+  // hydrate as a mismatch. Same locale as `messageDateTimeLabel`.
+  return date.toLocaleDateString('en-AU', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -45,11 +55,29 @@ function dayLabel(iso: string): string {
 }
 
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
 }
 
 export function messageTimeLabel(iso: string): string {
   return timeLabel(iso);
+}
+
+/**
+ * Absolute date and time for one contract row, e.g. `16 Jul, 11:49 am`.
+ *
+ * A contract run spans days, so its rows cannot lean on a day marker the way a
+ * chat bubble does — each one has to say when it happened on its own. The
+ * weekday is dropped that `formatContractDateTime` includes: this sits inline
+ * after the event sentence rather than in the room's audit column, and
+ * "Thu, 16 Jul, 11:49 am" pushed most sentences onto a second line.
+ */
+export function messageDateTimeLabel(iso: string): string {
+  return new Date(iso).toLocaleString('en-AU', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 export function groupMessages(
@@ -61,15 +89,33 @@ export function groupMessages(
   let lastStamp: number | null = null;
 
   for (const message of messages) {
-    const day = dayKey(message.created_at);
-    if (day !== lastDay) {
-      out.push({ type: 'day', key: `day-${day}`, label: dayLabel(message.created_at) });
-      lastDay = day;
-      lastStamp = null;
+    const isSystem = message.kind === 'SYSTEM';
+
+    // DAY MARKERS SCOPE HUMAN CONVERSATION ONLY.
+    //
+    // They used to be pushed for every message, which meant a contract run could
+    // never span midnight: a five-event sale that paid on Thursday and completed
+    // on Sunday rendered as four separate records with a date label wedged
+    // between each. The calendar boundary is meaningful for chat — "did they
+    // reply today or last week" — and arbitrary inside a contract, which is one
+    // continuous thing. Contract rows carry their own absolute date instead
+    // (`messageDateTimeLabel`), so nothing is lost by not marking the day here.
+    if (!isSystem) {
+      const day = dayKey(message.created_at);
+      if (day !== lastDay) {
+        out.push({ type: 'day', key: `day-${day}`, label: dayLabel(message.created_at) });
+        lastDay = day;
+        lastStamp = null;
+      }
     }
 
-    if (message.kind === 'SYSTEM') {
-      out.push({ type: 'system', message });
+    if (isSystem) {
+      const open = out[out.length - 1];
+      if (open?.type === 'system') {
+        open.messages.push(message);
+      } else {
+        out.push({ type: 'system', key: message.id, messages: [message] });
+      }
       lastStamp = null;
       continue;
     }

@@ -13,7 +13,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, Trash2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Delete02Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -55,7 +56,7 @@ export function DeleteListingDialog({
       const result = await deleteItem(itemId);
       if (result.ok) {
         setOpen(false);
-        toast.success('Listing deleted.');
+        
         router.push('/listings/mine');
         router.refresh();
         return;
@@ -75,7 +76,7 @@ export function DeleteListingDialog({
           className={className ?? 'w-full sm:w-auto'}
           aria-label="Delete listing"
         >
-          <Trash2 aria-hidden />
+          <HugeiconsIcon icon={Delete02Icon} aria-hidden />
           {compact ? null : 'Delete listing'}
         </Button>
       </DialogTrigger>
@@ -103,7 +104,7 @@ export function DeleteListingDialog({
             disabled={isPending}
             aria-busy={isPending}
           >
-            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : <Trash2 aria-hidden />}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : <HugeiconsIcon icon={Delete02Icon} aria-hidden />}
             {isPending ? 'Deleting…' : 'Delete listing'}
           </Button>
         </DialogFooter>

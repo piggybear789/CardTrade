@@ -12,7 +12,8 @@
 //   /purchases   — h1 "Purchases" (×2, shell), h2/h3 "No Purchases Yet"
 //   /saved       — h1 "Saved" (×2), h2/h3 "No Saved Listings Yet"
 //   /sellers/[id]— h1 "Seller" (shell), h2 = display name, h2 "Available listings"
-//   /messages/[id]— h1 "Messages" (shell), h2 = counterparty name, textarea placeholder "Write a message…"
+//   /messages/[id]— h1 "Messages" (shell), h2 = item title (counterparty in the
+//                   subline), link "View listing", textarea placeholder "Write a message…"
 //   /sales       — h1 "Sales" (×2), h2/h3 "No Sales Yet", link "Create New Listing"
 //   /account-suspended — h1 "Account permanently suspended", link "Return to home"
 
@@ -20,6 +21,7 @@ import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { ensureFreshSessions } from '../support/auth';
+import { messageSellerComposer } from '../support/messageSeller';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
 
 // Stored sessions go stale mid-run due to refresh-token rotation — repair them
@@ -90,7 +92,10 @@ test.describe('/sellers/[id]', () => {
 
     // Section headings for the two content blocks.
     await expect(
-      page.getByRole('heading', { name: 'Available listings' }),
+      // `exact`, because the empty state's "No Available Listings" heading
+      // contains this name as a substring and the two are a strict-mode
+      // violation whenever the seller has nothing available.
+      page.getByRole('heading', { name: 'Available listings', exact: true }),
     ).toBeVisible();
     // "Reviews" heading (sometimes with a count suffix) — the empty-state "No
     // Reviews Yet" heading also matches a loose regex, so use the id the page
@@ -121,11 +126,11 @@ test.describe('/messages/[id]', () => {
     await bobPage.goto(`/listings/aaaaaaa1-0000-0000-0000-000000000001`);
     await bobPage.waitForLoadState('domcontentloaded');
 
-    const composer = bobPage.getByLabel('Send seller a message');
+    const { input: composer, send } = messageSellerComposer(bobPage);
     await expect(composer).toBeEnabled({ timeout: RENDERED });
     await composer.click();
     await composer.fill(body);
-    await bobPage.getByRole('button', { name: 'Send' }).click();
+    await send.click();
 
     // Landing in the thread proves the conversation was created.
     await expect(bobPage).toHaveURL(/\/messages\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
@@ -135,9 +140,12 @@ test.describe('/messages/[id]', () => {
       bobPage.getByRole('heading', { name: 'Messages' }).first(),
     ).toBeVisible({ timeout: RENDERED });
 
-    // Counterparty name is an h2.
+    // The subject bar names the ITEM as its h2 when the thread has one, and
+    // demotes the counterparty to the subline beside the price — so assert the
+    // name as text, and the item context by its one link out.
+    await expect(bobPage.getByText(ALICE.displayName).first()).toBeVisible();
     await expect(
-      bobPage.getByRole('heading', { name: ALICE.displayName }),
+      bobPage.getByRole('link', { name: 'View listing' }),
     ).toBeVisible();
 
     // The thread composer is ready.

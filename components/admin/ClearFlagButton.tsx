@@ -10,7 +10,8 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckmarkCircle02Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import { clearTradeReconciliationFlag } from '@/lib/actions/admin';
@@ -34,7 +35,7 @@ export function ClearFlagButton({ tradeId }: ClearFlagButtonProps) {
     startTransition(async () => {
       const result = await clearTradeReconciliationFlag(tradeId);
       if (result.ok) {
-        toast.success('Reconciliation flag cleared.');
+        
         router.refresh();
         return;
       }
@@ -51,9 +52,9 @@ export function ClearFlagButton({ tradeId }: ClearFlagButtonProps) {
       aria-busy={isPending}
     >
       {isPending ? (
-        <Loader2 className="animate-spin" aria-hidden />
+        <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
       ) : (
-        <CheckCircle2 aria-hidden />
+        <HugeiconsIcon icon={CheckmarkCircle02Icon} aria-hidden />
       )}
       Clear flag
     </Button>

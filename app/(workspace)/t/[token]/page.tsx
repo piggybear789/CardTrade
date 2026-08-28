@@ -15,8 +15,6 @@ import { PageShell } from '@/components/layout/PageShell';
 import { getDealInvitePreview } from '@/lib/actions/dealInvites';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 
-export const dynamic = 'force-dynamic';
-
 export const metadata = {
   title: 'Private deal · NoDitto',
   description: 'Join a private deal on NoDitto.',

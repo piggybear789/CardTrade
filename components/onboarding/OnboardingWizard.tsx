@@ -34,29 +34,16 @@
 // Stripe. Three clicks and a dead-end anchor stood between asking to verify and
 // the only screen that can verify anything.
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowLeft,
-  ArrowLeftRight,
-  ArrowRight,
-  Banknote,
-  Info,
-  MapPin,
-  ShieldCheck,
-  ShoppingBag,
-  Store,
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon, ArrowLeftRightIcon, ArrowRight01Icon, BanknoteIcon, InfoIcon, MapPinIcon, ShieldCheckIcon, ShoppingBag01Icon, Store01Icon } from '@hugeicons/core-free-icons';
 
 import { completeOnboarding } from '@/lib/actions/profile';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
 import { setTradingRegion } from '@/lib/actions/region';
-import {
-  listSelectableRegions,
-  type SelectableRegion,
-} from '@/lib/actions/regionOptions';
+import { type SelectableRegion } from '@/lib/actions/regionOptions';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -88,17 +75,17 @@ const PROGRESS_STEPS: Step[] = STEPS;
 /** What the welcome step promises, one sentence each, in one voice. */
 const WELCOME_POINTS = [
   {
-    icon: ShieldCheck,
+    icon: ShieldCheckIcon,
     title: 'Everyone selling is verified',
     body: 'A photo ID and a matching selfie, checked by Stripe, before anyone can list or trade.',
   },
   {
-    icon: Banknote,
+    icon: BanknoteIcon,
     title: 'Money is held until delivery',
     body: 'The buyer pays upfront and the seller is paid once the item arrives and passes inspection.',
   },
   {
-    icon: ArrowLeftRight,
+    icon: ArrowLeftRightIcon,
     title: 'Trades are backed by collateral',
     body: 'Each side puts a temporary hold on their card. No cash moves, and holds release on a confirmed swap.',
   },
@@ -135,11 +122,24 @@ export interface OnboardingWizardProps {
    * falls back to the catalog.
    */
   redirectTo?: string | null;
+  /**
+   * The regions with a configured Stripe platform, resolved by the page.
+   *
+   * Passed in rather than loaded on mount because an empty list is not a
+   * neutral placeholder here: the step renders "No regions are open for deals
+   * right now" when it has none, so every member was shown a misconfiguration
+   * notice for the length of a round trip before the real buttons replaced it.
+   */
+  regions: SelectableRegion[];
 }
 
-export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardProps) {
+export function OnboardingWizard({
+  initialStep,
+  redirectTo,
+  regions,
+}: OnboardingWizardProps) {
   const router = useRouter();
-  const exitPath = redirectTo ?? '/listings';
+  const exitPath = redirectTo ?? '/';
   const [step, setStep] = useState<Step>(initialStep);
   const [displayName, setDisplayName] = useState('');
   // Saved by AvatarUploadField the moment it is picked, so this only mirrors it for
@@ -150,22 +150,13 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
   // their payouts and postage are pinned to, and silently assigning it would make
   // the later "your region is tied to your payout account" refusal come out of
   // nowhere.
-  const [regionCode, setRegionCode] = useState<string | null>(null);
-  const [regionChoices, setRegionChoices] = useState<SelectableRegion[]>([]);
-
-  // Loaded on mount rather than computed here, because the answer depends on which
-  // regions have a Stripe platform account configured and that is server-side state.
-  useEffect(() => {
-    let cancelled = false;
-    void listSelectableRegions().then((regions) => {
-      if (cancelled) return;
-      setRegionChoices(regions);
-      if (regions.length === 1) setRegionCode(regions[0].code);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Pre-selected on the first render when only one region trades, which the
+  // server already knows — this used to settle a tick after mount and move the
+  // selection under anyone who had got there first.
+  const [regionCode, setRegionCode] = useState<string | null>(
+    regions.length === 1 ? regions[0].code : null,
+  );
+  const regionChoices = regions;
   const [intent, setIntent] = useState<Intent>(null);
   // Whether the seller step reports both its gates satisfied. Owned here rather than
   // re-read, because the surface already knows and two readers of one fact drift.
@@ -252,7 +243,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
     // point it becomes relevant. The wizard used to show a card step here with a "Skip
     // for now" beneath it, which is a screen whose best outcome is being dismissed.
     setSaving(false);
-    toast.success('Welcome! Browse listings and find something you love.');
+    
     router.push(exitPath);
   }
 
@@ -319,7 +310,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                       className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
                       aria-hidden
                     >
-                      <Icon className="size-4" />
+                      <HugeiconsIcon icon={Icon} className="size-4" />
                     </span>
                     <div className="min-w-0 space-y-tight">
                       <p className="text-body font-medium">{title}</p>
@@ -436,7 +427,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                     )}
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                      <MapPin className="size-5" aria-hidden />
+                      <HugeiconsIcon icon={MapPinIcon} className="size-5" aria-hidden />
                     </span>
                     <span>
                       <span className="block font-medium">{region.label}</span>
@@ -501,7 +492,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                    <ShoppingBag className="size-5" aria-hidden />
+                    <HugeiconsIcon icon={ShoppingBag01Icon} className="size-5" aria-hidden />
                   </span>
                   <span>
                     <span className="block font-medium">I want to buy</span>
@@ -522,7 +513,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                    <Store className="size-5" aria-hidden />
+                    <HugeiconsIcon icon={Store01Icon} className="size-5" aria-hidden />
                   </span>
                   <span>
                     <span className="block font-medium">I want to sell or trade</span>
@@ -555,10 +546,10 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-gold/40"
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris"
                         aria-label="Why we need these details"
                       >
-                        <Info className="size-3.5" aria-hidden />
+                        <HugeiconsIcon icon={InfoIcon} className="size-3.5" aria-hidden />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -578,7 +569,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 returnPath="/onboarding"
                 onSettledChange={setSellerSettled}
                 onComplete={() => {
-                  toast.success('You\u2019re all set. Start listing and selling.');
+                  
                   router.push(exitPath);
                 }}
               />
@@ -591,7 +582,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
             <WizardFooter>
               <Button type="button" onClick={() => setStep('username')}>
                 Get started
-                <ArrowRight className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -599,7 +590,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
           {step === 'username' ? (
             <WizardFooter>
               <Button type="button" variant="outline" onClick={goBack}>
-                <ArrowLeft className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
                 Back
               </Button>
               <Button
@@ -608,7 +599,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 disabled={!displayName.trim()}
               >
                 Continue
-                <ArrowRight className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -621,7 +612,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 onClick={goBack}
                 disabled={saving}
               >
-                <ArrowLeft className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
                 Back
               </Button>
               <Button
@@ -631,7 +622,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 aria-busy={saving}
               >
                 {saving ? 'Saving…' : 'Continue'}
-                <ArrowRight className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -639,7 +630,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
           {step === 'intent' ? (
             <WizardFooter>
               <Button type="button" variant="outline" onClick={goBack} disabled={saving}>
-                <ArrowLeft className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
                 Back
               </Button>
               <Button
@@ -659,7 +650,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                     // bought nothing. `Verify Identity` stays different because the
                     // action IS different — it leaves for Stripe.
                     : 'Continue'}
-                <ArrowRight className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -677,7 +668,7 @@ export function OnboardingWizard({ initialStep, redirectTo }: OnboardingWizardPr
                 variant="outline"
                 onClick={() => setStep('intent')}
               >
-                <ArrowLeft className="size-4" aria-hidden />
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
                 Back
               </Button>
             </WizardFooter>

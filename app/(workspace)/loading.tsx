@@ -10,6 +10,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
+import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 import { CatalogGridSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 function FilterRailSkeleton() {
@@ -39,7 +40,15 @@ function FilterRailSkeleton() {
 
 export default function HomeLoading() {
   return (
-    <MarketplaceShellSkeleton hasPrimaryAction filters={<FilterRailSkeleton />}>
+    <MarketplaceShellSkeleton
+      title="Marketplace"
+      primaryAction={
+        <RailPrimaryAction href="/listings/new" size="lg">
+          Create New Listing
+        </RailPrimaryAction>
+      }
+      filters={<FilterRailSkeleton />}
+    >
       <div className="min-w-0">
         <header className="mb-4 border-b border-border pb-4">
           <div className="flex flex-col gap-3">

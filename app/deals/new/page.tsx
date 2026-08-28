@@ -8,8 +8,6 @@ import { redirect } from 'next/navigation';
 import { DEAL_OPEN_PATH } from '@/components/deals/dealPaths';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 
-export const dynamic = 'force-dynamic';
-
 export default async function NewDealPage() {
   const user = await getCachedAuthUser();
   if (!user) {

@@ -6,13 +6,22 @@
 // names fonts this app does not load (Fraunces, JetBrains Mono). The app ships a
 // single LIGHT theme with Plus Jakarta Sans, so the reference's
 // STRUCTURE (compact rows, eyebrow labels, status pills, icon medallions) is
-// reproduced here against real tokens — `trust`, `gold`, `destructive`, `muted`.
+// reproduced here against real tokens — `trust`, `iris`, `destructive`, `muted`.
 // Porting its `bg-[#111118]` / `text-emerald-400` classes verbatim would render
 // as unreadable dark-on-light.
 
-import type { ComponentPropsWithoutRef, HTMLAttributes, ReactNode, Ref } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  type ComponentPropsWithoutRef,
+  type HTMLAttributes,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import Link from 'next/link';
-import { ChevronRight, ShieldAlert, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import type { IconSvgElement } from '@hugeicons/react';
+import { ChevronRightIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -123,7 +132,7 @@ export function SettingsListRow({
   type = 'button',
   ...rest
 }: {
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
   tone?: StatusTone;
   label: ReactNode;
   /** Second line under the label, for a row whose purpose is not self-evident. */
@@ -144,9 +153,13 @@ export function SettingsListRow({
   type?: 'button' | 'submit' | 'reset';
 } & Omit<HTMLAttributes<HTMLElement>, 'onClick' | 'className' | 'children'>) {
   const Glyph = icon;
-  // `rest` carries a Radix trigger's own onClick when used via `asChild`, so a row
-  // with neither `href` nor `onClick` can still be interactive.
-  const interactive = Boolean(href || onClick || rest.onPointerDown || rest['aria-haspopup']);
+  // Interactive when it navigates, has an explicit handler, or is cloned as a
+  // trigger (`ref` / pointer / aria-haspopup from Radix). A server-rendered row
+  // passed into `DialogTrigger asChild` often arrives with none of those, so
+  // callers must also attach `onClick` themselves — see `withRowOpenHandler`.
+  const interactive = Boolean(
+    href || onClick || ref || rest.onPointerDown || rest['aria-haspopup'],
+  );
 
   const body = (
     <>
@@ -170,7 +183,7 @@ export function SettingsListRow({
       ) : null}
       {trailing ?? null}
       {interactive && !trailing ? (
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
+        <HugeiconsIcon icon={ChevronRightIcon} className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
       ) : null}
     </>
   );
@@ -188,7 +201,7 @@ export function SettingsListRow({
     // `overflow-hidden` group, so an outset ring would be clipped on the first and
     // last row. `ring-inset` stays visible on every row.
     interactive &&
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold/60',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
     disabled && 'pointer-events-none opacity-60',
     className,
   );
@@ -232,6 +245,27 @@ export function SettingsListRow({
 }
 
 /**
+ * Attach an open handler to a settings row (or any element) without Radix
+ * `DialogTrigger asChild`.
+ *
+ * `asChild` clones its child with handlers, but a row created in a Server
+ * Component and passed into a Client dialog often never receives them — the row
+ * then renders as a non-button `div` and the tap does nothing. Cloning here, in
+ * the client that owns the dialog, puts `onClick` on `SettingsListRow` so it
+ * becomes a real button.
+ */
+export function withRowOpenHandler(trigger: ReactNode, onOpen: () => void): ReactNode {
+  if (!isValidElement<{ onClick?: () => void }>(trigger)) return trigger;
+  const previous = trigger.props.onClick;
+  return cloneElement(trigger, {
+    onClick: () => {
+      previous?.();
+      onOpen();
+    },
+  });
+}
+
+/**
  * The one line on the Account surface that states what a member's account actually
  * IS, rather than what they can change about it.
  *
@@ -254,7 +288,7 @@ export function TrustLine({
   if (!identityVerified) {
     return (
       <p className="flex items-center gap-tight text-body text-muted-foreground">
-        <ShieldAlert className="size-4 shrink-0" aria-hidden />
+        <HugeiconsIcon icon={ShieldAlertIcon} className="size-4 shrink-0" aria-hidden />
         Not verified yet
       </p>
     );
@@ -262,7 +296,7 @@ export function TrustLine({
 
   return (
     <p className="flex flex-wrap items-center gap-x-tight gap-y-0 text-body">
-      <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+      <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
       <span className="font-medium text-trust">ID checked by Stripe</span>
       <span aria-hidden className="text-muted-foreground/50">
         ·
@@ -381,7 +415,7 @@ const TONE_CLASS: Record<StatusTone, string> = {
   // `trust` is the app's reserved verification colour (see globals.css) — the
   // reference's emerald would introduce a second "this is confirmed" hue.
   verified: 'border-trust/40 bg-trust/10 text-trust',
-  pending: 'border-gold/40 bg-gold/10 text-gold',
+  pending: 'border-iris/40 bg-iris/10 text-iris-ink',
   required: 'border-border bg-muted text-muted-foreground',
   neutral: 'border-border bg-muted text-muted-foreground',
 };
@@ -393,7 +427,7 @@ export function StatusPill({
   children,
 }: {
   tone: StatusTone;
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
   children: ReactNode;
 }) {
   return (
@@ -404,7 +438,7 @@ export function StatusPill({
         TONE_CLASS[tone],
       )}
     >
-      {Icon ? <Icon className="size-3 shrink-0" aria-hidden /> : null}
+      {Icon ? <HugeiconsIcon icon={Icon} className="size-3 shrink-0" aria-hidden /> : null}
       {children}
     </span>
   );
@@ -420,12 +454,12 @@ export function IconMedallion({
   icon: Icon,
   tone = 'neutral',
 }: {
-  icon: LucideIcon;
+  icon: IconSvgElement;
   tone?: StatusTone;
 }) {
   const toneClass: Record<StatusTone, string> = {
     verified: 'bg-trust/10 text-trust',
-    pending: 'bg-gold/10 text-gold',
+    pending: 'bg-iris/10 text-iris-ink',
     required: 'bg-muted text-muted-foreground',
     neutral: 'bg-muted text-muted-foreground',
   };
@@ -437,7 +471,7 @@ export function IconMedallion({
       )}
       aria-hidden
     >
-      <Icon className="size-4" />
+      <HugeiconsIcon icon={Icon} className="size-4" />
     </span>
   );
 }
@@ -459,7 +493,7 @@ export function SettingsRow({
   inverse = false,
   className,
 }: {
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
   tone?: StatusTone;
   title: ReactNode;
   subtitle?: ReactNode;
@@ -483,10 +517,10 @@ export function SettingsRow({
         {IconGlyph ? (
           inverse ? (
             <span
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-parchment"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-mist"
               aria-hidden
             >
-              <IconGlyph className="size-4" />
+              <HugeiconsIcon icon={IconGlyph} className="size-4" />
             </span>
           ) : (
             <IconMedallion icon={IconGlyph} tone={tone} />
@@ -496,7 +530,7 @@ export function SettingsRow({
           <p
             className={cn(
               'text-lead font-semibold',
-              inverse ? 'text-parchment' : 'text-foreground',
+              inverse ? 'text-mist' : 'text-foreground',
             )}
           >
             {title}
@@ -505,7 +539,7 @@ export function SettingsRow({
             <p
               className={cn(
                 'mt-0.5 text-body',
-                inverse ? 'text-parchment/65' : 'text-muted-foreground',
+                inverse ? 'text-mist/65' : 'text-muted-foreground',
               )}
             >
               {subtitle}
@@ -551,7 +585,7 @@ export function StatTile({
   label: string;
   value: string;
   sub?: string;
-  icon: LucideIcon;
+  icon: IconSvgElement;
   tone?: StatusTone;
 }) {
   return (

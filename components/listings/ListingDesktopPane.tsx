@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Library } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LibraryIcon } from '@hugeicons/core-free-icons';
 
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { WatchButton } from '@/components/listings/WatchButton';
@@ -144,7 +145,7 @@ export function ListingDesktopPane({
                 ) : (
                   <Link
                     href={`/sellers/${sellerId}#reviews`}
-                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-gold/40"
+                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
                     aria-label="Read seller reviews"
                   >
                     <StarRating
@@ -186,8 +187,8 @@ export function ListingDesktopPane({
       </section>
 
       {isShopfront ? (
-        <p className="flex gap-2 rounded-md border border-gold/30 bg-gold/10 p-2 text-body text-foreground">
-          <Library className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
+        <p className="flex gap-2 rounded-md border border-iris/30 bg-iris/10 p-2 text-body text-foreground">
+          <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
           <span>
             This is a binder listing. Browse the collection and request specific
             items — nothing is held until you agree on terms.

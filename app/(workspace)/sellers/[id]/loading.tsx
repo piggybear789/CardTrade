@@ -10,15 +10,20 @@ import { CatalogTileSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 export default function SellerProfileLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Seller">
       <div className="min-w-0">
-        <nav className="mb-6">
+        {/* Spacing below is copied from the live page term for term — `mb-3`
+            here, `mb-5 pb-4` on the header, `mb-8` on the listings section, and a
+            40px avatar (`Avatar size="md"`). It previously ran 6/8/6/10 with a
+            56px avatar, which stood the placeholder about 50px taller than the
+            content and jumped everything below the fold upward on swap. */}
+        <nav className="mb-3">
           <Skeleton className="h-4 w-36" />
         </nav>
 
-        <header className="mb-8 space-y-2 border-b pb-6">
-          <div className="flex min-w-0 items-start gap-4">
-            <Skeleton className="size-14 shrink-0 rounded-full" />
+        <header className="mb-5 space-y-2 border-b pb-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <Skeleton className="size-10 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Skeleton className="h-8 w-44" />
@@ -30,7 +35,7 @@ export default function SellerProfileLoading() {
           </div>
         </header>
 
-        <section className="mb-10">
+        <section className="mb-8">
           <Skeleton className="mb-4 h-5 w-40" />
           <div className={CATALOG_TILE_GRID}>
             {Array.from({ length: 6 }, (_, index) => (

@@ -27,6 +27,7 @@
 // page.
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
@@ -46,10 +47,7 @@ import { type ActionResult, fail, ok } from './result';
  * then refuse for want of a user.
  */
 async function viewerRegion(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   return user ? regionForProfile(user.id) : DEFAULT_CONFIG_REGION;
 }
 
@@ -350,10 +348,7 @@ export interface IdentityCheckState {
 export async function getIdentityCheckState(): Promise<
   ActionResult<IdentityCheckState, IdentityCheckError>
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to see your verification status.');
 
   const { data } = await createAdminClient()

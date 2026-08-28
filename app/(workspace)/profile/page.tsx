@@ -69,7 +69,6 @@ import { resolveScope } from '@/components/layout/SectionFilter';
 // heading — said the member's own name. The nav label is the one a member sees most
 // and the one they navigate by, so the rest now agrees with it.
 export const metadata = { title: 'Account · NoDitto' };
-export const dynamic = 'force-dynamic';
 
 /** The tabs this page renders. Anything else falls back to Profile. */
 type SettingsTab = 'profile' | 'verification' | 'payouts';
@@ -94,17 +93,25 @@ export default async function ProfilePage({
   } = await supabase.auth.getUser();
   if (!user) redirect('/sign-in?redirectTo=/profile');
 
-  const [profileResult, paymentMethodResult, identity, payoutContext, payoutDashboard] =
+  // ONLY WHAT THIS TAB RENDERS. All five of these used to run on every view of
+  // every tab, and two of them are expensive: `getPaymentMethodStatus` makes a
+  // live Stripe call, and `getPayoutsDashboard` is a seven-query chain. A member
+  // opening Profile — the landing tab — paid for both before seeing anything.
+  //
+  // The first three stay unconditional because the identity header above the tab
+  // strip reads them: the profile row for the name and avatar, and identity plus
+  // payout context for the trust line.
+  const [profileResult, identity, payoutContext, paymentMethodResult, payoutDashboard] =
     await Promise.all([
       supabase
         .from('profiles')
         .select('display_name, contact_email, avatar_path, social_links, bio, is_admin, is_support')
         .eq('id', user.id)
         .single(),
-      getPaymentMethodStatus(),
       getIdentityCheckState(),
       getPayoutSetupContext(),
-      getPayoutsDashboard(),
+      activeTab === 'profile' ? getPaymentMethodStatus() : null,
+      activeTab === 'payouts' ? getPayoutsDashboard() : null,
     ]);
 
   const profile = profileResult.data;
@@ -122,7 +129,8 @@ export default async function ProfilePage({
     );
   }
 
-  const paymentMethod = paymentMethodResult.ok ? paymentMethodResult.data : null;
+  const paymentMethod =
+    paymentMethodResult?.ok ? paymentMethodResult.data : null;
   const paymentDemoEnabled = isPaymentDemoEnabled();
   const hasCard = Boolean(paymentMethod?.hasPaymentMethod);
 
@@ -349,11 +357,11 @@ export default async function ProfilePage({
           <div className="space-y-group md:space-y-section">
             {/* Real figures from the payout read model — the three buckets are a
                 strict partition, so these never double-count a sale. */}
-            {payoutDashboard.ok ? (
+            {payoutDashboard?.ok ? (
               <PayoutSummary model={payoutDashboard.data.model} />
             ) : null}
 
-            {payoutDashboard.ok ? (
+            {payoutDashboard?.ok ? (
               <PayoutsDashboard
                 model={payoutDashboard.data.model}
                 destination={payoutDashboard.data.destination}

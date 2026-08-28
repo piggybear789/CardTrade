@@ -125,7 +125,7 @@ test.describe.serial('Cash sale lifecycle', () => {
   
   // Availability is VISIBILITY (0064): a listing under contract leaves the
   // catalog rather than rendering as unavailable.
-  await page.goto('/listings');
+  await page.goto('/');
   await page.waitForLoadState('domcontentloaded');
   await expect(page.getByRole('link', { name: new RegExp(escapeRegExp(title)) })).toHaveCount(0);
   

@@ -1,11 +1,12 @@
 'use client';
 
 // Game switcher. Phones get a fading icon strip + a persistent chevron that
-// drops a cream category grid. Desktop shows the pills that fit and parks a
-// pullout at the end of the row for everything else — never over a badge.
+// drops a cream category grid. Desktop lets the pills run under the same
+// overlaid chevron — the trailing chip fades as it slides out of view.
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
 
 import { GameIcon, GameMark } from '@/components/listings/GameIcon';
 import {
@@ -210,14 +211,14 @@ function MobileGenreStrip({
           aria-controls={allOpen ? panelId : undefined}
           aria-label="All categories"
           className={cn(
-            'absolute right-0 top-1.5 z-10 flex size-11 items-center justify-center rounded-full text-foreground outline-none transition-colors hover:text-gold focus-visible:ring-1 focus-visible:ring-gold/50',
+            'absolute right-0 top-1.5 z-10 flex size-11 items-center justify-center rounded-full text-foreground outline-none transition-colors hover:text-iris-ink focus-visible:ring-1 focus-visible:border-iris',
             allOpen ? 'bg-transparent' : 'bg-background',
           )}
         >
           {allOpen ? (
-            <ChevronUp className="size-5" strokeWidth={1.75} aria-hidden />
+            <HugeiconsIcon icon={ChevronUpIcon} className="size-5" strokeWidth={1.75} aria-hidden />
           ) : (
-            <ChevronDown className="size-5" strokeWidth={1.75} aria-hidden />
+            <HugeiconsIcon icon={ChevronDownIcon} className="size-5" strokeWidth={1.75} aria-hidden />
           )}
         </button>
       </div>
@@ -242,9 +243,9 @@ function CategoryChip({
       onClick={onSelect}
       aria-pressed={active}
       className={cn(
-        'flex h-16 flex-col items-center justify-center gap-1 rounded-lg px-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:ring-gold/50',
+        'flex h-16 flex-col items-center justify-center gap-1 rounded-lg px-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:border-iris',
         active
-          ? 'bg-gold/15 font-semibold text-foreground ring-1 ring-gold/45'
+          ? 'bg-accent font-semibold text-accent-foreground ring-1 ring-iris'
           : 'bg-card font-medium text-foreground hover:bg-accent',
       )}
     >
@@ -274,7 +275,7 @@ function CategoryCell({
       aria-pressed={active}
       title={title}
       className={cn(
-        'border border-transparent focus:outline-none focus-visible:border-gold/40',
+        'border border-transparent focus:outline-none focus-visible:border-iris',
         STRIP_CELL,
       )}
     >
@@ -291,7 +292,7 @@ function CategoryCell({
         aria-hidden
         className={cn(
           'mt-1 h-0.5 w-4 rounded-full',
-          active ? 'bg-gold' : 'bg-transparent',
+          active ? 'bg-iris' : 'bg-transparent',
         )}
       />
     </button>
@@ -304,7 +305,8 @@ type GenreItem = {
   label: string;
 };
 
-const PILL_GAP_PX = 6;
+// Matches the size-11 chevron so a selected pill can sit fully left of it.
+const CHEVRON_RESERVE_PX = 44;
 
 function DesktopGenrePills({
   selected,
@@ -325,41 +327,43 @@ function DesktopGenrePills({
   ];
   const selectedName = selected.length === 1 ? selected[0] : null;
   const allActive = selectedName == null;
+  const selectedSlug = selectedName
+    ? items.find((item) => item.name === selectedName)?.slug ?? 'all'
+    : 'all';
 
   const trackRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
-  const [visibleCount, setVisibleCount] = useState(items.length);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const [fadeRight, setFadeRight] = useState(true);
+  const [hidden, setHidden] = useState<GenreItem[]>([]);
   const [open, setOpen] = useState(false);
 
   useLayoutEffect(() => {
     const track = trackRef.current;
-    const measure = measureRef.current;
-    if (!track || !measure) return;
+    if (!track) return;
 
-    // An arrow const, not a hoisted declaration: `function fit()` is hoisted
-    // above the null guard, so TypeScript won't narrow `track`/`measure` inside.
-    const fit = () => {
-      const pills = [...measure.children] as HTMLElement[];
-      if (pills.length === 0) return;
-      const available = track.clientWidth;
-      let used = 0;
-      let count = 0;
-      for (const pill of pills) {
-        const next = used + (count > 0 ? PILL_GAP_PX : 0) + pill.offsetWidth;
-        if (next > available + 0.5) break;
-        used = next;
-        count += 1;
-      }
-      setVisibleCount(Math.max(1, count));
+    const update = () => {
+      const maxScroll = track.scrollWidth - track.clientWidth;
+      setFadeRight(maxScroll > 1 && track.scrollLeft < maxScroll - 1);
+      const visible = visibleTrackSlugs(track);
+      setHidden(itemsRef.current.filter((item) => !visible.has(item.slug)));
     };
 
-    fit();
-    const observer = new ResizeObserver(fit);
+    update();
+    track.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
     observer.observe(track);
-    return () => observer.disconnect();
+    return () => {
+      track.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
   }, [items.length]);
 
-  const { visible, rest } = partitionVisible(items, visibleCount, selectedName);
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    scrollSlugIntoView(track, selectedSlug);
+  }, [selectedSlug]);
 
   function pick(name: string | null) {
     onSelect(name);
@@ -369,123 +373,144 @@ function DesktopGenrePills({
   return (
     <nav aria-label="Categories" className="relative min-w-0">
       <div
-        ref={measureRef}
-        aria-hidden
-        inert
-        className="pointer-events-none invisible absolute left-0 top-0 flex gap-1.5"
+        ref={trackRef}
+        className={cn(
+          'flex min-w-0 items-center gap-1.5 overflow-x-auto [overflow-anchor:none] [overscroll-behavior-x:contain]',
+          '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          hidden.length > 0 && 'scroll-pe-14 pr-14',
+          fadeRight &&
+            '[mask-image:linear-gradient(to_right,black_calc(100%-5.5rem),transparent_calc(100%-2.75rem))] [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-5.5rem),transparent_calc(100%-2.75rem))]',
+        )}
       >
         {items.map((item) => (
           <GenrePill
             key={item.slug}
-            active={false}
+            active={item.name == null ? allActive : item.name === selectedName}
             slug={item.slug}
             label={item.label}
-            onSelect={() => {}}
+            onSelect={() => pick(item.name)}
           />
         ))}
       </div>
 
-      <div className="flex min-w-0 items-center gap-1.5">
-        <div ref={trackRef} className="flex min-w-0 flex-1 items-center gap-1.5">
-          {visible.map((item) => (
-            <GenrePill
-              key={item.slug}
-              active={item.name == null ? allActive : item.name === selectedName}
-              slug={item.slug}
-              label={item.label}
-              onSelect={() => pick(item.name)}
-            />
-          ))}
-        </div>
-
+      {hidden.length > 0 ? (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <button
               type="button"
               aria-label="More games"
-              className="flex size-11 shrink-0 items-center justify-center rounded-full border border-foreground/20 bg-card text-foreground shadow-sm transition-colors hover:border-gold/40 hover:bg-accent focus:outline-none focus-visible:border-gold/40"
+              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-foreground/20 bg-background text-foreground shadow-sm transition-colors hover:border-iris/50 hover:bg-accent focus:outline-none focus-visible:border-iris"
             >
               {open ? (
-                <ChevronUp className="size-4" strokeWidth={1.75} aria-hidden />
+                <HugeiconsIcon icon={ChevronUpIcon} className="size-4" strokeWidth={1.75} aria-hidden />
               ) : (
-                <ChevronDown className="size-4" strokeWidth={1.75} aria-hidden />
+                <HugeiconsIcon icon={ChevronDownIcon} className="size-4" strokeWidth={1.75} aria-hidden />
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-2">
+          <PopoverContent align="end" className="w-96 p-2">
             <p className="px-2 pb-1.5 text-meta font-semibold text-muted-foreground">
-              {rest.length > 0 ? 'More games' : 'Games'}
+              More games
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {(rest.length > 0 ? rest : items).map((item) => (
+            <div className="grid grid-cols-2 gap-1.5">
+              {hidden.map((item) => (
                 <GenrePill
                   key={item.slug}
                   active={item.name == null ? allActive : item.name === selectedName}
                   slug={item.slug}
                   label={item.label}
+                  stretched
                   onSelect={() => pick(item.name)}
                 />
               ))}
             </div>
           </PopoverContent>
         </Popover>
-      </div>
+      ) : null}
     </nav>
   );
 }
 
-function partitionVisible(
-  items: GenreItem[],
-  visibleCount: number,
-  selectedName: string | null,
-): { visible: GenreItem[]; rest: GenreItem[] } {
-  const count = Math.max(1, Math.min(visibleCount, items.length));
-  let visible = items.slice(0, count);
-  const selected = selectedName
-    ? items.find((item) => item.name === selectedName)
-    : null;
+function visibleTrackSlugs(track: HTMLElement): Set<string> {
+  const trackRect = track.getBoundingClientRect();
+  const viewLeft = track.scrollLeft;
+  const viewRight = viewLeft + track.clientWidth - CHEVRON_RESERVE_PX;
+  const slugs = new Set<string>();
 
-  if (selected && !visible.some((item) => item.slug === selected.slug)) {
-    visible = [...visible.slice(0, Math.max(1, count - 1)), selected];
+  for (const node of track.querySelectorAll('[data-genre-slug]')) {
+    if (!(node instanceof HTMLElement)) continue;
+    const slug = node.dataset.genreSlug;
+    if (!slug) continue;
+    const rect = node.getBoundingClientRect();
+    const left = rect.left - trackRect.left + track.scrollLeft;
+    const width = node.offsetWidth;
+    const visible = Math.min(left + width, viewRight) - Math.max(left, viewLeft);
+    if (width > 0 && visible / width >= 0.5) slugs.add(slug);
   }
 
-  const visibleSlugs = new Set(visible.map((item) => item.slug));
-  const rest = items.filter((item) => !visibleSlugs.has(item.slug));
-  return { visible, rest };
+  return slugs;
+}
+
+function scrollSlugIntoView(track: HTMLElement, slug: string) {
+  const el = track.querySelector(`[data-genre-slug="${CSS.escape(slug)}"]`);
+  if (!(el instanceof HTMLElement)) return;
+
+  const elRect = el.getBoundingClientRect();
+  const trackRect = track.getBoundingClientRect();
+  const left = elRect.left - trackRect.left + track.scrollLeft;
+  const right = left + el.offsetWidth;
+  const viewLeft = track.scrollLeft;
+  const viewRight = viewLeft + track.clientWidth - CHEVRON_RESERVE_PX;
+
+  if (left < viewLeft) {
+    track.scrollTo({ left, behavior: 'auto' });
+  } else if (right > viewRight) {
+    track.scrollTo({
+      left: right - (track.clientWidth - CHEVRON_RESERVE_PX),
+      behavior: 'auto',
+    });
+  }
 }
 
 function GenrePill({
   active,
   slug,
   label,
+  stretched = false,
   onSelect,
 }: {
   active: boolean;
   slug: string;
   label: string;
+  stretched?: boolean;
   onSelect: () => void;
 }) {
   return (
     <button
       type="button"
+      data-genre-slug={slug}
       onClick={onSelect}
       aria-pressed={active}
       title={label}
       className={cn(
-        'inline-flex h-9 min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-3',
-        'border border-transparent focus:outline-none focus-visible:border-gold/40',
+        'flex h-9 min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-left text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-3',
+        'border border-transparent focus:outline-none focus-visible:border-iris',
+        stretched ? 'min-w-0 w-full' : 'shrink-0',
         active
           ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-foreground/20 bg-card text-foreground shadow-sm hover:border-gold/40 hover:bg-accent',
+          : 'border-foreground/20 bg-card text-foreground shadow-sm hover:border-iris/50 hover:bg-accent',
       )}
     >
       {/* Drawn mark, not the brand logo: the active pill inverts to a near-black
           fill, and a full-colour logo cannot follow the foreground. */}
       <GameMark
         slug={slug}
-        className={active ? 'text-gold' : 'text-muted-foreground'}
+        className={cn(
+          'shrink-0',
+          active ? 'text-iris-ink' : 'text-muted-foreground',
+        )}
       />
-      <span className="whitespace-nowrap">{label}</span>
+      <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
     </button>
   );
 }

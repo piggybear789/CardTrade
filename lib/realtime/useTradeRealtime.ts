@@ -29,9 +29,16 @@ export type TradeTransitionRow = Tables<'trade_state_transitions'>;
  */
 export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'error';
 
+/** Server-rendered starting point, so the room has state on its first paint. */
+export interface TradeRealtimeSeed {
+  trade: TradeRow;
+  holds: HoldRow[];
+  transitions: TradeTransitionRow[];
+}
+
 /** Shape returned by {@link useTradeRealtime}. */
 export interface UseTradeRealtimeResult {
-  /** The live trade row, or `null` until the initial fetch resolves. */
+  /** The live trade row, or `null` when no seed was given and no fetch has resolved. */
   trade: TradeRow | null;
   /** The live set of pre-auth holds for the trade. */
   holds: HoldRow[];
@@ -58,22 +65,41 @@ function backoffDelay(attempt: number): number {
  * history in real time.
  *
  * Given a `tradeId`, this hook:
- * 1. Fetches the initial trade row, holds, and transitions via the browser
- *    Supabase client.
+ * 1. Starts from `seed` — the rows the server already rendered with — so the
+ *    contract is in the HTML rather than appearing after hydration.
  * 2. Subscribes to Postgres Changes on `trades`, `pre_auth_holds`, and
  *    `trade_state_transitions` so updates arrive without a page reload
  *    (Req 11.2).
  * 3. Exposes a {@link ConnectionStatus} derived from the channel's subscribe
  *    callback, and auto-reconnects with exponential backoff on drop (Req 11.5).
  *
+ * SEED, THEN SUBSCRIBE. Without a seed this hook started at `null` and the room
+ * gated its entire body on that, so the server's five queries produced HTML with
+ * no contract in it and the room only existed after hydration plus a client
+ * fetch. `useCashSaleRealtime` never had that problem because `CashSaleView`
+ * falls back to its server snapshot; this is the same arrangement, done in the
+ * hook so every consumer gets it.
+ *
  * The channel is torn down on unmount (or when `tradeId` changes).
  */
-export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
-  const [trade, setTrade] = useState<TradeRow | null>(null);
-  const [holds, setHolds] = useState<HoldRow[]>([]);
-  const [transitions, setTransitions] = useState<TradeTransitionRow[]>([]);
+export function useTradeRealtime(
+  tradeId: string,
+  seed?: TradeRealtimeSeed,
+): UseTradeRealtimeResult {
+  // Initialisers run once, so a later realtime update is never clobbered by the
+  // seed — and the seed prop changing on a server re-render does not reset live
+  // state that is already ahead of it.
+  const [trade, setTrade] = useState<TradeRow | null>(seed?.trade ?? null);
+  const [holds, setHolds] = useState<HoldRow[]>(seed?.holds ?? []);
+  const [transitions, setTransitions] = useState<TradeTransitionRow[]>(
+    seed?.transitions ?? [],
+  );
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>('connecting');
+
+  // Read once: whether this instance started with server state decides only
+  // whether the mount-time fetch is needed, and must not re-trigger the effect.
+  const hasSeedRef = useRef(seed != null);
 
   // Stable browser client for the lifetime of the hook instance.
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -252,7 +278,10 @@ export function useTradeRealtime(tradeId: string): UseTradeRealtimeResult {
     };
 
     setConnectionStatus('connecting');
-    void loadInitial();
+    // Only when we have nothing to show. The `SUBSCRIBED` callback re-runs this
+    // anyway, so a seeded room used to fetch the same three tables twice on
+    // every open — six queries, four of them redundant with the server's.
+    if (!hasSeedRef.current) void loadInitial();
     void subscribe();
 
     return () => {

@@ -1,12 +1,18 @@
 import type { ComponentProps, ReactNode } from 'react';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronLeftIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
 /**
  * Cream, borderless phone strip. Safe-area is padding, not a second slab.
  * `compact` is status-bar inset only — hubs and threads already title themselves.
+ *
+ * Non-compact height is inset + 54px, and every variant must land on that number
+ * so the content edge does not shift as you move between routes. It holds only
+ * while no child exceeds the 40px row: keep controls at `size-10`/`h-10`, not the
+ * 44px tap target used elsewhere. Auth and marketing chrome had drifted to 44px.
  */
 export function MobileChromeFrame({
   children,
@@ -21,7 +27,7 @@ export function MobileChromeFrame({
         'bg-background md:hidden',
         compact
           ? 'pt-[env(safe-area-inset-top)]'
-          : 'pt-[calc(env(safe-area-inset-top)+0.75rem)]',
+          : 'pt-[calc(env(safe-area-inset-top)+0.5rem)]',
       )}
     >
       {compact ? null : (
@@ -48,11 +54,11 @@ export function MobileChromeBack({
       transitionTypes={['nav-back']}
       aria-label={label}
       className={cn(
-        'inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40',
+        'inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris',
         className,
       )}
     >
-      <ChevronLeft className="size-6" strokeWidth={1.75} aria-hidden />
+      <HugeiconsIcon icon={ChevronLeftIcon} className="size-6" strokeWidth={1.75} aria-hidden />
     </Link>
   );
 }
@@ -66,7 +72,7 @@ export function MobileChromeIconButton({
     <button
       type="button"
       className={cn(
-        'relative inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40',
+        'relative inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris',
         className,
       )}
       {...props}

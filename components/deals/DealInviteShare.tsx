@@ -73,7 +73,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
                   toast.error(result.message);
                   return;
                 }
-                toast.success('Invite cancelled');
+                
                 navigateWithType(router, inboxPath(preview), 'nav-back');
               });
             }}

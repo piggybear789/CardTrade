@@ -13,7 +13,8 @@
 import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Loader2, ShoppingCart } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CreditCardIcon, LoaderCircleIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -28,7 +29,7 @@ const AddPaymentMethodForm = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-40 items-center justify-center" role="status">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
         <span className="sr-only">Loading payment form…</span>
       </div>
     ),
@@ -231,7 +232,7 @@ function PurchaseDialog({
     >
       <DialogTrigger asChild>
         {trigger ?? (
-          <ListingActionIcon icon={ShoppingCart} label="Buy now" variant="default" />
+          <ListingActionIcon icon={ShoppingCart01Icon} label="Buy now" variant="default" />
         )}
       </DialogTrigger>
       <DialogContent>
@@ -242,7 +243,7 @@ function PurchaseDialog({
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <div className="flex items-center justify-center py-8" role="status">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
               <span className="sr-only">Checking your payment details…</span>
             </div>
           </>
@@ -291,7 +292,7 @@ function PurchaseDialog({
               </div>
 
               <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-                <CreditCard className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium">
                     {paymentLabel ?? 'Card on file'}
@@ -321,7 +322,7 @@ function PurchaseDialog({
                 disabled={isPending}
                 aria-busy={isPending}
               >
-                {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
                 {isPending ? 'Opening contract…' : confirmLabel}
               </Button>
             </DialogFooter>

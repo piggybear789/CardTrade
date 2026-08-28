@@ -32,7 +32,7 @@ function Figure({ cents, tone }: { cents: number; tone?: 'flag' }) {
     <span
       className={cn(
         'display-value',
-        cents === 0 ? 'text-muted-foreground' : tone === 'flag' ? 'text-gold' : 'text-foreground',
+        cents === 0 ? 'text-muted-foreground' : tone === 'flag' ? 'text-iris-ink' : 'text-foreground',
       )}
     >
       {formatAud(cents)}
@@ -53,7 +53,7 @@ export function PayoutSummary({ model }: { model: PayoutReadModel }) {
             owed === 0
               ? 'text-muted-foreground'
               : model.hasBlockedRelease
-                ? 'text-gold'
+                ? 'text-iris-ink'
                 : 'text-foreground',
           )}
         >

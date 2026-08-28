@@ -18,7 +18,7 @@ import {
 
 export default function AdminLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Operations">
       <div className="min-w-0">
         <SectionHeaderSkeleton
           hasActions

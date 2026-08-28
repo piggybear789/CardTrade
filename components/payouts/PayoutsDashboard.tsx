@@ -20,11 +20,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import {
-  ArrowUpRight,
-  Scale,
-  ShieldCheck,
-} from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowUpRight01Icon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import type {
   ArbitrationRecord,
@@ -255,7 +252,7 @@ function DestinationAccountSummary({
       <CardContent className="flex flex-col gap-cozy p-group sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-cozy">
           <span className="grid size-10 shrink-0 place-items-center rounded-md border bg-muted">
-            <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
+            <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 text-muted-foreground" aria-hidden />
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-snug">
@@ -278,7 +275,7 @@ function DestinationAccountSummary({
           <Button asChild size="sm" variant="outline" className="shrink-0">
             <Link href="/profile?tab=payouts#payout-setup">
               {needsSetup ? 'Finish setup' : 'Manage with Stripe'}
-              <ArrowUpRight aria-hidden />
+              <HugeiconsIcon icon={ArrowUpRight01Icon} aria-hidden />
             </Link>
           </Button>
         ) : null}
@@ -485,7 +482,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
                   <CardHeader className="pb-3">
                     <div className="flex flex-wrap items-center justify-between gap-snug">
                       <div className="flex flex-wrap items-center gap-snug">
-                        <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                         <CardTitle className="text-lead">
                           {ARBITRATION_LABEL[record.kind]}
                         </CardTitle>

@@ -19,7 +19,7 @@ export default function ArbitrationLoading() {
   return (
     // No `hasPrimaryAction`: the queue passes no rail CTA, and reserving a button's
     // height here would drop the rail by that much when the real shell arrives.
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Cases">
       <div className="min-w-0">
         {/* Shared, not redrawn: the hand-drawn copy applied `SectionHeader`'s desktop
             spacing at every width and drew a description the real header hides below

@@ -8,7 +8,8 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Handshake } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HandshakeIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +45,7 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
         toast.error(result.message);
         return;
       }
-      toast.success('Invite cancelled');
+      
       setPendingId(null);
       router.refresh();
     });
@@ -59,10 +60,10 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
               <Link
                 href={invite.path}
                 transitionTypes={['nav-forward']}
-                className="flex min-h-11 min-w-0 flex-1 items-start gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40 sm:items-center"
+                className="flex min-h-11 min-w-0 flex-1 items-start gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-iris sm:items-center"
               >
                 <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                  <Handshake className="size-5" aria-hidden />
+                  <HugeiconsIcon icon={HandshakeIcon} className="size-5" aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 break-words text-lead font-medium">

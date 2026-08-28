@@ -7,8 +7,10 @@
 // the inputs behind a deliberate action.
 
 import { useState, type ReactNode } from 'react';
-import { Pencil } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PencilIcon } from '@hugeicons/core-free-icons';
 
+import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
 import { ProfileForm } from './ProfileForm';
 import {
   Dialog,
@@ -16,7 +18,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 
 export function EditProfileDialog({
@@ -39,18 +40,20 @@ export function EditProfileDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
+    <>
+      {withRowOpenHandler(
+        trigger ?? (
           <button
             type="button"
-            className="inline-flex items-center gap-1 text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40"
+            className="inline-flex items-center gap-1 text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
           >
-            <Pencil className="size-3" aria-hidden />
+            <HugeiconsIcon icon={PencilIcon} className="size-3" aria-hidden />
             Edit
           </button>
-        )}
-      </DialogTrigger>
+        ),
+        () => setOpen(true),
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit your details</DialogTitle>
@@ -66,5 +69,6 @@ export function EditProfileDialog({
         />
       </DialogContent>
     </Dialog>
+    </>
   );
 }

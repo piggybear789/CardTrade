@@ -19,7 +19,9 @@
 // from the page behind it.
 
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { updateProfile } from '@/lib/actions/profile';
@@ -72,6 +74,7 @@ export function ProfileForm({
     message: string;
   } | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
+  const router = useRouter();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,7 +88,7 @@ export function ProfileForm({
         // Sync local state with the persisted values and confirm (Req 1.4).
         setDisplayName(result.data.displayName);
         setContactEmail(result.data.contactEmail);
-        toast.success('Profile updated');
+        router.refresh();
         onSaved?.();
         return;
       }
@@ -204,7 +207,7 @@ export function ProfileForm({
           </Button>
         </DialogClose>
         <Button type="submit" disabled={isSaving} aria-busy={isSaving}>
-          {isSaving ? <Loader2 className="animate-spin" aria-hidden /> : null}
+          {isSaving ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
           {isSaving ? 'Saving…' : 'Save changes'}
         </Button>
       </DialogFooter>

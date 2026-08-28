@@ -41,7 +41,7 @@ export function IdentityReturnRefresh() {
       const result = await refreshIdentityCheck();
 
       if (result.ok && result.data.status === 'VERIFIED') {
-        toast.success('Identity verified — you can list, sell, and trade.');
+        
       } else if (result.ok && result.data.status === 'FAILED') {
         // Retryable, and said so: a document check fails for mundane reasons and a
         // dead end here reads as a ban.
@@ -51,11 +51,16 @@ export function IdentityReturnRefresh() {
       }
 
       // Strip the marker so a manual reload does not re-run this.
+      //
+      // `replace` alone. This route is dynamic and the URL always changes here —
+      // the marker is what got us into this branch — so the navigation already
+      // refetches the server tree. The `router.refresh()` that used to follow was
+      // a second full render of a page that had just run every read on it, which
+      // is why returning from Stripe visibly loaded twice.
       const next = new URLSearchParams(searchParams.toString());
       next.delete('identity');
       const query = next.toString();
       router.replace(query ? `${pathname}?${query}` : pathname);
-      router.refresh();
     });
     // Keyed on the marker alone: the rest is stable for a given navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps

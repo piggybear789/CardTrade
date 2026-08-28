@@ -15,7 +15,7 @@ import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSk
 
 export default function ItemDetailLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Marketplace">
       <div
         // `pb-8` is the no-buyer-bar case. Whether the bar shows depends on viewer and
         // listing state this placeholder must not read, and bottom padding moves

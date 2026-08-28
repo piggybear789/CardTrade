@@ -4,7 +4,8 @@
 // Desktop paging lives in CatalogResults and refetches through CatalogView.
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
-import { Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import {
   fetchCatalogPage,
@@ -47,6 +48,7 @@ export interface CatalogInfiniteGridProps {
     minCents?: number;
     maxCents?: number;
     includeSold: boolean;
+    includeReserved: boolean;
     sort: CatalogSort;
     /** Region scope (0065). Must be replayed, or scrolling leaves the region. */
     regionCode?: string | null;
@@ -113,6 +115,7 @@ export function CatalogInfiniteGrid({
       minCents: q.minCents,
       maxCents: q.maxCents,
       includeSold: q.includeSold || undefined,
+      includeReserved: q.includeReserved || undefined,
       sort: q.sort,
       regionCode: q.regionCode ?? undefined,
       page: nextPage,
@@ -219,7 +222,7 @@ export function CatalogInfiniteGrid({
           <button
             type="button"
             onClick={() => void loadMoreRef.current({ force: true })}
-            className="mt-snug w-full rounded-lg border border-border px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-gold/40"
+            className="mt-snug w-full rounded-lg border border-border px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-iris"
           >
             Load more listings
           </button>
@@ -228,7 +231,7 @@ export function CatalogInfiniteGrid({
           <div className="flex flex-col items-center gap-snug py-6" aria-live="polite">
             {loadingMore ? (
               <p className="flex items-center gap-snug text-body text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden="true" />
                 Loading more…
               </p>
             ) : null}
@@ -236,7 +239,7 @@ export function CatalogInfiniteGrid({
               <button
                 type="button"
                 onClick={() => void loadMoreRef.current({ force: true })}
-                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-gold/40"
+                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
               >
                 {error}
               </button>

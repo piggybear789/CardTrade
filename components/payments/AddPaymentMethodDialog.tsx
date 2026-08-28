@@ -9,8 +9,8 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CreditCardIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 const AddPaymentMethodForm = dynamic(
   () => import('./AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
@@ -18,13 +18,14 @@ const AddPaymentMethodForm = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-40 items-center justify-center" role="status">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
         <span className="sr-only">Loading payment form…</span>
       </div>
     ),
   },
 );
 
+import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,7 +33,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 
 export interface AddPaymentMethodDialogProps {
@@ -47,15 +47,17 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
   const router = useRouter();
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
+    <>
+      {withRowOpenHandler(
+        trigger ?? (
           <Button type="button" variant="outline">
-            <CreditCard aria-hidden />
+            <HugeiconsIcon icon={CreditCardIcon} aria-hidden />
             Add payment method
           </Button>
-        )}
-      </DialogTrigger>
+        ),
+        () => setOpen(true),
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a payment method</DialogTitle>
@@ -69,12 +71,13 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
             // The card is stored server-side, so confirm it and re-render the
             // page that shows it. Without this the dialog just closed and the
             // save looked like it had not happened.
-            toast.success('Payment method saved with Stripe.');
+            
             router.refresh();
             onAttached?.();
           }}
         />
       </DialogContent>
     </Dialog>
+    </>
   );
 }

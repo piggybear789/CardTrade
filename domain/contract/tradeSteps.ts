@@ -25,7 +25,6 @@ export const TRADE_SECTIONS = {
   actions: 'contract-actions',
   exchange: 'contract-exchange',
   terms: 'contract-terms',
-  money: 'contract-money',
   collateral: 'contract-collateral',
   /** Participant evidence, present only while the trade is DISPUTED (0082). */
   dispute: 'contract-dispute',
@@ -123,7 +122,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
             holds,
             counterpartyName,
             'posted collateral',
-            'Each trader authorises a hold for the full value of what they receive. Nothing is charged unless the trade goes wrong.',
+            'Each trader authorises a hold for what they receive. Nothing is charged.',
           ),
       owner: 'both',
       done: state !== 'COLLATERAL_PENDING' && state !== 'NEGOTIATING',
@@ -142,8 +141,11 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       // 'Review' matches the cash-sale rail for the same state.
       short: 'Review',
       label: 'Frozen for review',
-      detail:
-        'Both holds stay active while an operator reviews the case. A condition dispute settles with a fixed friction tax; a failed handover or a lost parcel captures nothing.',
+      // The settlement rules — friction tax on a condition dispute, nothing
+      // captured on a failed handover — live in the Collateral tab, which is
+      // where someone asking "what will this cost me" goes. This line only has
+      // to say what is happening now.
+      detail: 'Both holds stay active while an operator reviews the case.',
       owner: 'platform',
       done: false,
     });
@@ -164,7 +166,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
         handover,
         counterpartyName,
         'confirmed the handover',
-        'Meet at the agreed place and time, swap, then you both confirm here. Confirming does not release either deposit.',
+        'Meet, swap, then both confirm here. Confirming releases no deposit.',
       ),
       owner: handover.mine ? 'them' : 'you',
       done: handover.both || EXCHANGED.has(state),
@@ -186,7 +188,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
           { mine: addresses.mine, theirs: addresses.theirs },
           counterpartyName,
           'added an address',
-          'Neither of you can post until both addresses are on the contract. They are private and never appear in chat.',
+          'Neither of you can post until both addresses are on the contract.',
         ),
         owner: addresses.mine ? 'them' : 'you',
         done: (addresses.mine && addresses.theirs) || shipped.both || EXCHANGED.has(state),
@@ -225,7 +227,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
           received,
           counterpartyName,
           'confirmed receipt',
-          'Confirm when the other trader’s item reaches you. A carrier-confirmed delivery also counts.',
+          'Confirm when their item reaches you. A carrier-confirmed delivery counts too.',
         ),
         owner: received.mine ? 'them' : 'you',
         done: received.both || EXCHANGED.has(state),
@@ -247,7 +249,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
         accepted,
         counterpartyName,
         'accepted',
-        'Inspect what you received, then accept to release both holds — or raise a dispute. Completes on its own after 72 hours.',
+        'Accept to release both holds, or dispute. Completes on its own in 72 hours.',
       ),
       owner: accepted.mine ? 'them' : 'you',
       done: state === 'COMPLETED',

@@ -26,6 +26,7 @@
 // (type exports are erased and permitted in a 'use server' module).
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createDefaultItemOrchestrator } from '@/domain/orchestrator/supabaseItemRepository';
 import {
@@ -241,13 +242,14 @@ export type ListingActionError =
   | 'fmv-immutable'
   | 'persistence-error';
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`,
+ * which revalidates the JWT against the auth server on every call.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -324,7 +326,7 @@ export async function createItem(
 ): Promise<ListingActionResult<ItemRow>> {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
   }
@@ -486,7 +488,7 @@ export async function createPrivateTradeItem(
 ): Promise<ListingActionResult<ItemRow>> {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
   }
@@ -606,7 +608,7 @@ export async function updateItem(
 ): Promise<ListingActionResult<ItemRow>> {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
   }
@@ -780,7 +782,7 @@ export async function deleteItem(
 ): Promise<ListingActionResult<{ id: string }>> {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
   }
@@ -839,7 +841,7 @@ export async function closeShopfrontListing(
 ): Promise<ListingActionResult<{ id: string; closedAt: string }>> {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
   }
@@ -940,9 +942,7 @@ export async function getItem(
 
   // A hidden item 404s in the catalog flow for non-owners/non-admins.
   if (item.hidden) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCachedAuthUser();
 
     const isOwner = Boolean(user) && user!.id === item.owner_id;
     let isAdmin = false;
@@ -1068,6 +1068,26 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
 /** Supported catalog sort orders. */
 export type CatalogSort = 'newest' | 'price-asc' | 'price-desc' | 'rating';
 
+/**
+ * The columns a catalog tile actually renders.
+ *
+ * WHY NOT `*`. A page of results is 24 rows, and every one of them crosses the
+ * RSC boundary into `CatalogViewProvider` — so each unread column is inlined
+ * into the HTML of the busiest page in the app. `description` alone is capped at
+ * 2000 characters and no tile displays it: `CatalogItemCard` is the only card the
+ * catalog renders, and it reads the title, category, condition, first image,
+ * price, watch count, listing kind and status. `owner_id` is here because
+ * `enrichWithSellers` joins on it and the grid compares it against the viewer.
+ *
+ * Sort columns do not need to be selected — `seller_rating` and `created_at` are
+ * ordered on in SQL and never read on the client.
+ *
+ * Keep this in step with `CatalogItemCard`. A field added to the tile without
+ * being added here arrives `undefined`.
+ */
+const CATALOG_TILE_COLUMNS =
+  'id, owner_id, title, category, condition, image_paths, fmv_cents, watch_count, listing_kind, status';
+
 /** Parameters accepted by {@link searchCatalog} (all optional). */
 export interface SearchCatalogParams {
   /** Free-text query, matched via full-text search over `search_tsv`. */
@@ -1098,6 +1118,17 @@ export interface SearchCatalogParams {
   // catalog contains unverified sellers.
   /** Include sold items in addition to available. */
   includeSold?: boolean;
+  /**
+   * Include items under an active contract (RESERVED) in addition to available.
+   *
+   * These cannot be bought, traded for, or offered on — every one of those paths
+   * guards on `AVAILABLE`. They are browsable because a reservation is not
+   * terminal: a trade that fails restores its items (see `restoreItems`), as does
+   * a failed collateral hold, so a buyer who wants one can watch it and hear when
+   * it comes back. Distinct from SOLD, which IS terminal and is included for
+   * price comparison rather than intent.
+   */
+  includeReserved?: boolean;
   /** Result ordering (defaults to `newest`). */
   sort?: CatalogSort;
   /** 1-based page number (defaults to 1). */
@@ -1194,8 +1225,10 @@ async function enrichWithSellers(
  * the marketplace scales: every predicate is pushed into the `cardtrade.items`
  * query and only a single page of rows is materialized + enriched per request.
  *
- * Base filters always applied: `status = 'AVAILABLE'` AND `hidden = false`
- * (matches {@link listCatalogItems}). On top of that:
+ * Base filters always applied: `hidden = false`, and `status` restricted to
+ * AVAILABLE plus whichever of SOLD / RESERVED the caller opted into via
+ * `includeSold` / `includeReserved` (neither by default, which matches
+ * {@link listCatalogItems}). On top of that:
  *   * `q` (non-empty) → full-text search over the generated `search_tsv`
  *     tsvector using websearch syntax + the english config (backed by a GIN
  *     index). Whitespace-only queries are ignored. A zero-hit query retries
@@ -1247,16 +1280,16 @@ export async function searchCatalog(
     // closed shopfront is excluded here as well as by RLS (0064).
     let query = supabase
       .from('items')
-      .select('*', { count: 'exact' })
+      .select(CATALOG_TILE_COLUMNS, { count: 'exact' })
       .eq('hidden', false)
       .is('closed_at', null);
 
-    // Status filter: default to AVAILABLE only; optionally include SOLD.
-    if (params.includeSold) {
-      query = query.in('status', ['AVAILABLE', 'SOLD']);
-    } else {
-      query = query.eq('status', 'AVAILABLE');
-    }
+    // Status filter: AVAILABLE always; SOLD and RESERVED are opt-in and
+    // independent, so all four combinations are reachable from the URL.
+    const statuses: Array<'AVAILABLE' | 'RESERVED' | 'SOLD'> = ['AVAILABLE'];
+    if (params.includeSold) statuses.push('SOLD');
+    if (params.includeReserved) statuses.push('RESERVED');
+    query = query.in('status', statuses);
 
     if (textQuery) {
       query = query.textSearch('search_tsv', textQuery, {
@@ -1294,9 +1327,17 @@ export async function searchCatalog(
     // to the wrong region — the contract guards refuse a cross-region deal anyway, so
     // nothing unsafe can be opened from one. Tighten this to a bare `.eq()` once the
     // existing rows carry a country.
+    //
+    // The `.eq()` this used to be did NOT include them, so the paragraph above
+    // described an intent the code never implemented and every pre-0065 listing
+    // was invisible in any region-scoped view — which is the whole catalog for a
+    // normal visitor, since `/` resolves a region. `normalizeRegionCode` returns
+    // only an allowlisted `[A-Z]{2}`, so it is safe to interpolate here.
     const regionCode = normalizeRegionCode(params.regionCode);
     if (regionCode) {
-      query = query.eq('location_country_code', regionCode);
+      query = query.or(
+        `location_country_code.eq.${regionCode},location_country_code.is.null`,
+      );
     }
 
     // No verified-seller filter. Publishing requires the Identity_Gate, so every
@@ -1387,9 +1428,7 @@ export async function fetchCatalogPage(params: SearchCatalogParams): Promise<
   if (!result.ok) return result;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
 
   let watchingIds: string[] = [];
   if (user && result.items.length > 0) {
@@ -1447,16 +1486,24 @@ export async function getCatalogFacets(
   let query = supabase
     .from('items')
     .select('fmv_cents')
-    .in('status', ['AVAILABLE', 'SOLD'])
+    // Every status the grid can reach, so the ceiling is a property of the
+    // catalog rather than of the current toggles. Ticking "Include reserved"
+    // must not make the slider's top end jump, which is the same reason SOLD
+    // was already counted here.
+    .in('status', ['AVAILABLE', 'RESERVED', 'SOLD'])
     .eq('hidden', false)
     .is('closed_at', null)
     .in('category', CARD_GAME_NAMES);
 
   // Nulls included, matching `searchCatalog` exactly — the two predicates have to
-  // agree or the facets describe a different set than the grid shows.
+  // agree or the facets describe a different set than the grid shows. Both said
+  // so and both used a bare `.eq()`, which excludes nulls; they now agree for
+  // real, which is what keeps the price ceiling describing the grid.
   const region = normalizeRegionCode(regionCode);
   if (region) {
-    query = query.eq('location_country_code', region);
+    query = query.or(
+      `location_country_code.eq.${region},location_country_code.is.null`,
+    );
   }
 
   const { data, error } = await query;

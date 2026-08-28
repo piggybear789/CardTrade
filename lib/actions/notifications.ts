@@ -13,6 +13,7 @@
 // (type exports are erased and permitted in a 'use server' module).
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { NOTIFICATIONS_DEFAULT_LIMIT } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -26,13 +27,15 @@ export interface ActionFailure<E extends string> {
   detail?: string;
 }
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`.
+ * The site header lists notifications on every page, so this ran once per
+ * navigation on top of the header's own auth read.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -57,7 +60,7 @@ export async function listMyNotifications(
 ): Promise<ListMyNotificationsResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const safeLimit =
@@ -89,7 +92,7 @@ export async function listMyNotifications(
 export async function unreadNotificationCount(): Promise<number> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return 0;
 
   const { count, error } = await supabase
@@ -123,7 +126,7 @@ export async function markNotificationRead(
 ): Promise<MarkNotificationReadResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const { error } = await supabase
@@ -158,7 +161,7 @@ export type MarkAllNotificationsReadResult =
 export async function markAllNotificationsRead(): Promise<MarkAllNotificationsReadResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const { data, error } = await supabase

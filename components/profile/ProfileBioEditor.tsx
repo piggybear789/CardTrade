@@ -15,8 +15,10 @@
 // becomes your public bio the moment focus moves.
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { updateBio } from '@/lib/actions/profile';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,7 @@ export function ProfileBioEditor({
   const [bio, setBio] = useState(initialBio);
   const [isPending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
+  const router = useRouter();
 
   const dirty = bio.trim() !== initialBio.trim();
 
@@ -48,7 +51,7 @@ export function ProfileBioEditor({
           return;
         }
         setJustSaved(true);
-        toast.success('Bio saved.');
+        router.refresh();
         window.setTimeout(() => setJustSaved(false), 2000);
         onSaved?.();
       } catch {
@@ -87,9 +90,9 @@ export function ProfileBioEditor({
           aria-busy={isPending}
         >
           {isPending ? (
-            <Loader2 className="animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
           ) : justSaved && !dirty ? (
-            <Check aria-hidden />
+            <HugeiconsIcon icon={CheckIcon} aria-hidden />
           ) : null}
           {justSaved && !dirty ? 'Saved' : 'Save bio'}
         </Button>

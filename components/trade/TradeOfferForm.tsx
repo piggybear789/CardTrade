@@ -22,7 +22,8 @@ import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Lock, Pencil, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LockIcon, PencilIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,6 @@ import { formatAud, itemImageUrl } from '@/lib/format';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
 import { deriveItemTitle } from '@/domain/validation';
-import type { ItemRow } from '@/lib/actions/listings';
 
 /** Parse a dollars string into integer AUD cents; 0 when blank or invalid. */
 function dollarsToCents(value: string): number {
@@ -76,6 +76,22 @@ const ERROR_MESSAGES: Record<string, string> = {
   unauthenticated: 'Sign in to make an offer.',
 };
 
+/**
+ * One of the caller's own listings, as the picker and the selected-goods list
+ * need it.
+ *
+ * THREE FIELDS, NOT THE WHOLE ROW. This was `ItemRow`, so every column of every
+ * available listing the viewer owns was serialised into the RSC payload of a
+ * page about somebody else's card — to populate a dialog that most visitors
+ * never open. A seller with a large inventory paid for all of it on every
+ * listing view. Nothing here reads more than the id, the title and the value.
+ */
+export type TradeOfferOwnItem = {
+  id: string;
+  title: string;
+  fmv_cents: number;
+};
+
 export type TradeOfferRequested = {
   id: string;
   title: string;
@@ -97,7 +113,7 @@ export interface TradeOfferFormProps {
   /** The listing being requested, as fixed context. */
   requested: TradeOfferRequested;
   /** The caller's own AVAILABLE items. */
-  ownItems: ItemRow[];
+  ownItems: TradeOfferOwnItem[];
   /** Set when answering an existing offer, which supersedes it on submit. */
   counterOfProposalId?: string | null;
   /**
@@ -273,7 +289,7 @@ export function TradeOfferForm({
       });
 
       if (result.ok) {
-        toast.success('Offer opened. Discuss and agree the terms in the trade room.');
+        
         onSuccess?.();
         navigateWithType(router, `/trades/${result.tradeId}`, 'nav-forward');
         return;
@@ -366,8 +382,8 @@ export function TradeOfferForm({
 
         {/* The unlisted draft sits at the top: it is the primary item. */}
         {unlisted ? (
-          <div className="flex items-center gap-cozy rounded-md border border-border bg-gold/10 p-snug text-body">
-            <Lock className="size-4 shrink-0 text-gold" aria-hidden="true" />
+          <div className="flex items-center gap-cozy rounded-md border border-border bg-iris/10 p-snug text-body">
+            <HugeiconsIcon icon={LockIcon} className="size-4 shrink-0 text-iris-ink" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate font-medium">
               {unlistedLabel}
               <span className="ml-1.5 font-normal text-muted-foreground">
@@ -381,7 +397,7 @@ export function TradeOfferForm({
               className="size-11 shrink-0 p-0 md:size-8"
               onClick={() => setUnlistedDialogOpen(true)}
             >
-              <Pencil aria-hidden="true" />
+              <HugeiconsIcon icon={PencilIcon} aria-hidden="true" />
               <span className="sr-only">Edit {unlistedLabel}</span>
             </Button>
             <Button
@@ -391,7 +407,7 @@ export function TradeOfferForm({
               className="size-11 shrink-0 p-0 md:size-8"
               onClick={() => setUnlisted(null)}
             >
-              <X aria-hidden="true" />
+              <HugeiconsIcon icon={XIcon} aria-hidden="true" />
               <span className="sr-only">Remove {unlistedLabel}</span>
             </Button>
           </div>
@@ -406,7 +422,7 @@ export function TradeOfferForm({
               return (
                 <li
                   key={item.id}
-                  className="flex items-center gap-cozy rounded-md border border-border bg-gold/10 p-snug text-body"
+                  className="flex items-center gap-cozy rounded-md border border-border bg-iris/10 p-snug text-body"
                 >
                   <span className="min-w-0 flex-1 truncate font-medium">
                     {item.title}
@@ -421,7 +437,7 @@ export function TradeOfferForm({
                     className="size-11 shrink-0 p-0 md:size-8"
                     onClick={() => removeSelectedItem(item.id)}
                   >
-                    <X aria-hidden="true" />
+                    <HugeiconsIcon icon={XIcon} aria-hidden="true" />
                     <span className="sr-only">Remove {item.title}</span>
                   </Button>
                 </li>

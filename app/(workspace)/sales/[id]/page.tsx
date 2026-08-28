@@ -23,8 +23,6 @@ export const metadata = {
   title: 'Purchase contract · NoDitto',
 };
 
-export const dynamic = 'force-dynamic';
-
 export default async function CashSalePage({
   params,
 }: {

@@ -12,8 +12,8 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { KeyRound, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { KeyRoundIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { updatePassword } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
@@ -56,8 +56,8 @@ export function UpdatePasswordForm() {
         setError(result.message);
         return;
       }
-      toast.success('Password updated');
-      router.push('/listings');
+      
+      router.push('/');
     });
   }
 
@@ -129,9 +129,9 @@ export function UpdatePasswordForm() {
 
           <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
             {isPending ? (
-              <Loader2 className="animate-spin" aria-hidden />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
             ) : (
-              <KeyRound className="size-3.5" aria-hidden />
+              <HugeiconsIcon icon={KeyRoundIcon} className="size-3.5" aria-hidden />
             )}
             {isPending ? 'Saving…' : 'Save new password'}
           </Button>

@@ -10,8 +10,10 @@
 // kind so a pasted store link is accepted on Website and refused on Instagram.
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, Loader2, Plus, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, LoaderCircleIcon, PlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { updateSocialLinks } from '@/lib/actions/socialLinks';
 import {
@@ -99,6 +101,7 @@ export function SocialLinksEditor({
   );
   const [isPending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
+  const router = useRouter();
 
   const pendingFocus = useRef<SocialPlatformSlug | null>(null);
   const inputRefs = useRef<Partial<Record<SocialPlatformSlug, HTMLInputElement | null>>>(
@@ -164,7 +167,7 @@ export function SocialLinksEditor({
       setValues(saved);
       setOpenSlugs(filledSlugs(saved));
       setJustSaved(true);
-      toast.success('Links saved.');
+      router.refresh();
       window.setTimeout(() => setJustSaved(false), 2000);
       onSaved?.();
     });
@@ -184,9 +187,9 @@ export function SocialLinksEditor({
         aria-busy={isPending}
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : justSaved ? (
-          <Check aria-hidden />
+          <HugeiconsIcon icon={CheckIcon} aria-hidden />
         ) : null}
         {justSaved && !dirty ? 'Saved' : 'Save links'}
       </Button>
@@ -217,7 +220,7 @@ export function SocialLinksEditor({
             <div
               key={platform.slug}
               className={cn(
-                'has-[input:focus-visible]:border-gold/40 has-[input:focus-visible]:bg-muted',
+                'has-[input:focus-visible]:border-iris has-[input:focus-visible]:bg-muted',
                 issue ? 'bg-destructive/5' : null,
               )}
             >
@@ -266,9 +269,9 @@ export function SocialLinksEditor({
                   onClick={() => remove(platform.slug)}
                   disabled={isPending}
                   aria-label={`Remove ${platform.label}`}
-                  className="flex size-11 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-gold/40 disabled:opacity-65 sm:size-8"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-iris disabled:opacity-65 sm:size-8"
                 >
-                  <X className="size-4" aria-hidden />
+                  <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
                 </button>
                 </div>
               </div>
@@ -327,7 +330,7 @@ function AddPlatformControl({
         disabled={disabled}
         onClick={() => onAdd(only.slug)}
       >
-        <Plus aria-hidden />
+        <HugeiconsIcon icon={PlusIcon} aria-hidden />
         Add {only.label}
       </Button>
     );
@@ -337,7 +340,7 @@ function AddPlatformControl({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" disabled={disabled}>
-          <Plus aria-hidden />
+          <HugeiconsIcon icon={PlusIcon} aria-hidden />
           Add a link
         </Button>
       </PopoverTrigger>
@@ -351,7 +354,7 @@ function AddPlatformControl({
                 onAdd(platform.slug);
                 setOpen(false);
               }}
-              className="flex h-9 items-center gap-snug rounded-md px-2.5 text-left text-body font-medium text-foreground hover:bg-accent border border-transparent focus-visible:outline-none focus-visible:border-gold/40"
+              className="flex h-9 items-center gap-snug rounded-md px-2.5 text-left text-body font-medium text-foreground hover:bg-accent border border-transparent focus-visible:outline-none focus-visible:border-iris"
             >
               <SocialPlatformIcon slug={platform.slug} className="size-3.5" />
               {platform.label}

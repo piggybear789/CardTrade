@@ -18,7 +18,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Pencil } from 'lucide-react';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -179,7 +179,7 @@ export function TradeHandoverTermsEditor({
         deliveryNotes: method === 'DELIVERY' ? deliveryNotes.trim() || null : null,
       });
       if (result.ok) {
-        toast.success('Delivery terms updated.');
+        
         setOpen(false);
         router.refresh();
         return;
@@ -199,8 +199,7 @@ export function TradeHandoverTermsEditor({
           variant="outline"
           size="sm"
           className="gap-tight px-3 text-meta font-medium [&_svg]:size-3"
-        >
-          <Pencil aria-hidden />
+        >
           {triggerLabel}
         </Button>
       </DialogTrigger>

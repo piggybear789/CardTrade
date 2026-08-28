@@ -13,7 +13,8 @@
 // photo to zoom; move the pointer to pan.
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronLeftIcon, ChevronRightIcon, ImageOffIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { ZoomableImage } from '@/components/listings/ZoomableImage';
 import {
@@ -26,7 +27,7 @@ import { cn } from '@/lib/utils';
 
 /** Dark, translucent control that floats over the photo rather than beside it. */
 const LIGHTBOX_CONTROL =
-  'z-10 grid size-10 touch-manipulation place-items-center rounded-full bg-obsidian/60 text-parchment backdrop-blur transition-colors hover:bg-obsidian/80 border border-transparent focus:outline-none focus-visible:border-parchment';
+  'z-10 grid size-10 touch-manipulation place-items-center rounded-full bg-obsidian/60 text-mist backdrop-blur transition-colors hover:bg-obsidian/80 border border-transparent focus:outline-none focus-visible:border-mist';
 
 export interface ContractImageLightboxProps {
   /** Resolved image URLs, in order. */
@@ -97,13 +98,13 @@ export function ContractImageLightbox({
               alt={`${label} — photo ${index + 1} of ${images.length}`}
             />
           ) : (
-            <div className="grid h-64 w-full place-items-center text-parchment/50">
-              <ImageOff className="size-8" aria-hidden />
+            <div className="grid h-64 w-full place-items-center text-mist/50">
+              <HugeiconsIcon icon={ImageOffIcon} className="size-8" aria-hidden />
             </div>
           )}
 
           <DialogClose className={cn(LIGHTBOX_CONTROL, 'absolute right-2 top-2')}>
-            <X className="size-4" aria-hidden />
+            <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
             <span className="sr-only">Close</span>
           </DialogClose>
 
@@ -118,7 +119,7 @@ export function ContractImageLightbox({
                   'absolute left-2 top-1/2 -translate-y-1/2',
                 )}
               >
-                <ChevronLeft className="size-5" aria-hidden />
+                <HugeiconsIcon icon={ChevronLeftIcon} className="size-5" aria-hidden />
               </button>
               <button
                 type="button"
@@ -129,14 +130,14 @@ export function ContractImageLightbox({
                   'absolute right-2 top-1/2 -translate-y-1/2',
                 )}
               >
-                <ChevronRight className="size-5" aria-hidden />
+                <HugeiconsIcon icon={ChevronRightIcon} className="size-5" aria-hidden />
               </button>
             </>
           ) : null}
         </div>
 
         <p
-          className="text-center text-meta tabular-nums text-parchment/70"
+          className="text-center text-meta tabular-nums text-mist/70"
           aria-live="polite"
         >
           {label} · {index + 1} of {images.length}
@@ -196,7 +197,7 @@ function ContractThumbnailImage({
           fallbackClassName ?? className,
         )}
       >
-        <ImageOff className="size-7" aria-hidden />
+        <HugeiconsIcon icon={ImageOffIcon} className="size-7" aria-hidden />
       </span>
     );
   }
@@ -240,7 +241,7 @@ export function ContractThumbnails({
           className,
         )}
       >
-        <ImageOff className={stacked ? 'size-8' : 'size-4'} aria-hidden />
+        <HugeiconsIcon icon={ImageOffIcon} className={stacked ? 'size-8' : 'size-4'} aria-hidden />
         <span className="sr-only">No photos for {label}</span>
       </div>
     );
@@ -258,7 +259,7 @@ export function ContractThumbnails({
             type="button"
             onClick={() => setOpenIndex(0)}
             aria-label={`Enlarge photo 1 of ${images.length} for ${label}`}
-            className="aspect-square w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-gold/40"
+            className="aspect-square w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-iris"
           >
             <ContractThumbnailImage
               src={primary}
@@ -276,7 +277,7 @@ export function ContractThumbnails({
                     aria-label={`Enlarge photo ${index + 2} of ${images.length} for ${label}`}
                     className={cn(
                       'overflow-hidden rounded-md border bg-muted transition',
-                      'hover:opacity-90 border border-transparent focus:outline-none focus-visible:border-gold/40',
+                      'hover:opacity-90 border border-transparent focus:outline-none focus-visible:border-iris',
                       'size-11',
                     )}
                   >
@@ -294,7 +295,7 @@ export function ContractThumbnails({
                     type="button"
                     onClick={() => setOpenIndex(restShown.length + 1)}
                     aria-label={`See all ${images.length} photos for ${label}`}
-                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:border-gold/40"
+                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:border-iris"
                   >
                     +{restOverflow}
                   </button>
@@ -328,7 +329,7 @@ export function ContractThumbnails({
               aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${label}`}
               className={cn(
                 'overflow-hidden rounded-md border bg-muted transition',
-                'border border-transparent hover:opacity-90 focus:outline-none focus-visible:border-gold/40',
+                'border border-transparent hover:opacity-90 focus:outline-none focus-visible:border-iris',
                 tile,
               )}
             >
@@ -348,7 +349,7 @@ export function ContractThumbnails({
               aria-label={`See all ${images.length} photos for ${label}`}
               className={cn(
                 'rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition',
-                'hover:bg-accent border border-transparent focus:outline-none focus-visible:border-gold/40',
+                'hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris',
                 tile,
               )}
             >

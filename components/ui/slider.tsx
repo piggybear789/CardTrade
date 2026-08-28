@@ -52,7 +52,21 @@ function Slider({
       min={min}
       max={max}
       className={cn(
-        'relative flex w-full touch-none select-none items-center',
+        // `overflow-x-clip` contains the thumbs' hit area. Each thumb carries a
+        // `before:-inset-3.5` pseudo-element to make a 20–24px circle comfortable
+        // to grab, and at either end of the track that invisible box sticks ~10px
+        // past the slider. Any ancestor with `overflow-y: auto` is a scroll
+        // container on BOTH axes, so those 10px were enough to give the
+        // marketplace rail a horizontal scrollbar and let the whole sidebar slide
+        // sideways.
+        //
+        // `clip` rather than `hidden`, and x-only: `overflow-x: clip` is the one
+        // value that pairs with `overflow-y: visible` without forcing the other
+        // axis into a scroll box. So the vertical half of the hit area — the half
+        // that matters on a 8px-tall track — is untouched, and only the sliver
+        // beyond the track ends is trimmed. Nothing visible is clipped; the
+        // pseudo-element has no paint.
+        'relative flex w-full touch-none select-none items-center overflow-x-clip',
         className,
       )}
       {...props}
@@ -65,7 +79,17 @@ function Slider({
           key={index}
           aria-label={thumbLabels?.[index]}
           aria-valuetext={thumbValueText?.(thumbValue, index)}
-          className="relative block size-6 rounded-full border-2 border-primary bg-background transition-colors focus-visible:border-gold/40 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-65 before:absolute before:-inset-3.5 before:content-['']"
+          // 20px on touch, 24px from `md` — the reverse of the direction
+          // `Button` runs, and for a different reason. A button's height IS its
+          // hit area, so a phone needs the bigger one. A thumb's is the
+          // `before:` box below, which is 28px larger than the circle at every
+          // width, so the circle is pure ornament and can be sized on looks
+          // alone. At 24px it was three times the 8px track it rides and read as
+          // two beads on a string; the mobile filter column is also ~180px
+          // narrower than the rail, which magnified it.
+          //
+          // 20 + 28 = a 48px target, well clear of SC 2.5.8's 24px floor.
+          className="relative block size-5 md:size-6 rounded-full border-2 border-primary bg-background transition-colors focus-visible:border-iris focus-visible:outline-none disabled:pointer-events-none disabled:opacity-65 before:absolute before:-inset-3.5 before:content-['']"
         />
       ))}
     </SliderPrimitive.Root>

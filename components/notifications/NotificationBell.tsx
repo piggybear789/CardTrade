@@ -20,7 +20,8 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Bell, CheckCheck, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BellIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
@@ -98,9 +99,9 @@ export function NotificationBell({
             ? `Notifications, ${unreadCount} unread`
             : 'Notifications'
         }
-        className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-parchment/75 transition-colors hover:bg-white/10 hover:text-parchment border border-transparent focus:outline-none focus-visible:border-gold"
+        className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-mist/75 transition-colors hover:bg-white/10 hover:text-mist border border-transparent focus:outline-none focus-visible:border-iris"
       >
-        <Bell className="size-5" aria-hidden />
+        <HugeiconsIcon icon={BellIcon} className="size-5" aria-hidden />
         {unreadCount > 0 ? (
           <span
             className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-meta font-semibold leading-4 text-destructive-foreground"
@@ -127,12 +128,12 @@ export function NotificationBell({
             type="button"
             onClick={handleMarkAll}
             disabled={isPending || unreadCount === 0}
-            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-transparent px-2 text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-gold/40 disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-transparent px-2 text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris disabled:pointer-events-none disabled:opacity-50"
           >
             {isPending ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" aria-hidden />
             ) : (
-              <CheckCheck className="size-3.5" aria-hidden />
+              <HugeiconsIcon icon={CheckCheckIcon} className="size-3.5" aria-hidden />
             )}
             Mark all read
           </button>
@@ -153,7 +154,7 @@ export function NotificationBell({
                       href={n.link || '/notifications'}
                       onClick={() => handleSelect(n)}
                       className={cn(
-                        'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-gold/40 focus-visible:bg-accent',
+                        'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
                         unread && 'bg-accent/40',
                       )}
                     >

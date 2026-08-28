@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -37,12 +38,12 @@ export function ExpandableDescription({
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="mt-1 inline-flex min-h-10 items-center gap-0.5 rounded-sm border border-transparent text-body font-medium text-gold focus:outline-none focus-visible:border-gold/40"
+          className="mt-1 inline-flex min-h-10 items-center gap-0.5 rounded-sm border border-transparent text-body font-medium text-iris-ink focus:outline-none focus-visible:border-iris"
         >
           {expanded ? (
-            <ChevronUp className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={ChevronUpIcon} className="size-3.5" aria-hidden />
           ) : (
-            <ChevronDown className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={ChevronDownIcon} className="size-3.5" aria-hidden />
           )}
           {expanded ? 'Show less' : 'Read more'}
         </button>

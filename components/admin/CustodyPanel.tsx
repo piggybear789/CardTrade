@@ -15,7 +15,8 @@
 // all-clear when its instrument is broken is worse than no panel: it converts an unknown
 // into a false negative.
 
-import { AlertTriangle, HelpCircle, ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HelpCircleIcon, ShieldCheckIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
 import type { CustodyPosition } from '@/domain/payouts/custodyReconciliation';
 import { formatMoney } from '@/lib/format';
@@ -64,20 +65,20 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
           wrapper: 'border-destructive/40 bg-destructive/10',
           badge: 'destructive' as const,
           label: 'Shortfall',
-          icon: <AlertTriangle className="size-4 shrink-0" aria-hidden />,
+          icon: <HugeiconsIcon icon={TriangleAlertIcon} className="size-4 shrink-0" aria-hidden />,
         }
       : state === 'SOLVENT'
         ? {
             wrapper: 'border-border bg-muted',
             badge: 'default' as const,
             label: 'Funds covered',
-            icon: <ShieldCheck className="size-4 shrink-0" aria-hidden />,
+            icon: <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0" aria-hidden />,
           }
         : {
             wrapper: 'border-border bg-muted',
             badge: 'outline' as const,
             label: 'Unknown',
-            icon: <HelpCircle className="size-4 shrink-0" aria-hidden />,
+            icon: <HugeiconsIcon icon={HelpCircleIcon} className="size-4 shrink-0" aria-hidden />,
           };
 
   return (

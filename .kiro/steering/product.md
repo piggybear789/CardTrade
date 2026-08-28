@@ -67,8 +67,8 @@ Profile tabs (`/profile?tab=`): `profile` | `verification` | `payouts`. Connect 
 
 | Route | What |
 |---|---|
-| `/` | Marketing landing + region-scoped listing carousel |
-| `/listings` | Catalog |
+| `/` | Catalog (region-scoped). There is no marketing landing page. |
+| `/listings` | Permanent redirect to `/` (`next.config.ts`) |
 | `/listings/[id]` | Public detail: buy, offer, trade, watch, message, report |
 | `/listings/[id]/edit` | Owner edit |
 | `/listings/new` | Create (Identity_Gate required) |

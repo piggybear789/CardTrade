@@ -8,7 +8,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Loader2, TriangleAlert } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
 import {
@@ -32,6 +33,8 @@ export function ConfirmDialog({
   pending = false,
   helpHref,
   helpLabel = 'How holds and disputes work',
+  children,
+  confirmDisabled = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +47,19 @@ export function ConfirmDialog({
   pending?: boolean;
   helpHref?: string;
   helpLabel?: string;
+  /**
+   * Anything the confirmation needs COLLECTED before it can proceed — a reason,
+   * a choice, a checkbox.
+   *
+   * The alternative is what the cash sale used to do: put the field inline on the
+   * page and use the dialog only to say "are you sure". That asks for the hardest
+   * part of the decision — writing down what is wrong — before the reader has
+   * been told what raising it does, and it leaves a permanent dispute form
+   * sitting open on a contract that is going fine.
+   */
+  children?: ReactNode;
+  /** Gate the confirm while {@link children} is incomplete. */
+  confirmDisabled?: boolean;
 }) {
   // A destructive confirm is the one shape where scanning the buttons is not
   // enough — by the time the red button is read the title has already been
@@ -67,7 +83,7 @@ export function ConfirmDialog({
           <DialogHeader>
             {destructive ? (
               <div className="flex items-center gap-snug">
-                <TriangleAlert
+                <HugeiconsIcon icon={TriangleAlertIcon}
                   className="size-4 shrink-0 text-destructive"
                   aria-hidden
                 />
@@ -94,6 +110,7 @@ export function ConfirmDialog({
             </p>
           ) : null}
         </div>
+        {children}
         <DialogFooter>
           <Button
             type="button"
@@ -107,10 +124,10 @@ export function ConfirmDialog({
             type="button"
             variant={confirmVariant}
             onClick={onConfirm}
-            disabled={pending}
+            disabled={pending || confirmDisabled}
             aria-busy={pending}
           >
-            {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             {confirmLabel}
           </Button>
         </DialogFooter>

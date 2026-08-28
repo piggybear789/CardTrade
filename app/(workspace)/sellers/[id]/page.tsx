@@ -8,12 +8,14 @@
 // contact email / raw KYC status). Listings are read from `items` (RLS exposes
 // AVAILABLE rows publicly). Reviews come from `getReviewsFor` (public select).
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Building02Icon, ShieldCheckIcon, Store01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { CARD_GAME_NAMES } from '@/lib/catalog/cardGames';
 import { getReviewsFor } from '@/lib/actions/reviews';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
@@ -27,6 +29,7 @@ import { SectionLoadError } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import type {
   CatalogItem,
@@ -36,9 +39,6 @@ import type {
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-
-// Reflects live ratings / listings, so it must render dynamically.
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
@@ -77,11 +77,33 @@ export default async function SellerProfilePage({
     notFound();
   }
 
-  // Resolve the viewer so we can offer a report affordance when an authenticated
-  // user is viewing *someone else's* profile (never their own).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // THREE INDEPENDENT READS, ONE ROUND TRIP. Each of these needs only `id` (or
+  // nothing at all), so writing them as three statements cost two round trips of
+  // pure latency in front of a public, shareable page. Only the `notFound` guard
+  // above genuinely has to happen first.
+  const [user, sellerIdentity, { data: itemsData, error: itemsError }] =
+    await Promise.all([
+      // Resolve the viewer so we can offer a report affordance when an
+      // authenticated user is viewing *someone else's* profile (never their own).
+      getCachedAuthUser(),
+      // Narrow, buyer-safe merchant identity — only populated once provider
+      // compliance has approved this seller (Req 4.8-4.12). Never exposes
+      // contact, bank, document, credential, or compliance-note fields.
+      loadSellerIdentityDisclosure(id),
+      // The seller's AVAILABLE listings (RLS allows AVAILABLE reads publicly).
+      supabase
+        .from('items')
+        .select('*')
+        .eq('owner_id', id)
+        .eq('status', 'AVAILABLE')
+        // A closed shopfront takes no new contracts, so it must not appear on the
+        // seller's public profile either (0064).
+        .is('closed_at', null)
+        .eq('hidden', false)
+        .in('category', CARD_GAME_NAMES)
+        .order('created_at', { ascending: false }),
+    ]);
+
   const canReport = Boolean(user) && user!.id !== id;
 
   const seller: CatalogSeller = {
@@ -94,32 +116,11 @@ export default async function SellerProfilePage({
     avatarPath: (sellerRow.avatar_path as string | null) ?? null,
   };
 
-  // Narrow, buyer-safe merchant identity — only populated once provider
-  // compliance has approved this seller (Req 4.8-4.12). Never exposes contact,
-  // bank, document, credential, or compliance-note fields.
-  const sellerIdentity = await loadSellerIdentityDisclosure(id);
-
-  // The seller's AVAILABLE listings (RLS allows AVAILABLE reads publicly).
-  const { data: itemsData, error: itemsError } = await supabase
-    .from('items')
-    .select('*')
-    .eq('owner_id', id)
-    .eq('status', 'AVAILABLE')
-    // A closed shopfront takes no new contracts, so it must not appear on the
-    // seller's public profile either (0064).
-    .is('closed_at', null)
-    .eq('hidden', false)
-    .in('category', CARD_GAME_NAMES)
-    .order('created_at', { ascending: false });
-
   const items = (itemsData ?? []) as ItemRow[];
   const catalogItems: CatalogItem[] = items.map((item) => ({
     ...item,
     seller,
   }));
-
-  // Reviews written about this seller.
-  const reviews = await getReviewsFor(id);
 
   const displayName = seller.displayName ?? 'Unknown seller';
 
@@ -168,11 +169,14 @@ export default async function SellerProfilePage({
                 size={14}
               />
             </div>
-            {reviews.length > 0 ? (
+            {/* `seller.ratingCount` rather than the fetched list: it is the same
+                aggregate, it arrives with the profile row, and reading it here
+                is what lets the reviews themselves stream in below. */}
+            {seller.ratingCount > 0 ? (
               <Link
                 href="#reviews"
                 className="w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
-                aria-label={`Jump to ${reviews.length} reviews`}
+                aria-label={`Jump to ${seller.ratingCount} reviews`}
               >
                 <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
               </Link>
@@ -266,13 +270,51 @@ export default async function SellerProfilePage({
         )}
       </section>
 
-      {/* Reviews */}
+      {/* ONLY THE LIST STREAMS. `getReviewsFor` is a two-stage fetch and awaiting
+          it inline made the seller's name, badge and entire listings grid wait on
+          the one section below the fold — the worst position-to-value ratio on
+          the route.
+
+          THE SECTION AND ITS HEADING STAY OUT HERE, and that is not cosmetic: a
+          first cut put them inside both the fallback and the resolved child, so
+          `id="reviews"` and `id="reviews-heading"` each existed twice while the
+          stream was in flight. Duplicate ids are invalid, they make
+          `aria-labelledby` ambiguous, and the anchor from the rating link could
+          resolve to a placeholder. Rendering the frame once and suspending only
+          its contents avoids all three. The count comes from the profile row's
+          aggregate, so it needs no await. */}
       <section id="reviews" aria-labelledby="reviews-heading" className="scroll-mt-24">
-        <h2 id="reviews-heading" className="mb-3 text-body font-semibold md:mb-4 md:text-subhead">
-          Reviews {reviews.length > 0 ? `(${reviews.length})` : ''}
+        <h2
+          id="reviews-heading"
+          className="mb-3 text-body font-semibold md:mb-4 md:text-subhead"
+        >
+          Reviews {seller.ratingCount > 0 ? `(${seller.ratingCount})` : ''}
         </h2>
-        <ReviewList reviews={reviews} revieweeName={displayName} />
+        <Suspense fallback={<SellerReviewsFallback />}>
+          <SellerReviewsList sellerId={id} displayName={displayName} />
+        </Suspense>
       </section>
     </MarketplaceShell>
   );
+}
+
+/** Occupies roughly the height of two review cards, so the swap moves little. */
+function SellerReviewsFallback() {
+  return (
+    <div className="space-y-3" aria-busy="true">
+      <Skeleton className="h-24 w-full rounded-lg" />
+      <Skeleton className="h-24 w-full rounded-lg" />
+    </div>
+  );
+}
+
+async function SellerReviewsList({
+  sellerId,
+  displayName,
+}: {
+  sellerId: string;
+  displayName: string;
+}) {
+  const reviews = await getReviewsFor(sellerId);
+  return <ReviewList reviews={reviews} revieweeName={displayName} />;
 }

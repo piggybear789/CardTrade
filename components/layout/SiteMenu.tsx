@@ -14,9 +14,11 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Handshake, Menu, Repeat2, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BanknoteIcon, HandshakeIcon, MenuIcon, RepeatIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { StartDealButton } from '@/components/deals/StartDealButton';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SignInLink } from '@/components/layout/SignInLink';
 import { SignOutButton } from '@/components/layout/SignOutButton';
@@ -36,19 +38,19 @@ import { cn } from '@/lib/utils';
  *
  * They are not added to `MARKETPLACE_NAV_GROUPS` on purpose: that constant drives
  * the desktop rail and the mobile hub sheets, and the hubs read it BY INDEX, so
- * growing it would repoint the Contracts and Sell sheets. Start a Deal is a
+ * growing it would repoint the Contracts and Sell sheets. Private Deal is a
  * dialog, not a route — the Create group injects it above Propose a trade.
  */
 const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
   {
     label: 'Create',
     links: [
-      { href: '/trades/new', label: 'Propose a trade', icon: Repeat2 },
+      { href: '/trades/new', label: 'Propose a trade', icon: RepeatIcon },
     ],
   },
   {
     label: 'Money',
-    links: [{ href: '/profile/payouts', label: 'Payouts', icon: Banknote }],
+    links: [{ href: '/profile/payouts', label: 'Payouts', icon: BanknoteIcon }],
   },
 ];
 
@@ -90,13 +92,31 @@ export interface SiteMenuProps {
    * into one wrong answer.
    */
   isStaff?: boolean;
+  /** Signed-in member's name, for the profile header. */
+  displayName?: string | null;
+  /** Stored avatar object path, NOT a URL. See `Avatar`. */
+  avatarPath?: string | null;
+  /**
+   * Secondary identity line. The menu is reachable from any page, so it has to
+   * answer "which account am I in?" on its own — a display name alone does not,
+   * because several members can share one and a member can change theirs.
+   */
+  email?: string | null;
 }
 
-export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenuProps) {
+export function SiteMenu({
+  isAuthenticated,
+  isAdmin,
+  isStaff = false,
+  displayName = null,
+  avatarPath = null,
+  email = null,
+}: SiteMenuProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const staffLinks = staffNavLinksFor({ isStaff, isAdmin });
+  const accountActive = isMarketplaceSectionActive(pathname, '/profile');
 
   /**
    * One row per destination, marking the current section.
@@ -122,13 +142,13 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
         variant="ghost"
         size="sm"
         className={cn(
-          'h-10 justify-start',
+          '!h-9 justify-start',
           promoted && 'md:hidden',
           active && 'bg-accent text-accent-foreground',
         )}
       >
         <Link href={link.href} aria-current={active ? 'page' : undefined}>
-          <link.icon aria-hidden />
+          <HugeiconsIcon icon={link.icon} aria-hidden />
           {link.label}
         </Link>
       </Button>
@@ -182,12 +202,12 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
         aria-expanded={open}
         aria-controls="site-menu-panel"
         aria-label={open ? 'Close menu' : 'Open menu'}
-        className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-gold"
+        className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-iris"
       >
         {open ? (
-          <X className="size-5" aria-hidden />
+          <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />
         ) : (
-          <Menu className="size-5" aria-hidden />
+          <HugeiconsIcon icon={MenuIcon} className="size-5" aria-hidden />
         )}
       </button>
 
@@ -196,35 +216,83 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
           id="site-menu-panel"
           className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-auction animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 motion-reduce:animate-none"
         >
-          <nav aria-label="Menu" className="grid gap-1">
+          <nav aria-label="Menu" className="grid gap-0.5">
             {!isAuthenticated ? (
               <>
-                <p className="market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground">
+                <p className="market-label px-2.5 pb-0 pt-1 text-muted-foreground">
                   Browse
                 </p>
-                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
-                  <Link href="/listings">Marketplace</Link>
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
+                  <Link href="/">Marketplace</Link>
                 </Button>
-                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <Link href="/listings/new">Sell an item</Link>
                 </Button>
                 <StartDealButton
                   isAuthenticated={false}
                   variant="ghost"
                   size="sm"
-                  className="h-10 justify-start"
+                  className="!h-9 justify-start"
                   onOpen={() => setOpen(false)}
                 />
-                <div className="my-1 border-t" />
-                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
+                <div className="my-0.5 border-t" />
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <SignInLink>Sign in</SignInLink>
                 </Button>
-                <Button asChild variant="ghost" size="sm" className="h-10 justify-start">
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <SignInLink target="/sign-up">Get started</SignInLink>
                 </Button>
               </>
             ) : (
               <>
+                {/* WHO YOU ARE, then where you can go. The menu opens from an
+                    avatar chip that only has room for a first name, so this is
+                    the one place the workspace states the account in full. It
+                    is also the Account link, which is why the row is the same
+                    ghost button as every other destination rather than an inert
+                    block with a separate link under it. */}
+                <Button
+                  asChild
+                  variant="ghost"
+                  className={cn(
+                    // `!h-auto`, not `h-auto`: the default size pins `md:h-7`, and
+                    // for a signed-in member this panel only exists from `md` up, so
+                    // an unprefixed height never got a turn. The row was a 28px box
+                    // holding a 32px avatar over two lines of text — both spilled
+                    // out of it, so the hover fill painted a band across the middle
+                    // of the row instead of behind it. Same trap as the `!h-9` rows.
+                    '!h-auto justify-start gap-2.5 px-2.5 py-2',
+                    accountActive && 'bg-accent text-accent-foreground',
+                  )}
+                >
+                  <Link
+                    href="/profile"
+                    aria-current={accountActive ? 'page' : undefined}
+                  >
+                    <Avatar
+                      avatarPath={avatarPath}
+                      displayName={displayName}
+                      size="sm"
+                    />
+                    <span className="grid min-w-0 text-left">
+                      {/* No colour of its own. The ghost variant's hover and the
+                          current-section state both set the row's text colour, and
+                          a hardcoded `text-foreground` here swallowed them — this
+                          was the one row in the panel whose label stayed black
+                          while every other label went iris under the cursor. */}
+                      <span className="truncate font-medium">
+                        {displayName ?? 'Your profile'}
+                      </span>
+                      {email ? (
+                        <span className="truncate text-meta font-normal text-muted-foreground">
+                          {email}
+                        </span>
+                      ) : null}
+                    </span>
+                  </Link>
+                </Button>
+                <div className="my-0.5 border-t" />
+
                 {MARKETPLACE_NAV_GROUPS.map((group, index) => {
                   // The "You" group is entirely in the header now, so its heading and
                   // rule have to go with its rows — otherwise `sm` and up shows a
@@ -233,11 +301,11 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                   return (
                     <Fragment key={group.label}>
                       {index > 0 ? (
-                        <div className={cn('my-1 border-t', fullyPromoted && 'md:hidden')} />
+                        <div className={cn('my-0.5 border-t', fullyPromoted && 'md:hidden')} />
                       ) : null}
                       <p
                         className={cn(
-                          'market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground',
+                          'market-label px-2.5 pb-0 pt-1 text-muted-foreground',
                           fullyPromoted && 'md:hidden',
                         )}
                       >
@@ -250,8 +318,8 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
 
                 {MENU_ONLY_GROUPS.map((group) => (
                   <Fragment key={group.label}>
-                    <div className="my-1 border-t" />
-                    <p className="market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground">
+                    <div className="my-0.5 border-t" />
+                    <p className="market-label px-2.5 pb-0 pt-1 text-muted-foreground">
                       {group.label}
                     </p>
                     {group.label === 'Create' ? (
@@ -260,11 +328,11 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
                           isAuthenticated
                           variant="ghost"
                           size="sm"
-                          className="h-10 justify-start"
+                          className="!h-9 justify-start"
                           onOpen={() => setOpen(false)}
                         >
-                          <Handshake aria-hidden />
-                          Start a Deal
+                          <HugeiconsIcon icon={HandshakeIcon} aria-hidden />
+                          Private Deal
                         </StartDealButton>
                         {group.links.map((link) => renderLink(link, false))}
                       </>
@@ -276,16 +344,20 @@ export function SiteMenu({ isAuthenticated, isAdmin, isStaff = false }: SiteMenu
 
                 {staffLinks.length > 0 ? (
                   <>
-                    <div className="my-1 border-t" />
-                    <p className="market-label px-2.5 pb-0.5 pt-1.5 text-muted-foreground">
+                    <div className="my-0.5 border-t" />
+                    <p className="market-label px-2.5 pb-0 pt-1 text-muted-foreground">
                       {STAFF_NAV_GROUP.label}
                     </p>
                     {staffLinks.map((link) => renderLink(link))}
                   </>
                 ) : null}
 
-                <div className="my-1 border-t" />
-                <SignOutButton className="h-10 w-full justify-start" />
+                <div className="my-0.5 border-t" />
+                {/* `!h-9` on every row in this panel, including this one: the
+                    `sm` size collapses to 24px from `md` inside a media query,
+                    which an unprefixed `h-9` cannot override. A 24px row in a
+                    menu you point at is too small to hit comfortably. */}
+                <SignOutButton className="!h-9 w-full justify-start" />
               </>
             )}
           </nav>

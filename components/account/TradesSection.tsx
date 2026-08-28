@@ -6,7 +6,8 @@
 // /trades/[id].
 
 import Link from 'next/link';
-import { ArrowLeftRight } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 
 import { MobileList, MobileListItem } from '@/components/ui/mobile-list';
 import { StateBadge } from '@/components/trade/StateBadge';
@@ -39,11 +40,11 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
   if (trades.length === 0) {
     return (
       <EmptyState
-        icon={<ArrowLeftRight className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={ArrowLeftRightIcon} className="size-6" aria-hidden />}
         title="No Trades Yet"
         description="Find an item you'd like to swap for and propose a trade."
         ctaLabel="Browse the marketplace"
-        ctaHref="/listings"
+        ctaHref="/"
       />
     );
   }
@@ -57,10 +58,10 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
             <Link
               href={`/trades/${trade.id}`}
               transitionTypes={['nav-forward']}
-              className="flex min-h-11 items-center gap-group py-3.5 md:py-0 rounded-md border border-transparent focus:outline-none focus-visible:border-gold/40"
+              className="flex min-h-11 items-center gap-group py-3.5 md:py-0 rounded-md border border-transparent focus:outline-none focus-visible:border-iris"
             >
               <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                <ArrowLeftRight className="size-5" aria-hidden />
+                <HugeiconsIcon icon={ArrowLeftRightIcon} className="size-5" aria-hidden />
               </div>
 
               <div className="min-w-0 flex-1">

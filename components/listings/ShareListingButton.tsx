@@ -3,7 +3,8 @@
 // Copies or system-shares the current listing URL. Lives in listing chrome so
 // the page body does not need a second share control.
 
-import { Forward } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Forward01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
@@ -21,7 +22,7 @@ export function ShareListingButton({ className }: { className?: string }) {
     }
     try {
       await navigator.clipboard.writeText(url);
-      toast.success('Link copied');
+      
     } catch {
       toast.error('Could not share this listing');
     }
@@ -33,11 +34,11 @@ export function ShareListingButton({ className }: { className?: string }) {
       onClick={() => void handleShare()}
       aria-label="Share listing"
       className={cn(
-        'inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-gold/40',
+        'inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris',
         className,
       )}
     >
-      <Forward className="size-5" strokeWidth={1.75} aria-hidden />
+      <HugeiconsIcon icon={Forward01Icon} className="size-5" strokeWidth={1.75} aria-hidden />
     </button>
   );
 }

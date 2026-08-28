@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { LogIn } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LogInIcon } from '@hugeicons/core-free-icons';
 
 import { BuyButton, ShopfrontBuyButton } from '@/components/listings/BuyButton';
 import { WatchButton } from '@/components/listings/WatchButton';
@@ -9,7 +10,7 @@ import { MessageSellerButton } from '@/components/messages/MessageSellerButton';
 import { Button } from '@/components/ui/button';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
 import type { VerificationState } from '@/domain/identity/identityGate';
-import type { ItemRow } from '@/lib/actions/listings';
+import type { TradeOfferOwnItem } from '@/components/trade/TradeOfferForm';
 
 const BAR_TRIGGER =
   'h-11 min-h-11 w-full rounded-md px-2 text-body font-semibold';
@@ -44,7 +45,7 @@ export function ListingBuyerBar({
   initialWatching: boolean;
   sellerIdentity: SellerIdentityDisclosure | null;
   viewerVerification: VerificationState | null;
-  ownItems: ItemRow[];
+  ownItems: TradeOfferOwnItem[];
   disabledTradeReason: string | null;
 }) {
   if (!isAuthenticated) {
@@ -52,7 +53,7 @@ export function ListingBuyerBar({
       <div className={guestBarClass}>
         <Button asChild className="h-11 w-full">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
-            <LogIn aria-hidden />
+            <HugeiconsIcon icon={LogInIcon} aria-hidden />
             Sign in to buy
           </Link>
         </Button>

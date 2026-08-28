@@ -30,16 +30,8 @@
 
 import { useRef, useState, useTransition, type ReactNode } from 'react';
 import Image from 'next/image';
-import {
-  Eye,
-  Loader2,
-  Lock,
-  Paperclip,
-  SendHorizontal,
-  ShieldAlert,
-  X,
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { EyeIcon, LoaderCircleIcon, LockIcon, PaperclipIcon, SendHorizontalIcon, ShieldAlertIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import {
   submitDisputeEvidence,
@@ -123,7 +115,7 @@ function MediaTile({
     <button
       type="button"
       onClick={onOpen}
-      className="group relative aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:border-gold/40"
+      className="group relative aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:border-iris"
     >
       {/* Unoptimised: these are signed, short-lived URLs on a private bucket, so the
           image optimiser cannot cache them and would only add a hop that expires. */}
@@ -246,7 +238,7 @@ export function DisputeEvidencePanel({
         mediaPaths,
       });
       if (result.ok) {
-        toast.success('Evidence submitted. Staff and the other party can now see it.');
+        
         setStatement('');
         setFiles([]);
       } else {
@@ -262,7 +254,7 @@ export function DisputeEvidencePanel({
       {disputeReason ? (
         <div className="space-y-snug">
           <h3 className="flex items-center gap-snug text-meta font-semibold uppercase tracking-wide text-destructive">
-            <ShieldAlert className="size-4 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={ShieldAlertIcon} className="size-4 shrink-0" aria-hidden />
             Why this is in dispute
           </h3>
           <p className="whitespace-pre-line break-words text-pretty text-lead font-medium">
@@ -289,7 +281,7 @@ export function DisputeEvidencePanel({
             ) : null}
           </h3>
           <span className="inline-flex items-center gap-tight text-body text-muted-foreground">
-            <Eye className="size-3.5 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={EyeIcon} className="size-3.5 shrink-0" aria-hidden />
             Visible to both parties &amp; staff
           </span>
         </div>
@@ -322,7 +314,7 @@ export function DisputeEvidencePanel({
           {/* Stated BEFORE the field, not after submitting. Finality is the surprising
               part of this form and the header note explains why it is deliberate. */}
           <p className="mt-1 inline-flex items-center gap-tight text-body text-muted-foreground">
-            <Lock className="size-3.5 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={LockIcon} className="size-3.5 shrink-0" aria-hidden />
             Submissions are final. Add another entry if you have more to say.
           </p>
           <form
@@ -341,7 +333,7 @@ export function DisputeEvidencePanel({
               </label>
               {/* The count lives inside the field's own border rather than floating
                   under it, so the control reads as one object. */}
-              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-gold/40">
+              <div className="rounded-xl border border-input bg-background transition-colors focus-within:border-iris">
                 <textarea
                   id="evidence-statement"
                   value={statement}
@@ -395,10 +387,10 @@ export function DisputeEvidencePanel({
                         type="button"
                         onClick={() => removeFile(index)}
                         disabled={busy}
-                        className="flex size-5 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:border-gold/40"
+                        className="flex size-5 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:border-iris"
                         aria-label={`Remove ${file.name}`}
                       >
-                        <X className="size-3.5" aria-hidden />
+                        <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
                       </button>
                     </li>
                   ))}
@@ -421,7 +413,7 @@ export function DisputeEvidencePanel({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={busy || files.length >= EVIDENCE_FILES_MAX}
               >
-                <Paperclip className="size-4" aria-hidden />
+                <HugeiconsIcon icon={PaperclipIcon} className="size-4" aria-hidden />
                 Attach files
               </Button>
             </div>
@@ -435,9 +427,9 @@ export function DisputeEvidencePanel({
             <div className="flex flex-wrap items-center gap-cozy border-t pt-5">
               <Button type="submit" disabled={!ready} aria-busy={busy}>
                 {busy ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
                 ) : (
-                  <SendHorizontal className="size-4" aria-hidden />
+                  <HugeiconsIcon icon={SendHorizontalIcon} className="size-4" aria-hidden />
                 )}
                 {uploading ? 'Uploading…' : isPending ? 'Submitting…' : 'Submit evidence'}
               </Button>

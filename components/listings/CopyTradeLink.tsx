@@ -8,7 +8,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, LinkIcon } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, LinkIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
@@ -25,7 +26,7 @@ export function CopyTradeLink({ itemId, className }: CopyTradeLinkProps) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success('Trade link copied to clipboard');
+      
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Failed to copy link');
@@ -39,7 +40,7 @@ export function CopyTradeLink({ itemId, className }: CopyTradeLinkProps) {
       onClick={handleCopy}
       aria-label={copied ? 'Trade link copied' : 'Copy trade link'}
     >
-      {copied ? <Check aria-hidden /> : <LinkIcon aria-hidden />}
+      {copied ? <HugeiconsIcon icon={CheckIcon} aria-hidden /> : <HugeiconsIcon icon={LinkIcon} aria-hidden />}
       {copied ? 'Copied' : 'Copy'}
     </Button>
   );

@@ -42,7 +42,15 @@ const CHARIZARD = {
   title: '1999 Pokémon Base Set Charizard #4 PSA 8',
 };
 
-/** RESERVED and SOLD seed items. `items_catalog_select` treats availability as VISIBILITY. */
+/**
+ * RESERVED and SOLD seed items, absent from the DEFAULT catalog.
+ *
+ * 0108 moved that decision: `items_catalog_select` used to hide these rows at the
+ * database, and now admits them so the Availability toggles can work. What keeps
+ * them out of an unfiltered `/` is `searchCatalog`, which asks for AVAILABLE only
+ * unless `?reserved=1` / `?sold=1` says otherwise. The default is the contract
+ * under test here.
+ */
 const HIDDEN_TITLES = [
   '2003 LeBron James Topps Chrome Rookie #111 PSA 9', // RESERVED
   '1928 Babe Ruth Signed Baseball (JSA)', // RESERVED
@@ -60,7 +68,7 @@ const HIDDEN_TITLES = [
 
 test.describe('Catalog', () => {
   test('lists AVAILABLE items', async ({ page }) => {
-    await page.goto('/listings');
+    await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
     await expect(
@@ -68,19 +76,20 @@ test.describe('Catalog', () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('hides RESERVED and SOLD items', async ({ page }) => {
-    await page.goto('/listings');
+  test('hides RESERVED and SOLD items by default', async ({ page }) => {
+    await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    // Availability is visibility: a listing under contract or sold leaves the
-    // catalog rather than showing a disabled card.
+    // An unfiltered catalog offers only what can actually be bought. Reserved and
+    // sold listings are reachable behind the two Availability toggles — where they
+    // render as dimmed, un-actionable cards — but never unasked-for.
     for (const title of HIDDEN_TITLES) {
       await expect(page.getByText(title)).toHaveCount(0);
     }
   });
 
   test('search narrows to matching items', async ({ page }) => {
-    await page.goto('/listings');
+    await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
     // The catalog owns a dedicated filter field. The header search is a jump
@@ -91,7 +100,7 @@ test.describe('Catalog', () => {
 
     // Client-side filter of the loaded grid — no navigation, so the URL stays
     // clean and cards that already rendered keep their images.
-    await expect(page).toHaveURL(/\/listings\/?$/);
+    await expect(page).toHaveURL(/\/$/);
     await expect(page.getByText(/Charizard/).first()).toBeVisible();
     await expect(page.getByText('1986 Fleer Michael Jordan Rookie #57 BGS 7')).toHaveCount(0);
   });
@@ -112,12 +121,22 @@ test.describe('Item detail', () => {
     ).toBeVisible({ timeout: 10_000 });
 
     // 25000 cents formatted as AUD.
-    await expect(page.getByText('$250.00').first()).toBeVisible();
+    //
+    // VISIBLE, not `.first()`. The detail page renders its content column twice —
+    // the `lg:hidden` phone stack and the desktop pane — so the price and
+    // condition each exist twice and `.first()` returns the phone copy, which is
+    // `display:none` on this project's viewport. The assertion then failed as
+    // "hidden" against markup that was plainly on screen.
     await expect(
-      page.getByText(/Holographic Charizard from the 1999 Base Set/),
+      page.getByText('$250.00').filter({ visible: true }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/Holographic Charizard from the 1999 Base Set/).filter({ visible: true }).first(),
     ).toBeVisible();
     // Condition renders in the spec list and again in the image alt text.
-    await expect(page.getByText('PSA 8').first()).toBeVisible();
+    await expect(
+      page.getByText('PSA 8').filter({ visible: true }).first(),
+    ).toBeVisible();
   });
 
   test('offers the owner edit rather than buy', async ({ page }) => {
@@ -174,7 +193,9 @@ test.describe('Listing form', () => {
     await expect(page.getByRole('heading', { name: title })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText('$50.00').first()).toBeVisible();
+    await expect(
+      page.getByText('$50.00').filter({ visible: true }).first(),
+    ).toBeVisible();
   });
 
   test('edits a listing title', async ({ page }) => {
@@ -196,9 +217,14 @@ test.describe('Listing form', () => {
     await expect(page).toHaveURL(/\/edit/, { timeout: 15_000 });
     await page.waitForLoadState('domcontentloaded');
 
-    const titleInput = page.getByLabel('Title');
-    await expect(titleInput).toHaveValue(original, { timeout: 10_000 });
-    await titleInput.fill(updated);
+    // THE TITLE IS DERIVED, NOT TYPED. There is no Title field on this form any
+    // more — `deriveItemTitle` takes it from the leading sentence of the
+    // description, which is why `createListing` writes the marked title there.
+    // Editing the title therefore means editing that sentence.
+    const descriptionInput = page.getByLabel('Description');
+    await expect(descriptionInput).toBeVisible({ timeout: 10_000 });
+    expect(await descriptionInput.inputValue()).toContain(original);
+    await descriptionInput.fill(`${updated}. Edited by the e2e suite.`);
 
     await page.getByRole('button', { name: /Save changes|Update listing/i }).click();
 

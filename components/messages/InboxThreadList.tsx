@@ -6,7 +6,8 @@
 // grouped card (thumb leading, time on the title row, unread badge).
 
 import Link from 'next/link';
-import { AlertTriangle, Handshake, MessageSquare } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HandshakeIcon, MessageSquareIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +19,10 @@ import { cn } from '@/lib/utils';
 function statusPill(c: ConversationListEntry) {
   if (c.dispute) {
     return (
+      // "Disputed", matching `CASH_SALE_STATUS_MAP` — the state of the contract,
+      // not the name of a noun. The room, the badge and the thread now agree.
       <span className="shrink-0 rounded-full border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-meta font-medium text-destructive">
-        Dispute
+        Disputed
       </span>
     );
   }
@@ -59,7 +62,7 @@ function MobileThreadRow({ c }: { c: ConversationListEntry }) {
     <Link
       href={`/messages/${c.id}`}
       transitionTypes={['nav-forward']}
-      className="flex min-h-11 items-start gap-3 py-3.5 border border-transparent focus:outline-none focus-visible:border-gold/40"
+      className="flex min-h-11 items-start gap-3 py-3.5 border border-transparent focus:outline-none focus-visible:border-iris"
     >
       <span className="relative mt-0.5 shrink-0">
         <Avatar
@@ -112,9 +115,9 @@ function MobileThreadRow({ c }: { c: ConversationListEntry }) {
           aria-hidden
         >
           {c.dispute ? (
-            <AlertTriangle className="size-5" />
+            <HugeiconsIcon icon={TriangleAlertIcon} className="size-5" />
           ) : (
-            <Handshake className="size-5" />
+            <HugeiconsIcon icon={HandshakeIcon} className="size-5" />
           )}
         </span>
       ) : null}
@@ -132,13 +135,16 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
     <Link
       href={`/messages/${c.id}`}
       transitionTypes={['nav-forward']}
-      className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-gold/40"
+      className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-iris"
     >
       {thumb ? (
+        // NOT decorative any more. With the item title dropped from the row, the
+        // thumbnail is the only thing that says which card the thread is about,
+        // so it has to carry that name for anyone who cannot see it.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={thumb}
-          alt=""
+          alt={c.item?.title ?? ''}
           width={96}
           height={96}
           className="size-12 shrink-0 rounded-md object-cover"
@@ -149,45 +155,38 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
           aria-hidden="true"
         >
           {c.dispute ? (
-            <AlertTriangle className="size-5" />
+            <HugeiconsIcon icon={TriangleAlertIcon} className="size-5" />
           ) : c.trade ? (
-            <Handshake className="size-5" />
+            <HugeiconsIcon icon={HandshakeIcon} className="size-5" />
           ) : (
-            <MessageSquare className="size-5" />
+            <HugeiconsIcon icon={MessageSquareIcon} className="size-5" />
           )}
         </span>
       )}
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="flex min-w-0 flex-wrap items-center gap-x-tight gap-y-0.5 text-lead font-medium">
-            <Avatar
-              avatarPath={c.other.avatarPath}
-              displayName={name}
-              size="xs"
-            />
-            <span className="truncate">{name}</span>
-            {c.dispute ? (
-              <span className="truncate text-body font-medium text-destructive">
-                Dispute: {c.dispute.itemTitle}
-              </span>
-            ) : c.trade ? (
-              <span className="truncate text-meta font-normal text-muted-foreground">
-                Trade
-              </span>
-            ) : c.item ? (
-              <span className="truncate text-body font-normal text-muted-foreground">
-                Re: {c.item.title}
-              </span>
-            ) : null}
-          </p>
-          <span className="shrink-0 text-meta text-muted-foreground">{time}</span>
+        {/* ONE 24px LINE. The avatar is `size-6` and `text-lead` resolves to a
+            24px line box, so with everything at `items-center` the glyphs, the
+            name, the pill and the clock share one optical centre. The previous
+            row mixed `text-lead` with `text-body` and wrapped, which is what put
+            three different baselines on what should read as a single line.
+
+            The item title is gone on purpose: the thumbnail to the left already
+            says which card this is, and spelling it out cost the row its whole
+            width and forced the wrap. State is a pill now, not a sentence. */}
+        <div className="flex items-center gap-2">
+          <Avatar avatarPath={c.other.avatarPath} displayName={name} size="xs" />
+          <span className="truncate text-lead font-medium">{name}</span>
+          {statusPill(c)}
+          <span className="ml-auto shrink-0 text-meta text-muted-foreground">
+            {time}
+          </span>
         </div>
         <p
           className={
             c.unreadCount > 0
-              ? 'truncate text-body font-medium text-foreground'
-              : 'truncate text-body text-muted-foreground'
+              ? 'mt-0.5 truncate text-body font-medium text-foreground'
+              : 'mt-0.5 truncate text-body text-muted-foreground'
           }
         >
           {preview}

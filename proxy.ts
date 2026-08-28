@@ -31,8 +31,8 @@ const PROTECTED_PREFIXES = [
 ];
 
 // Protected routes that a PREFIX cannot express, because the variable segment comes
-// first. `/listings/[id]/edit` writes a listing, but `/listings` and `/listings/[id]`
-// are public, so it cannot be covered by a prefix without closing the catalog.
+// first. `/listings/[id]/edit` writes a listing, but `/listings/[id]` is public, so it
+// cannot be covered by a prefix without closing every listing detail page.
 //
 // It was in `config.matcher` but not in `PROTECTED_PREFIXES`, so `isProtected()` was
 // false for it and neither the sign-in redirect, the FRAUD-BAN redirect, nor the
@@ -102,11 +102,17 @@ export async function proxy(request: NextRequest) {
   // The catalog is public for guests. Signing up is therefore the decision to
   // transact, not a prerequisite for looking. An unfinished session that hits the
   // catalog or any protected route is sent back to the wizard; sign-out is the
-  // way back to guest browsing. `/` stays open so a cold landing page still loads.
+  // way back to guest browsing.
+  //
+  // `/` IS THE CATALOG, so it is gated like one. This used to be the marketing
+  // landing page and was deliberately left open; keeping that exemption after the
+  // move would have let a fraud-banned or half-onboarded member browse the whole
+  // catalog just by dropping the `/listings` suffix.
+  //
   // Public catalog pages only. `/listings/new`, `/listings/mine` and
   // `/listings/[id]/edit` are already `isProtected`.
   const onCatalog =
-    pathname === '/listings' ||
+    pathname === '/' ||
     (pathname.startsWith('/listings/') && !isProtected(pathname));
 
   if (user && pathname !== '/onboarding' && (isProtected(pathname) || onCatalog)) {
@@ -139,6 +145,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Only run on the protected trees to keep middleware overhead minimal.
   matcher: [
+    // The catalog homepage. Guests may browse, so this costs one session read on
+    // the highest-traffic route — the price of the fraud-ban and onboarding gates
+    // covering the catalog wherever it is served from.
+    "/",
     "/profile/:path*",
     // Guests may browse. A signed-in member with no `onboarding_completed_at`
     // is sent back to the wizard. `isProtected()` still limits anonymous auth

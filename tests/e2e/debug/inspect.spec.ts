@@ -12,6 +12,7 @@
 import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, CAROL, DAVE, ERIN, storageStatePath } from '../support/users';
 import { createListing } from '../support/listings';
+import { messageSellerComposer } from '../support/messageSeller';
 
 /** Dump headings, buttons, links, inputs and dialogs with their accessible names. */
 async function dumpPage(page: import('@playwright/test').Page, label: string) {
@@ -124,9 +125,9 @@ test.describe('inspect as alice', () => {
     const bobPage = await bob.newPage();
     await bobPage.goto(`/listings/${ALICE_ITEM}`);
     await bobPage.waitForLoadState('domcontentloaded');
-    const c = bobPage.getByLabel('Send seller a message');
+    const { input: c, send: bellSend } = messageSellerComposer(bobPage);
     await c.fill(`[E2E] bell probe ${Date.now()}`);
-    await bobPage.getByRole('button', { name: 'Send' }).click();
+    await bellSend.click();
     await bobPage.waitForURL(/\/messages\//, { timeout: 30_000 }).catch(() => {});
     await bob.close();
 
@@ -259,9 +260,9 @@ test.describe('inspect as bob', () => {
 
     await page.goto(`/listings/${ALICE_ITEM}`);
     await page.waitForLoadState('domcontentloaded');
-    const composer = page.getByLabel('Send seller a message');
+    const { input: composer, send } = messageSellerComposer(page);
     await composer.fill('[E2E] inspector probe');
-    await page.getByRole('button', { name: 'Send' }).click();
+    await send.click();
     await page.waitForTimeout(8000);
 
     console.log('--- url after send:', new URL(page.url()).pathname);
@@ -513,18 +514,13 @@ test.describe('inspect cash sale room', () => {
 test.describe('inspect anonymous', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('landing', async ({ page }) => {
-    await page.goto('/');
-    await dumpPage(page, 'landing (anon)');
-  });
-
   test('sign up', async ({ page }) => {
     await page.goto('/sign-up');
     await dumpPage(page, 'sign-up (anon)');
   });
 
   test('catalog', async ({ page }) => {
-    await page.goto('/listings');
+    await page.goto('/');
     await dumpPage(page, 'catalog (anon)');
   });
 });

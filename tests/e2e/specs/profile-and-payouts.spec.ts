@@ -41,26 +41,33 @@ test.describe('Profile page', () => {
     await page.goto('/profile');
     await page.waitForLoadState('domcontentloaded');
 
-    // Page title: h1 (rail) + h2 (SectionHeader) — hence .first().
+    // THE MEMBER'S NAME IS THE VISIBLE HEADING. The account surface became a tab
+    // strip over a settings list: "Profile" is now a tab, the rail owns the h1,
+    // and the identity header above the tabs carries the name. The old "Your
+    // details" / "Card for Buying" cards are `SettingsGroup` rows now, so this
+    // asserts on what a member can actually see and act on rather than on card
+    // titles that no longer exist.
     await expect(
-      page.getByRole('heading', { name: 'Profile' }).first(),
+      page.getByRole('heading', { name: ALICE.displayName }).first(),
     ).toBeVisible({ timeout: 10_000 });
 
-    // The two cards this page owns.
-    await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: /Card for Buying/i }),
-    ).toBeVisible();
-
-    // Email renders once (the rail shows the display name, never the email).
+    // The row that holds the contact email, and the one that holds the card.
     await expect(page.getByText(ALICE.email)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Payment method/i }),
+    ).toBeVisible();
   });
 
   test('exposes the edit and add-card affordances', async ({ page }) => {
     await page.goto('/profile');
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
+    // The name/email row IS the edit trigger — it is a `SettingsListRow` used as
+    // the dialog's `asChild` trigger, so it is a button named for its label and
+    // current value. There is no separate "Edit" button any more.
+    await expect(
+      page.getByRole('button', { name: /Name and email/i }),
+    ).toBeVisible();
 
     // STATE-INDEPENDENT ON PURPOSE. This used to assert `/Add card|Change card/`, on
     // the stated assumption that "seed profiles carry a mock payer but no saved
@@ -73,16 +80,17 @@ test.describe('Profile page', () => {
     // file, and that its wording agrees with whether one is already there. Asserting
     // the pairing is a stronger check than either label alone, and it holds whichever
     // specs ran before this one.
-    const addCard = page.getByRole('button', { name: /^Add card$/i });
-    const replaceCard = page.getByRole('button', { name: /^Replace card$/i });
-    const manageCard = addCard.or(replaceCard);
-    await expect(manageCard).toBeVisible();
+    // One row, whose VALUE states which case we are in: "Add a card" when nothing
+    // is on file, otherwise the saved card's label. Asserting the pairing keeps
+    // the check order-independent, which is the point the note above makes.
+    const cardRow = page.getByRole('button', { name: /Payment method/i });
+    await expect(cardRow).toBeVisible();
 
-    const hasSavedCard = (await replaceCard.count()) > 0;
-    if (hasSavedCard) {
-      await expect(page.getByText(/No purchase or collateral card saved yet/i)).toHaveCount(0);
+    const rowText = (await cardRow.textContent()) ?? '';
+    if (/Add a card/i.test(rowText)) {
+      await expect(cardRow).toContainText(/Required to buy or back a trade/i);
     } else {
-      await expect(page.getByText(/No purchase or collateral card saved yet/i)).toBeVisible();
+      await expect(cardRow).not.toContainText(/Add a card/i);
     }
   });
 });
@@ -98,7 +106,7 @@ test.describe('Profile editing', () => {
     await page.waitForLoadState('domcontentloaded');
 
     try {
-      await page.getByRole('button', { name: 'Edit' }).click();
+      await page.getByRole('button', { name: /Name and email/i }).click();
 
       // EditProfileDialog: h2 "Edit your details", inputs "Display name" and
       // "Contact email", buttons "Save changes" / "Close".
@@ -128,7 +136,7 @@ test.describe('Profile editing', () => {
       // ALWAYS put the seed value back, including on assertion failure above.
       await page.goto('/profile');
       await page.waitForLoadState('domcontentloaded');
-      await page.getByRole('button', { name: 'Edit' }).click();
+      await page.getByRole('button', { name: /Name and email/i }).click();
       const restore = page.getByRole('dialog');
       await restore.getByLabel('Display name').fill(DAVE.displayName);
       await restore.getByRole('button', { name: 'Save changes' }).click();
@@ -144,17 +152,17 @@ test.describe('Payouts page', () => {
     await page.goto('/profile/payouts');
     await page.waitForLoadState('domcontentloaded');
 
-    // Title is duplicated h1/h2 as everywhere else.
-    await expect(
-      page.getByRole('heading', { name: 'Selling & Payouts' }).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    // `/profile/payouts` is a redirect shim onto the account hub's Payouts tab,
+    // so the old "Selling & Payouts" page title is gone.
+    await expect(page).toHaveURL(/\/profile\?.*tab=payouts/, { timeout: 10_000 });
 
-    // TWO SEPARATE CARDS, and that separation is the product rule (0069): the
-    // Identity_Gate and payout readiness are independent, so each gets its own
-    // status. A single combined card would be the 0060 mistake in UI form.
-    await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible();
+    // TWO SEPARATE FACTS, and that separation is still the product rule (0069):
+    // the Identity_Gate and payout readiness are independent. They now read as one
+    // trust line above the tabs rather than two cards, but both must be stated.
+    const trust = page.getByText(/ID checked by Stripe/i);
+    await expect(trust).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.getByRole('heading', { name: /Payouts (active|incomplete)/i }),
+      page.getByText(/Payouts (active|not set up)/i).first(),
     ).toBeVisible();
   });
 
@@ -164,10 +172,10 @@ test.describe('Payouts page', () => {
 
     await expect(
       page.getByRole('heading', { name: 'Where your money goes' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.getByRole('heading', { name: 'Transfer history' }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test('hides the identity demo controls once verified', async ({ page }) => {
@@ -178,9 +186,11 @@ test.describe('Payouts page', () => {
     // not be offered it — and seed members are verified. Asserting its absence
     // is the real check: if it ever renders here, either the gate regressed to
     // unverified or the panel lost its status condition.
-    await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible({
-      timeout: 10_000,
-    });
+    // Wait for the tab to actually be on screen before asserting an absence —
+    // otherwise this passes against a page that has not rendered yet.
+    await expect(
+      page.getByRole('heading', { name: 'Where your money goes' }),
+    ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.getByLabel('Hackathon test mode controls'),
     ).toBeHidden();

@@ -27,8 +27,19 @@ import tsParser from '@typescript-eslint/parser';
 export default [
   {
     ignores: [
-      '.next/**',
-      '.next-build/**',
+      // Every build output, not two named ones. `distDir` is configurable via
+      // `NEXT_BUILD_DIR` (see next.config.ts), and the e2e suite uses
+      // `.next-e2e` so it never shares `.next` with a dev server — which lint
+      // then walked, reporting 200+ rules-of-hooks errors against minified
+      // vendor chunks. `.gitignore` already takes the same wildcard approach.
+      '.next*/**',
+      // Playwright's own artifacts. The HTML report embeds its bundled viewer,
+      // so linting it reports hundreds of rules-of-hooks errors against minified
+      // vendor code. Both are gitignored; lint only saw them because it does not
+      // read .gitignore. Latent until now — it needed an e2e run followed by a
+      // lint in the same tree.
+      'playwright-report/**',
+      'test-results/**',
       'node_modules/**',
       'next-env.d.ts',
       'supabase/**',

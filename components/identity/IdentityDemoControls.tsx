@@ -19,7 +19,8 @@
 // regardless, because a client-side condition is not a control.
 
 import { useState, useTransition } from 'react';
-import { ChevronDown, ChevronUp, FlaskConical, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ChevronDownIcon, ChevronUpIcon, FlaskConicalIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
@@ -38,11 +39,6 @@ const ERROR_MESSAGES: Record<FireIdentityWebhookError, string> = {
   rejected: 'That identity decision could not be applied.',
 };
 
-const SUCCESS_MESSAGES: Record<DemoIdentityWebhookKind, string> = {
-  verify: 'Identity verified — you can now list, sell, and trade.',
-  fail: 'Verification failure delivered — the check can be retried.',
-};
-
 export function IdentityDemoControls() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -58,7 +54,7 @@ export function IdentityDemoControls() {
           if (result.deduped) {
             toast.info('That webhook was already processed for your profile.');
           } else {
-            toast.success(SUCCESS_MESSAGES[kind]);
+            
           }
           // The gate is read server-side, so the card and every gated surface only
           // change on a refetch.
@@ -87,10 +83,10 @@ export function IdentityDemoControls() {
         aria-expanded={open}
         aria-controls="identity-demo-body"
         aria-label={open ? 'Collapse hackathon test controls' : 'Expand hackathon test controls'}
-        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-gold/40"
+        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris"
       >
         <span className="flex min-w-0 items-center gap-snug">
-          <FlaskConical className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={FlaskConicalIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
           <span className="min-w-0">
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode
@@ -101,9 +97,9 @@ export function IdentityDemoControls() {
           </span>
         </span>
         {open ? (
-          <ChevronUp className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={ChevronUpIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         ) : (
-          <ChevronDown className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={ChevronDownIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         )}
       </button>
 
@@ -120,7 +116,7 @@ export function IdentityDemoControls() {
               disabled={isPending}
               aria-busy={busy('verify')}
             >
-              {busy('verify') ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {busy('verify') ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               Simulate verified
             </Button>
             <Button
@@ -130,7 +126,7 @@ export function IdentityDemoControls() {
               disabled={isPending}
               aria-busy={busy('fail')}
             >
-              {busy('fail') ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {busy('fail') ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               Simulate failure
             </Button>
           </div>

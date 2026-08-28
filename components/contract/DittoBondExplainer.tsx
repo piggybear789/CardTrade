@@ -16,125 +16,119 @@
 // "escrow" for the trade case — the platform holds a claim there, not funds.
 
 import type { ReactNode } from 'react';
-import {
-  CheckCircle2,
-  CreditCard,
-  ShieldAlert,
-  Timer,
-} from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { AlertCircleIcon, CheckIcon, CheckmarkCircle02Icon, CreditCardIcon, ShieldAlertIcon, Timer01Icon, XIcon } from '@hugeicons/core-free-icons';
 
+import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
+import { formatAud } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-interface FlowStepProps {
-  icon: typeof CreditCard;
-  title: string;
-  children: ReactNode;
-  tone?: 'neutral' | 'success' | 'warning';
-}
+/**
+ * What each ending does to your collateral, as a table rather than a paragraph.
+ *
+ * `Up to`, not a flat figure: the Friction_Tax is capped at what was authorised
+ * (`frictionTaxChargeableCents`), so a trade on a $5 item cannot be charged $20
+ * and the copy must not promise otherwise. The amount is read from the constant
+ * so this line cannot drift from the one that is actually captured.
+ */
+const OUTCOMES: {
+  icon: typeof CheckIcon;
+  tone: string;
+  event: string;
+  result: string;
+  note?: string;
+}[] = [
+  {
+    icon: CheckIcon,
+    tone: 'text-trust',
+    event: 'The trade completes',
+    result: 'Released',
+  },
+  {
+    icon: CheckIcon,
+    tone: 'text-trust',
+    event: 'The handover fails',
+    result: 'Released',
+  },
+  {
+    icon: AlertCircleIcon,
+    tone: 'text-iris-ink',
+    event: 'A condition dispute',
+    result: `Up to ${formatAud(FRICTION_TAX_CENTS)}`,
+    note: "Covers the other trader's return postage.",
+  },
+  {
+    icon: XIcon,
+    tone: 'text-destructive',
+    event: 'Confirmed fraud',
+    result: 'The full amount',
+    note: 'Paid to the trader who was defrauded.',
+  },
+];
 
-function FlowStepCopy({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <p className="font-medium">{title}</p>
-      <div className="mt-0.5 text-body text-muted-foreground">{children}</div>
-    </div>
-  );
-}
-
-function FlowStep({ icon: Icon, title, children, tone = 'neutral' }: FlowStepProps) {
-  return (
-    <div className="flex items-center gap-snug">
-      <Icon
-        className={cn(
-          'size-4 shrink-0',
-          tone === 'success' && 'text-emerald-700 dark:text-emerald-400',
-          tone === 'warning' && 'text-gold',
-          tone === 'neutral' && 'text-muted-foreground',
-        )}
-        aria-hidden
-      />
-      <FlowStepCopy title={title}>{children}</FlowStepCopy>
-    </div>
-  );
-}
-
-/** Explains the collateral lifecycle and resolution outcomes in a Trade contract. */
+/**
+ * The two things a trader needs to know about collateral beyond what the tab's
+ * own opening line says: what it does to their card, and what happens if the
+ * trade goes wrong.
+ *
+ * IT USED TO BE A THREE-STEP FLOW, twice. Authorise → Trade with protection →
+ * Release, rendered once as a stacked list for small screens and again as a
+ * connector rail for large ones — the same three paragraphs present in the DOM
+ * simultaneously — under a heading and a lede that restated the tab's own
+ * explainer. Seven paragraphs of tutorial stood between opening the Collateral
+ * tab and seeing what was actually held.
+ *
+ * The steps were narrating a process the reader cannot act on and can already
+ * see the state of in the hold list. What they carried that the list does not
+ * is now one sentence: the balance dips, nothing is charged, the holds void.
+ * The consequences below it stay in full, because those are the facts that are
+ * genuinely surprising and genuinely matter.
+ */
 export function DittoBondExplainer() {
   return (
-    <section className="space-y-cozy" aria-labelledby="dittobond-title">
-      <div>
-        <h3 id="dittobond-title" className="text-body font-semibold">
-          How trade collateral works
-        </h3>
-        <p className="mt-1 text-body text-muted-foreground">
-          Trade collateral is a temporary card authorisation that backs a trade. It is not
-          a charge, and NoDitto does not receive the authorised amount while the trade
-          is proceeding normally.
-        </p>
-      </div>
+    <section className="space-y-cozy text-body" aria-labelledby="dittobond-title">
+      {/* The tab is labelled "Collateral" and opens with its own explainer
+          sentence, so a visible heading here would be the third title on one
+          screen. Kept for the document outline. */}
+      <h3 id="dittobond-title" className="sr-only">
+        What happens to your collateral
+      </h3>
 
-      <div className="grid gap-snug lg:hidden">
-        <FlowStep icon={CreditCard} title="1. Authorise">
-          When both traders accept, Stripe reserves the agreed value on each saved
-          card. Your available card balance may reduce temporarily.
-        </FlowStep>
-        <FlowStep icon={ShieldAlert} title="2. Trade with protection">
-          Each hold stays active while you send, receive, and inspect. No money moves
-          merely because the hold is active.
-        </FlowStep>
-        <FlowStep icon={CheckCircle2} title="3. Release or resolve" tone="success">
-          When both members accept, Stripe voids both holds. Your card issuer decides
-          how quickly the available balance refreshes.
-        </FlowStep>
-      </div>
-
-      <div className="hidden lg:block">
-        <div className="relative grid grid-cols-3 items-center" aria-hidden>
-          <span className="absolute inset-x-8 top-1/2 h-px -translate-y-1/2 bg-border" />
-          <div className="relative z-[1] flex justify-center bg-card">
-            <CreditCard className="size-4 text-muted-foreground" />
-          </div>
-          <div className="relative z-[1] flex justify-center bg-card">
-            <ShieldAlert className="size-4 text-muted-foreground" />
-          </div>
-          <div className="relative z-[1] flex justify-center bg-card">
-            <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400" />
-          </div>
-        </div>
-        <div className="mt-cozy grid grid-cols-3 gap-group text-center">
-          <FlowStepCopy title="1. Authorise">
-            When both traders accept, Stripe reserves the agreed value on each saved
-            card. Your available card balance may reduce temporarily.
-          </FlowStepCopy>
-          <FlowStepCopy title="2. Trade with protection">
-            Each hold stays active while you send, receive, and inspect. No money moves
-            merely because the hold is active.
-          </FlowStepCopy>
-          <FlowStepCopy title="3. Release or resolve">
-            When both members accept, Stripe voids both holds. Your card issuer decides
-            how quickly the available balance refreshes.
-          </FlowStepCopy>
-        </div>
-      </div>
-
-      <div className="grid gap-snug border-t pt-cozy text-body sm:grid-cols-2">
-        <div className="space-y-1">
-          <p className="font-medium text-foreground">If something goes wrong</p>
-          <p className="text-muted-foreground">
-            A failed handover captures nothing. A condition dispute can capture a
-            fixed $20 resolution fee; confirmed fraud can capture the responsible
-            trader&apos;s full collateral and pay the affected trader.
+      <div className="overflow-hidden rounded-md border border-border">
+        <div className="flex items-center gap-cozy border-b bg-muted px-cozy py-snug">
+          <p className="market-label min-w-0 flex-1 text-muted-foreground">
+            How it ends
+          </p>
+          <p className="market-label shrink-0 text-muted-foreground">
+            Your collateral
           </p>
         </div>
-        <div className="flex items-center gap-snug">
-          <Timer className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <p className="text-muted-foreground">
-            <span className="font-medium text-foreground">Time matters.</span>{' '}
-            Card authorisations normally expire after about seven days. The trade must
-            resolve before a hold expires, or it no longer protects either side.
-          </p>
-        </div>
+        <ul className="divide-y divide-border">
+          {OUTCOMES.map(({ icon: Icon, tone, event, result, note }) => (
+            <li
+              key={event}
+              className="flex items-start gap-cozy px-cozy py-snug"
+            >
+              <HugeiconsIcon icon={Icon} className={cn('mt-0.5 size-4 shrink-0', tone)} aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-foreground">{event}</p>
+                {note ? (
+                  <p className="text-meta text-muted-foreground">{note}</p>
+                ) : null}
+              </div>
+              <p className="shrink-0 text-right font-medium tabular-nums">
+                {result}
+              </p>
+            </li>
+          ))}
+        </ul>
       </div>
+
+      <p className="flex items-start gap-snug text-muted-foreground">
+        <HugeiconsIcon icon={Timer01Icon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+        Authorisations expire about seven days after they are placed, so the trade
+        has to finish before then.
+      </p>
     </section>
   );
 }
@@ -143,17 +137,36 @@ function ProtectionOutcome({
   icon: Icon,
   title,
   children,
+  action,
 }: {
-  icon: typeof CreditCard;
+  icon: typeof CreditCardIcon;
   title: string;
   children: ReactNode;
+  /** Control for this outcome, rendered beneath its description. */
+  action?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-cozy py-cozy first:pt-0 last:pb-0">
-      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <div className="min-w-0">
+    <div
+      className={cn(
+        'flex items-start gap-cozy p-cozy',
+        // THE ONE ROW THAT IS A DECISION, not a statement. Tinted so the red
+        // control reads as belonging to the outcome it sits under rather than
+        // as an alarm dropped into a reference list — and so a buyer scanning
+        // the three outcomes can see at a glance which one they can act on.
+        action && 'bg-destructive/5',
+      )}
+    >
+      <HugeiconsIcon icon={Icon}
+        className={cn(
+          'mt-0.5 size-4 shrink-0',
+          action ? 'text-destructive' : 'text-muted-foreground',
+        )}
+        aria-hidden
+      />
+      <div className="min-w-0 flex-1">
         <p className="text-body font-semibold">{title}</p>
         <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">{children}</p>
+        {action ? <div className="mt-cozy">{action}</div> : null}
       </div>
     </div>
   );
@@ -181,9 +194,19 @@ function ProtectionOutcome({
 export function CashSaleProtectionExplainer({
   viewerIsBuyer,
   inPerson,
+  reportAction,
 }: {
   viewerIsBuyer: boolean;
   inPerson: boolean;
+  /**
+   * Trigger for the dispute dialog, rendered inside the "If the buyer reports a
+   * problem" outcome — the row that already describes what pressing it does.
+   *
+   * Injected rather than built here because this component is presentational and
+   * knows nothing about the sale it describes. Omit it for a seller, or once the
+   * inspection window has closed.
+   */
+  reportAction?: ReactNode;
 }) {
   return (
     <section className="space-y-group" aria-labelledby="cash-sale-protection-title">
@@ -198,18 +221,36 @@ export function CashSaleProtectionExplainer({
         </p>
       </div>
 
-      <div className="divide-y border-y py-cozy">
-        <ProtectionOutcome icon={CreditCard} title="While the sale is active">
+      {/* A BOX, NOT A `border-y` STACK. Two open rules top and bottom left the
+          outcomes floating against the panel, and a tint on the actionable row
+          had no edge to stop at. Enclosing the three makes them read as one
+          table of outcomes and gives that tint a shape. */}
+      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+        <ProtectionOutcome icon={CreditCardIcon} title="While the sale is active">
           The full payment remains held. {inPerson ? 'Meeting the seller' : 'Shipping the item'} does not
           release it.
         </ProtectionOutcome>
         <ProtectionOutcome
-          icon={CheckCircle2}
-          title={inPerson ? 'When the buyer confirms handover' : 'When the item is accepted'}
+          icon={CheckmarkCircle02Icon}
+          title={
+            inPerson
+              ? viewerIsBuyer
+                ? 'When you confirm handover'
+                : 'When the buyer confirms handover'
+              : 'When the item is accepted'
+          }
         >
           NoDitto releases the payment to the seller.
         </ProtectionOutcome>
-        <ProtectionOutcome icon={ShieldAlert} title="If the buyer reports a problem">
+        {/* SECOND PERSON FOR THE BUYER, matching the lede above. "If the buyer
+            reports a problem" sitting directly over a button reading "Report a
+            problem" described the reader in the third person while asking them
+            to press it. */}
+        <ProtectionOutcome
+          icon={ShieldAlertIcon}
+          title={viewerIsBuyer ? 'If you report a problem' : 'If the buyer reports a problem'}
+          action={reportAction}
+        >
           A dispute freezes the payment while support reviews both sides. Opening a
           dispute does not guarantee a refund.
         </ProtectionOutcome>
@@ -217,7 +258,7 @@ export function CashSaleProtectionExplainer({
 
       {!inPerson ? (
         <p className="flex gap-snug text-body leading-relaxed text-muted-foreground">
-          <Timer className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={Timer01Icon} className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             If the buyer takes no action before the inspection deadline, the sale
             completes automatically and the seller is paid.

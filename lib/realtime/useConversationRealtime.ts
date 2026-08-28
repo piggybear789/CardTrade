@@ -38,6 +38,54 @@ export interface UseConversationRealtimeResult {
   messages: MessageRow[];
   /** Current Realtime connection status (drives the live indicator). */
   connectionStatus: ConnectionStatus;
+  /** Show a locally-created message before the server has confirmed it. */
+  addOptimistic: (message: MessageRow) => void;
+  /**
+   * Retire a placeholder: swap in the real row on success, or drop it on
+   * failure so a message that never sent does not sit in the thread looking
+   * like it did.
+   */
+  settleOptimistic: (tempId: string, message: MessageRow | null) => void;
+}
+
+/**
+ * Marks a row that exists only in this browser. Prefixed rather than flagged
+ * with an extra field so it survives every path that treats these as plain
+ * `MessageRow`s — sorting, grouping, keying — without widening the type.
+ */
+const OPTIMISTIC_PREFIX = 'optimistic:';
+
+/** True for a placeholder this client created and the server has not echoed. */
+export function isOptimisticMessage(message: MessageRow): boolean {
+  return message.id.startsWith(OPTIMISTIC_PREFIX);
+}
+
+/**
+ * Build the placeholder a composer shows the instant someone hits send.
+ *
+ * `created_at` is the local clock, which is close enough to sort correctly
+ * against a thread whose other rows are minutes old, and is replaced by the
+ * server's value the moment the insert comes back.
+ */
+export function optimisticMessage(input: {
+  conversationId: string;
+  senderId: string;
+  body: string;
+}): MessageRow {
+  return {
+    id: `${OPTIMISTIC_PREFIX}${crypto.randomUUID()}`,
+    conversation_id: input.conversationId,
+    sender_id: input.senderId,
+    kind: 'USER',
+    system_event: null,
+    body: input.body,
+    attachment_path: null,
+    attachment_name: null,
+    attachment_mime: null,
+    attachment_bytes: null,
+    read_at: null,
+    created_at: new Date().toISOString(),
+  };
 }
 
 /** Base delay (ms) for the reconnect backoff. */
@@ -91,11 +139,38 @@ export function useConversationRealtime(
       const next = payload.new as MessageRow;
       if (!next?.id) return;
       setMessages((prev) => {
-        const index = prev.findIndex((m) => m.id === next.id);
-        if (index === -1) return [...prev, next].sort(byCreatedAt);
-        const copy = prev.slice();
+        // Drop the placeholder this row is the echo of. The realtime INSERT can
+        // land BEFORE the server action returns, so waiting for `settle` alone
+        // would show the sender their own message twice for a moment.
+        const withoutEcho = prev.filter(
+          (m) =>
+            !(
+              isOptimisticMessage(m) &&
+              m.sender_id === next.sender_id &&
+              m.body === next.body
+            ),
+        );
+        const index = withoutEcho.findIndex((m) => m.id === next.id);
+        if (index === -1) return [...withoutEcho, next].sort(byCreatedAt);
+        const copy = withoutEcho.slice();
         copy[index] = next;
         return copy.sort(byCreatedAt);
+      });
+    },
+    [],
+  );
+
+  const addOptimistic = useCallback((message: MessageRow) => {
+    setMessages((prev) => [...prev, message].sort(byCreatedAt));
+  }, []);
+
+  const settleOptimistic = useCallback(
+    (tempId: string, message: MessageRow | null) => {
+      setMessages((prev) => {
+        const without = prev.filter((m) => m.id !== tempId);
+        // The realtime echo usually beats this, so only merge when it has not.
+        if (!message || without.some((m) => m.id === message.id)) return without;
+        return [...without, message].sort(byCreatedAt);
       });
     },
     [],
@@ -124,9 +199,21 @@ export function useConversationRealtime(
       if (!isMounted) return;
       if (data) {
         setMessages((prev) => {
+          const rows = data as MessageRow[];
           const map = new Map<string, MessageRow>();
-          for (const m of data as MessageRow[]) map.set(m.id, m);
-          for (const m of prev) map.set(m.id, m);
+          for (const m of rows) map.set(m.id, m);
+          for (const m of prev) {
+            // A placeholder whose real row is already in this refetch has been
+            // superseded. Without this the two would sit side by side, because
+            // they have different ids and both survive the merge.
+            if (
+              isOptimisticMessage(m) &&
+              rows.some((row) => row.sender_id === m.sender_id && row.body === m.body)
+            ) {
+              continue;
+            }
+            map.set(m.id, m);
+          }
           return Array.from(map.values()).sort(byCreatedAt);
         });
       }
@@ -232,5 +319,5 @@ export function useConversationRealtime(
     };
   }, [conversationId, applyMessageChange]);
 
-  return { messages, connectionStatus };
+  return { messages, connectionStatus, addOptimistic, settleOptimistic };
 }

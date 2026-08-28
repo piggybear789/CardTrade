@@ -32,9 +32,6 @@ import type { TradeViewerRole } from '@/domain/state-machine/types';
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
-// Reads the authenticated user's session, so it must render dynamically.
-export const dynamic = 'force-dynamic';
-
 export const metadata = {
   title: 'Trade contract · NoDitto',
   description: 'Live contract status and actions for a 2-way trade.',
@@ -59,11 +56,15 @@ export default async function TradePage({
 
   // RLS grants this read only to the two participants (Req 9.6/9.7); a
   // non-participant (or a missing trade) yields no row -> not found.
+  //
+  // THE WHOLE ROW, not the eight columns the page itself reads. It is also the
+  // seed the room hands `useTradeRealtime`, and `deriveFacts` needs the terms,
+  // shipping, receipt and acceptance timestamps to decide which controls the
+  // viewer gets. A partial row here would render the room with the wrong
+  // actions for a frame and then correct itself.
   const { data: trade } = await supabase
     .from('trades')
-    .select(
-      'id, initiator_id, counterpart_id, state, initiator_item_id, counterpart_item_id, cash_amount_cents, cash_direction',
-    )
+    .select('*')
     .eq('id', tradeId)
     .maybeSingle();
 
@@ -91,12 +92,41 @@ export default async function TradePage({
   // server-side, so the room is now consistent with it.
   const paymentMethodPromise = getPaymentMethodStatus();
 
-  // Compact participant context for the contract workspace (demo-contract-ux
-  // Req 2.1): reputation only, never merchant/compliance detail.
-  const { data: partyRows } = await supabase
-    .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified, avatar_path, social_links')
-    .in('id', [trade.initiator_id, trade.counterpart_id]);
+  // FOUR INDEPENDENT READS, ONE ROUND TRIP. All that any of them needs is the
+  // trade row above, so running them in sequence — which is what writing them as
+  // four statements did — was three round trips of pure latency in front of the
+  // most important screen in the product.
+  //
+  // Holds and transitions are here because the room seeds its realtime hook with
+  // them; fetching them costs nothing extra now that the batch exists, and it is
+  // what lets the contract render in the server's HTML.
+  const [
+    { data: partyRows },
+    { data: tradeItemRows },
+    { data: holdRows },
+    { data: transitionRows },
+  ] = await Promise.all([
+    // Compact participant context for the contract workspace (demo-contract-ux
+    // Req 2.1): reputation only, never merchant/compliance detail.
+    supabase
+      .from('public_profiles')
+      .select('id, display_name, rating, rating_count, is_verified, avatar_path, social_links')
+      .in('id', [trade.initiator_id, trade.counterpart_id]),
+    // What was actually agreed. `trade_items` carries every Item on each side for
+    // a bundle; a straight 1:1 trade predates that table, so fall back to the two
+    // primary Item columns.
+    supabase
+      .from('trade_items')
+      .select('trader_id, item_id')
+      .eq('trade_id', trade.id),
+    supabase.from('pre_auth_holds').select('*').eq('trade_id', trade.id),
+    supabase
+      .from('trade_state_transitions')
+      .select('*')
+      .eq('trade_id', trade.id)
+      .order('created_at'),
+  ]);
+
   const partyById = new Map((partyRows ?? []).map((row) => [row.id as string, row]));
   const partyFor = (id: string) => {
     const row = partyById.get(id);
@@ -113,14 +143,6 @@ export default async function TradePage({
     initiator: partyFor(trade.initiator_id),
     counterpart: partyFor(trade.counterpart_id),
   };
-
-  // What was actually agreed. `trade_items` carries every Item on each side for a
-  // bundle; a straight 1:1 trade predates that table, so fall back to the two
-  // primary Item columns.
-  const { data: tradeItemRows } = await supabase
-    .from('trade_items')
-    .select('trader_id, item_id')
-    .eq('trade_id', trade.id);
 
   const sides = (tradeItemRows ?? []).length
     ? (tradeItemRows ?? []).map((row) => ({
@@ -251,6 +273,14 @@ export default async function TradePage({
         initiatorId={trade.initiator_id}
         counterpartId={trade.counterpart_id}
         viewerRole={viewerRole}
+        // The room renders from this on the server and upgrades to live rows
+        // once the channel connects, rather than starting empty and waiting for
+        // hydration plus a fetch.
+        seed={{
+          trade,
+          holds: holdRows ?? [],
+          transitions: transitionRows ?? [],
+        }}
         goods={goods}
         participants={participants}
         paymentMethod={paymentMethodResult.ok ? paymentMethodResult.data : null}

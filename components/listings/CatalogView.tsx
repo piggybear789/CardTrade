@@ -34,6 +34,8 @@ export interface CatalogBrowseCurrent {
   min: string;
   max: string;
   includeSold: boolean;
+  /** Show items under an active contract. Independent of {@link includeSold}. */
+  includeReserved: boolean;
   sort: CatalogSort;
   page: number;
 }
@@ -83,6 +85,10 @@ interface CatalogViewValue {
   goToPage: (page: number) => void;
   hrefForPage: (page: number) => string;
   regionParam: string | null;
+  /** Set when the last browse fetch failed. Null while the grid is truthful. */
+  error: string | null;
+  /** Re-run the query the failed attempt was for. */
+  retry: () => void;
 }
 
 const CatalogViewContext = createContext<CatalogViewValue | null>(null);
@@ -109,15 +115,19 @@ export function CatalogViewProvider({
   });
   const [revision, setRevision] = useState(0);
   const [isPending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fetchGen = useRef(0);
   const currentRef = useRef(current);
   currentRef.current = current;
+  const settledRef = useRef(settled);
+  settledRef.current = settled;
   const regionParamRef = useRef(initial.regionParam);
   const regionCodeRef = useRef(initial.regionCode);
 
   const runFetch = useCallback(async (next: CatalogBrowseCurrent) => {
     const gen = ++fetchGen.current;
     setPending(true);
+    setError(null);
     const fetched = await fetchCatalogPage({
       q: next.q || undefined,
       categories: next.categories,
@@ -125,6 +135,7 @@ export function CatalogViewProvider({
       minCents: dollarsToCents(next.min),
       maxCents: dollarsToCents(next.max),
       includeSold: next.includeSold || undefined,
+      includeReserved: next.includeReserved || undefined,
       sort: next.sort,
       page: next.page,
       regionCode: regionCodeRef.current,
@@ -132,7 +143,22 @@ export function CatalogViewProvider({
     if (gen !== fetchGen.current) return;
     startTransition(() => {
       setPending(false);
-      if (!fetched.ok) return;
+      // A FAILED FETCH USED TO RETURN SILENTLY, AND THE UI THEN LIED.
+      //
+      // `apply` writes the URL and sets `current` BEFORE the fetch, so on
+      // failure the address bar read `?condition=Mint`, the rail showed Mint
+      // ticked, and the grid showed unfiltered results with no error anywhere.
+      // On a marketplace that is not a blemish, it is a false statement about
+      // inventory — the buyer believes they are seeing only Mint cards.
+      //
+      // Roll the controls back to the query that actually matches `result`, put
+      // the URL back with them, and say so.
+      if (!fetched.ok) {
+        setCurrent(settledRef.current);
+        writeCatalogUrl(settledRef.current, regionParamRef.current);
+        setError('Those filters could not be applied.');
+        return;
+      }
       setSettled(next);
       setResult({
         items: fetched.items,
@@ -146,6 +172,11 @@ export function CatalogViewProvider({
       setRevision((value) => value + 1);
     });
   }, []);
+
+  /** Re-run whatever the controls currently ask for. */
+  const retry = useCallback(() => {
+    void runFetch(currentRef.current);
+  }, [runFetch]);
 
   const resultRef = useRef(result);
   resultRef.current = result;
@@ -224,6 +255,8 @@ export function CatalogViewProvider({
       hrefForPage: (page: number) =>
         catalogHref(current, regionParamRef.current, page),
       regionParam: initial.regionParam,
+      error,
+      retry,
     }),
     [
       filter,
@@ -233,6 +266,8 @@ export function CatalogViewProvider({
       result,
       revision,
       isPending,
+      error,
+      retry,
       initial.currentUserId,
       initial.regionCode,
       initial.regionParam,
@@ -262,7 +297,15 @@ export function CatalogResultCount({ note }: { note?: string }) {
   const count = filtering ? (matchCount ?? 0) : result.total;
 
   return (
-    <p className="text-pretty text-meta text-muted-foreground sm:mt-0.5 sm:text-body" aria-live="polite">
+    // `sr-only sm:not-sr-only`, not `hidden sm:block`. The caller used to wrap
+    // this in `hidden sm:block`, and a `display: none` live region does not
+    // announce — so on a phone the result count was neither visible nor spoken.
+    // Visually hiding it keeps the region in the tree and keeps the count
+    // available to a screen reader at every width.
+    <p
+      className="sr-only text-pretty text-meta text-muted-foreground sm:not-sr-only sm:mt-0.5 sm:text-body"
+      aria-live="polite"
+    >
       <span className="tabular-nums">
         {filtering
           ? `${COUNT_FORMATTER.format(count)} matching`
@@ -281,6 +324,7 @@ export function emptyBrowseCurrent(): CatalogBrowseCurrent {
     min: '',
     max: '',
     includeSold: false,
+    includeReserved: false,
     sort: 'newest',
     page: 1,
   };
@@ -299,6 +343,7 @@ function mergeBrowseCurrent(
   if ('min' in updates) next.min = asString(updates.min);
   if ('max' in updates) next.max = asString(updates.max);
   if ('sold' in updates) next.includeSold = asString(updates.sold) === '1';
+  if ('reserved' in updates) next.includeReserved = asString(updates.reserved) === '1';
   if ('sort' in updates) {
     const sort = asString(updates.sort) as CatalogSort;
     next.sort = SORT_KEYS.includes(sort) ? sort : 'newest';
@@ -338,12 +383,13 @@ function writeCatalogUrl(current: CatalogBrowseCurrent, regionParam: string | nu
   if (current.min) params.set('min', current.min);
   if (current.max) params.set('max', current.max);
   if (current.includeSold) params.set('sold', '1');
+  if (current.includeReserved) params.set('reserved', '1');
   if (current.sort !== 'newest') params.set('sort', current.sort);
   if (current.page > 1) params.set('page', String(current.page));
   if (regionParam) params.set('region', regionParam);
   if (window.location.search.includes('filters=1')) params.set('filters', '1');
   const qs = params.toString();
-  const href = qs ? `/listings?${qs}` : '/listings';
+  const href = qs ? `/?${qs}` : '/';
   window.history.replaceState(window.history.state, '', href);
 }
 
@@ -359,6 +405,7 @@ function catalogHref(
   if (current.min) params.set('min', current.min);
   if (current.max) params.set('max', current.max);
   if (current.includeSold) params.set('sold', '1');
+  if (current.includeReserved) params.set('reserved', '1');
   if (current.sort !== 'newest') params.set('sort', current.sort);
   if (page > 1) params.set('page', String(page));
   if (regionParam) params.set('region', regionParam);
@@ -366,7 +413,7 @@ function catalogHref(
     params.set('filters', '1');
   }
   const qs = params.toString();
-  return qs ? `/listings?${qs}` : '/listings';
+  return qs ? `/?${qs}` : '/';
 }
 
 export function browseCurrentFromSearch(search: string): CatalogBrowseCurrent {
@@ -380,6 +427,7 @@ export function browseCurrentFromSearch(search: string): CatalogBrowseCurrent {
     min: params.get('min')?.trim() ?? '',
     max: params.get('max')?.trim() ?? '',
     includeSold: params.get('sold') === '1',
+    includeReserved: params.get('reserved') === '1',
     sort: sortRaw && SORT_KEYS.includes(sortRaw) ? sortRaw : 'newest',
     page: Number.isFinite(pageRaw) && pageRaw > 1 ? Math.trunc(pageRaw) : 1,
   };

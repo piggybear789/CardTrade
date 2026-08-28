@@ -37,9 +37,6 @@ export const metadata = {
   title: 'Case · NoDitto',
 };
 
-// Live case state and staff capability — never prerender.
-export const dynamic = 'force-dynamic';
-
 export default async function ArbitrationCasePage({
   params,
 }: {

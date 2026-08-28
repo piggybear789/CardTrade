@@ -28,7 +28,7 @@ Playful, protective, and expert. NoDitto uses light Ditto-inspired language to m
 
 1. **Trust is visible and specific.** Show what Stripe Identity verified, what collateral protects, and what Stripe handles.
 2. **Play at the edges, precision at the core.** Use Ditto personality in welcome moments, guidance, and empty states; use plain language for contracts, payments, disputes, and errors.
-3. **Collector credibility comes first.** Preserve the premium auction-ledger foundation while adding restrained Ditto-purple character moments.
+3. **Collector credibility comes first, and violet is how we say it.** Ditto purple is not a garnish on a neutral foundation — it *is* the foundation. The palette runs three violets, one per job: a deep `--primary` for fills that carry white text, a mid `--iris-ink` for violet as text, and the bright `--iris` for rings, borders, and markers. Each depth exists because a contrast floor demanded it, not for variety. Character now lives in the logo, the copy, and the typography; the hue is infrastructure. Restraint means the violet does real work — current state, primary action, focus — and never decorates.
 4. **Every deal explains itself.** Users should always know the current state, responsible party, next action, and consequence.
 5. **Provider transparency is part of safety.** Whenever users pay, clearly name Stripe rather than obscuring the payment provider.
 

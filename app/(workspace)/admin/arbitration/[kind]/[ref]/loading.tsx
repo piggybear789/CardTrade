@@ -9,7 +9,7 @@ import { SectionHeaderSkeleton } from '@/components/layout/WorkspaceSkeletons';
 
 export default function ArbitrationCaseLoading() {
   return (
-    <MarketplaceShellSkeleton>
+    <MarketplaceShellSkeleton title="Cases">
       <div className="min-w-0">
         {/* Shared, not redrawn — see the note in the queue's loading state. */}
         <SectionHeaderSkeleton

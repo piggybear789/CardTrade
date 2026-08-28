@@ -2,7 +2,8 @@ import type { CSSProperties, ReactNode } from 'react';
 import { ViewTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BadgeX, ImageOff, Library, Lock, Star } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BadgeXIcon, ImageOffIcon, LibraryIcon, LockIcon, StarIcon } from '@hugeicons/core-free-icons';
 import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
 
 import { Card } from '@/components/ui/card';
@@ -49,6 +50,25 @@ const UNAVAILABLE_LABEL: Record<string, string> = {
   SOLD: 'Sold',
 };
 
+/**
+ * Split a formatted money string into currency symbol, major units, and minor
+ * units, so each can be sized independently — the digits that decide the
+ * purchase get the weight, and the symbol and cents recede.
+ *
+ * Operates on the formatted output rather than the raw cents because both the
+ * symbol and the decimal separator are locale-dependent. `Intl` has already
+ * decided them, and re-deciding here would drift from it.
+ */
+function splitMoney(formatted: string): {
+  symbol: string;
+  major: string;
+  minor: string;
+} {
+  const match = /^(\D*)(.*?)([.,]\d{2})?$/.exec(formatted);
+  if (!match) return { symbol: '', major: formatted, minor: '' };
+  return { symbol: match[1] ?? '', major: match[2] ?? '', minor: match[3] ?? '' };
+}
+
 function unavailableLabelFor(item: CatalogItem): string | undefined {
   // A shopfront is never RESERVED or SOLD (0064), so the overlay can never
   // apply — and its price is an indicative "from", not an asking price.
@@ -60,7 +80,7 @@ function unavailableLabelFor(item: CatalogItem): string | undefined {
  * Compact browse tile. 3:4 cover at md and up, unchanged; below md it is square
  * by default, or the photo's own shape when the caller passes
  * {@link ItemCardProps.coverDim}, which is what staggers the phone
- * mosaic. Title, gold price, seller. Location stays off the phone tile.
+ * mosaic. Title, iris price, seller. Location stays off the phone tile.
  * Marketplace grid, My Listings, Saved, and seller shops.
  */
 export function CatalogItemCard({
@@ -75,12 +95,21 @@ export function CatalogItemCard({
   // `undefined` means "not in a mosaic" and leaves every class untouched; see
   // the prop doc. `null` is an opted-in tile with an unknown photo.
   const inMosaic = coverDim !== undefined;
+  const price = splitMoney(formatAud(item.fmv_cents));
 
   return (
     <Card
       className={cn(
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border-0 p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_18rem]',
-        'transition-transform duration-100 active:scale-[0.97]',
+        // A border, not `border-0`: the card and the page are both white now,
+        // so the edge is the only thing separating them.
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_15rem]',
+        // `cursor-pointer` ON THE CARD, not left to the anchor. The hit area is
+        // `absolute inset-0 z-0` and the cover paints above it without
+        // `pointer-events-none`, so hovering the photo — most of the tile —
+        // never reached the link and showed the default arrow. Setting it here
+        // covers every child regardless of which one is under the pointer.
+        'cursor-pointer transition-[box-shadow,border-color,transform] duration-150',
+        'hover:border-iris/40 hover:shadow-lift active:scale-[0.97]',
         inMosaic && 'catalog-tile',
         unavailableLabel && 'opacity-70',
       )}
@@ -101,7 +130,9 @@ export function CatalogItemCard({
       <div
         className={cn(
           'relative overflow-hidden bg-muted',
-          inMosaic ? 'catalog-cover' : 'aspect-square md:aspect-[3/4]',
+          // Square at every width. The desktop cover used to be 3:4, which made
+          // the tile tall enough that a row of them dominated the grid.
+          inMosaic ? 'catalog-cover' : 'aspect-square',
         )}
       >
         {imageUrl ? (
@@ -122,26 +153,26 @@ export function CatalogItemCard({
             </div>
           </ViewTransition>
         ) : (
-          <>
-            <div className="h-full w-full md:hidden">
-              <ListingPhotoEmpty title={item.title} compact />
-            </div>
-            <div className="hidden h-full w-full items-center justify-center text-muted-foreground md:flex">
-              <ImageOff className="size-8" aria-hidden="true" />
-              <span className="sr-only">No image available</span>
-            </div>
-          </>
+          // ONE EMPTY-PHOTO TREATMENT AT EVERY WIDTH. Desktop used to branch to
+          // a bare `ImageOff` — the universal "this image failed to load" glyph
+          // — while the phone got `ListingPhotoEmpty`, whose own doc comment
+          // says it exists to be "a card-shaped absence, not a broken-image
+          // slash". On a marketplace where the photo IS the goods, "broken" and
+          // "no photo" are opposite signals and the cheaper inference is that
+          // the site is broken. The wider tile also has room for the caption,
+          // so only the mosaic runs compact.
+          <ListingPhotoEmpty title={item.title} compact={inMosaic} />
         )}
         {unavailableLabel ? (
           <span className="absolute inset-0 z-[1] flex items-center justify-center bg-obsidian/45">
-            <span className="text-meta font-semibold tracking-wide text-parchment">
+            <span className="text-meta font-semibold tracking-wide text-mist">
               {unavailableLabel === 'Sold' ? 'SOLD' : 'RESERVED'}
             </span>
           </span>
         ) : null}
         {isShopfront ? (
-          <span className="absolute left-1 top-1 z-[1] inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-parchment">
-            <Library className="size-3" aria-hidden />
+          <span className="absolute left-1 top-1 z-[1] inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-mist">
+            <HugeiconsIcon icon={LibraryIcon} className="size-3" aria-hidden />
             Binder
           </span>
         ) : null}
@@ -154,42 +185,80 @@ export function CatalogItemCard({
           />
         ) : null}
       </div>
-      <div className="pointer-events-none relative flex min-w-0 flex-col px-1.5 pb-2 pt-1.5">
-        <h3 className="line-clamp-2 text-body font-medium leading-snug text-foreground md:truncate">
+      {/* `gap` on the column, not a margin per row. The rows used to be spaced
+          with `mt-px` and `mt-0.5` — one and two pixels — against 6px of side
+          padding, so the whole block read as one crushed paragraph rather than
+          four distinct facts. */}
+      <div className="pointer-events-none relative flex min-w-0 flex-col gap-1 px-3 pb-2.5 pt-2">
+        {/* TWO LINES AT EVERY WIDTH. This used to add `md:truncate`, so the
+            WIDER screen showed less of the string — and for a graded card the
+            set, year and grade all live in the tail that got cut. */}
+        <h3 className="line-clamp-2 text-body font-medium leading-normal text-foreground">
           {item.title}
         </h3>
-        <p className="mt-px truncate text-lead font-bold leading-tight text-gold">
-          {isShopfront
-            ? `From ${formatAud(item.fmv_cents)}`
-            : formatAud(item.fmv_cents)}
+        {/* Game and condition as plain muted text with a hairline between,
+            rather than a filled chip. Condition is the largest block in the
+            filter rail and was the one fact the grid never confirmed — filter
+            to "Graded" and nothing said graded. A binder holds mixed stock, so
+            it states no single condition. */}
+        <p className="flex min-w-0 items-center gap-1.5 text-body leading-tight text-muted-foreground">
+          <span className="truncate">{item.category}</span>
+          {!isShopfront && item.condition ? (
+            <>
+              <span
+                aria-hidden="true"
+                className="h-3 w-px shrink-0 bg-border"
+              />
+              <span className="shrink-0">{item.condition}</span>
+            </>
+          ) : null}
         </p>
+        {/* THE PRICE LEADS, AND THE SAVE COUNT SITS WITH IT. Not right-aligned
+            across the tile: pushing the count to the far edge reads as a second
+            column and makes the eye travel for a fact that is context on the
+            price. Grouped immediately after it, the two read as one statement —
+            what it costs, and how many people are watching it. */}
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <p className="shrink-0 font-bold leading-none text-iris-ink">
+            {isShopfront ? (
+              <span className="text-meta font-semibold">From </span>
+            ) : null}
+            {/* Three sizes: symbol smallest, digits largest, cents between.
+                Only the digits decide the purchase. */}
+            <span className="text-body">{price.symbol}</span>
+            <span className="text-head">{price.major}</span>
+            {price.minor ? (
+              <span className="text-body">{price.minor}</span>
+            ) : null}
+          </p>
+          {item.watch_count > 0 ? (
+            <span className="min-w-0 truncate text-body leading-tight text-muted-foreground">
+              {item.watch_count} saved
+            </span>
+          ) : null}
+        </div>
         {item.seller ? (
           <Link
             href={`/sellers/${item.seller.id}`}
-            className="pointer-events-auto relative z-10 mt-0.5 flex w-full min-w-0 items-center gap-1.5"
+            className="pointer-events-auto relative z-10 flex w-full min-w-0 items-center gap-1.5"
           >
+            {/* 20px, overriding the `xs` 24px — the seller line is supporting
+                information and the avatar should not outweigh the name. */}
             <Avatar
               avatarPath={item.seller.avatarPath}
               displayName={item.seller.displayName}
               size="xs"
-              className="border-0"
+              className="size-5 border-0"
             />
             <span className="min-w-0 flex-1 truncate text-body text-muted-foreground">
               {item.seller.displayName ?? 'Seller'}
             </span>
-            <IdentityBadge
-              verified={item.seller.isVerified}
-              firstName={item.seller.identityFirstName}
-              size={16}
-              iconOnly
-              className="ml-auto shrink-0"
-            />
+            {item.seller.isVerified ? (
+              <span className="shrink-0">
+                <IdentityBadge verified size={12} />
+              </span>
+            ) : null}
           </Link>
-        ) : null}
-        {item.location_label ? (
-          <p className="mt-px hidden truncate text-meta text-muted-foreground md:block">
-            {item.location_label}
-          </p>
         ) : null}
       </div>
     </Card>
@@ -205,7 +274,7 @@ export function ItemCard({ item, initialWatching }: ItemCardProps) {
   return (
     <Card
       className={cn(
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border p-0 transition-[border-color,box-shadow] duration-150 hover:border-gold/40 hover:shadow-auction',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border p-0 transition-[border-color,box-shadow] duration-150 hover:border-iris/50 hover:shadow-auction',
         unavailableLabel && 'opacity-70',
       )}
     >
@@ -241,7 +310,7 @@ function ItemCardHitArea({
       href={`/listings/${item.id}`}
       transitionTypes={['nav-forward']}
       className={cn(
-        'absolute inset-0 z-0 rounded-xl border border-transparent focus:outline-none focus-visible:border-gold/40',
+        'absolute inset-0 z-0 rounded-xl border border-transparent focus:outline-none focus-visible:border-iris',
         className,
       )}
     >
@@ -303,8 +372,8 @@ function ItemCardStage({
           </div>
         </ViewTransition>
       ) : (
-        <div className="relative z-10 flex h-full w-full items-center justify-center text-parchment/45">
-          <ImageOff className={emptyIconClassName} aria-hidden="true" />
+        <div className="relative z-10 flex h-full w-full items-center justify-center text-mist/45">
+          <HugeiconsIcon icon={ImageOffIcon} className={emptyIconClassName} aria-hidden="true" />
           <span className="sr-only">No image available</span>
         </div>
       )}
@@ -313,11 +382,11 @@ function ItemCardStage({
           <Badge
             variant="secondary"
             className={cn(
-              'gap-1 border-white/15 bg-obsidian/75 text-parchment shadow-sm backdrop-blur hover:bg-obsidian/75',
+              'gap-1 border-white/15 bg-obsidian/75 text-mist shadow-sm backdrop-blur hover:bg-obsidian/75',
               badgeClassName,
             )}
           >
-            <Lock className="size-3" aria-hidden="true" />
+            <HugeiconsIcon icon={LockIcon} className="size-3" aria-hidden="true" />
             {unavailableLabel}
           </Badge>
         </span>
@@ -401,7 +470,7 @@ function ItemCardSellerRow({
           iconOnly
         />
         {!seller.isVerified ? (
-          <BadgeX
+          <HugeiconsIcon icon={BadgeXIcon}
             className="size-3.5 shrink-0 text-destructive"
             role="img"
             aria-label="Unverified seller"
@@ -411,7 +480,7 @@ function ItemCardSellerRow({
 
       {seller.rating != null ? (
         <span className="flex shrink-0 items-center gap-tight text-meta tabular-nums text-muted-foreground">
-          <Star className="size-3 fill-gold text-gold" aria-hidden="true" />
+          <HugeiconsIcon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden="true" />
           {seller.rating.toFixed(1)}
         </span>
       ) : null}

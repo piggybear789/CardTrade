@@ -17,6 +17,8 @@
 
 import { useSyncExternalStore } from 'react';
 
+import { useWorkspaceChrome } from '@/components/layout/WorkspaceChrome';
+
 const SPLIT_QUERY = '(min-width: 1024px)';
 
 function subscribe(onChange: () => void) {
@@ -29,12 +31,25 @@ function getSnapshot() {
   return window.matchMedia(SPLIT_QUERY).matches;
 }
 
-/** SSR assumes the thread, matching the thumb-first first paint. */
-function getServerSnapshot() {
-  return false;
-}
+// Stable identities, as `useSyncExternalStore` requires of a server snapshot.
+const serverSplit = () => true;
+const serverThread = () => false;
 
-/** True once the room is wide enough for details and chat side by side. */
+/**
+ * True once the room is wide enough for details and chat side by side.
+ *
+ * The server answer comes from the viewport hint the browser last wrote, so a
+ * desktop visitor's contract room is rendered as the split in the HTML. It used
+ * to always answer "thread", which meant the room painted the phone layout, then
+ * threw it away at hydration — on top of a skeleton that had already drawn the
+ * split via CSS. Three layouts per navigation, none of them wrong for long
+ * enough to read.
+ */
 export function useContractSplit() {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { viewport } = useWorkspaceChrome();
+  return useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    viewport?.isSplit ? serverSplit : serverThread,
+  );
 }

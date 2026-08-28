@@ -15,7 +15,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ensureProfile } from '@/lib/auth/ensureProfile';
 
 /** Fallback destination for a User who already has a Profile. */
-const DEFAULT_DESTINATION = '/listings';
+const DEFAULT_DESTINATION = '/';
 
 /** Same-origin absolute paths only, so `next` cannot become an open redirect. */
 function safeNextPath(target: string | null): string | null {

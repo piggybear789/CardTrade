@@ -4,7 +4,8 @@
 // call. Kept as a Server Component so it stays cheap and works without JS.
 
 import Link from 'next/link';
-import { Compass, ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CompassIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 
@@ -16,7 +17,7 @@ export default function NotFound() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-4 py-20 text-center sm:px-6">
       <div className="flex size-14 items-center justify-center rounded-full border bg-muted text-muted-foreground">
-        <Compass className="size-6" aria-hidden="true" />
+        <HugeiconsIcon icon={CompassIcon} className="size-6" aria-hidden="true" />
       </div>
       <p className="cardtrade-eyebrow mt-6">Error 404</p>
       <h1 className="mt-4 text-balance font-display text-display font-semibold tracking-[-0.025em]">
@@ -28,14 +29,14 @@ export default function NotFound() {
       </p>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <Button asChild size="lg">
-          <Link href="/listings">Browse the marketplace</Link>
+          <Link href="/">Browse the marketplace</Link>
         </Button>
         <Button asChild size="lg" variant="outline">
           <Link href="/">Back to home</Link>
         </Button>
       </div>
       <p className="mt-10 inline-flex items-center gap-2 text-body text-muted-foreground">
-        <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden="true" />
+        <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden="true" />
         Every trade on NoDitto shows collateral terms and a Stripe Identity check.
       </p>
     </main>

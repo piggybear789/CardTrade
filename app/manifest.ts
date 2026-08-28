@@ -13,8 +13,12 @@ export default function manifest(): MetadataRoute.Manifest {
       'Identity verification, collateral-backed contracts, and Stripe payments for collectors.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f4efe4',
-    theme_color: '#f4efe4',
+    // The literal `--background` value. Keep in step with `viewport.themeColor`
+    // in `app/layout.tsx`.
+    background_color: '#ffffff',
+    // The installed-app fallback for the same surface `viewport.themeColor`
+    // gives a phone: the page, which is now white.
+    theme_color: '#ffffff',
     icons: [
       {
         src: '/icon.png',

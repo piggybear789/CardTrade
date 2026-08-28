@@ -35,7 +35,10 @@ export const metadata: Metadata = {
   description:
     'Buy, sell, and swap high-value collectibles with identity verification, collateral-backed contracts, and payments by Stripe.',
   applicationName: 'NoDitto',
-  alternates: { canonical: '/' },
+  // NO BLANKET CANONICAL HERE. Next merges parent metadata into child, and pages
+  // that set only `title`/`description` inherit everything else — so declaring
+  // `canonical: '/'` at the root told crawlers that every page in the app was a
+  // duplicate of the homepage. Each route states its own where it matters.
   keywords: [
     'collectibles',
     'trading cards',
@@ -62,10 +65,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Phone chrome is cream; desktop keeps the obsidian marketplace header.
+  // Phone chrome is the page surface; desktop keeps the obsidian header.
+  // Both are the literal `--obsidian` / `--background` values.
   themeColor: [
-    { media: '(min-width: 768px)', color: '#0c0b0a' },
-    { media: '(max-width: 767px)', color: '#f4efe4' },
+    { media: '(min-width: 768px)', color: '#120f15' },
+    { media: '(max-width: 767px)', color: '#ffffff' },
   ],
   colorScheme: 'light',
   // Draw under notches/home indicators so the sticky header can pad itself
@@ -94,7 +98,7 @@ export default function RootLayout({
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main-content"
-          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-gold px-4 py-2 text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-gold/90 border border-transparent focus:outline-none focus-visible:translate-y-0 focus-visible:border-parchment"
+          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-iris px-4 py-2 text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-iris/90 border border-transparent focus:outline-none focus-visible:translate-y-0 focus-visible:border-mist"
         >
           Skip to Main Content
         </a>

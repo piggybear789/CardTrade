@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 
 const FOOTER_LINKS = [
-  { href: '/listings', label: 'Marketplace' },
+  { href: '/', label: 'Marketplace' },
   { href: '/trades', label: 'Trades' },
   { href: '/help#holds', label: 'How it works' },
   { href: '/help', label: 'Help' },

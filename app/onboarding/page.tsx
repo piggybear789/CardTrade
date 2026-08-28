@@ -20,6 +20,7 @@ import { redirect } from 'next/navigation';
 
 import type { Step } from '@/components/onboarding/OnboardingWizard';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
+import { listSelectableRegions } from '@/lib/actions/regionOptions';
 import { getCachedProfile } from '@/lib/supabase/cachedAuth';
 
 /** Same-origin absolute paths only, so `redirectTo` cannot become an open redirect. */
@@ -55,14 +56,20 @@ export default async function OnboardingPage({
   if (!returningFromProvider) {
     const profile = await getCachedProfile();
     if (profile?.onboarding_completed_at) {
-      redirect(nextPath ?? '/listings');
+      redirect(nextPath ?? '/');
     }
   }
+
+  // Resolved here for the same reason as the step above: the wizard used to
+  // load this on mount and, until it landed, its region step rendered the
+  // "no regions are open" notice at every member.
+  const regions = await listSelectableRegions();
 
   return (
     <OnboardingWizard
       initialStep={initialStep}
       redirectTo={nextPath}
+      regions={regions}
     />
   );
 }

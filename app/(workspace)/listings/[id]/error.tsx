@@ -1,10 +1,10 @@
 'use client';
 
-// app/error.tsx
+// app/listings/[id]/error.tsx
 //
-// Route-segment error boundary. Catches uncaught errors thrown while rendering
-// any page in the app and offers a recovery path instead of a blank screen.
-// A Client Component, as required by Next.js for error boundaries.
+// Persistence / network failure while loading a listing. Distinct from
+// not-found: a 404 means the listing is gone or hidden; this boundary means
+// the read failed and the listing may still be there.
 
 import { useEffect } from 'react';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ import { RotateCcwIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 
-export default function Error({
+export default function ListingError({
   error,
   reset,
 }: {
@@ -21,8 +21,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Surface the failure for observability without leaking details to the UI.
-    console.error('Route error boundary caught:', error);
+    console.error('Listing load error:', error);
   }, [error]);
 
   return (
@@ -30,13 +29,13 @@ export default function Error({
       <div className="flex size-14 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
         <HugeiconsIcon icon={TriangleAlertIcon} className="size-6" aria-hidden="true" />
       </div>
-      <p className="cardtrade-eyebrow mt-6">Something went wrong</p>
+      <p className="cardtrade-eyebrow mt-6">Couldn&apos;t load listing</p>
       <h1 className="mt-4 text-balance font-display text-display font-semibold tracking-[-0.025em]">
-        This page hit a snag
+        This listing didn&apos;t load
       </h1>
       <p className="mt-3 text-pretty text-body leading-7 text-muted-foreground">
-        Your money and trades are safe. The page just failed to load. Try again,
-        and if it keeps happening, head back to the marketplace.
+        This is a load failure, not a removed listing. Try again, and if it
+        keeps happening, head back to the marketplace.
       </p>
       {error.digest ? (
         <p className="mt-4 font-mono text-meta text-muted-foreground">

@@ -29,8 +29,8 @@ export default function GlobalError({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#0c0b0a',
-          color: '#f4efe4',
+          background: '#120f15',
+          color: '#eeeaf1',
           fontFamily:
             'Inter, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
           padding: '1.5rem',
@@ -43,7 +43,7 @@ export default function GlobalError({
               fontWeight: 600,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: '#c99a3b',
+              color: '#9a6fb8',
             }}
           >
             NoDitto
@@ -62,7 +62,7 @@ export default function GlobalError({
             style={{
               margin: '0.75rem 0 0',
               lineHeight: 1.6,
-              color: 'rgba(244,239,228,0.68)',
+              color: 'rgba(238,234,241,0.72)',
             }}
           >
             An unexpected error stopped the page from rendering. Your account,
@@ -76,8 +76,10 @@ export default function GlobalError({
               cursor: 'pointer',
               borderRadius: '0.5rem',
               border: 'none',
-              background: '#c99a3b',
-              color: '#0c0b0a',
+              // The deeper `--primary`, not `--iris`: the lighter lilac cannot
+              // carry white at this 15px label size.
+              background: '#77469b',
+              color: '#ffffff',
               fontWeight: 600,
               fontSize: '0.95rem',
               padding: '0.75rem 1.75rem',

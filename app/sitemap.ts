@@ -13,10 +13,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  // Static routes
+  // Static routes. The root IS the catalog, so it changes hourly and carries
+  // top priority; `/listings` is a permanent redirect and must stay out of the
+  // sitemap.
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: siteUrl, lastModified: now, changeFrequency: 'daily', priority: 1 },
-    { url: `${siteUrl}/listings`, lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
+    { url: siteUrl, lastModified: now, changeFrequency: 'hourly', priority: 1 },
     { url: `${siteUrl}/sign-up`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${siteUrl}/sign-in`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${siteUrl}/help`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },

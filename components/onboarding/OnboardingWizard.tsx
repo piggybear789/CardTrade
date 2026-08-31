@@ -93,7 +93,24 @@ const WELCOME_POINTS = [
 
 /** Phone: fills leftover viewport so Back/Continue pin to the bottom. md+: in-flow. */
 const WIZARD_SCROLL =
-  'max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:overscroll-contain';
+  'max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-y-auto max-md:overscroll-contain';
+
+/**
+ * Phone: centres the step in whatever height is left between the progress dots and
+ * the footer. md+: inert, because the desktop panel already shrink-wraps its content
+ * and is centred by the dialog's own translate.
+ *
+ * `my-auto` on the flex CHILD rather than `justify-center` on the scroll parent, and
+ * the difference is not cosmetic: `justify-content: center` in a scroll container
+ * makes overflow spill past the START edge, where it is unreachable — the top of a
+ * long step would be scrolled away with no way back to it. Auto margins absorb free
+ * space when there is some and collapse to zero when there is none, so a short step
+ * centres and a tall one behaves exactly like the top-aligned scroller it was.
+ *
+ * `shrink-0` because a flex child defaults to shrinking: without it a step taller than
+ * the viewport is squeezed to fit and spills out of its own box instead of scrolling.
+ */
+const WIZARD_CENTER = 'max-md:my-auto max-md:shrink-0';
 
 /** Phone: pinned under the scroll region. md+: in-card, matching DialogFooter. */
 function WizardFooter({ children }: { children: ReactNode }) {
@@ -289,6 +306,7 @@ export function OnboardingWizard({
           ) : null}
 
           <div className={WIZARD_SCROLL}>
+          <div className={WIZARD_CENTER}>
           {step === 'welcome' ? (
             <div className="space-y-group">
               <DialogHeader className="space-y-2 pr-0 text-center">
@@ -576,6 +594,7 @@ export function OnboardingWizard({
 
             </div>
           ) : null}
+          </div>
           </div>
 
           {step === 'welcome' ? (

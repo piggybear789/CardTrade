@@ -141,25 +141,47 @@ export type MobileHubId =
   | 'messages'
   | 'account';
 
-export type MobileHub =
-  | {
-      id: MobileHubId;
-      kind: 'link';
-      href: string;
-      label: string;
-      icon: IconSvgElement;
-      isActive: (pathname: string) => boolean;
-    }
-  | {
-      id: MobileHubId;
-      kind: 'sheet';
-      label: string;
-      icon: IconSvgElement;
-      title: string;
-      description: string;
-      links: readonly MarketplaceNavLink[];
-      isActive: (pathname: string) => boolean;
-    };
+/**
+ * Whether a hub is reachable without a session.
+ *
+ * Declared per hub rather than inferred, because the bar is now mounted for guests
+ * too and "which of these five can a signed-out visitor actually use" is a product
+ * decision that has to be made once, here, instead of re-derived at each call site.
+ */
+type HubAudience = { requiresAuth: boolean };
+
+export type MobileHub = HubAudience &
+  (
+    | {
+        id: MobileHubId;
+        kind: 'link';
+        href: string;
+        label: string;
+        icon: IconSvgElement;
+        isActive: (pathname: string) => boolean;
+      }
+    | {
+        id: MobileHubId;
+        kind: 'sheet';
+        label: string;
+        icon: IconSvgElement;
+        title: string;
+        description: string;
+        links: readonly MarketplaceNavLink[];
+        isActive: (pathname: string) => boolean;
+      }
+  );
+
+/**
+ * Where signing in should land a guest who tapped this hub.
+ *
+ * Their destination, not the page they were standing on: someone who taps "Inbox"
+ * wants the inbox once they are through, and bouncing them back to the listing they
+ * were reading makes them tap it a second time.
+ */
+export function mobileHubDestination(hub: MobileHub): string {
+  return hub.kind === 'link' ? hub.href : (hub.links[0]?.href ?? '/');
+}
 
 const CONTRACT_LINKS = MARKETPLACE_NAV_GROUPS[1].links;
 const SELL_LINKS = MARKETPLACE_NAV_GROUPS[2].links;
@@ -171,6 +193,8 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     kind: 'link',
     href: '/',
     label: 'Browse',
+    // The catalog is public, so this is the one hub a guest can use as-is.
+    requiresAuth: false,
     icon: LayoutGridIcon,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/') ||
@@ -180,6 +204,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     id: 'contracts',
     kind: 'sheet',
     label: 'Contracts',
+    requiresAuth: true,
     icon: HandshakeIcon,
     title: 'Contracts',
     description: 'Start a private deal, or open purchases, sales, and trades.',
@@ -193,6 +218,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     id: 'sell',
     kind: 'sheet',
     label: 'Sell',
+    requiresAuth: true,
     icon: PackageIcon,
     title: 'Selling',
     description: 'Your listings and incoming offers.',
@@ -207,6 +233,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     kind: 'link',
     href: '/messages',
     label: 'Inbox',
+    requiresAuth: true,
     icon: MessageCircleIcon,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/messages'),
@@ -216,6 +243,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     kind: 'link',
     href: '/profile',
     label: 'Account',
+    requiresAuth: true,
     icon: UserRoundIcon,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/profile') ||

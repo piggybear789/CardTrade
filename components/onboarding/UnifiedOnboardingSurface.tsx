@@ -23,10 +23,17 @@
 // all. `EmbeddedIdentityStep` / `EmbeddedPayoutStep` stay in the tree for a non-dialog
 // surface.
 //
+// EVERY MOUNT RECONCILES AGAINST THE PROVIDER. `getIdentityCheckState` and
+// `getMerchantState` read our own columns, which a webhook writes — and a member
+// returning from Stripe arrives before that webhook does, so those reads paint the
+// first frame and decide nothing. `reconcile` below then asks Stripe directly and, for
+// identity, keeps asking while the session is still under review. Without it a passing
+// check and an untouched one render identically, which is exactly what shipped.
+//
 // THE TWO GATES STAY INDEPENDENT. This unifies the UI only. Identity status comes from
-// `getIdentityCheckState` (the Identity_Gate input) and payout status from
-// `getMerchantState` (the payout input); they are read, rendered and completed
-// separately, and a verified seller with no payout account is a valid resting state
+// the Identity_Gate input and payout status from the payout input; they are read,
+// rendered and completed separately, and a verified seller with no payout account is a
+// valid resting state
 // (Req 1.6, 8.3) — which is why the surface tells them plainly that they can already
 // list and sell while payouts are outstanding.
 //
@@ -37,14 +44,39 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation';
 
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { ArrowRight01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
-import { getIdentityCheckState } from '@/lib/actions/identity';
-import { getMerchantState } from '@/lib/actions/merchant';
+import { getIdentityCheckState, refreshIdentityCheck } from '@/lib/actions/identity';
+import { getMerchantState, refreshPayoutStatus } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OnboardingSpine, OnboardingSpineStep } from './OnboardingSpine';
 import { HostedProviderStep } from './HostedProviderStep';
+
+/**
+ * How long to keep asking Stripe for a verdict, and how the gaps grow.
+ *
+ * Sized from observed provider behaviour: a document session moves
+ * `created -> processing -> verified` in roughly seven seconds. A member is back on
+ * this page one or two seconds after submitting, so a SINGLE read on return lands on
+ * PENDING every single time — which is precisely how a passing check came to look
+ * like a broken page offering the same button forever.
+ *
+ * Totals a little over forty seconds across eight reads, then stops and says so.
+ * Stopping matters: a manual review can take minutes, and a spinner that never ends
+ * is a worse answer than "we are still waiting, come back".
+ */
+const REVIEW_POLL_DELAYS_MS = [1_500, 2_500, 3_500, 5_000, 7_000, 9_000, 12_000];
+
+/** Shown when the provider declined but gave us no sentence of its own. */
+const DECLINED_WITHOUT_REASON =
+  'Stripe could not verify that document. You can try again with a different one.';
+
+/** Shown when the poll budget runs out with the session still under review. */
+const STILL_UNDER_REVIEW =
+  'Stripe is still reviewing your document. This can take a few minutes — reload this page to check again.';
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** Both gates as a caller already knows them, for {@link UnifiedOnboardingSurfaceProps.initialStatus}. */
 export interface OnboardingStatusSnapshot {
@@ -97,17 +129,31 @@ export function UnifiedOnboardingSurface({
     initialStatus?.verifiedName ?? null,
   );
   const [loadError, setLoadError] = useState(false);
+  /** True only while a real session is known to be mid-review at the provider. */
+  const [identityChecking, setIdentityChecking] = useState(false);
+  /** The provider's verdict, or our own note that it has not delivered one yet. */
+  const [identityProblem, setIdentityProblem] = useState<string | null>(null);
 
   const settledChange = useRef(onSettledChange);
   settledChange.current = onSettledChange;
+
+  // Which poll run owns the component. Bumped on every mount AND every unmount, so an
+  // in-flight poll can tell that it has been superseded and stop writing.
+  //
+  // A boolean would not survive StrictMode's mount/unmount/mount in development: the
+  // cleanup clears it, the second mount sets it again, and the FIRST poll — still
+  // sleeping between reads — wakes up believing it is current and runs a duplicate
+  // sequence of provider calls alongside the real one.
+  const runId = useRef(0);
 
   // Whether the first paint came from a server read. A refresh that then fails must
   // not blank a spine already showing something true — the seed is seconds old and
   // every control on it re-validates server-side before it does anything.
   const seeded = useRef(initialStatus !== undefined);
 
-  // Resume from the authoritative read-back rather than assuming a fresh start
-  // (Req 13.3). Both reads are independent, matching the two independent gates.
+  // Our own columns, no provider round trip. Fast enough to paint against, but NOT
+  // authoritative: they are written by a webhook, and a member returning from Stripe
+  // beats that webhook nearly every time.
   const load = useCallback(async () => {
     setLoadError(false);
     const [identity, merchant] = await Promise.all([
@@ -118,7 +164,7 @@ export function UnifiedOnboardingSurface({
     if (!identity.ok && !merchant.ok) {
       if (!seeded.current) setLoadError(true);
       setLoaded(true);
-      return;
+      return null;
     }
 
     const identityOk = identity.ok && identity.data.status === 'VERIFIED';
@@ -132,14 +178,98 @@ export function UnifiedOnboardingSurface({
     // caller would otherwise change identity every render, changing `load`, re-firing
     // the effect below, and turning one status read into an endless loop of them.
     settledChange.current?.(identityOk && payoutOk);
+
+    return { identityOk, payoutOk, merchantRef: merchant.ok ? merchant.data.merchantRef : null };
   }, []);
 
-  useEffect(() => {
-    void load();
+  /**
+   * Ask the PROVIDER, not our database, and keep asking while it is still deciding
+   * (Req 13.3).
+   *
+   * This is the reliable path the spec has always called for, and the surface has to
+   * own it. Mounting `IdentityReturnRefresh` here instead is not an option: it strips
+   * `?identity=complete` from the URL, and that marker is what `app/onboarding/page.tsx`
+   * reads to open the wizard on this step — removing it would bounce a returning member
+   * back to the welcome screen.
+   */
+  const reconcile = useCallback(async (run: number) => {
+    const current = () => runId.current === run;
+
+    const snapshot = await load();
+    if (!snapshot || !current()) return;
+
+    if (!snapshot.identityOk) {
+      let verdictReached = false;
+
+      for (let attempt = 0; attempt <= REVIEW_POLL_DELAYS_MS.length; attempt += 1) {
+        const read = await refreshIdentityCheck();
+        if (!current()) return;
+
+        if (!read.ok) {
+          // NO_CHECK means nothing was ever started, so no verdict is coming and the
+          // step is simply waiting on the member. Any other failure is a transport
+          // problem, and a stale spine beats inventing a refusal.
+          verdictReached = true;
+          break;
+        }
+
+        if (read.data.status === 'VERIFIED') {
+          setIdentityDone(true);
+          setVerifiedName(read.data.verifiedName);
+          setIdentityProblem(null);
+          settledChange.current?.(snapshot.payoutOk);
+          verdictReached = true;
+          break;
+        }
+
+        if (read.data.status === 'FAILED') {
+          // Stripe's own sentence when it gave one ("The document is invalid."), because
+          // it tells the member what to change. Ours only when it did not.
+          setIdentityProblem(read.data.failureReason ?? DECLINED_WITHOUT_REASON);
+          verdictReached = true;
+          break;
+        }
+
+        const delay = REVIEW_POLL_DELAYS_MS[attempt];
+        if (delay === undefined) break;
+
+        // Only now is it true that a real session is mid-review. Setting this before
+        // the first read would flash "Checking" at members who never started one.
+        setIdentityChecking(true);
+        await sleep(delay);
+        if (!current()) return;
+      }
+
+      if (!current()) return;
+      setIdentityChecking(false);
+      if (!verdictReached) setIdentityProblem(STILL_UNDER_REVIEW);
+    }
+
+    // Payouts get the same read-back but no poll. Connect reports `payouts_enabled` on
+    // the return itself, and where it does not the wait is a genuine multi-minute
+    // review that a forty-second spinner would misrepresent as nearly done.
+    if (!snapshot.payoutOk && snapshot.merchantRef) {
+      const read = await refreshPayoutStatus();
+      if (!current()) return;
+      if (read.ok && read.data.settlementsEnabled) {
+        setPayoutDone(true);
+        settledChange.current?.(true);
+      }
+    }
   }, [load]);
+
+  useEffect(() => {
+    const run = runId.current + 1;
+    runId.current = run;
+    void reconcile(run);
+    return () => {
+      runId.current += 1;
+    };
+  }, [reconcile]);
 
   function finishIdentity() {
     setIdentityDone(true);
+    setIdentityProblem(null);
     void load();
   }
 
@@ -206,13 +336,29 @@ export function UnifiedOnboardingSurface({
           title="Verify your identity"
           description="We verify your identity to block known fraudsters from selling on the platform."
           receipt={verifiedName ? `Verified as ${verifiedName}` : 'Verified'}
+          problem={identityProblem}
           hasNext
         >
-          <HostedProviderStep
-            step="identity"
-            returnPath={returnPath}
-            onComplete={finishIdentity}
-          />
+          {identityChecking ? (
+            <p
+              role="status"
+              className="flex items-center gap-snug text-body leading-relaxed text-muted-foreground"
+            >
+              <HugeiconsIcon
+                icon={LoaderCircleIcon}
+                className="size-4 shrink-0 animate-spin"
+                aria-hidden
+              />
+              Checking with Stripe…
+            </p>
+          ) : (
+            <HostedProviderStep
+              step="identity"
+              returnPath={returnPath}
+              onComplete={finishIdentity}
+              retry={identityProblem !== null}
+            />
+          )}
         </OnboardingSpineStep>
 
         <OnboardingSpineStep

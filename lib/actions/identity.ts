@@ -336,6 +336,19 @@ export interface IdentityCheckState {
   status: IdentityCheckStatus;
   verifiedName: string | null;
   verifiedAt: string | null;
+  /**
+   * The provider's own words for why it declined, when it did.
+   *
+   * NOT PERSISTED, because there is no column for it and inventing one would put a
+   * provider sentence in our schema. It is therefore present only on the read-back
+   * that observed the decline; a later {@link getIdentityCheckState} reports FAILED
+   * with no reason and the surface falls back to generic retry copy.
+   *
+   * It exists at all because the alternative is what shipped: Stripe answered "the
+   * document is invalid", the answer went into `webhook_logs`, and the member was
+   * shown an unchanged button.
+   */
+  failureReason: string | null;
 }
 
 /**
@@ -361,6 +374,8 @@ export async function getIdentityCheckState(): Promise<
     status: ((data?.identity_check_status as IdentityCheckStatus | null) ?? 'NONE'),
     verifiedName: (data?.identity_check_name as string | null) ?? null,
     verifiedAt: (data?.identity_check_verified_at as string | null) ?? null,
+    // No column to read it from. Only the read-back carries a reason.
+    failureReason: null,
   });
 }
 
@@ -442,5 +457,6 @@ export async function refreshIdentityCheck(): Promise<
       decision === 'verified'
         ? (check.verifiedAt ?? ((profile?.identity_check_verified_at as string | null) ?? null))
         : ((profile?.identity_check_verified_at as string | null) ?? null),
+    failureReason: decision === 'failed' ? (check.failureReason ?? null) : null,
   });
 }

@@ -30,12 +30,21 @@ export interface HostedProviderStepProps {
   returnPath?: string;
   /** Raised when the hosted/mock flow reports this step complete. */
   onComplete: () => void;
+  /**
+   * Whether a previous attempt was declined, which changes the label to "Try again".
+   *
+   * The caller owns this because the verdict comes from the read-back, not from this
+   * button: an unchanged "Continue with Stripe" after a refusal is exactly what made a
+   * declined document look like a broken page.
+   */
+  retry?: boolean;
 }
 
 export function HostedProviderStep({
   step,
   returnPath = '/onboarding',
   onComplete,
+  retry = false,
 }: HostedProviderStepProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -58,7 +67,6 @@ export function HostedProviderStep({
           // Mock: there is no hosted page, so read back and report.
           const refreshed = await refreshIdentityCheck();
           if (refreshed.ok && refreshed.data.status === 'VERIFIED') {
-            
             onComplete();
             return;
           }
@@ -75,13 +83,9 @@ export function HostedProviderStep({
           window.location.assign(started.data.url);
           return;
         }
-        // Mock: creating the account was the whole flow.
-        const refreshed = await refreshPayoutStatus();
-        if (refreshed.ok && refreshed.data.settlementsEnabled) {
-          
-        } else {
-          
-        }
+        // Mock: creating the account was the whole flow. The read-back still runs so
+        // the surface reloads against persisted state rather than the click.
+        await refreshPayoutStatus();
         onComplete();
       } catch (err) {
         setError(
@@ -116,7 +120,7 @@ export function HostedProviderStep({
         ) : (
           <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
         )}
-        {isPending ? 'Opening…' : 'Continue with Stripe'}
+        {isPending ? 'Opening…' : retry ? 'Try again' : 'Continue with Stripe'}
       </Button>
     </div>
   );

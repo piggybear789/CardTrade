@@ -26,7 +26,6 @@ import {
 import { MarketplaceNav } from '@/components/layout/MarketplaceNav';
 import { PageShell } from '@/components/layout/PageShell';
 import { DirectionalTransition } from '@/components/motion/DirectionalTransition';
-import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { cn } from '@/lib/utils';
 
 export { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
@@ -77,13 +76,13 @@ export async function MarketplaceShell({
   flush?: boolean;
   children: ReactNode;
 }) {
-  // A cache hit. `app/(workspace)/layout.tsx` resolved this for the request
-  // before the page began rendering, so the shell no longer appends a round trip
-  // to the end of every page's critical path. Only the padding below depends on
-  // it — the hub bar itself is mounted by the layout, where it survives
-  // navigation instead of being torn down and rebuilt.
-  const user = await getCachedAuthUser();
-  const showMobileNav = Boolean(user);
+  // The auth read that used to live here is gone. It existed only to decide whether
+  // to reserve room for the hub bar, and the bar is now mounted below `md` for every
+  // visitor — so the answer is unconditionally yes and there is nothing to ask.
+  //
+  // That also settles a real layout shift: `MarketplaceShellSkeleton` always reserved
+  // the space (it renders inside `loading.tsx` and has no session to read), so a guest
+  // saw 5.5rem of padding collapse to 2.5rem the moment the page resolved.
 
   return (
     <DirectionalTransition>
@@ -213,10 +212,8 @@ export async function MarketplaceShell({
             // `h-16` (4rem) + 1px border + the top inset. The mobile hub bar is
             // `h-14` (3.5rem) + 1px top border + the bottom inset.
             flush &&
-              (showMobileNav
-                ? 'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'
-                : 'max-h-[calc(100dvh-env(safe-area-inset-top))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]'),
-            // Leave room for the fixed mobile hub bar when it is mounted.
+              'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
+            // Leave room for the fixed mobile hub bar.
             //
             // A flush page takes ORDINARY bottom padding, and this is a reversal worth
             // stating: it used to take `pb-0` because, with no ceiling on the section,
@@ -233,11 +230,7 @@ export async function MarketplaceShell({
             // supplies the space above the field, this supplies the space below,
             // and the two have to match. At `md:pb-7` there was 28px under the
             // field against 12px over it, which read as the field riding high.
-            flush
-              ? 'pb-4'
-              : showMobileNav
-                ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10'
-                : 'pb-10',
+            flush ? 'pb-4' : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',
             center && 'justify-center',
           )}
         >

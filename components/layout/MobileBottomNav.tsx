@@ -1,9 +1,18 @@
 'use client';
 
-// Thumb-reach workspace chrome for signed-in marketplace routes below `lg`.
-// Five hubs replace the wrapping chip rail; Contracts and Sell open short
-// sheets so the full section glossary stays one tap away without eating the
-// first screenful of content.
+// Thumb-reach workspace chrome for marketplace routes below `lg`. Five hubs replace
+// the wrapping chip rail; Contracts and Sell open short sheets so the full section
+// glossary stays one tap away without eating the first screenful of content.
+//
+// GUESTS GET THE BAR TOO. It used to be mounted only for a signed-in member, which
+// meant the two routes a signed-out visitor can actually reach — the catalog and a
+// listing page — were the only two screens in the app with no bottom navigation at
+// all. Having arrived on a listing from a search result, they had nothing to tap.
+//
+// What changes for them is the DESTINATION, not the chrome: an auth-gated hub becomes
+// a link into sign-in carrying that hub's own target, so the tap still means what it
+// looked like it meant. Nothing here decides access — `proxy.ts` still guards every
+// protected path, and this only spares the guest a bounce.
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -15,6 +24,7 @@ import { useStartDeal } from '@/components/deals/StartDealProvider';
 import {
   MOBILE_HUBS,
   isMarketplaceSectionActive,
+  mobileHubDestination,
   type MobileHub,
   type MobileHubId,
 } from '@/components/layout/marketplace-nav-config';
@@ -90,7 +100,12 @@ function HubSheetLinks({
   );
 }
 
-export function MobileBottomNav() {
+export interface MobileBottomNavProps {
+  /** Resolved by the workspace layout; decides where a gated hub points. */
+  isAuthenticated: boolean;
+}
+
+export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
   const pathname = usePathname();
   const [openHub, setOpenHub] = useState<MobileHubId | null>(null);
 
@@ -118,6 +133,28 @@ export function MobileBottomNav() {
                 ? 'font-semibold text-foreground'
                 : 'font-medium text-muted-foreground',
             );
+
+            // A guest tapping a gated hub goes straight to sign-in aimed at that hub.
+            // Opening the sheet instead would show a menu whose every entry bounces.
+            if (!isAuthenticated && hub.requiresAuth) {
+              const destination = mobileHubDestination(hub);
+              return (
+                <li key={hub.id} className="min-w-0">
+                  <Link
+                    href={`/sign-in?redirectTo=${encodeURIComponent(destination)}`}
+                    className={className}
+                  >
+                    <HugeiconsIcon
+                      icon={Icon}
+                      className="size-5 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">{hub.label}</span>
+                    <span className="sr-only">(sign in required)</span>
+                  </Link>
+                </li>
+              );
+            }
 
             if (hub.kind === 'link') {
               return (
@@ -167,9 +204,12 @@ export function MobileBottomNav() {
         </ul>
       </nav>
 
+      {/* Guests never reach a sheet — their gated hubs are sign-in links — so the
+          sheets are not mounted for them. `HubSheetLinks` reads `StartDealProvider`,
+          which is a signed-in concern. */}
       {MOBILE_HUBS.filter(
         (hub): hub is Extract<MobileHub, { kind: 'sheet' }> =>
-          hub.kind === 'sheet',
+          isAuthenticated && hub.kind === 'sheet',
       ).map((hub) => (
         <Sheet
           key={hub.id}

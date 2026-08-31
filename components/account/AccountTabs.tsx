@@ -16,8 +16,33 @@
 // Desktop keeps the underline: there is no bottom bar to compete with, the pointer
 // makes small targets fine, and the strip lines up with the tabbed surfaces
 // elsewhere in the app.
+//
+// SWITCHING IS NO LONGER A NAVIGATION. Each tab used to be a `<Link>` to
+// `/profile?tab=…`, so changing tab refetched the whole server tree: an `auth.getUser`,
+// the profile row, the identity and payout reads, and then whichever of the live Stripe
+// payment-method call or the seven-query payouts chain that tab needed. That is the lag.
+//
+// The page now renders all three panels once and hands them here, so a tab change is
+// local state and nothing crosses the network. The panels are held in `<Activity>`
+// rather than conditionally rendered, which buys two things: a panel keeps its DOM and
+// state while hidden, and a HIDDEN panel's effects are torn down — so the identity
+// read-back and its Stripe poll inside `VerificationSequence` do not run for a member
+// who only ever opens Profile.
+//
+// THE TABS ARE STILL LINKS. Real hrefs keep deep links, middle-click, copy-link and the
+// no-JS path working; the click handler intercepts only a plain left click. History is
+// kept in step with `pushState`, which the App Router supports and which — unlike
+// `router.push` — does not refetch the server tree, so Back still moves between tabs
+// without reintroducing the round trip.
 
-import { ViewTransition } from 'react';
+import {
+  Activity,
+  startTransition,
+  useEffect,
+  useState,
+  ViewTransition,
+  type ReactNode,
+} from 'react';
 import Link from 'next/link';
 import { TabIndicator } from '@/components/motion/TabIndicator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +53,18 @@ const TABS = [
   { id: 'verification', label: 'Verification' },
   { id: 'payouts', label: 'Payouts' },
 ] as const;
+
+export type AccountTabId = (typeof TABS)[number]['id'];
+
+/** Shared with the page so the server's first paint and this strip cannot disagree. */
+export function resolveAccountTab(raw: string | null | undefined): AccountTabId {
+  return raw === 'verification' || raw === 'payouts' ? raw : 'profile';
+}
+
+/** Profile is the bare path, so the landing tab has one canonical URL rather than two. */
+function tabHref(id: AccountTabId): string {
+  return id === 'profile' ? '/profile' : `/profile?tab=${id}`;
+}
 
 // GEOMETRY LIVES HERE ONCE, so `AccountTabsSkeleton` cannot drift away from the real
 // strip. The loading state used to draw its own underlined nav with its own gaps and
@@ -54,48 +91,106 @@ const ITEM_SHAPE = [
   'md:min-h-0 md:justify-start md:rounded-none md:px-tight md:pb-cozy',
 ].join(' ');
 
-export function AccountTabs({ activeTab }: { activeTab: string }) {
+export interface AccountTabsProps {
+  /** Resolved on the server from `?tab=`, so a deep link opens on the right panel. */
+  initialTab: AccountTabId;
+  /** All three panels, server-rendered once. Hidden ones cost no effects. */
+  panels: Record<AccountTabId, ReactNode>;
+}
+
+export function AccountTabs({ initialTab, panels }: AccountTabsProps) {
+  const [activeTab, setActiveTab] = useState<AccountTabId>(initialTab);
+
+  // `pushState` leaves a history entry but fires no navigation, so Back has to be
+  // answered here or it would silently leave the URL and the panel disagreeing.
+  useEffect(() => {
+    function onPopState() {
+      const raw = new URLSearchParams(window.location.search).get('tab');
+      startTransition(() => setActiveTab(resolveAccountTab(raw)));
+    }
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  function selectTab(id: AccountTabId) {
+    if (id === activeTab) return;
+    window.history.pushState(null, '', tabHref(id));
+    // Inside a Transition so the chip below can morph between segments; a bare
+    // `setState` does not activate a view transition.
+    startTransition(() => setActiveTab(id));
+  }
+
   return (
-    <nav aria-label="Account sections" className={NAV_SHAPE}>
-      <ul className={TRACK_SHAPE}>
-        {TABS.map((tab) => {
-          const active = activeTab === tab.id;
-          return (
-            <li key={tab.id} className="min-w-0">
-              <Link
-                href={tab.id === 'profile' ? '/profile' : `/profile?tab=${tab.id}`}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  ITEM_SHAPE,
-                  'touch-manipulation transition-colors',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
-                  active ? 'text-foreground' : 'text-muted-foreground md:hover:text-foreground',
-                )}
-              >
-                {/* THE CHIP IS ITS OWN ELEMENT SO IT CAN TRAVEL. As a background on
-                    the link it could only cut from one segment to the next; named and
-                    shared, exactly one is mounted at a time and the pair that forms
-                    across a tab change morphs its rectangle, so the selection slides
-                    the way a native segmented control does. */}
-                {active ? (
-                  <ViewTransition name="account-tab-chip" share="morph">
-                    <span
-                      aria-hidden
-                      className="absolute inset-0 rounded-md bg-card shadow-sm md:hidden"
-                    />
-                  </ViewTransition>
-                ) : null}
-                {/* Above the chip, which is painted into the same box. */}
-                <span className="relative truncate">{tab.label}</span>
-                {/* Underline only exists in the desktop presentation; on the phone
-                    the chip carries selection. */}
-                {active ? <TabIndicator layoutId="account-tabs" className="hidden md:block" /> : null}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <>
+      <nav aria-label="Account sections" className={NAV_SHAPE}>
+        <ul className={TRACK_SHAPE}>
+          {TABS.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <li key={tab.id} className="min-w-0">
+                <Link
+                  href={tabHref(tab.id)}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={(event) => {
+                    // Anything but a plain left click is the member asking the BROWSER
+                    // for something — a new tab, a copied address — so it is left alone.
+                    if (
+                      event.button !== 0 ||
+                      event.metaKey ||
+                      event.ctrlKey ||
+                      event.shiftKey ||
+                      event.altKey
+                    ) {
+                      return;
+                    }
+                    event.preventDefault();
+                    selectTab(tab.id);
+                  }}
+                  className={cn(
+                    ITEM_SHAPE,
+                    'touch-manipulation transition-colors',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
+                    active ? 'text-foreground' : 'text-muted-foreground md:hover:text-foreground',
+                  )}
+                >
+                  {/* THE CHIP IS ITS OWN ELEMENT SO IT CAN TRAVEL. As a background on
+                      the link it could only cut from one segment to the next; named and
+                      shared, exactly one is mounted at a time and the pair that forms
+                      across a tab change morphs its rectangle, so the selection slides
+                      the way a native segmented control does. */}
+                  {active ? (
+                    <ViewTransition name="account-tab-chip" share="morph">
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 rounded-md bg-card shadow-sm md:hidden"
+                      />
+                    </ViewTransition>
+                  ) : null}
+                  {/* Above the chip, which is painted into the same box. */}
+                  <span className="relative truncate">{tab.label}</span>
+                  {/* Underline only exists in the desktop presentation; on the phone
+                      the chip carries selection. */}
+                  {active ? (
+                    <TabIndicator layoutId="account-tabs" className="hidden md:block" />
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* The panel crossfade that used to wrap this is gone with the navigation it was
+          masking. It existed because a tab change blanked the panel and repainted it
+          from a fresh server render; a local state swap has no blank to hide, and fading
+          a panel that is already there just delays it. The chip morph above stays —
+          that one animates the SELECTION, which is still a real change. */}
+      {TABS.map((tab) => (
+        <Activity key={tab.id} mode={tab.id === activeTab ? 'visible' : 'hidden'}>
+          {panels[tab.id]}
+        </Activity>
+      ))}
+    </>
   );
 }
 

@@ -51,27 +51,18 @@ const HOUR_MS = 3_600_000;
  */
 const MAX_TRADES_PER_PASS = 25;
 
-/**
- * How long a trade may sit in COLLATERAL_PENDING before a human is told.
- *
- * COLLATERAL_PENDING is a MOMENT, not a phase. `placeBondsForAgreedTrade` authorises
- * both cards and `syncHolds` reads the results back immediately and dispatches
- * HOLDS_CONFIRMED or HOLDS_FAILED, all in one request. A trade should pass through in
- * seconds.
- *
- * If it does not — the process died between placing the holds and syncing them, or the
- * read-back failed — the state machine has no other exit: HOLDS_FAILED loops back to
- * COLLATERAL_PENDING rather than terminating. The trade then sits with two live
- * authorisations against two members' cards and nothing advancing it. The only thing
- * that eventually noticed was `expire_lapsed_holds`, roughly SEVEN DAYS later when the
- * authorisations lapsed of their own accord.
- *
- * An hour is generous for something that should take seconds, and on an hourly schedule
- * it means a stuck trade is surfaced within two hours instead of a week. Nothing is
- * moved or reversed here — money on hold is not money lost, and guessing which way a
- * half-finished authorisation should resolve is exactly the decision a human should make.
- */
-const STALE_COLLATERAL_HOURS = 1;
+// THE ELAPSED-TIME DEFINITION OF "STUCK" IS GONE, and it had to be.
+//
+// `STALE_COLLATERAL_HOURS = 1` lived here because COLLATERAL_PENDING was a MOMENT: the
+// same request that agreed terms authorised both cards and read the result back, so a
+// trade sitting there for an hour was a crashed process. Bonds are now placed a day
+// before the MEETING, which makes COLLATERAL_PENDING a phase that legitimately lasts
+// weeks — and an hourly flag on elapsed time would have queued every trade on the
+// platform for manual reconciliation an hour after it was agreed.
+//
+// The replacement is in `flagStaleCollateralTrades` below: past its own meeting time
+// and still unauthorised. That is the case where two people are about to meet, or
+// already have, with nothing protecting either of them.
 
 /** Outcome of one pass. */
 export interface TradeInspectionSweepResult {
@@ -266,30 +257,40 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
 }
 
 /**
- * Flag trades stuck in COLLATERAL_PENDING for a human.
+ * Flag trades whose meeting has arrived with no collateral behind it.
+ *
+ * WHAT "STUCK" MEANS CHANGED, and the old definition is now actively wrong. While
+ * bonds were placed inside `acceptTradeTerms`, COLLATERAL_PENDING was a MOMENT — a
+ * trade passed through in seconds, so anything sitting there for an hour was a crashed
+ * request. Bonds are now placed a day before the MEETING, which makes it a PHASE that
+ * legitimately lasts weeks. Flagging on elapsed time would queue every trade on the
+ * platform an hour after it was agreed.
+ *
+ * The real failure is narrower and later: the meeting time has passed and the trade
+ * still has no live collateral. Either the placement pass never ran, or both cards
+ * refused and nobody retried. Both mean two people are about to meet — or already
+ * have — with nothing protecting either of them, which is exactly the case a human
+ * needs to see.
  *
  * SEPARATE FROM THE SWEEP ABOVE, on purpose. That one finishes trades whose inspection
  * window closed and makes provider calls to do it; this one only reads and flags. Bolting
  * it on would have put a detection pass inside a function whose wall-clock budget belongs
- * to money movement, and — the reason it is visible in the tests — every existing sweep
- * test would have had to grow an expectation for a query it does not care about. A test
- * harness objecting that loudly is usually describing a design problem, not an
- * inconvenience.
+ * to money movement.
  *
  * Called from the same hourly job, so this adds no new schedule.
  */
 export async function flagStaleCollateralTrades(): Promise<{ flagged: number }> {
   const admin = createAdminClient();
-  const staleBefore = new Date(
-    Date.now() - STALE_COLLATERAL_HOURS * 60 * 60 * 1000,
-  ).toISOString();
 
   const { data: stale } = await admin
     .from('trades')
     .select('id')
     .eq('state', 'COLLATERAL_PENDING')
     .eq('manual_reconciliation', false)
-    .lt('updated_at', staleBefore)
+    // Past its own meeting time and still unauthorised. A trade whose meeting is
+    // tomorrow is not stuck; it is waiting, which is now the normal state.
+    .not('meeting_at', 'is', null)
+    .lt('meeting_at', new Date().toISOString())
     .limit(MAX_TRADES_PER_PASS);
 
   let flagged = 0;

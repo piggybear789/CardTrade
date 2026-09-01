@@ -22,6 +22,8 @@
     "audit:mobile": "tsx scripts/mobile-api-audit.ts",
     "generate:dart-vocab": "tsx scripts/generate-dart-vocabulary.ts",
     "smoke:mobile": "tsx --env-file=.env.local scripts/smoke-mobile-api.ts",
+    "smoke:stripe": "tsx --env-file=.env.local scripts/smoke-stripe-test.ts",
+    "smoke:stripe:refund": "tsx --env-file=.env.local scripts/smoke-stripe-refund.ts",
     "ux-review:capture": "playwright test --config=playwright.ux-review.config.ts"
   },
   "dependencies": {

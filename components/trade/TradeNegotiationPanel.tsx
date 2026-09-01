@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
+import { ContractMoneyTable } from '@/components/contract/ContractMoneyTable';
 import { Button } from '@/components/ui/button';
 import {
   SavedCardRow,
@@ -50,6 +51,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
+import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
 import {
   acceptTradeTerms,
   declineTradeOffer,
@@ -92,6 +94,21 @@ export interface TradeNegotiationPanelProps {
    */
   paymentMethod?: SavedCardStatus | null;
   /**
+   * What accepting costs the viewer, pre-formatted in the trade's currency.
+   *
+   * Passed in rather than derived here. The sizing rule lives in the room beside
+   * `resolveTradeSideValues`, and a dialog that computed its own figure would be a
+   * second answer to "what will this charge me" — the disclosure has to be the same
+   * number the charge uses. Null until both sides are valued, in which case the
+   * dialog names the fee without an amount rather than inventing one.
+   */
+  acceptCost?: {
+    /** Trade fee taken from the card the moment the last accept lands. */
+    feeText: string;
+    /** Collateral authorised against the card. Held, never charged. */
+    collateralText: string;
+  } | null;
+  /**
    * Whether the room's Realtime channel is connected.
    *
    * Every action here writes to the `trades` row and nothing else, and that row
@@ -110,6 +127,7 @@ export function TradeNegotiationPanel({
   termsVersion,
   terms,
   paymentMethod = null,
+  acceptCost = null,
   liveUpdates = false,
 }: TradeNegotiationPanelProps) {
   const router = useRouter();
@@ -314,11 +332,32 @@ export function TradeNegotiationPanel({
           <DialogHeader>
             <DialogTitle>Accept these terms?</DialogTitle>
             <DialogDescription>
-              The last accept places a temporary Stripe card hold (not a charge)
-              and may charge the trade fee. Replace the card here if you do not
-              want this one used.
+              If you are the last to accept, the trade starts straight away: the
+              fee is charged to your card and the collateral is authorised
+              against it. Replace the card here if you do not want this one used.
             </DialogDescription>
           </DialogHeader>
+          {/* The Exchange row already carries the fee, but it is one row of an
+              inspector that sits behind a sheet on a phone — so this button is
+              reachable having seen neither figure. Both are named here because
+              this is the click that moves the money. */}
+          {acceptCost ? (
+            <ContractMoneyTable
+              ariaLabel="What accepting costs you"
+              rows={[
+                {
+                  label: `NoDitto fee (${TRADE_FEE_BPS / 100}%)`,
+                  value: acceptCost.feeText,
+                  hint: 'Charged to your card.',
+                },
+                {
+                  label: 'Collateral',
+                  value: acceptCost.collateralText,
+                  hint: 'Authorised, not charged. Released in full when the trade completes.',
+                },
+              ]}
+            />
+          ) : null}
           <SavedCardRow inline initialStatus={paymentMethod} onStatus={setHasCard} />
           <p className="text-body">
             <Link

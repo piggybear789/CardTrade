@@ -24,7 +24,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link';
 import { toast } from 'sonner';
 
-import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
+import { formatAud, formatContractDateTime, formatMoney, itemImageUrl } from '@/lib/format';
 import {
   deliveryNotesFromDetails,
   summarizeHandover,
@@ -1127,6 +1127,23 @@ function TradeContractRoom({
                             counterpartGoodsDescription: trade.counterpart_goods_description,
                           }}
                           paymentMethod={paymentMethod}
+                          // Collateral is sized on what the viewer RECEIVES, which is
+                          // `theirsValueCents` — the same `resolveTradeSideValues`
+                          // output `placeBondsForAgreedTrade` bonds against. Withheld
+                          // entirely when a side is unvalued, because that trade is
+                          // refused at placement and quoting $0.00 would promise a
+                          // free hold on a trade that cannot start.
+                          acceptCost={
+                            goods && theirsValueCents > 0
+                              ? {
+                                  feeText: formatMoney(myFeeCents, trade.currency),
+                                  collateralText: formatMoney(
+                                    theirsValueCents,
+                                    trade.currency,
+                                  ),
+                                }
+                              : null
+                          }
                           liveUpdates={connectionStatus === 'live'}
                         />
                       ) : null}

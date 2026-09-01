@@ -1349,15 +1349,41 @@ function CashSaleRoom({
         open={confirming === 'pay'}
         onOpenChange={(next) => setConfirming(next ? 'pay' : null)}
         title="Accept these terms and pay?"
-        description="This charges your card through Stripe and holds the payment until the item is handed over. You can still raise a dispute if something goes wrong."
-        confirmLabel="Accept terms and pay"
+        description={`This charges ${money(sale.amount_cents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`}
+        confirmLabel={`Accept terms and pay ${money(sale.amount_cents)}`}
         pending={busy('accept')}
         helpHref="/help#holds"
         onConfirm={() => {
           setConfirming(null);
           run('accept', () => acceptCashSaleTerms(sale.id, sale.terms_version));
         }}
-      />
+      >
+        {/* The same breakdown as the Payment section, repeated here on purpose. That
+            section is the third row of the inspector and on a phone the whole
+            inspector sits behind a sheet, so a Buyer can reach this button having
+            only ever seen the item price — which is 5% below what they are about to
+            be charged. The fee has to be named on the path to the charge, not
+            somewhere the charge can be reached without visiting. */}
+        <ContractMoneyTable
+          ariaLabel="What you are about to be charged"
+          rows={[
+            { label: 'Price', value: money(itemTotal) },
+            ...(isDelivery
+              ? [{ label: 'Shipping', value: money(sale.shipping_cost_cents) }]
+              : []),
+            {
+              label: `Platform fee (${PLATFORM_FEE_BPS / 100}%)`,
+              value: money(sale.platform_fee_cents),
+              hint: 'Returned if the sale is refunded in full.',
+            },
+            {
+              label: 'Charged now',
+              value: money(sale.amount_cents),
+              total: true,
+            },
+          ]}
+        />
+      </ConfirmDialog>
       <ConfirmDialog
         open={confirming === 'receive'}
         onOpenChange={(next) => setConfirming(next ? 'receive' : null)}

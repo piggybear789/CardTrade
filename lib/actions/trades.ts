@@ -193,12 +193,12 @@ export type ProposeTradeActionResult =
  * (Req 5.1, 5.2, 5.3). The authenticated user is the proposing (initiator)
  * Trader. Delegates the equal-FMV / both-AVAILABLE guards, Trade creation, item
  * reservation, and bond placement to the proposal orchestrator (revised Req 5.4:
- * KYC VERIFIED Traders are bond-exempt, everyone else bonds against their own
- * Item's FMV).
+ * each Trader bonds the value of what they RECEIVE, and a trade bond has no
+ * verification exemption — both sides always post one).
  *
- * When BOTH Traders are verified no bond is placed, so no provider webhook will
- * arrive to confirm collateral — this action dispatches HOLDS_CONFIRMED itself so
- * the Trade moves straight to COLLATERAL_LOCKED.
+ * When no bond is placed at all, no provider webhook will arrive to confirm
+ * collateral — this action dispatches HOLDS_CONFIRMED itself so the Trade moves
+ * straight to COLLATERAL_LOCKED.
  */
 export async function proposeTrade(
   initiatorItemId: string,

@@ -13,11 +13,11 @@
 //   * proposeTrade — guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
 //     on success create a Trade in COLLATERAL_PENDING, set both Items to
 //     RESERVED (Req 5.1), and place a bond for each Trader who requires one per
-//     the Bond Policy (`domain/bond/bondPolicy.ts`): a Trader with APPROVED
-//     Managed Merchant identity (`merchant_status`) is exempt, everyone else
-//     bonds against their own paired Item's FMV (revised Req 2.4, 5.4). Trading
-//     itself (including cash terms) is never blocked by verification — only the
-//     bond requirement changes.
+//     the Bond Policy (`domain/bond/bondPolicy.ts`): each Trader bonds the value
+//     of what they RECEIVE, not what they give (revised Req 2.4, 5.4). There is
+//     no verification exemption on a trade — `resolveTradeBonds` bonds both sides
+//     regardless, because the bond is what makes a dispute or fraud finding
+//     payable. Trading is never blocked by verification.
 //   * createCollateralSideEffects — a `RunSideEffects` hook for the guarded
 //     transition core: on HOLDS_FAILED it cancels the Trade by voiding any
 //     active holds and restoring both Items to AVAILABLE (Req 5.6). The
@@ -165,9 +165,10 @@ export type ProposeTradeError =
  * Discriminated result of a trade proposal.
  *
  * `bondsRequired` is the number of Traders who had to post a bond. When it is
- * `0` (both Traders verified, so both bond-exempt) there is no provider event
- * coming to drive HOLDS_CONFIRMED, so the caller must dispatch that event itself
- * to move the Trade from COLLATERAL_PENDING to COLLATERAL_LOCKED.
+ * `0` there is no provider event coming to drive HOLDS_CONFIRMED, so the caller
+ * must dispatch that event itself to move the Trade from COLLATERAL_PENDING to
+ * COLLATERAL_LOCKED. That happens only when both side values are zero —
+ * verification does NOT exempt a Trader from a trade bond.
  */
 export type ProposeTradeResult =
   | { ok: true; trade: TradeRecord; bondsRequired: number }
@@ -244,8 +245,8 @@ export function currentHoldsSeekFailed(holds: RecordedHold[]): boolean {
  *   3. Both Traders must have a payer reference to place a hold against (Req 5.4).
  *
  * On success it creates a Trade in COLLATERAL_PENDING, reserves both Items
- * (Req 5.1), and requests a Pre_Auth_Hold sized at 100% of each Trader's own
- * paired Item FMV on that Trader's payment instrument (Req 5.4). The active /
+ * (Req 5.1), and requests a Pre_Auth_Hold sized at 100% of what each Trader
+ * RECEIVES, against that Trader's payment instrument (Req 5.4). The active /
  * failed outcome of each hold is later reported via a Webhook_Event that drives
  * HOLDS_CONFIRMED / HOLDS_FAILED through the guarded transition core.
  */
@@ -358,9 +359,10 @@ export async function proposeTrade(
     params.counterpartItemId,
   ]);
 
-  // Place a bond for each Trader who requires one, sized from that Trader's OWN
-  // paired Item FMV. A verified Trader's bond is 0 and no hold is placed — their
-  // verified identity is the guarantee instead.
+  // Place a bond for each Trader who requires one, sized from what that Trader
+  // RECEIVES — the crossed arguments to `resolveTradeBonds` above are deliberate.
+  // A zero bond places no hold, which here means a side valued at nothing rather
+  // than a verified Trader: trade bonds have no verification exemption.
   const holdPlacements = [
     {
       traderId: params.proposerId,

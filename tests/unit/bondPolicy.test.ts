@@ -113,8 +113,11 @@ describe('resolveTradeBonds', () => {
     });
   });
 
-  it('sizes each bond from that trader own item value', () => {
-    // Guards against sizing both bonds off one item if FMVs ever differ.
+  it('keeps the two sides distinct rather than sizing both bonds off one value', () => {
+    // `fmvCents` is whatever the CALLER chose to bond against, and on a trade every
+    // caller passes what that Trader RECEIVES — `tradeProposal.ts` crosses the sides
+    // before calling in. All this guards is that the function does not collapse its
+    // two inputs into one; it says nothing about which side feeds which bond.
     expect(
       resolveTradeBonds({
         initiator: { verified: false, fmvCents: 30_000 },

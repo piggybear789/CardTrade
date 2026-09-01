@@ -2454,6 +2454,30 @@ export type Database = {
         Returns: Database['cardtrade']['Enums']['cash_sale_payout_status'];
       };
       /**
+       * Records one seller-release attempt atomically (0110). SETTLED is terminal and
+       * the attempt counter increments from its own column, so two concurrent drain
+       * passes cannot undercount attempts or overwrite a settled release.
+       */
+      record_cash_sale_payout_result: {
+        Args: {
+          p_cash_sale_id: string;
+          p_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          p_transfer_ref?: string | null;
+          p_error?: string | null;
+        };
+        Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      /** Records one refund attempt atomically (0110). Mirrors the release above. */
+      record_cash_sale_refund_result: {
+        Args: {
+          p_cash_sale_id: string;
+          p_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          p_refund_ref?: string | null;
+          p_error?: string | null;
+        };
+        Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      /**
        * Records a dispute refund that failed after acceptance (0045). Reopens a
        * fully-refunded sale to DISPUTED; only flags a partial one.
        */

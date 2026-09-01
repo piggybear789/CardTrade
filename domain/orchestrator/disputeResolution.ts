@@ -50,8 +50,13 @@ export {
   FRICTION_TAX_PLATFORM_FEE_CENTS,
 } from '../dispute/frictionTax';
 
-/** The return window for a disputed Item: 14 calendar days (Req 7.5, 7.7). */
-export const DISPUTE_RETURN_WINDOW_DAYS = 14;
+// The return window moved to `domain/dispute/returnWindow.ts` and is re-exported
+// here so existing importers are unaffected — the same consolidation the
+// Friction_Tax amounts got above, and for the same reason. It lived here as a bare
+// number that nothing read, which made it look like an enforced right; the
+// arithmetic that decides whether the collateral behind it survives that long now
+// sits beside it.
+export { DISPUTE_RETURN_WINDOW_DAYS } from '../dispute/returnWindow';
 
 /**
  * The maximum number of Full_Capture attempts on Objective_Fraud before the
@@ -483,8 +488,19 @@ export async function resolveConditionDispute(
  * Record a return-overdue indication when the disputed Item is not returned
  * within 14 calendar days of the transition to DISPUTED (Req 7.7). The Trade
  * stays DISPUTED and all remaining hold amounts stay locked; only the indication
- * is recorded. Intended to be driven by a scheduled/timer check, so it takes no
- * state transition.
+ * is recorded. Takes no state transition because it is meant to be driven by a
+ * scheduled check.
+ *
+ * NOTHING SCHEDULES IT YET. There is no `return_deadline_at` on `trades` and no
+ * sweep that calls this, so `trades.return_overdue` is never set in production and
+ * the fourteen days are not enforced against anyone. Use
+ * `disputeReturnOverdue` from `domain/dispute/returnWindow` for the predicate; the
+ * missing pieces are the column and a pass in the hourly trade-inspections job.
+ *
+ * "All remaining hold amounts stay locked" is also optimistic, and worth reading
+ * with `disputeCollateralRisk`: the authorisation behind them lapses in about seven
+ * days, so by the time a return is overdue there is usually nothing left to lock.
+ * `expire_lapsed_holds` (0109) hands that case to an operator.
  */
 export async function markDisputeReturnOverdue(
   deps: DisputeResolutionDeps,

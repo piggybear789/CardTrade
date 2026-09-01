@@ -108,6 +108,12 @@ export type FulfilmentTermsError =
   | 'meeting-place-unresolved'
   | 'meeting-time-required'
   | 'meeting-time-past'
+  /**
+   * Scheduled so far ahead that the collateral would lapse before the inspection
+   * window closed. Trades only — a Cash_Sale's money is already collected and has
+   * no authorisation to outlive.
+   */
+  | 'meeting-time-too-far'
   | 'delivery-cost-required'
   | 'delivery-cost-invalid'
   | 'delivery-address-required'

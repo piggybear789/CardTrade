@@ -34,7 +34,7 @@ import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
-import { validateFulfilmentTerms } from '@/domain/fulfilment';
+import { MAX_MEETING_LEAD_HOURS, validateFulfilmentTerms } from '@/domain/fulfilment';
 import { regionForTrade } from '@/lib/regionBinding';
 import { checkRegionCompatibility, regionMismatchMessage } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -149,24 +149,29 @@ function termsProblem(
   // One validator, shared with the trade room's terms editor and with the Cash_Sale.
   // This function used to reimplement the resolved-place and future-time checks by
   // hand, one of three copies of the same rules.
-  const validation = validateFulfilmentTerms({
-    method: terms.handoverMethod,
-    meeting: {
-      place: terms.meetingLocation?.trim()
-        ? {
-            label: terms.meetingLocation.trim(),
-            placeId: terms.meetingPlaceId ?? '',
-            lat: terms.meetingLat ?? Number.NaN,
-            lng: terms.meetingLng ?? Number.NaN,
-          }
-        : null,
-      at: terms.meetingAt ?? null,
+  const validation = validateFulfilmentTerms(
+    {
+      method: terms.handoverMethod,
+      meeting: {
+        place: terms.meetingLocation?.trim()
+          ? {
+              label: terms.meetingLocation.trim(),
+              placeId: terms.meetingPlaceId ?? '',
+              lat: terms.meetingLat ?? Number.NaN,
+              lng: terms.meetingLng ?? Number.NaN,
+            }
+          : null,
+        at: terms.meetingAt ?? null,
+      },
+      delivery: {
+        costCents: terms.deliveryCostCents ?? null,
+        notes: null,
+      },
     },
-    delivery: {
-      costCents: terms.deliveryCostCents ?? null,
-      notes: null,
-    },
-  });
+    // See `MAX_MEETING_LEAD_HOURS`: the collateral must outlive the inspection
+    // window, and that window starts at the meeting.
+    { maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS },
+  );
   if (validation.ok) return null;
 
   switch (validation.error) {
@@ -176,6 +181,10 @@ function termsProblem(
     case 'meeting-time-required':
     case 'meeting-time-past':
       return 'Choose a future meeting time.';
+    case 'meeting-time-too-far':
+      // Says the actual limit rather than "too far away", because the trader has to
+      // pick a replacement and a vague refusal makes that guesswork.
+      return `Choose a meeting time within ${MAX_MEETING_LEAD_HOURS / 24} days — the trade's collateral only lasts about a week.`;
     case 'delivery-cost-required':
     case 'delivery-cost-invalid':
       return 'Enter a valid postage amount.';

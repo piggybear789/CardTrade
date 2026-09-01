@@ -96,6 +96,18 @@ export interface ValidateFulfilmentOptions {
   now?: () => Date;
   /** Cap on agreed postage. Defaults to {@link DELIVERY_COST_MAX_CENTS}. */
   maxDeliveryCostCents?: number;
+  /**
+   * How far ahead a meeting may be scheduled, in hours. Omitted means no limit.
+   *
+   * OPT-IN RATHER THAN DEFAULTED, because the two flows have genuinely different
+   * answers. A Trade is backed by a card authorisation that lapses in about a week,
+   * so a distant meeting leaves the handover unprotected; a Cash_Sale's money is
+   * already collected into the platform balance and outlives anything. Defaulting
+   * the cap would impose a trade's constraint on a sale that has no reason for it.
+   *
+   * Trades pass {@link import('./inspection').MAX_MEETING_LEAD_HOURS}.
+   */
+  maxMeetingLeadHours?: number;
 }
 
 /**
@@ -134,6 +146,15 @@ export function validateFulfilmentTerms(
     }
     if (at.getTime() <= now().getTime()) {
       return { ok: false, error: 'meeting-time-past' };
+    }
+    // The collateral has to still be alive when the handover is inspected, or a
+    // face-to-face scam surfaces after the only money that could answer for it has
+    // been released. See `MAX_MEETING_LEAD_HOURS` for where the number comes from.
+    if (options.maxMeetingLeadHours != null) {
+      const latest = now().getTime() + options.maxMeetingLeadHours * 3_600_000;
+      if (at.getTime() > latest) {
+        return { ok: false, error: 'meeting-time-too-far' };
+      }
     }
     return { ok: true };
   }

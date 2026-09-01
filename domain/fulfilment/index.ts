@@ -32,10 +32,14 @@ export {
 export type { ValidateFulfilmentOptions } from './terms';
 
 export {
+  CARD_AUTHORISATION_DAYS,
+  COLLATERAL_MARGIN_HOURS,
+  MAX_MEETING_LEAD_HOURS,
   TRADE_INSPECTION_FLOOR_HOURS,
   TRADE_INSPECTION_HOURS,
   deriveTradeInspectionDeadline,
   inspectionExpired,
   inspectionHoldRisk,
+  latestSafeMeetingInstant,
 } from './inspection';
 export type { InspectionHoldRisk, TradeInspectionFacts } from './inspection';

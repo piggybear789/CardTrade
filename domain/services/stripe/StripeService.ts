@@ -34,6 +34,11 @@ import { createHash } from 'node:crypto';
 
 import type Stripe from 'stripe';
 
+// The authorisation length is shared with the inspection clock, which derives the
+// inspection window, the collateral margin and the meeting-lead cap from it. Keeping
+// a private copy here — as this file used to — is what lets those drift apart.
+import { CARD_AUTHORISATION_DAYS } from '../../fulfilment/inspection';
+
 import type {
   CaptureResult,
   Cents,
@@ -1274,13 +1279,6 @@ function chargeIdOf(intent: Stripe.PaymentIntent): string | undefined {
   return charge?.id;
 }
 
-/**
- * How long a card authorisation is assumed to last when the provider does not say.
- *
- * Seven days is Stripe's documented norm for an online card authorisation, and it is
- * the figure the whole inspection clock is designed around.
- */
-const ASSUMED_AUTHORISATION_DAYS = 7;
 
 /**
  * When the authorisation lapses, as an ISO-8601 string.
@@ -1311,5 +1309,5 @@ function captureBefore(intent: Stripe.PaymentIntent): string | undefined {
   if (intent.status !== 'requires_capture') return undefined;
 
   const created = typeof intent.created === 'number' ? intent.created * 1000 : Date.now();
-  return new Date(created + ASSUMED_AUTHORISATION_DAYS * 86_400_000).toISOString();
+  return new Date(created + CARD_AUTHORISATION_DAYS * 86_400_000).toISOString();
 }

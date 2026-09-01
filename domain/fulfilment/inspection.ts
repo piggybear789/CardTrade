@@ -39,6 +39,47 @@ export const TRADE_INSPECTION_HOURS = 72;
  */
 export const TRADE_INSPECTION_FLOOR_HOURS = 24;
 
+/**
+ * How long a card authorisation lasts, in days.
+ *
+ * Stripe reports the real deadline per charge as `capture_before` and that value
+ * always wins. This is the planning figure used BEFORE a hold exists — when terms are
+ * still being agreed — and the backstop when the provider reports nothing. Seven days
+ * is the standard online-card window; extending it requires Interchange Plus pricing,
+ * which this platform does not have. The attempt is on file, rejected with "This
+ * account is not eligible for the requested card features".
+ */
+export const CARD_AUTHORISATION_DAYS = 7;
+
+/**
+ * Slack between the end of the inspection window and the death of the collateral.
+ *
+ * Three things have to happen after a trader sees a problem and before the money is
+ * gone: they raise the dispute, the hourly reconciler notices, and a capture makes a
+ * network round trip. Landing on the exact instant the authorisation lapses loses all
+ * three races.
+ */
+export const COLLATERAL_MARGIN_HOURS = 24;
+
+/**
+ * How far ahead a face-to-face meeting may be scheduled on a collateral-backed trade.
+ *
+ * DERIVED, NOT CHOSEN. The authorisation has to cover the wait for the meeting AND the
+ * inspection window that follows it, because a face-to-face scam only becomes visible
+ * after the handover. Until now the only rule on a meeting time was that it be in the
+ * future, so two traders could agree today, meet in three weeks, and discover the
+ * problem long after the only money that could answer for it had been released.
+ *
+ * Working backwards from the authorisation gives the wait: 168 hours, less 72 for
+ * inspection, less 24 of slack, is 72 hours.
+ *
+ * Written as arithmetic so it moves on its own if the inspection window changes.
+ * Hard-coding "3 days" would leave the two free to drift apart — which is exactly how
+ * a fourteen-day dispute return window came to be backed by a seven-day hold.
+ */
+export const MAX_MEETING_LEAD_HOURS =
+  CARD_AUTHORISATION_DAYS * 24 - TRADE_INSPECTION_HOURS - COLLATERAL_MARGIN_HOURS;
+
 /** One hour in milliseconds. */
 const HOUR_MS = 3_600_000;
 
@@ -136,6 +177,34 @@ export function inspectionHoldRisk(
   // at the deadline may not have collateral behind it for long.
   if (expiry.getTime() - deadline.getTime() < 24 * HOUR_MS) return 'tight';
   return 'safe';
+}
+
+/**
+ * The latest meeting instant whose inspection window still finishes inside the
+ * collateral.
+ *
+ * Prefers the REAL expiry when the holds already exist, because `capture_before` is
+ * what the provider will actually honour and it can differ from the seven-day
+ * assumption. Falls back to the derived lead time while terms are still being agreed
+ * and no authorisation has been placed yet.
+ *
+ * Also the value a date picker should use as its maximum, so a trader is stopped from
+ * choosing an impossible time rather than told off after choosing one.
+ */
+export function latestSafeMeetingInstant(
+  from: Date = new Date(),
+  earliestHoldExpiry?: string | null,
+): string {
+  const expiry = instant(earliestHoldExpiry);
+  if (expiry) {
+    const backedOff =
+      expiry.getTime() - (TRADE_INSPECTION_HOURS + COLLATERAL_MARGIN_HOURS) * HOUR_MS;
+    // Never hand back an instant in the past: a trade whose collateral is already
+    // this close to lapsing has no safe meeting time at all, and the caller's
+    // "must be in the future" check is the honest refusal.
+    return new Date(Math.max(backedOff, from.getTime())).toISOString();
+  }
+  return new Date(from.getTime() + MAX_MEETING_LEAD_HOURS * HOUR_MS).toISOString();
 }
 
 /** True when an INSPECTION trade's window has closed and it should auto-complete. */

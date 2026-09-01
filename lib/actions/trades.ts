@@ -52,6 +52,7 @@ import {
 } from './tradeLifecycleStore';
 import { toHandoverColumns, type HandoverMethod } from '@/lib/handover/terms';
 import {
+  MAX_MEETING_LEAD_HOURS,
   validateFulfilmentTerms,
   type DeliveryAddress,
   type FulfilmentTermsError,
@@ -926,7 +927,13 @@ export async function updateTradeHandoverTerms(
         notes: input.deliveryNotes ?? null,
       },
     },
-    { maxDeliveryCostCents: DEAL_DELIVERY_COST_MAX },
+    {
+      maxDeliveryCostCents: DEAL_DELIVERY_COST_MAX,
+      // A trade's collateral is a card authorisation that lapses in about a week, and
+      // the inspection window runs FROM the meeting. A distant meeting therefore puts
+      // the handover past the point where a scam could still be answered for.
+      maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS,
+    },
   );
   if (!validation.ok) {
     return { ok: false, error: termsErrorFor(validation.error) };
@@ -971,6 +978,7 @@ function termsErrorFor(
       return 'missing-meeting-location';
     case 'meeting-time-required':
     case 'meeting-time-past':
+    case 'meeting-time-too-far':
       return 'missing-meeting-time';
     case 'delivery-cost-required':
     case 'delivery-cost-invalid':

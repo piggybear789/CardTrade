@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
+import { cookies } from 'next/headers';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
   // Pages self-brand their titles as "<Section> · NoDitto", so this is only
   // the fallback for routes that don't set one — no title template, to avoid
   // double-suffixing those existing titles.
-  title: 'NoDitto — Know who is on the other side',
+  title: 'NoDitto',
   description:
     'Buy, sell, and swap high-value collectibles with identity verification, collateral-backed contracts, and payments by Stripe.',
   applicationName: 'NoDitto',
@@ -50,14 +51,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'NoDitto',
-    title: 'NoDitto — Know who is on the other side',
+    title: 'NoDitto',
     description:
       'Identity verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
     url: siteUrl,
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NoDitto — Know who is on the other side',
+    title: 'NoDitto',
     description:
       'Identity verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
   },
@@ -80,9 +81,26 @@ export const viewport: Viewport = {
   interactiveWidget: 'resizes-content',
 };
 
-export default function RootLayout({
+/**
+ * Is there a session cookie on this request?
+ *
+ * PRESENTATIONAL ONLY. Cookie presence is not proof of a valid session — the
+ * token may be expired or revoked, which is why `SiteHeader` still verifies it
+ * with `getUser()`. This exists so the header placeholder can pick the same
+ * phone chrome the verified header will, and it is passed nowhere else.
+ */
+async function hasSessionCookie(): Promise<boolean> {
+  const store = await cookies();
+  return store
+    .getAll()
+    .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  const maybeSignedIn = await hasSessionCookie();
+
   return (
     <html
       lang="en"
@@ -104,7 +122,7 @@ export default function RootLayout({
         </a>
         <MotionProvider>
           <StartDealProvider>
-            <Suspense fallback={<SiteHeaderSkeleton />}>
+            <Suspense fallback={<SiteHeaderSkeleton isAuthenticated={maybeSignedIn} />}>
               <SiteHeader />
             </Suspense>
             <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">

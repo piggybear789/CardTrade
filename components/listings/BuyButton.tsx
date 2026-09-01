@@ -22,17 +22,13 @@ import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-40 items-center justify-center" role="status">
-        <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
-        <span className="sr-only">Loading payment form…</span>
-      </div>
-    ),
+    loading: () => <PaymentFormSkeleton />,
   },
 );
 

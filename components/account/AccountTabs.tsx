@@ -40,12 +40,13 @@ import {
   startTransition,
   useEffect,
   useState,
-  ViewTransition,
   type ReactNode,
 } from 'react';
 import Link from 'next/link';
+import { m } from 'motion/react';
 import { TabIndicator } from '@/components/motion/TabIndicator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MOTION_TRANSITION } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
 const TABS = [
@@ -115,8 +116,11 @@ export function AccountTabs({ initialTab, panels }: AccountTabsProps) {
   function selectTab(id: AccountTabId) {
     if (id === activeTab) return;
     window.history.pushState(null, '', tabHref(id));
-    // Inside a Transition so the chip below can morph between segments; a bare
-    // `setState` does not activate a view transition.
+    // A Transition rather than a bare `setState`: `<Activity>` pre-renders the hidden
+    // panels at offscreen priority, and a switch that arrives before one of them has
+    // finished would otherwise block the strip's own feedback on completing it. It is
+    // no longer here to arm a view transition — Motion animates the chip on commit at
+    // any priority.
     startTransition(() => setActiveTab(id));
   }
 
@@ -154,17 +158,30 @@ export function AccountTabs({ initialTab, panels }: AccountTabsProps) {
                   )}
                 >
                   {/* THE CHIP IS ITS OWN ELEMENT SO IT CAN TRAVEL. As a background on
-                      the link it could only cut from one segment to the next; named and
-                      shared, exactly one is mounted at a time and the pair that forms
-                      across a tab change morphs its rectangle, so the selection slides
-                      the way a native segmented control does. */}
+                      the link it could only cut from one segment to the next; sharing a
+                      `layoutId` means exactly one is mounted at a time and Motion tweens
+                      the rectangle from the outgoing segment to the incoming one, so the
+                      selection slides the way a native segmented control does. Same
+                      mechanism as the desktop underline below.
+
+                      IT USED TO BE A `<ViewTransition>`, and that is what made switching
+                      tabs feel like it hung. The only way to start one is
+                      `document.startViewTransition`, which suspends rendering of the
+                      WHOLE document while it rasterises a full-viewport snapshot plus one
+                      per named element — `site-header` and its backdrop-blur included —
+                      runs the mutation, forces layout and snapshots again. Nothing paints
+                      for that entire window, and it lands BEFORE the swap is visible,
+                      which is the pause. React then cancels the root cross-fade after the
+                      fact, so the page-sized snapshot bought nothing; and the chip is
+                      `md:hidden`, so on desktop the freeze was animating an element that
+                      was not rendered. Motion touches this one element instead. */}
                   {active ? (
-                    <ViewTransition name="account-tab-chip" share="morph">
-                      <span
-                        aria-hidden
-                        className="absolute inset-0 rounded-md bg-card shadow-sm md:hidden"
-                      />
-                    </ViewTransition>
+                    <m.span
+                      layoutId="account-tab-chip"
+                      aria-hidden
+                      transition={MOTION_TRANSITION}
+                      className="absolute inset-0 rounded-md bg-card shadow-sm md:hidden"
+                    />
                   ) : null}
                   {/* Above the chip, which is painted into the same box. */}
                   <span className="relative truncate">{tab.label}</span>

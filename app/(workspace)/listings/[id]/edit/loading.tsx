@@ -10,7 +10,7 @@ import { ItemFormSkeleton } from '@/components/listings/ItemFormSkeleton';
 export default function EditListingLoading() {
   return (
     <MarketplaceShellSkeleton title="Edit Listing">
-      <ItemFormSkeleton />
+      <ItemFormSkeleton mode="edit" />
     </MarketplaceShellSkeleton>
   );
 }

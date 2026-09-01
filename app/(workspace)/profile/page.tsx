@@ -277,7 +277,11 @@ function ProfilePanel({
         {/* The only live Stripe call on this tab, so it is the only thing on it
             that streams. Everything above is already painted while this resolves. */}
         <Suspense
-          fallback={<SettingsRowSkeleton labelClassName="w-32" valueClassName="w-24" />}
+          // `icon`: `PaymentMethodRow` carries a `CreditCardIcon` medallion, and
+          // without a slot for it the label and value slid 48px right on arrival.
+          fallback={
+            <SettingsRowSkeleton icon labelClassName="w-32" valueClassName="w-24" />
+          }
         >
           <PaymentMethodRow />
         </Suspense>

@@ -7,7 +7,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'NoDitto — Safer Collectible Deals',
+    name: 'NoDitto',
     short_name: 'NoDitto',
     description:
       'Identity verification, collateral-backed contracts, and Stripe payments for collectors.',

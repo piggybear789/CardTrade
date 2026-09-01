@@ -25,7 +25,7 @@ export default function SignInPage() {
         aria-hidden="true"
       />
       <div className="relative w-full max-w-md">
-        <Suspense fallback={<AuthFormSkeleton />}>
+        <Suspense fallback={<AuthFormSkeleton mode="sign-in" />}>
           <AuthForm mode="sign-in" />
         </Suspense>
       </div>

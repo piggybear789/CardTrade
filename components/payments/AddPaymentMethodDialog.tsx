@@ -10,18 +10,15 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { CreditCardIcon } from '@hugeicons/core-free-icons';
+
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('./AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-40 items-center justify-center" role="status">
-        <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
-        <span className="sr-only">Loading payment form…</span>
-      </div>
-    ),
+    loading: () => <PaymentFormSkeleton />,
   },
 );
 

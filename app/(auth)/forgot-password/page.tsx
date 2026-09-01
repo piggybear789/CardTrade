@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
-import { AuthFormSkeleton } from '@/components/auth/AuthFormSkeleton';
+import { RequestResetFormSkeleton } from '@/components/auth/AuthFormSkeleton';
 import { RequestResetForm } from '@/components/auth/RequestResetForm';
 
 export const metadata: Metadata = {
@@ -23,7 +23,9 @@ export default function ForgotPasswordPage() {
         aria-hidden="true"
       />
       <div className="relative w-full max-w-md">
-        <Suspense fallback={<AuthFormSkeleton />}>
+        {/* The credentials skeleton describes `AuthForm` — two `min-h-11` fields, a
+            Google button and a CardFooter — none of which this form has. */}
+        <Suspense fallback={<RequestResetFormSkeleton />}>
           <RequestResetForm />
         </Suspense>
       </div>

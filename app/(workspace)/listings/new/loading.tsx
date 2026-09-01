@@ -10,7 +10,7 @@ import { ItemFormSkeleton } from '@/components/listings/ItemFormSkeleton';
 export default function NewListingLoading() {
   return (
     <MarketplaceShellSkeleton title="New Listing">
-      <ItemFormSkeleton />
+      <ItemFormSkeleton mode="create" />
     </MarketplaceShellSkeleton>
   );
 }

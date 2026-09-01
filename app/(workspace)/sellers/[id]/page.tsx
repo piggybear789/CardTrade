@@ -29,7 +29,7 @@ import { SectionLoadError } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import type {
   CatalogItem,
@@ -298,13 +298,32 @@ export default async function SellerProfilePage({
   );
 }
 
-/** Occupies roughly the height of two review cards, so the swap moves little. */
+/**
+ * Two review rows, in the shape `ReviewList` actually renders them.
+ *
+ * This was two free-floating `h-24` boxes separated by a 12px gap, but the list
+ * is ONE bordered card with hairline-divided rows inside it — so the gap closed
+ * to a 1px rule and a border appeared around the pair. Each row is a name, a
+ * transaction line, a comment and a timestamp in `space-y-tight p-group`, which
+ * is nearer 120px than the 96px an `h-24` reserved.
+ */
 function SellerReviewsFallback() {
   return (
-    <div className="space-y-3" aria-busy="true">
-      <Skeleton className="h-24 w-full rounded-lg" />
-      <Skeleton className="h-24 w-full rounded-lg" />
-    </div>
+    <ul className="divide-y rounded-lg border bg-card" aria-busy="true">
+      {[0, 1].map((row) => (
+        <li key={row} className="space-y-tight p-group">
+          <div className="flex flex-wrap items-start justify-between gap-snug">
+            <div className="min-w-0">
+              <TextLines className="text-body" widths={['w-24']} />
+              <TextLines className="text-body" widths={['w-40']} />
+            </div>
+            <Skeleton className="h-4 w-20 shrink-0" />
+          </div>
+          <TextLines className="text-body leading-relaxed" widths={['w-full']} />
+          <TextLines className="text-meta" widths={['w-16']} />
+        </li>
+      ))}
+    </ul>
   );
 }
 

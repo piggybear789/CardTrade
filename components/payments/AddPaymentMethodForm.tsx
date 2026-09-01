@@ -28,7 +28,7 @@ import { LoaderCircleIcon, LockIcon, ShieldCheckIcon } from '@hugeicons/core-fre
 
 import { beginCardSetup, completeCardSetup } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 /**
  * Sentinel publishable key returned by the MockService. Stripe.js would reject
@@ -106,15 +106,11 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
   }
 
   if (!session) {
-    return (
-      // Shaped like the field it stands in for, rather than a spinner and a
-      // sentence announcing that something is happening.
-      <div className="space-y-snug" role="status" aria-busy="true">
-        <span className="sr-only">Loading secure card entry…</span>
-        <Skeleton className="h-10 w-full rounded-md" />
-        <Skeleton className="h-10 w-2/3 rounded-md" />
-      </div>
-    );
+    // The same box the dynamic-import placeholder just drew. These were two
+    // different sizes — a 160px spinner, then 88px of bars — so the sheet
+    // resized between the two waits and again when Stripe's iframe mounted,
+    // moving the Save button under the reader's thumb twice before it settled.
+    return <PaymentFormSkeleton />;
   }
 
   // Mock provider: no real Stripe.js, so offer a simulated save so local UI

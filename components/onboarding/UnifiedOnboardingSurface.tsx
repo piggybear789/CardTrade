@@ -49,7 +49,8 @@ import { ArrowRight01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { getIdentityCheckState, refreshIdentityCheck } from '@/lib/actions/identity';
 import { getMerchantState, refreshPayoutStatus } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, TextLines } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { OnboardingSpine, OnboardingSpineStep } from './OnboardingSpine';
 import { HostedProviderStep } from './HostedProviderStep';
 
@@ -151,6 +152,24 @@ export function UnifiedOnboardingSurface({
   // every control on it re-validates server-side before it does anything.
   const seeded = useRef(initialStatus !== undefined);
 
+  // Whether the identity poll has already run to a conclusion for this component.
+  //
+  // `<Activity>` tears down a hidden tab's effects and rebuilds them when it is shown,
+  // so on the Account hub the mount effect below fires every time Verification is
+  // opened — and each firing replayed the whole forty-second poll from the first read
+  // to the last. The cheap column read still runs on every mount, because that is what
+  // lets a member back from Stripe see the truth before the webhook lands; only the
+  // poll is held to once.
+  //
+  // A run superseded mid-flight never sets this, so an interrupted poll is still
+  // retried on the next open and `identityChecking` cannot stick on. That is also what
+  // keeps StrictMode's mount/unmount/mount honest: the first run is superseded before
+  // it can conclude, so the second still polls.
+  //
+  // The ref survives the hide/show cycle because Activity preserves state and tears
+  // down effects alone.
+  const identityPolled = useRef(false);
+
   // Our own columns, no provider round trip. Fast enough to paint against, but NOT
   // authoritative: they are written by a webhook, and a member returning from Stripe
   // beats that webhook nearly every time.
@@ -198,7 +217,7 @@ export function UnifiedOnboardingSurface({
     const snapshot = await load();
     if (!snapshot || !current()) return;
 
-    if (!snapshot.identityOk) {
+    if (!snapshot.identityOk && !identityPolled.current) {
       let verdictReached = false;
 
       for (let attempt = 0; attempt <= REVIEW_POLL_DELAYS_MS.length; attempt += 1) {
@@ -241,6 +260,7 @@ export function UnifiedOnboardingSurface({
       }
 
       if (!current()) return;
+      identityPolled.current = true;
       setIdentityChecking(false);
       if (!verdictReached) setIdentityProblem(STILL_UNDER_REVIEW);
     }
@@ -283,16 +303,59 @@ export function UnifiedOnboardingSurface({
     // SHAPED LIKE THE SPINE IT REPLACES: two marker-plus-text rows at the same widths
     // and heights. The previous skeleton was three unrelated bars roughly a third of
     // the loaded height, so resolving it resized the dialog and the whole panel moved.
+    //
+    // Three things it still got wrong, all fixed here. The action was drawn on the
+    // SECOND step, but `OnboardingStep` renders its children only while `active`, and
+    // step two stays `upcoming` until identity passes — so the button appeared under
+    // the wrong step, vanished, and reappeared ~130px higher. It was also `h-10 w-44`
+    // against a real `h-9 w-full sm:w-auto`, and its `mt-group` never applied because
+    // the parent's `space-y-tight` outranks a margin utility. And the 3px rail that
+    // runs the height of both steps had no placeholder at all, so it materialised out
+    // of nothing; the gap between steps is `pb-section` INSIDE the content column, not
+    // a hard break across both, which is what keeps that rail continuous.
     return (
-      <div className="space-y-section" role="status" aria-label="Loading your setup">
+      <div className="grid gap-0" role="status" aria-label="Loading your setup">
         {[0, 1].map((row) => (
           <div key={row} className="grid grid-cols-[auto_1fr] gap-x-group">
-            <Skeleton className="size-7 rounded-full" />
-            <div className="space-y-tight">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-4 w-56" />
-              {row === 1 ? <Skeleton className="mt-group h-10 w-44" /> : null}
+            <div className="flex flex-col items-center">
+              <span aria-hidden className="w-[3px] flex-1 rounded-full bg-transparent" />
+              <Skeleton className="my-tight size-7 shrink-0 rounded-full" />
+              <span
+                aria-hidden
+                className={cn(
+                  'w-[3px] flex-1 rounded-full',
+                  row === 0 ? 'bg-border' : 'bg-transparent',
+                )}
+              />
             </div>
+            <div className="min-w-0 py-tight">
+              <div className="flex flex-col gap-cozy sm:flex-row sm:items-start sm:justify-between sm:gap-group">
+                <div className="min-w-0 flex-1">
+                  <TextLines className="text-lead" widths={['w-40']} />
+                  {/* Both step descriptions run past 75 characters, so they wrap
+                      in the dialog's content column. */}
+                  <TextLines
+                    className="mt-tight text-body leading-relaxed"
+                    widths={['w-full', 'w-2/3']}
+                  />
+                </div>
+                {/* Step one is the active step on a fresh mount, so it is the one
+                    that carries a control. */}
+                {row === 0 ? (
+                  <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-44" />
+                ) : null}
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <span
+                aria-hidden
+                className={cn(
+                  'w-[3px] rounded-full',
+                  row === 0 ? 'bg-border' : 'bg-transparent',
+                )}
+              />
+            </div>
+            <div className={cn('min-w-0', row === 0 ? 'pb-section' : 'pb-0')} />
           </div>
         ))}
       </div>

@@ -23,7 +23,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import type { IconSvgElement } from '@hugeicons/react';
 import { ChevronRightIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -317,16 +317,35 @@ export function TrustLine({
  * the instant real content arrives.
  */
 export function SettingsRowSkeleton({
+  /**
+   * Reserve the leading {@link IconMedallion}. Same argument as the chevron
+   * spacer, at three times the cost: the medallion is `size-9` beside a
+   * `gap-cozy`, so a row that arrives with one and was drawn without it pushes
+   * its label and value 48px to the right.
+   */
+  icon = false,
+  /** Reserve the second line. It also lifts the row off its `min-h-12` floor. */
+  description = false,
   labelClassName = 'w-28',
   valueClassName = 'w-20',
 }: {
+  icon?: boolean;
+  description?: boolean;
   labelClassName?: string;
   valueClassName?: string;
 }) {
   return (
     <div className={ROW_SHAPE} aria-hidden>
-      <Skeleton className={cn('h-4', labelClassName)} />
-      <span className="flex-1" />
+      {icon ? <Skeleton className="size-9 shrink-0 rounded-full" /> : null}
+      <span className="min-w-0 flex-1">
+        <TextLines className="text-body" widths={[labelClassName]} />
+        {description ? (
+          <TextLines
+            className="mt-0.5 text-body leading-snug"
+            widths={['w-3/4']}
+          />
+        ) : null}
+      </span>
       <Skeleton className={cn('h-4', valueClassName)} />
       <span className="size-4 shrink-0" />
     </div>

@@ -41,17 +41,13 @@ import { deriveItemTitle } from '@/domain/validation';
 import { claimDealInvite, type DealInvitePreview } from '@/lib/actions/dealInvites';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { navigateWithType } from '@/lib/motion/navigate';
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <HugeiconsIcon icon={LoaderCircleIcon} className="size-6 animate-spin text-muted-foreground" aria-hidden />
-        <span className="sr-only">Loading payment form…</span>
-      </div>
-    ),
+    loading: () => <PaymentFormSkeleton />,
   },
 );
 

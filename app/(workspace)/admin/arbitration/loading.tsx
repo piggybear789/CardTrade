@@ -8,12 +8,14 @@
 // Mirrors the real page's geometry in order: section header, four summary tiles, the
 // three-tab strip, then case rows.
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, TextLines } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import {
   SectionFilterSkeleton,
   SectionHeaderSkeleton,
 } from '@/components/layout/WorkspaceSkeletons';
+
 
 export default function ArbitrationLoading() {
   return (
@@ -26,35 +28,47 @@ export default function ArbitrationLoading() {
             `md`. */}
         <SectionHeaderSkeleton titleClassName="w-56" descriptionClassName="w-80" />
 
-        {/* The four triage stats. */}
+        {/* The four triage stats: a `text-meta` label (16.8px) over a `mt-0.5
+            text-subhead` figure (23.8px), not `h-3` over `mt-2 h-6`. */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {Array.from({ length: 4 }, (_, index) => (
             <div key={index} className="rounded-lg border bg-muted p-3">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="mt-2 h-6 w-14" />
+              <TextLines className="text-meta" widths={['w-20']} />
+              <TextLines className="mt-0.5 text-subhead" widths={['w-14']} />
             </div>
           ))}
         </div>
 
         <SectionFilterSkeleton tabs={3} />
 
+        {/* `Card`, not `rounded-xl border p-4`: the real rows are
+            `rounded-lg border bg-card shadow-market` with the padding split between
+            `CardHeader className="pb-3"` and `CardContent`. */}
         <div className="space-y-3">
           {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="rounded-xl border border-border p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                  <Skeleton className="h-5 w-24 rounded-full" />
-                  <Skeleton className="h-5 w-44" />
+            <Card key={index}>
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Skeleton className="h-6 w-16 shrink-0 rounded-md" />
+                    <Skeleton className="h-6 w-24 shrink-0 rounded-md" />
+                    {/* `CardTitle className="text-lead"` — 24px. */}
+                    <TextLines className="text-lead" widths={['w-44']} />
+                  </div>
+                  <TextLines className="shrink-0 text-body" widths={['w-20']} />
                 </div>
-                <Skeleton className="h-5 w-20 shrink-0" />
-              </div>
-              <Skeleton className="mt-3 h-3 w-64 max-w-full" />
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <Skeleton className="h-3 w-52 max-w-full" />
-                <Skeleton className="h-8 w-28 shrink-0 rounded-md" />
-              </div>
-            </div>
+                {/* Age, deadline and note count in one wrapping `CardDescription`. */}
+                <TextLines className="text-body" widths={['w-full', 'w-2/5']} />
+              </CardHeader>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                <TextLines className="min-w-0 text-body" widths={['w-52']} />
+                {/* "Open case" and `CaseAssignButton` are both `size="sm"` — `h-8`. */}
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
+                  <Skeleton className="h-8 w-20 shrink-0 rounded-md" />
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>

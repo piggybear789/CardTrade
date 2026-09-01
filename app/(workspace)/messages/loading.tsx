@@ -7,17 +7,23 @@ import {
   InboxRowSkeleton,
   SectionHeaderSkeleton,
 } from '@/components/layout/WorkspaceSkeletons';
+import { MobileList } from '@/components/ui/mobile-list';
 
 export default function MessagesLoading() {
   return (
     <MarketplaceShellSkeleton title="Messages">
       <div className="min-w-0">
         <SectionHeaderSkeleton titleClassName="w-24" descriptionClassName="w-40" />
-        <div className="max-md:divide-y max-md:divide-border md:divide-y md:divide-border md:overflow-hidden md:rounded-xl md:border md:border-border md:bg-card">
+        {/* `MobileList` itself rather than a hand-copied class string. The copy
+            that was here had drifted by a `md:shadow-market`, and borrowing the
+            component is the only way the two cannot drift again. */}
+        <MobileList variant="sheet">
           {Array.from({ length: 6 }, (_, index) => (
-            <InboxRowSkeleton key={index} />
+            <li key={index}>
+              <InboxRowSkeleton />
+            </li>
           ))}
-        </div>
+        </MobileList>
       </div>
     </MarketplaceShellSkeleton>
   );

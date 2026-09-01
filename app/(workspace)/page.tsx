@@ -26,7 +26,7 @@ import { SectionLoadError } from '@/components/layout/SectionHeader';
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 export const metadata = {
-  title: 'NoDitto — Buy, sell, and swap trading cards',
+  title: 'NoDitto',
   description:
     'Browse trading cards for sale or trade. Sellers verify with Stripe Identity, payments stay Stripe, and swaps are backed by collateral from both traders.',
   // The root layout no longer declares a blanket canonical, so the homepage

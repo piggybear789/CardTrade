@@ -157,7 +157,34 @@ export async function SiteHeader() {
   );
 }
 
-export function SiteHeaderSkeleton() {
+/**
+ * Loading chrome for the root layout's header boundary.
+ *
+ * THE PHONE STRIP IS REAL, NOT A PLACEHOLDER. This used to draw one hard-coded
+ * shape — a full-width search pill and a filled circle — for all seven chrome
+ * variants. `MobileTopChrome` picks by pathname, and the majority of the signed-in
+ * app (every hub and every thread) resolves to `HubChrome`, which is a compact
+ * frame with no row inside it at all. So the placeholder was 54px of bar that
+ * collapsed to nothing the moment auth resolved, on `/messages`, `/trades`,
+ * `/profile` and nine other routes: a full-width jump on first paint of most of
+ * the app. On the routes that DO get a bar it was still the wrong bar — a back
+ * chevron, a wordmark and a search pill are not interchangeable.
+ *
+ * The variant is a pure function of the pathname, which a client component reads
+ * without waiting on anything, so the strip can simply render itself. Only
+ * `isAuthenticated` needs the session, and it moves the geometry on just the
+ * unlisted-route fallback — hence the presentational hint below.
+ */
+export function SiteHeaderSkeleton({
+  /**
+   * Cookie-derived guess, for placeholder geometry only — never for access.
+   * It changes the rendered height on unlisted routes alone (`/help`, `/terms`,
+   * `/privacy`), where a guest gets the marketing bar and a member gets none.
+   */
+  isAuthenticated = false,
+}: {
+  isAuthenticated?: boolean;
+}) {
   return (
     <div
       style={{ viewTransitionName: 'site-header' }}
@@ -186,12 +213,7 @@ export function SiteHeaderSkeleton() {
           </div>
         </div>
       </header>
-      <header className="bg-background pt-[calc(env(safe-area-inset-top)+0.5rem)] md:hidden">
-        <div className="flex min-h-10 items-center gap-1.5 px-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-1.5">
-          <div className="h-10 min-w-0 flex-1 animate-pulse rounded-full bg-card" />
-          <div className="size-10 shrink-0 animate-pulse rounded-full bg-secondary" />
-        </div>
-      </header>
+      <MobileTopChrome isAuthenticated={isAuthenticated} />
     </div>
   );
 }

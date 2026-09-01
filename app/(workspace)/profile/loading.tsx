@@ -14,7 +14,7 @@
 // resolves to that tab. The other two tabs open with a group of rows as well, so the
 // header, strip and first group all land in place regardless.
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import { AccountTabsSkeleton } from '@/components/account/AccountTabs';
 import {
@@ -32,20 +32,12 @@ export default function ProfileLoading() {
           <Skeleton className="size-10 shrink-0 rounded-full" />
           {/* THE BARS SIT IN REAL LINE BOXES. Sized with `h-6`/`h-5` the block came out
               4px shorter than the resolved header, so the tabs and every group below
-              them started 4px high and dropped on arrival. Each bar is now an
-              inline-block inside a paragraph carrying the same type token as the text
-              it replaces, so the line height — and therefore the header's height — is
-              computed from the same scale rather than guessed. */}
-          {/* `div`, not `p`: `Skeleton` renders a div, and a div inside a paragraph is
-              invalid nesting — the browser closes the `<p>` early and hydration fails
-              on the mismatch. A block div forms the same line box. */}
+              them started 4px high and dropped on arrival. `TextLines` puts each bar
+              in a line box of the same type token as the text it replaces, so the
+              header's height is computed from the scale rather than guessed. */}
           <div className="min-w-0 flex-1 space-y-0.5">
-            <div className="text-subhead md:text-head">
-              <Skeleton className="inline-block h-[0.9em] w-40 align-middle" />
-            </div>
-            <div className="text-body">
-              <Skeleton className="inline-block h-[0.9em] w-56 max-w-full align-middle" />
-            </div>
+            <TextLines className="text-subhead md:text-head" widths={['w-40']} />
+            <TextLines className="text-body" widths={['w-56']} />
           </div>
         </header>
 
@@ -59,7 +51,8 @@ export default function ProfileLoading() {
           </SettingsGroup>
 
           <SettingsGroup>
-            <SettingsRowSkeleton labelClassName="w-32" valueClassName="w-24" />
+            {/* The payment row has a `CreditCardIcon` medallion. */}
+            <SettingsRowSkeleton icon labelClassName="w-32" valueClassName="w-24" />
           </SettingsGroup>
 
           {/* Sign out sits under a rule on this tab for every signed-in member, so

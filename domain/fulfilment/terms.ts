@@ -97,6 +97,16 @@ export interface ValidateFulfilmentOptions {
   /** Cap on agreed postage. Defaults to {@link DELIVERY_COST_MAX_CENTS}. */
   maxDeliveryCostCents?: number;
   /**
+   * Which handover methods this flow accepts. Omitted means both.
+   *
+   * Trades pass `['IN_PERSON']`. A trade's collateral is a card authorisation that
+   * lapses in about a week and cannot be extended on this account, and postage in
+   * both directions plus an inspection window does not fit inside that — no amount of
+   * scheduling makes it fit, because nobody controls the post. A Cash_Sale's money is
+   * captured at agreement and outlives anything, so it still posts.
+   */
+  allowedMethods?: readonly FulfilmentMethod[];
+  /**
    * How far ahead a meeting may be scheduled, in hours. Omitted means no limit.
    *
    * OPT-IN RATHER THAN DEFAULTED, because the two flows have genuinely different
@@ -127,6 +137,13 @@ export function validateFulfilmentTerms(
 
   if (terms.method !== 'IN_PERSON' && terms.method !== 'DELIVERY') {
     return { ok: false, error: 'method-required' };
+  }
+
+  // Checked before anything method-specific, so a trade asked to post is refused for
+  // the reason that is true — the method is not on offer — rather than falling through
+  // to a complaint about a missing postage cost.
+  if (options.allowedMethods && !options.allowedMethods.includes(terms.method)) {
+    return { ok: false, error: 'method-not-supported' };
   }
 
   if (terms.method === 'IN_PERSON') {

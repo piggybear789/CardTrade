@@ -29,7 +29,11 @@ import { currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestr
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
 import { placeTradeCollateral } from '@/lib/trades/collateralPlacement';
-import { MAX_MEETING_LEAD_HOURS, validateFulfilmentTerms } from '@/domain/fulfilment';
+import {
+  MAX_MEETING_LEAD_HOURS,
+  TRADE_HANDOVER_METHODS,
+  validateFulfilmentTerms,
+} from '@/domain/fulfilment';
 import { regionForTrade } from '@/lib/regionBinding';
 import { checkRegionCompatibility, regionMismatchMessage } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -163,9 +167,13 @@ function termsProblem(
         notes: null,
       },
     },
-    // See `MAX_MEETING_LEAD_HOURS`: the collateral must outlive the inspection
-    // window, and that window starts at the meeting.
-    { maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS },
+    // Face-to-face only, and a staleness bound on the date. Neither is derived from
+    // the collateral any more — the hold is placed the day before the meeting, so the
+    // authorisation does not start until the risk does.
+    {
+      allowedMethods: TRADE_HANDOVER_METHODS,
+      maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS,
+    },
   );
   if (validation.ok) return null;
 
@@ -179,7 +187,9 @@ function termsProblem(
     case 'meeting-time-too-far':
       // Says the actual limit rather than "too far away", because the trader has to
       // pick a replacement and a vague refusal makes that guesswork.
-      return `Choose a meeting time within ${MAX_MEETING_LEAD_HOURS / 24} days — the trade's collateral only lasts about a week.`;
+      return `Choose a meeting time within ${MAX_MEETING_LEAD_HOURS / 24} days.`;
+    case 'method-not-supported':
+      return 'Trades are swapped in person. Choose a meeting point and time.';
     case 'delivery-cost-required':
     case 'delivery-cost-invalid':
       return 'Enter a valid postage amount.';

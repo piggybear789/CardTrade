@@ -62,6 +62,16 @@ export const TRANSITIONS: Record<
     // IN_PERSON: both traders confirmed the meeting happened. Note the target is
     // INSPECTION, not COMPLETED — see BOTH_HANDOVER_CONFIRMED in types.ts.
     BOTH_HANDOVER_CONFIRMED: 'INSPECTION',
+    // The meeting instant passed and nobody tapped anything. Same destination,
+    // different claim.
+    //
+    // WHY ADVANCING BEATS WAITING. Left in COLLATERAL_LOCKED the trade stalls: two
+    // people who met and forgot to confirm have no dispute window, and the collateral
+    // quietly lapses under them. Advancing OPENS the window instead of closing it —
+    // both are told, either can raise a problem for the next five days, and the
+    // collateral is still alive to answer it. Every outcome stays recoverable,
+    // including "we never actually met", which is `HANDOVER_FAILED` below.
+    HANDOVER_ASSUMED: 'INSPECTION',
     // The exchange did not happen: a no-show, a refusal at the meeting point, or
     // goods handed over under duress. Freezes the trade for review and captures
     // NOTHING, which is why it is not CONDITION_DISPUTE — that settles a

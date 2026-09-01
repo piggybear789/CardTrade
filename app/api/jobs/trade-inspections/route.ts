@@ -22,7 +22,7 @@ import {
   flagStaleCollateralTrades,
   sweepTradeInspections,
 } from '@/lib/trades/inspectionSweep';
-import { placeDueTradeCollateral } from '@/lib/trades/bondPlacementSweep';
+import { advanceDueHandovers, placeDueTradeCollateral } from '@/lib/trades/bondPlacementSweep';
 import { sweepCashSaleInspections } from '@/lib/trades/cashSaleInspectionSweep';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 
@@ -103,6 +103,16 @@ async function runSweep(request: Request): Promise<Response> {
       console.error('[jobs] trade collateral placement failed', error);
     }
 
+    // Open the inspection window on trades whose meeting time has passed without
+    // either side confirming. Isolated like the rest: a trade that cannot be advanced
+    // must not stop the ones behind it getting their dispute window.
+    let handovers: Awaited<ReturnType<typeof advanceDueHandovers>> | null = null;
+    try {
+      handovers = await advanceDueHandovers();
+    } catch (error) {
+      console.error('[jobs] handover advance failed', error);
+    }
+
     // Trades whose meeting has arrived with no collateral behind it. Detection only,
     // no provider calls, and isolated for the same reason as the fee drain. Rides this
     // schedule because a second cron entry is a second thing to forget to configure.
@@ -113,7 +123,7 @@ async function runSweep(request: Request): Promise<Response> {
       console.error('[jobs] stale-collateral flagging failed', error);
     }
 
-    return Response.json({ ok: true, ...result, cashSales, fees, bonds, stale });
+    return Response.json({ ok: true, ...result, cashSales, fees, bonds, handovers, stale });
   } catch (error) {
     console.error('[jobs] trade-inspections failed', error);
     return Response.json({ ok: false, error: 'Inspection pass failed' }, { status: 500 });

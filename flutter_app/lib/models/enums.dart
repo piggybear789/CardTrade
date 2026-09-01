@@ -57,6 +57,10 @@ enum TradeEvent {
   @JsonValue('BOTH_SHIPPED') bothShipped,
   @JsonValue('BOTH_RECEIVED') bothReceived,
   @JsonValue('BOTH_HANDOVER_CONFIRMED') bothHandoverConfirmed,
+  /// The meeting instant passed and the inspection window opened on its own.
+  /// Distinct from [bothHandoverConfirmed] so the audit trail never claims a
+  /// confirmation nobody gave.
+  @JsonValue('HANDOVER_ASSUMED') handoverAssumed,
   @JsonValue('HANDOVER_FAILED') handoverFailed,
   @JsonValue('BOTH_ACCEPTED') bothAccepted,
   @JsonValue('INSPECTION_EXPIRED') inspectionExpired,

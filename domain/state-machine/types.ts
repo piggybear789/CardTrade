@@ -45,6 +45,15 @@ export type TradeEvent =
   | 'BOTH_SHIPPED' // both parcels posted, DELIVERY only
   | 'BOTH_RECEIVED' // both parcels arrived, DELIVERY only
   | 'BOTH_HANDOVER_CONFIRMED' // both met and swapped, IN_PERSON only
+  /**
+   * The agreed meeting instant passed and the inspection window opened on its own.
+   *
+   * A SEPARATE EVENT FROM `BOTH_HANDOVER_CONFIRMED`, deliberately. Both land in
+   * INSPECTION, but one is two people saying the swap happened and the other is nobody
+   * saying anything — and a dispute six months later will care which. Reusing the
+   * confirmed event would put a claim in the audit trail that no member ever made.
+   */
+  | 'HANDOVER_ASSUMED'
   | 'HANDOVER_FAILED' // the exchange did not happen; freeze WITHOUT capturing
   | 'BOTH_ACCEPTED' // both traders accepted what they received
   | 'INSPECTION_EXPIRED' // the inspection window closed untouched

@@ -46,6 +46,21 @@ import type { FulfilmentMethod } from './types';
 export const BOND_PLACEMENT_LEAD_HOURS = 24;
 
 /**
+ * The handover methods a Trade offers. Face-to-face only.
+ *
+ * Not a preference. Collateral is a card authorisation that lapses in about a week and
+ * cannot be extended on this account, and a posted trade has to cover dispatch, then
+ * postage in BOTH directions, then an inspection window — best case around six days,
+ * typically eight to twelve, and nobody controls Australia Post. The face-to-face
+ * timeline fits inside the authorisation by construction; the posted one cannot be
+ * made to, at any schedule.
+ *
+ * A Cash_Sale still posts, and the asymmetry is honest: its money is captured into the
+ * platform balance at agreement and has no deadline to outlive.
+ */
+export const TRADE_HANDOVER_METHODS = ['IN_PERSON'] as const satisfies readonly FulfilmentMethod[];
+
+/**
  * The inspection window, in hours.
  *
  * Five days, and the figure is derived rather than chosen: it is whatever is left of

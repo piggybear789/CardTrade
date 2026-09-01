@@ -25,6 +25,9 @@ import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
+import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
+import { getPaymentService } from '@/domain/services';
+import { regionForCurrency } from '@/lib/regionBinding';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { placeTradeCollateral } from './collateralPlacement';
 
@@ -114,8 +117,101 @@ export async function placeDueTradeCollateral(): Promise<BondPlacementSweepResul
   return { placed, failed, remaining: Math.max(rows.length - batch.length, 0) };
 }
 
+export interface HandoverAdvanceResult {
+  /** Trades whose inspection window opened without anyone confirming. */
+  advanced: number;
+}
+
+/**
+ * Open the inspection window on trades whose meeting time has passed.
+ *
+ * WHY THIS EXISTS. `COLLATERAL_LOCKED -> INSPECTION` needs BOTH traders to confirm the
+ * handover, and nothing advanced it on a timer. Two people who met and forgot to tap
+ * left the trade believing nothing had happened: no dispute window, and collateral
+ * quietly lapsing under a swap that really occurred. Auto-completion already existed
+ * one step later — `INSPECTION_EXPIRED` finishes an untouched trade — so silence was
+ * already read as consent there. This closes the step before it.
+ *
+ * ADVANCING RATHER THAN VOIDING, and the difference matters. Voiding a trade whose
+ * meeting time has passed would delete the dispute path on an exchange that may well
+ * have happened; the system only knows what people told it, and it was told nothing.
+ * Advancing opens the window instead: both are notified, either can raise a problem
+ * for the next five days, and the collateral is still live to answer it. A meeting
+ * that never happened is recoverable too — that is `HANDOVER_FAILED`.
+ *
+ * The event is `HANDOVER_ASSUMED`, not `BOTH_HANDOVER_CONFIRMED`, so the audit trail
+ * never claims a confirmation nobody gave.
+ */
+export async function advanceDueHandovers(): Promise<HandoverAdvanceResult> {
+  const admin = createAdminClient();
+  const nowIso = new Date().toISOString();
+
+  const { data } = await admin
+    .from('trades')
+    .select('id, initiator_id, currency')
+    .eq('state', 'COLLATERAL_LOCKED')
+    .eq('handover_method', 'IN_PERSON')
+    .not('meeting_at', 'is', null)
+    .lte('meeting_at', nowIso)
+    .order('meeting_at', { ascending: true })
+    .limit(MAX_TRADES_PER_PASS);
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    initiator_id: string;
+    currency: string | null;
+  }>;
+
+  let advanced = 0;
+  for (const row of rows) {
+    // Isolated per trade, like every other pass here: one unhealthy row costs one
+    // trade rather than leaving the rest of the batch without a dispute window.
+    try {
+      const orchestrator = createDefaultTradeOrchestrator({
+        payments: getPaymentService(regionForCurrency(row.currency)),
+      });
+      const applied = await orchestrator.applyEvent({
+        tradeId: row.id,
+        event: 'HANDOVER_ASSUMED',
+        // Nobody decided this; a clock did. The audit row needs an actor, so the
+        // initiator is recorded as requester and the event names the real cause.
+        actorId: row.initiator_id,
+      });
+      if (!applied.ok) continue;
+
+      advanced += 1;
+      await notifyBoth(
+        row.id,
+        'Your trade is now in inspection',
+        'Your meeting time has passed, so the inspection window is open. Check what you ' +
+          'received and raise a problem in the next five days if anything is wrong. If ' +
+          'you never met, report it now.',
+      );
+    } catch (error) {
+      console.error(`[trades] handover advance failed for trade ${row.id}`, error);
+    }
+  }
+
+  return { advanced };
+}
+
 /** Tell both participants that tomorrow's meeting has no collateral behind it yet. */
 async function notifyBothTraders(tradeId: string, detail: string): Promise<void> {
+  await notifyBoth(
+    tradeId,
+    'Trade collateral could not be placed',
+    `${detail} Your meeting is not protected until the hold is in place.`,
+  );
+}
+
+/**
+ * Notify both participants of a trade.
+ *
+ * Both, never just the one the event happened to. A collateral failure on one card
+ * leaves the OTHER trader with an unprotected meeting tomorrow, and an inspection
+ * window that opens on its own is a deadline for each of them.
+ */
+async function notifyBoth(tradeId: string, title: string, body: string): Promise<void> {
   const admin = createAdminClient();
   const { data } = await admin
     .from('trades')
@@ -128,13 +224,8 @@ async function notifyBothTraders(tradeId: string, detail: string): Promise<void>
   for (const userId of [row.initiator_id, row.counterpart_id]) {
     if (!userId) continue;
     try {
-      await createNotification({
-        userId,
-        type: 'TRADE',
-        title: 'Trade collateral could not be placed',
-        body: `${detail} Your meeting is not protected until the hold is in place.`,
-        link: `/trades/${tradeId}`,
-      });
+      // A failed notification must not cost the state change that earned it.
+      await createNotification({ userId, type: 'TRADE', title, body, link: `/trades/${tradeId}` });
     } catch (error) {
       console.warn(`[trades] could not notify ${userId} about trade ${tradeId}`, error);
     }

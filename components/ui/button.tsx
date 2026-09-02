@@ -25,10 +25,10 @@ import { cn } from "@/lib/utils";
 // was `font-medium`. That is what made buttons read as imported from a
 // different system rather than as part of this one.
 //
-// SIZE: the default is `h-8` (32px) from `md`, down from 36px, with the
-// horizontal padding tightened to match. Against a 13px body and a spacing scale
-// that stops at 16px, a 36px pill with 16px of side padding read inflated — the
-// label occupied about half the control.
+// SIZE: the default is `h-7` (28px) from `md`, with the horizontal padding
+// tightened to match. Against a 13px body and a spacing scale that stops at 16px,
+// a 36px pill with 16px of side padding read inflated — the label occupied about
+// half the control.
 //
 // PHONES GET 36px, desktop 28px. 44 is Apple's recommendation rather than a
 // floor; the conformance requirement is WCAG 2.2 SC 2.5.8, which asks for 24x24

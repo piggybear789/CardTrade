@@ -249,7 +249,12 @@ export default async function SellerProfilePage({
 
       {/* Listings */}
       <section aria-labelledby="listings-heading" className="mb-8">
-        <h2 id="listings-heading" className="mb-3 text-body font-semibold md:mb-4 md:text-subhead">
+        {/* `text-subhead`, the size every other panel heading in the app takes —
+            `CardTitle`, `DialogTitle` and `SheetTitle` are all `text-subhead
+            font-semibold`. This was `text-body md:text-subhead`, which on a phone
+            set a section heading at 13px: the exact size of the body copy under
+            it, and two notches below the seller's name in the same outline. */}
+        <h2 id="listings-heading" className="mb-3 text-subhead font-semibold md:mb-4">
           Available listings
         </h2>
         {itemsError ? (
@@ -286,7 +291,7 @@ export default async function SellerProfilePage({
       <section id="reviews" aria-labelledby="reviews-heading" className="scroll-mt-24">
         <h2
           id="reviews-heading"
-          className="mb-3 text-body font-semibold md:mb-4 md:text-subhead"
+          className="mb-3 text-subhead font-semibold md:mb-4"
         >
           Reviews {seller.ratingCount > 0 ? `(${seller.ratingCount})` : ''}
         </h2>

@@ -266,7 +266,7 @@ export function OnboardingWizard({
 
   return (
     <main
-      className="min-h-[calc(100dvh-4rem-env(safe-area-inset-top))] bg-muted/30"
+      className="min-h-[calc(100dvh-var(--chrome-top))] bg-muted/30"
       aria-label="Member onboarding"
     >
       <Dialog open onOpenChange={() => undefined}>

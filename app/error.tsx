@@ -25,8 +25,11 @@ export default function Error({
     console.error('Route error boundary caught:', error);
   }, [error]);
 
+  // `py-12` on a phone — see the same note in `not-found.tsx`. No bottom nav
+  // renders under this boundary, so 80px either side put "Try again" and the way
+  // back to the marketplace below the fold at 375x667.
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-4 py-20 text-center sm:px-6">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-4 py-12 text-center sm:px-6 sm:py-20">
       <div className="flex size-14 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
         <HugeiconsIcon icon={TriangleAlertIcon} className="size-6" aria-hidden="true" />
       </div>

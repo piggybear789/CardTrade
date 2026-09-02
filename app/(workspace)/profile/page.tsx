@@ -46,7 +46,12 @@ import {
   BioSettingRow,
   LinksSettingRow,
 } from '@/components/profile/ProfileSettingRows';
-import { AccountTabs, resolveAccountTab } from '@/components/account/AccountTabs';
+import { AccountTabs } from '@/components/account/AccountTabs';
+// From the plain config module, NOT from `AccountTabs`. That file is `'use client'`,
+// so its `resolveAccountTab` export is a client reference and calling it here threw
+// on every request — before the auth check below, so even the guest redirect never
+// ran and `/profile` always rendered the error boundary.
+import { resolveAccountTab } from '@/components/account/account-tabs-config';
 import {
   SettingsGroup,
   SettingsListRow,

@@ -37,8 +37,16 @@ export default async function DealInvitePage({
 
   if (!user) {
     const signInHref = `/sign-in?redirectTo=${encodeURIComponent(`/t/${token}`)}`;
+    // This branch escapes `MarketplaceShell`, which is what normally reserves room
+    // for the mobile hub bar — but the bar is mounted by the `(workspace)` layout
+    // and renders for guests too. Without the reserve, `centered` optically centred
+    // the invite against a container that runs behind the bar, so it sat up to 56px
+    // low and a tall preview clipped.
     return (
-      <PageShell centered className="max-w-lg">
+      <PageShell
+        centered
+        className="max-w-lg pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10"
+      >
         <PublicDealInvitePreview preview={preview} signInHref={signInHref} />
       </PageShell>
     );

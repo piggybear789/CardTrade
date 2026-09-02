@@ -10,8 +10,11 @@ export function PolicyArticle({
   lede?: string;
   children: ReactNode;
 }) {
+  // `px-4` on a phone, matching every other page gutter in the app. At `px-6`
+  // this article measured 327px inside a 375px screen while the catalog beside it
+  // measured 343px, so the legal pages read as inset from the rest.
   return (
-    <article className="mx-auto max-w-3xl px-6 py-8 md:py-12 lg:px-8">
+    <article className="mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
       <p className="mb-group">
         <Link
           href="/"

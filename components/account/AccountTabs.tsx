@@ -44,28 +44,21 @@ import {
 } from 'react';
 import Link from 'next/link';
 import { m } from 'motion/react';
+import {
+  ACCOUNT_TABS as TABS,
+  accountTabHref as tabHref,
+  resolveAccountTab,
+  type AccountTabId,
+} from '@/components/account/account-tabs-config';
 import { TabIndicator } from '@/components/motion/TabIndicator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MOTION_TRANSITION } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
-const TABS = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'verification', label: 'Verification' },
-  { id: 'payouts', label: 'Payouts' },
-] as const;
-
-export type AccountTabId = (typeof TABS)[number]['id'];
-
-/** Shared with the page so the server's first paint and this strip cannot disagree. */
-export function resolveAccountTab(raw: string | null | undefined): AccountTabId {
-  return raw === 'verification' || raw === 'payouts' ? raw : 'profile';
-}
-
-/** Profile is the bare path, so the landing tab has one canonical URL rather than two. */
-function tabHref(id: AccountTabId): string {
-  return id === 'profile' ? '/profile' : `/profile?tab=${id}`;
-}
+// The tab list, the id type and the two pure helpers live in `account-tabs-config`,
+// which carries no `'use client'`. They are imported rather than re-exported: a
+// re-export from this file would still be a client reference, so the Server Component
+// page would keep getting a proxy it cannot call. See the note in that file.
 
 // GEOMETRY LIVES HERE ONCE, so `AccountTabsSkeleton` cannot drift away from the real
 // strip. The loading state used to draw its own underlined nav with its own gaps and

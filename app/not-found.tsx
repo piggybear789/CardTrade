@@ -14,8 +14,12 @@ export const metadata = {
 };
 
 export default function NotFound() {
+  // `py-12` on a phone, `py-20` from `sm`. This page has no bottom nav under it,
+  // and 80px of padding either side of a `text-display` heading and two
+  // `size="lg"` buttons pushed both buttons under the fold on a 375x667 screen —
+  // the two things the page exists to offer.
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-4 py-20 text-center sm:px-6">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-4 py-12 text-center sm:px-6 sm:py-20">
       <div className="flex size-14 items-center justify-center rounded-full border bg-muted text-muted-foreground">
         <HugeiconsIcon icon={CompassIcon} className="size-6" aria-hidden="true" />
       </div>

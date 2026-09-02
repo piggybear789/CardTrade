@@ -36,6 +36,6 @@ export function MobileTopChrome({
     case 'auth':
       return <AuthChrome />;
     case 'marketing':
-      return <MarketingChrome />;
+      return <MarketingChrome isAuthenticated={isAuthenticated} />;
   }
 }

@@ -126,8 +126,9 @@ export function RequestResetFormSkeleton() {
         {/* ONE field, in `space-y-tight` (4px) — not two groups in `space-y-2`. */}
         <div className="space-y-tight">
           <TextLines className="text-body leading-none" widths={['w-14']} />
-          {/* `h-10`: this Input carries no `min-h-11`. */}
-          <Skeleton className="h-10 w-full rounded-md" />
+          {/* `h-9 md:h-7`: this Input carries no `min-h-11`, so it sits at the
+              shared field height. */}
+          <Skeleton className="h-9 w-full rounded-md md:h-7" />
         </div>
 
         {/* A default `Button`, so `h-9` below `md`. */}

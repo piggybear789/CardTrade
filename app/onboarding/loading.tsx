@@ -24,7 +24,7 @@ const WELCOME_POINT_BODY_LINES = [2, 2, 3] as const;
 export default function OnboardingLoading() {
   return (
     <main
-      className="min-h-[calc(100dvh-4rem-env(safe-area-inset-top))] bg-muted/30"
+      className="min-h-[calc(100dvh-var(--chrome-top))] bg-muted/30"
       aria-label="Loading onboarding"
       role="status"
       aria-busy="true"

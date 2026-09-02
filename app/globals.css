@@ -192,12 +192,29 @@
   }
 
   html {
-    scroll-padding-top: calc(4rem + 1px + env(safe-area-inset-top));
+    /* Height of the sticky top chrome, as ONE number every full-height route can
+       subtract. Phones render the cream strip (`MobileChromeFrame`, inset + 54px);
+       from `md` the dark bar takes over at `h-16` + inset.
+
+       Six routes used to hardcode the desktop `4rem` at every width — the four
+       auth screens and both onboarding surfaces. Subtracting 64px where only 54
+       had been consumed left each `<main>` about 10px taller than the space
+       available, so every one of them carried a permanent few-pixel document
+       scroll on a phone. Read the variable; do not re-derive the number. */
+    --chrome-top: calc(3.375rem + env(safe-area-inset-top));
+
+    scroll-padding-top: calc(var(--chrome-top) + 1px);
     scroll-padding-bottom: calc(
       3.5rem + env(safe-area-inset-bottom) + var(--keyboard-inset, 0px)
     );
     /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 768px) {
+    html {
+      --chrome-top: calc(4rem + env(safe-area-inset-top));
+    }
   }
 
   body {

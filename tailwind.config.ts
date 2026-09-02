@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 const config: Config = {
@@ -152,12 +153,12 @@ const config: Config = {
       //   readable copy and starts being decoration.
       //
       //   `lead` stays at exactly 1rem because `Input`, `Textarea` and
-      //   `SelectTrigger` set it on phones. iOS Safari zooms the viewport when a
+      //   `SelectTrigger` set it on touch. iOS Safari zooms the viewport when a
       //   focused field's text is under 16px, and it does not zoom back out —
       //   the user is left on a magnified page mid-form. Anything below 1rem
-      //   here breaks every mobile form in the product. Desktop steps those
-      //   controls down to `body` at `sm`, which is where the density was
-      //   actually wanted.
+      //   here breaks every mobile form in the product. Devices with a precise
+      //   pointer step those controls down to `body` via `pointer-fine:`, which
+      //   is where the density was actually wanted.
       fontSize: {
         meta: ["0.75rem", { lineHeight: "1.4" }],
         body: ["0.8125rem", { lineHeight: "1.6" }],
@@ -229,7 +230,25 @@ const config: Config = {
       },
     },
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [
+    tailwindcssAnimate,
+    // `pointer-fine:` — the device's PRIMARY input is precise: mouse, trackpad,
+    // stylus. This is the right gate for the 16px field floor, and `sm:` never was.
+    //
+    // The floor exists for one browser behaviour: iOS Safari zooms the viewport
+    // when a focused field's text is under 16px, and it does not zoom back out.
+    // That is a property of the INPUT DEVICE, not of how wide the window happens
+    // to be, so a width breakpoint got it wrong at both ends — a desktop window
+    // dragged under 640px was pushed to 16px it never needed, while an iPad at
+    // 900px was handed 13px and zoomed on every field.
+    //
+    // A touchscreen laptop reports `pointer: fine` with `any-pointer: coarse`, and
+    // that is the behaviour we want: desktop browsers do not zoom on focus, so the
+    // presence of a touchscreen is irrelevant. Hence `pointer`, not `any-pointer`.
+    plugin(({ addVariant }) => {
+      addVariant("pointer-fine", "@media (pointer: fine)");
+    }),
+  ],
 };
 
 export default config;

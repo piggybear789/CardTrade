@@ -101,9 +101,10 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           <div className="space-y-2">
             <TextLines className="text-body leading-none" widths={['w-24']} />
             {/* `Textarea rows={4}`: four lines of `text-lead` (24px) plus `py-2`
-                and the border is 114px below `sm`, and four of `sm:text-body`
-                (20.8px) is 101px above it. `h-24` reserved 96px for both. */}
-            <Skeleton className="h-[114px] w-full sm:h-[101px]" />
+                and the border is 114px on touch, and four of `text-body` (20.8px)
+                is 101px wherever there is a real pointer. Follows the Textarea's
+                own `pointer-fine:` gate, not a width breakpoint. */}
+            <Skeleton className="h-[114px] w-full pointer-fine:h-[101px]" />
             {/* "The first line is used as the listing title in the catalog." —
                 two lines at the width this rail ever has on a phone or at `lg`. */}
             <TextLines className="text-body" widths={['w-full', 'w-2/5']} />
@@ -114,20 +115,20 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <TextLines className="text-body leading-none" widths={['w-20']} />
-              {/* `h-10 md:h-8`, matching `SelectTrigger`. These were `h-9`, which
-                  is `Button`'s height, not a field's. */}
-              <Skeleton className="h-10 w-full md:h-8" />
+              {/* `h-9 md:h-7`, matching `SelectTrigger` — which now matches
+                  `Button`, since fields and controls share one height scale. */}
+              <Skeleton className="h-9 w-full md:h-7" />
             </div>
             <div className="space-y-2">
               <TextLines className="text-body leading-none" widths={['w-20']} />
-              <Skeleton className="h-10 w-full md:h-8" />
+              <Skeleton className="h-9 w-full md:h-7" />
             </div>
           </div>
 
           <div className="space-y-2">
             <TextLines className="text-body leading-none" widths={['w-12']} />
-            {/* `MoneyInput` is an `Input` behind a currency prefix: `h-10 md:h-8`. */}
-            <Skeleton className="h-10 w-full md:h-8" />
+            {/* `MoneyInput` is an `Input` behind a currency prefix: `h-9 md:h-7`. */}
+            <Skeleton className="h-9 w-full md:h-7" />
           </div>
 
           {/* `Based near` — a `PlacePicker`, which is a `Label` over a
@@ -135,7 +136,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               61px short of the form on every load. */}
           <div className="space-y-2">
             <TextLines className="text-body leading-none" widths={['w-24']} />
-            <Skeleton className="h-10 w-full md:h-8" />
+            <Skeleton className="h-9 w-full md:h-7" />
           </div>
         </div>
       </CardContent>

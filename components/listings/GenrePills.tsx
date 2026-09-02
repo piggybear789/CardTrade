@@ -121,13 +121,22 @@ function MobileGenreStrip({
       aria-label="Categories"
       className={cn('relative min-w-0', allOpen && 'z-40')}
     >
-      {/* Anchored below the row, not `inset-0`: a viewport scrim dimmed the
-          search strip above and left a grey band between it and the sheet. */}
+      {/* `fixed`, not `absolute top-full h-[100dvh]`. An absolutely positioned
+          child still contributes to the document's scrollable overflow, so a
+          viewport-tall scrim hung off the bottom of this row added most of a
+          screen of dead grey below the catalog for as long as the panel was
+          open — worst on a short or empty result set, where the page has no
+          real content to absorb it.
+
+          The strip and the panel below both sit later in the DOM at the same
+          stacking level, so they still paint over this as one unbroken cream
+          sheet. What changed is that the chrome above is now dimmed too, which
+          is what a scrim behind an open sheet should do anyway. */}
       {allOpen ? (
         <button
           type="button"
           aria-label="Dismiss categories"
-          className="absolute left-1/2 top-full z-0 h-[100dvh] w-screen -translate-x-1/2 bg-foreground/25 md:hidden"
+          className="fixed inset-0 z-0 bg-foreground/25 md:hidden"
           onClick={() => setAllOpen(false)}
         />
       ) : null}
@@ -177,10 +186,16 @@ function MobileGenreStrip({
           )}
         </div>
 
+        {/* Capped and scrollable. The panel is absolutely positioned, so it does not
+            extend the document — anything past the fold is unreachable rather than
+            merely below it. Five rows of categories run 534px on a 568px iPhone SE,
+            which put the last row ("Other") under the fixed hub bar with no way to
+            scroll to it. `60dvh` tracks the viewport instead of guessing at the
+            header stack above it, and taller phones never scroll at all. */}
         {allOpen ? (
           <div
             id={panelId}
-            className="absolute left-1/2 top-14 z-10 w-screen -translate-x-1/2 rounded-b-2xl bg-background px-4 pb-4 shadow-[0_18px_32px_-20px_hsl(var(--obsidian)/0.35)]"
+            className="absolute left-1/2 top-14 z-10 max-h-[60dvh] w-screen -translate-x-1/2 overflow-y-auto overscroll-contain rounded-b-2xl bg-background px-4 pb-4 shadow-[0_18px_32px_-20px_hsl(var(--obsidian)/0.35)]"
           >
             <div className="grid grid-cols-4 gap-2">
               <CategoryChip
@@ -243,7 +258,12 @@ function CategoryChip({
       onClick={onSelect}
       aria-pressed={active}
       className={cn(
-        'flex h-16 flex-col items-center justify-center gap-1 rounded-lg px-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:border-iris',
+        // `min-h-16`, not `h-16`. Four columns inside a `px-4` gutter leaves each
+        // cell about 79px at 375px, and the two-word labels that survive
+        // `SHORT_LABEL` — "Dragon Ball", "Star Wars" — wrap to a second line
+        // under the icon. At a fixed height that second line was clipped; the
+        // grid row can just grow instead, and every cell in the row grows with it.
+        'flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:border-iris',
         active
           ? 'bg-accent font-semibold text-accent-foreground ring-1 ring-iris'
           : 'bg-card font-medium text-foreground hover:bg-accent',

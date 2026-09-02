@@ -206,7 +206,17 @@ export function AuthChrome() {
   );
 }
 
-export function MarketingChrome() {
+/**
+ * Help, Terms and Privacy. These sit outside the workspace group, so there is no
+ * bottom nav underneath them — the wordmark is the route back to the catalog for
+ * BOTH viewers, which is why it renders unconditionally. Only the trailing call
+ * to action is viewer-dependent.
+ */
+export function MarketingChrome({
+  isAuthenticated,
+}: {
+  isAuthenticated: boolean;
+}) {
   return (
     <MobileChromeFrame>
       <Link
@@ -222,11 +232,13 @@ export function MarketingChrome() {
           NoDitto
         </span>
       </Link>
-      <div className="ml-auto">
-        <SignInLink className="inline-flex h-10 items-center rounded-md border border-transparent px-3 text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-iris">
-          Sign in
-        </SignInLink>
-      </div>
+      {isAuthenticated ? null : (
+        <div className="ml-auto">
+          <SignInLink className="inline-flex h-10 items-center rounded-md border border-transparent px-3 text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-iris">
+            Sign in
+          </SignInLink>
+        </div>
+      )}
     </MobileChromeFrame>
   );
 }

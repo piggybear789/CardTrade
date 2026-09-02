@@ -17,6 +17,15 @@ const AUTH_EXACT = new Set([
   '/account-suspended',
 ]);
 
+// Public prose, and it lives OUTSIDE the `(workspace)` group — so `MobileBottomNav`
+// never mounts on it and the wordmark is the only way back into the app.
+//
+// Without an explicit entry these fell through to the final `isAuthenticated`
+// line and a signed-in member got `hub`, which is a safe-area inset and nothing
+// else: no bar, no back, no wordmark. Tapping "Terms" from the sign-up form put
+// them on a long legal page with no way out but the browser's own back button.
+const MARKETING_EXACT = new Set(['/help', '/terms', '/privacy']);
+
 const HUB_EXACT = new Set([
   '/listings/mine',
   '/saved',
@@ -65,6 +74,7 @@ export function resolveMobileChrome(
   isAuthenticated: boolean,
 ): MobileChromeKind {
   if (pathname === '/') return 'catalog';
+  if (MARKETING_EXACT.has(pathname)) return 'marketing';
   if (pathname === '/listings/new' || pathname.endsWith('/edit')) {
     return 'hierarchical';
   }

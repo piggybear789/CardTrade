@@ -262,7 +262,11 @@ export function SocialLinksEditor({
                   disabled={isPending}
                   aria-invalid={issue ? true : undefined}
                   aria-describedby={issue ? errorId : undefined}
-                  className="min-w-0 flex-1 bg-transparent py-cozy text-body font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground"
+                  // `text-lead pointer-fine:text-body`, matching `Input`. This is a
+                  // bare field inside a bordered row rather than an `Input`, and it
+                  // had been pinned at 13px — which is exactly the case iOS Safari
+                  // zooms on focus.
+                  className="min-w-0 flex-1 bg-transparent py-cozy text-lead font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground pointer-fine:text-body"
                 />
                 <button
                   type="button"

@@ -50,10 +50,10 @@ export default function SellerProfileLoading() {
         </header>
 
         <section className="mb-8">
-          {/* `text-body` below `md`, `text-subhead` from there, and `mb-3` not
-              `mb-4` — the heading sat 4px too far from its grid at phone width. */}
+          {/* `text-subhead` at every width, matching the live heading, and `mb-3`
+              not `mb-4` — the heading sat 4px too far from its grid at phone width. */}
           <TextLines
-            className="mb-3 text-body md:mb-4 md:text-subhead"
+            className="mb-3 text-subhead md:mb-4"
             widths={['w-40']}
           />
           <CatalogTileGridSkeleton count={6} />
@@ -61,7 +61,7 @@ export default function SellerProfileLoading() {
 
         <section>
           <TextLines
-            className="mb-3 text-body md:mb-4 md:text-subhead"
+            className="mb-3 text-subhead md:mb-4"
             widths={['w-28']}
           />
           {/* Matches `SellerReviewsFallback` in the page, not `ReviewList`: the

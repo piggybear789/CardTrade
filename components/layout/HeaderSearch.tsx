@@ -100,11 +100,11 @@ function HeaderSearchFallback({
         autoComplete="off"
         spellCheck={false}
         className={cn(
-          'h-10 w-full pl-9 text-body md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-8 text-body leading-none text-foreground placeholder:text-body placeholder:text-muted-foreground',
+            'h-8 rounded-full border-border bg-card py-0 pl-8 leading-none text-foreground placeholder:text-muted-foreground',
         )}
         disabled
       />
@@ -400,13 +400,20 @@ function HeaderSearchInner({
         spellCheck={false}
         enterKeyHint="search"
         className={cn(
-          // Default / inset keep Input's 16px mobile size so iOS will not zoom.
-          // The compact chrome pill is `text-body` — same size as the games row.
-          'h-10 w-full pl-9 text-body md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          // NO `text-body` on any appearance. All three inherit Input's
+          // `text-lead pointer-fine:text-body`, which is the iOS zoom floor on touch
+          // and 13px wherever there is a real pointer.
+          //
+          // The base string used to set `text-body` under a comment claiming the
+          // opposite, and the chrome pill set it again to match the games row. Both
+          // won over Input through tailwind-merge, so the search field on the public
+          // catalog — the first thing a phone visitor taps — rendered at 13px and
+          // zoomed the viewport on focus, with no way back out but a pinch.
+          'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-8 text-body leading-none text-foreground placeholder:text-body placeholder:text-muted-foreground',
+            'h-8 rounded-full border-border bg-card py-0 pl-8 leading-none text-foreground placeholder:text-muted-foreground',
           trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-3',
         )}
       />

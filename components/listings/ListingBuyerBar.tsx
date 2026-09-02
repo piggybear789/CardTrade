@@ -50,7 +50,7 @@ export function ListingBuyerBar({
 }) {
   if (!isAuthenticated) {
     return (
-      <div className={guestBarClass}>
+      <div className={barClass}>
         <Button asChild className="h-11 w-full">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
             <HugeiconsIcon icon={LogInIcon} aria-hidden />
@@ -65,7 +65,7 @@ export function ListingBuyerBar({
   const showBuy = Boolean(sellerIdentity);
 
   return (
-    <div className={memberBarClass}>
+    <div className={barClass}>
       <MessageSellerButton itemId={itemId} sellerId={sellerId} variant="icon" />
       <WatchButton
         itemId={itemId}
@@ -142,8 +142,10 @@ export function ListingBuyerBar({
   );
 }
 
-const guestBarClass =
-  'fixed inset-x-0 bottom-0 z-30 flex items-center gap-1 border-t border-border bg-card px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden';
-
-const memberBarClass =
-  'fixed inset-x-0 z-30 flex items-center gap-1 border-t border-border bg-card px-3 pb-2 pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]';
+// One class for both viewers. The guest bar used to sit at `bottom-0` from when
+// the hub was members-only; once the hub was mounted for guests too it painted
+// straight over "Sign in to buy" — the only call to action an anonymous visitor
+// gets, on the route most organic traffic lands on. Docking both variants off
+// the same constant is what stops that pair drifting apart again.
+const barClass =
+  'fixed inset-x-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-30 flex items-center gap-1 border-t border-border bg-card px-3 pb-2 pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden';

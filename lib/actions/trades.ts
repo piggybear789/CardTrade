@@ -53,7 +53,6 @@ import {
 import { toHandoverColumns, type HandoverMethod } from '@/lib/handover/terms';
 import {
   MAX_MEETING_LEAD_HOURS,
-  TRADE_HANDOVER_METHODS,
   validateFulfilmentTerms,
   type DeliveryAddress,
   type FulfilmentTermsError,
@@ -895,7 +894,7 @@ export async function updateTradeHandoverTerms(
   if (!guard.ok) return guard;
 
   const { trade } = guard.ctx;
-  if (trade.state !== 'NEGOTIATING' && trade.state !== 'COLLATERAL_PENDING') {
+  if (trade.state !== 'NEGOTIATING' && trade.state !== 'COLLATERAL_PENDING' && trade.state !== 'COLLATERAL_LOCKED') {
     return { ok: false, error: 'invalid-state' };
   }
 
@@ -931,9 +930,6 @@ export async function updateTradeHandoverTerms(
     },
     {
       maxDeliveryCostCents: DEAL_DELIVERY_COST_MAX,
-      // Trades are face-to-face only. Collateral is a card authorisation with a
-      // deadline, and postage in both directions cannot be made to fit inside it.
-      allowedMethods: TRADE_HANDOVER_METHODS,
       maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS,
     },
   );

@@ -819,7 +819,7 @@ function CashSaleRoom({
                       <Input
                         value={trackingNumber}
                         onChange={(event) => setTrackingNumber(event.target.value)}
-                        placeholder="Tracking"
+                        placeholder="Tracking number"
                         aria-label="Tracking number"
                         className="w-full sm:w-36"
                       />

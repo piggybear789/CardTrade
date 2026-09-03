@@ -15,7 +15,7 @@ export async function fillUnlistedCard(
   description: string,
 ): Promise<void> {
   await page.getByRole('button', { name: /Your card/i }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: /Your card|Describe your item/i });
   await expect(dialog).toBeVisible({ timeout: RENDERED });
 
   await dialog.locator('#unlisted-game').click();

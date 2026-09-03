@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { Database } from '@/lib/supabase/database.types';
 
@@ -11,6 +11,10 @@ import type { Database } from '@/lib/supabase/database.types';
  * against the current user. Cookie writes are wrapped in try/catch because
  * Server Components cannot mutate cookies — in that context the middleware /
  * Server Action is responsible for session refresh.
+ *
+ * In mobile API flows, if cookies are absent but an Authorization: Bearer <token>
+ * header is present, it binds the bearer token into global headers so PostgREST
+ * RLS policies (auth.uid()) correctly recognize the authenticated mobile caller.
  *
  * PER-REQUEST MEMOISED. A page render reaches this from the shell, the page
  * body, and every action it calls — previously a fresh `await cookies()` and a
@@ -35,8 +39,24 @@ export const createClient = cache(async function createClient() {
 
   const cookieStore = await cookies();
 
+  let bearerToken: string | null = null;
+  try {
+    const headerStore = await headers();
+    const authHeader = headerStore.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      bearerToken = authHeader.slice(7).trim() || null;
+    }
+  } catch {
+    // Outside request scope (e.g. static/test generation)
+  }
+
   return createServerClient<Database>(url, anonKey, {
     db: { schema: 'cardtrade' },
+    global: bearerToken
+      ? {
+          headers: { Authorization: `Bearer ${bearerToken}` },
+        }
+      : undefined,
     cookies: {
       getAll() {
         return cookieStore.getAll();

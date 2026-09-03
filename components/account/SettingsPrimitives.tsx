@@ -154,9 +154,7 @@ export function SettingsListRow({
 } & Omit<HTMLAttributes<HTMLElement>, 'onClick' | 'className' | 'children'>) {
   const Glyph = icon;
   // Interactive when it navigates, has an explicit handler, or is cloned as a
-  // trigger (`ref` / pointer / aria-haspopup from Radix). A server-rendered row
-  // passed into `DialogTrigger asChild` often arrives with none of those, so
-  // callers must also attach `onClick` themselves — see `withRowOpenHandler`.
+  // trigger (`ref` / pointer / aria-haspopup from Radix).
   const interactive = Boolean(
     href || onClick || ref || rest.onPointerDown || rest['aria-haspopup'],
   );
@@ -255,7 +253,7 @@ export function SettingsListRow({
  * becomes a real button.
  */
 export function withRowOpenHandler(trigger: ReactNode, onOpen: () => void): ReactNode {
-  if (!isValidElement<{ onClick?: () => void }>(trigger)) return trigger;
+  if (!isValidElement<{ onClick?: () => void; interactive?: boolean }>(trigger)) return trigger;
   const previous = trigger.props.onClick;
   return cloneElement(trigger, {
     onClick: () => {

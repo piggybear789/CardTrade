@@ -35,9 +35,9 @@ export async function ensureSavedCard(page: Page, itemId: string): Promise<void>
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 15_000 });
 
-  // The dialog fetches payment-method status on open and swaps its whole body on
-  // the answer, so wait for one of the two possible headings rather than for a
-  // fixed delay.
+  // Wait for loading check to finish so we are on either addCard or checkout
+  await expect(dialog.getByText(/Checking your payment details/i)).toBeHidden({ timeout: 15_000 }).catch(() => {});
+
   const addCard = dialog.getByRole('heading', { name: 'Add a payment method' });
   const checkout = dialog.getByRole('heading', { name: 'Start a purchase contract' });
   await expect(addCard.or(checkout)).toBeVisible({ timeout: 20_000 });

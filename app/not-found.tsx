@@ -23,7 +23,7 @@ export default function NotFound() {
       <div className="flex size-14 items-center justify-center rounded-full border bg-muted text-muted-foreground">
         <HugeiconsIcon icon={CompassIcon} className="size-6" aria-hidden="true" />
       </div>
-      <p className="cardtrade-eyebrow mt-6">Error 404</p>
+      <p className="mt-6 text-body font-medium text-muted-foreground">Error 404</p>
       <h1 className="mt-4 text-balance font-display text-display font-semibold tracking-[-0.025em]">
         We couldn&apos;t find that page
       </h1>

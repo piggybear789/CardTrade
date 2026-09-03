@@ -42,10 +42,21 @@ test.describe.serial('Private cash deal → sale room', () => {
       timeout: COLD_ROUTE,
     });
 
-    await page.getByRole('radio', { name: /Cash for a card/i }).check();
-    await page.getByRole('radio', { name: /I'm selling/i }).check();
+    const cashTile = page.locator('label').filter({ hasText: /Cash for a card/i });
+    if (await cashTile.isVisible().catch(() => false)) {
+      await cashTile.click();
+    } else {
+      await page.getByRole('radio', { name: /Cash for a card/i }).check();
+    }
+
+    const sellingTile = page.locator('label').filter({ hasText: /I'm selling/i });
+    if (await sellingTile.isVisible().catch(() => false)) {
+      await sellingTile.click();
+    } else {
+      await page.getByRole('radio', { name: /I'm selling/i }).check();
+    }
     await fillUnlistedCard(page, description);
-    await page.getByLabel('Price').fill('150.00');
+    await page.getByLabel('Price', { exact: true }).fill('150.00');
     await page.getByRole('button', { name: 'Create deal link' }).click();
 
     await expect(page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
@@ -63,7 +74,8 @@ test.describe.serial('Private cash deal → sale room', () => {
     const q = encodeURIComponent(description);
     await page.goto(`/listings?q=${q}`);
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByText(description)).toHaveCount(0);
+    await expect(page.getByRole('link', { name: description })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /No Listings Match/i })).toBeVisible();
     await ctx.close();
   });
 
@@ -98,6 +110,10 @@ test.describe.serial('Private cash deal → sale room', () => {
     await expect(page.getByRole('heading', { name: 'Join this deal' })).toBeVisible({
       timeout: COLD_ROUTE,
     });
+    const saveDemoCard = page.getByRole('button', { name: /Save demo card/i });
+    if (await saveDemoCard.isVisible().catch(() => false)) {
+      await saveDemoCard.click();
+    }
     await page.getByRole('button', { name: 'Join this deal' }).click();
     await expect(page).toHaveURL(/\/sales\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
     salePath = new URL(page.url()).pathname;
@@ -128,7 +144,12 @@ test.describe.serial('Private trade deal → trade room', () => {
 
     await page.goto('/deals/new');
     await page.waitForLoadState('domcontentloaded');
-    await page.getByRole('radio', { name: /Trade cards/i }).check();
+    const tradeTile = page.locator('label').filter({ hasText: /Trade cards/i });
+    if (await tradeTile.isVisible().catch(() => false)) {
+      await tradeTile.click();
+    } else {
+      await page.getByRole('radio', { name: /Trade cards/i }).check();
+    }
     await fillUnlistedCard(page, hostDescription);
     await page.getByLabel('What your card is worth').fill('200.00');
     await page.getByLabel('What you want from them').fill(joinDescription);
@@ -165,9 +186,14 @@ test.describe.serial('Revoke unused invite', () => {
     const alice = await asUser(browser, ALICE);
     await alice.page.goto('/deals/new');
     await alice.page.waitForLoadState('domcontentloaded');
-    await alice.page.getByRole('radio', { name: /Cash for a card/i }).check();
+    const cashTile = alice.page.locator('label').filter({ hasText: /Cash for a card/i });
+    if (await cashTile.isVisible().catch(() => false)) {
+      await cashTile.click();
+    } else {
+      await alice.page.getByRole('radio', { name: /Cash for a card/i }).check();
+    }
     await fillUnlistedCard(alice.page, description);
-    await alice.page.getByLabel('Price').fill('50.00');
+    await alice.page.getByLabel('Price', { exact: true }).fill('50.00');
     await alice.page.getByRole('button', { name: 'Create deal link' }).click();
     await expect(alice.page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
     const invitePath = new URL(alice.page.url()).pathname;

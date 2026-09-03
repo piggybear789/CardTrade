@@ -179,18 +179,18 @@ values
   ('aaaaaaa1-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111',
    '1999 Pokémon Base Set Charizard #4 PSA 8',
    'Holographic Charizard from the 1999 Base Set, graded PSA 8 NM-MT. Sharp corners, minor holo scratch. Stored in a protective case since grading.',
-   'Trading Cards', 'PSA 8', 25000, 'AVAILABLE', array['items/aaaaaaa1/front.jpg','items/aaaaaaa1/back.jpg']),
+   'Pokémon', 'PSA 8', 25000, 'AVAILABLE', array['items/aaaaaaa1/front.jpg','items/aaaaaaa1/back.jpg']),
 
   ('aaaaaaa2-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222',
    '1986 Fleer Michael Jordan Rookie #57 BGS 7',
    'Iconic Michael Jordan rookie card, Fleer #57, BGS 7 Near Mint. Centering 60/40, strong color. A cornerstone basketball rookie.',
-   'Trading Cards', 'BGS 7', 25000, 'AVAILABLE', array['items/aaaaaaa2/front.jpg','items/aaaaaaa2/back.jpg']),
+   'Sports Cards', 'BGS 7', 25000, 'AVAILABLE', array['items/aaaaaaa2/front.jpg','items/aaaaaaa2/back.jpg']),
 
   -- Equal-FMV pair B (AVAILABLE, $1,200.00) ------------------------------------
   ('bbbbbbb1-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333',
    '1909-1911 T206 Ty Cobb (Red Portrait) SGC 3',
    'Classic T206 Ty Cobb red portrait, SGC 3 VG. Even wear, no creases, tobacco-era cardboard. A blue-chip vintage baseball card.',
-   'Trading Cards', 'SGC 3', 120000, 'AVAILABLE', array['items/bbbbbbb1/front.jpg']),
+   'Sports Cards', 'SGC 3', 120000, 'AVAILABLE', array['items/bbbbbbb1/front.jpg']),
 
   ('bbbbbbb2-0000-0000-0000-000000000002', '44444444-4444-4444-4444-444444444444',
    '1963 Fantastic Four #1 CGC 4.0',

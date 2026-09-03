@@ -33,7 +33,7 @@ export default function Error({
       <div className="flex size-14 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
         <HugeiconsIcon icon={TriangleAlertIcon} className="size-6" aria-hidden="true" />
       </div>
-      <p className="cardtrade-eyebrow mt-6">Something went wrong</p>
+      <p className="mt-6 text-body font-medium text-muted-foreground">Something went wrong</p>
       <h1 className="mt-4 text-balance font-display text-display font-semibold tracking-[-0.025em]">
         This page hit a snag
       </h1>

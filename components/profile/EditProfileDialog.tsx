@@ -6,11 +6,10 @@
 // far more often than they are changed, so the page shows what is set and keeps
 // the inputs behind a deliberate action.
 
-import { useState, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { PencilIcon } from '@hugeicons/core-free-icons';
 
-import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
 import { ProfileForm } from './ProfileForm';
 import {
   Dialog,
@@ -41,17 +40,23 @@ export function EditProfileDialog({
 
   return (
     <>
-      {withRowOpenHandler(
-        trigger ?? (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
-          >
-            <HugeiconsIcon icon={PencilIcon} className="size-3" aria-hidden />
-            Edit
-          </button>
-        ),
-        () => setOpen(true),
+      {trigger ? (
+        isValidElement<{ onClick?: () => void }>(trigger) ? (
+          cloneElement(trigger, {
+            onClick: () => setOpen(true),
+          })
+        ) : (
+          <div onClick={() => setOpen(true)}>{trigger}</div>
+        )
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
+        >
+          <HugeiconsIcon icon={PencilIcon} className="size-3" aria-hidden />
+          Edit
+        </button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>

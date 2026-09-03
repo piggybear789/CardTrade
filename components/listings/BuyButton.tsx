@@ -235,8 +235,8 @@ function PurchaseDialog({
         {loading ? (
           <>
             <DialogHeader>
-              <DialogTitle>Start a purchase contract</DialogTitle>
-              <DialogDescription>{description}</DialogDescription>
+              <DialogTitle>Checking payment method</DialogTitle>
+              <DialogDescription>Please wait…</DialogDescription>
             </DialogHeader>
             <div className="flex items-center justify-center py-8" role="status">
               <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />

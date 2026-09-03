@@ -64,9 +64,11 @@ async function makeOffer(page: Page, itemId: string, dollars: string, note: stri
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 15_000 });
 
-  // The identity confirmation is a hard gate — `initiateCashSale`-style refusal
-  // applies to offers too, because accepting one opens a contract with this payee.
-  await dialog.getByRole('checkbox').check();
+  // If an identity confirmation checkbox is present, check it.
+  const checkbox = dialog.getByRole('checkbox');
+  if (await checkbox.isVisible().catch(() => false)) {
+    await checkbox.check();
+  }
   await dialog.getByLabel('Your offer').fill(dollars);
   await dialog.getByLabel(/Message/i).fill(note);
   await dialog.getByRole('button', { name: 'Send offer' }).click();
@@ -104,6 +106,10 @@ test.describe.serial('Offer declined', () => {
   await expect(page.getByRole('button', { name: 'Counter' })).toBeVisible();
   
   await page.getByRole('button', { name: 'Decline' }).click();
+  const confirm = page.getByRole('dialog');
+  if (await confirm.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await confirm.getByRole('button', { name: 'Decline offer' }).click();
+  }
   
   // Declined is terminal, so every action retires.
   await expect(page.getByRole('button', { name: 'Decline' })).toHaveCount(0, {

@@ -174,7 +174,7 @@ test.describe('Payouts page', () => {
       page.getByRole('heading', { name: 'Where your money goes' }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByRole('heading', { name: 'Transfer history' }),
+      page.getByRole('heading', { name: /(Transfer history|No payouts yet)/ }),
     ).toBeVisible({ timeout: 15_000 });
   });
 

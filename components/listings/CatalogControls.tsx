@@ -328,14 +328,18 @@ export function CatalogFilters() {
             returns nothing, which is the case where undoing filters one at a
             time is genuinely tedious. */}
         <div id="catalog-filter-panel" className="mt-4 space-y-5 bg-transparent">
-          {/* The keyword box sits ABOVE the facets, which is where faceted
-              search has always put it, and it is a filter so the filter rail is
-              its home. It used to sit in the results toolbar, one row under the
-              site header's search — two rounded inputs with a magnifier, about
-              60px apart, one querying the marketplace and the other narrowing
-              only what was already on the page. Nothing distinguished them but
-              their placeholder. Moving it here separates the two by the width of
-              the rail and groups it with the controls it actually belongs to. */}
+          {hasActiveFilters ? (
+            <div className="flex items-center justify-between">
+              <span className="text-meta text-muted-foreground">Active filters</span>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-meta font-medium text-iris-ink hover:underline focus:outline-none focus-visible:underline"
+              >
+                Clear all
+              </button>
+            </div>
+          ) : null}
           <CatalogFilterSearch />
           <CatalogRefineFields
             current={current}

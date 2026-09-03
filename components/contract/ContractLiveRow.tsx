@@ -20,6 +20,7 @@
 
 import type { ReactNode } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { useContractFocus } from '@/components/contract/ContractFocus';
 import { useContractSplit } from '@/components/contract/useContractSplit';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -114,13 +115,25 @@ export function ContractLiveRow({
         >
           {/* `pr-group`, overriding SheetHeader's `pr-12`: that inset exists to
               keep the title clear of the ✕, which this sheet does not have. */}
-          <SheetHeader className="shrink-0 border-b border-border px-group py-cozy pr-group">
-            <SheetTitle className="truncate text-lead">{detailsTitle}</SheetTitle>
-            {detailsMeta ? (
-              <div className="flex flex-wrap items-center gap-cozy text-body text-muted-foreground">
-                {detailsMeta}
-              </div>
-            ) : null}
+          <SheetHeader className="flex flex-row items-center justify-between shrink-0 border-b border-border px-group py-cozy pr-group">
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="truncate text-lead">{detailsTitle}</SheetTitle>
+              {detailsMeta ? (
+                <div className="flex flex-wrap items-center gap-cozy text-body text-muted-foreground">
+                  {detailsMeta}
+                </div>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={closeDetails}
+              className="text-body font-medium text-muted-foreground hover:text-foreground"
+              aria-label="Close details"
+            >
+              Done
+            </Button>
           </SheetHeader>
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         </SheetContent>

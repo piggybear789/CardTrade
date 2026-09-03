@@ -26,10 +26,7 @@ export function EmptyState({
       title={title}
       description={description}
       action={{ label: ctaLabel, href: ctaHref }}
-      // A section empty state carries less weight than a full-page one, so it
-      // uses the tighter padding. The hub already has browse / sell on phones.
       compact
-      hideActionOnMobile
     />
   );
 }

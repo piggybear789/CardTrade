@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { headers } from 'next/headers';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from './server';
 
@@ -15,13 +16,25 @@ export interface CachedProfile {
 /**
  * Per-request cached lookup of the current authenticated user.
  * Deduplicates multiple `supabase.auth.getUser()` calls in a single SSR request.
+ * Supports both cookie-based sessions and mobile Bearer tokens.
  */
 export const getCachedAuthUser = cache(async (): Promise<User | null> => {
   try {
     const supabase = await createClient();
+    let bearerToken: string | null = null;
+    try {
+      const headerStore = await headers();
+      const authHeader = headerStore.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        bearerToken = authHeader.slice(7).trim() || null;
+      }
+    } catch {
+      // Outside request scope
+    }
+
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await (bearerToken ? supabase.auth.getUser(bearerToken) : supabase.auth.getUser());
     return user ?? null;
   } catch {
     return null;

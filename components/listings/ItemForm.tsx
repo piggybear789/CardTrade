@@ -198,6 +198,21 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     return () => publishItemFormChrome(null);
   }, [mode, isSubmitting]);
 
+  React.useEffect(() => {
+    const isDirty =
+      description.trim() !== "" ||
+      newFiles.length > 0 ||
+      fmvDollars.trim() !== "";
+    if (!isDirty || isSubmitting) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [description, newFiles.length, fmvDollars, isSubmitting]);
+
   const totalImages = keptPaths.length + newFiles.length;
 
   function errorFor(field: Exclude<ErrorField, null>): string | undefined {
@@ -655,9 +670,14 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 }
                 disabled={isSubmitting}
               />
-              <p className="text-body text-muted-foreground">
-                The first line is used as the listing title in the catalog.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-body text-muted-foreground">
+                  The first line is used as the listing title in the catalog.
+                </p>
+                <span className="text-meta text-muted-foreground tabular-nums">
+                  {description.length}/2000
+                </span>
+              </div>
               {descriptionError ? (
                 <FieldError id="description-error" message={descriptionError} />
               ) : null}
@@ -784,11 +804,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             type="submit"
             disabled={isSubmitting}
             aria-busy={isSubmitting}
-            className={
-              mode === "create"
-                ? "hidden w-full md:inline-flex md:w-auto"
-                : "w-full sm:w-auto"
-            }
+            className="w-full sm:w-auto"
           >
             {isSubmitting
               ? "Saving…"

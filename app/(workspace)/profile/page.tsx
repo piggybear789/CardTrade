@@ -271,7 +271,7 @@ function ProfilePanel({
           displayName={displayName}
           contactEmail={contactEmail}
           trigger={
-            <SettingsListRow label="Name and email" value={contactEmail} />
+            <SettingsListRow onClick={() => {}} label="Name and email" value={contactEmail} />
           }
         />
         <BioSettingRow bio={bio} />
@@ -431,6 +431,7 @@ async function PaymentMethodRow() {
     <AddPaymentMethodDialog
       trigger={
         <SettingsListRow
+          onClick={() => {}}
           icon={CreditCardIcon}
           label="Payment method"
           // ONE LINE. The card used to be the value beside a two-line label carrying

@@ -63,6 +63,14 @@ export const GRACE_SUPPORT: SeedUser = {
   password: PASSWORD,
 };
 
+/** Dedicated user for sign-out specs so Alice's shared session is never revoked. */
+export const HEIDI_SIGNOUT: SeedUser = {
+  id: '88888888-8888-8888-8888-888888888888',
+  email: 'heidi@example.com',
+  displayName: 'Heidi Signout',
+  password: PASSWORD,
+};
+
 export const SEED_USERS = [ALICE, BOB, CAROL, DAVE, ERIN, FRANK_ADMIN, GRACE_SUPPORT];
 
 /** Equal-FMV AVAILABLE item pair (Pair A, $250.00) — Alice's side, Bob's side. */

@@ -53,6 +53,12 @@ export function catalogSearchAttempts(q: string): string[] {
 
   const attempts = [trimmed];
   const tokens = significantTokens(trimmed);
+  if (tokens.length === 0) return attempts;
+
+  if (tokens.join(' ') !== trimmed) {
+    pushUnique(attempts, tokens.join(' '));
+  }
+
   if (tokens.length < 2) return attempts;
 
   pushUnique(attempts, tokens.slice(1).join(' '));

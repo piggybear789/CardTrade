@@ -199,7 +199,8 @@ export function TradeHandoverTermsEditor({
           variant="outline"
           size="sm"
           className="gap-tight px-3 text-meta font-medium [&_svg]:size-3"
-        >
+        >
+
           {triggerLabel}
         </Button>
       </DialogTrigger>
@@ -253,7 +254,7 @@ export function TradeHandoverTermsEditor({
           </Button>
           <Button
             type="button"
-            disabled={isPending || !detailsComplete}
+            disabled={isPending}
             aria-busy={isPending}
             onClick={handleSave}
           >

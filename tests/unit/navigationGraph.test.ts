@@ -37,6 +37,10 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   '/auth/confirm',
   '/auth/update-password',
   '/onboarding', // post-signup / proxy entry; AuthForm uses withRedirect()
+  // Join-by-token invite link shared externally (SMS, chat, email)
+  '/t/[token]',
+  // Legacy / external bookmark redirect to the deal dialog
+  '/deals/new',
 ]);
 
 /** Recursively collect files under `dir` whose extension is in `exts`. */
@@ -258,6 +262,8 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/help': 'Marketing help centre — mobile has no native help route',
   '/privacy': 'Opened as an external web URL from Settings, not a native route',
   '/terms': 'Opened as an external web URL from Settings, not a native route',
+  '/t/[token]': 'Web landing page for external private deal invite links',
+  '/deals/new': 'Web redirect opening deal compose dialog; mobile uses native deal modal',
 };
 
 describe('mobile route parity', () => {

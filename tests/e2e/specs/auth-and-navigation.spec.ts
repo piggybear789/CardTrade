@@ -9,7 +9,7 @@
 
 import { test, expect } from '../support/fixtures';
 import { isSignedInDestination } from '../support/auth';
-import { ALICE, FRANK_ADMIN, storageStatePath } from '../support/users';
+import { ALICE, FRANK_ADMIN, HEIDI_SIGNOUT, storageStatePath } from '../support/users';
 import { markedEmail } from '../support/marker';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
 
@@ -265,7 +265,7 @@ test.describe('sign-out', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test('signs out and the session is really gone', async ({ page }) => {
-    await signInAs(page, ALICE.email, ALICE.password);
+    await signInAs(page, HEIDI_SIGNOUT.email, HEIDI_SIGNOUT.password);
     await expect(page).toHaveURL(isSignedInDestination, { timeout: COLD_ROUTE });
 
     // Sign-out lives on Settings so a phone without the header burger can

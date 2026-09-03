@@ -125,8 +125,8 @@ export function CatalogResults() {
       <div
         aria-busy={isPending}
         className={cn(
-          isDesktop && 'motion-safe:transition-opacity motion-safe:duration-500 motion-safe:ease-out',
-          isDesktop && isPending && 'opacity-70',
+          'motion-safe:transition-opacity motion-safe:duration-300 motion-safe:ease-out',
+          isPending && 'opacity-70 pointer-events-none',
         )}
       >
         {isDesktop ? (

@@ -6,7 +6,7 @@
 // page as a proactive entry point. The BuyButton uses the inline
 // `AddPaymentMethodForm` directly without this wrapper.
 
-import { useState } from 'react';
+import { cloneElement, isValidElement, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -22,7 +22,6 @@ const AddPaymentMethodForm = dynamic(
   },
 );
 
-import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -45,14 +44,19 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
 
   return (
     <>
-      {withRowOpenHandler(
-        trigger ?? (
-          <Button type="button" variant="outline">
-            <HugeiconsIcon icon={CreditCardIcon} aria-hidden />
-            Add payment method
-          </Button>
-        ),
-        () => setOpen(true),
+      {trigger ? (
+        isValidElement<{ onClick?: () => void }>(trigger) ? (
+          cloneElement(trigger, {
+            onClick: () => setOpen(true),
+          })
+        ) : (
+          <div onClick={() => setOpen(true)}>{trigger}</div>
+        )
+      ) : (
+        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+          <HugeiconsIcon icon={CreditCardIcon} aria-hidden />
+          Add payment method
+        </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>

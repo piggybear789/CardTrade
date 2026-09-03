@@ -95,10 +95,10 @@ test.describe('Notification delivery', () => {
   
   // The visible bell announces the count in its accessible name — that is what
   // a screen-reader user gets, so it is the thing worth asserting on.
-  const visibleUnreadBell = alicePage
+  const unreadBell = alicePage
     .getByRole('button', { name: /Notifications, \d+ unread/ })
-    .locator('visible=true');
-  await expect(visibleUnreadBell).toBeVisible();
+    .first();
+  await expect(unreadBell).toBeVisible();
   
   await markAll.click();
   
@@ -106,14 +106,14 @@ test.describe('Notification delivery', () => {
   // resolves, which takes `unreadCount` to 0 and disables the control. Asserting
   // DISABLED rather than HIDDEN: the button never unmounts.
   await expect(markAll).toBeDisabled({ timeout: 20_000 });
-  await expect(visibleUnreadBell).toHaveCount(0, { timeout: 20_000 });
+  await expect(alicePage.getByRole('button', { name: /Notifications, \d+ unread/ })).toHaveCount(0, { timeout: 20_000 });
   
   // And it stays cleared across a reload, so the optimistic update was backed by
   // a persisted write rather than being local-only.
   await alicePage.reload();
   await alicePage.waitForLoadState('domcontentloaded');
   await expect(
-    alicePage.getByRole('button', { name: /Notifications, \d+ unread/ }).locator('visible=true'),
+    alicePage.getByRole('button', { name: /Notifications, \d+ unread/ }),
   ).toHaveCount(0, { timeout: 20_000 });
   
   await aliceContext.close(); });

@@ -122,6 +122,7 @@ export function SettingsListRow({
   trailing,
   href,
   onClick,
+  interactive: interactiveProp,
   disabled,
   className,
   // Ref and unknown props are forwarded so a row can BE a Radix `asChild` trigger
@@ -143,6 +144,24 @@ export function SettingsListRow({
   trailing?: ReactNode;
   href?: string;
   onClick?: () => void;
+  /**
+   * Force the `<button>` branch without supplying a handler.
+   *
+   * FOR A ROW CREATED IN A SERVER COMPONENT AND OPENED BY A CLIENT DIALOG. The dialog
+   * clones this row and adds the real `onClick` (see `withRowOpenHandler`, and the
+   * matching `cloneElement` in `EditProfileDialog` / `AddPaymentMethodDialog`), but the
+   * clone lands on whatever this already RENDERED to — so the branch has to be decided
+   * here, before the boundary, or the tap arrives on a non-focusable `div`.
+   *
+   * IT EXISTS BECAUSE THE OBVIOUS WORKAROUND CRASHES THE PAGE. Passing a throwaway
+   * `onClick={() => {}}` from the server flips the same branch, and that is what
+   * `app/(workspace)/profile/page.tsx` did: the server-rendered output then carried a
+   * function prop, React refused to serialise it across the boundary
+   * ("Event handlers cannot be passed to Client Component props"), and the route error
+   * boundary swallowed the ENTIRE account surface — no tab strip, no rows, for every
+   * member regardless of verification state.
+   */
+  interactive?: boolean;
   disabled?: boolean;
   className?: string;
   // Typed against `HTMLElement`, not one concrete tag: this renders as an anchor, a
@@ -153,10 +172,11 @@ export function SettingsListRow({
   type?: 'button' | 'submit' | 'reset';
 } & Omit<HTMLAttributes<HTMLElement>, 'onClick' | 'className' | 'children'>) {
   const Glyph = icon;
-  // Interactive when it navigates, has an explicit handler, or is cloned as a
-  // trigger (`ref` / pointer / aria-haspopup from Radix).
+  // Interactive when it navigates, has an explicit handler, is declared so by a server
+  // caller whose client dialog will attach the handler later, or is cloned as a trigger
+  // (`ref` / pointer / aria-haspopup from Radix).
   const interactive = Boolean(
-    href || onClick || ref || rest.onPointerDown || rest['aria-haspopup'],
+    href || onClick || interactiveProp || ref || rest.onPointerDown || rest['aria-haspopup'],
   );
 
   const body = (

@@ -271,7 +271,12 @@ function ProfilePanel({
           displayName={displayName}
           contactEmail={contactEmail}
           trigger={
-            <SettingsListRow onClick={() => {}} label="Name and email" value={contactEmail} />
+            // `interactive`, NOT `onClick={() => {}}`. This is a Server Component and
+            // the row renders here, so a function in its output cannot cross into the
+            // client dialog — React refuses to serialise it and the route error
+            // boundary takes the whole account surface with it. `EditProfileDialog`
+            // clones this row and attaches the real handler.
+            <SettingsListRow interactive label="Name and email" value={contactEmail} />
           }
         />
         <BioSettingRow bio={bio} />
@@ -431,7 +436,9 @@ async function PaymentMethodRow() {
     <AddPaymentMethodDialog
       trigger={
         <SettingsListRow
-          onClick={() => {}}
+          // See the note on the "Name and email" row above: a function prop here is
+          // unserialisable across the boundary and kills the page.
+          interactive
           icon={CreditCardIcon}
           label="Payment method"
           // ONE LINE. The card used to be the value beside a two-line label carrying

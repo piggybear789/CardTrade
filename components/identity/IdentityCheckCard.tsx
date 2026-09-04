@@ -17,7 +17,8 @@
 // closed, so its copy can finally say "photo ID" honestly.
 
 import { useState, useTransition } from 'react';
-import { BadgeCheck, Loader2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BadgeCheckIcon, LoaderCircleIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { beginIdentityCheck } from '@/lib/actions/identity';
@@ -97,7 +98,7 @@ export function IdentityCheckCard({
       <div className="space-y-group">
         {status === 'FAILED' ? (
           <p className="flex gap-snug text-body text-destructive">
-            <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
             {/* Retryable, and said so. A document check fails for a blurry photo far
                 more often than for anything sinister, and a dead end reads as a ban. */}
             That document could not be verified. You can try again.
@@ -119,9 +120,9 @@ export function IdentityCheckCard({
 
         <Button type="button" onClick={start} disabled={isPending} aria-busy={isPending}>
           {isPending ? (
-            <Loader2 className="animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
           ) : (
-            <BadgeCheck className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={BadgeCheckIcon} className="size-3.5" aria-hidden />
           )}
           {status === 'NONE' ? 'Verify with Stripe' : 'Try again'}
         </Button>
@@ -138,12 +139,12 @@ export function IdentityCheckCard({
   return (
     // `id` is the in-page anchor if a fragment still lands here. The hosted
     // return and onboarding fallback now go to `/profile?tab=verification`.
-    <Card id="identity" className="h-full scroll-mt-24">
+    <Card id="identity" className="h-full scroll-mt-24 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-cozy">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-snug text-lead">
-              <ShieldCheck className="size-4 shrink-0 text-trust" aria-hidden />
+              <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
               Identity
             </CardTitle>
             <CardDescription>Required before you can list, sell, or trade.</CardDescription>

@@ -10,6 +10,9 @@
 export { FulfilmentMethodChoice } from './FulfilmentMethodChoice';
 export type { FulfilmentMethodChoiceProps } from './FulfilmentMethodChoice';
 
+export { FulfilmentMethodSummary } from './FulfilmentMethodSummary';
+export type { FulfilmentMethodSummaryProps } from './FulfilmentMethodSummary';
+
 export { FULFILMENT_FIELD_ERRORS, FulfilmentTermsFields } from './FulfilmentTermsFields';
 export type { FulfilmentTermsFieldsProps } from './FulfilmentTermsFields';
 

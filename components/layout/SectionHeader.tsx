@@ -26,22 +26,22 @@ export function SectionHeader({
   mobileAction?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-snug flex flex-row items-center justify-between gap-cozy border-b border-border pb-snug md:mb-5 md:items-end md:gap-3 md:pb-5">
       <div className="min-w-0">
-        <h2 className="text-balance text-head font-semibold tracking-[-0.025em]">
+        <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
           {title}
         </h2>
         {description ? (
-          <p className="mt-1.5 text-pretty text-body text-muted-foreground">
+          <p className="mt-tight hidden text-pretty text-body text-muted-foreground md:mt-1.5 md:block">
             {description}
           </p>
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
-      {/* Full width when it stacks under the heading, natural width once the
-          header turns into a row. */}
+      {/* Sits beside the heading, never under it. RailPrimaryAction is `w-full`
+          for the rail that normally holds it, so the width is unset here. */}
       {mobileAction ? (
-        <div className="w-full min-w-0 sm:w-auto sm:shrink-0 md:hidden [&>a]:w-full sm:[&>a]:w-auto">
+        <div className="shrink-0 md:hidden [&>a]:w-auto [&>button]:w-auto">
           {mobileAction}
         </div>
       ) : null}

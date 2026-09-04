@@ -18,7 +18,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Heart } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HeartIcon } from '@hugeicons/core-free-icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button } from '@/components/ui/button';
@@ -67,7 +68,7 @@ export function WatchButton({
       const result = await toggleWatch(itemId);
       if (result.ok) {
         setWatching(result.watching);
-        toast.success(result.watching ? 'Saved to your watchlist' : 'Removed from your watchlist');
+        
         return;
       }
       // Roll back the optimistic change and report the failure.
@@ -83,7 +84,7 @@ export function WatchButton({
   if (variant === 'action') {
     return (
       <ListingActionIcon
-        icon={Heart}
+        icon={HeartIcon}
         label={label}
         onClick={handleToggle}
         disabled={isPending}
@@ -115,12 +116,12 @@ export function WatchButton({
           // Same weight as the watching count: a glyph in the chrome, not a
           // chip on the photo. 闲鱼 keeps the artwork clean and puts 收藏
           // with the price / want-count.
-          'relative inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60',
+          'relative inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute md:after:-inset-2 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-60 md:size-8',
           watching && 'text-destructive hover:text-destructive',
           className,
         )}
       >
-        <Heart
+        <HugeiconsIcon icon={HeartIcon}
           className={cn('size-3.5', watching && 'fill-current')}
           strokeWidth={1.75}
           aria-hidden
@@ -140,7 +141,7 @@ export function WatchButton({
       aria-pressed={watching}
       aria-busy={isPending}
     >
-      <Heart
+      <HugeiconsIcon icon={HeartIcon}
         className={cn(watching && 'fill-destructive text-destructive')}
         aria-hidden
       />

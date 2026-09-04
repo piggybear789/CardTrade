@@ -38,6 +38,7 @@ abstract final class ApiRoutes {
   static String get tradeOpen => '$base/trades/open';
   static String get tradeProposeTerms => '$base/trades/propose-terms';
   static String get tradeAcceptTerms => '$base/trades/accept-terms';
+  static String get tradeRetryCollateral => '$base/trades/retry-collateral';
   static String get tradeDecline => '$base/trades/decline';
 
   // ─── Trade Lifecycle ──────────────────────────────────────────────────────

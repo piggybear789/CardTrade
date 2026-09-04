@@ -6,14 +6,371 @@
 // names fonts this app does not load (Fraunces, JetBrains Mono). The app ships a
 // single LIGHT theme with Plus Jakarta Sans, so the reference's
 // STRUCTURE (compact rows, eyebrow labels, status pills, icon medallions) is
-// reproduced here against real tokens — `trust`, `gold`, `destructive`, `muted`.
+// reproduced here against real tokens — `trust`, `iris`, `destructive`, `muted`.
 // Porting its `bg-[#111118]` / `text-emerald-400` classes verbatim would render
 // as unreadable dark-on-light.
 
-import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import {
+  cloneElement,
+  isValidElement,
+  type ComponentPropsWithoutRef,
+  type HTMLAttributes,
+  type ReactNode,
+  type Ref,
+} from 'react';
+import Link from 'next/link';
+import { HugeiconsIcon } from '@hugeicons/react';
+import type { IconSvgElement } from '@hugeicons/react';
+import { ChevronRightIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
+import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+
+// ---------------------------------------------------------------------------
+// The grouped list — the vocabulary the whole Account surface is built from
+// ---------------------------------------------------------------------------
+//
+// ONE ROW SHAPE, EVERYWHERE. Before this, a single scroll of Settings used four
+// container treatments: a solid card for identity, a bare textarea for the bio, and
+// two dashed boxes for links and payment. Nothing repeated, so there was no row
+// vocabulary to learn and every block had to be read from scratch. A settings screen
+// is the one surface where familiarity beats invention — see the product register's
+// note that consistency IS an affordance.
+//
+// VALUES AT REST, EDITORS ON DEMAND. Rows show what a setting currently IS and open
+// an editor when tapped. The page used to render live inputs instead: the bio was a
+// permanently-open textarea with placeholder prose and a `0/280` counter, so a
+// screen people mostly READ was dressed as a form they had abandoned halfway.
+
+/**
+ * A run of related rows inside one container.
+ *
+ * The container is the only card: rows never carry their own border, which is what
+ * keeps this from becoming the nested-card pattern. No shadow either — a 1px border
+ * plus a soft drop shadow on the same element is the "ghost card" tell.
+ */
+export function SettingsGroup({
+  label,
+  description,
+  children,
+  className,
+}: {
+  /** Group heading. Omit for a standalone run of rows that needs no introduction. */
+  label?: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn('space-y-snug', className)}>
+      {label ? (
+        <div className="space-y-tight px-tight">
+          {/* A REAL HEADING, not `SectionLabel`. This looked like a heading and was a
+              `<p>`, so it sat outside the document outline: a screen-reader user
+              skimming by heading jumped straight from the member's name to the rows
+              with nothing naming the group in between. `SectionLabel` keeps its `<p>`
+              for the places that want the look without the semantics — see the note in
+              `ProfileForm` about not confusing it with a form `<Label>`.
+
+              SENTENCE CASE AT BODY SIZE, not the app's `market-label`. That class is
+              11px uppercase on wide tracking — a web-dashboard eyebrow, and the last
+              thing on this surface that read as a website rather than an app. Native
+              group headers are sentence case and close to body size, de-emphasised by
+              colour rather than by shrinking, which is also what this project's own
+              type-scale note asks for. */}
+          <h3 className="text-body font-medium text-muted-foreground">{label}</h3>
+          {description ? (
+            <p className="text-body leading-relaxed text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The row's box, shared by the real row and {@link SettingsRowSkeleton}.
+ *
+ * ONE DEFINITION SO THE PLACEHOLDER CANNOT DRIFT. Loading states here used to be
+ * hand-drawn boxes with their own paddings and heights, so every change to the real
+ * layout silently invalidated them and the page visibly re-laid-out on data arrival.
+ * A skeleton whose geometry is a copy of the geometry is a skeleton that is wrong by
+ * default; this makes them the same object.
+ */
+const ROW_SHAPE = [
+  'relative flex w-full items-center gap-cozy px-group py-cozy text-left min-h-12',
+  'before:absolute before:left-group before:right-0 before:top-0 before:h-px',
+  'before:bg-border first:before:hidden',
+].join(' ');
+
+/**
+ * One row in a {@link SettingsGroup}: label on the left, current value on the right,
+ * a chevron when tapping it opens something.
+ *
+ * Renders as a link, a button, or a plain div depending on what it does, so a row
+ * that navigates is a real anchor and a row that only reports is not focusable.
+ */
+export function SettingsListRow({
+  icon,
+  tone = 'neutral',
+  label,
+  description,
+  value,
+  trailing,
+  href,
+  onClick,
+  disabled,
+  className,
+  // Ref and unknown props are forwarded so a row can BE a Radix `asChild` trigger
+  // (`DialogTrigger`, `PopoverTrigger`), which clones its child with handlers, ARIA
+  // and a ref. Without this the dialogs would each need a parallel controlled-open
+  // prop just to be opened from a list row.
+  ref,
+  type = 'button',
+  ...rest
+}: {
+  icon?: IconSvgElement;
+  tone?: StatusTone;
+  label: ReactNode;
+  /** Second line under the label, for a row whose purpose is not self-evident. */
+  description?: ReactNode;
+  /** The setting's current state, right-aligned and muted. */
+  value?: ReactNode;
+  /** Replaces the chevron — a pill, a switch, or a real control. */
+  trailing?: ReactNode;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+  // Typed against `HTMLElement`, not one concrete tag: this renders as an anchor, a
+  // button or a div, and `HTMLButtonElement` handlers are not assignable to the other
+  // two. React's event handlers are bivariant, so the supertype satisfies all three.
+  ref?: Ref<HTMLElement>;
+  /** Radix sets this on a trigger; it is only meaningful on the button branch. */
+  type?: 'button' | 'submit' | 'reset';
+} & Omit<HTMLAttributes<HTMLElement>, 'onClick' | 'className' | 'children'>) {
+  const Glyph = icon;
+  // Interactive when it navigates, has an explicit handler, or is cloned as a
+  // trigger (`ref` / pointer / aria-haspopup from Radix).
+  const interactive = Boolean(
+    href || onClick || ref || rest.onPointerDown || rest['aria-haspopup'],
+  );
+
+  const body = (
+    <>
+      {Glyph ? <IconMedallion icon={Glyph} tone={tone} /> : null}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-body font-medium text-foreground">{label}</span>
+        {description ? (
+          // ONE LINE, and it gets the row's full width — which is the point of using
+          // it over `value` for something long. A bio in the value slot was capped at
+          // 45% of a phone screen and truncated at about nineteen characters, so the
+          // preview showed nothing worth reading.
+          <span className="mt-0.5 line-clamp-1 text-body leading-snug text-muted-foreground">
+            {description}
+          </span>
+        ) : null}
+      </span>
+      {value ? (
+        <span className="min-w-0 max-w-[45%] truncate text-right text-body text-muted-foreground">
+          {value}
+        </span>
+      ) : null}
+      {trailing ?? null}
+      {interactive && !trailing ? (
+        <HugeiconsIcon icon={ChevronRightIcon} className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
+      ) : null}
+    </>
+  );
+
+  // Divider drawn as a pseudo-element inset to the row's text origin, rather than
+  // `divide-y` on the group: a full-bleed rule between rows reads as a table, and the
+  // inset one is what makes a run of rows read as a single grouped list.
+  const shape = cn(
+    ROW_SHAPE,
+    // `touch-manipulation` opts out of double-tap-to-zoom, which is what removes the
+    // ~300ms delay browsers otherwise hold before firing the tap. On a list you flick
+    // through, that delay is most of the difference between "app" and "website".
+    interactive && 'touch-manipulation transition-colors active:bg-muted/70 md:hover:bg-muted/40',
+    // Ring rather than the app's usual border-colour focus: these rows sit inside an
+    // `overflow-hidden` group, so an outset ring would be clipped on the first and
+    // last row. `ring-inset` stays visible on every row.
+    interactive &&
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
+    disabled && 'pointer-events-none opacity-60',
+    className,
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        ref={ref as Ref<HTMLAnchorElement>}
+        className={shape}
+        aria-disabled={disabled || undefined}
+        {...rest}
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  // A row that only reports must not be focusable — rendering every row as a button
+  // would put a keyboard stop on each line of a read-only group.
+  if (!interactive) {
+    return (
+      <div ref={ref as Ref<HTMLDivElement>} className={shape} {...rest}>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type={type}
+      ref={ref as Ref<HTMLButtonElement>}
+      onClick={onClick}
+      disabled={disabled}
+      className={shape}
+      {...rest}
+    >
+      {body}
+    </button>
+  );
+}
+
+/**
+ * Attach an open handler to a settings row (or any element) without Radix
+ * `DialogTrigger asChild`.
+ *
+ * `asChild` clones its child with handlers, but a row created in a Server
+ * Component and passed into a Client dialog often never receives them — the row
+ * then renders as a non-button `div` and the tap does nothing. Cloning here, in
+ * the client that owns the dialog, puts `onClick` on `SettingsListRow` so it
+ * becomes a real button.
+ */
+export function withRowOpenHandler(trigger: ReactNode, onOpen: () => void): ReactNode {
+  if (!isValidElement<{ onClick?: () => void; interactive?: boolean }>(trigger)) return trigger;
+  const previous = trigger.props.onClick;
+  return cloneElement(trigger, {
+    onClick: () => {
+      previous?.();
+      onOpen();
+    },
+  });
+}
+
+/**
+ * The one line on the Account surface that states what a member's account actually
+ * IS, rather than what they can change about it.
+ *
+ * WHY IT EARNS THE SPACE. NoDitto's whole proposition is that everyone selling has
+ * been checked, and `PRODUCT.md`'s first design principle is that trust is visible
+ * and SPECIFIC. The first pass expressed that as a small grey-green "Verified" pill
+ * tucked under an email address — a badge, which is exactly the decoration the
+ * anti-references warn against. This names the two facts instead, in order, and says
+ * plainly when one is missing.
+ *
+ * Never colour alone: each state is carried by its words, with tone as reinforcement.
+ */
+export function TrustLine({
+  identityVerified,
+  payoutsActive,
+}: {
+  identityVerified: boolean;
+  payoutsActive: boolean;
+}) {
+  if (!identityVerified) {
+    return (
+      <p className="flex items-center gap-tight text-body text-muted-foreground">
+        <HugeiconsIcon icon={ShieldAlertIcon} className="size-4 shrink-0" aria-hidden />
+        Not verified yet
+      </p>
+    );
+  }
+
+  return (
+    <p className="flex flex-wrap items-center gap-x-tight gap-y-0 text-body">
+      <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+      <span className="font-medium text-trust">ID checked by Stripe</span>
+      <span aria-hidden className="text-muted-foreground/50">
+        ·
+      </span>
+      <span className="text-muted-foreground">
+        {payoutsActive ? 'Payouts active' : 'Payouts not set up'}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * A loading placeholder occupying exactly one {@link SettingsListRow}.
+ *
+ * Built from `ROW_SHAPE`, so it inherits the row's height, padding and divider
+ * rather than approximating them. The trailing spacer is deliberate: it reserves the
+ * chevron's footprint, without which every label and value shifts sideways by 16px
+ * the instant real content arrives.
+ */
+export function SettingsRowSkeleton({
+  /**
+   * Reserve the leading {@link IconMedallion}. Same argument as the chevron
+   * spacer, at three times the cost: the medallion is `size-9` beside a
+   * `gap-cozy`, so a row that arrives with one and was drawn without it pushes
+   * its label and value 48px to the right.
+   */
+  icon = false,
+  /** Reserve the second line. It also lifts the row off its `min-h-12` floor. */
+  description = false,
+  labelClassName = 'w-28',
+  valueClassName = 'w-20',
+}: {
+  icon?: boolean;
+  description?: boolean;
+  labelClassName?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className={ROW_SHAPE} aria-hidden>
+      {icon ? <Skeleton className="size-9 shrink-0 rounded-full" /> : null}
+      <span className="min-w-0 flex-1">
+        <TextLines className="text-body" widths={[labelClassName]} />
+        {description ? (
+          <TextLines
+            className="mt-0.5 text-body leading-snug"
+            widths={['w-3/4']}
+          />
+        ) : null}
+      </span>
+      <Skeleton className={cn('h-4', valueClassName)} />
+      <span className="size-4 shrink-0" />
+    </div>
+  );
+}
+
+/**
+ * A row that hands its whole interior to the caller — used where a step needs real
+ * controls (the verification spine) but should still sit in the same container as
+ * the rows around it.
+ */
+export function SettingsPanelRow({
+  children,
+  className,
+}: ComponentPropsWithoutRef<'div'> & { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'relative p-group before:absolute before:left-group before:right-0 before:top-0',
+        'before:h-px before:bg-border first:before:hidden',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 /**
  * Eyebrow label above a settings group.
@@ -58,10 +415,12 @@ export function SettingsSection({
       <div className="space-y-tight">
         <SectionLabel>{label}</SectionLabel>
         {description ? (
-          <p className="text-body leading-relaxed text-muted-foreground">{description}</p>
+          <p className="hidden text-body leading-relaxed text-muted-foreground md:block">{description}</p>
         ) : null}
       </div>
-      {children}
+      <div className="max-md:divide-y max-md:divide-border max-md:overflow-hidden max-md:rounded-xl max-md:border max-md:border-border max-md:bg-card md:contents">
+        {children}
+      </div>
     </section>
   );
 }
@@ -73,7 +432,7 @@ const TONE_CLASS: Record<StatusTone, string> = {
   // `trust` is the app's reserved verification colour (see globals.css) — the
   // reference's emerald would introduce a second "this is confirmed" hue.
   verified: 'border-trust/40 bg-trust/10 text-trust',
-  pending: 'border-gold/40 bg-gold/10 text-gold',
+  pending: 'border-iris/40 bg-iris/10 text-iris-ink',
   required: 'border-border bg-muted text-muted-foreground',
   neutral: 'border-border bg-muted text-muted-foreground',
 };
@@ -85,7 +444,7 @@ export function StatusPill({
   children,
 }: {
   tone: StatusTone;
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
   children: ReactNode;
 }) {
   return (
@@ -96,7 +455,7 @@ export function StatusPill({
         TONE_CLASS[tone],
       )}
     >
-      {Icon ? <Icon className="size-3 shrink-0" aria-hidden /> : null}
+      {Icon ? <HugeiconsIcon icon={Icon} className="size-3 shrink-0" aria-hidden /> : null}
       {children}
     </span>
   );
@@ -112,12 +471,12 @@ export function IconMedallion({
   icon: Icon,
   tone = 'neutral',
 }: {
-  icon: LucideIcon;
+  icon: IconSvgElement;
   tone?: StatusTone;
 }) {
   const toneClass: Record<StatusTone, string> = {
     verified: 'bg-trust/10 text-trust',
-    pending: 'bg-gold/10 text-gold',
+    pending: 'bg-iris/10 text-iris-ink',
     required: 'bg-muted text-muted-foreground',
     neutral: 'bg-muted text-muted-foreground',
   };
@@ -129,7 +488,7 @@ export function IconMedallion({
       )}
       aria-hidden
     >
-      <Icon className="size-4" />
+      <HugeiconsIcon icon={Icon} className="size-4" />
     </span>
   );
 }
@@ -151,7 +510,7 @@ export function SettingsRow({
   inverse = false,
   className,
 }: {
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
   tone?: StatusTone;
   title: ReactNode;
   subtitle?: ReactNode;
@@ -166,8 +525,8 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-card',
-        inverse && 'border-white/15 bg-obsidian',
+        'rounded-xl border bg-card max-md:rounded-none max-md:border-0 max-md:bg-transparent',
+        inverse && 'border-white/15 bg-obsidian max-md:rounded-none max-md:border-white/15 max-md:bg-obsidian',
         className,
       )}
     >
@@ -175,10 +534,10 @@ export function SettingsRow({
         {IconGlyph ? (
           inverse ? (
             <span
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-parchment"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-mist"
               aria-hidden
             >
-              <IconGlyph className="size-4" />
+              <HugeiconsIcon icon={IconGlyph} className="size-4" />
             </span>
           ) : (
             <IconMedallion icon={IconGlyph} tone={tone} />
@@ -188,7 +547,7 @@ export function SettingsRow({
           <p
             className={cn(
               'text-lead font-semibold',
-              inverse ? 'text-parchment' : 'text-foreground',
+              inverse ? 'text-mist' : 'text-foreground',
             )}
           >
             {title}
@@ -197,7 +556,7 @@ export function SettingsRow({
             <p
               className={cn(
                 'mt-0.5 text-body',
-                inverse ? 'text-parchment/65' : 'text-muted-foreground',
+                inverse ? 'text-mist/65' : 'text-muted-foreground',
               )}
             >
               {subtitle}
@@ -225,7 +584,7 @@ export function SettingsPlaceholder({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-cozy rounded-xl border border-dashed px-group py-group">
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-cozy rounded-xl border border-dashed px-group py-group max-md:rounded-none max-md:border-0 max-md:px-group max-md:py-cozy">
       <p className="text-body text-muted-foreground">{children}</p>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -243,19 +602,19 @@ export function StatTile({
   label: string;
   value: string;
   sub?: string;
-  icon: LucideIcon;
+  icon: IconSvgElement;
   tone?: StatusTone;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-group">
+    <div className="rounded-xl border bg-card p-cozy md:p-group">
       <div className="flex items-center gap-snug">
         <IconMedallion icon={icon} tone={tone} />
         <p className="min-w-0 font-sans text-meta text-muted-foreground">{label}</p>
       </div>
       {/* `display-value` is the existing ledger-figure class: sans, bold, with
           tabular figures so columns of money align. */}
-      <p className="display-value mt-4 text-lead">{value}</p>
-      {sub ? <p className="mt-1 font-sans text-body text-muted-foreground">{sub}</p> : null}
+      <p className="display-value mt-snug text-lead md:mt-4">{value}</p>
+      {sub ? <p className="mt-tight font-sans text-body text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }

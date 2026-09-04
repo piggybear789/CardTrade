@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from "@/lib/utils";
 
@@ -34,14 +35,17 @@ const SelectTrigger = React.forwardRef<
       // switches the span to `display:-webkit-box`, and the ellipsis it produces is
       // sized against the span's own content rather than the space actually
       // available. `min-w-0` is required for either to shrink inside a flex row.
-      "flex h-10 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-lead sm:text-body placeholder:text-muted-foreground focus:border-gold/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      // `h-9 md:h-7` and `pointer-fine:text-body` — both track Button and Input.
+      // See the note in Input for why the type floor is gated on pointer rather
+      // than viewport width.
+      "flex h-9 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-1 text-lead md:h-7 pointer-fine:text-body placeholder:text-muted-foreground focus-visible:border-iris focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
       className
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
+      <HugeiconsIcon icon={ChevronDownIcon} className="h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -59,7 +63,7 @@ const SelectScrollUpButton = React.forwardRef<
     )}
     {...props}
   >
-    <ChevronUp className="h-4 w-4" />
+    <HugeiconsIcon icon={ChevronUpIcon} className="h-4 w-4" />
   </SelectPrimitive.ScrollUpButton>
 ));
 SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName;
@@ -76,7 +80,7 @@ const SelectScrollDownButton = React.forwardRef<
     )}
     {...props}
   >
-    <ChevronDown className="h-4 w-4" />
+    <HugeiconsIcon icon={ChevronDownIcon} className="h-4 w-4" />
   </SelectPrimitive.ScrollDownButton>
 ));
 SelectScrollDownButton.displayName =
@@ -152,14 +156,14 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-body outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 min-h-11",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-body outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 min-h-9",
       className
     )}
     {...props}
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
+        <HugeiconsIcon icon={CheckIcon} className="h-4 w-4" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

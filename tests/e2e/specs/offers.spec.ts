@@ -70,12 +70,14 @@ async function makeOffer(page: Page, itemId: string, dollars: string, note: stri
   // such checkbox — `MakeOfferDialog` states who the seller is and leaves it at that,
   // which is the same move recorded in `PayoutOnboarding`: consent checkboxes were
   // replaced by a statement beside the button that acts on it. The dead step cost 2
-  // failures as a 90s timeout on a control that does not exist.
+  // failures as a 90s timeout on a control that does not exist, and the conditional
+  // form of it ("check the box if there is one") passes while testing nothing.
   //
   // What the product actually requires here is the DISCLOSURE, and it is load-bearing:
   // a null seller identity blocks the entire buy path, so asserting it renders is a
   // stronger check than ticking a box ever was.
   await expect(dialog.getByText('Verified seller')).toBeVisible();
+
 
   await dialog.getByLabel('Your offer').fill(dollars);
   await dialog.getByLabel(/Message/i).fill(note);
@@ -119,11 +121,17 @@ test.describe.serial('Offer declined', () => {
   // stays PENDING. Asserting the action had retired therefore failed against a row
   // that was never declined — and read as "declining does not work".
   //
+  // The confirmation is awaited unconditionally, not treated as optional: making it
+  // conditional means a run where the dialog is slow silently skips the confirm and
+  // then fails on the retirement assertion below, which is the same misleading
+  // failure in a new place.
+  //
   // Trigger is "Decline", confirm is "Decline offer", so both must be matched
   // EXACTLY: the default substring match makes `'Decline'` hit both and can re-click
-  // the trigger underneath the open dialog.
+  // the trigger underneath the open dialog. The retirement assertion below is
+  // `exact` for the same reason.
   await page.getByRole('button', { name: 'Decline', exact: true }).click();
-  
+
   const confirm = page.getByRole('dialog');
   await expect(confirm).toBeVisible({ timeout: 15_000 });
   await confirm.getByRole('button', { name: 'Decline offer' }).click();

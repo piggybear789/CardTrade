@@ -43,14 +43,14 @@ test.describe.serial('Private cash deal → sale room', () => {
 
     await page.goto('/deals/new');
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('heading', { name: 'Start a Deal' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Start a Private Deal' })).toBeVisible({
       timeout: COLD_ROUTE,
     });
 
     await chooseTile(page, /Cash for a card/i);
     await chooseTile(page, /I'm selling/i);
     await fillUnlistedCard(page, description);
-    await page.getByLabel('Price').fill('150.00');
+    await page.getByLabel('Price', { exact: true }).fill('150.00');
     await page.getByRole('button', { name: 'Create deal link' }).click();
 
     await expect(page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
@@ -75,6 +75,15 @@ test.describe.serial('Private cash deal → sale room', () => {
     // matched twice and reported an unlisted card as publicly listed. That is a
     // privacy claim, and getting a false positive on it is worse than getting none:
     // only a link is a route into the listing.
+    //
+    // Escaped, because the description is generated copy rather than a literal: an
+    // unescaped `.` or `(` in it would change what the pattern matches, and a
+    // privacy assertion that quietly stops matching is the failure mode to avoid.
+    //
+    // The empty-state heading is deliberately NOT asserted here. This test owns one
+    // claim — the unlisted card is not reachable from the catalog — and coupling it
+    // to the wording of the no-results state makes a copy edit look like a privacy
+    // regression. `listings.spec.ts` is where that copy belongs.
     await expect(
       page.getByRole('link', { name: new RegExp(escapeRegExp(description)) }),
     ).toHaveCount(0);
@@ -112,6 +121,10 @@ test.describe.serial('Private cash deal → sale room', () => {
     await expect(page.getByRole('heading', { name: 'Join this deal' })).toBeVisible({
       timeout: COLD_ROUTE,
     });
+    const saveDemoCard = page.getByRole('button', { name: /Save demo card/i });
+    if (await saveDemoCard.isVisible().catch(() => false)) {
+      await saveDemoCard.click();
+    }
     await page.getByRole('button', { name: 'Join this deal' }).click();
     await expect(page).toHaveURL(/\/sales\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
     salePath = new URL(page.url()).pathname;
@@ -181,7 +194,7 @@ test.describe.serial('Revoke unused invite', () => {
     await alice.page.waitForLoadState('domcontentloaded');
     await chooseTile(alice.page, /Cash for a card/i);
     await fillUnlistedCard(alice.page, description);
-    await alice.page.getByLabel('Price').fill('50.00');
+    await alice.page.getByLabel('Price', { exact: true }).fill('50.00');
     await alice.page.getByRole('button', { name: 'Create deal link' }).click();
     await expect(alice.page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
     const invitePath = new URL(alice.page.url()).pathname;

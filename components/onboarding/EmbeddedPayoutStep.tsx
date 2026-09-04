@@ -34,8 +34,8 @@ import {
   ConnectComponentsProvider,
 } from '@stripe/react-connect-js';
 import Link from 'next/link';
-import { ArrowRight, Landmark } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon, LandmarkIcon } from '@hugeicons/core-free-icons';
 
 import { beginEmbeddedPayout, refreshPayoutStatus } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
@@ -172,7 +172,7 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
         return;
       }
       if (refreshed.data.settlementsEnabled) {
-        toast.success('Payouts active');
+        
         onComplete();
         return;
       }
@@ -199,7 +199,7 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
               <Button asChild size="sm" variant="outline">
                 <Link href={fix.href}>
                   {fix.label}
-                  <ArrowRight className="size-3.5" aria-hidden />
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" aria-hidden />
                 </Link>
               </Button>
             ) : null}
@@ -212,7 +212,7 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
             onClick={handleStart}
             variant={fix ? 'outline' : 'default'}
           >
-            <Landmark className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={LandmarkIcon} className="size-3.5" aria-hidden />
             {phase === 'failed' ? 'Try again' : 'Add payout details'}
           </Button>
 

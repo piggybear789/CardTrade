@@ -71,7 +71,11 @@ export function createSupabaseItemRepository(
       return data ? toItemRecord(data as ItemRow) : null;
     },
 
-    async updateItem({ itemId, update }: UpdateItemParams): Promise<ItemRecord | null> {
+    async updateItem({
+      itemId,
+      update,
+      imageDims,
+    }: UpdateItemParams): Promise<ItemRecord | null> {
       const { data } = await client
         .from('items')
         .update({
@@ -81,6 +85,12 @@ export function createSupabaseItemRepository(
           condition: update.condition,
           fmv_cents: update.fmvCents,
           image_paths: update.images,
+          // Same statement as `image_paths` on purpose: the two arrays are
+          // index-aligned, so writing them apart would leave a window where a
+          // reader pairs a photo with the previous photo's shape. Omitted
+          // (undefined) leaves the column as it was — a caller that cannot
+          // measure must not erase what an earlier one measured.
+          ...(imageDims === undefined ? {} : { image_dims: imageDims }),
           updated_at: new Date().toISOString(),
         })
         .eq('id', itemId)

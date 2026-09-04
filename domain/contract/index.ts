@@ -24,3 +24,6 @@ export type { CashSaleStepFacts } from './cashSaleSteps';
 
 export { TRADE_SECTIONS, deriveTradeSteps } from './tradeSteps';
 export type { TradeStepFacts } from './tradeSteps';
+
+export { derivePostageSteps } from './postageSteps';
+export type { PostageStepFacts } from './postageSteps';

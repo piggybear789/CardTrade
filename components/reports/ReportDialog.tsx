@@ -15,7 +15,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Flag, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Flag01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button, type ButtonProps } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import {
   type ReportTargetType,
 } from '@/lib/actions/reports';
 import { DETAILS_MAX } from '@/lib/marketplace-constants';
+import { cn } from '@/lib/utils';
 
 /** Reasons when the target is a listing. */
 const ITEM_REASONS = [
@@ -93,6 +95,9 @@ export interface ReportDialogProps {
    * `icon-only` — flag only, for compact toolbars.
    */
   appearance?: 'button' | 'icon' | 'icon-only';
+  /** Extra classes for the `icon-only` trigger, so chrome can size it to match
+   *  the buttons beside it. */
+  triggerClassName?: string;
 }
 
 /**
@@ -106,6 +111,7 @@ export function ReportDialog({
   triggerLabel,
   triggerVariant = 'ghost',
   appearance = 'button',
+  triggerClassName,
 }: ReportDialogProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -132,7 +138,7 @@ export function ReportDialog({
           : await reportUser(targetId, reason, details || undefined);
 
       if (result.ok) {
-        toast.success('Thanks — your report has been submitted for review.');
+        
         setOpen(false);
         setReason('');
         setDetails('');
@@ -149,26 +155,32 @@ export function ReportDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {appearance === 'icon' ? (
-          <ListingActionIcon icon={Flag} label="Report" />
+          <ListingActionIcon icon={Flag01Icon} label="Report" />
         ) : appearance === 'icon-only' ? (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="size-9 text-muted-foreground hover:text-foreground"
+            className={cn(
+              'size-10 text-muted-foreground hover:text-foreground md:size-8',
+              triggerClassName,
+            )}
             aria-label={triggerLabel}
           >
-            <Flag aria-hidden />
+            <HugeiconsIcon icon={Flag01Icon} aria-hidden />
           </Button>
         ) : (
-          <Button type="button" variant={triggerVariant} size="sm">
-            <Flag aria-hidden />
+          <Button type="button" variant={triggerVariant} size="sm" className="w-full sm:w-auto">
+            <HugeiconsIcon icon={Flag01Icon} aria-hidden />
             {triggerLabel}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
+        {/* The form is DialogContent's only child, so its flex gap cannot reach
+            header, body and footer. Repeating the gap here spaces them the same
+            way every other dialog does, instead of a one-off `py-4` on the body. */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
           <DialogHeader>
             <DialogTitle>Report {targetNoun}</DialogTitle>
             <DialogDescription>
@@ -177,7 +189,7 @@ export function ReportDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-group py-4">
+          <div className="space-y-group">
             <div className="space-y-snug">
               <Label htmlFor="report-reason">Reason</Label>
               <Select value={reason} onValueChange={setReason}>
@@ -203,6 +215,7 @@ export function ReportDialog({
                 onChange={(e) => setDetails(e.target.value)}
                 maxLength={DETAILS_MAX}
                 rows={3}
+                className="resize-none"
               />
               <p className="text-right text-meta text-muted-foreground">
                 {details.length}/{DETAILS_MAX}
@@ -217,8 +230,16 @@ export function ReportDialog({
           </div>
 
           <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Submitting…' : 'Submit report'}
             </Button>
           </DialogFooter>

@@ -42,7 +42,7 @@ function EvidenceMedia({
     <button
       type="button"
       onClick={onOpen}
-      className="group relative aspect-square overflow-hidden rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative aspect-square overflow-hidden rounded-md border focus:outline-none focus-visible:border-iris"
     >
       <Image
         src={url}

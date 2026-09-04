@@ -12,11 +12,12 @@
 // the server component that renders this button; `makeOffer` re-enforces every
 // gate, so this component only drives the interaction.
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
-import { HandCoins, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HandCoinsIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
@@ -63,6 +64,8 @@ export interface MakeOfferDialogProps {
   fmvCents?: number;
   /** Current provider-approved seller identity the buyer must acknowledge. */
   sellerIdentity: SellerIdentityDisclosure;
+  /** Replaces the default listing-action chip — used by the mobile buyer bar. */
+  trigger?: ReactNode;
 }
 
 /**
@@ -73,6 +76,7 @@ export function MakeOfferDialog({
   itemId,
   fmvCents,
   sellerIdentity,
+  trigger,
 }: MakeOfferDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -110,9 +114,7 @@ export function MakeOfferDialog({
         true,
       );
       if (result.ok) {
-        toast.success(
-          `Offer of ${formatAud(result.offer.amount_cents)} sent to the seller.`,
-        );
+        
         setOpen(false);
         setAmount('');
         setMessage('');
@@ -128,11 +130,13 @@ export function MakeOfferDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <ListingActionIcon
-          icon={HandCoins}
-          label="Make an offer"
-          iconClassName="size-7"
-        />
+        {trigger ?? (
+          <ListingActionIcon
+            icon={HandCoinsIcon}
+            label="Make an offer"
+            iconClassName="size-7"
+          />
+        )}
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
@@ -189,7 +193,7 @@ export function MakeOfferDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Sending…' : 'Send offer'}
             </Button>
           </DialogFooter>

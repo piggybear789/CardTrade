@@ -24,12 +24,25 @@ import 'server-only';
 // bad direct upload — for path (2) our server never sees the bytes, so bucket
 // constraints and `verifyStoredImage` are the enforcement, not `assertValidImage`.
 //
+// New listing photos are scanned with Rekognition (`lib/moderation/scanImage.ts`)
+// before the path is persisted. Kept paths on edit are not re-scanned. The scan
+// is deliberately loose so TCG art is not blocked; see `lib/moderation/policy.ts`.
+//
 // Object paths (never URLs) are what callers persist; `itemImageUrl()` in
 // `lib/format.ts` resolves them for display.
+//
+// Each upload also carries back its intrinsic pixel size, which listings store
+// in `items.image_dims` (0106) so the phone catalog can reserve the right shape
+// before the photo loads. Path (1) is measured here from the bytes; path (2)
+// cannot be — those bytes never reach this process — so the browser reports
+// them and the action sanitizes the claim.
 
 import { randomUUID } from 'node:crypto';
 import type { createAdminClient } from '@/lib/supabase/admin';
+import { moderateImageBytes, moderateStoredPublicImage } from '@/lib/moderation/scanImage';
 import { ITEM_IMAGES_BUCKET } from '@/lib/storage/itemImagesShared';
+import { decodeImageDimensions } from '@/lib/images/decode';
+import type { ImageDim } from '@/lib/images/dimensions';
 
 // The bucket name lives in `itemImagesShared` so the browser uploader can import
 // it without pulling in this server-only module. Re-exported for existing callers.
@@ -54,6 +67,22 @@ export type ImageUpload =
  * before it is trusted.
  */
 export type ImageInput = string | ImageUpload;
+
+/**
+ * A stored image: its object path, plus its intrinsic pixel size when this
+ * server was in a position to measure it.
+ *
+ * `dim` is `null` for two different reasons and the caller has to tell them
+ * apart. For a path that arrived as a string, the bytes went browser → Storage
+ * and this process never held them, so the only measurement available is the
+ * one the client reported — see `imageDims` on the listing actions. For bytes
+ * we did upload, `null` means neither `sharp` nor the header parser could read
+ * them, and the tile falls back to a square.
+ */
+export interface UploadedImage {
+  path: string;
+  dim: ImageDim | null;
+}
 
 /** One signed, single-use upload target: where to put the file, and the token. */
 export interface SignedImageUpload {
@@ -208,6 +237,10 @@ export async function createSignedImageUploads(
  *  - the object actually exists;
  *  - its recorded MIME type and size are within our limits.
  *
+ * Pixel moderation is NOT done here. Kept paths on an edit already survived a
+ * scan at upload; re-scanning them would block a title tweak if the model
+ * changed its mind. New files are scanned in {@link uploadImages}.
+ *
  * Throws with a caller-safe message, matching `assertValidImage`.
  */
 async function verifyStoredImage(
@@ -256,17 +289,23 @@ export async function verifyStoredImages(
 /**
  * Upload decoded images under a per-owner, per-upload folder and return the
  * stored object paths (which are what callers persist, e.g. in `image_paths` or
- * `creator_photo_paths`). Throws on the first failed upload so the caller can
+ * `creator_photo_paths`) together with their intrinsic pixel size where it
+ * could be measured. Throws on the first failed upload so the caller can
  * surface `upload-failed`.
+ *
+ * Dimensions are read from the buffer we are already holding, so this costs a
+ * header parse and no extra I/O. A failed read is not a failed upload: the
+ * dimension is display metadata for the catalog mosaic (0106), and a listing
+ * with an unmeasurable photo must still publish.
  */
 export async function uploadImages(
   admin: AdminClient,
   ownerId: string,
   images: ImageInput[],
-): Promise<string[]> {
+): Promise<UploadedImage[]> {
   await ensureItemImagesBucket(admin);
   const folder = `${ownerId}/${randomUUID()}`;
-  const paths: string[] = [];
+  const uploaded: UploadedImage[] = [];
   /** Only files uploaded by THIS call are cleaned up if a later one fails. */
   const uploadedHere: string[] = [];
 
@@ -276,15 +315,21 @@ export async function uploadImages(
 
       // Already in Storage, put there by the browser through a signed URL.
       // Verify the claim and keep the path as-is: re-uploading would mean
-      // pulling the bytes back through this server for no benefit.
+      // pulling the bytes back through this server for no benefit. It also
+      // means we cannot measure it — the caller merges in what the browser
+      // reported instead.
       if (typeof image === 'string') {
         await verifyStoredImage(admin, ownerId, image);
-        paths.push(image);
+        if (!/^https?:\/\//i.test(image)) {
+          await moderateStoredPublicImage(admin, ITEM_IMAGES_BUCKET, image);
+        }
+        uploaded.push({ path: image, dim: null });
         continue;
       }
 
       const decoded = await decodeImage(image);
       assertValidImage(decoded);
+      await moderateImageBytes(decoded.bytes);
       const path = `${folder}/${i}.${decoded.ext}`;
       const { error } = await admin.storage
         .from(ITEM_IMAGES_BUCKET)
@@ -295,7 +340,7 @@ export async function uploadImages(
       if (error) {
         throw new Error(`Image upload failed: ${error.message}`);
       }
-      paths.push(path);
+      uploaded.push({ path, dim: await decodeImageDimensions(decoded.bytes) });
       uploadedHere.push(path);
     }
   } catch (error) {
@@ -306,7 +351,7 @@ export async function uploadImages(
     throw error;
   }
 
-  return paths;
+  return uploaded;
 }
 
 /** Best-effort cleanup of uploaded objects when a later step fails. */

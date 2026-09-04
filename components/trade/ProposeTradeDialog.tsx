@@ -16,11 +16,15 @@
 // form would only lead to a refusal at submit.
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { ArrowLeftRight } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeftRightIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
-import { IdentityGatePrompt } from '@/components/identity/IdentityGatePrompt';
+import {
+  IdentityGatePrompt,
+  identityGateDescription,
+} from '@/components/identity/IdentityGatePrompt';
 import {
   TradeOfferForm,
   type TradeOfferRequested,
@@ -34,11 +38,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import type { VerificationState } from '@/domain/identity/identityGate';
-import type { ItemRow } from '@/lib/actions/listings';
+import type { TradeOfferOwnItem } from '@/components/trade/TradeOfferForm';
 
 export interface ProposeTradeDialogProps {
   requested: TradeOfferRequested;
-  ownItems: ItemRow[];
+  ownItems: TradeOfferOwnItem[];
   /** Filled chip when this is the only transactional CTA (trades-only sellers). */
   emphasize?: boolean;
   /**
@@ -52,6 +56,8 @@ export interface ProposeTradeDialogProps {
   disabled?: boolean;
   /** Member-safe explanation displayed by the containing listing action area. */
   disabledReason?: string | null;
+  /** Replaces the default listing-action chip — used by the mobile buyer bar. */
+  trigger?: ReactNode;
 }
 
 export function ProposeTradeDialog({
@@ -62,6 +68,7 @@ export function ProposeTradeDialog({
   returnPath,
   disabled = false,
   disabledReason = null,
+  trigger,
 }: ProposeTradeDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -83,13 +90,18 @@ export function ProposeTradeDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => setOpen(disabled ? false : next)}>
       <DialogTrigger asChild>
-        <ListingActionIcon
-          icon={ArrowLeftRight}
-          label="Propose Trade"
-          variant={emphasize ? 'default' : 'outline'}
-          disabled={disabled}
-          title={disabledReason ?? undefined}
-        />
+        {trigger ?? (
+          <ListingActionIcon
+            icon={ArrowLeftRightIcon}
+            // Matches the dialog's own title. The chip said "Propose Trade" and
+            // the dialog then said "Offer a trade", so the thing you clicked and
+            // the thing that opened had different names.
+            label="Propose trade"
+            variant={emphasize ? 'default' : 'outline'}
+            disabled={disabled}
+            title={disabledReason ?? undefined}
+          />
+        )}
       </DialogTrigger>
       {/*
         Long form: pin header + footer, scroll the middle. Default DialogContent
@@ -110,21 +122,30 @@ export function ProposeTradeDialog({
       >
         {needsVerification ? (
           <>
-            <DialogHeader className="pr-10">
-              <DialogTitle>Verify to trade</DialogTitle>
-              <DialogDescription>Photo ID and a selfie.</DialogDescription>
+            <DialogHeader className="gap-snug">
+              <div className="flex items-center gap-snug">
+                <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+                <div className="min-w-0 space-y-1.5">
+                  <DialogTitle>Verify to trade</DialogTitle>
+                  <DialogDescription className="text-pretty leading-relaxed">
+                    {identityGateDescription(viewerVerification!, 'trade')}
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
             <IdentityGatePrompt
               state={viewerVerification!}
-              blockedAction="trade"
               returnPath={returnPath ?? `/listings/${requested.id}`}
               onVerified={() => setJustVerified(true)}
             />
           </>
         ) : (
           <>
-            <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
-              <DialogTitle>Offer a trade</DialogTitle>
+            {/* `pt-4`, not `pt-2`: the mobile close button is a 40px circle
+                inset 12px from the top, so a title starting at 8px sat above
+                its centre and read as crowded against it. */}
+            <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pr-14 pt-4 sm:px-6 sm:py-4">
+              <DialogTitle>Propose a trade</DialogTitle>
               {/* On a binder nothing is held even AFTER they accept — every other
                   listing reserves on acceptance, so saying "until they accept" here
                   would promise the opposite of what happens. */}

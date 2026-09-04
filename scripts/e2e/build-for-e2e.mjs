@@ -25,11 +25,31 @@
 
 import { spawn } from 'node:child_process';
 
+/**
+ * Build into a directory of the suite's own, NOT `.next`.
+ *
+ * `next dev` and `next build` share `.next`, so running this while a developer
+ * has a dev server up left them with a production build under their dev server:
+ * Tailwind kept a file list from before the last rename and died with
+ * `ENOENT ... app/offers/loading.tsx` while compiling `globals.css`, which reads
+ * like a broken stylesheet and is actually two processes sharing a cache.
+ *
+ * `next.config.ts` already resolves `distDir` from `NEXT_BUILD_DIR`, so setting
+ * it here — and identically in `playwright.config.ts`'s `webServer.env`, so
+ * `next start` looks in the same place — is enough to separate them. Anything
+ * matching `.next-*` is already gitignored.
+ *
+ * Keep the two values in step: a build here that `next start` cannot find fails
+ * as "webServer was not able to start", which says nothing about the cause.
+ */
+const E2E_BUILD_DIR = '.next-e2e';
+
 /** Client-visible values the suite needs baked into the bundle. */
 const E2E_CLIENT_ENV = {
   // Forces PlacePicker's free-text fallback. See the note above and F13 in
   // tests/e2e/FINDINGS.md for the coverage this trades away.
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
+  NEXT_BUILD_DIR: E2E_BUILD_DIR,
 };
 
 // Server-only values are read at runtime and so belong in `webServer.env`, NOT here.

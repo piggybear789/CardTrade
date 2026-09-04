@@ -6,6 +6,11 @@
 // inline via `stripe.verifyIdentity(clientSecret)` — a Stripe-owned modal — so the
 // document and selfie never touch NoDitto's DOM or server (Req 2.3, 2.4). No redirect.
 //
+// DO NOT MOUNT THIS INSIDE A RADIX DIALOG. The onboarding wizard is one. Radix marks
+// everything outside the dialog inert and traps focus, so the Stripe modal never
+// paints (or cancels immediately as `session_cancelled`). The wizard uses
+// `HostedProviderStep` instead, which leaves for Stripe's own pages.
+//
 // Renders no heading of its own: the surface (or the card that hosts it) owns the
 // title, so this cannot produce a duplicate heading in the outline.
 //
@@ -16,8 +21,8 @@
 // the reliable signal either way (Req 2.5, 3.1).
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { Loader2, ScanFace } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, ScanFaceIcon } from '@hugeicons/core-free-icons';
 
 import { beginEmbeddedIdentity, refreshIdentityCheck } from '@/lib/actions/identity';
 import { Button } from '@/components/ui/button';
@@ -82,7 +87,7 @@ export function EmbeddedIdentityStep({
     (status: 'VERIFIED' | 'FAILED' | 'PENDING') => {
       if (!alive.current) return;
       if (status === 'VERIFIED') {
-        toast.success('Identity verified');
+        
         onVerified();
         return;
       }
@@ -217,9 +222,9 @@ export function EmbeddedIdentityStep({
       <div className="space-y-cozy">
         <Button type="button" onClick={handleStart} disabled={busy} aria-busy={busy}>
           {busy ? (
-            <Loader2 className="animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
           ) : (
-            <ScanFace className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={ScanFaceIcon} className="size-3.5" aria-hidden />
           )}
           {phase === 'opening'
             ? 'Opening Stripe…'

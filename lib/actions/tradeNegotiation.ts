@@ -18,23 +18,22 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { emailNotify } from '@/lib/email';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
-import {
-  getPaymentService,
-  isLivePaymentsProvider,
-  operationalRegions,
-} from '@/domain/services';
-import { placeBondsForAgreedTrade } from '@/domain/orchestrator/tradeProposal';
-import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
-import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
+import { getPaymentService, operationalRegions } from '@/domain/services';
+import { currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
-import { validateFulfilmentTerms } from '@/domain/fulfilment';
+import { placeTradeCollateral } from '@/lib/trades/collateralPlacement';
+import {
+  MAX_MEETING_LEAD_HOURS,
+  TRADE_HANDOVER_METHODS,
+  validateFulfilmentTerms,
+} from '@/domain/fulfilment';
 import { regionForTrade } from '@/lib/regionBinding';
 import { checkRegionCompatibility, regionMismatchMessage } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -85,11 +84,12 @@ export interface TradeTermsInput {
   message?: string | null;
 }
 
+/**
+ * Reads through the request-cached lookup rather than `auth.getUser()`, which
+ * revalidates the JWT against the auth server on every call.
+ */
 async function currentUserId(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -148,24 +148,33 @@ function termsProblem(
   // One validator, shared with the trade room's terms editor and with the Cash_Sale.
   // This function used to reimplement the resolved-place and future-time checks by
   // hand, one of three copies of the same rules.
-  const validation = validateFulfilmentTerms({
-    method: terms.handoverMethod,
-    meeting: {
-      place: terms.meetingLocation?.trim()
-        ? {
-            label: terms.meetingLocation.trim(),
-            placeId: terms.meetingPlaceId ?? '',
-            lat: terms.meetingLat ?? Number.NaN,
-            lng: terms.meetingLng ?? Number.NaN,
-          }
-        : null,
-      at: terms.meetingAt ?? null,
+  const validation = validateFulfilmentTerms(
+    {
+      method: terms.handoverMethod,
+      meeting: {
+        place: terms.meetingLocation?.trim()
+          ? {
+              label: terms.meetingLocation.trim(),
+              placeId: terms.meetingPlaceId ?? '',
+              lat: terms.meetingLat ?? Number.NaN,
+              lng: terms.meetingLng ?? Number.NaN,
+            }
+          : null,
+        at: terms.meetingAt ?? null,
+      },
+      delivery: {
+        costCents: terms.deliveryCostCents ?? null,
+        notes: null,
+      },
     },
-    delivery: {
-      costCents: terms.deliveryCostCents ?? null,
-      notes: null,
+    // Face-to-face only, and a staleness bound on the date. Neither is derived from
+    // the collateral any more — the hold is placed the day before the meeting, so the
+    // authorisation does not start until the risk does.
+    {
+      allowedMethods: TRADE_HANDOVER_METHODS,
+      maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS,
     },
-  });
+  );
   if (validation.ok) return null;
 
   switch (validation.error) {
@@ -175,6 +184,12 @@ function termsProblem(
     case 'meeting-time-required':
     case 'meeting-time-past':
       return 'Choose a future meeting time.';
+    case 'meeting-time-too-far':
+      // Says the actual limit rather than "too far away", because the trader has to
+      // pick a replacement and a vague refusal makes that guesswork.
+      return `Choose a meeting time within ${MAX_MEETING_LEAD_HOURS / 24} days.`;
+    case 'method-not-supported':
+      return 'Trades are swapped in person. Choose a meeting point and time.';
     case 'delivery-cost-required':
     case 'delivery-cost-invalid':
       return 'Enter a valid postage amount.';
@@ -361,117 +376,20 @@ export async function acceptTradeTerms(
     return { ok: true, trade: accepted, collateralStarted: false };
   }
 
-  // Every trade now bonds BOTH traders (see `resolveTradeBonds`), so a saved card
-  // is a hard prerequisite for escrow where it used to be optional for a verified
-  // trader. That makes `payer-not-found` a routine, fixable outcome rather than an
-  // edge case, and it needs to say so.
-  const bonds = await placeBondsForAgreedTrade(
-    {
-      repository: createSupabaseTradeProposalRepository(admin),
-      // The trade's own platform account (0068): collateral is a real card
-      // authorisation and belongs to one Stripe account.
-      payments: getPaymentService(await regionForTrade(tradeId)),
-    },
-    {
-      tradeId,
-      initiatorId: started.initiator_id,
-      counterpartId: started.counterpart_id,
-      initiatorItemIds: await itemIdsFor(tradeId, started.initiator_id),
-      counterpartItemIds: await itemIdsFor(tradeId, started.counterpart_id),
-    },
-  );
-
-  const orchestrator = createDefaultTradeOrchestrator({
-    payments: getPaymentService(await regionForTrade(tradeId)),
-  });
-  if (!bonds.ok) {
-    // Collateral could not be sought. Run the documented HOLDS_FAILED
-    // compensation (Req 5.6) rather than leaving a trade stuck mid-escrow.
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId: userId });
-    // No exchange, no fee. Nothing has been charged yet at this point — the fee is
-    // collected only after bonds are in place — but call it anyway so the path is
-    // correct if that order ever changes.
-    await refundTradeFees(tradeId);
-    return {
-      ok: false,
-      error: 'bond-failed',
-      message:
-        bonds.error === 'payer-not-found'
-          ? 'A saved card is needed to place the trade collateral hold. Add one in your profile, then accept again.'
-          : bonds.error === 'side-unvalued'
-            ? 'One side of this trade has no value against it, so there is nothing to hold collateral against. Agree what each side is worth and accept again.'
-            : bonds.error === 'hold-failed'
-            ? 'Your card declined the collateral hold, so the trade was not started. ' +
-              'Nothing was charged. Try another card and accept again.'
-            : 'Collateral could not be arranged, so the trade was not started. Nothing was charged.',
-    };
-  }
-
-  // The Commitment_Point: both sides are bound and collateral is in place, so the
-  // Trade_Fee falls due. Charged AFTER bonds so a trade that cannot get collateral
-  // never gets billed, and deliberately not allowed to block the exchange — a
-  // failed fee is recorded for retry rather than held against the traders.
-  // The SAME rule the bonds were sized with, deliberately. This used to sum
-  // `fmv_cents` over each side independently, which on a binder means 5% of a whole
-  // inventory's indicative price — a second derivation of a money figure that has to
-  // have exactly one (`domain/trade/tradeSideValues.ts`).
-  const sideGoods = async (traderId: string) => {
-    const ids = await itemIdsFor(tradeId, traderId);
-    if (ids.length === 0) return { goodsCents: 0, hasShopfront: false };
-    const { data } = await admin
-      .from('items')
-      .select('fmv_cents, listing_kind')
-      .in('id', ids);
-    const rows = (data ?? []) as { fmv_cents: number | null; listing_kind: string }[];
-    return {
-      goodsCents: rows.reduce((sum, row) => sum + Number(row.fmv_cents ?? 0), 0),
-      hasShopfront: rows.some((row) => row.listing_kind === 'SHOPFRONT'),
-    };
-  };
-  const [initiatorSide, counterpartSide] = await Promise.all([
-    sideGoods(started.initiator_id),
-    sideGoods(started.counterpart_id),
-  ]);
-  const { initiatorSideCents: initiatorGives, counterpartSideCents: counterpartGives } =
-    resolveTradeSideValues({
-      initiatorGoodsCents: initiatorSide.goodsCents,
-      counterpartGoodsCents: counterpartSide.goodsCents,
-      counterpartIsShopfront: counterpartSide.hasShopfront,
-    });
-  // Each trader is charged on what they RECEIVE: the other side's goods, plus any
-  // cash coming their way.
-  const cash = Number(started.cash_amount_cents ?? 0);
-  const initiatorPaysCash = started.cash_direction === 'PROPOSER_PAYS';
-  const fees = await chargeTradeFees({
-    tradeId,
-    initiatorId: started.initiator_id,
-    counterpartId: started.counterpart_id,
-    initiatorReceivesCents: counterpartGives + (initiatorPaysCash ? 0 : cash),
-    counterpartReceivesCents: initiatorGives + (initiatorPaysCash ? cash : 0),
-  });
-  // The result was discarded here, which is why nothing noticed there was no drain
-  // behind the FAILED status. It is deliberately still not fatal — the exchange is the
-  // point of the contract and the traders are not at fault for our collection problem —
-  // but it is now recorded, and `drainFailedTradeFees` retries it hourly.
-  if (fees.anyFailed) {
-    console.warn(
-      `[tradeNegotiation] trade ${tradeId}: at least one Trade_Fee did not collect; ` +
-        'left FAILED for the retry drain.',
-    );
-  }
-
-  if (bonds.bondsRequired === 0) {
-    // Nobody owes a bond, so no provider event will ever arrive to confirm one.
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
-  } else if (isLivePaymentsProvider()) {
-    await syncHolds(tradeId, userId);
-  }
-
+  // COLLATERAL IS NO LONGER PLACED HERE. It is authorised a day before the meeting by
+  // `placeDueTradeCollateral`, because an authorisation lasts about seven days and
+  // placing it now would spend that budget on waiting — agree today, meet in three
+  // weeks, and the collateral is dead before anyone shakes hands. The Trade_Fee moves
+  // with it, so "no exchange, no fee" still holds: nothing is billed until a card has
+  // actually been authorised.
+  //
+  // What this call still does is bind both sides and reserve the Items, which is what
+  // COLLATERAL_PENDING now means: agreed, off the market, waiting for its hold.
   await createNotification({
     userId: loaded.counterpartyId,
     type: 'TRADE',
     title: 'Trade terms agreed',
-    body: 'Both of you accepted the terms. Collateral is being arranged.',
+    body: 'Both of you accepted the terms. The card holds go on the day before you meet.',
     link: `/trades/${tradeId}`,
   });
 
@@ -480,36 +398,96 @@ export async function acceptTradeTerms(
   return { ok: true, trade: started, collateralStarted: true };
 }
 
-/** Every Item a given Trader is putting into a Trade. */
-async function itemIdsFor(tradeId: string, traderId: string): Promise<string[]> {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from('trade_items')
-    .select('item_id')
-    .eq('trade_id', tradeId)
-    .eq('trader_id', traderId);
-  return ((data ?? []) as { item_id: string }[]).map((row) => row.item_id);
-}
+// `itemIdsFor`, `chargeFeesForAgreedTrade` and `syncHolds` all moved to
+// `lib/trades/collateralPlacement.ts`, next to the bond placement they are ordered
+// against. The fee in particular has to stay adjacent to the authorisation: it is
+// charged only after a card has actually been held, and separating the two is how an
+// earlier version came to bill both traders 5% on a declined card.
 
 /**
- * Stripe authorisations resolve synchronously, so drive the transition from the
- * hold rows rather than waiting for a webhook. Mirrors `syncTradeHoldsFromStripe`
- * in the single-click path.
+ * Re-seek collateral after a card decline. HOLDS_FAILED leaves the trade in
+ * COLLATERAL_PENDING on purpose so this can run without going back to negotiation.
+ *
+ * Replacing the vaulted card is a separate action (`completeCardSetup`); this
+ * only places a new authorisation against whatever is now the default card.
  */
-async function syncHolds(tradeId: string, actorId: string): Promise<void> {
+export async function retryTradeCollateral(
+  tradeId: string,
+): Promise<TradeNegotiationResult> {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false, error: 'unauthenticated' };
+
   const admin = createAdminClient();
-  const holds = await createSupabaseTradeProposalRepository(admin).getHolds(tradeId);
-  if (holds.length === 0) return;
-  const orchestrator = createDefaultTradeOrchestrator({
-    payments: getPaymentService(await regionForTrade(tradeId)),
+  const { data } = await admin.from('trades').select('*').eq('id', tradeId).maybeSingle();
+  const trade = data as TradeRow | null;
+  if (!trade) return { ok: false, error: 'not-participant' };
+  if (trade.initiator_id !== userId && trade.counterpart_id !== userId) {
+    return { ok: false, error: 'not-participant' };
+  }
+  if (trade.state !== 'COLLATERAL_PENDING') {
+    return {
+      ok: false,
+      error: 'not-permitted',
+      message: 'Collateral is not waiting to be retried on this trade.',
+    };
+  }
+
+  for (const partyId of [trade.initiator_id, trade.counterpart_id]) {
+    const gate = await readIdentityGate(partyId);
+    if (!gate.satisfied) {
+      return {
+        ok: false,
+        error: 'not-verified',
+        message:
+          partyId === userId
+            ? identityGateMessage('trade', gate.state)
+            : 'The other trader has not finished identity verification, so this trade cannot lock yet.',
+      };
+    }
+  }
+
+  const repository = createSupabaseTradeProposalRepository(admin);
+  const payments = getPaymentService(await regionForTrade(tradeId));
+  const existing = await repository.getHolds(tradeId);
+
+  // A retry while the first placement is still in flight would race it. Only
+  // continue once a seek has already failed, or both latest holds are already
+  // ACTIVE and just need confirming (process died between place and sync).
+  if (currentHoldsAreActive(existing)) {
+    const orchestrator = createDefaultTradeOrchestrator({ payments });
+    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
+    revalidatePath(`/trades/${tradeId}`);
+    return { ok: true, trade, collateralStarted: true };
+  }
+  if (existing.length === 0 || !currentHoldsSeekFailed(existing)) {
+    return {
+      ok: false,
+      error: 'not-permitted',
+      message: 'Collateral is still being arranged. Wait a moment, then try again if it fails.',
+    };
+  }
+
+  // One placement path, shared with the scheduled pass. It voids any stray ACTIVE
+  // hold, re-reserves the Items, authorises both cards, and only then charges the
+  // Trade_Fee — an order that has to hold wherever collateral is placed from.
+  const placement = await placeTradeCollateral({ tradeId, actorId: userId });
+  if (!placement.ok) {
+    return { ok: false, error: 'bond-failed', message: placement.message };
+  }
+
+  const counterpartyId =
+    trade.initiator_id === userId ? trade.counterpart_id : trade.initiator_id;
+  await createNotification({
+    userId: counterpartyId,
+    type: 'TRADE',
+    title: 'Trade collateral retried',
+    body: 'The other trader retried the card hold. Collateral is being arranged.',
+    link: `/trades/${tradeId}`,
   });
-  if (holds.every((hold) => hold.status === 'ACTIVE')) {
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
-    return;
-  }
-  if (holds.some((hold) => hold.status === 'FAILED')) {
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
-  }
+
+  revalidatePath('/trades');
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true, trade, collateralStarted: true };
 }
 
 /**

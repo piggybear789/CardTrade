@@ -4,6 +4,13 @@
 //
 // Surfaces that open the compose dialog. Guests go to sign-up and come back
 // with `?deal=1`, which StartDealProvider turns into the dialog.
+//
+// The label is "Private Deal"; the symbols are still `StartDeal*`. That split is
+// deliberate and not worth closing: `useStartDeal`, `DEAL_OPEN_PATH`, `?deal=1`
+// and `dealInvites` are one graph, and renaming a route param and a server
+// action to restyle a button is churn with no user on the other end. The word
+// the product already used for this in prose — help, the trades empty state,
+// this dialog's own description — was "private deal". Only the button disagreed.
 
 import type { ReactNode } from 'react';
 
@@ -19,7 +26,7 @@ export function StartDealButton({
   variant = 'outline',
   size,
   className,
-  children = 'Start a Deal',
+  children = 'Private Deal',
   onOpen,
 }: {
   isAuthenticated: boolean;
@@ -61,7 +68,7 @@ export function StartDealButton({
 export function StartDealTextLink({
   isAuthenticated,
   className,
-  children = 'Start a Deal',
+  children = 'Private Deal',
 }: {
   isAuthenticated: boolean;
   className?: string;
@@ -86,18 +93,21 @@ export function StartDealTextLink({
 
 export function StartDealRailAction() {
   const { openDeal } = useStartDeal();
-  return <RailPrimaryAction onClick={openDeal}>Start a Deal</RailPrimaryAction>;
+  return <RailPrimaryAction onClick={openDeal}>Private Deal</RailPrimaryAction>;
 }
 
 export function StartDealEmptyState({
   isAuthenticated,
-  actionLabel = 'Start a Deal',
+  actionLabel = 'Private Deal',
   actionVariant,
+  showAction = true,
   ...props
 }: Omit<Parameters<typeof EmptyState>[0], 'action'> & {
   isAuthenticated: boolean;
   actionLabel?: string;
   actionVariant?: 'default' | 'outline';
+  /** Set false when a sibling already offers the same action. */
+  showAction?: boolean;
 }) {
   const { openDeal } = useStartDeal();
 
@@ -105,17 +115,19 @@ export function StartDealEmptyState({
     <EmptyState
       {...props}
       action={
-        isAuthenticated
-          ? {
-              label: actionLabel,
-              variant: actionVariant,
-              onClick: openDeal,
-            }
-          : {
-              label: actionLabel,
-              variant: actionVariant,
-              href: `/sign-up?redirectTo=${encodeURIComponent(DEAL_OPEN_PATH)}`,
-            }
+        !showAction
+          ? undefined
+          : isAuthenticated
+            ? {
+                label: actionLabel,
+                variant: actionVariant,
+                onClick: openDeal,
+              }
+            : {
+                label: actionLabel,
+                variant: actionVariant,
+                href: `/sign-up?redirectTo=${encodeURIComponent(DEAL_OPEN_PATH)}`,
+              }
       }
     />
   );

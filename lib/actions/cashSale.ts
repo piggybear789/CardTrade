@@ -6,6 +6,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
 
@@ -67,9 +68,12 @@ export interface InitiateCashSaleInput {
   lineItems?: CashSaleLineItemInput[];
 }
 
+/**
+ * Reads through the request-cached lookup rather than `auth.getUser()`, which
+ * revalidates the JWT against the auth server on every call.
+ */
 async function getUserId(): Promise<string | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 

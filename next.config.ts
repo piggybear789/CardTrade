@@ -52,11 +52,21 @@ const cspDirectives = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: {
-    // Native <ViewTransition> / Link `transitionTypes`. Typed as experimental in
-    // Next 16.3 even though the shipped ExperimentalConfig typings omit the flag.
-    viewTransition: true,
-  } as NextConfig['experimental'],
+  // The circular Next badge sits on the Account hub on phones. Production
+  // builds have no indicator; this only affects `next dev`.
+  devIndicators: false,
+  // NO `experimental.viewTransition`. It was here to enable native
+  // `<ViewTransition>` and `Link transitionTypes`, with a note guessing that
+  // Next 16.3's typings were merely behind the runtime — hence the
+  // `as NextConfig['experimental']` cast that silenced the type error.
+  //
+  // The opposite was true: the flag is GONE because the feature shipped.
+  // `transitionTypes?: string[]` is a plain, non-experimental prop on Link in
+  // this version (node_modules/next/dist/client/link.d.ts), and `viewTransition`
+  // appears nowhere in the config schema — so Next rejected the key on every
+  // start with "Invalid next.config.ts options detected". The cast is what let a
+  // dead option survive a typecheck; both are removed rather than re-added under
+  // a guessed name.
   // Suppress the X-Powered-By: Next.js header — leaks framework version info.
   poweredByHeader: false,
   // Lets a production build run without fighting a `next dev` server for `.next`.
@@ -100,6 +110,21 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         has: [{ type: 'host', value: 'www.noditto.app' }],
         destination: 'https://noditto.app/:path*',
+        permanent: true,
+      },
+      {
+        // The catalog moved to `/`. Exact source only — `/listings/new`,
+        // `/listings/mine`, `/listings/[id]` and `/listings/[id]/edit` are all
+        // still real routes and must not be swept up by this.
+        //
+        // Handled here rather than by a redirecting page so it resolves at the
+        // edge ahead of `proxy.ts`, and so `/listings` stops existing in the
+        // App Router route table — a stale internal link then fails the
+        // navigation-graph test instead of silently costing every visitor a
+        // round trip. Query strings are carried over automatically, which keeps
+        // shared `/listings?category=` links intact.
+        source: '/listings',
+        destination: '/',
         permanent: true,
       },
     ];

@@ -28,7 +28,9 @@
 // an error. Cross-border payouts additionally require the PLATFORM to sit in the
 // US, UK, EEA, CA or CH — Australia is not eligible — and are unavailable to
 // connected accounts under a recipient service agreement, which is exactly what
-// `createManagedMerchant` opens (`configuration.recipient`).
+// `createManagedMerchant` opens (`configuration.recipient`). Stripe's documented
+// alternative for recipient accounts is Global payouts, which is US/UK-platform
+// only and moves compliance — potentially a money transmitter licence — onto us.
 //
 // The consequence is not about currency. Our funds flow is
 // buyer → PLATFORM balance → seller, so a purely domestic UK sale still moves
@@ -36,6 +38,13 @@
 // account therefore cannot serve two regions, no matter how strictly the product
 // forbids cross-border deals. `resolveRegionPaymentConfig` in
 // `domain/services/stripe/config.ts` is where the per-region binding is selected.
+//
+// VERIFIED against Stripe's documentation on 2026-09-01. Re-check before acting on
+// any of it — provider availability is not in our control and does change.
+//   https://docs.stripe.com/connect/cross-border-payouts
+//   https://docs.stripe.com/connect/separate-charges-and-transfers
+//   https://docs.stripe.com/connect/service-agreement-types
+//   https://docs.stripe.com/global-payouts
 
 /** ISO 3166-1 alpha-2, uppercased. */
 export type RegionCode = string;
@@ -104,6 +113,9 @@ const ZERO_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
  * Taken from Stripe's published availability list for that flow. A country absent
  * from it cannot host a platform account for us at all, so adding one here would
  * be a promise the provider cannot keep.
+ *
+ * All 41 entries below were checked against that list on 2026-09-01 and matched
+ * exactly: https://docs.stripe.com/connect/separate-charges-and-transfers
  *
  * `tradingEnabled` is false for everything except AU, and that is the honest
  * state: each region needs a registered legal entity and its own Stripe platform

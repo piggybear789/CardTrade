@@ -18,7 +18,8 @@
 
 import { useRef, useState, useTransition, type ChangeEvent, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, ImagePlus, Loader2, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ImagePlusIcon, LoaderCircleIcon, TriangleAlertIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -60,7 +61,6 @@ export interface HandoverFailedDialogProps {
    * cannot deliver.
    */
   outcomeDescription: string;
-  successMessage?: string;
   /** Placeholder for the description field. */
   reasonPlaceholder?: string;
   /**
@@ -87,7 +87,6 @@ export function HandoverFailedDialog({
   triggerLabel = 'Report a problem',
   title = 'Report a problem with the handover',
   outcomeDescription,
-  successMessage = 'Reported — the contract is now frozen for review.',
   reasonPlaceholder = 'e.g. they did not show up, the item was not what was agreed, the parcel never arrived…',
   triggerVariant = 'destructive',
   evidenceContext,
@@ -174,7 +173,6 @@ export function HandoverFailedDialog({
         }
       }
 
-      toast.success(successMessage);
       setOpen(false);
       setReason('');
       setProofFiles([]);
@@ -185,21 +183,27 @@ export function HandoverFailedDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button type="button" variant={triggerVariant} size="sm">
-          <AlertTriangle className="size-3.5" aria-hidden />
+          <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5" aria-hidden />
           {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit}>
+        {/* The form is DialogContent's only child, so its flex gap cannot reach
+            header, body and footer. Repeating it here spaces them the same way
+            every other dialog does, instead of a one-off `py-4` on the body. */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{outcomeDescription}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-group py-4">
-            <div className="flex items-start gap-cozy rounded-lg border border-destructive/40 bg-destructive/5 p-cozy">
-              <AlertTriangle
-                className="mt-0.5 size-4 shrink-0 text-destructive"
+          <div className="space-y-group">
+            {/* Tinted but not bordered. The border made this a card inside a card
+                directly under the description, which is a lot of chrome for what
+                is one paragraph of warning — the red still carries the weight. */}
+            <div className="flex items-center gap-cozy rounded-lg bg-destructive/5 p-cozy">
+              <HugeiconsIcon icon={TriangleAlertIcon}
+                className="size-4 shrink-0 text-destructive"
                 aria-hidden
               />
               <div className="space-y-tight text-body">
@@ -224,6 +228,7 @@ export function HandoverFailedDialog({
                 maxLength={REASON_MAX}
                 rows={4}
                 disabled={isPending}
+                className="resize-none"
               />
               <p className="text-right text-meta text-muted-foreground">
                 {reason.length}/{REASON_MAX}
@@ -270,7 +275,7 @@ export function HandoverFailedDialog({
                       className="absolute right-0.5 top-0.5 rounded-full bg-background/80 p-0.5 text-foreground shadow-sm hover:bg-background"
                       aria-label={`Remove ${file.name}`}
                     >
-                      <X className="size-3" aria-hidden />
+                      <HugeiconsIcon icon={XIcon} className="size-3" aria-hidden />
                     </button>
                   </div>
                 ))}
@@ -279,10 +284,10 @@ export function HandoverFailedDialog({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending}
-                    className="flex size-16 items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-gold/40 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
+                    className="flex size-16 items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-iris/50 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
                     aria-label="Add evidence photo"
                   >
-                    <ImagePlus className="size-5" aria-hidden />
+                    <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
                   </button>
                 ) : null}
               </div>
@@ -298,7 +303,7 @@ export function HandoverFailedDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => setOpen(false)}
               disabled={isPending}
             >
@@ -310,7 +315,7 @@ export function HandoverFailedDialog({
               disabled={reason.trim().length < REASON_MIN || isPending}
               aria-busy={isPending}
             >
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               {isPending ? 'Submitting…' : 'Freeze and report'}
             </Button>
           </DialogFooter>

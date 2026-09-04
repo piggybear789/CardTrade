@@ -142,6 +142,16 @@ class TradesService {
     );
   }
 
+  /// Re-seek collateral after a declined card hold.
+  Future<Result<dynamic>> retryCollateral(String tradeId) async {
+    return _api.post(
+      ApiRoutes.tradeRetryCollateral,
+      body: {
+        'tradeId': tradeId,
+      },
+    );
+  }
+
   /// Decline a trade offer.
   Future<Result<dynamic>> declineOffer(String tradeId, {String? reason}) async {
     return _api.post(

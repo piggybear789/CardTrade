@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { authenticateMobileRequest } from '@/lib/api/mobileSession';
 import { createItem } from '@/lib/actions/listings';
+import type { ImageDim } from '@/lib/images/dimensions';
 
 export async function POST(request: NextRequest) {
   const auth = await authenticateMobileRequest(request);
@@ -37,6 +38,14 @@ export async function POST(request: NextRequest) {
     condition: String(input.condition ?? ''),
     fmvCents: Number(input.fmvCents ?? 0),
     images: Array.isArray(input.images) ? input.images : [],
+    // Optional, and index-aligned with `images`. The mobile client uploads
+    // straight to Storage too, so it is the only party that sees those bytes —
+    // same position the browser uploader is in. Omitting it is fine: the tiles
+    // fall back to square. Sanitized inside `createItem`, so nothing is trusted
+    // here beyond the array shape.
+    imageDims: Array.isArray(input.imageDims)
+      ? (input.imageDims as (ImageDim | null)[])
+      : undefined,
     listingKind: input.listingKind === 'SHOPFRONT' ? 'SHOPFRONT' : 'SINGLE',
     location: input.location
       ? {

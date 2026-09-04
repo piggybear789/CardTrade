@@ -32,10 +32,19 @@ export {
 export type { ValidateFulfilmentOptions } from './terms';
 
 export {
+  BOND_PLACEMENT_LEAD_HOURS,
+  CARD_AUTHORISATION_DAYS,
+  COLLATERAL_HOURS_AFTER_MEETING,
+  COLLATERAL_MARGIN_HOURS,
+  MAX_MEETING_LEAD_HOURS,
+  TRADE_HANDOVER_METHODS,
   TRADE_INSPECTION_FLOOR_HOURS,
   TRADE_INSPECTION_HOURS,
+  bondPlacementInstant,
   deriveTradeInspectionDeadline,
   inspectionExpired,
   inspectionHoldRisk,
+  latestSelectableMeetingInstant,
+  projectedCollateralLapse,
 } from './inspection';
 export type { InspectionHoldRisk, TradeInspectionFacts } from './inspection';

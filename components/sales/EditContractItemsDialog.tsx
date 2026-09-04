@@ -24,8 +24,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import { Loader2, PencilLine } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, PencilLineIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -93,7 +93,7 @@ export function EditContractItemsDialog({
       const result = await updateCashSaleItems(cashSaleId, termsVersion, next);
       if (result.ok) {
         setOpen(false);
-        toast.success('Items updated.');
+        
         router.refresh();
         return;
       }
@@ -121,9 +121,9 @@ export function EditContractItemsDialog({
           type="button"
           variant="outline"
           size="sm"
-          className="h-6 gap-tight px-2 text-meta font-medium leading-none [&_svg]:size-3"
+          className="gap-tight px-3 text-meta font-medium leading-none [&_svg]:size-3"
         >
-          <PencilLine aria-hidden />
+          <HugeiconsIcon icon={PencilLineIcon} aria-hidden />
           Edit
         </Button>
       </DialogTrigger>
@@ -162,7 +162,7 @@ export function EditContractItemsDialog({
             disabled={isPending}
             aria-busy={isPending}
           >
-            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             {isPending ? 'Saving…' : 'Save items'}
           </Button>
         </DialogFooter>

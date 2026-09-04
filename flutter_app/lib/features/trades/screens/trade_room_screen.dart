@@ -164,6 +164,8 @@ class _TradeRoomScreenState extends ConsumerState<TradeRoomScreen> {
     final result = await switch (action) {
       TradeAction.acceptTerms =>
         service.acceptTerms(widget.tradeId, trade.termsVersion),
+      TradeAction.retryCollateral =>
+        service.retryCollateral(widget.tradeId),
       TradeAction.declineOffer =>
         service.declineOffer(widget.tradeId, reason: 'Declined by user'),
       TradeAction.recordShipment =>
@@ -789,6 +791,8 @@ class _ActionCard extends StatelessWidget {
   Widget _actionButton(BuildContext context, TradeAction action) {
     final (label, icon, isDanger) = switch (action) {
       TradeAction.acceptTerms => ('Accept Terms', Icons.check, false),
+      TradeAction.retryCollateral =>
+        ('Retry hold', Icons.credit_card, false),
       TradeAction.declineOffer => ('Cancel Trade', Icons.close, true),
       TradeAction.recordShipment =>
         ('Mark as Shipped', Icons.local_shipping, false),
@@ -828,6 +832,9 @@ class _ActionCard extends StatelessWidget {
       TradeState.negotiating => [
           if (!trade.termsAgreed) TradeAction.acceptTerms,
           TradeAction.declineOffer,
+        ],
+      TradeState.collateralPending => [
+          TradeAction.retryCollateral,
         ],
       TradeState.collateralLocked => [
           if (trade.handoverMethod == HandoverMethod.delivery)

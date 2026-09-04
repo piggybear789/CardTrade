@@ -5,8 +5,8 @@
 // and bumps the terms version, so payment uses the new number.
 
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
-import { Loader2, TicketPercent as Pencil } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, TicketPercentIcon } from '@hugeicons/core-free-icons';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -59,7 +59,7 @@ export function CashSalePriceDialog({
     startTransition(async () => {
       const result = await proposeCashSalePrice(cashSaleId, termsVersion, cents);
       if (result.ok) {
-        toast.success(`Price change to ${formatMoney(cents, currency)} sent.`);
+        
         setOpen(false);
       } else {
         setError(result.message ?? 'The price could not be changed. Refresh and retry.');
@@ -74,21 +74,24 @@ export function CashSalePriceDialog({
           type="button"
           variant="outline"
           size="sm"
-          className="h-6 gap-tight px-2 text-meta font-medium leading-none [&_svg]:size-3"
+          className="gap-tight px-3 text-meta font-medium leading-none [&_svg]:size-3"
         >
-          <Pencil aria-hidden />
+          <HugeiconsIcon icon={TicketPercentIcon} aria-hidden />
           Edit
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={submit}>
+        {/* The form is DialogContent's only child, so its flex gap cannot reach
+            header, body and footer. Repeating it here replaces the one-off
+            `py-5` that was doing the same job by hand. */}
+        <form onSubmit={submit} className="flex flex-col gap-3 sm:gap-4">
           <DialogHeader>
             <DialogTitle>Request a price change</DialogTitle>
             <DialogDescription>
               Update the item price. Shipping and the platform fee stay separate.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-group py-5">
+          <div className="space-y-group">
             <div className="space-y-snug">
               <Label htmlFor="sale-price">Item price</Label>
               <MoneyInput
@@ -99,9 +102,11 @@ export function CashSalePriceDialog({
                 onChange={(event) => setPrice(event.target.value)}
                 required
               />
+              {/* Just the current number. The description above already says
+                  shipping and the fee stay separate, and saying it twice in one
+                  short dialog reads as two different rules. */}
               <p className="text-body text-muted-foreground">
-                Currently {formatMoney(agreedPriceCents, currency)}. Shipping and the platform fee
-                are shown separately.
+                Currently {formatMoney(agreedPriceCents, currency)}.
               </p>
             </div>
             {error ? (
@@ -112,7 +117,7 @@ export function CashSalePriceDialog({
           </div>
           <DialogFooter>
             <Button type="submit" disabled={pending} aria-busy={pending}>
-              {pending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               Send request
             </Button>
           </DialogFooter>

@@ -6,8 +6,9 @@
 // `getPayoutsDashboard`, so nothing here recomputes money from partial data. The
 // only interactive part is the payout-setup link, which is an ordinary anchor.
 //
-// FOUR SECTIONS IN A FIXED ORDER (Req 1.5): what is being released now, where it
-// is going, what has already moved, and what is under arbitration.
+// THREE SECTIONS IN A FIXED ORDER after the page-level tiles (Req 1.5): active
+// sales, where money is going, transfer history, then arbitration when present.
+// Headline balances live in the profile tiles so they are not repeated here.
 //
 // WORDING IS LOAD-BEARING. The reference dashboard this is modelled on labels its
 // headline "Available Now", which implies a withdraw button. CardTrade has no
@@ -17,13 +18,10 @@
 // Likewise a settled release is described as SENT, never as arrived or received:
 // once the provider has it, the timing belongs to the bank.
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
-import {
-  AlertTriangle,
-  ArrowUpRight,
-  Scale,
-  ShieldCheck,
-} from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowUpRight01Icon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import type {
   ArbitrationRecord,
@@ -153,19 +151,69 @@ export interface PayoutsDashboardProps {
   scope: SectionScope;
 }
 
+/**
+ * Section heading for the dashboard.
+ *
+ * Sentence case at body size, matching `SettingsGroup`'s labels on the tabs either
+ * side of this one. These were hardcoded 11px uppercase on wide tracking, so the
+ * Payouts tab carried two heading vocabularies at once: sentence case above the fold
+ * and eyebrows below it.
+ */
+function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <h3 id={id} className="mb-snug px-tight text-body font-medium text-muted-foreground">
+      {children}
+    </h3>
+  );
+}
+
 export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboardProps) {
+  // NOTHING HAS EVER HAPPENED HERE, so say it once.
+  //
+  // Each section owned its own empty state, so a seller who had not sold anything yet
+  // met three headings and three paragraphs that all said the same thing in different
+  // words — "Active sales / No current activity / Once a buyer pays for one of your
+  // listings…", then the same shape again for history, then again for disputes. Six
+  // blocks of prose to report that nothing has happened is the reason this tab read as
+  // dense and confusing. One state, one sentence, one thing to do.
+  const nothingYet =
+    model.releasing.length === 0 &&
+    model.history.length === 0 &&
+    model.arbitrations.length === 0 &&
+    model.upcomingProceedsCents === 0 &&
+    model.releasingNowCents === 0 &&
+    model.atRiskProceedsCents === 0;
+
+  if (nothingYet) {
+    return (
+      <div className="space-y-group font-sans">
+        {destination.state === 'VERIFIED' ? (
+          <DestinationAccountSummary destination={destination} />
+        ) : null}
+        <EmptyState
+          title="No payouts yet"
+          titleAs="h3"
+          description="When a buyer accepts an item, your proceeds are queued here and sent automatically."
+          action={{ label: 'Create a listing', href: '/listings/new' }}
+          // Matches the other section empty states here. `EmptyState` deliberately
+          // drops its card chrome below `md` so a section state sits where the first
+          // row would; only the desktop dashed border is overridden to solid.
+          className="border-solid bg-card"
+          compact
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-section font-sans">
-      <BalanceSummary model={model} />
       <ActiveSalesSummary model={model} />
       {/* ONE payout destination card, not two.
-          
-          The Identity and Connect cards now live side-by-side in the page-level
-          grid above this dashboard. The standalone destination section earns its
-          place only once VERIFIED, because that is the only state where it reports
-          something the setup card cannot: `verifiedName`, the actual account the
-          money lands in. Before then "where your money goes" has no answer, and
-          the Connect card in the grid above is the one with the action. */}
+
+          The standalone destination section earns its place only once VERIFIED,
+          because that is the only state where it reports something the setup flow on
+          the Verification tab cannot: `verifiedName`, the actual account the money
+          lands in. Before then "where your money goes" has no answer. */}
       {destination.state === 'VERIFIED' ? (
         <DestinationAccountSummary destination={destination} />
       ) : null}
@@ -189,93 +237,6 @@ function isHistoryPast(entry: TransferHistoryEntry): boolean {
   return entry.kind === 'SENT' || entry.kind === 'FRAUD_RESTITUTION';
 }
 
-function BalanceSummary({ model }: { model: PayoutReadModel }) {
-  // A page of zeroes reads as an error, so a member who has never sold gets an
-  // explanation instead of the figures (Req 10.1, 10.2).
-  if (model.noSales) {
-    return (
-      <section aria-labelledby="balance-heading">
-        <h3 id="balance-heading" className="sr-only">
-          Pending payouts
-        </h3>
-        <Card className="h-full">
-          <CardHeader className="p-4">
-            <p className="font-sans text-meta text-muted-foreground">Owed to you</p>
-            <p className="display-value mt-4 text-subhead">{formatAud(0)}</p>
-            <p className="mt-1 font-sans text-body text-muted-foreground">
-              Funds are released after a contract resolves.
-            </p>
-          </CardHeader>
-        </Card>
-      </section>
-    );
-  }
-
-  return (
-    <section aria-labelledby="balance-heading" className="h-full">
-      <h3 id="balance-heading" className="sr-only">
-        Pending payouts
-      </h3>
-
-      <Card className="h-full">
-        <CardHeader className="pb-3">
-          <p className="font-sans text-meta text-muted-foreground">Owed to you</p>
-          <p className="display-value mt-4 text-subhead">
-            {formatAud(model.releasingNowCents)}
-          </p>
-          <p className="mt-1 font-sans text-body text-muted-foreground">
-            Queued and released automatically.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-group">
-          <dl className="grid gap-group sm:grid-cols-2">
-            <div>
-              <dt className="text-meta uppercase tracking-wide text-muted-foreground">
-                Upcoming
-              </dt>
-              <dd className="mt-0.5 text-body font-semibold tabular-nums">
-                {formatAud(model.upcomingProceedsCents)}
-              </dd>
-              <p className="mt-0.5 text-body text-muted-foreground">
-                Pending until the buyer accepts or inspection closes.
-              </p>
-            </div>
-            {model.atRiskProceedsCents > 0 ? (
-              <div>
-                <dt className="text-meta uppercase tracking-wide text-muted-foreground">
-                  Under dispute
-                </dt>
-                <dd className="mt-0.5 text-body font-semibold tabular-nums">
-                  {formatAud(model.atRiskProceedsCents)}
-                </dd>
-                <p className="mt-0.5 text-body text-muted-foreground">
-                  Counted in neither figure above while an outcome is owed. See
-                  disputes below.
-                </p>
-              </div>
-            ) : null}
-          </dl>
-
-          <p className="text-body text-muted-foreground">
-            All figures are net of the 5% platform fee. Shipping is a pass-through.
-          </p>
-
-          {model.hasBlockedRelease ? (
-            <p className="flex items-start gap-snug rounded-lg border border-destructive/40 bg-destructive/10 p-cozy text-body text-destructive">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-              <span>
-                Part of this is blocked. The reason and what fixes it are listed
-                below.
-              </span>
-            </p>
-          ) : null}
-
-        </CardContent>
-      </Card>
-    </section>
-  );
-}
-
 function DestinationAccountSummary({
   destination,
   compact = false,
@@ -291,7 +252,7 @@ function DestinationAccountSummary({
       <CardContent className="flex flex-col gap-cozy p-group sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-cozy">
           <span className="grid size-10 shrink-0 place-items-center rounded-md border bg-muted">
-            <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
+            <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 text-muted-foreground" aria-hidden />
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-snug">
@@ -300,9 +261,12 @@ function DestinationAccountSummary({
               </p>
               <Badge variant={copy.variant}>{copy.badge}</Badge>
             </div>
+            {/* "· releases are automatic" dropped: the summary block directly above
+                this already says "Released automatically" under the figure it
+                describes. */}
             <p className="mt-0.5 text-body text-muted-foreground">
               {destination.state === 'VERIFIED'
-                ? 'Bank account on file with Stripe · releases are automatic'
+                ? 'Bank account on file with Stripe'
                 : copy.detail}
             </p>
           </div>
@@ -311,7 +275,7 @@ function DestinationAccountSummary({
           <Button asChild size="sm" variant="outline" className="shrink-0">
             <Link href="/profile?tab=payouts#payout-setup">
               {needsSetup ? 'Finish setup' : 'Manage with Stripe'}
-              <ArrowUpRight aria-hidden />
+              <HugeiconsIcon icon={ArrowUpRight01Icon} aria-hidden />
             </Link>
           </Button>
         ) : null}
@@ -323,13 +287,13 @@ function DestinationAccountSummary({
 
   return (
     <section aria-labelledby="destination-heading">
-      <h3 id="destination-heading" className="mb-cozy text-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        Where your money goes
-      </h3>
+      <SectionHeading id="destination-heading">Where your money goes</SectionHeading>
       {card}
-      <p className="mt-snug text-body text-muted-foreground">
-        Bank details are held by Stripe. NoDitto never receives or stores them.
-      </p>
+      {/* No custody footnote here any more. It read "Bank details are held by Stripe.
+          NoDitto never receives or stores them." directly under a card whose own
+          subtitle already says "Bank account on file with Stripe", on a page whose
+          header now states "ID checked by Stripe · Payouts active". Three statements
+          of one fact within a screen of each other. */}
     </section>
   );
 }
@@ -339,15 +303,15 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
 
   return (
     <section aria-labelledby="active-sales-heading">
-      <h3 id="active-sales-heading" className="mb-cozy text-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        Active sales
-      </h3>
+      <SectionHeading id="active-sales-heading">Active sales</SectionHeading>
       {!hasActivity ? (
+        // Reached only when something else on the tab has activity — the all-empty
+        // case is short-circuited above — so this is a one-line absence, not a
+        // first-run explainer.
         <EmptyState
-          title="No current activity"
+          title="Nothing in progress"
           titleAs="h4"
-          description="Once a buyer pays for one of your listings, its release status appears here."
-          action={{ label: 'Create a listing', href: '/listings/new' }}
+          description="No sale is currently awaiting delivery or inspection."
           className="border-solid bg-card"
           compact
         />
@@ -401,9 +365,7 @@ function TransferHistory({
 
   return (
     <section aria-labelledby="history-heading">
-      <h3 id="history-heading" className="mb-cozy text-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        Transfer history
-      </h3>
+      <SectionHeading id="history-heading">Transfer history</SectionHeading>
 
       {model.history.length > 0 ? (
         <SectionFilter
@@ -415,37 +377,36 @@ function TransferHistory({
       ) : null}
 
       {model.history.length === 0 ? (
+        // Sentence case, matching every other title on the surface. These were Title
+        // Case ("Nothing Has Moved Yet"), which is a third capitalisation convention
+        // on one tab.
         <EmptyState
-          title="Nothing Has Moved Yet"
+          title="Nothing has moved yet"
           titleAs="h4"
-          description="The first entry appears when a buyer accepts an item and your proceeds are queued for release."
+          description="The first entry appears when a buyer accepts an item."
           className="border-solid bg-card py-8"
           compact
         />
       ) : shown.length === 0 ? (
         <EmptyState
-          title={scope === 'past' ? 'Nothing Completed Yet' : 'Nothing In Progress'}
+          title={scope === 'past' ? 'Nothing completed yet' : 'Nothing in progress'}
           titleAs="h4"
           description={
             scope === 'past'
-              ? 'No transfer has finished moving yet. Anything in progress is under Active.'
-              : 'Every transfer has finished. Completed movements are under Past.'
+              ? 'Anything still moving is under Active.'
+              : 'Everything has finished. Completed transfers are under Past.'
           }
           compact
         />
       ) : (
-        <ol className="space-y-cozy">
+        // THE SAME CONTAINER AS EVERY OTHER LIST ON THE SURFACE. Entries were bare
+        // text hanging off a 2px left stripe — a fourth container style on a tab that
+        // already had cards, groups and rows, and a decorative rule carrying no
+        // meaning. They are rows in a group now, like the rest of Account.
+        <ol className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {shown.map((entry) => (
-            <li key={entry.id} className="border-l-2 border-border pl-group">
-              <p className="text-body">
-                {historySentence(entry)}
-                {entry.kind === 'SENT' ? (
-                  <span className="font-medium">
-                    {' '}
-                    This can take up to four business days to appear in your account.
-                  </span>
-                ) : null}
-              </p>
+            <li key={entry.id} className="px-group py-cozy">
+              <p className="text-body">{historySentence(entry)}</p>
               {entry.kind === 'FAILED' && entry.failureCause ? (
                 <p className="mt-0.5 text-body text-muted-foreground">
                   {FAILURE_COPY[entry.failureCause].summary}
@@ -469,6 +430,16 @@ function TransferHistory({
           ))}
         </ol>
       )}
+
+      {/* ONCE, UNDER THE LIST. This was appended in bold to the end of every SENT
+          entry, so a seller with six completed transfers read the same sentence six
+          times down the page. It is a property of bank transfers, not of any one
+          entry. */}
+      {shown.some((entry) => entry.kind === 'SENT') ? (
+        <p className="mt-snug px-tight text-body text-muted-foreground">
+          Sent transfers can take up to four business days to reach your bank.
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -486,10 +457,15 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
       </div>
 
       {model.arbitrations.length === 0 ? (
+        // THIS BRANCH ONLY RUNS WITH MONEY AT RISK, because the caller renders this
+        // section on `arbitrations.length > 0 || atRiskProceedsCents > 0`. It used to
+        // say "No Disputes — No disputes or fraud resolutions are affecting your
+        // money" directly beside a badge reading "$X at risk", flatly contradicting
+        // it. Say the true thing: there is money held, and the case is not yours.
         <EmptyState
-          title="No Disputes"
+          title="Held pending an outcome"
           titleAs="h4"
-          description="No disputes or fraud resolutions are affecting your money."
+          description="A case involving one of your sales is open. Nothing is needed from you."
           compact
         />
       ) : (
@@ -506,7 +482,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
                   <CardHeader className="pb-3">
                     <div className="flex flex-wrap items-center justify-between gap-snug">
                       <div className="flex flex-wrap items-center gap-snug">
-                        <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                         <CardTitle className="text-lead">
                           {ARBITRATION_LABEL[record.kind]}
                         </CardTitle>
@@ -556,10 +532,13 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
         </ul>
       )}
 
+      {/* NAMES THE LABELS THAT ARE ACTUALLY ON SCREEN. This read "appears in neither
+          'Releasing now' nor 'Upcoming'" — two headings the summary block above no
+          longer uses, so it pointed at figures the member could not find. */}
       {model.atRiskProceedsCents > 0 ? (
-        <p className="mt-cozy text-body text-muted-foreground">
-          An amount at risk appears in neither &ldquo;Releasing now&rdquo; nor
-          &ldquo;Upcoming&rdquo; while an outcome is owed.
+        <p className="mt-cozy px-tight text-body text-muted-foreground">
+          Money under dispute is counted here only — not in &ldquo;Owed to you&rdquo; or
+          &ldquo;Held for open sales&rdquo; — until the outcome is decided.
         </p>
       ) : null}
     </section>

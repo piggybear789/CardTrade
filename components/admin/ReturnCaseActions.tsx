@@ -18,7 +18,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { resolveCashSaleReturnCase } from '@/lib/actions/admin';
 import { Button } from '@/components/ui/button';
@@ -64,11 +65,7 @@ export function ReturnCaseActions({
       const result = await resolveCashSaleReturnCase(cashSaleId, outcome);
       setConfirming(null);
       if (result.ok) {
-        toast.success(
-          outcome === 'REFUND_BUYER'
-            ? `Refunded ${formatAud(amountCents)} to the buyer.`
-            : 'Released to the seller.',
-        );
+        
         return;
       }
       toast.error(result.message ?? 'Could not resolve that return.');
@@ -92,7 +89,7 @@ export function ReturnCaseActions({
           aria-haspopup="dialog"
           onClick={() => setConfirming('REFUND_BUYER')}
         >
-          {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+          {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
           Refund the buyer
         </Button>
         <Button

@@ -13,7 +13,8 @@
 import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Loader2, ShoppingCart } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CreditCardIcon, LoaderCircleIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -21,17 +22,13 @@ import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-gold" aria-hidden />
-        <span className="sr-only">Loading payment form…</span>
-      </div>
-    ),
+    loading: () => <PaymentFormSkeleton />,
   },
 );
 
@@ -68,9 +65,12 @@ type SalePrep =
 export function BuyButton({
   itemId,
   sellerIdentity,
+  trigger,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
+  /** Replaces the default listing-action chip — used by the mobile buyer bar. */
+  trigger?: ReactNode;
 }) {
   return (
     <PurchaseDialog
@@ -79,6 +79,7 @@ export function BuyButton({
       description="This reserves the item and opens a contract with the seller. You do not pay yet."
       confirmLabel="Reserve item and agree terms"
       prepareSale={() => ({ ok: true })}
+      trigger={trigger}
     />
   );
 }
@@ -90,9 +91,11 @@ export function BuyButton({
 export function ShopfrontBuyButton({
   itemId,
   sellerIdentity,
+  trigger,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
+  trigger?: ReactNode;
 }) {
   const [request, setRequest] = useState(emptyRequest);
 
@@ -103,6 +106,7 @@ export function ShopfrontBuyButton({
       description="Describe your desired items. You do not pay yet."
       confirmLabel="Open contract and agree terms"
       onReset={() => setRequest(emptyRequest())}
+      trigger={trigger}
       prepareSale={() => {
         if (toRequestLineItems(request).length === 0) {
           return { ok: false, error: 'Describe what you want from this listing.' };
@@ -125,6 +129,7 @@ function PurchaseDialog({
   confirmLabel,
   prepareSale,
   onReset,
+  trigger,
   children,
 }: {
   itemId: string;
@@ -133,6 +138,7 @@ function PurchaseDialog({
   confirmLabel: string;
   prepareSale: () => SalePrep;
   onReset?: () => void;
+  trigger?: ReactNode;
   children?: ReactNode;
 }) {
   const router = useRouter();
@@ -221,21 +227,30 @@ function PurchaseDialog({
       }}
     >
       <DialogTrigger asChild>
-        <ListingActionIcon icon={ShoppingCart} label="Buy now" variant="default" />
+        {trigger ?? (
+          <ListingActionIcon icon={ShoppingCart01Icon} label="Buy now" variant="default" />
+        )}
       </DialogTrigger>
       <DialogContent>
         {loading ? (
-          <div className="flex items-center justify-center py-8" role="status">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
-            <span className="sr-only">Loading payment details…</span>
-          </div>
+          <>
+            <DialogHeader>
+              <DialogTitle>Checking payment method</DialogTitle>
+              <DialogDescription>Please wait…</DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-center py-8" role="status">
+              <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
+              <span className="sr-only">Checking your payment details…</span>
+            </div>
+          </>
         ) : showCardForm ? (
           <>
-            {/* Negative margin cancels DialogContent's flex gap: with the
-                description gone there is nothing to separate the title from
-                Stripe's own bordered card. */}
-            <DialogHeader className="-mb-3 sm:-mb-4">
+            <DialogHeader>
               <DialogTitle>Add a payment method</DialogTitle>
+              <DialogDescription>
+                Stripe stores the card. Nothing is charged until you agree to terms
+                with the seller.
+              </DialogDescription>
             </DialogHeader>
             <AddPaymentMethodForm
               onAttached={() => {
@@ -259,7 +274,7 @@ function PurchaseDialog({
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
+            <div className="space-y-group">
               {children}
 
               <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
@@ -272,21 +287,18 @@ function PurchaseDialog({
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 rounded-lg border border-white/15 bg-obsidian p-3 text-parchment">
-                <CreditCard className="h-5 w-5 shrink-0 text-parchment/70" aria-hidden />
+              <div className="flex items-center gap-cozy rounded-lg border p-cozy">
+                <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-medium text-parchment">
+                  <p className="truncate text-body font-medium">
                     {paymentLabel ?? 'Card on file'}
                   </p>
-                  <p className="text-body text-parchment/65">
-                    Stripe method
-                  </p>
+                  <p className="text-body text-muted-foreground">Stripe method</p>
                 </div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-parchment hover:bg-white/10 hover:text-parchment"
                   onClick={() => {
                     setHasPaymentMethod(false);
                     setPaymentLabel(null);
@@ -306,7 +318,7 @@ function PurchaseDialog({
                 disabled={isPending}
                 aria-busy={isPending}
               >
-                {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
                 {isPending ? 'Opening contract…' : confirmLabel}
               </Button>
             </DialogFooter>

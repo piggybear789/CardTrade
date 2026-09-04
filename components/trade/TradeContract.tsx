@@ -22,10 +22,9 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { formatAud, formatContractDateTime, itemImageUrl } from '@/lib/format';
+import { formatAud, formatContractDateTime, formatMoney, itemImageUrl } from '@/lib/format';
 import {
   deliveryNotesFromDetails,
   summarizeHandover,
@@ -39,21 +38,29 @@ import {
 } from '@/lib/actions/trades';
 import {
   DeliveryAddressPanel,
+  FulfilmentMethodSummary,
   InspectionCountdown,
 } from '@/components/fulfilment';
 import { inspectionHoldRisk } from '@/domain/fulfilment';
 import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
 
+import { DesktopOnly } from '@/components/layout/Breakpoint';
 import { FadeSwap } from '@/components/motion/FadeSwap';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { ActionBar } from '@/components/trade/ActionBar';
 import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import { HoldStatus } from '@/components/trade/HoldStatus';
+import {
+  SavedCardRow,
+  type SavedCardStatus,
+} from '@/components/payments/SavedCardRow';
 import { TRADE_FEE_BPS, tradeFeeCentsFor } from '@/domain/trade/tradeFee';
-import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
+import {
+  resolveTradeSideValues,
+  tradeAgreedValueCents,
+} from '@/domain/trade/tradeSideValues';
 import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
-import { StateBadge } from '@/components/trade/StateBadge';
+import { StateBadge, TRADE_STATUS_MAP } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { PlaceMap } from '@/components/location';
@@ -68,7 +75,7 @@ import {
   ContractHeader,
   ContractLiveRow,
   ContractMoneyTable,
-  ContractPartyLine,
+  ContractProgressRail,
   ContractTimeline,
   DisputeEvidencePanel,
   useContractConversation,
@@ -78,12 +85,18 @@ import {
   type ContractExchangeItem,
   type ContractParty,
 } from '@/components/contract';
-import { CounterpartyIdentity } from '@/components/identity/CounterpartyIdentity';
-import { TRADE_SECTIONS, currentStep, deriveTradeSteps } from '@/domain/contract';
+import {
+  TRADE_SECTIONS,
+  currentStep,
+  derivePostageSteps,
+  deriveTradeSteps,
+  type ContractStep,
+} from '@/domain/contract';
 import { ensureTradeConversation } from '@/lib/actions/trades';
 import { availableActions } from '@/domain/state-machine/actions';
 import {
   useTradeRealtime,
+  type TradeRealtimeSeed,
   type TradeRow,
   type TradeTransitionRow,
 } from '@/lib/realtime/useTradeRealtime';
@@ -109,10 +122,18 @@ import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
  */
 function deriveFacts(
   trade: TradeRow,
-  holds: { trader_id: string; status: string }[],
+  holds: { trader_id: string; status: string; created_at?: string }[],
 ): TradeFacts {
-  const holdActive = (traderId: string) =>
-    holds.some((h) => h.trader_id === traderId && h.status === 'ACTIVE');
+  const latestStatus = (traderId: string) => {
+    const theirs = holds
+      .filter((h) => h.trader_id === traderId)
+      .toSorted((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+    return theirs[theirs.length - 1]?.status;
+  };
+  const initiatorStatus = latestStatus(trade.initiator_id);
+  const counterpartStatus = latestStatus(trade.counterpart_id);
+  const seekEnded = (status: string | undefined) =>
+    status === 'FAILED' || status === 'VOIDED' || status === 'EXPIRED';
   return {
     termsAccepted: {
       initiator: trade.initiator_terms_accepted_version === trade.terms_version,
@@ -136,9 +157,10 @@ function deriveFacts(
     },
     fulfilmentMethod: trade.handover_method,
     holdsActive: {
-      initiator: holdActive(trade.initiator_id),
-      counterpart: holdActive(trade.counterpart_id),
+      initiator: initiatorStatus === 'ACTIVE',
+      counterpart: counterpartStatus === 'ACTIVE',
     },
+    collateralSeekFailed: seekEnded(initiatorStatus) || seekEnded(counterpartStatus),
   };
 }
 
@@ -193,6 +215,19 @@ function toExchangeItems(items: TradeGood[]): ContractExchangeItem[] {
   });
 }
 
+/**
+ * Name what is travelling in one direction, for a delivery lane.
+ *
+ * Titles rather than a count: "Pikachu · 2016 Evolutions" tells the reader which
+ * parcel this lane is about, where "1 item" tells them nothing they did not
+ * already know from the fact that a lane exists.
+ */
+function parcelLabel(items: TradeGood[] | undefined): string | null {
+  if (!items || items.length === 0) return null;
+  if (items.length <= 2) return items.map((item) => item.title).join(' · ');
+  return `${items[0].title} and ${items.length - 1} more`;
+}
+
 /** Reputation summary for one trader, shown in the compact party line. */
 export interface TradeParty {
   name: string;
@@ -232,10 +267,24 @@ export interface TradeContractProps {
   counterpartId: string;
   /** The viewer's role relative to this trade, resolved on the server. */
   viewerRole: TradeViewerRole;
+  /**
+   * The trade, its holds and its transition history as the server rendered them.
+   *
+   * The room paints from these immediately and swaps to live rows when the
+   * Realtime channel connects. Without a seed the body waited on a client fetch,
+   * so the server's work produced HTML with no contract in it.
+   */
+  seed?: TradeRealtimeSeed;
   /** The agreed goods and cash, so both traders can see the whole deal. */
   goods?: TradeGoods;
   /** Compact reputation context for both traders, resolved on the server. */
   participants?: { initiator: TradeParty; counterpart: TradeParty };
+  /**
+   * The viewer's saved card as the server already knew it. Seeds every
+   * `SavedCardRow` in the room so the card block does not grow in under the
+   * accept controls a moment after they paint.
+   */
+  paymentMethod?: SavedCardStatus | null;
   /**
    * Whether the cash receiver can take payouts right now. Used to warn before
    * completion; after completion `manual_reconciliation` is the source of truth.
@@ -253,6 +302,16 @@ export interface TradeContractProps {
    * `CashSaleViewProps`.
    */
   disputeEvidence?: DisputeEvidenceEntry[];
+  /**
+   * The review affordance for a finished trade — the "Leave a review" trigger,
+   * or a marker saying one has already been left.
+   *
+   * A SLOT, because whether a review exists is a server read and this view is a
+   * client component. It renders inside the action card rather than as a strip
+   * under the room: on a completed trade "rate this" IS the next thing to do, so
+   * it belongs in the one place that answers that question.
+   */
+  reviewAction?: ReactNode;
 }
 
 /** Banner when cash is waiting on payout setup or a failed transfer. */
@@ -287,7 +346,7 @@ function TradeCashSettlementNotice({
   const amount = formatAud(cashAmountCents);
 
   return (
-    <div className="rounded-lg border border-dashed border-gold/40 bg-gold/10 px-group py-cozy text-body">
+    <div className="rounded-lg border border-dashed border-iris/40 bg-iris/10 px-group py-cozy text-body">
       {pendingAfterComplete ? (
         <>
           <p className="font-medium">
@@ -327,7 +386,7 @@ function TradeCashSettlementNotice({
                     return;
                   }
                   setCleared(true);
-                  toast.success('Cash settled.');
+                  
                 });
               }}
             >
@@ -404,11 +463,7 @@ function TradeTrackingRefresh({ tradeId }: { tradeId: string }) {
             );
             return;
           }
-          toast.success(
-            result.delivered
-              ? 'Carrier confirmed a delivery.'
-              : 'Tracking refreshed.',
-          );
+          
         });
       }}
     >
@@ -461,18 +516,82 @@ function toContractEvents(
   }));
 }
 
+/**
+ * WHERE ARE THE PARCELS — the posted trade's four-step plan, then the controls for
+ * whichever step is live.
+ *
+ * ONE CARD, AND ALMOST NO PROSE. This briefly grew a "Now: before posting — step 1
+ * of 4" header and a "What happens next" list underneath, and the three of them
+ * said the same thing three ways: the rail marks the live step, the header named
+ * it, and the list restated every step the rail had already drawn. The rail's
+ * captions carry the sequence; the lanes below say whose move it is. Each step's
+ * full sentence is still one tap away on its own tick.
+ */
+function TradePostagePlan({
+  steps,
+  deadline,
+  children,
+}: {
+  steps: ContractStep[];
+  /**
+   * The dispatch clock, hung off the step it constrains.
+   *
+   * It used to be a full-width banner above the plan, where the deadline and the
+   * step it is a deadline FOR were two unrelated blocks — the reader had to work
+   * out that "post within 9 days" was about the second tick.
+   */
+  deadline?: ReactNode;
+  /** The live step's own controls — the address lanes and tracking. */
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-group rounded-xl border bg-card p-group">
+      <ContractProgressRail
+        steps={steps}
+        numbered
+        captions
+        annotations={deadline ? { 'postage-posted': deadline } : undefined}
+      />
+      {children}
+    </section>
+  );
+}
+
 /** Terms row — meeting / delivery, editable until first ship. */
 function TradeTermsRow({
   trade,
   viewerRole,
   addresses,
   counterpartName,
+  postageSteps,
+  mineParcel,
+  theirsParcel,
+  deadline,
 }: {
   trade: TradeRow;
   viewerRole: TradeViewerRole;
   /** Postal addresses the viewer is entitled to see. Posted trades only. */
   addresses: TradeAddressView;
   counterpartName: string;
+  /** The four-step postage plan. Posted trades only. */
+  postageSteps?: ContractStep[];
+  /** What is coming to the viewer, named on its lane. */
+  mineParcel?: string | null;
+  /** What the viewer is posting out. */
+  theirsParcel?: string | null;
+  /**
+   * The dispatch clock, when the trade has one.
+   *
+   * A PROP, because `ContractDetailList` renders only children whose type is
+   * `ContractDetailRow` and drops everything else. This was passed as a
+   * sibling of the rows, so it was silently discarded on every posted trade —
+   * the same class of bug as the one recorded at the `TradeTermsRow` call
+   * site, and the reason that list now logs what it drops. It belongs in Terms
+   * regardless: the deadline is a term of the handover.
+   *
+   * Now rendered as a chip on the rail's "Posted" tick rather than as a banner.
+   */
+  deadline?: ReactNode;
 }) {
   const editable = canEditHandoverTerms(trade);
   const summary = trade.handover_method
@@ -516,61 +635,113 @@ function TradeTermsRow({
       }
       contentClassName="space-y-3"
     >
+      {/* THE AGREED METHOD LEADS. It was stated only in the collapsed tab
+          summary, so an open Terms tab showed postage costs and address lanes
+          without once saying that posting is what was agreed — and the only way
+          to see the alternative was to open the editor. The unchosen option
+          stays on screen, quiet, so the decision reads as a decision. */}
+      <FulfilmentMethodSummary method={trade.handover_method} />
+
       {trade.handover_method === null ? (
         <p className="text-muted-foreground">
           Not agreed yet — choose face to face or delivery, then fill in the
           details.
         </p>
-      ) : !areHandoverDetailsFilled(trade) ? (
-        <p className="text-muted-foreground">
-          {trade.handover_method === 'IN_PERSON'
-            ? 'Face to face — add a meeting place when you both know where to meet.'
-            : 'Delivery — agree postage and notes here; add tracking when you ship.'}
-        </p>
+      ) : trade.handover_method === 'IN_PERSON' ? (
+        !areHandoverDetailsFilled(trade) ? (
+          <p className="text-muted-foreground">No meeting place yet.</p>
+        ) : (
+          <>
+            <ContractMoneyTable
+              ariaLabel="Meeting terms"
+              rows={[
+                {
+                  label: 'Meeting point',
+                  hint: trade.meeting_location,
+                  value: '',
+                },
+                {
+                  label: 'When',
+                  value:
+                    formatContractDateTime(trade.meeting_at) ?? 'Not agreed yet',
+                  muted: !trade.meeting_at,
+                },
+              ]}
+            />
+            {trade.meeting_lat != null || trade.meeting_location ? (
+              <PlaceMap
+                lat={trade.meeting_lat}
+                lng={trade.meeting_lng}
+                label={trade.meeting_location}
+                precision="exact"
+                heightClassName="h-56"
+              />
+            ) : null}
+          </>
+        )
       ) : (
-        <>
-          <ContractMoneyTable
-            ariaLabel="Delivery terms"
-            rows={
-              trade.handover_method === 'IN_PERSON'
-                ? [
-                    {
-                      label: 'Meeting point',
-                      hint: trade.meeting_location,
-                      value: '',
-                    },
-                    {
-                      label: 'When',
-                      value:
-                        formatContractDateTime(trade.meeting_at) ??
-                        'Not agreed yet',
-                      muted: !trade.meeting_at,
-                    },
-                  ]
-                : deliveryTermsRows(trade)
-            }
-          />
-          {trade.handover_method === 'IN_PERSON' &&
-          (trade.meeting_lat != null || trade.meeting_location) ? (
-            <PlaceMap
-              lat={trade.meeting_lat}
-              lng={trade.meeting_lng}
-              label={trade.meeting_location}
-              precision="exact"
-              heightClassName="h-56"
+        /* POSTED. The plan owns the tab: the four steps, then the live step's
+           controls inside it, then what follows. Everything below used to be a
+           flat stack of tables under the deadline, in no particular order and
+           with no statement of where the trade had got to.
+
+           The address lanes are deliberately NOT gated on
+           `areHandoverDetailsFilled` (F40): an address must be settable before
+           the postage cost is agreed, since you need to know where a parcel is
+           going to price it. The old gate made the panel unreachable whenever
+           `delivery_cost_cents` was null — which is exactly when you need it. */
+        <TradePostagePlan steps={postageSteps ?? []} deadline={deadline}>
+          {trade.delivery_cost_cents != null ? (
+            <ContractMoneyTable
+              ariaLabel="Postage terms"
+              rows={deliveryTermsRows(trade)}
             />
           ) : null}
-          {/* Refresh both parcels from the carrier. A carrier-confirmed delivery is
-              the only thing that starts the inspection clock — a trader's own word
-              records receipt but never starts a clock that can end in a payout
-              against them. Renders nothing until a carrier binding that can poll is
-              configured; the manual provider deliberately cannot. */}
-          {trade.handover_method === 'DELIVERY' &&
-          trade.state === 'IN_TRANSIT' &&
-          isTrackingStatusPollingAvailable() ? (
+
+          <DeliveryAddressPanel
+            mine={addresses.mine}
+            theirs={addresses.theirs}
+            // Four words. The lane's own chip already names who is being waited
+            // on, so this only has to say why the address is not here yet.
+            theirsPending={
+              addresses.theirs
+                ? null
+                : trade.state === 'NEGOTIATING' ||
+                    trade.state === 'COLLATERAL_PENDING'
+                  ? 'Shared once collateral locks.'
+                  : 'Not added yet.'
+            }
+            counterpartName={counterpartName}
+            mineParcel={mineParcel}
+            theirsParcel={theirsParcel}
+            editable={editable}
+            onSave={async (address) => {
+              const result = await saveTradeDeliveryAddress(trade.id, address);
+              return result.ok
+                ? { ok: true as const }
+                : {
+                    ok: false as const,
+                    message:
+                      result.detail ??
+                      'Could not save the address. Please try again.',
+                  };
+            }}
+          />
+
+          {/* Refresh both parcels from the carrier. A carrier-confirmed delivery
+              is the only thing that starts the inspection clock — a trader's own
+              word records receipt but never starts a clock that can end in a
+              payout against them. Renders nothing until a carrier binding that
+              can poll is configured; the manual provider deliberately cannot. */}
+          {trade.state === 'IN_TRANSIT' && isTrackingStatusPollingAvailable() ? (
             <TradeTrackingRefresh tradeId={trade.id} />
           ) : null}
-          {trade.handover_method === 'DELIVERY' ? (
+
+          {/* Only once something is actually in the post. Two rows both reading
+              "Not shipped yet" is a table whose entire content is that it has
+              none — and the rail above already says so. */}
+          {myTracking !== 'Not shipped yet' ||
+          theirTracking !== 'Not shipped yet' ? (
             <ContractMoneyTable
               ariaLabel="Shipment tracking"
               rows={[
@@ -589,49 +760,8 @@ function TradeTermsRow({
               ]}
             />
           ) : null}
-        </>
+        </TradePostagePlan>
       )}
-      {/* Where each parcel is actually going. A posted trade previously had no
-          address of record at all, so traders swapped them in the chat thread —
-          outside the contract and outside RLS. Two panels, because a swap posts
-          in both directions.
-          IMPORTANT: Rendered outside the areHandoverDetailsFilled gate (F40) — the
-          address must be settable BEFORE delivery cost is agreed, since you need to
-          know where to send it to price postage. The old placement inside the "filled"
-          branch made it unreachable when delivery_cost_cents was null. */}
-      {trade.handover_method === 'DELIVERY' ? (
-        <DeliveryAddressPanel
-          mine={addresses.mine}
-          theirs={addresses.theirs}
-          theirsPending={
-            addresses.theirs
-              ? null
-              : trade.state === 'NEGOTIATING' ||
-                  trade.state === 'COLLATERAL_PENDING'
-                ? 'Shared with you once collateral is locked on both sides.'
-                : 'Not added yet. They need to add an address before you can post.'
-          }
-          counterpartName={counterpartName}
-          editable={editable}
-          onSave={async (address) => {
-            const result = await saveTradeDeliveryAddress(trade.id, address);
-            return result.ok
-              ? { ok: true as const }
-              : {
-                  ok: false as const,
-                  message:
-                    result.detail ??
-                    'Could not save the address. Please try again.',
-                };
-          }}
-        />
-      ) : null}
-      {editable ? (
-        <p className="text-body text-muted-foreground">
-          Either trader can update meeting or postage details. That does not
-          ask anyone to confirm again. The listing owner sets the cash.
-        </p>
-      ) : null}
     </ContractDetailRow>
   );
 }
@@ -659,15 +789,20 @@ function TradeContractRoom({
   initiatorId,
   counterpartId,
   viewerRole,
+  seed,
   goods,
   participants,
+  paymentMethod = null,
   cashReceiverPayoutReady = true,
   demoPanel,
   disputeEvidence = [],
+  reviewAction,
 }: TradeContractProps) {
   const { focusSection } = useContractFocus();
-  const { trade, holds, transitions, connectionStatus } =
-    useTradeRealtime(tradeId);
+  const { trade, holds, transitions, connectionStatus } = useTradeRealtime(
+    tradeId,
+    seed,
+  );
 
   const viewer = useMemo<TradeViewerContext | null>(() => {
     if (!trade) return null;
@@ -745,6 +880,16 @@ function TradeContractRoom({
     ? disclosedSides.counterpartSideCents
     : disclosedSides.initiatorSideCents;
 
+  // What the room HEADLINES. The per-side figures above still size collateral
+  // and the fee; they are no longer set against each other as a headline, for
+  // the reason in `tradeAgreedValueCents`.
+  const agreedValueCents = tradeAgreedValueCents({
+    declaredValueCents: trade?.declared_value_cents,
+    initiatorSideCents: disclosedSides.initiatorSideCents,
+    counterpartSideCents: disclosedSides.counterpartSideCents,
+    cashAmountCents: goods?.cashAmountCents ?? 0,
+  });
+
   // Each trader's fee is 5% of what THEY receive, so the viewer's own fee is sized
   // from the other side's bundle plus any cash coming to them. Derived here rather
   // than read from `trade_fees`, because the fee has to be disclosed BEFORE it is
@@ -792,46 +937,82 @@ function TradeContractRoom({
       : [];
   const step = currentStep(steps);
 
+  // Whether each trader has an address on the contract, read from the row's own
+  // configured flags rather than from `addresses` — the viewer is not entitled to
+  // READ the counterparty's address until collateral locks, but they are always
+  // entitled to know whether one exists, which is what gates posting.
+  const addressLegs = trade
+    ? {
+        mine:
+          viewerRole === 'INITIATOR'
+            ? trade.initiator_delivery_address_configured
+            : trade.counterpart_delivery_address_configured,
+        theirs:
+          viewerRole === 'INITIATOR'
+            ? trade.counterpart_delivery_address_configured
+            : trade.initiator_delivery_address_configured,
+      }
+    : { mine: false, theirs: false };
+
+  // The postage journey, separate from the contract-wide plan above. See
+  // `derivePostageSteps` for why the Terms tab does not reuse `steps`.
+  const postageSteps =
+    trade && viewer && trade.handover_method === 'DELIVERY'
+      ? derivePostageSteps({
+          state: trade.state,
+          viewerRole,
+          facts: viewer.facts,
+          counterpartyName: theirName,
+          addresses: addressLegs,
+          cashLabel: cashToMe > 0 ? formatAud(cashToMe) : null,
+        })
+      : undefined;
+
   return (
     <>
-      {/* Height budget for the room, declared once — see the note in
-          CashSaleView for the 8.25rem breakdown (4rem header + 4.25rem section
-          padding, because `lg:pb-10` overrides `lg:py-7`'s bottom). At `lg` this
-          is exactly the shell content box, so the header, action card and
-          details/chat row divide it and the panes scroll internally instead of
-          growing the page (F37). */}
-      <div className="flex min-h-0 flex-1 flex-col gap-group lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:flex-none">
-        <ContractHeader
-          title="2-way trade"
-          money={
-            goods
-              ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}${
-                  goods.cashAmountCents > 0
-                    ? ` + ${formatAud(goods.cashAmountCents)} cash`
-                    : ''
-                }`
-              : undefined
-          }
-          parties={
-            me && them ? (
-              <ContractPartyLine
-                me={toContractParty(me)}
-                them={toContractParty(them)}
-              />
-            ) : null
-          }
-          status={trade ? <StateBadge state={trade.state} /> : null}
-          connectionStatus={connectionStatus}
-        />
+      {/* Height budget and the room's own inset, declared once — see the note in
+          CashSaleView for the 5rem breakdown and why the frame is painted here
+          rather than by the shell. At `lg` this is exactly the shell content
+          box, so the header, action card and details/chat row divide it and the
+          panes scroll internally instead of growing the page (F37). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-group md:px-4 md:pt-4 lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
+        {/* Desktop only. Below `md` the room is a thread, and the chat bar
+            already carries this title, value and counterparty — a second copy
+            of them was the first 76px of every phone contract. */}
+        <DesktopOnly>
+          {/* The title names the COUNTERPARTY, not the contract type. "2-way
+              trade" described every trade in the product, and plain "Trade"
+              printed the same word the rail beside it was already showing. Who
+              you are trading with is the one thing that distinguishes this room
+              from the next one in the list.
 
-        {trade === null ? (
-          <Card>
-            <CardContent className="flex items-center gap-3 py-10 text-muted-foreground">
-              <Loader2 className="size-5 animate-spin" aria-hidden />
-              Loading trade…
-            </CardContent>
-          </Card>
-        ) : (
+              "2-way Trade" survives as the DOMAIN term in code and comments,
+              where it does contrast with a cash sale and a deal. */}
+          <ContractHeader
+            money={
+              goods ? formatAud(agreedValueCents) : undefined
+            }
+            // A SENTENCE, NOT A DIAGRAM. This was `You ⇄ test`, two avatar chips
+            // with shields and a glyph between them, which spent the whole left
+            // half of the strip restating something the reader already knows —
+            // that they are in this trade — and named the counterparty in the
+            // same weight as the word "You". Who you are trading with is the
+            // heading. Their verification and rating are on the Exchange cards,
+            // beside the goods those figures are meant to qualify.
+            title={them ? `Trade with ${them.name}` : 'Trade'}
+            status={trade ? <StateBadge state={trade.state} /> : null}
+            connectionStatus={connectionStatus}
+          />
+        </DesktopOnly>
+
+        {/* Seeded from the server, so this is only ever null if the room is
+            mounted without one. It used to be null on every open — the hook
+            started at `null` and this gate threw away five server queries, so
+            the contract did not exist until hydration had finished and a client
+            fetch had returned. `app/(workspace)/trades/[id]/loading.tsx` had
+            already gone by then, which is what made the room feel like it
+            arrived late. */}
+        {trade === null ? null : (
           <>
             {goods ? (
               <TradeCashSettlementNotice
@@ -864,41 +1045,62 @@ function TradeContractRoom({
             ) : null}
 
             <ContractLiveRow
+              detailsTitle="Trade"
+              detailsMeta={
+                <>
+                  <StateBadge state={trade.state} />
+                  {goods ? (
+                    <span className="display-value text-foreground">
+                      {formatAud(agreedValueCents)}
+                    </span>
+                  ) : null}
+                </>
+              }
               conversation={
                 <ContractConversationPanel
                   conversationId={chat.conversationId}
                   currentUserId={myUserId}
                   counterpartyName={theirName}
                   counterpartyAvatarPath={them?.avatarPath}
+                  backHref="/trades"
+                  statusLabel={TRADE_STATUS_MAP[trade.state]?.label ?? null}
                   subject={{
-                    title: (goods?.yours[0] ?? goods?.theirs[0])?.title ?? '2-way trade',
+                    title: (goods?.yours[0] ?? goods?.theirs[0])?.title ?? 'Trade',
                     thumb: itemImageUrl(
                       (goods?.yours[0] ?? goods?.theirs[0])?.imagePath ?? null,
                     ),
-                    price: goods
-                      ? `${formatAud(yoursValueCents)} ⇄ ${formatAud(theirsValueCents)}`
-                      : null,
+                    price: goods ? formatAud(agreedValueCents) : null,
                   }}
                   placeholder="Message about the trade…"
                   emptyHint="Use chat to coordinate shipping and receipt."
                   failed={chat.failed}
                   onRetry={chat.retry}
+                  // Reporting is about the counterparty, so it sits with them
+                  // in the subject bar rather than in the action dock, whose
+                  // menu is for the contract's current step.
+                  menu={
+                    trade.state !== 'NEGOTIATING' ? (
+                      <ReportDialog
+                        targetType="user"
+                        targetId={
+                          viewerRole === 'INITIATOR' ? counterpartId : initiatorId
+                        }
+                        triggerLabel={`Report ${theirName}`}
+                      />
+                    ) : null
+                  }
                   actions={
                     <FadeSwap id={`${trade.state}:${step?.id ?? 'complete'}`}>
                     <ContractActionCard
-                      appearance="header"
+                      appearance="dock"
                       step={step}
                       tone={STATE_TONE[trade.state]}
-                      more={
-                        trade.state !== 'NEGOTIATING' ? (
-                          <ReportDialog
-                            targetType="user"
-                            targetId={
-                              viewerRole === 'INITIATOR' ? counterpartId : initiatorId
-                            }
-                            triggerLabel={`Report ${theirName}`}
-                          />
-                        ) : null
+                      // An outcome to read, not a control — it was a paragraph
+                      // child, which now lands in the button column.
+                      note={
+                        trade.state === 'FRAUD_RESOLVED'
+                          ? "The other trader's deposit was paid to you."
+                          : undefined
                       }
                     >
                       {viewer && trade.state === 'NEGOTIATING' ? (
@@ -924,6 +1126,34 @@ function TradeContractRoom({
                             offerMessage: trade.offer_message,
                             counterpartGoodsDescription: trade.counterpart_goods_description,
                           }}
+                          paymentMethod={paymentMethod}
+                          // Collateral is sized on what the viewer RECEIVES, which is
+                          // `theirsValueCents` — the same `resolveTradeSideValues`
+                          // output `placeBondsForAgreedTrade` bonds against. Withheld
+                          // entirely when a side is unvalued, because that trade is
+                          // refused at placement and quoting $0.00 would promise a
+                          // free hold on a trade that cannot start.
+                          acceptCost={
+                            goods && theirsValueCents > 0
+                              ? {
+                                  feeText: formatMoney(myFeeCents, trade.currency),
+                                  collateralText: formatMoney(
+                                    theirsValueCents,
+                                    trade.currency,
+                                  ),
+                                }
+                              : null
+                          }
+                          liveUpdates={connectionStatus === 'live'}
+                        />
+                      ) : null}
+
+                      {viewer &&
+                      trade.state === 'COLLATERAL_PENDING' &&
+                      permittedActionCount === 0 ? (
+                        <SavedCardRow
+                          initialStatus={paymentMethod}
+                          className="w-full sm:max-w-sm"
                         />
                       ) : null}
 
@@ -940,6 +1170,7 @@ function TradeContractRoom({
                             trade.handover_method !== 'DELIVERY' ||
                             addresses.theirs !== null
                           }
+                          paymentMethod={paymentMethod}
                         />
                       ) : null}
 
@@ -953,18 +1184,14 @@ function TradeContractRoom({
                           size="sm"
                           onClick={() => focusSection(TRADE_SECTIONS.dispute)}
                         >
-                          <ShieldAlert aria-hidden />
+
                           {trade.dispute_raised_by === myUserId
                             ? 'Review the dispute'
                             : 'Respond to the dispute'}
                         </Button>
                       ) : null}
 
-                      {trade.state === 'FRAUD_RESOLVED' ? (
-                        <p className="text-body text-muted-foreground">
-                          The other trader&apos;s deposit was paid to you.
-                        </p>
-                      ) : null}
+                      {trade.state === 'COMPLETED' ? reviewAction : null}
                     </ContractActionCard>
                     </FadeSwap>
                   }
@@ -1004,14 +1231,16 @@ function TradeContractRoom({
                     </div>
                   ) : null}
 
-                  <CounterpartyIdentity
-                    counterpartyId={viewerRole === 'INITIATOR' ? counterpartId : initiatorId}
-                    displayName={them?.name}
-                  />
+                  {/* No standalone identity disclosure. "You are dealing with
+                      <name>" sat above the ledger on every visit to Exchange,
+                      restating what each side of that ledger now says for
+                      itself with an "Identity verified" line under the trader's
+                      name. One banner, permanently, for a fact already on
+                      screen twice. */}
                   <ContractExchangePanel
                     sides={[
                       {
-                        heading: 'You give',
+                        heading: 'You send',
                         partyName: me?.name,
                         party: me
                           ? toContractParty(me)
@@ -1053,34 +1282,20 @@ function TradeContractRoom({
                         emptyLabel: 'They are putting up no goods.',
                       },
                     ]}
+                    // The cash sentence used to be a tab of its own. See the
+                    // note where that tab was removed.
                     footnote={
-                      trade.state === 'NEGOTIATING'
-                        ? 'Either of you can still counter these terms. Nothing is held until you both accept the same version.'
-                        : 'The bundle and cash were fixed when both of you accepted the terms, so neither side can change them now.'
+                      <>
+                        {trade.state === 'NEGOTIATING'
+                          ? 'Either of you can still counter these terms. Nothing is held until you both accept the same version.'
+                          : 'The bundle and cash were fixed when both of you accepted the terms, so neither side can change them now.'}
+                        {goods.cashAmountCents > 0
+                          ? ' Stripe settles the cash once the trade completes, so whoever receives it needs payout details on file.'
+                          : null}
+                      </>
                     }
                   />
                 </ContractDetailRow>
-              ) : null}
-
-              {/* Dispatch clock for posted trades. Renders nothing for
-                  IN_PERSON, which has no deadline and never races the ~7-day
-                  collateral authorisation window. */}
-              {trade ? (
-                <ShippingDeadline
-                  deadlineAt={trade.shipping_deadline_at}
-                  overdueAt={trade.shipping_overdue_at}
-                  viewerShipped={Boolean(
-                    viewerRole === 'INITIATOR'
-                      ? trade.initiator_shipped_at
-                      : trade.counterpart_shipped_at,
-                  )}
-                  counterpartShipped={Boolean(
-                    viewerRole === 'INITIATOR'
-                      ? trade.counterpart_shipped_at
-                      : trade.initiator_shipped_at,
-                  )}
-                  className="mb-3"
-                />
               ) : null}
 
               {/* CALLED, NOT RENDERED — and that is the fix, not a style choice.
@@ -1097,59 +1312,53 @@ function TradeContractRoom({
                     viewerRole,
                     addresses,
                     counterpartName: theirName,
+                    postageSteps,
+                    // The lane TO the viewer carries what they receive, which is
+                    // the counterparty's side of the swap — not their own.
+                    mineParcel: parcelLabel(goods?.theirs),
+                    theirsParcel: parcelLabel(goods?.yours),
+                    // Renders nothing for IN_PERSON, which has no deadline and
+                    // never races the ~7-day collateral authorisation window.
+                    deadline: (
+                      <ShippingDeadline
+                        compact
+                        deadlineAt={trade.shipping_deadline_at}
+                        overdueAt={trade.shipping_overdue_at}
+                        viewerShipped={Boolean(
+                          viewerRole === 'INITIATOR'
+                            ? trade.initiator_shipped_at
+                            : trade.counterpart_shipped_at,
+                        )}
+                        counterpartShipped={Boolean(
+                          viewerRole === 'INITIATOR'
+                            ? trade.counterpart_shipped_at
+                            : trade.initiator_shipped_at,
+                        )}
+                      />
+                    ),
                   })
                 : null}
 
-              {/* Same section set and order as the deal room: Exchange, Terms,
-                  Money, Collateral. */}
-              {goods ? (
-                <ContractDetailRow
-                  id={TRADE_SECTIONS.money}
-                  label="Payment"
-                  summary={
-                    goods.cashAmountCents > 0
-                      ? `${formatAud(goods.cashAmountCents)} cash ${
-                          goods.cashDirection === 'outgoing' ? 'from you' : 'to you'
-                        }`
-                      : 'No cash — goods for goods'
-                  }
-                  contentClassName="space-y-3"
-                >
-                  {goods.cashAmountCents > 0 ? (
-                    <ContractMoneyTable
-                      ariaLabel="Money terms"
-                      rows={[
-                        {
-                          label: 'Cash amount',
-                          value: formatAud(goods.cashAmountCents),
-                        },
-                        {
-                          label:
-                            goods.cashDirection === 'outgoing'
-                              ? 'You pay via Stripe'
-                              : `${theirName} pays you via Stripe`,
-                          value: formatAud(goods.cashAmountCents),
-                          total: true,
-                        },
-                      ]}
-                    />
-                  ) : (
-                    <p className="text-muted-foreground">
-                      No cash component — this trade is goods for goods.
-                    </p>
-                  )}
-                  <p className="text-body text-muted-foreground">
-                    The cash was fixed when the proposal was accepted. Stripe
-                    settles it once the trade completes, so the receiver needs payout
-                    details on file.
-                  </p>
-                </ContractDetailRow>
-              ) : null}
+              {/* NO PAYMENT TAB. It held one figure and said it twice — a
+                  "Cash amount" row and a "You pay via Stripe" row printing the
+                  same number with two labels — and the Exchange ledger beside
+                  it was already showing that cash as a line in the column that
+                  pays it. A whole tab, one tap away, to restate the first tab.
+                  Its only non-duplicated fact was that Stripe settles on
+                  completion and the receiver needs payout details, which is now
+                  the second sentence of the Exchange footnote. On a
+                  goods-for-goods trade the tab said "No cash component" — a tab
+                  whose entire content was that it had none.
 
+                  Sections are now: Exchange, Terms, Collateral, History. */}
               <ContractDetailRow
                 id={TRADE_SECTIONS.collateral}
                 label="Collateral"
-                explainer="Trade collateral is a temporary card authorisation each trader places against the agreed value. It is released after normal completion; it is not a payment."
+                // One line, and it sets up the table below it. It used to run
+                // to two sentences restating what the tab is called, while the
+                // fact a reader actually wants — is my money gone? — was three
+                // paragraphs further down.
+                explainer="A temporary card authorisation, not a payment. Your available balance may dip while the trade runs; nothing is charged unless something goes wrong."
                 summary={
                   holds.length === 0
                     ? 'Nothing on the line yet'
@@ -1159,16 +1368,20 @@ function TradeContractRoom({
                 }
                 contentClassName="gap-3"
               >
-                {/* Both traders bond now — the verified exemption is gone, because it
-                    left every trade with no collateral and made a dispute or fraud
-                    finding unpayable. See `domain/bond/bondPolicy.ts`. */}
-                <DittoBondExplainer />
+                {/* THE FACTS BEFORE THE EXPLANATION. This was the other way
+                    round, so opening "Collateral" — to find out what is on the
+                    line — began with a tutorial and put the actual holds last.
+                    Both traders bond now; the verified exemption is gone,
+                    because it left every trade with no collateral and made a
+                    dispute or fraud finding unpayable. See
+                    `domain/bond/bondPolicy.ts`. */}
                 <HoldStatus
                   holds={holds}
                   initiatorId={initiatorId}
                   counterpartId={counterpartId}
                   viewerRole={viewerRole}
                 />
+                <DittoBondExplainer />
               </ContractDetailRow>
 
               {/* Dispute evidence (0082). Only while disputed or resolved — see the

@@ -1,12 +1,13 @@
 // components/account/WatchlistSection.tsx
 //
 // The "Saved" section of the Account hub: the caller's watchlist (saved items),
-// newest-saved first, rendered as a responsive grid using the same ItemCard
-// used across the marketplace. An empty state links back to browse.
+// newest-saved first, rendered as the same compact catalog tiles as browse.
 
-import { Heart } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HeartIcon } from '@hugeicons/core-free-icons';
 
-import { ItemCard } from '@/components/listings/ItemCard';
+import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
+import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { EmptyState } from '@/components/account/EmptyState';
 import type { WatchlistEntry } from '@/lib/actions/watchlist';
 
@@ -21,11 +22,11 @@ export function WatchlistSection({ items }: { items: WatchlistEntry[] }) {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<Heart className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={HeartIcon} className="size-6" aria-hidden />}
         title="No Saved Listings Yet"
         description="Tap the heart on any listing to save it here for later."
         ctaLabel="Browse the marketplace"
-        ctaHref="/listings"
+        ctaHref="/"
       />
     );
   }
@@ -38,9 +39,9 @@ export function WatchlistSection({ items }: { items: WatchlistEntry[] }) {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-group min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+    <div className={CATALOG_TILE_GRID}>
       {sorted.map((item) => (
-        <ItemCard key={item.id} item={item} />
+        <CatalogItemCard key={item.id} item={item} />
       ))}
     </div>
   );

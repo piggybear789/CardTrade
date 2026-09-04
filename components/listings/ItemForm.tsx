@@ -29,7 +29,8 @@ import { useRouter } from "next/navigation";
 import { navigateWithType } from "@/lib/motion/navigate";
 import { FieldError } from "@/components/motion/FieldError";
 import { toast } from "sonner";
-import { ImageOff, ImagePlus, Library, Package, X } from "lucide-react";
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ImageOffIcon, ImagePlusIcon, LibraryIcon, PackageIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
@@ -38,7 +39,12 @@ import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
+import {
+  ITEM_FORM_ID,
+  publishItemFormChrome,
+} from "@/lib/listings/itemFormChrome";
 import { uploadItemImages } from "@/lib/storage/uploadItemImages";
+import type { ImageDim } from "@/lib/images/dimensions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -123,12 +129,12 @@ export interface ItemFormProps {
 const LISTING_KINDS = [
   {
     value: "SINGLE" as const,
-    icon: Package,
+    icon: PackageIcon,
     label: "One item",
   },
   {
     value: "SHOPFRONT" as const,
-    icon: Library,
+    icon: LibraryIcon,
     label: "Multiple items",
   },
 ];
@@ -185,6 +191,27 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (mode !== "create") return;
+    publishItemFormChrome({ submitting: isSubmitting });
+    return () => publishItemFormChrome(null);
+  }, [mode, isSubmitting]);
+
+  React.useEffect(() => {
+    const isDirty =
+      description.trim() !== "" ||
+      newFiles.length > 0 ||
+      fmvDollars.trim() !== "";
+    if (!isDirty || isSubmitting) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [description, newFiles.length, fmvDollars, isSubmitting]);
 
   const totalImages = keptPaths.length + newFiles.length;
 
@@ -272,6 +299,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       // body, which Next caps at `serverActions.bodySizeLimit`, and a single
       // phone photo can exceed it.
       let uploadedPaths: string[] = [];
+      // Measured in the browser, because on this path the server never holds
+      // the bytes and so cannot measure them itself. They let the catalog
+      // mosaic reserve the right shape before the photo loads; the action
+      // treats them as an untrusted claim.
+      let uploadedDims: (ImageDim | null)[] = [];
       if (newFiles.length > 0) {
         const uploaded = await uploadItemImages(newFiles);
         if (!uploaded.ok) {
@@ -280,6 +312,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           return;
         }
         uploadedPaths = uploaded.paths;
+        uploadedDims = uploaded.dims;
       }
 
       if (mode === "create") {
@@ -289,12 +322,13 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           condition,
           fmvCents,
           images: uploadedPaths,
+          imageDims: uploadedDims,
           location: locationPayload,
           listingKind,
         });
 
         if (result.ok) {
-          toast.success("Listing created");
+          
           navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
@@ -310,11 +344,14 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           condition,
           fmvCents,
           images,
+          // Kept photos are left null: the action reads their stored sizes back
+          // off the row rather than trusting the form to resend them.
+          imageDims: [...keptPaths.map(() => null), ...uploadedDims],
           location: locationPayload,
         });
 
         if (result.ok) {
-          toast.success("Listing updated");
+          
           navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
@@ -391,27 +428,32 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // is what keeps that field usable inside a definite-height card — do not assume a
   // popover in this rail can grow downwards.
   return (
-    <Card className="mx-auto w-full max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
-      <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7">
+    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+      <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="hidden md:block">
           {isShopfront
             ? "Describe what buyers can pick from. You agree the cards and the price with each buyer separately."
             : "Describe your collectible and set its price in Australian dollars."}
         </CardDescription>
       </CardHeader>
 
-      <form onSubmit={handleSubmit} noValidate className="lg:contents">
-        <CardContent className="grid gap-8 lg:contents">
+      <form
+        id={mode === "create" ? ITEM_FORM_ID : undefined}
+        onSubmit={handleSubmit}
+        noValidate
+        className="lg:contents"
+      >
+        <CardContent className="grid gap-5 lg:contents">
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
           {/* `lg:min-h-0` + `lg:overflow-hidden` are what make the photo actually
               yield space to the filmstrip instead of overflowing the fixed panel: a
               grid item defaults to `min-height:auto`, which refuses to shrink below
               its content. */}
-          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-muted lg:p-8">
+          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-card lg:p-8">
             <Label htmlFor="images">Photos</Label>
             <p className="text-body text-muted-foreground">
               Add {IMAGES_MIN}–{IMAGES_MAX} photos. {totalImages} selected.
@@ -430,17 +472,16 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 way: `aspect-[3/4]` ties height to WIDTH, which on the wide side of
                 the grid resolved to roughly 900px, and a `max-h` cap fought the flex.
 
-                Below `lg` the card is stacked, there is no rail alongside and so
-                nothing to match: the portrait ratio sets the shape and `60svh` keeps
-                it off the whole screen. `svh` rather than `dvh` so the target does
-                not resize as a mobile URL bar hides on scroll.
+                Below `lg` the card is stacked: a 4:3 target with a `28svh` cap
+                leaves the details in the first screen. `svh` rather than `dvh`
+                so the target does not resize as a mobile URL bar hides on scroll.
 
                 The image is `object-contain` throughout, so nothing crops. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[3/4] max-h-[60svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-gold/40 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
+              className={`flex aspect-[16/10] max-h-[22svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-iris/50 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -454,7 +495,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 />
               ) : (
                 <>
-                  <ImagePlus className="size-8" aria-hidden />
+                  <HugeiconsIcon icon={ImagePlusIcon} className="size-8" aria-hidden />
                   <span className="text-body font-medium">Add photos</span>
                 </>
               )}
@@ -503,17 +544,17 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <ImageOff className="size-5" aria-hidden />
+                          <HugeiconsIcon icon={ImageOffIcon} className="size-5" aria-hidden />
                         </div>
                       )}
                       <button
                         type="button"
                         onClick={() => removeKeptPath(path)}
                         disabled={isSubmitting}
-                        className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-iris md:size-8"
                         aria-label="Remove image"
                       >
-                        <X className="size-4" aria-hidden />
+                        <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
                       </button>
                     </li>
                   );
@@ -538,10 +579,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => removeNewFile(index)}
                       disabled={isSubmitting}
-                      className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-iris md:size-8"
                       aria-label={`Remove ${file.name}`}
                     >
-                      <X className="size-4" aria-hidden />
+                      <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
                     </button>
                   </li>
                 ))}
@@ -551,10 +592,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex aspect-square w-full items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-gold/40 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
+                      className="flex aspect-square w-full items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-iris/50 hover:bg-muted focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground"
                       aria-label="Add another photo"
                     >
-                      <ImagePlus className="size-5" aria-hidden />
+                      <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
                     </button>
                   </li>
                 ) : null}
@@ -581,7 +622,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               <legend className="mb-2 text-body font-medium leading-none">
                 What are you listing?
               </legend>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 {LISTING_KINDS.map((kind) => (
                   <ChoiceTile
                     key={kind.value}
@@ -590,6 +631,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     type="radio"
                     icon={kind.icon}
                     label={kind.label}
+                    align="center"
                     checked={listingKind === kind.value}
                     onChange={() => setListingKind(kind.value)}
                   />
@@ -621,16 +663,21 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
-                rows={6}
+                rows={4}
                 aria-invalid={descriptionError ? true : undefined}
                 aria-describedby={
                   descriptionError ? "description-error" : undefined
                 }
                 disabled={isSubmitting}
               />
-              <p className="text-body text-muted-foreground">
-                The first line is used as the listing title in the catalog.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-body text-muted-foreground">
+                  The first line is used as the listing title in the catalog.
+                </p>
+                <span className="text-meta text-muted-foreground tabular-nums">
+                  {description.length}/2000
+                </span>
+              </div>
               {descriptionError ? (
                 <FieldError id="description-error" message={descriptionError} />
               ) : null}
@@ -638,7 +685,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="game">Game</Label>
+                <Label htmlFor="game">Category</Label>
                 <Select
                   value={game}
                   onValueChange={setGame}
@@ -649,7 +696,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     aria-invalid={gameError ? true : undefined}
                     aria-describedby={gameError ? "game-error" : undefined}
                   >
-                    <SelectValue placeholder="Select a game" />
+                    <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
                     {CARD_GAMES.map((option) => (
@@ -737,14 +784,14 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
+        <CardFooter className="flex-col items-stretch gap-2 border-t bg-card px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
           <Button
             type="button"
             variant="outline"
             onClick={() =>
               navigateWithType(
                 router,
-                item ? `/listings/${item.id}` : "/listings",
+                item ? `/listings/${item.id}` : "/",
                 "nav-back",
               )
             }

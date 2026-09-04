@@ -31,11 +31,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database, Json } from '@/lib/supabase/database.types';
 import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
-import {
-  regionForCashSale,
-  regionForMerchantRef,
-  regionForTrade,
-} from '@/lib/regionBinding';
+import { regionForCashSale, regionForMerchantRef, regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import {
   MOCK_SIGNATURE_HEADER,
   signWebhookBody,
@@ -55,6 +51,8 @@ import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTr
 import { createSupabaseCollateralSideEffects } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrator/supabaseMerchantRepository';
+import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
+import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type WebhookOutcome = Database['cardtrade']['Enums']['webhook_outcome'];
@@ -255,40 +253,45 @@ async function dispatchEvent(
 
       const verified = action.verified;
 
-      // MONOTONIC ON THE NAME, matching `applyComplianceUpdate`. A later event that
-      // omits the name must not blank one already disclosed to a Buyer, so the name
-      // is only written when this event actually carries one.
-      const patch: Database['cardtrade']['Tables']['profiles']['Update'] = {
-        identity_check_status: verified ? 'VERIFIED' : 'FAILED',
-        ...(sessionId ? { identity_check_session_id: sessionId } : {}),
-        ...(verified ? { identity_check_verified_at: event.occurredAt } : {}),
-        ...(verified && event.payload.identityVerifiedName
-          ? { identity_check_name: event.payload.identityVerifiedName }
-          : {}),
-      };
-
-      // MONOTONIC ON THE STATUS TOO, not just the name.
-      //
-      // A FAILED write was unconditional, so a `requires_input` event for a stale or
-      // misrouted session could overwrite VERIFIED — silently un-verifying a trading
-      // member, unpublishing every listing they have via the denormalisation trigger, and
-      // blocking the buy path against them, with nothing to tell them why.
-      //
-      // `beginIdentityCheck` already refuses to start a new session for a verified member,
-      // so the stored session should always be the one that verified them — but "should"
-      // is doing a lot of work there, and this event is routable by profile id from
-      // provider metadata. The guard makes the database refuse the regression outright.
-      //
-      // Applied ONLY to the failing branch: a VERIFIED event arriving for a verified
-      // member is a harmless re-confirmation, and may legitimately carry a name the first
-      // one lacked. Written as a conditional builder rather than one `.or()` expression
-      // because the column is NOT NULL with a 'NONE' default, so a plain `.neq` is exact —
-      // and a money-adjacent guard should be readable at a glance.
-      let update = admin.from('profiles').update(patch).eq('id', targetProfileId);
-      if (!verified) {
-        update = update.neq('identity_check_status', 'VERIFIED');
+      // A VERIFIED write must re-read the session. Webhook payloads often omit
+      // `verified_outputs`, and person-matching needs the expanded document
+      // fields — hashed immediately, never stored. Stripe retries a FAILURE.
+      if (sessionId) {
+        const payments = getPaymentService(await regionForProfile(targetProfileId));
+        if (payments.readIdentityCheck) {
+          try {
+            const check = await payments.readIdentityCheck(sessionId);
+            const decision = await applyIdentityDecision({
+              profileId: targetProfileId,
+              check,
+              occurredAt: event.occurredAt,
+            });
+            if (decision === 'verified') {
+              await pushVerifiedIdentityToConnect(targetProfileId);
+            }
+            return { outcome: 'SUCCESS', tradeId: null };
+          } catch {
+            return { outcome: 'FAILURE', tradeId: null };
+          }
+        }
       }
-      const { error } = await update;
+
+      if (verified) {
+        // No session to expand: refuse rather than open the gate without a
+        // person-key check.
+        return { outcome: 'FAILURE', tradeId: null };
+      }
+
+      // FAILED without a readable session: still monotonic. A stale
+      // `requires_input` must not un-verify a member.
+      const { error } = await admin
+        .from('profiles')
+        .update({
+          identity_check_status: 'FAILED',
+          ...(sessionId ? { identity_check_session_id: sessionId } : {}),
+        })
+        .eq('id', targetProfileId)
+        .neq('identity_check_status', 'VERIFIED');
 
       return { outcome: error ? 'FAILURE' : 'SUCCESS', tradeId: null };
     }

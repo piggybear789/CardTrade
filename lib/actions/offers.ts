@@ -21,6 +21,7 @@
 // module).
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
@@ -43,13 +44,14 @@ export interface ActionFailure<E extends string> {
   detail?: string;
 }
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`,
+ * which revalidates the JWT against the auth server on every call.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -111,7 +113,7 @@ export async function makeOffer(
 ): Promise<MakeOfferResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
   if (!buyerConfirmedSellerIdentity || !sellerIdentityVersion) {
     return { ok: false, error: 'confirmation-required' };
@@ -234,7 +236,7 @@ export async function counterOffer(
 ): Promise<CounterOfferResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   if (!isValidAmount(amountCents)) {
@@ -370,7 +372,7 @@ export async function respondToOffer(
 ): Promise<RespondToOfferResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const { data: existing } = await supabase
@@ -545,7 +547,7 @@ export async function listOffersForItem(
 ): Promise<ListOffersForItemResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const { data, error } = await supabase
@@ -624,7 +626,7 @@ function negotiationKey(offer: OfferRow): string {
 export async function listMyOffers(): Promise<ListMyOffersResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   // RLS scopes this to offers where the caller is buyer_id or seller_id.

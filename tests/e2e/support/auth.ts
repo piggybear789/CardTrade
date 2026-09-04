@@ -29,6 +29,22 @@ import { expect, test, type Browser } from '@playwright/test';
 import { storageStatePath, type SeedUser } from './users';
 
 /**
+ * Where a successful sign-in lands.
+ *
+ * `AuthForm`'s `DEFAULT_DESTINATION` is `/` — the catalog moved off `/listings`,
+ * and `next.config.ts` now permanently redirects the old path — or `/onboarding`
+ * when the member has not finished it. Every sign-in assertion in the suite
+ * shares this, so the next move costs one edit rather than a scavenger hunt.
+ *
+ * A pathname predicate rather than a regex on the whole URL: `/` as a substring
+ * matches everything, and matching the bare origin as a string would bake the
+ * suite's port into the assertion.
+ */
+export function isSignedInDestination(url: URL): boolean {
+  return url.pathname === '/' || url.pathname.startsWith('/onboarding');
+}
+
+/**
  * Make sure the stored cookie jar for `user` still authenticates, re-signing in if
  * it does not.
  *
@@ -74,17 +90,27 @@ export async function ensureFreshSession(browser: Browser, user: SeedUser): Prom
     // signed-out page, which surfaces far away as a missing control: `ensureSavedCard`
     // waiting forever for "Buy now" on a listing page rendered for a guest.
     //
-    // Same treatment as auth.setup.ts: recognise the limiter's own message and back
-    // off past its window rather than widening the limit for everyone.
+    // `playwright.config.ts` raises the limit to 100/min for the suite's own server
+    // (`AUTH_RATE_LIMIT_PER_MINUTE`), so this cooldown should never fire. It stays as
+    // the backstop for a run against a server that does not carry that override —
+    // recognising the limiter's own message and backing off past its window, rather
+    // than widening the limit for everyone.
     const rateLimited = page.getByRole('alert').filter({ hasText: /too many attempts/i });
 
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       await page.getByRole('button', { name: 'Sign in' }).click();
 
+      // Via `isSignedInDestination`, NOT a regex on the path. The catalog moved to
+      // `/` and `next.config.ts` permanently redirects `/listings`, so the old
+      // `/\/(listings|onboarding)/` test never matches a successful sign-in any
+      // more — the poll would sit on 'pending' until it timed out and report a
+      // working sign-in as a failure.
+      const signedIn = () => isSignedInDestination(new URL(page.url()));
+
       await expect
         .poll(
           async () =>
-            /\/(listings|onboarding)/.test(new URL(page.url()).pathname)
+            signedIn()
               ? 'signed-in'
               : (await rateLimited.count()) > 0
                 ? 'rate-limited'
@@ -93,7 +119,7 @@ export async function ensureFreshSession(browser: Browser, user: SeedUser): Prom
         )
         .not.toBe('pending');
 
-      if (/\/(listings|onboarding)/.test(new URL(page.url()).pathname)) break;
+      if (signedIn()) break;
 
       expect(
         attempt,
@@ -102,7 +128,7 @@ export async function ensureFreshSession(browser: Browser, user: SeedUser): Prom
       await page.waitForTimeout(65_000); // the limiter's 1m window, plus slack
     }
 
-    await expect(page).toHaveURL(/\/(listings|onboarding)/, { timeout: 30_000 });
+    await expect(page).toHaveURL(isSignedInDestination, { timeout: 30_000 });
 
     await context.storageState({ path: statePath });
   } finally {

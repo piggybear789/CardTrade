@@ -19,12 +19,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatAud } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { ItemRow } from '@/lib/actions/listings';
+import type { TradeOfferOwnItem } from '@/components/trade/TradeOfferForm';
 
 export interface OwnItemsPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  items: ItemRow[];
+  items: TradeOfferOwnItem[];
   /** Committed selection from the form; seeds the draft when opened. */
   selectedIds: string[];
   /** Ordered ids — first remains the primary listed item on the offer. */
@@ -113,8 +113,8 @@ export function OwnItemsPickerDialog({
                     <label
                       className={cn(
                         'flex cursor-pointer items-center gap-cozy rounded-md border p-snug text-body transition-colors',
-                        'has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring',
-                        checked && 'bg-gold/10',
+                        'has-[:focus-visible]:border-iris has-[:focus-visible]:outline-none',
+                        checked && 'bg-accent text-accent-foreground',
                       )}
                     >
                       <input

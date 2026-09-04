@@ -4,7 +4,8 @@
 // five stars with a partial fill matching the numeric rating, plus an optional
 // numeric value and review count. Presentational only.
 
-import { Star } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { StarIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -55,7 +56,7 @@ export function StarRating({
         {/* Empty track */}
         <span className="flex">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Star
+            <HugeiconsIcon icon={StarIcon}
               key={`bg-${i}`}
               className="text-muted-foreground/30"
               style={{ width: size, height: size }}
@@ -69,9 +70,9 @@ export function StarRating({
           style={{ width: `${fillPct}%` }}
         >
           {Array.from({ length: 5 }).map((_, i) => (
-            <Star
+            <HugeiconsIcon icon={StarIcon}
               key={`fg-${i}`}
-              className="fill-gold text-gold"
+              className="fill-iris text-iris-ink"
               style={{ width: size, height: size, minWidth: size }}
               aria-hidden
             />

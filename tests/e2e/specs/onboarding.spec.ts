@@ -41,6 +41,8 @@ async function signUpOntoOnboarding(page: Page, email: string) {
   await expect(emailField).toBeEditable({ timeout: RENDERED });
   await emailField.fill(email);
   await page.getByLabel('Password').fill('TestPassword123!');
+  // Sign-up refuses without consent — see `acceptedTerms` in AuthForm.
+  await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
 }
@@ -95,7 +97,11 @@ test.describe('Onboarding', () => {
 
     await signUpOntoOnboarding(page, email);
 
-    await expect(page.getByText(/permanently bans/i)).toBeVisible({
+    // The welcome step's first promise. It used to warn that fraud "permanently
+    // bans"; the three points were rewritten around what the product does rather
+    // than what it punishes, so this anchors on the current copy
+    // (`WELCOME_POINTS` in OnboardingWizard) while still proving the step rendered.
+    await expect(page.getByText(/Everyone selling is verified/i)).toBeVisible({
       timeout: RENDERED,
     });
     await passWelcome(page);
@@ -154,8 +160,10 @@ test.describe('Onboarding', () => {
 
     await signUpOntoOnboarding(page, email);
 
-    // Deliberately WITHOUT finishing the wizard.
-    await page.goto('/listings');
+    // Deliberately WITHOUT finishing the wizard. The catalog is the homepage, so
+    // this also proves the gate follows the route rather than the `/listings`
+    // path it used to live on.
+    await page.goto('/');
     await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
 
     await page.goto('/offers');

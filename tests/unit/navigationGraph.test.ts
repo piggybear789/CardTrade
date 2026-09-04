@@ -25,7 +25,7 @@ const scanDirs = [appDir, path.join(repoRoot, 'components'), path.join(repoRoot,
 
 /** Routes that need not be linked from within the app (external entry points). */
 const REACHABILITY_ALLOWLIST = new Set<string>([
-  '/', // home / marketing entry
+  '/', // catalog homepage — linked from everywhere, but also a guaranteed entry point
   '/sign-in', // auth entry (also linked, but guaranteed reachable)
   '/sign-up',
   '/auth/callback', // OAuth provider redirect target
@@ -37,6 +37,10 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   '/auth/confirm',
   '/auth/update-password',
   '/onboarding', // post-signup / proxy entry; AuthForm uses withRedirect()
+  // Join-by-token invite link shared externally (SMS, chat, email)
+  '/t/[token]',
+  // Legacy / external bookmark redirect to the deal dialog
+  '/deals/new',
 ]);
 
 /** Recursively collect files under `dir` whose extension is in `exts`. */
@@ -231,7 +235,7 @@ function parseMobileRoutes(): string[] {
  * The mobile app uses slightly different path conventions in some places.
  */
 const MOBILE_TO_WEB_EQUIVALENCE: Record<string, string> = {
-  '/home': '/listings',             // Mobile catalog is /home, web is /listings
+  '/home': '/',                     // Mobile catalog is /home; on web the catalog is the root
   '/auth/sign-in': '/sign-in',
   '/auth/sign-up': '/sign-up',
   // Both clients offer password recovery; only the path prefix differs, as with
@@ -245,7 +249,6 @@ const MOBILE_TO_WEB_EQUIVALENCE: Record<string, string> = {
  * Admin and arbitration are staff surfaces. Others have stated reasons.
  */
 const WEB_ONLY_ALLOWLIST: Record<string, string> = {
-  '/': 'Marketing landing page — mobile opens to /home (catalog)',
   '/admin': 'Staff-only admin surface',
   '/admin/arbitration': 'Staff-only dispute arbitration',
   '/admin/arbitration/[kind]/[ref]': 'Staff-only arbitration case detail',
@@ -259,6 +262,8 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/help': 'Marketing help centre — mobile has no native help route',
   '/privacy': 'Opened as an external web URL from Settings, not a native route',
   '/terms': 'Opened as an external web URL from Settings, not a native route',
+  '/t/[token]': 'Web landing page for external private deal invite links',
+  '/deals/new': 'Web redirect opening deal compose dialog; mobile uses native deal modal',
 };
 
 describe('mobile route parity', () => {

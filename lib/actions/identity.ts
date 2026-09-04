@@ -27,12 +27,15 @@
 // page.
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { regionForProfile } from '@/lib/regionBinding';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
+import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
+import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 import { type ActionResult, fail, ok } from './result';
 
 /**
@@ -44,10 +47,7 @@ import { type ActionResult, fail, ok } from './result';
  * then refuse for want of a user.
  */
 async function viewerRegion(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   return user ? regionForProfile(user.id) : DEFAULT_CONFIG_REGION;
 }
 
@@ -336,6 +336,19 @@ export interface IdentityCheckState {
   status: IdentityCheckStatus;
   verifiedName: string | null;
   verifiedAt: string | null;
+  /**
+   * The provider's own words for why it declined, when it did.
+   *
+   * NOT PERSISTED, because there is no column for it and inventing one would put a
+   * provider sentence in our schema. It is therefore present only on the read-back
+   * that observed the decline; a later {@link getIdentityCheckState} reports FAILED
+   * with no reason and the surface falls back to generic retry copy.
+   *
+   * It exists at all because the alternative is what shipped: Stripe answered "the
+   * document is invalid", the answer went into `webhook_logs`, and the member was
+   * shown an unchanged button.
+   */
+  failureReason: string | null;
 }
 
 /**
@@ -348,10 +361,7 @@ export interface IdentityCheckState {
 export async function getIdentityCheckState(): Promise<
   ActionResult<IdentityCheckState, IdentityCheckError>
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to see your verification status.');
 
   const { data } = await createAdminClient()
@@ -364,6 +374,8 @@ export async function getIdentityCheckState(): Promise<
     status: ((data?.identity_check_status as IdentityCheckStatus | null) ?? 'NONE'),
     verifiedName: (data?.identity_check_name as string | null) ?? null,
     verifiedAt: (data?.identity_check_verified_at as string | null) ?? null,
+    // No column to read it from. Only the read-back carries a reason.
+    failureReason: null,
   });
 }
 
@@ -416,26 +428,35 @@ export async function refreshIdentityCheck(): Promise<
     );
   }
 
+  let decision;
+  try {
+    decision = await applyIdentityDecision({ profileId: user.id, check });
+  } catch (err) {
+    return fail(
+      'PERSIST_FAILED',
+      err instanceof Error
+        ? friendlyWriteFailure(err, 'Could not update identity status.')
+        : 'Could not update identity status.',
+    );
+  }
+
+  if (decision === 'verified') {
+    await pushVerifiedIdentityToConnect(user.id);
+  }
+
   const status: IdentityCheckStatus =
-    check.outcome === 'VERIFIED' ? 'VERIFIED' : check.outcome === 'FAILED' ? 'FAILED' : 'PENDING';
-
-  const { error } = await admin
-    .from('profiles')
-    .update({
-      identity_check_status: status,
-      ...(check.verifiedAt ? { identity_check_verified_at: check.verifiedAt } : {}),
-      // Monotonic: only ever absent -> present.
-      ...(check.verifiedName ? { identity_check_name: check.verifiedName } : {}),
-    })
-    .eq('id', user.id);
-
-  if (error) return fail('PERSIST_FAILED', friendlyWriteFailure(error, 'Could not update identity status.'));
+    decision === 'verified' ? 'VERIFIED' : decision === 'failed' ? 'FAILED' : 'PENDING';
 
   return ok({
     status,
     verifiedName:
-      check.verifiedName ?? ((profile?.identity_check_name as string | null) ?? null),
+      decision === 'verified'
+        ? (check.verifiedName ?? ((profile?.identity_check_name as string | null) ?? null))
+        : ((profile?.identity_check_name as string | null) ?? null),
     verifiedAt:
-      check.verifiedAt ?? ((profile?.identity_check_verified_at as string | null) ?? null),
+      decision === 'verified'
+        ? (check.verifiedAt ?? ((profile?.identity_check_verified_at as string | null) ?? null))
+        : ((profile?.identity_check_verified_at as string | null) ?? null),
+    failureReason: decision === 'failed' ? (check.failureReason ?? null) : null,
   });
 }

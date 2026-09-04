@@ -17,7 +17,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Archive, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArchiveIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -54,7 +55,7 @@ export function CloseShopfrontDialog({
       const result = await closeShopfrontListing(itemId);
       if (result.ok) {
         setOpen(false);
-        toast.success('Listing closed. Open contracts are unaffected.');
+        
         router.refresh();
         return;
       }
@@ -67,9 +68,9 @@ export function CloseShopfrontDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" className="w-full sm:w-auto">
-          <Archive aria-hidden />
-          Close listing
+        <Button type="button" variant="outline" className="min-w-0 w-full px-2">
+          <HugeiconsIcon icon={ArchiveIcon} aria-hidden />
+          <span className="truncate">Close</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -97,9 +98,9 @@ export function CloseShopfrontDialog({
             aria-busy={isPending}
           >
             {isPending ? (
-              <Loader2 className="animate-spin" aria-hidden />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
             ) : (
-              <Archive aria-hidden />
+              <HugeiconsIcon icon={ArchiveIcon} aria-hidden />
             )}
             {isPending ? 'Closing…' : 'Close listing'}
           </Button>

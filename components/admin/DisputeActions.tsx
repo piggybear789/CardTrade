@@ -22,7 +22,8 @@
 // out of platform funds.
 
 import { useState, useTransition } from 'react';
-import { Loader2, Scale } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, ScaleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { resolveCashSaleDispute } from '@/lib/actions/admin';
@@ -121,11 +122,7 @@ export function DisputeActions({
       );
       setConfirming(null);
       if (result.ok) {
-        toast.success(
-          result.data.refundCents > 0
-            ? `Resolved. ${formatAud(result.data.refundCents)} refunded to the buyer.`
-            : 'Resolved. Released to the seller.',
-        );
+        
         return;
       }
       // The action's own message distinguishes a bad amount from a provider
@@ -137,7 +134,7 @@ export function DisputeActions({
   return (
     <div className="space-y-cozy rounded-lg border border-border bg-muted p-cozy">
       <p className="flex items-center gap-snug text-body font-medium">
-        <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
 
@@ -194,7 +191,7 @@ export function DisputeActions({
           aria-haspopup="dialog"
           onClick={() => setConfirming('REFUND_BUYER')}
         >
-          {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+          {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
           Refund buyer in full
         </Button>
         <Button

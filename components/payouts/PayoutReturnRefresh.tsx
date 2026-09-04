@@ -59,11 +59,14 @@ export function PayoutReturnRefresh() {
       }
 
       // Strip the marker so a manual reload does not re-run this.
+      //
+      // `replace` alone — see the matching note in `IdentityReturnRefresh`. The
+      // URL always changes here, so the navigation already refetches; the
+      // `router.refresh()` that followed made the Connect return load twice.
       const next = new URLSearchParams(searchParams.toString());
       next.delete('payouts');
       const query = next.toString();
       router.replace(query ? `${pathname}?${query}` : pathname);
-      router.refresh();
     });
     // Keyed on the marker alone: the rest is stable for a given navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps

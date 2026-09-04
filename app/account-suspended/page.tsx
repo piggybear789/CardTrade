@@ -5,7 +5,8 @@
 // redirects here before any protected app route can render.
 
 import Link from 'next/link';
-import { ShieldAlert } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 
@@ -13,11 +14,14 @@ import { Button } from '@/components/ui/button';
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
 export default function AccountSuspendedPage() {
+  // `dvh`, not `vh`. Every other full-height surface in the app uses `dvh`; with
+  // `vh` this box is measured against the tallest viewport iOS Safari ever
+  // reports, so it overflows while the address bar is expanded.
   return (
-    <main className="flex min-h-[80vh] items-center justify-center px-4 py-12">
+    <main className="flex min-h-[80dvh] items-center justify-center px-4 py-12">
       <section className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
         <span className="mx-auto grid size-11 place-items-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-          <ShieldAlert className="size-5" aria-hidden />
+          <HugeiconsIcon icon={ShieldAlertIcon} className="size-5" aria-hidden />
         </span>
         <h1 className="mt-4 text-head font-semibold">Account permanently suspended</h1>
         <p className="mt-2 text-body leading-relaxed text-muted-foreground">

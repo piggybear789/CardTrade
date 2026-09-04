@@ -8,12 +8,13 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Handshake } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HandshakeIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { MobileList, MobileListItem } from '@/components/ui/mobile-list';
 import {
   Dialog,
   DialogContent,
@@ -44,25 +45,25 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
         toast.error(result.message);
         return;
       }
-      toast.success('Invite cancelled');
+      
       setPendingId(null);
       router.refresh();
     });
   }
 
   return (
-    <ul role="list" className="space-y-cozy">
-      {invites.map((invite) => (
-        <li key={invite.id}>
-          <Card className="p-cozy">
-            <div className="flex flex-col gap-cozy sm:flex-row sm:items-center sm:gap-group">
+    <>
+      <MobileList variant="cards">
+        {invites.map((invite) => (
+          <MobileListItem key={invite.id}>
+            <div className="flex flex-col gap-cozy py-3.5 md:py-0 sm:flex-row sm:items-center sm:gap-group">
               <Link
                 href={invite.path}
                 transitionTypes={['nav-forward']}
-                className="flex min-w-0 flex-1 items-start gap-group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:items-center"
+                className="flex min-h-11 min-w-0 flex-1 items-start gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-iris sm:items-center"
               >
                 <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                  <Handshake className="size-5" aria-hidden />
+                  <HugeiconsIcon icon={HandshakeIcon} className="size-5" aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 break-words text-lead font-medium">
@@ -94,9 +95,9 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
                 </Button>
               </div>
             </div>
-          </Card>
-        </li>
-      ))}
+          </MobileListItem>
+        ))}
+      </MobileList>
       <Dialog open={pendingId != null} onOpenChange={(open) => !open && setPendingId(null)}>
         <DialogContent>
           <DialogHeader>
@@ -120,6 +121,6 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </ul>
+    </>
   );
 }

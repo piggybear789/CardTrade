@@ -40,6 +40,7 @@ import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
 import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
+import { currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
 import {
   LIFECYCLE_SPECS,
   factsFromTrade,
@@ -51,6 +52,7 @@ import {
 } from './tradeLifecycleStore';
 import { toHandoverColumns, type HandoverMethod } from '@/lib/handover/terms';
 import {
+  MAX_MEETING_LEAD_HOURS,
   validateFulfilmentTerms,
   type DeliveryAddress,
   type FulfilmentTermsError,
@@ -190,12 +192,12 @@ export type ProposeTradeActionResult =
  * (Req 5.1, 5.2, 5.3). The authenticated user is the proposing (initiator)
  * Trader. Delegates the equal-FMV / both-AVAILABLE guards, Trade creation, item
  * reservation, and bond placement to the proposal orchestrator (revised Req 5.4:
- * KYC VERIFIED Traders are bond-exempt, everyone else bonds against their own
- * Item's FMV).
+ * each Trader bonds the value of what they RECEIVE, and a trade bond has no
+ * verification exemption — both sides always post one).
  *
- * When BOTH Traders are verified no bond is placed, so no provider webhook will
- * arrive to confirm collateral — this action dispatches HOLDS_CONFIRMED itself so
- * the Trade moves straight to COLLATERAL_LOCKED.
+ * When no bond is placed at all, no provider webhook will arrive to confirm
+ * collateral — this action dispatches HOLDS_CONFIRMED itself so the Trade moves
+ * straight to COLLATERAL_LOCKED.
  */
 export async function proposeTrade(
   initiatorItemId: string,
@@ -341,11 +343,11 @@ async function syncTradeHoldsFromStripe(tradeId: string, actorId: string): Promi
   const orchestrator = createDefaultTradeOrchestrator({
     payments: getPaymentService(await regionForTrade(tradeId)),
   });
-  if (holds.every((h) => h.status === 'ACTIVE')) {
+  if (currentHoldsAreActive(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
     return;
   }
-  if (holds.some((h) => h.status === 'FAILED')) {
+  if (currentHoldsSeekFailed(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
   }
 }
@@ -861,12 +863,19 @@ export type UpdateTradeHandoverTermsResult =
   | ActionFailure<UpdateTradeHandoverTermsError>;
 
 /**
- * Update delivery / meeting terms on a live trade.
+ * Update meeting terms on a live trade — which is also how a meeting is rescheduled.
  *
- * Either participant may edit while the trade is still NEGOTIATING,
- * COLLATERAL_PENDING or COLLATERAL_LOCKED and neither side has marked shipped.
- * A handover save does not reset acceptances. After shipping starts, terms are
- * frozen.
+ * EDITABLE ONLY UNTIL THE COLLATERAL IS PLACED. `COLLATERAL_LOCKED` used to be
+ * editable too, and under the old model that was harmless: the hold went on the moment
+ * terms were agreed, so it was not tied to any particular date. Now it is placed a day
+ * before the MEETING, so moving the date afterwards would leave a live authorisation
+ * pointed at a date nobody is turning up on — and expiring during an inspection window
+ * it no longer covers.
+ *
+ * The practical rule that gives a trader is "reschedule freely until the day before",
+ * which is when the sweep authorises the cards. After that the date is fixed and a
+ * change means cancelling and re-agreeing, which re-runs the placement from scratch
+ * rather than trying to move an authorisation that cannot be moved.
  */
 export async function updateTradeHandoverTerms(
   tradeId: string,
@@ -885,13 +894,7 @@ export async function updateTradeHandoverTerms(
   if (!guard.ok) return guard;
 
   const { trade } = guard.ctx;
-  if (
-    (trade.state !== 'NEGOTIATING' &&
-      trade.state !== 'COLLATERAL_PENDING' &&
-      trade.state !== 'COLLATERAL_LOCKED') ||
-    trade.initiator_shipped_at != null ||
-    trade.counterpart_shipped_at != null
-  ) {
+  if (trade.state !== 'NEGOTIATING' && trade.state !== 'COLLATERAL_PENDING' && trade.state !== 'COLLATERAL_LOCKED') {
     return { ok: false, error: 'invalid-state' };
   }
 
@@ -925,7 +928,10 @@ export async function updateTradeHandoverTerms(
         notes: input.deliveryNotes ?? null,
       },
     },
-    { maxDeliveryCostCents: DEAL_DELIVERY_COST_MAX },
+    {
+      maxDeliveryCostCents: DEAL_DELIVERY_COST_MAX,
+      maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS,
+    },
   );
   if (!validation.ok) {
     return { ok: false, error: termsErrorFor(validation.error) };
@@ -970,7 +976,10 @@ function termsErrorFor(
       return 'missing-meeting-location';
     case 'meeting-time-required':
     case 'meeting-time-past':
+    case 'meeting-time-too-far':
       return 'missing-meeting-time';
+    case 'method-not-supported':
+      return 'invalid-handover';
     case 'delivery-cost-required':
     case 'delivery-cost-invalid':
       return 'invalid-delivery-cost';

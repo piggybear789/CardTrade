@@ -14,7 +14,8 @@
 // The gallery is the same `ImageGallery` the listing page uses, so click-to-enlarge
 // opens the same lightbox on both surfaces rather than being re-implemented smaller.
 
-import { ImageOff } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowUpRight01Icon, ImageOffIcon } from '@hugeicons/core-free-icons';
 import Link from 'next/link';
 
 import { ImageGallery, type GalleryImage } from '@/components/listings/ImageGallery';
@@ -24,6 +25,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -82,11 +84,11 @@ export function ItemPeekDialog({
           <ImageGallery
             images={images}
             title={item.title}
-            frameClassName="h-[min(55dvh,26rem)] w-full"
+            frameClassName="h-[min(45dvh,22rem)] w-full"
           />
         ) : (
           <p className="flex items-center gap-snug rounded-lg border border-dashed p-6 text-body text-muted-foreground">
-            <ImageOff className="size-4 shrink-0" aria-hidden />
+            <HugeiconsIcon icon={ImageOffIcon} className="size-4 shrink-0" aria-hidden />
             No photos were attached to this item.
           </p>
         )}
@@ -97,23 +99,29 @@ export function ItemPeekDialog({
           ) : null}
           {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
           {item.hidden ? (
-            <Badge variant="outline" className="text-gold">
+            <Badge variant="outline" className="text-iris-ink">
               Offered privately — not listed publicly
             </Badge>
           ) : null}
         </div>
 
         {item.description ? (
-          <p className="whitespace-pre-line break-words text-body leading-6 text-muted-foreground">
+          <p className="whitespace-pre-line break-words text-body leading-relaxed">
             {item.description}
           </p>
         ) : null}
 
-        {/* A hidden Item has no catalog page; linking to one would 404. */}
+        {/* A hidden Item has no catalog page; linking to one would 404, so the
+            footer is dropped entirely rather than shown with a dead action. */}
         {item.hidden ? null : (
-          <Button asChild variant="outline" className="sm:self-start">
-            <Link href={`/listings/${item.id}`}>Open full listing</Link>
-          </Button>
+          <DialogFooter>
+            <Button asChild variant="outline">
+              <Link href={`/listings/${item.id}`}>
+                Open full listing
+                <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" aria-hidden />
+              </Link>
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

@@ -57,8 +57,9 @@ export async function fillUnlistedCard(
   // with "Expected: hidden / Received: visible" — which reads as the card dialog
   // refusing to close.
   //
-  // Identified by a control only the inner dialog has, rather than by `.last()`,
-  // which depends on portal ordering.
+  // Identified by a control only the inner dialog has, rather than by an accessible
+  // name (which two nested dialogs can both satisfy) or by `.last()` (which depends
+  // on portal ordering).
   const dialog = page
     .getByRole('dialog')
     .filter({ has: page.locator('#unlisted-game') });

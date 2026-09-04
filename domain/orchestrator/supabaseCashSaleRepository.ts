@@ -759,22 +759,19 @@ export function createSupabaseCashSaleRepository(
       transferId?: string;
       error?: string;
     }) {
-      const current = await selectSale(client, params.cashSaleId);
+      // Delegated to SQL (0110) because this used to read the attempt count and then
+      // write it back, with no lock on the drain that calls it. Two overlapping passes
+      // both read 3 and both wrote 4, so a release that kept failing never reached
+      // MAX_PAYOUT_ATTEMPTS — and worse, a pass that started before a successful one
+      // finished could overwrite SETTLED with FAILED, leaving the row claiming a seller
+      // was unpaid when Stripe had already paid them exactly once.
       const { data } = await client
-        .from('cash_sales')
-        .update({
-          seller_payout_status: params.status,
-          ...(params.transferId ? { seller_payout_ref: params.transferId } : {}),
-          ...(params.status === 'SETTLED'
-            ? { seller_payout_at: new Date().toISOString(), seller_payout_error: null }
-            : {}),
-          ...(params.error ? { seller_payout_error: params.error } : {}),
-          // Counts attempts, so a release that keeps failing is visible rather
-          // than silently retrying forever.
-          seller_payout_attempts: (current?.sellerPayoutAttempts ?? 0) + 1,
+        .rpc('record_cash_sale_payout_result', {
+          p_cash_sale_id: params.cashSaleId,
+          p_status: params.status,
+          p_transfer_ref: params.transferId ?? null,
+          p_error: params.error ?? null,
         })
-        .eq('id', params.cashSaleId)
-        .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
     },
@@ -796,18 +793,17 @@ export function createSupabaseCashSaleRepository(
       refundId?: string;
       error?: string;
     }) {
-      const current = await selectSale(client, params.cashSaleId);
+      // Same atomic write as the release above (0110). SETTLED is terminal here too,
+      // with one exception the function encodes: an explicit NOT_DUE stands a queued
+      // refund down when the buyer keeps the goods, and that is an operator decision
+      // rather than a stale write from a racing pass.
       const { data } = await client
-        .from('cash_sales')
-        .update({
-          refund_status: params.status,
-          ...(params.refundId ? { refund_ref: params.refundId } : {}),
-          ...(params.status === 'SETTLED' ? { refund_error: null } : {}),
-          ...(params.error ? { refund_error: params.error } : {}),
-          refund_attempts: (current?.refundAttempts ?? 0) + 1,
+        .rpc('record_cash_sale_refund_result', {
+          p_cash_sale_id: params.cashSaleId,
+          p_status: params.status,
+          p_refund_ref: params.refundId ?? null,
+          p_error: params.error ?? null,
         })
-        .eq('id', params.cashSaleId)
-        .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
     },

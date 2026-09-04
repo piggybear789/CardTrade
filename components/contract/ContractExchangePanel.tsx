@@ -18,10 +18,13 @@
 // fewer thumbs, no footnote).
 
 import type { ReactNode } from 'react';
-import { ArrowLeftRight } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 
+import { Badge } from '@/components/ui/badge';
 import { formatAud } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
 import { ContractPartyStats } from './ContractPartyLine';
 import { ContractThumbnails } from './ContractImageLightbox';
 import type { ContractParty } from './types';
@@ -73,23 +76,32 @@ export interface ContractExchangeSide {
   party?: ContractParty | null;
 }
 
+/**
+ * Stand-in for artwork on a money line.
+ *
+ * Cash and fees are ledger rows like any other, so they need something in the
+ * thumbnail column or their titles and amounts fall off the two axes the item
+ * rows established. Dashed rather than solid: it holds the column open without
+ * pretending there is an object here to look at.
+ */
+function MoneyGlyph() {
+  return (
+    <span
+      className="grid size-10 shrink-0 place-items-center rounded-md border border-dashed text-body text-muted-foreground"
+      aria-hidden
+    >
+      $
+    </span>
+  );
+}
+
 function SideColumn({
   side,
   compact,
   showcase = false,
-  showTotal = false,
 }: {
   side: ContractExchangeSide;
   compact: boolean;
-  /**
-   * Render the Total row.
-   *
-   * Decided by the PANEL, not by this column, so both ledgers gain or lose the row
-   * together. Per-side it went ragged: a three-line side would total while a
-   * one-line side opposite it did not, and the two columns of figures stopped
-   * lining up — which is the one thing an accounting layout has to get right.
-   */
-  showTotal?: boolean;
   /**
    * Give the single item an image-left / details-right layout instead of a list
    * row. Set only for a one-sided, non-compact contract with exactly one item —
@@ -106,42 +118,88 @@ function SideColumn({
   const cashCents = side.cashCents ?? 0;
   const total = goodsCents + cashCents;
 
+  // CARD CHROME for the standard ledger. Two columns of unframed figures sitting
+  // on the tab background made the reader work out where one side ended and the
+  // other began from whitespace alone; a border says it in one glance. The
+  // showcase and compact layouts keep their flat treatment — one has a photo doing
+  // that job, the other is a summary that must not grow a second frame inside the
+  // card already around it.
+  const carded = !compact && !showcase;
+
   return (
     <div
       className={cn(
-        'flex h-full w-full min-w-0 flex-col !rounded-none !border-0 !bg-transparent',
-        compact ? 'gap-snug p-snug' : 'gap-cozy p-cozy',
+        'flex h-full w-full min-w-0 flex-col',
+        compact ? 'gap-snug' : 'gap-cozy',
+        carded && 'rounded-xl border bg-card p-group shadow-sm',
       )}
     >
-      <header className="flex min-w-0 items-center gap-snug">
-        <div className="min-w-0 flex-1 truncate">
-          <p className="truncate text-body font-medium">
-            {side.partyName ?? side.heading}
-          </p>
-        </div>
-        {side.badge ? <div className="shrink-0">{side.badge}</div> : null}
-        {/* Unframed. The trust line used to be a bordered, shadowed, width-capped
-            chip, which made it read as a second panel competing with the item rows
-            beneath it — two nested containers where the section already provides
-            one. Plain text beside the name sits in the same visual layer as
-            everything else in the panel. */}
-        {!compact && side.party ? (
-          <ContractPartyStats party={side.party} className="shrink-0 text-right" />
-        ) : null}
-      </header>
+      <header className="min-w-0 space-y-snug">
+        {carded ? (
+          // The relational heading leads as a chip and the side's worth sits
+          // opposite it. This is the pair of facts the reader compares across the
+          // two columns, so it goes at the top of each and nowhere else — the
+          // total used to be a row inside the ledger, where it read as one more
+          // line item rather than the sum of them.
+          <div className="flex items-start justify-between gap-snug">
+            {/* THE `Badge` COMPONENT, not a hand-rolled chip. This was a span
+                carrying `market-label` (11px, uppercase, 0.12em) with its own
+                pill radius and one of two tint classes, sitting a few hundred
+                pixels from the status badge — which is 12px, sentence case,
+                normal tracking, `rounded-md`. Two chips, two implementations,
+                and no two attributes in common. Going through `Badge` makes the
+                status badge and this one the same object at the same size.
 
-      {/* Total leads, above the lines that make it up. What a reader wants from this
-          column first is "what is this side worth" — the breakdown is the support
-          for that answer, not the route to it. */}
-      {showTotal && !compact && total > 0 ? (
-        <div className="flex items-center gap-snug border-b pb-snug">
-          <span className="size-10 shrink-0" aria-hidden />
-          <p className="min-w-0 flex-1 text-body font-medium">Total</p>
-          <span className="shrink-0 text-body font-semibold tabular-nums">
-            {formatAud(total)}
-          </span>
+                `secondary` on both sides. The tinted lilac/teal pair was
+                colour-coding a distinction the words already make, and a filled
+                chip here would argue with the status badge for the loudest
+                thing on the row. Quiet label, loud status is the right order. */}
+            <Badge variant="secondary" className="shrink-0">
+              {side.heading}
+            </Badge>
+            {total > 0 ? (
+              <div className="min-w-0 text-right">
+                <p className="market-label text-muted-foreground">Value</p>
+                <p className="display-value text-head">{formatAud(total)}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 items-center gap-snug">
+          {/* Recognisability, not assurance. The shield in the trust line below
+              is what says this person is verified; a picture only says which
+              person. Decorative on purpose — the name is right beside it, and
+              `Avatar` reads it out otherwise. */}
+          {carded && side.party ? (
+            <Avatar
+              avatarPath={side.party.avatarPath}
+              displayName={side.partyName ?? side.party.name}
+              size="sm"
+            />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <p
+              className={cn(
+                'truncate',
+                carded ? 'text-lead font-semibold' : 'text-body font-medium',
+              )}
+            >
+              {side.partyName ?? side.heading}
+            </p>
+            {/* Unframed, and under the name rather than beside it. As a right-aligned
+                block it competed with the amounts in the same column; here it reads
+                as what it is — a subtitle qualifying whose side this is. */}
+            {carded && side.party ? (
+              <ContractPartyStats party={side.party} className="mt-0.5" />
+            ) : null}
+          </div>
+          {side.badge ? <div className="shrink-0">{side.badge}</div> : null}
+          {!carded && !compact && side.party ? (
+            <ContractPartyStats party={side.party} className="shrink-0 text-right" />
+          ) : null}
         </div>
-      ) : null}
+      </header>
 
       {side.items.length === 0 && !side.note ? (
         <p className="text-body text-muted-foreground">
@@ -192,7 +250,7 @@ function SideColumn({
             </div>
           </div>
         ) : (
-          <ul className={cn(compact ? 'space-y-tight' : 'space-y-snug')}>
+          <ul className={cn(compact ? 'space-y-tight' : 'space-y-cozy')}>
             {side.items.map((item) => (
               <li key={item.id} className="flex items-center gap-snug">
                 <ContractThumbnails
@@ -223,7 +281,7 @@ function SideColumn({
                 with the amounts above it reads as a different kind of fact. */}
             {!compact && cashCents > 0 ? (
               <li className="flex items-center gap-snug">
-                <span className="size-10 shrink-0" aria-hidden />
+                <MoneyGlyph />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium">
                     {side.cashLabel ?? 'Cash'}
@@ -271,7 +329,7 @@ function SideColumn({
           including it in the total would overstate what this side is worth. */}
       {!compact && (side.feeCents ?? 0) > 0 ? (
         <div className="flex items-center gap-snug text-body text-muted-foreground">
-          <span className="size-10 shrink-0" aria-hidden />
+          <MoneyGlyph />
           <p className="min-w-0 flex-1">{side.feeLabel ?? 'NoDitto fee'}</p>
           <span className="shrink-0 tabular-nums">{formatAud(side.feeCents!)}</span>
         </div>
@@ -307,28 +365,26 @@ export function ContractExchangePanel({
   // wants the showcase treatment.
   const showcase = !compact && !twoSided && sides[0]?.items.length === 1;
 
-  // The Total row appears only when there is something to add up — i.e. when some
-  // side contributes more than one line (goods, or goods plus cash). A single item
-  // against a single item needs no total: the figure would just restate the row
-  // above it. Evaluated across BOTH sides so the two ledgers stay symmetric.
-  const showTotals = sides.some(
-    (side) => side.items.length + ((side.cashCents ?? 0) > 0 ? 1 : 0) > 1,
-  );
-
   return (
     <div
       className={cn(
         'flex w-full flex-col',
-        // The inspector owns the full available height. The content fills it without
-        // manufacturing a second card surface inside the selected tab.
-        compact ? 'gap-cozy' : 'h-full min-h-0 flex-1 gap-cozy',
-        compact && 'gap-snug',
+        compact ? 'gap-snug' : 'gap-cozy',
+        // FILL THE PANEL ONLY IN SHOWCASE. A cash sale is one item and one photo
+        // with an inspector's worth of height to spend, so it stretches and
+        // centres. A trade is two ledgers that end where they end: stretching
+        // those opened a void between the last fee line and the footnote —
+        // roughly a third of the tab on a laptop — and pinned the footnote to
+        // the floor, which read as a page still loading rather than a short one.
+        // It reads top-down now, and the tab body scrolls if it ever outgrows
+        // the panel.
+        showcase && 'h-full min-h-0 flex-1',
         className,
       )}
     >
       <div
         className={cn(
-          compact ? null : 'min-h-0 flex-1',
+          showcase ? 'min-h-0 flex-1' : null,
           twoSided
             ? cn(
                 'grid items-stretch lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]',
@@ -337,14 +393,12 @@ export function ContractExchangePanel({
             : cn('grid', compact ? 'gap-snug' : 'gap-cozy'),
         )}
       >
-        <SideColumn
-          side={sides[0]}
-          compact={compact}
-          showcase={showcase}
-          showTotal={showTotals}
-        />
+        <SideColumn side={sides[0]} compact={compact} showcase={showcase} />
         {twoSided ? (
           <>
+            {/* One direction, not two. The columns are already labelled "you send"
+                and "you receive", so a double-headed arrow between them argues with
+                the labels; a single arrow just points from the first to the second. */}
             <div className="flex items-center justify-center" aria-hidden>
               <span
                 className={cn(
@@ -352,7 +406,7 @@ export function ContractExchangePanel({
                   compact ? 'size-7' : 'size-8',
                 )}
               >
-                <ArrowLeftRight
+                <HugeiconsIcon icon={ArrowRight01Icon}
                   className={cn(
                     'rotate-90 lg:rotate-0',
                     compact ? 'size-3.5' : 'size-4',
@@ -360,7 +414,7 @@ export function ContractExchangePanel({
                 />
               </span>
             </div>
-            <SideColumn side={sides[1]} compact={compact} showTotal={showTotals} />
+            <SideColumn side={sides[1]} compact={compact} />
           </>
         ) : null}
       </div>

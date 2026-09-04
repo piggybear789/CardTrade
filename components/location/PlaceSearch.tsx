@@ -25,7 +25,8 @@
 // edit now counts as intent to re-search, and there is an explicit clear button.
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { Loader2, MapPin, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, MapPinIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { searchPlaces } from '@/lib/location/googleMaps';
 import type { PlacePrecision, PlaceValue } from '@/lib/location/types';
@@ -263,7 +264,7 @@ export function PlaceSearch({
   return (
     <div ref={fieldRef} className={cn('relative', className)}>
       <div className="relative">
-        <MapPin
+        <HugeiconsIcon icon={MapPinIcon}
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
         />
@@ -327,7 +328,7 @@ export function PlaceSearch({
               icon visibly dropped below centre while loading. */}
           {loading ? (
             <span className="grid size-6 place-items-center" aria-hidden>
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin text-muted-foreground" />
             </span>
           ) : null}
           {showClear ? (
@@ -337,9 +338,9 @@ export function PlaceSearch({
               // A location could previously only be reset by guessing that emptying
               // the field was the way out. Fitts's Law: give it a real target.
               aria-label="Clear location"
-              className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
             >
-              <X className="size-4" aria-hidden />
+              <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
             </button>
           ) : null}
         </div>
@@ -390,7 +391,7 @@ export function PlaceSearch({
                   setOutcome('none');
                 }}
               >
-                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <HugeiconsIcon icon={MapPinIcon} className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                 <span>{place.label}</span>
               </button>
             </li>

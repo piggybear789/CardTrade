@@ -16,7 +16,8 @@
 // member navigates away. Onboarding also has no save button of its own for this.
 
 import * as React from 'react';
-import { Camera, Loader2, Trash2, Upload } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Camera01Icon, Delete02Icon, LoaderCircleIcon, Upload01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -86,7 +87,7 @@ export function AvatarUploadField({
     }
     setPath(result.avatarPath);
     onChange?.(result.avatarPath);
-    toast.success('Picture updated');
+    
   }
 
   async function handleClear() {
@@ -100,7 +101,7 @@ export function AvatarUploadField({
     }
     setPath(null);
     onChange?.(null);
-    toast.success('Picture removed');
+    
   }
 
   const isBusy = busy !== null;
@@ -124,26 +125,33 @@ export function AvatarUploadField({
   if (compact) {
     return (
       <div className="flex flex-col items-center gap-tight">
-        <div className="relative">
-          <Avatar avatarPath={path} displayName={displayName} size="xl" />
-          {/* The badge IS the picker. `aria-label` carries the whole meaning here,
-              since the glyph is the only visible content — without it a screen
-              reader announces an unlabelled button. */}
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={controlsDisabled}
-            aria-busy={busy === 'upload'}
-            aria-label={path ? 'Change picture' : 'Add a picture'}
-            className="absolute -bottom-0.5 -right-0.5 grid size-7 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors hover:bg-primary/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-65"
+        {/* The whole circle is the picker — members tap the initials, not a 28px
+            camera badge. The badge stays as the visual cue; `aria-label` is what
+            a screen reader hears because the glyph is not labelled text. */}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={controlsDisabled}
+          aria-busy={busy === 'upload'}
+          aria-label={path ? 'Change picture' : 'Add a picture'}
+          className="group relative cursor-pointer rounded-full border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:border-iris focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65"
+        >
+          <Avatar avatarPath={path} displayName={displayName} size="md" />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-full bg-transparent transition-colors group-hover:bg-foreground/10 group-disabled:bg-transparent"
+          />
+          <span
+            aria-hidden
+            className="absolute -bottom-0.5 -right-0.5 grid size-6 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors group-hover:bg-primary/85"
           >
             {busy === 'upload' ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" />
             ) : (
-              <Camera className="size-3.5" aria-hidden />
+              <HugeiconsIcon icon={Camera01Icon} className="size-3" />
             )}
-          </button>
-        </div>
+          </span>
+        </button>
 
         {/* Kept, even though the reference has no equivalent: dropping it would
             remove the only way to delete a picture already uploaded. Rendered as a
@@ -155,7 +163,7 @@ export function AvatarUploadField({
             onClick={handleClear}
             disabled={controlsDisabled}
             aria-busy={busy === 'clear'}
-            className="rounded-sm text-meta text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-65"
+            className="rounded-sm text-meta text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-65"
           >
             {busy === 'clear' ? 'Removing…' : 'Remove'}
           </button>
@@ -181,9 +189,9 @@ export function AvatarUploadField({
             aria-busy={busy === 'upload'}
           >
             {busy === 'upload' ? (
-              <Loader2 className="animate-spin" aria-hidden />
+              <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
             ) : (
-              <Upload aria-hidden />
+              <HugeiconsIcon icon={Upload01Icon} aria-hidden />
             )}
             {path ? 'Change picture' : 'Add a picture'}
           </Button>
@@ -198,9 +206,9 @@ export function AvatarUploadField({
               aria-busy={busy === 'clear'}
             >
               {busy === 'clear' ? (
-                <Loader2 className="animate-spin" aria-hidden />
+                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
               ) : (
-                <Trash2 aria-hidden />
+                <HugeiconsIcon icon={Delete02Icon} aria-hidden />
               )}
               Remove
             </Button>

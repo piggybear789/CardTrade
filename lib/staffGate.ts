@@ -23,7 +23,7 @@ import 'server-only';
 // `profiles` from `authenticated`, and `0047` asserts the same for `is_support`, so a
 // member cannot promote themselves.
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 /** Typed refusal reasons, matching the admin action vocabulary. */
@@ -45,10 +45,10 @@ export interface StaffContext {
 export async function requireStaff(): Promise<
   { ok: true; ctx: StaffContext } | { ok: false; error: StaffGateError }
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Identity through the request-cached lookup; the capability read stays on the
+  // service-role client on purpose, so an RLS misconfiguration cannot quietly
+  // widen or narrow who counts as staff.
+  const user = await getCachedAuthUser();
   if (!user) return { ok: false, error: 'not-authenticated' };
 
   const { data } = await createAdminClient()

@@ -23,10 +23,12 @@ import {
   useElements,
   useStripe,
 } from '@stripe/react-stripe-js';
-import { Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, LockIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { beginCardSetup, completeCardSetup } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 /**
  * Sentinel publishable key returned by the MockService. Stripe.js would reject
@@ -84,14 +86,14 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 
   if (configError) {
     return (
-      <div className="space-y-cozy">
+      <div className="space-y-group">
         <p role="alert" className="text-body text-destructive">
           {configError}
         </p>
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          className="w-full"
           onClick={() => {
             setConfigError(null);
             setRetryCount((c) => c + 1);
@@ -104,12 +106,11 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
   }
 
   if (!session) {
-    return (
-      <p className="flex items-center gap-snug text-body text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" aria-hidden />
-        Loading secure card entry…
-      </p>
-    );
+    // The same box the dynamic-import placeholder just drew. These were two
+    // different sizes — a 160px spinner, then 88px of bars — so the sheet
+    // resized between the two waits and again when Stripe's iframe mounted,
+    // moving the Save button under the reader's thumb twice before it settled.
+    return <PaymentFormSkeleton />;
   }
 
   // Mock provider: no real Stripe.js, so offer a simulated save so local UI
@@ -191,10 +192,10 @@ function CardSetupFields({
       ) : null}
 
       <Button type="submit" disabled={busy} aria-busy={busy} className="w-full">
-        {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
+        {busy ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
         {!ready ? 'Loading secure checkout…' : isPending ? 'Saving…' : (
           <>
-            <Lock className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={LockIcon} className="size-3.5" aria-hidden />
             Save card
           </>
         )}
@@ -234,7 +235,7 @@ function SimulatedCardSetup({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-snug">
+    <form onSubmit={handleSubmit} className="space-y-group">
       <div className="rounded-lg border border-dashed px-cozy py-snug text-body" role="note">
         <p className="font-medium text-foreground">Simulated card entry</p>
         <p className="text-muted-foreground">
@@ -250,7 +251,7 @@ function SimulatedCardSetup({
       ) : null}
 
       <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
-        {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+        {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
         {isPending ? 'Saving…' : 'Save demo card'}
       </Button>
     </form>
@@ -260,7 +261,7 @@ function SimulatedCardSetup({
 function ProcessorNote() {
   return (
     <p className="flex items-start justify-center gap-tight text-center text-body leading-relaxed text-muted-foreground">
-      <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
+      <HugeiconsIcon icon={ShieldCheckIcon} className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
       <span>
         Payments processed by{' '}
         <a

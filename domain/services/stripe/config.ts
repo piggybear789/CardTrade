@@ -104,6 +104,13 @@ export interface StripeConfig {
    * developer with only an API key can still exercise the flow.
    */
   identityVerificationFlow?: string;
+  /**
+   * HMAC secret for person-level Identity bans. Dedicated so rotating a Stripe
+   * key does not orphan existing hashes. Falls back to `secretKey` when unset
+   * so local/dev still fingerprints; set `IDENTITY_FINGERPRINT_SECRET` in
+   * production and keep it stable.
+   */
+  identityFingerprintSecret: string;
 
   payoutMode: StripePayoutMode;
   /**
@@ -320,6 +327,8 @@ export function readStripeConfig(
       'STRIPE_IDENTITY_VERIFICATION_FLOW',
       code,
     ),
+    identityFingerprintSecret:
+      env.IDENTITY_FINGERPRINT_SECRET?.trim() || secretKey,
 
     payoutMode: env.PAYOUT_MODE?.trim().toLowerCase() === 'direct' ? 'direct' : 'platform',
     webhookToleranceSeconds: Number.isFinite(tolerance) && tolerance > 0

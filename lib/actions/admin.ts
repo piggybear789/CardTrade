@@ -25,6 +25,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
@@ -89,15 +90,13 @@ function buildAdminDisputeOrchestrator() {
 async function requireAdmin(): Promise<
   { ok: true; adminId: string } | { ok: false; error: AdminActionError }
 > {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
 
   if (!user) {
     return { ok: false, error: 'not-authenticated' };
   }
 
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_admin')

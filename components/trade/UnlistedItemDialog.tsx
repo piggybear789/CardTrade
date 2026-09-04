@@ -15,7 +15,8 @@
 // offer leaves nothing behind.
 
 import { useEffect, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ImagePlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -100,7 +101,10 @@ export function UnlistedItemDialog({
   onOpenChange,
   initial,
   onSave,
-  title = 'Offer Terms',
+  // "Offer Terms" described the surface this is reached FROM, not this form —
+  // which asks for a photo, a game and a condition. Every caller that passed a
+  // title already said "card"; the default now matches what is on screen.
+  title = 'Describe your item',
   description,
   saveLabel,
 }: UnlistedItemDialogProps) {
@@ -159,11 +163,11 @@ export function UnlistedItemDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-group">
           {/* No Title field, matching the listing form: the short label is derived
               from this description by `deriveItemTitle`. A trader states what the card
               is once, and arbitration still gets a stable label on the contract. */}
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <Label htmlFor="unlisted-description">Describe the item</Label>
             <Textarea
               id="unlisted-description"
@@ -172,18 +176,19 @@ export function UnlistedItemDialog({
               maxLength={2000}
               rows={3}
               placeholder="1999 Charizard holo, condition details, grading, anything they should know…"
+              className="resize-none"
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="unlisted-game">Game</Label>
+          <div className="grid gap-group sm:grid-cols-2">
+            <div className="space-y-snug">
+              <Label htmlFor="unlisted-game">Category</Label>
               <Select
                 value={cardGameSlug(draft.category)}
                 onValueChange={(value) => set('category', cardGameName(value))}
               >
                 <SelectTrigger id="unlisted-game">
-                  <SelectValue placeholder="Select a game" />
+                  <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
                   {CARD_GAMES.map((game) => (
@@ -195,7 +200,7 @@ export function UnlistedItemDialog({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="unlisted-condition">Condition</Label>
               <Select
                 value={draft.condition}
@@ -215,7 +220,7 @@ export function UnlistedItemDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <p className="text-body font-medium leading-none" id="unlisted-photos-label">
               Photos
               <span className="ml-1.5 font-normal text-muted-foreground">
@@ -244,9 +249,9 @@ export function UnlistedItemDialog({
                   <button
                     type="button"
                     onClick={() => removeImageAt(index)}
-                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-obsidian/75 text-parchment ring-offset-background transition-colors hover:bg-obsidian focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-obsidian/75 text-mist transition-colors hover:bg-obsidian border border-transparent focus-visible:outline-none focus-visible:border-iris"
                   >
-                    <X aria-hidden="true" className="size-3" />
+                    <HugeiconsIcon icon={XIcon} aria-hidden="true" className="size-3" />
                     <span className="sr-only">Remove photo {index + 1}</span>
                   </button>
                 </li>
@@ -257,8 +262,8 @@ export function UnlistedItemDialog({
                   {/* The input lives inside its label so the tile is the control:
                       clicking anywhere on it opens the picker, and `has-` puts the
                       focus ring on the tile rather than the hidden input. */}
-                  <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground ring-offset-background transition-colors hover:border-solid hover:bg-muted has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2">
-                    <ImagePlus aria-hidden="true" className="size-5" />
+                  <label className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-solid hover:bg-muted has-[:focus-visible]:border-iris">
+                    <HugeiconsIcon icon={ImagePlusIcon} aria-hidden="true" className="size-5" />
                     <span className="text-meta font-medium">Add</span>
                     <input
                       type="file"
@@ -286,11 +291,12 @@ export function UnlistedItemDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
+            type="button"
             disabled={!complete}
             onClick={() => {
               onSave(draft);

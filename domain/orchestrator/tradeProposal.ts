@@ -13,11 +13,11 @@
 //   * proposeTrade — guard that both paired Items are AVAILABLE (Req 5.1, 5.3);
 //     on success create a Trade in COLLATERAL_PENDING, set both Items to
 //     RESERVED (Req 5.1), and place a bond for each Trader who requires one per
-//     the Bond Policy (`domain/bond/bondPolicy.ts`): a Trader with APPROVED
-//     Managed Merchant identity (`merchant_status`) is exempt, everyone else
-//     bonds against their own paired Item's FMV (revised Req 2.4, 5.4). Trading
-//     itself (including cash terms) is never blocked by verification — only the
-//     bond requirement changes.
+//     the Bond Policy (`domain/bond/bondPolicy.ts`): each Trader bonds the value
+//     of what they RECEIVE, not what they give (revised Req 2.4, 5.4). There is
+//     no verification exemption on a trade — `resolveTradeBonds` bonds both sides
+//     regardless, because the bond is what makes a dispute or fraud finding
+//     payable. Trading is never blocked by verification.
 //   * createCollateralSideEffects — a `RunSideEffects` hook for the guarded
 //     transition core: on HOLDS_FAILED it cancels the Trade by voiding any
 //     active holds and restoring both Items to AVAILABLE (Req 5.6). The
@@ -121,8 +121,13 @@ export interface TradeProposalRepository {
   restoreItems(itemIds: string[]): Promise<void>;
   /** Persist a Pre_Auth_Hold row for a Trade (Req 5.4). */
   recordHold(hold: HoldRecordInput): Promise<void>;
-  /** Read all Pre_Auth_Holds for a Trade (used to void on cancellation). */
+  /** Read all Pre_Auth_Holds for a Trade, oldest first (used to void on cancellation). */
   getHolds(tradeId: string): Promise<RecordedHold[]>;
+  /**
+   * Every Item on the Trade, including extras on `trade_items`. HOLDS_FAILED must
+   * restore the bundle, not only the two primary ids on the Trade row.
+   */
+  listTradeItemIds(tradeId: string): Promise<string[]>;
   /** Update a persisted hold's status (e.g. to VOIDED on cancellation, Req 5.6). */
   markHoldStatus(holdRef: string, status: PreAuthHold['status']): Promise<void>;
 }
@@ -160,9 +165,10 @@ export type ProposeTradeError =
  * Discriminated result of a trade proposal.
  *
  * `bondsRequired` is the number of Traders who had to post a bond. When it is
- * `0` (both Traders verified, so both bond-exempt) there is no provider event
- * coming to drive HOLDS_CONFIRMED, so the caller must dispatch that event itself
- * to move the Trade from COLLATERAL_PENDING to COLLATERAL_LOCKED.
+ * `0` there is no provider event coming to drive HOLDS_CONFIRMED, so the caller
+ * must dispatch that event itself to move the Trade from COLLATERAL_PENDING to
+ * COLLATERAL_LOCKED. That happens only when both side values are zero —
+ * verification does NOT exempt a Trader from a trade bond.
  */
 export type ProposeTradeResult =
   | { ok: true; trade: TradeRecord; bondsRequired: number }
@@ -194,8 +200,38 @@ export interface ProposeTradeParams {
 }
 
 /** Deterministic hold reference for a Trader's collateral on a Trade. */
-function holdRef(tradeId: string, traderId: string): string {
-  return `hold:${tradeId}:${traderId}`;
+function holdRef(tradeId: string, traderId: string, attempt = 1): string {
+  // Attempt 1 keeps the historical key so a first placement is unchanged.
+  // Later attempts MUST be a new Stripe idempotency key: reusing the first one
+  // for 24 hours replays the original decline even after the trader swaps card.
+  return attempt <= 1 ? `hold:${tradeId}:${traderId}` : `hold:${tradeId}:${traderId}:${attempt}`;
+}
+
+/**
+ * The latest hold row per trader. Older FAILED/VOIDED rows stay on file so a
+ * retry can pick a new attempt number; sync and confirm must ignore them or a
+ * successful retry would still look failed.
+ */
+export function currentHoldsByTrader(holds: RecordedHold[]): RecordedHold[] {
+  const latest = new Map<string, RecordedHold>();
+  for (const hold of holds) {
+    latest.set(hold.traderId, hold);
+  }
+  return [...latest.values()];
+}
+
+/** True when the latest hold for every recorded trader is ACTIVE. */
+export function currentHoldsAreActive(holds: RecordedHold[]): boolean {
+  const current = currentHoldsByTrader(holds);
+  return current.length > 0 && current.every((hold) => hold.status === 'ACTIVE');
+}
+
+/** True when the latest hold for any trader is a finished-and-failed seek. */
+export function currentHoldsSeekFailed(holds: RecordedHold[]): boolean {
+  return currentHoldsByTrader(holds).some(
+    (hold) =>
+      hold.status === 'FAILED' || hold.status === 'VOIDED' || hold.status === 'EXPIRED',
+  );
 }
 
 /**
@@ -209,8 +245,8 @@ function holdRef(tradeId: string, traderId: string): string {
  *   3. Both Traders must have a payer reference to place a hold against (Req 5.4).
  *
  * On success it creates a Trade in COLLATERAL_PENDING, reserves both Items
- * (Req 5.1), and requests a Pre_Auth_Hold sized at 100% of each Trader's own
- * paired Item FMV on that Trader's payment instrument (Req 5.4). The active /
+ * (Req 5.1), and requests a Pre_Auth_Hold sized at 100% of what each Trader
+ * RECEIVES, against that Trader's payment instrument (Req 5.4). The active /
  * failed outcome of each hold is later reported via a Webhook_Event that drives
  * HOLDS_CONFIRMED / HOLDS_FAILED through the guarded transition core.
  */
@@ -323,9 +359,10 @@ export async function proposeTrade(
     params.counterpartItemId,
   ]);
 
-  // Place a bond for each Trader who requires one, sized from that Trader's OWN
-  // paired Item FMV. A verified Trader's bond is 0 and no hold is placed — their
-  // verified identity is the guarantee instead.
+  // Place a bond for each Trader who requires one, sized from what that Trader
+  // RECEIVES — the crossed arguments to `resolveTradeBonds` above are deliberate.
+  // A zero bond places no hold, which here means a side valued at nothing rather
+  // than a verified Trader: trade bonds have no verification exemption.
   const holdPlacements = [
     {
       traderId: params.proposerId,
@@ -481,14 +518,19 @@ export async function placeBondsForAgreedTrade(
   );
 
   let anyHoldFailed = false;
+  const existing = await repository.getHolds(params.tradeId);
 
   for (const placement of placements) {
-    const deterministicRef = holdRef(params.tradeId, placement.traderId);
+    const attempt =
+      existing.filter((hold) => hold.traderId === placement.traderId).length + 1;
+    const deterministicRef = holdRef(params.tradeId, placement.traderId, attempt);
     const hold = await payments.placeHold({
       payerId: placement.payerId,
       amount: placement.amountCents,
-      // Same deterministic key as the single-click path, so a retry cannot
-      // double-authorise the same trader's collateral on the same trade.
+      // First placement keeps `hold:<trade>:<trader>` so a retry of the SAME
+      // request cannot double-authorise. A later attempt after a decline MUST
+      // use a new key — Stripe caches the original decline against the first
+      // one for 24 hours, even if the trader has swapped cards.
       ref: deterministicRef,
     });
     if (hold.status !== 'ACTIVE') anyHoldFailed = true;
@@ -530,7 +572,7 @@ export async function placeBondsForAgreedTrade(
 /** The repository subset the collateral cancellation hook needs. */
 export type CollateralRepository = Pick<
   TradeProposalRepository,
-  'getHolds' | 'markHoldStatus' | 'restoreItems'
+  'getHolds' | 'markHoldStatus' | 'restoreItems' | 'listTradeItemIds'
 >;
 
 /**
@@ -568,13 +610,16 @@ export function createCollateralSideEffects(repository: CollateralRepository): R
       }
     }
 
-    // Restore both paired Items to AVAILABLE (Req 5.6). The paired item ids ride
-    // on the loaded Trade row via the TradeRecord index signature.
+    // Restore every Item on the Trade, including extras on `trade_items`. The
+    // two primary ids on the Trade row are a fallback for a 1:1 trade that
+    // predates the bundle table.
+    const bundledIds = await repository.listTradeItemIds(ctx.trade.id);
     const initiatorItemId = ctx.trade.initiator_item_id as string | undefined;
     const counterpartItemId = ctx.trade.counterpart_item_id as string | undefined;
-    const itemIds = [initiatorItemId, counterpartItemId].filter(
+    const fallbackIds = [initiatorItemId, counterpartItemId].filter(
       (id): id is string => typeof id === 'string' && id.length > 0,
     );
+    const itemIds = bundledIds.length > 0 ? bundledIds : fallbackIds;
     if (itemIds.length > 0) {
       await repository.restoreItems(itemIds);
     }

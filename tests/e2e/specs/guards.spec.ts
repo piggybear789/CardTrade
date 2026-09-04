@@ -24,7 +24,7 @@ import { test, expect } from '../support/fixtures';
 import { ALICE, BOB } from '../support/users';
 import { marked, markedEmail } from '../support/marker';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
-import { ensureFreshSessions } from '../support/auth';
+import { ensureFreshSessions, isSignedInDestination } from '../support/auth';
 import { profileIdByEmail } from '../support/db';
 
 // Repair any stored cookie jar this file relies on before its first test.
@@ -109,11 +109,14 @@ async function signUpAndPrepare(
   await expect(emailField).toBeEditable({ timeout: RENDERED });
   await emailField.fill(email);
   await page.getByLabel('Password').fill('TestPassword123!');
+  // Sign-up refuses without consent — see `acceptedTerms` in AuthForm. Ticking
+  // it is part of creating an account, not incidental setup.
+  await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
   await page.getByRole('button', { name: 'Create account' }).click();
 
   // Wait for the auth account to be created. The page either lands on /onboarding
   // (new account) or stays on /sign-up with an error (duplicate). Wait generously.
-  await expect(page).toHaveURL(/\/(onboarding|listings)/, { timeout: COLD_ROUTE });
+  await expect(page).toHaveURL(isSignedInDestination, { timeout: COLD_ROUTE });
 
   // Let the page finish loading before any DB writes or subsequent navigations.
   // On WebKit the onboarding page may still fire client-side navigations during
@@ -141,8 +144,8 @@ async function signUpAndPrepare(
   // state cleanly. `{ waitUntil: 'commit' }` returns as soon as the response headers
   // arrive, before RSC payloads and hydration — just enough to clear the WebKit
   // navigation queue without waiting for Realtime sockets that block `load`.
-  await page.goto('/listings', { waitUntil: 'commit' });
-  await expect(page).toHaveURL(/\/listings/, { timeout: COLD_ROUTE });
+  await page.goto('/', { waitUntil: 'commit' });
+  await expect(page).toHaveURL(/\/$/, { timeout: COLD_ROUTE });
 
   return profileId!;
 }
@@ -174,7 +177,14 @@ test.describe('Region guard', () => {
     ).toBeVisible({ timeout: COLD_ROUTE });
 
     // The region notice is rendered as role="status" and names both regions.
-    const notice = page.locator('[role="status"]');
+    // The listing page renders its action column twice — once in the `lg:hidden`
+    // phone stack and once in the desktop pane — so every notice inside it exists
+    // twice in the DOM, with CSS deciding which is on screen. Scope to the copy
+    // that is actually visible.
+    const notice = page
+      .locator('[role="status"]')
+      .filter({ visible: true })
+      .first();
     await expect(notice).toBeVisible({ timeout: RENDERED });
     await expect(notice).toContainText('Australia');
     await expect(notice).toContainText('United Kingdom');
@@ -197,7 +207,14 @@ test.describe('Region guard', () => {
       page.getByRole('heading', { name: /Jordan/ }),
     ).toBeVisible({ timeout: COLD_ROUTE });
 
-    const notice = page.locator('[role="status"]');
+    // The listing page renders its action column twice — once in the `lg:hidden`
+    // phone stack and once in the desktop pane — so every notice inside it exists
+    // twice in the DOM, with CSS deciding which is on screen. Scope to the copy
+    // that is actually visible.
+    const notice = page
+      .locator('[role="status"]')
+      .filter({ visible: true })
+      .first();
     await expect(notice).toBeVisible({ timeout: RENDERED });
     await expect(notice).toContainText('United Kingdom');
     await expect(notice).toContainText('Deals are completed within a single region');
@@ -233,9 +250,7 @@ test.describe('Identity gate', () => {
 
     // The form itself must NOT be present. Probed on the description field, which is
     // now the listing form's only prose input — there is no Title field to look for.
-    await expect(
-      page.getByLabel(/Describe what you are selling/),
-    ).toHaveCount(0);
+    await expect(page.getByLabel('Description')).toHaveCount(0);
   });
 
   test('an unverified member is refused when entering trade escrow', async ({

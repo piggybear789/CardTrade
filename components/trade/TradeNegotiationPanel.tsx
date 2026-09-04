@@ -18,12 +18,18 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
+import { ContractMoneyTable } from '@/components/contract/ContractMoneyTable';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  SavedCardRow,
+  type SavedCardStatus,
+} from '@/components/payments/SavedCardRow';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +51,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
+import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
 import {
   acceptTradeTerms,
   declineTradeOffer,
@@ -80,6 +87,36 @@ export interface TradeNegotiationPanelProps {
      */
     counterpartGoodsDescription: string | null;
   };
+  /**
+   * Server-known saved card. Seeds both card rows here — the one above the
+   * Accept control and the one inside the accept dialog, which would otherwise
+   * resize while the reader is partway through it.
+   */
+  paymentMethod?: SavedCardStatus | null;
+  /**
+   * What accepting costs the viewer, pre-formatted in the trade's currency.
+   *
+   * Passed in rather than derived here. The sizing rule lives in the room beside
+   * `resolveTradeSideValues`, and a dialog that computed its own figure would be a
+   * second answer to "what will this charge me" — the disclosure has to be the same
+   * number the charge uses. Null until both sides are valued, in which case the
+   * dialog names the fee without an amount rather than inventing one.
+   */
+  acceptCost?: {
+    /** Trade fee taken from the card the moment the last accept lands. */
+    feeText: string;
+    /** Collateral authorised against the card. Held, never charged. */
+    collateralText: string;
+  } | null;
+  /**
+   * Whether the room's Realtime channel is connected.
+   *
+   * Every action here writes to the `trades` row and nothing else, and that row
+   * is Realtime-published — so when the channel is up it delivers the result and
+   * a server refetch would only re-run the whole route to learn what the socket
+   * already said. When it is down, the refetch is the only way the UI moves.
+   */
+  liveUpdates?: boolean;
 }
 
 export function TradeNegotiationPanel({
@@ -89,12 +126,16 @@ export function TradeNegotiationPanel({
   counterpartyName,
   termsVersion,
   terms,
+  paymentMethod = null,
+  acceptCost = null,
+  liveUpdates = false,
 }: TradeNegotiationPanelProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [counterOpen, setCounterOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [acceptOpen, setAcceptOpen] = useState(false);
+  const [hasCard, setHasCard] = useState(false);
 
   const [cash, setCash] = useState((terms.cashAmountCents / 100).toFixed(2));
   const [direction, setDirection] = useState(terms.cashDirection);
@@ -109,19 +150,18 @@ export function TradeNegotiationPanel({
 
   function run(
     operation: () => Promise<TradeNegotiationResult>,
-    success: string,
   ): Promise<boolean> {
     setError(null);
     return new Promise((resolve) => {
       startTransition(async () => {
         const result = await operation();
         if (result.ok) {
-          toast.success(
-            result.collateralStarted ? 'Terms agreed. Collateral is being arranged.' : success,
-          );
           setCounterOpen(false);
           setDeclineOpen(false);
-          router.refresh();
+          // Only when the socket cannot tell us. `/trades/[id]` is five queries
+          // and a live Stripe call, and it ran on every accept, counter and
+          // decline to fetch a row the channel had already pushed.
+          if (!liveUpdates) router.refresh();
           resolve(true);
         } else {
           const message = result.message ?? 'Something went wrong. Please try again.';
@@ -151,10 +191,7 @@ export function TradeNegotiationPanel({
       message: note,
       counterpartGoodsDescription: isShopfrontTrade ? counterpartGoods.trim() : null,
     };
-    run(
-      () => proposeTradeTerms(tradeId, termsVersion, payload),
-      'Cash updated. They need to accept the new amount.',
-    );
+    run(() => proposeTradeTerms(tradeId, termsVersion, payload));
   }
 
   return (
@@ -164,7 +201,11 @@ export function TradeNegotiationPanel({
           them again here made the action card a summary with buttons attached
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex w-full min-w-0 flex-col items-stretch gap-2 sm:items-end">
+        <SavedCardRow
+          initialStatus={paymentMethod}
+          className="w-full sm:max-w-sm"
+        />
         <ContractOverflowMenu>
           {actions.includes('PROPOSE_TERMS') ? (
             <Button variant="ghost" disabled={isPending} onClick={() => setCounterOpen(true)}>
@@ -189,7 +230,7 @@ export function TradeNegotiationPanel({
             aria-haspopup="dialog"
             onClick={() => setAcceptOpen(true)}
           >
-            {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
             Accept terms
           </Button>
         ) : null}
@@ -273,32 +314,84 @@ export function TradeNegotiationPanel({
               Cancel
             </Button>
             <Button onClick={submitCounter} disabled={isPending} aria-busy={isPending}>
-              {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
               Save cash
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
+      <Dialog
         open={acceptOpen}
         onOpenChange={(open) => {
           if (isPending) return;
           setAcceptOpen(open);
         }}
-        title="Accept these terms?"
-        description="The last accept places a temporary Stripe card hold (not a charge) and may charge the trade fee."
-        confirmLabel="Accept terms"
-        pending={isPending}
-        helpHref="/help#holds"
-        onConfirm={async () => {
-          const ok = await run(
-            () => acceptTradeTerms(tradeId, termsVersion),
-            'Accepted. Waiting on the other trader.',
-          );
-          if (ok) setAcceptOpen(false);
-        }}
-      />
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accept these terms?</DialogTitle>
+            <DialogDescription>
+              If you are the last to accept, the trade starts straight away: the
+              fee is charged to your card and the collateral is authorised
+              against it. Replace the card here if you do not want this one used.
+            </DialogDescription>
+          </DialogHeader>
+          {/* The Exchange row already carries the fee, but it is one row of an
+              inspector that sits behind a sheet on a phone — so this button is
+              reachable having seen neither figure. Both are named here because
+              this is the click that moves the money. */}
+          {acceptCost ? (
+            <ContractMoneyTable
+              ariaLabel="What accepting costs you"
+              rows={[
+                {
+                  label: `NoDitto fee (${TRADE_FEE_BPS / 100}%)`,
+                  value: acceptCost.feeText,
+                  hint: 'Charged to your card.',
+                },
+                {
+                  label: 'Collateral',
+                  value: acceptCost.collateralText,
+                  hint: 'Authorised, not charged. Released in full when the trade completes.',
+                },
+              ]}
+            />
+          ) : null}
+          <SavedCardRow inline initialStatus={paymentMethod} onStatus={setHasCard} />
+          <p className="text-body">
+            <Link
+              href="/help#holds"
+              className="font-medium underline underline-offset-4 hover:text-foreground"
+            >
+              How holds and disputes work
+            </Link>
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setAcceptOpen(false)}
+              disabled={isPending}
+            >
+              Back
+            </Button>
+            <Button
+              type="button"
+              disabled={isPending || !hasCard}
+              aria-busy={isPending}
+              onClick={() => {
+                void run(() => acceptTradeTerms(tradeId, termsVersion)).then((ok) => {
+                  if (ok) setAcceptOpen(false);
+                });
+              }}
+            >
+              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
+              Accept terms
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <DialogContent>
@@ -317,7 +410,7 @@ export function TradeNegotiationPanel({
               variant="destructive"
               disabled={isPending}
               aria-busy={isPending}
-              onClick={() => run(() => declineTradeOffer(tradeId), 'Offer closed.')}
+              onClick={() => run(() => declineTradeOffer(tradeId))}
             >
               Decline offer
             </Button>

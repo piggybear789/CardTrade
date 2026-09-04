@@ -28,6 +28,7 @@
 // caller's own id, returning only the fields Req 4 names (Req 2.4).
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   derivePayoutReadModel,
@@ -118,22 +119,61 @@ export async function getPayoutsDashboard(): Promise<
   ActionResult<PayoutsDashboardData, PayoutsActionError>
 > {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'You must be signed in to view payouts.');
 
-  // Sales where the caller is the SELLER. RLS already restricts this to contracts
-  // they participate in; the explicit seller filter is the second guard.
-  // NOTE: this select string must stay a single literal. Supabase infers the row
+  // FIVE READS THAT ONLY NEED `user.id`, IN ONE ROUND TRIP.
+  //
+  // This function was a seven-stage chain, and five of those stages had no
+  // dependency on the one before them — the dashboard simply awaited each in
+  // turn. It is the slowest thing on the account surface, so it set the floor
+  // for the whole page.
+  //
+  // NOTE: each select string must stay a single literal. Supabase infers the row
   // type from it, and concatenating the string collapses that inference to
   // `GenericStringError`, which then reports every field access as missing.
-  const { data: salesData, error: salesError } = await supabase
-    .from('cash_sales')
-    .select(
-      'id, item_title, status, amount_cents, platform_fee_cents, refund_cents, seller_payout_status, seller_payout_attempts, seller_payout_error, completed_at, dispute_reason, disputed_by',
-    )
-    .eq('seller_id', user.id);
+  const [
+    { data: salesData, error: salesError },
+    { data: tradesData },
+    { data: disputesData },
+    { data: profile },
+    hostedOnboarding,
+  ] = await Promise.all([
+    // Sales where the caller is the SELLER. RLS already restricts this to
+    // contracts they participate in; the explicit seller filter is the second
+    // guard.
+    supabase
+      .from('cash_sales')
+      .select(
+        'id, item_title, status, amount_cents, platform_fee_cents, refund_cents, seller_payout_status, seller_payout_attempts, seller_payout_error, completed_at, dispute_reason, disputed_by',
+      )
+      .eq('seller_id', user.id),
+    // Trades the Member participated in that have a money consequence. Bond
+    // amounts are not columns on `trades` — they live in `pre_auth_holds`, one
+    // row per trader per trade, which also records what was actually captured.
+    supabase
+      .from('trades')
+      .select(
+        'id, state, initiator_id, counterpart_id, fraud_victim_id, friction_tax_platform_cents, friction_tax_return_cents, created_at',
+      )
+      .or(`initiator_id.eq.${user.id},counterpart_id.eq.${user.id}`)
+      .in('state', ['DISPUTED', 'FRAUD_RESOLVED']),
+    // Chargebacks attributable to the caller. Column privileges from migration
+    // 0040 mean only the member-safe projection is selectable at all.
+    supabase
+      .from('charge_disputes')
+      .select('id, amount_cents, opened_at, closed_at, outcome, cash_sale_id, trade_id'),
+    // Provider-controlled columns, read through the admin client scoped to the
+    // caller's own row, returning only what Req 4 permits.
+    createAdminClient()
+      .from('profiles')
+      .select('merchant_status, merchant_settlements_enabled, merchant_legal_entity_name')
+      .eq('id', user.id)
+      .maybeSingle(),
+    // Resolved from the provider seam rather than from env, so the client never
+    // learns which provider is configured.
+    hostedOnboardingAvailable(),
+  ]);
 
   if (salesError) {
     return fail('read-failed', 'We could not load your payouts right now.');
@@ -163,60 +203,50 @@ export async function getPayoutsDashboard(): Promise<
   });
 
   const saleIds = sales.map((s) => s.id);
-
-  // Payout events for those sales only. Skipped entirely when there are no sales,
-  // because `.in()` with an empty list is a wasted round trip.
-  let events: PayoutEventInput[] = [];
-  if (saleIds.length > 0) {
-    const { data: eventsData } = await supabase
-      .from('cash_sale_events')
-      .select('id, cash_sale_id, event, created_at')
-      .in('cash_sale_id', saleIds)
-      .in('event', PAYOUT_EVENTS as unknown as string[]);
-
-    events = (eventsData ?? []).map((row) => ({
-      id: row.id as string,
-      cashSaleId: row.cash_sale_id as string,
-      event: row.event as string,
-      createdAt: row.created_at as string,
-    }));
-  }
-
-  // Trades the Member participated in that have a money consequence. Bond amounts
-  // are not columns on `trades` — they live in `pre_auth_holds`, one row per
-  // trader per trade, which also records what was actually captured.
-  const { data: tradesData } = await supabase
-    .from('trades')
-    .select(
-      'id, state, initiator_id, counterpart_id, fraud_victim_id, friction_tax_platform_cents, friction_tax_return_cents, created_at',
-    )
-    .or(`initiator_id.eq.${user.id},counterpart_id.eq.${user.id}`)
-    .in('state', ['DISPUTED', 'FRAUD_RESOLVED']);
-
   const tradeRows = tradesData ?? [];
   const tradeIds = tradeRows.map((t) => t.id as string);
 
-  // `holds_participant_select` already scopes these to trades the caller is party
-  // to, so both sides of each hold pair are legitimately readable.
-  let holdsByTrade = new Map<string, { mine: number; theirs: number }>();
-  if (tradeIds.length > 0) {
-    const { data: holdsData } = await supabase
-      .from('pre_auth_holds')
-      .select('trade_id, trader_id, amount_cents, captured_cents')
-      .in('trade_id', tradeIds);
+  // The only two reads that genuinely depend on the batch above — they need the
+  // ids it returned. Both are skipped when their id list is empty, because
+  // `.in()` with no values is a wasted round trip.
+  const [eventsData, holdsData] = await Promise.all([
+    saleIds.length > 0
+      ? supabase
+          .from('cash_sale_events')
+          .select('id, cash_sale_id, event, created_at')
+          .in('cash_sale_id', saleIds)
+          .in('event', PAYOUT_EVENTS as unknown as string[])
+          .then(({ data }) => data ?? [])
+      : Promise.resolve([]),
+    // `holds_participant_select` already scopes these to trades the caller is
+    // party to, so both sides of each hold pair are legitimately readable.
+    tradeIds.length > 0
+      ? supabase
+          .from('pre_auth_holds')
+          .select('trade_id, trader_id, amount_cents, captured_cents')
+          .in('trade_id', tradeIds)
+          .then(({ data }) => data ?? [])
+      : Promise.resolve([]),
+  ]);
 
-    holdsByTrade = (holdsData ?? []).reduce((acc, hold) => {
-      const tradeId = hold.trade_id as string;
-      const entry = acc.get(tradeId) ?? { mine: 0, theirs: 0 };
-      // Prefer what was captured, falling back to what was authorised: on a
-      // resolved trade the captured figure is the money that actually moved.
-      const amount = Number(hold.captured_cents ?? 0) || Number(hold.amount_cents ?? 0);
-      if (hold.trader_id === user.id) entry.mine += amount;
-      else entry.theirs += amount;
-      acc.set(tradeId, entry);
-      return acc;
-    }, new Map<string, { mine: number; theirs: number }>());
-  }
+  const events: PayoutEventInput[] = eventsData.map((row) => ({
+    id: row.id as string,
+    cashSaleId: row.cash_sale_id as string,
+    event: row.event as string,
+    createdAt: row.created_at as string,
+  }));
+
+  const holdsByTrade = holdsData.reduce((acc, hold) => {
+    const tradeId = hold.trade_id as string;
+    const entry = acc.get(tradeId) ?? { mine: 0, theirs: 0 };
+    // Prefer what was captured, falling back to what was authorised: on a
+    // resolved trade the captured figure is the money that actually moved.
+    const amount = Number(hold.captured_cents ?? 0) || Number(hold.amount_cents ?? 0);
+    if (hold.trader_id === user.id) entry.mine += amount;
+    else entry.theirs += amount;
+    acc.set(tradeId, entry);
+    return acc;
+  }, new Map<string, { mine: number; theirs: number }>());
 
   const trades: TradeArbitrationInput[] = tradeRows.map((row) => {
     const bonds = holdsByTrade.get(row.id as string) ?? { mine: 0, theirs: 0 };
@@ -234,12 +264,6 @@ export async function getPayoutsDashboard(): Promise<
     };
   });
 
-  // Chargebacks attributable to the caller. Column privileges from migration 0040
-  // mean only the member-safe projection is selectable at all.
-  const { data: disputesData } = await supabase
-    .from('charge_disputes')
-    .select('id, amount_cents, opened_at, closed_at, outcome, cash_sale_id, trade_id');
-
   const disputes: ChargeDisputeInput[] = (disputesData ?? []).map((row) => ({
     id: row.id as string,
     amountCents: Number(row.amount_cents ?? 0),
@@ -249,14 +273,6 @@ export async function getPayoutsDashboard(): Promise<
     cashSaleId: (row.cash_sale_id as string | null) ?? null,
     tradeId: (row.trade_id as string | null) ?? null,
   }));
-
-  // Provider-controlled columns, read through the admin client scoped to the
-  // caller's own row, returning only what Req 4 permits.
-  const { data: profile } = await createAdminClient()
-    .from('profiles')
-    .select('merchant_status, merchant_settlements_enabled, merchant_legal_entity_name')
-    .eq('id', user.id)
-    .maybeSingle();
 
   const merchantStatus = (profile?.merchant_status ?? 'NONE') as MerchantStatus;
   const settlementsEnabled = Boolean(profile?.merchant_settlements_enabled);
@@ -273,9 +289,7 @@ export async function getPayoutsDashboard(): Promise<
     verifiedName: (profile?.merchant_legal_entity_name as string | null) ?? null,
     state: destinationState,
     settlementsEnabled,
-    // Resolved from the provider seam rather than from env, so the client never
-    // learns which provider is configured.
-    hostedOnboarding: await hostedOnboardingAvailable(),
+    hostedOnboarding,
   };
 
   return ok({

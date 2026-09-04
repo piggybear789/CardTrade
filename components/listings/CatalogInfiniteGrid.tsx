@@ -4,7 +4,8 @@
 // Desktop paging lives in CatalogResults and refetches through CatalogView.
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
-import { Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import {
   fetchCatalogPage,
@@ -12,10 +13,19 @@ import {
   type CatalogSort,
   type SearchCatalogParams,
 } from '@/lib/actions/listings';
+import { useIsDesktop } from '@/components/layout/Breakpoint';
+import {
+  CatalogMosaic,
+  catalogCoverDim,
+} from '@/components/listings/CatalogMosaic';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { useCatalogView } from '@/components/listings/CatalogView';
 
 const MOBILE_MAX = '(max-width: 1023px)';
+
+/** Hoisted: these are inputs to the mosaic's column balance, which is memoised. */
+const itemKey = (item: CatalogItem) => item.id;
+const itemCoverDim = (item: CatalogItem) => catalogCoverDim(item);
 
 export interface CatalogInfiniteGridProps {
   /** Bumps when the browse query is replaced so we reset without remounting. */
@@ -38,6 +48,7 @@ export interface CatalogInfiniteGridProps {
     minCents?: number;
     maxCents?: number;
     includeSold: boolean;
+    includeReserved: boolean;
     sort: CatalogSort;
     /** Region scope (0065). Must be replayed, or scrolling leaves the region. */
     regionCode?: string | null;
@@ -62,6 +73,7 @@ export function CatalogInfiniteGrid({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { filter, setMatchCount } = useCatalogView();
+  const isDesktop = useIsDesktop();
   const deferredFilter = useDeferredValue(filter);
   const visibleItems = useMemo(
     () => filterCatalogItems(items, deferredFilter),
@@ -103,6 +115,7 @@ export function CatalogInfiniteGrid({
       minCents: q.minCents,
       maxCents: q.maxCents,
       includeSold: q.includeSold || undefined,
+      includeReserved: q.includeReserved || undefined,
       sort: q.sort,
       regionCode: q.regionCode ?? undefined,
       page: nextPage,
@@ -176,16 +189,21 @@ export function CatalogInfiniteGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-x-4 sm:gap-y-6 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
-        {visibleItems.length === 0 ? (
-          <p className="col-span-full py-10 text-center text-body text-muted-foreground">
-            No listings here match “{filter.trim()}”.
-          </p>
-        ) : (
-          visibleItems.map((item) => (
-            <ViewTransition key={item.id} enter="fade-in" exit="fade-out" default="none">
+      {visibleItems.length === 0 ? (
+        <p className="py-10 text-center text-body text-muted-foreground">
+          No listings here match “{filter.trim()}”.
+        </p>
+      ) : (
+        <CatalogMosaic items={visibleItems} keyOf={itemKey} dimOf={itemCoverDim}>
+          {(item, coverDim) => (
+            <ViewTransition
+              enter={isDesktop ? 'fade-in' : undefined}
+              exit={isDesktop ? 'fade-out' : undefined}
+              default="none"
+            >
               <CatalogItemCard
                 item={item}
+                coverDim={coverDim}
                 initialWatching={
                   currentUserId && item.owner_id !== currentUserId
                     ? watchingIds.has(item.id)
@@ -193,9 +211,9 @@ export function CatalogInfiniteGrid({
                 }
               />
             </ViewTransition>
-          ))
-        )}
-      </div>
+          )}
+        </CatalogMosaic>
+      )}
 
       {/* Sentinel + status — mobile only; desktop uses the page nav below. */}
       <div className="lg:hidden">
@@ -204,31 +222,30 @@ export function CatalogInfiniteGrid({
           <button
             type="button"
             onClick={() => void loadMoreRef.current({ force: true })}
-            className="mt-snug w-full rounded-lg border border-border px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-snug w-full rounded-lg border border-border px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-iris"
           >
             Load more listings
           </button>
         ) : null}
-        <div className="flex flex-col items-center gap-snug py-6" aria-live="polite">
-          {loadingMore ? (
-            <p className="flex items-center gap-snug text-body text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Loading more…
-            </p>
-          ) : null}
-          {error ? (
-            <button
-              type="button"
-              onClick={() => void loadMoreRef.current({ force: true })}
-              className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {error}
-            </button>
-          ) : null}
-          {!hasMore && !loadingMore && visibleItems.length > 0 ? (
-            <p className="text-body text-muted-foreground">End of results</p>
-          ) : null}
-        </div>
+        {loadingMore || error ? (
+          <div className="flex flex-col items-center gap-snug py-6" aria-live="polite">
+            {loadingMore ? (
+              <p className="flex items-center gap-snug text-body text-muted-foreground">
+                <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden="true" />
+                Loading more…
+              </p>
+            ) : null}
+            {error ? (
+              <button
+                type="button"
+                onClick={() => void loadMoreRef.current({ force: true })}
+                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
+              >
+                {error}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </>
   );

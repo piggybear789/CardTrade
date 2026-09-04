@@ -51,6 +51,8 @@ const TABLES_REQUIRING_RLS = [
   'arbitration_assignments',
   'arbitration_notes',
   'deal_invites',
+  'identity_person_keys',
+  'identity_bans',
 ];
 
 /**

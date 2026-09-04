@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { signInWithGoogle } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 
-/** Google's brand mark, inlined because lucide-react ships no brand icons. */
+/** Google's brand mark, inlined because our icon set ships no brand icons. */
 function GoogleIcon() {
   return (
     <svg className="size-4" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
@@ -74,7 +74,7 @@ export function GoogleSignInButton({
     <Button
       type="button"
       variant="outline"
-      className="w-full"
+      className="min-h-11 w-full"
       onClick={handleClick}
       disabled={disabled || isPending}
     >

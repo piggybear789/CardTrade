@@ -10,7 +10,8 @@
 
 import { useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Check, ChevronDown, MapPin } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, ChevronDownIcon, MapPinIcon } from '@hugeicons/core-free-icons';
 
 import {
   isGuessedRegionSource,
@@ -61,7 +62,8 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
     startTransition(async () => {
       await setBrowseRegion(newCode);
 
-      if (pathname === '/listings' || pathname.startsWith('/listings?')) {
+      // `usePathname()` never carries a query string, so the catalog is exactly `/`.
+      if (pathname === '/') {
         const params = new URLSearchParams(searchParams.toString());
         params.delete('page');
         if (code === ALL_REGIONS) {
@@ -83,14 +85,14 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         className={cn(
-          'hidden items-center gap-tight rounded-md px-2 py-1 text-body font-semibold text-parchment/70 transition-colors hover:bg-white/10 hover:text-parchment focus:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:inline-flex',
+          'hidden items-center gap-tight rounded-md border border-transparent px-2 py-1 text-body font-semibold text-mist/70 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris sm:inline-flex',
           isPending && 'opacity-60',
         )}
         aria-label={`Browse region: ${label}. Click to change.`}
       >
-        <MapPin className="size-4 shrink-0" aria-hidden />
+        <HugeiconsIcon icon={MapPinIcon} className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{label}</span>
-        <ChevronDown className="size-3 shrink-0 opacity-60" aria-hidden />
+        <HugeiconsIcon icon={ChevronDownIcon} className="size-3 shrink-0 opacity-60" aria-hidden />
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
@@ -113,13 +115,13 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
                 onClick={() => selectRegion(region.code)}
                 disabled={isPending}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                  'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50',
                   selected
                     ? 'bg-accent font-medium text-accent-foreground'
                     : 'text-foreground hover:bg-accent/50',
                 )}
               >
-                <Check
+                <HugeiconsIcon icon={CheckIcon}
                   className={cn(
                     'size-4 shrink-0',
                     selected ? 'opacity-100' : 'opacity-0',
@@ -138,13 +140,13 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
             onClick={() => selectRegion(ALL_REGIONS)}
             disabled={isPending}
             className={cn(
-              'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+              'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50',
               !regionCode
                 ? 'bg-accent font-medium text-accent-foreground'
                 : 'text-foreground hover:bg-accent/50',
             )}
           >
-            <Check
+            <HugeiconsIcon icon={CheckIcon}
               className={cn(
                 'size-4 shrink-0',
                 !regionCode ? 'opacity-100' : 'opacity-0',

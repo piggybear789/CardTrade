@@ -16,7 +16,8 @@
 // bug this replaces.
 
 import { useState, useTransition } from 'react';
-import { Loader2, Scale, ShieldAlert } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, ScaleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { resolveTradeConditionDispute, resolveTradeFraud } from '@/lib/actions/admin';
@@ -70,7 +71,7 @@ export function TradeDisputeActions({
       const result = await resolveTradeConditionDispute(tradeId);
       setConfirming(null);
       if (result.ok) {
-        toast.success(`Resolved as a condition dispute. Trade is ${result.data.state}.`);
+        
         return;
       }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Resolution failed.');
@@ -83,7 +84,7 @@ export function TradeDisputeActions({
       const result = await resolveTradeFraud(tradeId, victimId);
       setConfirming(null);
       if (result.ok) {
-        toast.success('Resolved as objective fraud. Collateral captured, victim paid, and account permanently banned.');
+        
         return;
       }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Resolution failed.');
@@ -93,13 +94,13 @@ export function TradeDisputeActions({
   return (
     <div className="space-y-group rounded-lg border border-border bg-muted p-cozy">
       <p className="flex items-center gap-snug text-body font-medium">
-        <Scale className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
 
       {fraudClaimedById ? (
         <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-body text-destructive">
-          <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
             {parties.find((p) => p.id === fraudClaimedById)?.name ?? 'A trader'} has
             alleged fraud. That is a claim, not a finding — decide it on the evidence.
@@ -116,7 +117,7 @@ export function TradeDisputeActions({
           aria-haspopup="dialog"
           onClick={() => setConfirming('CONDITION')}
         >
-          {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
+          {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
           Resolve as condition dispute
         </Button>
         <p className="mt-1 text-body text-muted-foreground">
@@ -138,9 +139,9 @@ export function TradeDisputeActions({
                 aria-pressed={selected}
                 onClick={() => setVictimId(selected ? null : party.id)}
                 className={cn(
-                  'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+                  'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:border-iris disabled:opacity-60',
                   selected
-                    ? 'border-border bg-gold/10 font-semibold text-foreground'
+                    ? 'border-border bg-accent font-semibold text-accent-foreground'
                     : 'border-border text-foreground/85 hover:bg-muted',
                 )}
               >

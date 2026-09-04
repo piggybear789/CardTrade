@@ -11,7 +11,10 @@
 //
 // THE GATE IS A STRIPE IDENTITY DOCUMENT CHECK: `identity_check_status =
 // 'VERIFIED'`, set only when Stripe Identity accepts a government document and a
-// selfie matched to it (migration 0069).
+// selfie matched to it (migration 0069). A staff-confirmed fraud ban also copies
+// HMAC person keys from that document onto a blocklist (0105); a later account
+// matching those keys is never written VERIFIED. This predicate stays one
+// column — the block happens in `applyIdentityDecision`, not here.
 //
 // IT USED TO BE CONNECT ONBOARDING FINISHED — `merchant_status = 'APPROVED' and
 // merchant_settlements_enabled`. That was a deliberate compromise with a recorded

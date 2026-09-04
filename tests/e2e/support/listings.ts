@@ -7,9 +7,11 @@
 // permanently: accepting an offer opens a Cash_Sale, which flips
 // `items.status` to RESERVED, and nothing in the suite puts it back. A spec built
 // on a seed item therefore passes exactly once and fails on every later run with
-// "no longer available" — and it takes the catalog specs with it, because
-// `items_catalog_select` treats availability as visibility, so the item silently
-// leaves the catalog other tests assert on.
+// "no longer available" — and it takes the catalog specs with it, because the
+// default catalog query asks for AVAILABLE only, so the item silently leaves the
+// grid other tests assert on. (Since 0108 the row is still READABLE — reserved
+// listings are browsable behind an Availability toggle — but an unfiltered `/`
+// does not ask for it, which is what those specs look at.)
 //
 // So flows that consume an item create their own, marked, and teardown deletes it.
 // Flows that only READ an item (browse, detail, messaging) use the seed fixtures.
@@ -123,7 +125,7 @@ export interface CreateListingOptions {
  *    prefix means reinstating one would not break this helper. SINGLE is chosen
  *    because a SHOPFRONT is never reserved and never sold (0064) and so behaves
  *    differently in every downstream assertion.
- *  - Game / Condition are shadcn `Select`s. Radix renders the
+ *  - Category / Condition are shadcn `Select`s. Radix renders the
  *    trigger AND a hidden native <select>, both labelled by the same
  *    `<Label htmlFor>`, so `getByLabel` is permanently ambiguous. The trigger
  *    carries the id, so `#game` / `#condition` are used.
@@ -171,11 +173,12 @@ export async function createListing(
   // One prose field, and the marked label leads it so the derived title contains it.
   //
   // Matched EXACTLY on `Description`, which is what `ItemForm` labels it. This helper
-  // previously looked for `Describe what you are selling`; that string now lives only
-  // in the card's own `CardDescription` ("Describe your collectible and set its
-  // price…"), which `getByLabel` cannot see. The miss cost 6 failures across three
-  // lifecycles — cash-sale, trade and offers all reach escrow through this one line —
-  // and every one of them surfaced as a 90s timeout on a field that renders fine.
+  // previously looked for `Describe what you are selling`; that sentence still appears
+  // on the form, but only as the card's own `CardDescription` ("Describe your
+  // collectible and set its price…"), which `getByLabel` cannot see. So the stale
+  // selector matched nothing while the page plainly showed the words — which read as a
+  // hang rather than a rename. It cost 6 failures across three lifecycles, because
+  // cash-sale, trade and offers all reach escrow through this one line.
   //
   // `exact` because a substring match would also accept a future second field whose
   // label merely CONTAINS "Description", and filling the wrong box here would fail

@@ -10,8 +10,10 @@
 // kind so a pasted store link is accepted on Website and refused on Instagram.
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, Loader2, Plus, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon, LoaderCircleIcon, PlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { updateSocialLinks } from '@/lib/actions/socialLinks';
 import {
@@ -86,8 +88,11 @@ function valueIssue(platform: SocialPlatform, raw: string): string | null {
 
 export function SocialLinksEditor({
   initialLinks,
+  onSaved,
 }: {
   initialLinks: Record<string, string> | null;
+  /** Raised after a successful save, so a host sheet can dismiss itself. */
+  onSaved?: () => void;
 }) {
   const [values, setValues] = useState(() => valuesFromStored(initialLinks));
   const [baseline, setBaseline] = useState(() => valuesFromStored(initialLinks));
@@ -96,6 +101,7 @@ export function SocialLinksEditor({
   );
   const [isPending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
+  const router = useRouter();
 
   const pendingFocus = useRef<SocialPlatformSlug | null>(null);
   const inputRefs = useRef<Partial<Record<SocialPlatformSlug, HTMLInputElement | null>>>(
@@ -161,8 +167,9 @@ export function SocialLinksEditor({
       setValues(saved);
       setOpenSlugs(filledSlugs(saved));
       setJustSaved(true);
-      toast.success('Links saved.');
+      router.refresh();
       window.setTimeout(() => setJustSaved(false), 2000);
+      onSaved?.();
     });
   }
 
@@ -180,9 +187,9 @@ export function SocialLinksEditor({
         aria-busy={isPending}
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : justSaved ? (
-          <Check aria-hidden />
+          <HugeiconsIcon icon={CheckIcon} aria-hidden />
         ) : null}
         {justSaved && !dirty ? 'Saved' : 'Save links'}
       </Button>
@@ -201,7 +208,7 @@ export function SocialLinksEditor({
 
   return (
     <div className="flex flex-col gap-cozy">
-      <div className="divide-y overflow-hidden rounded-xl border bg-card">
+      <div className="divide-y overflow-hidden rounded-xl border bg-card max-md:rounded-none max-md:border-0 max-md:bg-transparent">
         {visible.map((platform) => {
           const inputId = `social-${platform.slug}`;
           const errorId = `${inputId}-error`;
@@ -213,18 +220,19 @@ export function SocialLinksEditor({
             <div
               key={platform.slug}
               className={cn(
-                'has-[input:focus-visible]:bg-muted has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-ring',
+                'has-[input:focus-visible]:border-iris has-[input:focus-visible]:bg-muted',
                 issue ? 'bg-destructive/5' : null,
               )}
             >
-              <div className="flex items-center gap-snug px-group">
+              <div className="flex flex-col gap-1 px-group py-snug sm:flex-row sm:items-center sm:gap-snug sm:py-0">
                 <label
                   htmlFor={inputId}
-                  className="flex w-28 shrink-0 cursor-text items-center gap-snug py-cozy text-body text-muted-foreground"
+                  className="flex w-auto shrink-0 cursor-text items-center gap-snug pt-snug text-body text-muted-foreground sm:w-28 sm:py-cozy sm:pt-cozy"
                 >
                   <SocialPlatformIcon slug={platform.slug} className="size-4" />
                   <span className="truncate">{platform.label}</span>
                 </label>
+                <div className="flex min-w-0 flex-1 items-center gap-snug">
                 {showAt ? (
                   <span
                     className="shrink-0 text-body text-muted-foreground"
@@ -254,17 +262,22 @@ export function SocialLinksEditor({
                   disabled={isPending}
                   aria-invalid={issue ? true : undefined}
                   aria-describedby={issue ? errorId : undefined}
-                  className="min-w-0 flex-1 bg-transparent py-cozy text-body font-medium text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground"
+                  // `text-lead pointer-fine:text-body`, matching `Input`. This is a
+                  // bare field inside a bordered row rather than an `Input`, and it
+                  // had been pinned at 13px — which is exactly the case iOS Safari
+                  // zooms on focus.
+                  className="min-w-0 flex-1 bg-transparent py-cozy text-lead font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground pointer-fine:text-body"
                 />
                 <button
                   type="button"
                   onClick={() => remove(platform.slug)}
                   disabled={isPending}
                   aria-label={`Remove ${platform.label}`}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-65"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-iris disabled:opacity-65 sm:size-8"
                 >
-                  <X className="size-4" aria-hidden />
+                  <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
                 </button>
+                </div>
               </div>
               {issue ? (
                 <p
@@ -321,7 +334,7 @@ function AddPlatformControl({
         disabled={disabled}
         onClick={() => onAdd(only.slug)}
       >
-        <Plus aria-hidden />
+        <HugeiconsIcon icon={PlusIcon} aria-hidden />
         Add {only.label}
       </Button>
     );
@@ -331,7 +344,7 @@ function AddPlatformControl({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" disabled={disabled}>
-          <Plus aria-hidden />
+          <HugeiconsIcon icon={PlusIcon} aria-hidden />
           Add a link
         </Button>
       </PopoverTrigger>
@@ -345,7 +358,7 @@ function AddPlatformControl({
                 onAdd(platform.slug);
                 setOpen(false);
               }}
-              className="flex h-9 items-center gap-snug rounded-md px-2.5 text-left text-body font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-9 items-center gap-snug rounded-md px-2.5 text-left text-body font-medium text-foreground hover:bg-accent border border-transparent focus-visible:outline-none focus-visible:border-iris"
             >
               <SocialPlatformIcon slug={platform.slug} className="size-3.5" />
               {platform.label}

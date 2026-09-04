@@ -1,9 +1,9 @@
 'use client';
 
 // Site-wide jump search. Finds a listing from anywhere: typeahead opens the
-// card, Enter starts a marketplace query. Already on `/listings`, that query
-// is applied in place so the page is not remounted. It does not live-filter
-// the grid — that is `CatalogFilterSearch`.
+// card, Enter starts a marketplace query. Already on the catalog (`/`), that
+// query is applied in place so the page is not remounted. It does not live-filter
+// the grid — that is `CatalogFilterSearch`. Phone chrome uses `appearance="pill"`.
 
 import {
   Suspense,
@@ -14,10 +14,12 @@ import {
   useTransition,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Search, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Search01Icon, XIcon } from '@hugeicons/core-free-icons';
 
 import { suggestCatalogItems, type CatalogSuggestion } from '@/lib/actions/listings';
 import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/browseEvents';
@@ -68,52 +70,133 @@ function retainSlashListener() {
   };
 }
 
-function HeaderSearchFallback({ className, ariaLabel }: { className?: string; ariaLabel: string }) {
+function HeaderSearchFallback({
+  className,
+  ariaLabel,
+  placeholder = PLACEHOLDER,
+  appearance = 'default',
+}: {
+  className?: string;
+  ariaLabel: string;
+  placeholder?: string;
+  appearance?: HeaderSearchAppearance;
+}) {
   return (
     <div role="search" className={cn('relative w-full', className)}>
-      <Search
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+      <HugeiconsIcon icon={Search01Icon}
+        className={cn(
+          'pointer-events-none absolute top-1/2 -translate-y-1/2',
+          appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
+          appearance === 'default' ? 'text-mist' : 'text-foreground',
+        )}
+        strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
       />
       <Input
         type="search"
         name="q"
-        placeholder={PLACEHOLDER}
+        placeholder={placeholder}
         aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
-        className="h-9 w-full pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+        className={cn(
+          'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          appearance === 'inset' &&
+            'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
+          appearance === 'pill' &&
+            'h-8 rounded-full border-border bg-card py-0 pl-8 leading-none text-foreground placeholder:text-muted-foreground',
+        )}
         disabled
       />
     </div>
   );
 }
 
+export type HeaderSearchAppearance = 'default' | 'inset' | 'pill';
+
 export interface HeaderSearchProps {
   className?: string;
   /**
    * Accessible label distinguishing multiple search fields on one page.
-   * Defaults to "Search listings". The header bar instance and the mobile menu
+   * Defaults to "Search listings". The header bar instance and the mobile sheet
    * instance should carry different labels so assistive tech does not announce
    * two identical controls.
    */
   ariaLabel?: string;
+  /**
+   * Overrides the default prompt. Listing detail runs a shorter one, because
+   * the trailing Report and Share buttons leave the pill too narrow for the
+   * full sentence.
+   */
+  placeholder?: string;
+  /** Focus the field on mount — used by the mobile search sheet. */
+  autoFocus?: boolean;
+  /** Fires after a query or listing pick navigates away. */
+  onNavigate?: () => void;
+  /**
+   * Control parked inside the field, after the clear button — the catalog
+   * filter glyph lives here so search and refine are one bar.
+   */
+  trailing?: ReactNode;
+  /** `inset` is a cream in-page field. `pill` is the seamless mobile chrome. */
+  appearance?: HeaderSearchAppearance;
 }
 
 /** Keeps useSearchParams behind Suspense so non-dynamic pages can prerender. */
-export function HeaderSearch({ className, ariaLabel = 'Search listings' }: HeaderSearchProps) {
+export function HeaderSearch({
+  className,
+  ariaLabel = 'Search listings',
+  placeholder = PLACEHOLDER,
+  autoFocus = false,
+  onNavigate,
+  trailing,
+  appearance = 'default',
+}: HeaderSearchProps) {
   return (
-    <Suspense fallback={<HeaderSearchFallback className={className} ariaLabel={ariaLabel} />}>
-      <HeaderSearchInner className={className} ariaLabel={ariaLabel} />
+    <Suspense
+      fallback={
+        <HeaderSearchFallback
+          className={className}
+          ariaLabel={ariaLabel}
+          placeholder={placeholder}
+          appearance={appearance}
+        />
+      }
+    >
+      <HeaderSearchInner
+        className={className}
+        ariaLabel={ariaLabel}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        onNavigate={onNavigate}
+        trailing={trailing}
+        appearance={appearance}
+      />
     </Suspense>
   );
 }
 
-function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaLabel: string }) {
+function HeaderSearchInner({
+  className,
+  ariaLabel,
+  placeholder,
+  autoFocus,
+  onNavigate,
+  trailing,
+  appearance,
+}: {
+  className?: string;
+  ariaLabel: string;
+  placeholder: string;
+  autoFocus: boolean;
+  onNavigate?: () => void;
+  trailing?: ReactNode;
+  appearance: HeaderSearchAppearance;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const onCatalog = pathname === '/listings';
+  const onCatalog = pathname === '/';
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimerRef = useRef<number | null>(null);
@@ -130,6 +213,11 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
   const [highlight, setHighlight] = useState(0);
 
   useEffect(() => retainSlashListener(), []);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    inputRef.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     return () => {
@@ -153,9 +241,9 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
       else params.delete('q');
       params.delete('page');
       const qs = params.toString();
-      return qs ? `/listings?${qs}` : '/listings';
+      return qs ? `/?${qs}` : '/';
     }
-    return trimmed ? `/listings?q=${encodeURIComponent(trimmed)}` : '/listings';
+    return trimmed ? `/?q=${encodeURIComponent(trimmed)}` : '/';
   }
 
   function scheduleSuggest(nextQuery: string) {
@@ -189,8 +277,10 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
     const trimmed = query.trim();
     if (onCatalog && requestCatalogBrowse({ q: trimmed || null })) {
+      onNavigate?.();
       return;
     }
+    onNavigate?.();
     startTransition(() => router.push(listingsHref(query)));
   }
 
@@ -213,6 +303,7 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
 
   function openListing(id: string) {
     setOpen(false);
+    onNavigate?.();
     startTransition(() => router.push(`/listings/${id}`));
   }
 
@@ -262,8 +353,13 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
       onSubmit={handleSubmit}
       className={cn('relative w-full', className)}
     >
-      <Search
-        className="pointer-events-none absolute left-3 top-1/2 z-[1] size-4 -translate-y-1/2 text-muted-foreground"
+      <HugeiconsIcon icon={Search01Icon}
+        className={cn(
+          'pointer-events-none absolute top-1/2 z-[1] -translate-y-1/2',
+          appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
+          appearance === 'default' ? 'text-mist' : 'text-foreground',
+        )}
+        strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
       />
       <Input
@@ -298,14 +394,27 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
             setOpen(false);
           }, 150);
         }}
-        placeholder={PLACEHOLDER}
+        placeholder={placeholder}
         aria-label={ariaLabel}
         autoComplete="off"
         spellCheck={false}
         enterKeyHint="search"
         className={cn(
-          'h-9 w-full pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
-          query ? 'pr-9' : 'pr-3',
+          // NO `text-body` on any appearance. All three inherit Input's
+          // `text-lead pointer-fine:text-body`, which is the iOS zoom floor on touch
+          // and 13px wherever there is a real pointer.
+          //
+          // The base string used to set `text-body` under a comment claiming the
+          // opposite, and the chrome pill set it again to match the games row. Both
+          // won over Input through tailwind-merge, so the search field on the public
+          // catalog — the first thing a phone visitor taps — rendered at 13px and
+          // zoomed the viewport on focus, with no way back out but a pinch.
+          'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          appearance === 'inset' &&
+            'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
+          appearance === 'pill' &&
+            'h-8 rounded-full border-border bg-card py-0 pl-8 leading-none text-foreground placeholder:text-muted-foreground',
+          trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-3',
         )}
       />
       {query ? (
@@ -314,10 +423,18 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
           onMouseDown={(event) => event.preventDefault()}
           onClick={clearQuery}
           aria-label="Clear search"
-          className="absolute right-1 top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(
+            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-iris',
+            trailing ? 'right-9' : 'right-1',
+          )}
         >
-          <X className="size-3.5" aria-hidden />
+          <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
         </button>
+      ) : null}
+      {trailing ? (
+        <div className="absolute right-1 top-1/2 z-[1] -translate-y-1/2">
+          {trailing}
+        </div>
       ) : null}
 
       {showList ? (
@@ -325,7 +442,12 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
           id={listId}
           role="listbox"
           aria-label="Matching listings"
-          className="absolute inset-x-0 top-full z-50 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-md"
+          className={cn(
+            'absolute inset-x-0 top-full z-50 mt-1 max-h-80 overflow-auto rounded-md border border-border py-1 shadow-md',
+            appearance === 'default'
+              ? 'bg-popover text-popover-foreground'
+              : 'bg-card text-foreground',
+          )}
         >
           {loading && hits.length === 0 ? (
             <li className="px-3 py-2 text-meta text-muted-foreground" aria-live="polite">
@@ -346,8 +468,14 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-2.5 px-2 py-2 text-left focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                    active ? 'bg-accent' : 'hover:bg-muted/70',
+                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-2 py-2 text-left focus:outline-none focus-visible:border-iris',
+                    appearance === 'default'
+                      ? active
+                        ? 'bg-accent'
+                        : 'hover:bg-muted/70 focus-visible:bg-accent'
+                      : active
+                        ? 'bg-muted'
+                        : 'bg-card hover:bg-muted/70',
                   )}
                 >
                   <span className="relative size-9 shrink-0 overflow-hidden rounded-sm border border-border bg-muted">
@@ -381,11 +509,17 @@ function HeaderSearchInner({ className, ariaLabel }: { className?: string; ariaL
               onMouseEnter={() => setHighlight(showAllIndex)}
               className={cn(
                 'flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-body',
-                highlight === showAllIndex ? 'bg-accent' : 'hover:bg-muted/70',
+                appearance === 'default'
+                  ? highlight === showAllIndex
+                    ? 'bg-accent'
+                    : 'hover:bg-muted/70'
+                  : highlight === showAllIndex
+                    ? 'bg-muted'
+                    : 'bg-card',
                 hits.length > 0 && 'mt-1 border-t border-border',
               )}
             >
-              <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <span className="min-w-0 truncate">
                 Search listings for “{query.trim()}”
               </span>

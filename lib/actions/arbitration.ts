@@ -556,25 +556,69 @@ export async function getArbitrationCase(
   const gate = await requireStaff();
   if (!gate.ok) return fail(gate.error, 'You are not authorized to view arbitration cases.');
 
-  const queue = await getArbitrationQueue();
+  const admin = createAdminClient();
+
+  // ONE ROUND TRIP FOR EVERYTHING THAT ONLY NEEDS `kind` AND `ref`.
+  //
+  // These were six awaits in a row behind the queue rebuild, which made opening
+  // a single case a seven-stage chain. Only two of them genuinely depend on
+  // anything earlier — the note authors' names, and the resolution, which reads
+  // the derived case — so the rest start now and are awaited together.
+  //
+  // The queue rebuild stays. Deriving the case here instead would put a second
+  // definition of "what is an open case" next to the first, and the two would
+  // drift; see the note above this function.
+  const [queue, { data: noteRows }, timelineRows, evidence, shipRow] =
+    await Promise.all([
+      getArbitrationQueue(),
+      admin
+        .from('arbitration_notes')
+        .select('id, author_id, body, created_at')
+        .eq('case_kind', kind)
+        .eq('case_ref', ref)
+        .order('created_at', { ascending: false }),
+      // The contract's own event log. Cash_Sales keep one; trades and chargebacks
+      // do not, and those cases show no timeline rather than a fabricated one.
+      kind === 'CASH_SALE'
+        ? admin
+            .from('cash_sale_events')
+            .select('event, detail, created_at')
+            .eq('cash_sale_id', ref)
+            .order('created_at', { ascending: true })
+            .then(({ data }) => data ?? [])
+        : Promise.resolve([]),
+      // Participant statements and media (0082). A CHARGEBACK has no contract room
+      // for a party to file from, so it is skipped rather than queried for nothing.
+      kind === 'CHARGEBACK'
+        ? Promise.resolve([])
+        : getDisputeEvidenceForStaff(kind, ref).then((result) =>
+            result.ok ? result.data.entries : [],
+          ),
+      // 0088: shipment tracking for both legs of a Cash_Sale. An arbitrator
+      // deciding a return dispute must see whether the outbound arrived and
+      // whether the return did.
+      kind === 'CASH_SALE'
+        ? admin
+            .from('cash_sales')
+            .select(
+              'tracking_carrier, tracking_number, shipped_at, carrier_delivered_at, return_tracking_carrier, return_tracking_number, return_shipped_at, return_carrier_delivered_at, return_disputed_at, return_dispute_reason, return_lapsed_at',
+            )
+            .eq('id', ref)
+            .maybeSingle()
+            .then(({ data }) => data)
+        : Promise.resolve(null),
+    ]);
+
   if (!queue.ok) return fail(queue.error, queue.message);
 
   const found = queue.data.cases.find((c) => c.kind === kind && c.ref === ref);
   if (!found) return fail('not-found', 'That case is not open, or does not exist.');
 
-  const admin = createAdminClient();
-
-  const { data: noteRows } = await admin
-    .from('arbitration_notes')
-    .select('id, author_id, body, created_at')
-    .eq('case_kind', kind)
-    .eq('case_ref', ref)
-    .order('created_at', { ascending: false });
-
-  const authorNames = await namesFor(
-    admin,
-    (noteRows ?? []).map((n) => n.author_id as string),
-  );
+  // Both need something from above, and neither needs the other.
+  const [authorNames, resolution] = await Promise.all([
+    namesFor(admin, (noteRows ?? []).map((n) => n.author_id as string)),
+    readResolution(admin, kind, ref, found),
+  ]);
 
   const notes: ArbitrationNote[] = (noteRows ?? []).map((row) => ({
     id: row.id as string,
@@ -584,23 +628,12 @@ export async function getArbitrationCase(
     createdAt: row.created_at as string,
   }));
 
-  // The contract's own event log. Cash_Sales keep one; trades and
-  // chargebacks do not, and those cases show no timeline rather than a fabricated one.
-  let timeline: { event: string; detail: string | null; at: string }[] = [];
-  if (kind === 'CASH_SALE') {
-    const { data: events } = await admin
-      .from('cash_sale_events')
-      .select('event, detail, created_at')
-      .eq('cash_sale_id', ref)
-      .order('created_at', { ascending: true });
-    timeline = (events ?? []).map((row) => ({
-      event: row.event as string,
-      detail: (row.detail as string | null) ?? null,
-      at: row.created_at as string,
-    }));
-  }
+  const timeline = timelineRows.map((row) => ({
+    event: row.event as string,
+    detail: (row.detail as string | null) ?? null,
+    at: row.created_at as string,
+  }));
 
-  const resolution = await readResolution(admin, kind, ref, found);
   const contractHref =
     kind === 'CASH_SALE'
       ? `/sales/${ref}`
@@ -614,28 +647,8 @@ export async function getArbitrationCase(
               : null
           : null;
 
-  // Participant statements and media (0082). A CHARGEBACK has no contract room for a
-  // party to file from, so it is skipped rather than queried for nothing.
-  const evidence =
-    kind === 'CHARGEBACK'
-      ? []
-      : await getDisputeEvidenceForStaff(kind, ref).then((result) =>
-          result.ok ? result.data.entries : [],
-        );
-
-  // 0088: shipment tracking for both legs of a Cash_Sale. An arbitrator deciding a
-  // return dispute must see whether the outbound arrived and whether the return did.
-  let shipment: ArbitrationShipmentEvidence | null = null;
-  if (kind === 'CASH_SALE') {
-    const { data: shipRow } = await admin
-      .from('cash_sales')
-      .select(
-        'tracking_carrier, tracking_number, shipped_at, carrier_delivered_at, return_tracking_carrier, return_tracking_number, return_shipped_at, return_carrier_delivered_at, return_disputed_at, return_dispute_reason, return_lapsed_at',
-      )
-      .eq('id', ref)
-      .maybeSingle();
-    if (shipRow) {
-      shipment = {
+  const shipment: ArbitrationShipmentEvidence | null = shipRow
+    ? {
         outbound: {
           carrier: (shipRow.tracking_carrier as string | null) ?? null,
           trackingNumber: (shipRow.tracking_number as string | null) ?? null,
@@ -651,9 +664,8 @@ export async function getArbitrationCase(
         returnDisputeReason: (shipRow.return_dispute_reason as string | null) ?? null,
         returnDisputedAt: (shipRow.return_disputed_at as string | null) ?? null,
         returnLapsedAt: (shipRow.return_lapsed_at as string | null) ?? null,
-      };
-    }
-  }
+      }
+    : null;
 
   return ok({
     case: found,

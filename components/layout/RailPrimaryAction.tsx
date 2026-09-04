@@ -1,20 +1,29 @@
 // components/layout/RailPrimaryAction.tsx
 //
-// A section's primary CTA: obsidian fill, parchment label. Sized by its
-// container — full width in the rail, and in SectionHeader's `mobileAction`
-// slot below `md`. Lives in its own module so client triggers can reuse it
-// without importing the server MarketplaceShell.
+// A section's primary CTA. Sized by its container — full width in the rail, and
+// in SectionHeader's `mobileAction` slot below `md`. Lives in its own module so
+// client triggers can reuse it without importing the server MarketplaceShell.
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PlusIcon } from '@hugeicons/core-free-icons';
 
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 
-const CREATE_GLYPH = <Plus aria-hidden="true" className="text-gold" />;
+const CREATE_GLYPH = <HugeiconsIcon icon={PlusIcon} aria-hidden="true" />;
 
-const ACTION_CLASS =
-  'w-full border border-white/15 bg-obsidian text-parchment font-semibold shadow-sm hover:bg-obsidian/80 hover:border-white/25';
+// Obsidian, not the violet primary. A section CTA sits in the rail beside a
+// column of lilac chrome — the iris rail markers, the accent current-section
+// fill, the violet category pills — and a violet fill in that company is one
+// more purple rectangle rather than the one thing to press. Black is the only
+// value in the palette nothing else in the rail is using.
+//
+// `variant`, not a `bg-` class: the fill, the border and both interaction
+// states have to move together, and `contrast` is where that set already
+// lives. See the `Button` cva.
+const ACTION_VARIANT = 'contrast' as const;
+const ACTION_CLASS = 'w-full';
 
 type RailPrimaryActionProps = {
   /**
@@ -24,6 +33,18 @@ type RailPrimaryActionProps = {
    * appears.
    */
   glyph?: ReactNode;
+  /**
+   * Per-call-site size, because "the section's primary action" is not one
+   * weight across the app. On a section you arrive at to DO something, the
+   * default is right — the rail CTA is one of several equals. On the catalog it
+   * is the only thing in the rail competing with a full grid of cards, and the
+   * default 28px pill loses.
+   *
+   * Set it on the instance, never on `ACTION_CLASS`: this component is also
+   * handed to SectionHeader's `mobileAction` by six other sections, so a change
+   * to the default is a change to their phone layouts too.
+   */
+  size?: ButtonProps['size'];
   children: ReactNode;
 } & (
   | { href: string; onClick?: never }
@@ -34,11 +55,18 @@ export function RailPrimaryAction({
   href,
   onClick,
   glyph = CREATE_GLYPH,
+  size,
   children,
 }: RailPrimaryActionProps) {
   if (onClick) {
     return (
-      <Button type="button" className={ACTION_CLASS} onClick={onClick}>
+      <Button
+        type="button"
+        variant={ACTION_VARIANT}
+        size={size}
+        className={ACTION_CLASS}
+        onClick={onClick}
+      >
         {glyph}
         {children}
       </Button>
@@ -46,7 +74,7 @@ export function RailPrimaryAction({
   }
 
   return (
-    <Button asChild className={ACTION_CLASS}>
+    <Button asChild variant={ACTION_VARIANT} size={size} className={ACTION_CLASS}>
       <Link href={href} transitionTypes={['nav-forward']}>
         {glyph}
         {children}

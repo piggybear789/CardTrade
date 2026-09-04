@@ -13,7 +13,8 @@
 // nonce, so the provider deduplicates instead of paying twice.
 
 import { useState, useTransition } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { drainCashSalePayouts, retryCashSalePayout } from '@/lib/actions/admin';
@@ -38,11 +39,7 @@ export function RetryPayoutButton({ cashSaleId }: RetryPayoutButtonProps) {
     startTransition(async () => {
       const result = await retryCashSalePayout(cashSaleId);
       if (result.ok) {
-        toast.success(
-          result.data.status === 'SETTLED'
-            ? 'Released to the seller.'
-            : `Release still ${result.data.status.toLowerCase()}.`,
-        );
+        
         return;
       }
       // Prefer the action's specific message — "the seller cannot receive funds
@@ -61,9 +58,9 @@ export function RetryPayoutButton({ cashSaleId }: RetryPayoutButtonProps) {
       aria-busy={isPending}
     >
       {isPending ? (
-        <Loader2 className="animate-spin" aria-hidden />
+        <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
       ) : (
-        <RefreshCw aria-hidden />
+        <HugeiconsIcon icon={RefreshCwIcon} aria-hidden />
       )}
       Retry release
     </Button>
@@ -85,9 +82,7 @@ export function DrainPayoutsButton() {
             ? 'Nothing owed.'
             : `${settled} of ${considered} released, ${stillOwed} still owed.`,
         );
-        toast.success(
-          considered === 0 ? 'No releases were owed.' : `Released ${settled} of ${considered}.`,
-        );
+        
         return;
       }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Drain failed.');
@@ -104,9 +99,9 @@ export function DrainPayoutsButton() {
         aria-busy={isPending}
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : (
-          <RefreshCw aria-hidden />
+          <HugeiconsIcon icon={RefreshCwIcon} aria-hidden />
         )}
         Run release queue
       </Button>

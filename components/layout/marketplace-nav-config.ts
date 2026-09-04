@@ -1,28 +1,13 @@
 // Shared marketplace section map for the desktop rail and mobile bottom hubs.
 // Keep labels/hrefs in one place so active-state logic cannot drift.
 
-import type { LucideIcon } from 'lucide-react';
-import {
-  Bell,
-  BookmarkCheck,
-  HandCoins,
-  Handshake,
-  MessageCircle,
-  Package,
-  Repeat2,
-  Scale,
-  ShieldCheck,
-  ShoppingBag,
-  Sparkles,
-  Tag,
-  Tags,
-  UserRound,
-} from 'lucide-react';
+import type { IconSvgElement } from '@hugeicons/react';
+import { BellIcon, BookmarkCheck01Icon, HandCoinsIcon, HandshakeIcon, LayoutGridIcon, MessageCircleIcon, PackageIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
 
 export type MarketplaceNavLink = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconSvgElement;
 };
 
 export type MarketplaceNavGroup = {
@@ -52,8 +37,8 @@ export type MarketplaceNavGroup = {
 export const STAFF_NAV_GROUP = {
   label: 'Staff',
   links: [
-    { href: '/admin/arbitration', label: 'Cases', icon: Scale },
-    { href: '/admin', label: 'Operations', icon: ShieldCheck },
+    { href: '/admin/arbitration', label: 'Cases', icon: ScaleIcon },
+    { href: '/admin', label: 'Operations', icon: ShieldCheckIcon },
   ],
 } as const satisfies MarketplaceNavGroup;
 
@@ -75,33 +60,37 @@ export const MARKETPLACE_NAV_GROUPS = [
   {
     label: 'Marketplace',
     links: [
-      { href: '/listings', label: 'Browse All', icon: Sparkles },
-      { href: '/saved', label: 'Saved', icon: BookmarkCheck },
+      // The catalog is the homepage. Listing detail pages stayed under
+      // `/listings/[id]`, which is why the active-state helper below cannot
+      // simply prefix-match this href.
+      { href: '/', label: 'Browse All', icon: LayoutGridIcon },
+      { href: '/saved', label: 'Saved', icon: BookmarkCheck01Icon },
     ],
   },
   {
     label: 'Contracts',
     links: [
-      { href: '/purchases', label: 'Purchases', icon: ShoppingBag },
-      { href: '/sales', label: 'Sales', icon: Tag },
+      { href: '/purchases', label: 'Purchases', icon: ShoppingBag01Icon },
+      { href: '/sales', label: 'Sales', icon: Tag01Icon },
       // Private deals are invites that open a Cash_Sale or a Trade. Pending
       // unused invites sit in those inboxes; the rooms themselves are unchanged.
-      { href: '/trades', label: 'Trades', icon: Repeat2 },
+      { href: '/trades', label: 'Trades', icon: RepeatIcon },
     ],
   },
   {
     label: 'Selling',
     links: [
-      { href: '/listings/mine', label: 'My Listings', icon: Tags },
-      { href: '/offers', label: 'Offers', icon: HandCoins },
+      { href: '/listings/new', label: 'Sell an item', icon: PackagePlusIcon },
+      { href: '/listings/mine', label: 'My Listings', icon: TagsIcon },
+      { href: '/offers', label: 'Offers', icon: HandCoinsIcon },
     ],
   },
   {
     label: 'You',
     links: [
-      { href: '/messages', label: 'Messages', icon: MessageCircle },
-      { href: '/notifications', label: 'Notifications', icon: Bell },
-      { href: '/profile', label: 'Account', icon: UserRound },
+      { href: '/messages', label: 'Messages', icon: MessageCircleIcon },
+      { href: '/notifications', label: 'Notifications', icon: BellIcon },
+      { href: '/profile', label: 'Account', icon: UserRoundIcon },
     ],
   },
 ] as const satisfies readonly MarketplaceNavGroup[];
@@ -111,9 +100,10 @@ export function isMarketplaceSectionActive(
   pathname: string,
   href: string,
 ): boolean {
-  if (href === '/listings') {
-    // Browsing owns listing detail pages; selling, editing, and the caller's own
-    // listings are separate sections and must not light up Browse All.
+  if (href === '/') {
+    // Browsing owns the catalog at `/` and the listing detail pages still served
+    // from `/listings/[id]`; selling, editing, and the caller's own listings are
+    // separate sections and must not light up Browse All.
     if (
       pathname === '/listings/new' ||
       pathname === '/listings/mine' ||
@@ -121,7 +111,7 @@ export function isMarketplaceSectionActive(
     ) {
       return false;
     }
-    return pathname === '/listings' || pathname.startsWith('/listings/');
+    return pathname === '/' || pathname.startsWith('/listings/');
   }
   if (href === '/admin') {
     // Moderation owns /admin itself, not the arbitration workspace beneath it.
@@ -129,13 +119,15 @@ export function isMarketplaceSectionActive(
     // way Browse would light up on My Listings.
     return pathname === '/admin';
   }
+  if (href === '/listings/new') {
+    return pathname === '/listings/new';
+  }
   if (href === '/listings/mine') {
-    // Create + edit listing flows belong to Selling (My Listings), not Browse.
+    // Edit listing flows belong to Selling (My Listings), not Browse.
     // Desktop rail and mobile Sell hub both use this helper, so keep them aligned.
     return (
       pathname === '/listings/mine' ||
       pathname.startsWith('/listings/mine/') ||
-      pathname === '/listings/new' ||
       (pathname.startsWith('/listings/') && pathname.endsWith('/edit'))
     );
   }
@@ -149,25 +141,47 @@ export type MobileHubId =
   | 'messages'
   | 'account';
 
-export type MobileHub =
-  | {
-      id: MobileHubId;
-      kind: 'link';
-      href: string;
-      label: string;
-      icon: LucideIcon;
-      isActive: (pathname: string) => boolean;
-    }
-  | {
-      id: MobileHubId;
-      kind: 'sheet';
-      label: string;
-      icon: LucideIcon;
-      title: string;
-      description: string;
-      links: readonly MarketplaceNavLink[];
-      isActive: (pathname: string) => boolean;
-    };
+/**
+ * Whether a hub is reachable without a session.
+ *
+ * Declared per hub rather than inferred, because the bar is now mounted for guests
+ * too and "which of these five can a signed-out visitor actually use" is a product
+ * decision that has to be made once, here, instead of re-derived at each call site.
+ */
+type HubAudience = { requiresAuth: boolean };
+
+export type MobileHub = HubAudience &
+  (
+    | {
+        id: MobileHubId;
+        kind: 'link';
+        href: string;
+        label: string;
+        icon: IconSvgElement;
+        isActive: (pathname: string) => boolean;
+      }
+    | {
+        id: MobileHubId;
+        kind: 'sheet';
+        label: string;
+        icon: IconSvgElement;
+        title: string;
+        description: string;
+        links: readonly MarketplaceNavLink[];
+        isActive: (pathname: string) => boolean;
+      }
+  );
+
+/**
+ * Where signing in should land a guest who tapped this hub.
+ *
+ * Their destination, not the page they were standing on: someone who taps "Inbox"
+ * wants the inbox once they are through, and bouncing them back to the listing they
+ * were reading makes them tap it a second time.
+ */
+export function mobileHubDestination(hub: MobileHub): string {
+  return hub.kind === 'link' ? hub.href : (hub.links[0]?.href ?? '/');
+}
 
 const CONTRACT_LINKS = MARKETPLACE_NAV_GROUPS[1].links;
 const SELL_LINKS = MARKETPLACE_NAV_GROUPS[2].links;
@@ -177,20 +191,23 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
   {
     id: 'browse',
     kind: 'link',
-    href: '/listings',
+    href: '/',
     label: 'Browse',
-    icon: Sparkles,
+    // The catalog is public, so this is the one hub a guest can use as-is.
+    requiresAuth: false,
+    icon: LayoutGridIcon,
     isActive: (pathname) =>
-      isMarketplaceSectionActive(pathname, '/listings') ||
+      isMarketplaceSectionActive(pathname, '/') ||
       pathname.startsWith('/sellers/'),
   },
   {
     id: 'contracts',
     kind: 'sheet',
     label: 'Contracts',
-    icon: Handshake,
+    requiresAuth: true,
+    icon: HandshakeIcon,
     title: 'Contracts',
-    description: 'Active contracts for purchases, sales, and trades.',
+    description: 'Start a private deal, or open purchases, sales, and trades.',
     links: CONTRACT_LINKS,
     isActive: (pathname) =>
       CONTRACT_LINKS.some((link) =>
@@ -201,7 +218,8 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     id: 'sell',
     kind: 'sheet',
     label: 'Sell',
-    icon: Package,
+    requiresAuth: true,
+    icon: PackageIcon,
     title: 'Selling',
     description: 'Your listings and incoming offers.',
     links: SELL_LINKS,
@@ -215,7 +233,8 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     kind: 'link',
     href: '/messages',
     label: 'Inbox',
-    icon: MessageCircle,
+    requiresAuth: true,
+    icon: MessageCircleIcon,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/messages'),
   },
@@ -224,7 +243,8 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     kind: 'link',
     href: '/profile',
     label: 'Account',
-    icon: UserRound,
+    requiresAuth: true,
+    icon: UserRoundIcon,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/profile') ||
       isMarketplaceSectionActive(pathname, '/notifications') ||

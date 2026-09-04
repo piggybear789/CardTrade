@@ -46,17 +46,20 @@ function bearerToken(request: Request): string | null {
 
 /** Authenticate, run one pass, and report the outcome. Shared by GET and POST. */
 async function runPayoutPass(request: Request): Promise<Response> {
-  const expected = process.env.JOBS_SECRET?.trim();
-  if (!expected) {
+  const jobsSecret = process.env.JOBS_SECRET?.trim();
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  const secrets = [jobsSecret, cronSecret].filter(Boolean) as string[];
+
+  if (secrets.length === 0) {
     // Fail closed. Never run an unauthenticated money-moving job.
     return Response.json(
-      { ok: false, error: 'JOBS_SECRET is not configured' },
+      { ok: false, error: 'Neither JOBS_SECRET nor CRON_SECRET is configured' },
       { status: 503 },
     );
   }
 
   const token = bearerToken(request);
-  if (!token || !secretMatches(token, expected)) {
+  if (!token || !secrets.some((expected) => secretMatches(token, expected))) {
     return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 

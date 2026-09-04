@@ -5,6 +5,8 @@ import type { TradeRecord } from '@/domain/orchestrator/tradeOrchestrator';
 import {
   proposeTrade,
   createCollateralSideEffects,
+  placeBondsForAgreedTrade,
+  currentHoldsAreActive,
   type CreateTradeParams,
   type HoldRecordInput,
   type ItemRecord,
@@ -24,6 +26,8 @@ class FakeTradeProposalRepository implements TradeProposalRepository {
   items = new Map<string, ItemRecord>();
   trades = new Map<string, TradeRecord>();
   holds: RecordedHold[] = [];
+  /** Extra bundled item ids per trade, on top of the two primary columns. */
+  bundleIds = new Map<string, string[]>();
   private seq = 0;
 
   async getProfile(profileId: string): Promise<ProfileRecord | null> {
@@ -72,6 +76,17 @@ class FakeTradeProposalRepository implements TradeProposalRepository {
     return this.holds.filter((h) => h.tradeId === tradeId).map((h) => ({ ...h }));
   }
 
+  async listTradeItemIds(tradeId: string): Promise<string[]> {
+    const trade = this.trades.get(tradeId);
+    if (!trade) return [];
+    const extras = this.bundleIds.get(tradeId) ?? [];
+    return [
+      trade.initiator_item_id as string,
+      trade.counterpart_item_id as string,
+      ...extras,
+    ].filter((id) => typeof id === 'string' && id.length > 0);
+  }
+
   async markHoldStatus(holdRef: string, status: PreAuthHold['status']): Promise<void> {
     for (const hold of this.holds) {
       if (hold.holdRef === holdRef) hold.status = status;
@@ -105,7 +120,7 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
 
   it('creates a COLLATERAL_PENDING trade, reserves both items, and bonds both unverified traders', async () => {
     seedTwoTraders(repo, 5000);
-    // Both unverified, so both must bond 100% of their own item's FMV.
+    // Verification is irrelevant to a trade bond — both sides post one regardless.
     repo.profiles.set('alice', { id: 'alice', verified: false, payerId: 'payer_alice' });
     repo.profiles.set('bob', { id: 'bob', verified: false, payerId: 'payer_bob' });
     const payments = makePayments();
@@ -124,7 +139,9 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
     expect(repo.items.get('item_a')?.status).toBe('RESERVED');
     expect(repo.items.get('item_b')?.status).toBe('RESERVED');
 
-    // One hold per trader, each sized at 100% of that trader's own item FMV (Req 5.4).
+    // One hold per trader, each sized at 100% of what that trader RECEIVES (Req 5.4).
+    // Both items are seeded at 5000, so the two readings agree here by construction —
+    // `bondPolicy.test.ts` is where the crossing itself is pinned.
     const holds = await repo.getHolds(result.trade.id);
     expect(holds).toHaveLength(2);
     for (const hold of holds) {
@@ -244,6 +261,96 @@ describe('proposeTrade (Req 2.4, 5.1, 5.3, 5.4)', () => {
   });
 });
 
+/**
+ * THE CROSSING, PINNED.
+ *
+ * Each Trader bonds the value of what they RECEIVE, so `resolveTradeBonds` is called
+ * with the two sides swapped. Every other bond assertion in this file seeds both
+ * sides at the SAME value, which makes the swap invisible: uncross the arguments and
+ * they all still pass. `bondPolicy.test.ts` cannot catch it either, because at that
+ * level `fmvCents` is just whatever the caller chose to bond against.
+ *
+ * That gap was live while several comments in `tradeProposal.ts` and `bondPolicy.ts`
+ * asserted the opposite rule — that a Trader bonds their own goods. Anyone who
+ * "fixed" the code to match those comments would have halved the collateral on every
+ * asymmetric trade and seen a green suite. These are the tests that would have failed.
+ */
+describe('trade bonds are sized on what each Trader receives', () => {
+  let repo: FakeTradeProposalRepository;
+
+  beforeEach(() => {
+    repo = new FakeTradeProposalRepository();
+  });
+
+  /** Alice gives $300 of goods; Bob gives $700. Deliberately unequal. */
+  function seedLopsidedTraders() {
+    repo.profiles.set('alice', { id: 'alice', verified: true, payerId: 'payer_alice' });
+    repo.profiles.set('bob', { id: 'bob', verified: true, payerId: 'payer_bob' });
+    repo.items.set('item_a', {
+      id: 'item_a',
+      ownerId: 'alice',
+      fmvCents: 30_000,
+      status: 'AVAILABLE',
+    });
+    repo.items.set('item_b', {
+      id: 'item_b',
+      ownerId: 'bob',
+      fmvCents: 70_000,
+      status: 'AVAILABLE',
+    });
+  }
+
+  it('crosses the sides on the proposal path', async () => {
+    seedLopsidedTraders();
+
+    const result = await proposeTrade(
+      { repository: repo, payments: makePayments() },
+      { proposerId: 'alice', initiatorItemId: 'item_a', counterpartItemId: 'item_b' },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const byTrader = new Map(
+      (await repo.getHolds(result.trade.id)).map((h) => [h.traderId, h.amountCents]),
+    );
+    // Alice receives Bob's $700, so Alice's card carries $700 — NOT the $300 she gives.
+    expect(byTrader.get('alice')).toBe(70_000);
+    expect(byTrader.get('bob')).toBe(30_000);
+  });
+
+  it('crosses the sides on the negotiated path', async () => {
+    // The path the contract room's Accept actually takes, and the one whose figures
+    // the accept dialog now quotes back to the trader before charging them.
+    seedLopsidedTraders();
+    const trade = await repo.createTrade({
+      initiatorId: 'alice',
+      counterpartId: 'bob',
+      initiatorItemId: 'item_a',
+      counterpartItemId: 'item_b',
+    });
+
+    const result = await placeBondsForAgreedTrade(
+      { repository: repo, payments: makePayments() },
+      {
+        tradeId: trade.id,
+        initiatorId: 'alice',
+        counterpartId: 'bob',
+        initiatorItemIds: ['item_a'],
+        counterpartItemIds: ['item_b'],
+      },
+    );
+
+    expect(result.ok).toBe(true);
+
+    const byTrader = new Map(
+      (await repo.getHolds(trade.id)).map((h) => [h.traderId, h.amountCents]),
+    );
+    expect(byTrader.get('alice')).toBe(70_000);
+    expect(byTrader.get('bob')).toBe(30_000);
+  });
+});
+
 describe('createCollateralSideEffects — HOLDS_FAILED cancellation (Req 5.6)', () => {
   let repo: FakeTradeProposalRepository;
 
@@ -310,5 +417,90 @@ describe('createCollateralSideEffects — HOLDS_FAILED cancellation (Req 5.6)', 
     expect(repo.items.get('item_a')?.status).toBe('RESERVED');
     const holds = await repo.getHolds(proposal.trade.id);
     expect(holds.every((h) => h.status === 'ACTIVE')).toBe(true);
+  });
+
+  it('restores extra bundled items as well as the two primary ids', async () => {
+    seedTwoTraders(repo, 5000);
+    repo.profiles.set('alice', { id: 'alice', verified: false, payerId: 'payer_alice' });
+    repo.profiles.set('bob', { id: 'bob', verified: false, payerId: 'payer_bob' });
+    repo.items.set('item_c', {
+      id: 'item_c',
+      ownerId: 'alice',
+      fmvCents: 1000,
+      status: 'RESERVED',
+    });
+    const payments = makePayments();
+
+    const proposal = await proposeTrade(
+      { repository: repo, payments },
+      { proposerId: 'alice', initiatorItemId: 'item_a', counterpartItemId: 'item_b' },
+    );
+    expect(proposal.ok).toBe(true);
+    if (!proposal.ok) return;
+    repo.bundleIds.set(proposal.trade.id, ['item_c']);
+
+    const hook = createCollateralSideEffects(repo);
+    await hook({
+      trade: proposal.trade,
+      event: 'HOLDS_FAILED',
+      nextState: 'COLLATERAL_PENDING',
+      actorId: 'system',
+      payments,
+    });
+
+    expect(repo.items.get('item_c')?.status).toBe('AVAILABLE');
+  });
+});
+
+describe('collateral retry uses a new authorisation key', () => {
+  let repo: FakeTradeProposalRepository;
+
+  beforeEach(() => {
+    repo = new FakeTradeProposalRepository();
+  });
+
+  it('places a second hold under a new ref after the first declined', async () => {
+    seedTwoTraders(repo, 5000);
+    repo.profiles.set('alice', { id: 'alice', verified: false, payerId: 'payer_alice' });
+    repo.profiles.set('bob', { id: 'bob', verified: false, payerId: 'payer_bob' });
+    // First placement keys `hold:<trade>:<trader>`. Force those to fail; the
+    // retry key (`:2`) is not listed, so it succeeds.
+    const payments = makePayments({
+      forceFailure: {
+        'hold:trade_1:alice': true,
+        'hold:trade_1:bob': true,
+      },
+    });
+
+    const proposal = await proposeTrade(
+      { repository: repo, payments },
+      { proposerId: 'alice', initiatorItemId: 'item_a', counterpartItemId: 'item_b' },
+    );
+    expect(proposal.ok).toBe(true);
+    if (!proposal.ok) return;
+
+    const first = await repo.getHolds(proposal.trade.id);
+    expect(first.every((h) => h.status === 'FAILED')).toBe(true);
+    expect(currentHoldsAreActive(first)).toBe(false);
+
+    const retry = await placeBondsForAgreedTrade(
+      { repository: repo, payments },
+      {
+        tradeId: proposal.trade.id,
+        initiatorId: 'alice',
+        counterpartId: 'bob',
+        initiatorItemIds: ['item_a'],
+        counterpartItemIds: ['item_b'],
+      },
+    );
+    expect(retry.ok).toBe(true);
+
+    const all = await repo.getHolds(proposal.trade.id);
+    expect(all).toHaveLength(4);
+    expect(currentHoldsAreActive(all)).toBe(true);
+    const firstRefs = new Set(first.map((h) => h.holdRef));
+    const latest = all.filter((h) => h.status === 'ACTIVE');
+    expect(latest).toHaveLength(2);
+    expect(latest.every((h) => !firstRefs.has(h.holdRef))).toBe(true);
   });
 });

@@ -11,8 +11,6 @@
 // clock but never rendered it either — the sale simply completed one day and the
 // buyer had no warning.
 
-import { AlertTriangle, Clock } from 'lucide-react';
-
 import { cn } from '@/lib/utils';
 import { formatContractDateTime } from '@/lib/format';
 import type { InspectionHoldRisk } from '@/domain/fulfilment';
@@ -75,17 +73,15 @@ export function InspectionCountdown({
         'rounded-lg border px-group py-cozy text-body',
         alarming
           ? 'border-destructive/40 bg-destructive/5'
-          : 'border-dashed border-gold/40 bg-gold/10',
+          : 'border-dashed border-iris/40 bg-iris/10',
         className,
       )}
       role={alarming ? 'alert' : undefined}
     >
-      <p suppressHydrationWarning className="flex items-center gap-snug font-medium">
-        {alarming ? (
-          <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden />
-        ) : (
-          <Clock className="size-4 shrink-0" aria-hidden />
-        )}
+      <p
+        suppressHydrationWarning
+        className="text-balance text-subhead font-semibold tracking-[-0.025em]"
+      >
         Inspection window · {remainingLabel(hours)}
       </p>
       <p className="mt-1 text-muted-foreground">

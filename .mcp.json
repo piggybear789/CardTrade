@@ -10,6 +10,13 @@
       "env": {
         "SUPABASE_ACCESS_TOKEN": "${SUPABASE_PAT}"
       }
+    },
+    "stripe": {
+      "command": "npx",
+      "args": ["-y", "@stripe/mcp"],
+      "env": {
+        "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}"
+      }
     }
   }
 }

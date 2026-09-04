@@ -1,0 +1,199 @@
+import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LibraryIcon } from '@hugeicons/core-free-icons';
+
+import { ExpandableDescription } from '@/components/listings/ExpandableDescription';
+import { IdentityBadge } from '@/components/identity/IdentityBadge';
+import { StarRating } from '@/components/listings/StarRating';
+import { Avatar } from '@/components/ui/avatar';
+import { formatAud } from '@/lib/format';
+import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
+
+export function ListingDetailStack({
+  title,
+  description,
+  priceCents,
+  condition,
+  category,
+  isShopfront,
+  locationLabel,
+  watchCount,
+  isOwner,
+  sellerId,
+  sellerDisplayName,
+  sellerAvatarPath,
+  sellerVerified,
+  sellerFirstName,
+  sellerRating,
+  sellerRatingCount,
+  sellerIdentity,
+  afterDescription,
+}: {
+  title: string;
+  description: string;
+  priceCents: number;
+  condition: string;
+  category: string | null;
+  isShopfront: boolean;
+  locationLabel: string | null;
+  watchCount: number;
+  isOwner: boolean;
+  sellerId: string;
+  sellerDisplayName: string | null;
+  sellerAvatarPath: string | null;
+  sellerVerified: boolean;
+  sellerFirstName: string | null;
+  sellerRating: number | null;
+  sellerRatingCount: number | undefined;
+  sellerIdentity: SellerIdentityDisclosure | null;
+  /** Photos (or anything else) that should sit immediately under the copy. */
+  afterDescription?: ReactNode;
+}) {
+  const kindLabel = isShopfront ? 'Binder listing' : 'Single item';
+  const savesLabel = watchCount === 1 ? '1 save' : `${watchCount} saves`;
+  const desktopMeta = [savesLabel, category, kindLabel].filter(Boolean).join(' · ');
+  const mobileMeta = [
+    watchCount > 0 ? savesLabel : null,
+    category,
+    kindLabel,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const name = isOwner ? 'You' : (sellerDisplayName ?? 'Seller');
+
+  return (
+    <div className="flex flex-col">
+      <Link
+        href={isOwner ? '/profile' : `/sellers/${sellerId}`}
+        transitionTypes={['nav-forward']}
+        className="flex min-h-11 items-center gap-2 rounded-md border border-transparent py-1 focus:outline-none focus-visible:border-iris"
+      >
+        <Avatar
+          avatarPath={sellerAvatarPath}
+          displayName={name}
+          size="xs"
+          className="size-7"
+        />
+        <span className="truncate text-body font-semibold">{name}</span>
+        <IdentityBadge
+          verified={sellerVerified}
+          firstName={sellerFirstName}
+          size={12}
+          iconOnly
+          hideNameWhen={name}
+          className="shrink-0"
+        />
+        {locationLabel ? (
+          <span className="ml-auto hidden truncate pl-2 text-meta text-muted-foreground lg:inline">
+            {locationLabel}
+          </span>
+        ) : null}
+      </Link>
+
+      {sellerIdentity && !isOwner ? (
+        <p className="mt-1 text-meta text-muted-foreground">
+          {sellerIdentity.nameIsDocumentVerified ? 'Real name' : 'Stated name'}{' '}
+          <span className="font-medium text-foreground">
+            {sellerIdentity.legalEntityName}
+          </span>
+          {sellerIdentity.tradingName ? (
+            <>
+              {' · '}
+              Trading as {sellerIdentity.tradingName}
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
+      {sellerRating != null ? (
+        isOwner ? (
+          <StarRating
+            rating={sellerRating}
+            count={sellerRatingCount}
+            size={12}
+            className="mt-1 text-meta"
+          />
+        ) : (
+          <Link
+            href={`/sellers/${sellerId}#reviews`}
+            className="mt-1 inline-flex w-fit rounded-sm border border-transparent focus:outline-none focus-visible:border-iris"
+            aria-label="Read seller reviews"
+          >
+            <StarRating
+              rating={sellerRating}
+              count={sellerRatingCount}
+              size={12}
+              className="text-meta"
+            />
+          </Link>
+        )
+      ) : null}
+
+      <div className="mt-3 flex items-center gap-3 md:mt-4">
+        <p className="min-w-0 flex-1 truncate font-display text-display font-bold leading-none tracking-[-0.03em] text-iris-ink">
+          {isShopfront ? (
+            <span className="mr-1 text-lead font-medium">from </span>
+          ) : null}
+          {formatAud(priceCents)}
+        </p>
+        <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-meta font-semibold text-muted-foreground">
+          {condition}
+        </span>
+      </div>
+
+      {mobileMeta ? (
+        <p className="mt-2 text-meta text-muted-foreground md:hidden">{mobileMeta}</p>
+      ) : null}
+      {desktopMeta ? (
+        <p className="mt-2 hidden text-meta text-muted-foreground md:block">{desktopMeta}</p>
+      ) : null}
+
+      {isShopfront ? (
+        <p className="mt-4 flex gap-2 rounded-md border border-iris/30 bg-iris/10 p-2 text-body text-foreground">
+          <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
+          <span>
+            This is a binder listing. Browse the collection and request specific
+            items — nothing is held until you agree on terms.
+          </span>
+        </p>
+      ) : null}
+
+      <h2 className="sr-only md:hidden">{title}</h2>
+      <h2 className="mt-4 hidden line-clamp-2 text-balance text-subhead font-semibold tracking-tight md:block">
+        {title}
+      </h2>
+      <ExpandableDescription text={description} className="mt-3 md:hidden" />
+      <ExpandableDescription
+        text={descriptionBodyAfterTitle(title, description)}
+        className="mt-2 hidden md:block"
+      />
+
+      {afterDescription}
+
+      <dl className="mt-4 hidden space-y-1 lg:block">
+        <DetailRow label="Condition" value={condition} />
+        {category ? <DetailRow label="Game" value={category} /> : null}
+        <DetailRow label="Listing type" value={kindLabel} />
+        {locationLabel ? <DetailRow label="Location" value={locationLabel} /> : null}
+      </dl>
+    </div>
+  );
+}
+
+function descriptionBodyAfterTitle(title: string, description: string): string {
+  const heading = title.trim();
+  const body = description.trim();
+  if (!heading || !body || body === heading) return body === heading ? '' : body;
+  if (!body.startsWith(heading)) return body;
+  return body.slice(heading.length).replace(/^\s+/, '');
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-3 text-meta">
+      <dt className="w-20 shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 font-medium text-foreground">{value}</dd>
+    </div>
+  );
+}

@@ -38,6 +38,17 @@ export interface RateLimitResult {
 // accepted trade-off for zero external dependencies.
 const store = new Map<string, { count: number; resetAt: number }>();
 
+/** Periodically prune expired entries to cap memory usage on long-running instances. */
+function pruneExpiredEntries(): void {
+  if (store.size <= 2000) return;
+  const now = Date.now();
+  for (const [key, entry] of store.entries()) {
+    if (now > entry.resetAt) {
+      store.delete(key);
+    }
+  }
+}
+
 function parseWindow(window: string): number {
   const match = window.match(/^(\d+)([smh])$/);
   if (!match) return 60_000; // default 1 minute
@@ -57,6 +68,7 @@ export function createRateLimiter(config: RateLimitConfig) {
      * Check whether `identifier` is within the rate limit.
      */
     async check(identifier: string): Promise<RateLimitResult> {
+      pruneExpiredEntries();
       const key = `${config.prefix}:${identifier}`;
       const now = Date.now();
       const entry = store.get(key);

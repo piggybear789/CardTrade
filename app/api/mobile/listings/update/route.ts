@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { authenticateMobileRequest } from '@/lib/api/mobileSession';
 import { updateItem } from '@/lib/actions/listings';
+import type { ImageDim } from '@/lib/images/dimensions';
 
 export async function POST(request: NextRequest) {
   const auth = await authenticateMobileRequest(request);
@@ -38,6 +39,12 @@ export async function POST(request: NextRequest) {
     condition: String(input.condition ?? ''),
     fmvCents: Number(input.fmvCents ?? 0),
     images: Array.isArray(input.images) ? input.images : [],
+    // Optional and index-aligned with `images`; see the create route. Photos
+    // being kept take their size from the row rather than from here, so an
+    // older client that omits this cannot erase what is already stored.
+    imageDims: Array.isArray(input.imageDims)
+      ? (input.imageDims as (ImageDim | null)[])
+      : undefined,
     location: input.location
       ? {
           label: String((input.location as Record<string, unknown>).label ?? ''),

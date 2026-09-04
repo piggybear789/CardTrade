@@ -20,20 +20,23 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { CircleHelp, ScrollText } from 'lucide-react';
-
 import { TabIndicator } from '@/components/motion/TabIndicator';
 import { Card } from '@/components/ui/card';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useContractFocus } from './ContractFocus';
+import { useContractSplit } from './useContractSplit';
 
 export interface ContractDetailListProps {
   children: ReactNode;
+  /**
+   * Drop the card shell and the "Contract Details" heading, moving the active
+   * row's `action` control onto the tab strip.
+   *
+   * Defaults to true below the split, where `ContractLiveRow` shows this list
+   * in a sheet that already carries a title: the card would be a card inside a
+   * card and the heading a second heading under the sheet's own.
+   */
+  embedded?: boolean;
   className?: string;
 }
 
@@ -48,6 +51,13 @@ export interface ContractDetailRowProps {
   defaultOpen?: boolean;
   /** Colour variant for the tab label. `destructive` renders in red. */
   variant?: 'default' | 'destructive';
+  /**
+   * Heading inside the panel, above the content. Defaults to {@link label}.
+   *
+   * Set it only where the tab needs to say more than its tab did — the strip has
+   * room for one word, the panel has room for the qualifier.
+   */
+  title?: string;
   /** Current value shown beneath the selected tab. */
   summary?: ReactNode;
   /** Edit control for this detail — rendered in the Contract Details header. */
@@ -63,7 +73,13 @@ function rowKey(row: ReactElement<ContractDetailRowProps>, index: number): strin
 }
 
 /** A fixed-height, single-selection inspector for binding contract details. */
-export function ContractDetailList({ children, className }: ContractDetailListProps) {
+export function ContractDetailList({
+  children,
+  embedded,
+  className,
+}: ContractDetailListProps) {
+  const split = useContractSplit();
+  const inSheet = embedded ?? !split;
   // `Children.toArray` already drops null, undefined and booleans, so what remains is
   // everything a caller meant to supply — the right denominator for the check below.
   const supplied = Children.toArray(children);
@@ -158,55 +174,43 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
 
   if (!activeRow) return null;
 
+  const Root = inSheet ? 'div' : Card;
+
   return (
-      <Card
+      <Root
         className={cn(
-          'flex h-full min-h-0 flex-col overflow-hidden border-border shadow-sm',
+          'flex h-full min-h-0 flex-col overflow-hidden',
+          inSheet ? 'bg-transparent' : 'border-border shadow-sm',
           className,
         )}
       >
-        {/* One card surface, divided by rules — matching the chat panel this
-            sits beside. See the note in ContractChat. */}
-        <div className="flex items-center gap-cozy border-b px-group py-cozy">
-          <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-card text-muted-foreground">
-            <ScrollText className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lead font-semibold">Contract Details</h2>
-            <p className="truncate text-body text-muted-foreground">
-              Review one part of the agreement at a time
-            </p>
-          </div>
-          {activeRow.props.action ? (
-            <div className="shrink-0">{activeRow.props.action}</div>
-          ) : null}
-        </div>
+        {/* NO TITLE ROW. It was an icon square, "Contract Details", and
+            "Review one part of the agreement at a time" — 56px spent naming a
+            tab strip that is directly below it and names itself. The subtitle
+            was instructions for reading tabs. The row's action moved into the
+            end of the strip, which is where the sheet had always put it. */}
 
         {/* The strip scrolls when the labels outrun the panel, but the native
             bar is suppressed: it drew a grey rail across the full width and
-            sat on top of the active tab's gold underline. The clipped next tab
-            is the affordance instead. Edit lives in the card header so the
-            tabs stay a navigation strip. */}
-        <div className="flex min-h-10 shrink-0 items-stretch border-b">
+            sat on top of the active tab's iris underline. The clipped next tab
+            is the affordance instead. */}
+        <div className="flex min-h-11 shrink-0 items-stretch border-b">
           <div
-            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 sm:px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] lg:[mask-image:none]"
+            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 pr-4 sm:px-2 md:pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-0.75rem),transparent)] md:[mask-image:none]"
             role="tablist"
             aria-label="Contract details"
           >
             {rows.map((row, index) => {
             const selected = index === activeIndex;
-            const explainer = row.props.explainer?.trim();
             const isDestructive = row.props.variant === 'destructive';
             return (
               <div
                 key={rowKey(row, index)}
                 className={cn(
-                  // On phones the tabs share the strip evenly so all of them
-                  // fit without horizontal scrolling; from `sm` they take
-                  // their natural width, left-aligned. Labels must stay on one
-                  // line (`truncate` + `nowrap`) — wrapping grew the strip and
-                  // let text paint over adjacent tabs (e.g. Terms).
-                  'relative flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden sm:flex-none sm:justify-start sm:overflow-visible',
+                  // Natural width + horizontal scroll at every breakpoint.
+                  // Even-split + truncate on phones turned "Protection" into
+                  // "Prot…". The clipped next tab is the scroll affordance.
+                  'relative flex shrink-0 items-center justify-start gap-0.5',
                 )}
               >
                 {selected ? (
@@ -222,9 +226,8 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                   onClick={() => selectTab(index)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
-                    'min-w-0 truncate whitespace-nowrap touch-manipulation py-2.5 text-meta font-medium transition-colors',
-                    explainer ? 'pl-1.5 pr-0.5 sm:pl-3' : 'px-1.5 sm:px-3',
-                    'hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                    'min-h-11 min-w-0 whitespace-nowrap touch-manipulation px-3 py-2.5 text-meta font-medium transition-colors',
+                    'hover:text-foreground focus:outline-none focus-visible:border-iris',
                     isDestructive
                       ? 'text-destructive'
                       : selected ? 'text-foreground' : 'text-muted-foreground',
@@ -232,40 +235,15 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
                 >
                   {row.props.label}
                 </button>
-                {explainer ? (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className={cn(
-                          'mr-0.5 grid size-8 place-items-center rounded-full transition-colors',
-                          'text-muted-foreground hover:text-foreground',
-                          'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          selected ? 'text-foreground/70' : null,
-                        )}
-                        aria-label={`What is ${row.props.label}?`}
-                        onClick={(event) => {
-                          // Keep the tab selected when opening the explainer.
-                          event.stopPropagation();
-                          selectTab(index);
-                        }}
-                      >
-                        <CircleHelp className="size-3.5" aria-hidden />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      side="bottom"
-                      align="start"
-                      className="max-w-[16rem] text-pretty text-body"
-                    >
-                      {explainer}
-                    </PopoverContent>
-                  </Popover>
-                ) : null}
               </div>
             );
           })}
           </div>
+          {activeRow.props.action ? (
+            <div className="flex shrink-0 items-center border-l px-cozy">
+              {activeRow.props.action}
+            </div>
+          ) : null}
         </div>
 
         <section
@@ -274,30 +252,111 @@ export function ContractDetailList({ children, className }: ContractDetailListPr
           aria-labelledby={`${tabsId}-tab-${activeIndex}`}
           className={cn(
             'flex min-h-0 flex-1 scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] flex-col transition-colors duration-300',
-            focusedId === activeRow.props.id && 'bg-gold/10',
+            focusedId === activeRow.props.id && 'bg-iris/10',
             activeRow.props.className,
           )}
         >
           <div
             ref={panelRef}
             className={cn(
-              // `overscroll-contain` only from `lg`, where this panel sits in a
-              // bounded split and the page behind it does not scroll. Below `lg`
-              // the room stacks and the PAGE is the scroller, so containment
-              // dead-ended the gesture: a swipe that reached the bottom of the
-              // panel stopped there instead of carrying on down the page, and the
-              // reader had to lift and re-swipe outside the panel to continue.
-              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-group text-body lg:overscroll-contain',
-              activeRow.props.contentClassName,
+              // Contained wherever this panel is the bounded scroller: the
+              // desktop split, and the phone sheet. It stays uncontained in
+              // between, where the room stacks and the PAGE scrolls — there,
+              // containment dead-ended the gesture, so a swipe reaching the
+              // bottom of the panel stopped instead of carrying on down the
+              // page, and the reader had to lift and re-swipe outside it.
+              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-group text-body',
+              inSheet ? 'overscroll-contain' : 'lg:overscroll-contain',
             )}
           >
             {activeRow.props.summary ? (
               <p className="sr-only">{activeRow.props.summary}</p>
             ) : null}
-            {activeRow.props.children}
+
+            {/* TITLE AND EXPLAINER PIN TO THE TOP, whatever the content below
+                does. They orient the reader, and orientation that drifts to the
+                middle of a panel — or worse, moves as the content grows — is not
+                orienting anyone.
+
+                The title repeats the tab label by design: the strip is a row of
+                one-word targets read left to right, and this is the heading of
+                the thing you are now looking at. From `md` up only — see the
+                heading itself. */}
+            <div className="shrink-0">
+              {/* NOT SHOWN ON PHONES. The strip sits directly above this and
+                  already marks the active tab with an underline and darker
+                  label, so the heading was the same word twice, one line apart,
+                  in a sheet where vertical space is the scarce thing.
+
+                  `sr-only` rather than deleted: it is still this panel's heading
+                  in the document outline, so heading navigation keeps working.
+                  The panel takes its accessible name from the tab button via
+                  `aria-labelledby`, so nothing here is load-bearing for that. */}
+              <h3 className="sr-only font-display text-meta font-semibold uppercase tracking-wide text-muted-foreground md:not-sr-only">
+                {activeRow.props.title ?? activeRow.props.label}
+              </h3>
+              {/* THE EXPLAINER IS THE FIRST LINE OF THE TAB, not a `?` beside
+                  its label. As a popover it cost a click to reach the one
+                  sentence that says what the tab is, and only two of the tabs
+                  had one — so the strip carried a single lone icon wedged
+                  between two labels and read as ragged rather than as a
+                  pattern. A tab that needs a sentence of orientation should
+                  just open with it. */}
+              {/* `md:mt-1`: below `md` the heading above is `sr-only` and out of
+                  flow, so this is the first thing in the box and has nothing to
+                  be spaced from. */}
+              {activeRow.props.explainer?.trim() ? (
+                <p className="text-pretty text-body text-muted-foreground md:mt-1">
+                  {activeRow.props.explainer}
+                </p>
+              ) : null}
+            </div>
+
+            {/* TOP-ALIGNED. This was briefly centred so a short tab would not
+                leave a third of the inspector empty beneath it, but centring
+                moved every tab's first line to a different height depending on
+                how much it had to say — so switching tabs shifted the content
+                up and down under a title that stayed put. A panel that starts
+                in the same place every time is easier to read than one with no
+                gap at the bottom. */}
+            {/* GROW, BUT NEVER SHRINK — `flex: 1 0 auto`. A scroll container's
+                content sizes itself and the container scrolls; a content box
+                that can be compressed below its own children spills them past
+                its own edge, and everything positioned after it — including the
+                bottom spacer — then lands halfway up the visible text. That is
+                why every attempt at bottom clearance here appeared to do
+                nothing: the spacer was present, honoured, and above the text.
+
+                `flex-auto` was the previous attempt at this and does not fix it:
+                it is `flex: 1 1 auto`, still shrinkable, and the `min-h-0`
+                sitting beside it removed the automatic minimum size that would
+                otherwise have held the box open — so the wrapper collapsed to
+                the visible height exactly as `flex-1` had. Growing is the only
+                part that was ever wanted: a short tab still fills the panel, a
+                long one is as tall as its content.
+
+                Nothing inside these tabs scrolls on its own, so no child depends
+                on this box being height-constrained. */}
+            <div
+              className={cn(
+                'mt-cozy flex shrink-0 grow flex-col',
+                activeRow.props.contentClassName,
+              )}
+            >
+              {activeRow.props.children}
+            </div>
+
+            {/* A REAL ELEMENT, NOT `padding-bottom`. The sheet is docked directly
+                on the hub bar, so the last row of a tab needs clearance from a
+                bar the thumb is already resting on — but this scroller is a flex
+                container, and WebKit and Blink both drop a flex scroll
+                container's bottom padding once you reach the end of the content.
+                Two attempts at `pb-*` here did nothing for that reason. A
+                zero-content spacer is a flex item and is honoured. */}
+            {inSheet ? <div aria-hidden className="h-section shrink-0" /> : null}
           </div>
         </section>
-      </Card>
+      </Root>
   );
 }
 

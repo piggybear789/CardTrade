@@ -1,5 +1,7 @@
 # Requirements Document
 
+**Status: shipping / hardening, not greenfield.** `UnifiedOnboardingSurface`, `EmbeddedIdentityStep` and `EmbeddedPayoutStep` are in the tree. The two-gate model is unchanged. Product rules live in `.kiro/steering/product.md` under Onboarding and Identity and payouts.
+
 ## Introduction
 
 Today a seller becomes able to sell and get paid through two disconnected Stripe

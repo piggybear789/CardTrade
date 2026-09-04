@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
+import { cookies } from 'next/headers';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
+import { KeyboardInset } from '@/components/layout/KeyboardInset';
 import { SiteHeader, SiteHeaderSkeleton } from '@/components/layout/SiteHeader';
 import { MotionProvider } from '@/components/providers/MotionProvider';
 import { Toaster } from '@/components/ui/sonner';
@@ -30,11 +32,14 @@ export const metadata: Metadata = {
   // Pages self-brand their titles as "<Section> · NoDitto", so this is only
   // the fallback for routes that don't set one — no title template, to avoid
   // double-suffixing those existing titles.
-  title: 'NoDitto — Know who is on the other side',
+  title: 'NoDitto',
   description:
     'Buy, sell, and swap high-value collectibles with identity verification, collateral-backed contracts, and payments by Stripe.',
   applicationName: 'NoDitto',
-  alternates: { canonical: '/' },
+  // NO BLANKET CANONICAL HERE. Next merges parent metadata into child, and pages
+  // that set only `title`/`description` inherit everything else — so declaring
+  // `canonical: '/'` at the root told crawlers that every page in the app was a
+  // duplicate of the homepage. Each route states its own where it matters.
   keywords: [
     'collectibles',
     'trading cards',
@@ -46,14 +51,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'NoDitto',
-    title: 'NoDitto — Know who is on the other side',
+    title: 'NoDitto',
     description:
       'Identity verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
     url: siteUrl,
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NoDitto — Know who is on the other side',
+    title: 'NoDitto',
     description:
       'Identity verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
   },
@@ -61,9 +66,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // The app ships a single light theme; the browser chrome colour matches the
-  // obsidian header bar (and the manifest's theme_color) in both OS modes.
-  themeColor: '#0c0b0a',
+  // Phone chrome is the page surface; desktop keeps the obsidian header.
+  // Both are the literal `--obsidian` / `--background` values.
+  themeColor: [
+    { media: '(min-width: 768px)', color: '#120f15' },
+    { media: '(max-width: 767px)', color: '#ffffff' },
+  ],
   colorScheme: 'light',
   // Draw under notches/home indicators so the sticky header can pad itself
   // with safe-area insets instead of leaving a hardware-coloured gap.
@@ -73,9 +81,26 @@ export const viewport: Viewport = {
   interactiveWidget: 'resizes-content',
 };
 
-export default function RootLayout({
+/**
+ * Is there a session cookie on this request?
+ *
+ * PRESENTATIONAL ONLY. Cookie presence is not proof of a valid session — the
+ * token may be expired or revoked, which is why `SiteHeader` still verifies it
+ * with `getUser()`. This exists so the header placeholder can pick the same
+ * phone chrome the verified header will, and it is passed nowhere else.
+ */
+async function hasSessionCookie(): Promise<boolean> {
+  const store = await cookies();
+  return store
+    .getAll()
+    .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  const maybeSignedIn = await hasSessionCookie();
+
   return (
     <html
       lang="en"
@@ -91,20 +116,21 @@ export default function RootLayout({
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main-content"
-          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-gold px-4 py-2 text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-gold/90 focus:outline-none focus-visible:translate-y-0 focus-visible:ring-2 focus-visible:ring-parchment"
+          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-iris px-4 py-2 text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-iris/90 border border-transparent focus:outline-none focus-visible:translate-y-0 focus-visible:border-mist"
         >
           Skip to Main Content
         </a>
         <MotionProvider>
           <StartDealProvider>
-            <Suspense fallback={<SiteHeaderSkeleton />}>
+            <Suspense fallback={<SiteHeaderSkeleton isAuthenticated={maybeSignedIn} />}>
               <SiteHeader />
             </Suspense>
-            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">
               {children}
             </div>
           </StartDealProvider>
           <Toaster />
+          <KeyboardInset />
         </MotionProvider>
       </body>
     </html>

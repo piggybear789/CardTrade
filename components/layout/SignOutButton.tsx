@@ -9,7 +9,8 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LogOutIcon } from '@hugeicons/core-free-icons';
 
 import { signOut } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
@@ -31,12 +32,13 @@ export function SignOutButton({ className }: { className?: string }) {
     <Button
       type="button"
       variant="ghost"
+      size="sm"
       onClick={handleSignOut}
       disabled={isPending}
       aria-label="Sign out"
       className={className}
     >
-      <LogOut className="size-4" aria-hidden />
+      <HugeiconsIcon icon={LogOutIcon} className="size-4" aria-hidden />
       <span>{isPending ? 'Signing out…' : 'Sign out'}</span>
     </Button>
   );

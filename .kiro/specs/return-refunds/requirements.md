@@ -1,5 +1,7 @@
 # Requirements Document — Return-Conditional Refunds
 
+**Status: implemented on web** (0088–0092). Cash_Sale now has 13 statuses including `RETURN_PENDING` and `RETURN_IN_TRANSIT`. The "Established facts" below describe the pre-implementation schema and must not be treated as current. Product rules live in `.kiro/steering/product.md` under Return-conditional refunds. Flutter does not have this flow.
+
 ## Introduction
 
 Today a `REFUND_BUYER` dispute outcome refunds the Buyer in full, marks the sale

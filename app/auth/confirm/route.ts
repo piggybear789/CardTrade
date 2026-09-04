@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
   }
 
   const next = safeNextPath(params.get('next'));
-  const destination = next ?? DESTINATION[type] ?? '/listings';
+  const destination = next ?? DESTINATION[type] ?? '/';
 
   return NextResponse.redirect(new URL(destination, origin));
 }

@@ -104,8 +104,17 @@ export function availableActions(
       actions.push('REPORT_FRAUD');
       break;
 
-    // COLLATERAL_PENDING (awaiting hold confirmation) and the terminal states
-    // COMPLETED / FRAUD_RESOLVED / CANCELLED expose no trader controls (Req 11.4).
+    // COLLATERAL_PENDING is a moment, not a phase — except when a seek already
+    // failed. HOLDS_FAILED loops back here on purpose so collateral can be
+    // re-sought after a card decline, once the trader has replaced the card.
+    case 'COLLATERAL_PENDING':
+      if (facts.collateralSeekFailed) {
+        actions.push('RETRY_COLLATERAL');
+      }
+      break;
+
+    // Terminal states COMPLETED / FRAUD_RESOLVED / CANCELLED expose no trader
+    // controls (Req 11.4).
     default:
       break;
   }

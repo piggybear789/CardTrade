@@ -60,7 +60,7 @@ export async function setBrowseRegion(
 
   if (regionCode == null) {
     cookieStore.delete(REGION_COOKIE);
-    revalidatePath('/listings');
+    revalidatePath('/');
     return ok({ regionCode: null });
   }
 
@@ -70,7 +70,7 @@ export async function setBrowseRegion(
   }
 
   cookieStore.set(REGION_COOKIE, normalized, regionCookieOptions());
-  revalidatePath('/listings');
+  revalidatePath('/');
   return ok({ regionCode: normalized });
 }
 
@@ -140,6 +140,6 @@ export async function setTradingRegion(
   }
 
   revalidatePath('/profile');
-  revalidatePath('/listings');
+  revalidatePath('/');
   return ok({ regionCode: normalized });
 }

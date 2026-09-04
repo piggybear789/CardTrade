@@ -20,6 +20,7 @@
 // Every export is an async Server Action; shared shapes are `export type` only.
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
 import type { Tables } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -75,13 +76,14 @@ export type LeaveReviewResult =
   | { ok: true; data: ReviewRow }
   | { ok: false; error: LeaveReviewError; message?: string };
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`,
+ * which revalidates the JWT against the auth server on every call.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -159,7 +161,7 @@ export async function leaveReview(
 ): Promise<LeaveReviewResult> {
   const supabase = await createClient();
 
-  const callerId = await getUserId(supabase);
+  const callerId = await getUserId();
   if (!callerId) return { ok: false, error: 'not-authenticated' };
 
   // Validate rating (integer 1..5) and comment length.
@@ -392,7 +394,7 @@ export async function myReviewFor(
 ): Promise<ReviewRow | null> {
   const supabase = await createClient();
 
-  const callerId = await getUserId(supabase);
+  const callerId = await getUserId();
   if (!callerId) return null;
 
   const { data } = await supabase

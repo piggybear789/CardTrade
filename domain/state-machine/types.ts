@@ -45,6 +45,15 @@ export type TradeEvent =
   | 'BOTH_SHIPPED' // both parcels posted, DELIVERY only
   | 'BOTH_RECEIVED' // both parcels arrived, DELIVERY only
   | 'BOTH_HANDOVER_CONFIRMED' // both met and swapped, IN_PERSON only
+  /**
+   * The agreed meeting instant passed and the inspection window opened on its own.
+   *
+   * A SEPARATE EVENT FROM `BOTH_HANDOVER_CONFIRMED`, deliberately. Both land in
+   * INSPECTION, but one is two people saying the swap happened and the other is nobody
+   * saying anything — and a dispute six months later will care which. Reusing the
+   * confirmed event would put a claim in the audit trail that no member ever made.
+   */
+  | 'HANDOVER_ASSUMED'
   | 'HANDOVER_FAILED' // the exchange did not happen; freeze WITHOUT capturing
   | 'BOTH_ACCEPTED' // both traders accepted what they received
   | 'INSPECTION_EXPIRED' // the inspection window closed untouched
@@ -82,6 +91,15 @@ export interface TradeFacts {
   received: { initiator: boolean; counterpart: boolean };
   accepted: { initiator: boolean; counterpart: boolean };
   holdsActive: { initiator: boolean; counterpart: boolean };
+  /**
+   * True when a collateral seek already ran and did not stick — a hold is
+   * FAILED, VOIDED after compensation, or EXPIRED — so the room may offer a
+   * retry rather than sitting in COLLATERAL_PENDING with no controls.
+   *
+   * False while holds have not been placed yet, and false while they are live.
+   * The first accept is still in flight in those cases; a retry would race it.
+   */
+  collateralSeekFailed: boolean;
   /**
    * Each trader's confirmation that a face-to-face exchange happened.
    *
@@ -136,4 +154,10 @@ export type TradeAction =
   | 'REPORT_HANDOVER_FAILED'
   | 'RECORD_ACCEPTANCE'
   | 'RAISE_DISPUTE'
-  | 'REPORT_FRAUD';
+  | 'REPORT_FRAUD'
+  /**
+   * Re-seek collateral after a declined or voided hold. Only offered from
+   * COLLATERAL_PENDING once a seek has already failed — the trade stays in that
+   * state on HOLDS_FAILED so this can run without going back to negotiation.
+   */
+  | 'RETRY_COLLATERAL';

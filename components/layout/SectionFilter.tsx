@@ -79,6 +79,8 @@ export interface SectionTab {
   /** Stable key, also the React key, compared against `currentKey`. */
   key: string;
   label: string;
+  /** Shorter label below `md` when the full word clips the last tab. */
+  shortLabel?: string;
   /** Shown beside the label. Omit for a tab with nothing to count. */
   count?: number;
   href: string;
@@ -111,7 +113,7 @@ export function SectionTabs({
       // counts overflow a 320px viewport, and a clipped tab is an unreachable one.
       // Scrollbar hidden to match the rail's treatment in MarketplaceShell.
       className={cn(
-        'mb-5 flex gap-1 overflow-x-auto border-b border-border pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] lg:[mask-image:none]',
+        'mb-3 flex gap-1 overflow-x-auto border-b border-border pb-px pr-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-0.75rem),transparent)] md:mb-5 md:[mask-image:none] md:pr-0',
         className,
       )}
     >
@@ -123,13 +125,20 @@ export function SectionTabs({
             href={tab.href}
             aria-current={current ? 'page' : undefined}
             className={cn(
-              'relative -mb-px inline-flex shrink-0 items-center gap-2 rounded-t-md px-4 py-2.5 text-body font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'relative -mb-px inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-t-md border border-transparent px-3 py-2 text-body font-medium transition-colors active:opacity-70 focus:outline-none focus-visible:border-iris md:min-h-11 md:gap-2 md:px-4 md:py-2.5',
               current
                 ? 'text-foreground'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {tab.label}
+            {tab.shortLabel ? (
+              <>
+                <span className="md:hidden">{tab.shortLabel}</span>
+                <span className="hidden md:inline">{tab.label}</span>
+              </>
+            ) : (
+              tab.label
+            )}
             {tab.count === undefined ? null : (
               <span className="text-meta tabular-nums text-muted-foreground">
                 {tab.count}

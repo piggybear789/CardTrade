@@ -1,9 +1,18 @@
-// Monochrome marks for catalog game pills. Drawn as simple geometry so they
-// read at 14px and inherit the pill colour. These are original symbols, not
-// official logos.
+// Catalog game icons, in two flavours.
+//
+// `GameIcon` prefers a real brand logo from `public/games/<slug>.svg`. Those
+// files were downloaded from Wikimedia Commons, not drawn here — provenance
+// and licences are in `public/games/SOURCES.md`. Only six games have a
+// licensable vector; the rest fall through to the drawn marks below, which are
+// original monochrome symbols rather than official logos.
+//
+// `GameMark` is always the drawn mark. It exists for the desktop pills, whose
+// fill inverts to near-black when active: a full-colour logo cannot follow the
+// foreground, but a `currentColor` mark can.
 
 import type { ReactNode, SVGProps } from 'react';
-import { LayoutGrid } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LayoutGridIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -232,7 +241,26 @@ const GAME_MARKS: Record<string, (props: IconProps) => ReactNode> = {
   'other-tcg': OtherTcgMark,
 };
 
-export function GameIcon({
+// Aspect ratios (w/h) taken from each downloaded file's viewBox. Hard-coded so
+// the box reserves its final width during SSR — measuring the SVG on the client
+// would reflow the whole icon row on first paint.
+//
+// Only square SYMBOLS earn a slot here. Dragon Ball, Star Wars, Magic, Digimon
+// and One Piece publish wordmarks — they set the game's name above a label
+// already carrying it, in brand colours that fight the drawn marks beside them.
+// They were downloaded, rejected, and are documented with their sources in
+// `public/games/SOURCES.md` should a square symbol ever ship.
+const GAME_LOGO_ASPECT: Record<string, number> = {
+  pokemon: 1,
+};
+
+// One shared band height keeps logos and drawn marks on the same baseline, so
+// a row mixing the two stays even. The width cap stops the 5.49:1 One Piece
+// wordmark from blowing out a grid column; `object-contain` shrinks it to fit.
+const LOGO_HEIGHT_PX = 20;
+const LOGO_MAX_WIDTH_PX = 52;
+
+export function GameMark({
   slug,
   className,
 }: {
@@ -240,8 +268,61 @@ export function GameIcon({
   className?: string;
 }) {
   if (slug === 'all') {
-    return <LayoutGrid className={cn('size-3.5 shrink-0', className)} aria-hidden />;
+    return <HugeiconsIcon icon={LayoutGridIcon} className={cn('size-3.5 shrink-0', className)} aria-hidden />;
   }
   const Mark = GAME_MARKS[slug] ?? OtherTcgMark;
   return <Mark className={className} />;
+}
+
+export function GameIcon({
+  slug,
+  className,
+  active = false,
+}: {
+  slug: string;
+  className?: string;
+  /** Drives the icon's own treatment: brand logos dim when inactive, drawn
+   *  marks switch to iris. Callers only need to say which state they're in. */
+  active?: boolean;
+}) {
+  const aspect = GAME_LOGO_ASPECT[slug];
+
+  if (aspect == null) {
+    return (
+      <span
+        className={cn(
+          'inline-grid shrink-0 place-items-center',
+          active ? 'text-iris-ink' : 'text-muted-foreground',
+          className,
+        )}
+        style={{ height: LOGO_HEIGHT_PX, width: LOGO_HEIGHT_PX }}
+      >
+        <GameMark slug={slug} className="size-4" />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'inline-grid shrink-0 place-items-center',
+        // A brand logo carries its own colour, so state lives on the label and
+        // underline instead. Inactive only loses a little presence — tinting or
+        // heavy fading would misrepresent the mark, and the lighter logos
+        // (Magic, Digimon) turn to mush below about 80%.
+        !active && 'opacity-80',
+        className,
+      )}
+      // Geometry is inline so a caller's `size-4` cannot squash a wordmark into
+      // a square; the class still lands for spacing and layout.
+      style={{
+        height: LOGO_HEIGHT_PX,
+        width: Math.min(LOGO_HEIGHT_PX * aspect, LOGO_MAX_WIDTH_PX),
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- local static SVG; next/image would need `dangerouslyAllowSVG` and cannot optimise vectors anyway */}
+      <img src={`/games/${slug}.svg`} alt="" className="size-full object-contain" />
+    </span>
+  );
 }

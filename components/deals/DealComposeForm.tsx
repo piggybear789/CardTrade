@@ -8,7 +8,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Banknote, Repeat2 } from 'lucide-react';
+import { BanknoteIcon, RepeatIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { FieldError } from '@/components/motion/FieldError';
@@ -105,7 +105,7 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
             toast.error(result.message || DEAL_INVITE_ERROR_COPY[result.error]);
             return;
           }
-          toast.success('Deal link ready to share');
+          
           onSuccess?.();
           navigateWithType(router, result.data.path, 'nav-forward');
           return;
@@ -123,7 +123,7 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
           toast.error(result.message || DEAL_INVITE_ERROR_COPY[result.error]);
           return;
         }
-        toast.success('Deal link ready to share');
+        
         onSuccess?.();
         navigateWithType(router, result.data.path, 'nav-forward');
         return;
@@ -159,7 +159,7 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
         toast.error(result.message || DEAL_INVITE_ERROR_COPY[result.error]);
         return;
       }
-      toast.success('Deal link ready to share');
+      
       onSuccess?.();
       navigateWithType(router, result.data.path, 'nav-forward');
     });
@@ -168,22 +168,26 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Start a Deal</DialogTitle>
+        {/* The trigger names the thing ("Private Deal"), the dialog names the
+            task. This is a creation form — it picks a kind and sends an invite
+            link — so echoing the trigger verbatim would read like a detail view
+            of a deal that already exists. */}
+        <DialogTitle>Start a Private Deal</DialogTitle>
         <DialogDescription>
           Send a private link. They join, and you finish in a sale or trade room.
         </DialogDescription>
       </DialogHeader>
-      <div className="space-y-5">
+      <div className="space-y-4">
         <fieldset className="space-y-2">
           <legend className="text-body font-medium">What kind of deal?</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2">
             <ChoiceTile
               id="deal-kind-cash"
               name="deal-kind"
               type="radio"
               checked={kind === 'CASH_SALE'}
               onChange={() => setKind('CASH_SALE')}
-              icon={Banknote}
+              icon={BanknoteIcon}
               label="Cash for a card"
               align="center"
             />
@@ -193,7 +197,7 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
               type="radio"
               checked={kind === 'TRADE'}
               onChange={() => setKind('TRADE')}
-              icon={Repeat2}
+              icon={RepeatIcon}
               label="Trade cards"
               align="center"
             />
@@ -203,7 +207,7 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
         {kind === 'CASH_SALE' ? (
           <fieldset className="space-y-2">
             <legend className="text-body font-medium">Your side</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               <ChoiceTile
                 id="deal-role-seller"
                 name="deal-role"

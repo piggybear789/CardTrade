@@ -96,6 +96,28 @@ export interface ValidateFulfilmentOptions {
   now?: () => Date;
   /** Cap on agreed postage. Defaults to {@link DELIVERY_COST_MAX_CENTS}. */
   maxDeliveryCostCents?: number;
+  /**
+   * Which handover methods this flow accepts. Omitted means both.
+   *
+   * Trades pass `['IN_PERSON']`. A trade's collateral is a card authorisation that
+   * lapses in about a week and cannot be extended on this account, and postage in
+   * both directions plus an inspection window does not fit inside that — no amount of
+   * scheduling makes it fit, because nobody controls the post. A Cash_Sale's money is
+   * captured at agreement and outlives anything, so it still posts.
+   */
+  allowedMethods?: readonly FulfilmentMethod[];
+  /**
+   * How far ahead a meeting may be scheduled, in hours. Omitted means no limit.
+   *
+   * OPT-IN RATHER THAN DEFAULTED, because the two flows have genuinely different
+   * answers. A Trade is backed by a card authorisation that lapses in about a week,
+   * so a distant meeting leaves the handover unprotected; a Cash_Sale's money is
+   * already collected into the platform balance and outlives anything. Defaulting
+   * the cap would impose a trade's constraint on a sale that has no reason for it.
+   *
+   * Trades pass {@link import('./inspection').MAX_MEETING_LEAD_HOURS}.
+   */
+  maxMeetingLeadHours?: number;
 }
 
 /**
@@ -117,6 +139,13 @@ export function validateFulfilmentTerms(
     return { ok: false, error: 'method-required' };
   }
 
+  // Checked before anything method-specific, so a trade asked to post is refused for
+  // the reason that is true — the method is not on offer — rather than falling through
+  // to a complaint about a missing postage cost.
+  if (options.allowedMethods && !options.allowedMethods.includes(terms.method)) {
+    return { ok: false, error: 'method-not-supported' };
+  }
+
   if (terms.method === 'IN_PERSON') {
     const place = terms.meeting.place;
     if (!place?.label?.trim()) {
@@ -134,6 +163,15 @@ export function validateFulfilmentTerms(
     }
     if (at.getTime() <= now().getTime()) {
       return { ok: false, error: 'meeting-time-past' };
+    }
+    // The collateral has to still be alive when the handover is inspected, or a
+    // face-to-face scam surfaces after the only money that could answer for it has
+    // been released. See `MAX_MEETING_LEAD_HOURS` for where the number comes from.
+    if (options.maxMeetingLeadHours != null) {
+      const latest = now().getTime() + options.maxMeetingLeadHours * 3_600_000;
+      if (at.getTime() > latest) {
+        return { ok: false, error: 'meeting-time-too-far' };
+      }
     }
     return { ok: true };
   }

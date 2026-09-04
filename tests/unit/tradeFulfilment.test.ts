@@ -43,6 +43,7 @@ function facts(overrides: Partial<TradeFacts> = {}): TradeFacts {
     accepted: { initiator: false, counterpart: false },
     handoverConfirmed: { initiator: false, counterpart: false },
     holdsActive: { initiator: false, counterpart: false },
+    collateralSeekFailed: false,
     fulfilmentMethod: null,
     ...overrides,
   };
@@ -148,6 +149,22 @@ describe('permitted controls follow the fulfilment method', () => {
         facts: facts({ fulfilmentMethod: 'DELIVERY' }),
       }),
     ).toContain('REPORT_HANDOVER_FAILED');
+  });
+
+  it('offers a collateral retry only after a seek has already failed', () => {
+    expect(
+      availableActions('COLLATERAL_PENDING', {
+        role: 'INITIATOR',
+        facts: facts(),
+      }),
+    ).not.toContain('RETRY_COLLATERAL');
+
+    expect(
+      availableActions('COLLATERAL_PENDING', {
+        role: 'INITIATOR',
+        facts: facts({ collateralSeekFailed: true }),
+      }),
+    ).toContain('RETRY_COLLATERAL');
   });
 });
 

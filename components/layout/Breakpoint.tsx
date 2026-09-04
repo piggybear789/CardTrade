@@ -6,6 +6,8 @@
 import type { ReactNode } from 'react';
 import { useSyncExternalStore } from 'react';
 
+import { useWorkspaceChrome } from '@/components/layout/WorkspaceChrome';
+
 const LG_QUERY = '(min-width: 768px)';
 
 function subscribeLg(onChange: () => void) {
@@ -18,21 +20,29 @@ function getLgSnapshot() {
   return window.matchMedia(LG_QUERY).matches;
 }
 
-/** SSR assumes mobile so the first paint matches the thumb-first shell. */
-function getLgServerSnapshot() {
-  return false;
-}
+// Module-level so the identity is stable across renders, which
+// `useSyncExternalStore` requires of its server snapshot.
+const serverDesktop = () => true;
+const serverMobile = () => false;
 
-function useIsLg() {
-  return useSyncExternalStore(subscribeLg, getLgSnapshot, getLgServerSnapshot);
+export function useIsDesktop() {
+  // The last viewport this browser reported, if the workspace layout supplied
+  // one. Falls back to the thumb-first shell, which is what every render did
+  // before the hint existed.
+  const { viewport } = useWorkspaceChrome();
+  return useSyncExternalStore(
+    subscribeLg,
+    getLgSnapshot,
+    viewport?.isDesktop ? serverDesktop : serverMobile,
+  );
 }
 
 /** Renders children only below the desktop chrome split (`md` = 768px). */
 export function MobileOnly({ children }: { children: ReactNode }) {
-  return useIsLg() ? null : children;
+  return useIsDesktop() ? null : children;
 }
 
 /** Renders children only at the desktop chrome split and up (`md` = 768px). */
 export function DesktopOnly({ children }: { children: ReactNode }) {
-  return useIsLg() ? children : null;
+  return useIsDesktop() ? children : null;
 }

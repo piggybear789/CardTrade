@@ -15,10 +15,11 @@
 // carries information the seller needs.
 //
 // The colour vocabulary is deliberately borrowed from the contract rail so the two
-// read as the same product: `trust` for travelled/complete, `gold` for "you are here".
+// read as the same product: `trust` for travelled/complete, `iris` for "you are here".
 
 import type { ReactNode } from 'react';
-import { Check } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -36,9 +37,17 @@ export interface OnboardingSpineStepProps {
    * label (e.g. "Verified as Jane Smith").
    */
   receipt?: string;
+  /**
+   * Why the step has not passed yet, shown while it is active.
+   *
+   * Sits beside the marker rather than above the spine because a provider's verdict
+   * belongs to ONE step: a page-level banner saying "the document is invalid" over a
+   * two-step sequence makes the member re-read both to work out which one it means.
+   */
+  problem?: ReactNode;
   /** Whether a connector should run on to a following step. */
   hasNext: boolean;
-  /** The step's own controls. Rendered only while active. */
+  /** The step's own controls. Rendered on the right of the title while active. */
   children?: ReactNode;
 }
 
@@ -49,6 +58,7 @@ export function OnboardingSpineStep({
   title,
   description,
   receipt,
+  problem,
   hasNext,
   children,
 }: OnboardingSpineStepProps) {
@@ -87,12 +97,12 @@ export function OnboardingSpineStep({
           className={cn(
             'my-tight grid size-7 shrink-0 place-items-center rounded-full border text-meta font-semibold transition-all duration-300',
             done && 'cardtrade-success-chip',
-            active && 'border-gold bg-gold/20 text-foreground ring-2 ring-gold/25',
+            active && 'border-iris bg-iris/20 text-foreground ring-2 ring-iris/25',
             !done && !active && 'border-border bg-card text-muted-foreground',
           )}
           aria-hidden
         >
-          {done ? <Check className="size-3.5" /> : index}
+          {done ? <HugeiconsIcon icon={CheckIcon} className="size-3.5" /> : index}
         </span>
         <span
           aria-hidden
@@ -103,35 +113,53 @@ export function OnboardingSpineStep({
         />
       </div>
 
-      {/* Head row, content column. */}
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-x-cozy gap-y-tight">
-          <h3
-            className={cn(
-              'text-lead font-semibold',
-              done ? 'text-muted-foreground' : 'text-foreground',
-            )}
-          >
-            {title}
-          </h3>
-          <span className="sr-only">
-            {done ? '(complete)' : active ? '(current step)' : '(not started)'}
-          </span>
+      {/* Head row, content column. Title and the step's action share one row so the
+          control sits to the RIGHT of the copy. The action column is only as wide as
+          the button — a full-width sibling is what squeezed the heading onto three
+          lines in a narrower dialog. */}
+      <div className="min-w-0 py-tight">
+        <div className="flex flex-col gap-cozy sm:flex-row sm:items-start sm:justify-between sm:gap-group">
+          <div className="min-w-0 flex-1">
+            <h3
+              className={cn(
+                'text-pretty text-lead font-semibold sm:whitespace-nowrap',
+                done ? 'text-muted-foreground' : 'text-foreground',
+              )}
+            >
+              {title}
+            </h3>
+            <span className="sr-only">
+              {done ? '(complete)' : active ? '(current step)' : '(not started)'}
+            </span>
+
+            {done && receipt ? (
+              <p className="mt-tight text-body text-muted-foreground">{receipt}</p>
+            ) : null}
+
+            {!done && description ? (
+              <p className="mt-tight text-pretty text-body leading-relaxed text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
+
+            {active && problem ? (
+              <div
+                role="status"
+                className="mt-cozy rounded-md border border-border bg-muted/40 px-cozy py-tight text-pretty text-body leading-relaxed text-foreground"
+              >
+                {problem}
+              </div>
+            ) : null}
+          </div>
+
+          {active && children ? (
+            <div className="shrink-0 sm:self-start">{children}</div>
+          ) : null}
         </div>
-
-        {done && receipt ? (
-          <p className="mt-tight text-body text-muted-foreground">{receipt}</p>
-        ) : null}
-
-        {!done && description ? (
-          <p className="mt-tight text-pretty text-body leading-relaxed text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
       </div>
 
-      {/* Body row, marker column — the line continues past the head, through whatever
-          height the controls take, to the next step's marker. */}
+      {/* Body row, marker column — the line continues past the head to the next
+          step's marker. */}
       <div className="flex justify-center">
         <span
           aria-hidden
@@ -142,12 +170,7 @@ export function OnboardingSpineStep({
         />
       </div>
 
-      {/* Body row, content column. A finished step gives its vertical space back; only
-          the active step carries controls. The bottom spacing lives here rather than on
-          the head so the connector has something to run through. */}
-      <div className={cn('min-w-0', hasNext ? 'pb-section' : 'pb-0')}>
-        {active && children ? <div className="mt-group">{children}</div> : null}
-      </div>
+      <div className={cn('min-w-0', hasNext ? 'pb-section' : 'pb-0')} />
     </li>
   );
 }

@@ -7,17 +7,23 @@
 // ContractConversationPanel); the progress rail lives up in ContractHeader.
 // This row is pure layout.
 //
-// Below `lg`, Details / Chat are tabs so the room is not a 48rem stacked
-// scroll of two fixed panes. Chat is the default tab because it carries the
-// action bar.
+// Below the split the room IS the conversation — a full-height thread, the way
+// the inbox renders one — and the details open over it in a sheet from the
+// subject line in `ContractChatBar`. It used to be a Chat / Details tab pair,
+// which spent 52px of a phone viewport permanently to offer a mode the reader
+// was in 90% of the time, and stacked the room's own summary card above it
+// saying the same title, price and counterparty the chat bar already said.
 //
-// Children and conversation mount ONCE (F36). The Breakpoint utility selects
-// the layout so DOM ids stay unique and realtime subscriptions aren't doubled.
+// Children and conversation mount ONCE (F36). `useContractSplit` selects the
+// layout so DOM ids stay unique and realtime subscriptions aren't doubled; in
+// the thread the details additionally mount only while the sheet is open.
 
-import { useState, type ReactNode } from 'react';
-import { MessageCircle, ScrollText } from 'lucide-react';
+import type { ReactNode } from 'react';
 
-import { MobileOnly, DesktopOnly } from '@/components/layout/Breakpoint';
+import { Button } from '@/components/ui/button';
+import { useContractFocus } from '@/components/contract/ContractFocus';
+import { useContractSplit } from '@/components/contract/useContractSplit';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 export interface ContractLiveRowProps {
@@ -25,108 +31,113 @@ export interface ContractLiveRowProps {
   conversation: ReactNode;
   /** The contract's fixed-height `ContractDetailList` inspector. */
   children: ReactNode;
+  /** Sheet heading below `md` — the contract's own title. */
+  detailsTitle?: string;
+  /** Status and money for the sheet heading, beside the title. */
+  detailsMeta?: ReactNode;
   className?: string;
 }
-
-type MobilePane = 'details' | 'chat';
 
 /** Equal-height details/chat workspace; the chat panel carries the live step. */
 export function ContractLiveRow({
   conversation,
   children,
+  detailsTitle = 'Contract details',
+  detailsMeta,
   className,
 }: ContractLiveRowProps) {
-  const [pane, setPane] = useState<MobilePane>('chat');
+  const { detailsOpen, closeDetails } = useContractFocus();
+  const split = useContractSplit();
 
-  return (
-    <div className={cn('flex min-h-0 flex-1 flex-col gap-group', className)}>
-      {/* Mobile: one pane at a time, thumb-friendly tab switch. */}
-      <MobileOnly>
-        <div className="flex min-h-0 flex-1 flex-col gap-cozy">
-          <div
-            role="tablist"
-            aria-label="Contract workspace"
-            className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted p-1"
-          >
-            <button
-              type="button"
-              role="tab"
-              id="contract-tab-chat"
-              aria-controls="contract-panel-chat"
-              aria-selected={pane === 'chat'}
-              onClick={() => setPane('chat')}
-              className={cn(
-                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                pane === 'chat'
-                  ? 'bg-card font-semibold text-foreground shadow-sm'
-                  : 'font-medium text-muted-foreground',
-              )}
-            >
-              <MessageCircle className="size-4 shrink-0" aria-hidden="true" />
-              Chat
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="contract-tab-details"
-              aria-controls="contract-panel-details"
-              aria-selected={pane === 'details'}
-              onClick={() => setPane('details')}
-              className={cn(
-                'flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-md px-3 text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                pane === 'details'
-                  ? 'bg-card font-semibold text-foreground shadow-sm'
-                  : 'font-medium text-muted-foreground',
-              )}
-            >
-              <ScrollText className="size-4 shrink-0" aria-hidden="true" />
-              Details
-            </button>
-          </div>
+  if (split) {
+    return (
+      <div className={cn('flex min-h-0 flex-1 flex-col gap-group', className)}>
+        {/* Persistent split inspector + chat. The panes are bounded so they
+            scroll internally rather than growing the page (F37).
 
-          <div
-            id="contract-panel-chat"
-            role="tabpanel"
-            aria-labelledby="contract-tab-chat"
-            hidden={pane !== 'chat'}
-            className={cn(
-              'min-h-[min(32rem,70dvh)] min-w-0 flex-col [&>*]:h-full',
-              pane === 'chat' ? 'flex' : 'hidden',
-            )}
-          >
-            {conversation}
-          </div>
-          <div
-            id="contract-panel-details"
-            role="tabpanel"
-            aria-labelledby="contract-tab-details"
-            hidden={pane !== 'details'}
-            className={cn(
-              'min-w-0',
-              pane === 'details' ? 'block' : 'hidden',
-            )}
-          >
+            The height budget is declared ONCE, by the room root (CashSaleView /
+            TradeContract), and this row takes what is left via `flex-1`. It must
+            NOT re-declare `100dvh - chrome` here: the contract header is a
+            sibling ABOVE this row, so claiming the whole content box would
+            overflow the viewport by its height. */}
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)] gap-group">
+          <div className="min-h-0 min-w-0 overflow-y-auto [&>*]:h-full">
             {children}
           </div>
-        </div>
-      </MobileOnly>
-
-      {/* Desktop: persistent split inspector + chat. The panes are bounded so
-          they scroll internally rather than growing the page (F37).
-
-          The height budget is declared ONCE, by the room root (CashSaleView /
-          TradeContract), and this row takes what is left via `flex-1`. It must
-          NOT re-declare `100dvh - chrome` here: the contract header is a
-          sibling ABOVE this row, so claiming the whole content box would
-          overflow the viewport by its height. */}
-      <DesktopOnly>
-        <div className="min-h-0 flex-1 gap-group lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
-          <div className="min-h-0 min-w-0 overflow-y-auto [&>*]:h-full">{children}</div>
           <div className="flex min-h-0 min-w-0 flex-col [&>*]:h-full">
             {conversation}
           </div>
         </div>
-      </DesktopOnly>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('flex min-h-0 flex-1 flex-col gap-group', className)}>
+      {/* The thread fills the room; details arrive over it. */}
+      <div className="flex min-h-0 flex-1 flex-col [&>*]:h-full">
+        {conversation}
+      </div>
+
+      <Sheet
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDetails();
+        }}
+      >
+        {/* Docked above the hub bar rather than over it, matching
+            MobileBottomNav's own sheets — the bar stays reachable, so
+            leaving the contract never needs the sheet dismissed first. */}
+        {/* A definite height, not a `max-h`: this is a seven-tab inspector, and
+            sizing it to the shortest panel opened a 178px sliver whose tab
+            strip then jumped as the reader moved between tabs. Fixed height,
+            panel scrolls inside. */}
+        {/* NO ✕. It sat on top of a title that already truncates, so a long
+            contract name ran under it — and the backdrop above the sheet is
+            tappable, which is how a docked sheet is dismissed anyway.
+
+            WHERE IT MEETS THE HUB BAR. Two white surfaces stack here, so exactly
+            one line has to separate them and it has to be crisp. Both previous
+            attempts failed in opposite directions: the sheet's all-round
+            `shadow-lg` bled down over the bar and smeared the bar's own 1px
+            border into a soft grey band, and removing the 1px offset so the
+            sheet covered that border left no boundary at all — the tab content
+            simply ran into the navigation.
+
+            So: sit one pixel clear of the bar and let ITS border do the
+            separating. The downward shadow is gone at the source — see the
+            `bottom` variant in `ui/sheet`. */}
+        <SheetContent
+          side="bottom"
+          hideClose
+          overlayClassName="inset-x-0 top-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]"
+          className="bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] flex h-[min(80dvh,calc(100dvh-env(safe-area-inset-top)-7rem))] max-h-none flex-col gap-0 rounded-t-2xl border-border bg-card p-0 pb-0"
+        >
+          {/* `pr-group`, overriding SheetHeader's `pr-12`: that inset exists to
+              keep the title clear of the ✕, which this sheet does not have. */}
+          <SheetHeader className="flex flex-row items-center justify-between shrink-0 border-b border-border px-group py-cozy pr-group">
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="truncate text-lead">{detailsTitle}</SheetTitle>
+              {detailsMeta ? (
+                <div className="flex flex-wrap items-center gap-cozy text-body text-muted-foreground">
+                  {detailsMeta}
+                </div>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={closeDetails}
+              className="text-body font-medium text-muted-foreground hover:text-foreground"
+              aria-label="Close details"
+            >
+              Done
+            </Button>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

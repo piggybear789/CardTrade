@@ -23,6 +23,7 @@ const Map<TradeState, Map<TradeEvent, TradeState>> transitions = {
   TradeState.collateralLocked: {
     TradeEvent.bothShipped: TradeState.inTransit,
     TradeEvent.bothHandoverConfirmed: TradeState.inspection, // in-person skips IN_TRANSIT
+    TradeEvent.handoverAssumed: TradeState.inspection, // meeting passed, nobody confirmed
     TradeEvent.handoverFailed: TradeState.disputed,
   },
   TradeState.inTransit: {

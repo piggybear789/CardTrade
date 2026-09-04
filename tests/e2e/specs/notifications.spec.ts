@@ -26,6 +26,7 @@ import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, storageStatePath } from '../support/users';
 import { marked } from '../support/marker';
 import { ensureFreshSessions } from '../support/auth';
+import { messageSellerComposer } from '../support/messageSeller';
 
 // Repair any stored cookie jar this file relies on before its first test.
 // Refresh-token rotation retires the token a jar holds as soon as another context
@@ -62,11 +63,11 @@ test.describe('Notification delivery', () => {
   const bobPage = await bobContext.newPage();
   await bobPage.goto(`/listings/${ALICE_LISTING}`);
   await bobPage.waitForLoadState('domcontentloaded');
-  const composer = bobPage.getByLabel('Send seller a message');
+  const { input: composer, send } = messageSellerComposer(bobPage);
   await expect(composer).toBeEnabled({ timeout: 15_000 });
   await composer.click();
   await composer.fill(body);
-  await bobPage.getByRole('button', { name: 'Send' }).click();
+  await send.click();
   // Landing in the thread is what proves the message was written — see F5 for
   // why a shorter wait reads as a different bug entirely.
   await expect(bobPage).toHaveURL(/\/messages\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
@@ -94,10 +95,10 @@ test.describe('Notification delivery', () => {
   
   // The visible bell announces the count in its accessible name — that is what
   // a screen-reader user gets, so it is the thing worth asserting on.
-  const visibleUnreadBell = alicePage
+  const unreadBell = alicePage
     .getByRole('button', { name: /Notifications, \d+ unread/ })
-    .locator('visible=true');
-  await expect(visibleUnreadBell).toBeVisible();
+    .first();
+  await expect(unreadBell).toBeVisible();
   
   await markAll.click();
   
@@ -105,14 +106,14 @@ test.describe('Notification delivery', () => {
   // resolves, which takes `unreadCount` to 0 and disables the control. Asserting
   // DISABLED rather than HIDDEN: the button never unmounts.
   await expect(markAll).toBeDisabled({ timeout: 20_000 });
-  await expect(visibleUnreadBell).toHaveCount(0, { timeout: 20_000 });
+  await expect(alicePage.getByRole('button', { name: /Notifications, \d+ unread/ })).toHaveCount(0, { timeout: 20_000 });
   
   // And it stays cleared across a reload, so the optimistic update was backed by
   // a persisted write rather than being local-only.
   await alicePage.reload();
   await alicePage.waitForLoadState('domcontentloaded');
   await expect(
-    alicePage.getByRole('button', { name: /Notifications, \d+ unread/ }).locator('visible=true'),
+    alicePage.getByRole('button', { name: /Notifications, \d+ unread/ }),
   ).toHaveCount(0, { timeout: 20_000 });
   
   await aliceContext.close(); });

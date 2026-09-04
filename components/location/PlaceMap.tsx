@@ -13,7 +13,8 @@
 //   themselves for a real-world meetup.
 
 import { useState } from 'react';
-import { ExternalLink, MapPin } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ExternalLinkIcon, MapPinIcon } from '@hugeicons/core-free-icons';
 
 import { embedMapUrl, mapsExternalUrl, staticMapUrl } from '@/lib/location/googleMaps';
 import type { PlacePrecision } from '@/lib/location/types';
@@ -52,7 +53,7 @@ function LocationRow({
 }) {
   return (
     <div className={cn('flex min-w-0 items-center gap-3', className)}>
-      <MapPin className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <HugeiconsIcon icon={MapPinIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <span className="min-w-0 flex-1 truncate text-body">{label}</span>
       {href ? (
         <a
@@ -62,7 +63,7 @@ function LocationRow({
           className="inline-flex shrink-0 items-center gap-1 text-body font-semibold underline-offset-4 hover:underline"
         >
           Open in Maps
-          <ExternalLink className="size-3.5" aria-hidden />
+          <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
         </a>
       ) : null}
     </div>
@@ -111,7 +112,7 @@ export function PlaceMap({
         )}
       >
         <span className="inline-flex items-center gap-2">
-          <MapPin className="size-4" aria-hidden />
+          <HugeiconsIcon icon={MapPinIcon} className="size-4" aria-hidden />
           No map location yet
         </span>
       </div>
@@ -160,7 +161,7 @@ export function PlaceMap({
               className="inline-flex shrink-0 items-center gap-1 font-semibold underline-offset-4 hover:underline"
             >
               Open
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+              <HugeiconsIcon icon={ExternalLinkIcon} className="h-3.5 w-3.5" aria-hidden />
             </a>
           </div>
         ) : null}
@@ -188,7 +189,7 @@ export function PlaceMap({
           className="inline-flex items-center gap-tight text-body font-semibold underline-offset-4 hover:underline"
         >
           Open in Maps
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          <HugeiconsIcon icon={ExternalLinkIcon} className="h-3.5 w-3.5" aria-hidden />
         </a>
       </div>
     );
@@ -216,7 +217,7 @@ export function PlaceMap({
             className="inline-flex shrink-0 items-center gap-1 font-semibold underline-offset-4 hover:underline"
           >
             Open
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            <HugeiconsIcon icon={ExternalLinkIcon} className="h-3.5 w-3.5" aria-hidden />
           </a>
         </div>
       ) : null}

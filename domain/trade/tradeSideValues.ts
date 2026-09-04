@@ -61,6 +61,44 @@ export function resolveTradeSideValues(params: {
  * silently switched off. On a binder it is also reachable, because the binder side
  * inherits its value from the other side.
  */
+/**
+ * THE ONE FIGURE A TRADE IS WORTH, for display.
+ *
+ * The rooms used to headline `$159.00 ⇄ $145.00`, which puts the two sides'
+ * valuations next to each other and invites the reader to check whether they
+ * balance. They frequently do not — a 2-Way Trade is an equal-value swap by
+ * intent, not by arithmetic on two independently priced sides, and the cash leg
+ * exists precisely to settle the gap. Showing the gap as the headline made
+ * every trade look mispriced.
+ *
+ * So one number: the value the two of them agreed on. `declared_value_cents` is
+ * that figure whenever it was recorded (migration 0052 calls it the agreed value
+ * basis). It is nullable, so the goods fall back to the larger side — the same
+ * quantity a fraud finding captures, and never smaller than what either trader
+ * has put up. The cash leg is folded in rather than trailed as `+ $20.00 cash`,
+ * because the total consideration is the thing being stated.
+ *
+ * NOTE: this is presentation only. Collateral and the Trade_Fee are still sized
+ * per side by `resolveTradeSideValues` and must not read this.
+ *
+ * @returns the agreed value in integer minor currency units.
+ */
+export function tradeAgreedValueCents(params: {
+  /** `trades.declared_value_cents`, when the terms recorded one. */
+  declaredValueCents: number | null | undefined;
+  initiatorSideCents: number;
+  counterpartSideCents: number;
+  /** The cash leg, in either direction. */
+  cashAmountCents: number;
+}): number {
+  const declared = params.declaredValueCents ?? 0;
+  const goodsCents =
+    declared > 0
+      ? Math.trunc(declared)
+      : Math.max(params.initiatorSideCents, params.counterpartSideCents, 0);
+  return goodsCents + Math.max(Math.trunc(params.cashAmountCents), 0);
+}
+
 export function tradeSidesAreValued(sides: {
   initiatorSideCents: number;
   counterpartSideCents: number;

@@ -15,7 +15,8 @@
 // visible act rather than an accident.
 
 import { useTransition } from 'react';
-import { Loader2, UserCheck, UserPlus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LoaderCircleIcon, UserCheck01Icon, UserPlusIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { assignArbitrationCase } from '@/lib/actions/arbitration';
@@ -55,7 +56,7 @@ export function CaseAssignButton({
     startTransition(async () => {
       const result = await assignArbitrationCase(caseKind, caseRef, next);
       if (result.ok) {
-        toast.success(next === null ? 'Released back to the queue.' : 'Assigned to you.');
+        
         return;
       }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Could not update the case.');
@@ -78,11 +79,11 @@ export function CaseAssignButton({
         onClick={() => apply(mine ? null : viewerId)}
       >
         {isPending ? (
-          <Loader2 className="animate-spin" aria-hidden />
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : mine ? (
-          <UserCheck aria-hidden />
+          <HugeiconsIcon icon={UserCheck01Icon} aria-hidden />
         ) : (
-          <UserPlus aria-hidden />
+          <HugeiconsIcon icon={UserPlusIcon} aria-hidden />
         )}
         {mine ? 'Release' : heldByOther ? 'Take over' : 'Take case'}
       </Button>

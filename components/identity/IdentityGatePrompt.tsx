@@ -29,20 +29,18 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { BadgeCheck, Loader2, ShieldAlert } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ExternalLinkIcon, LoaderCircleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
+import { CustodyNote } from '@/components/onboarding/OnboardingSpine';
 import { Button } from '@/components/ui/button';
+import { DialogFooter } from '@/components/ui/dialog';
 import { type VerificationState } from '@/domain/identity/identityGate';
 
 export interface IdentityGatePromptProps {
   /** Where the member is in verification, read server-side from the gate. */
   state: VerificationState;
-  /**
-   * What they were trying to do, as a verb phrase — "start a trade". Used in the one
-   * line of explanation so the prompt reads as an answer to their click.
-   */
-  blockedAction: string;
   /**
    * Path to come back to after the provider's hosted check, so the member lands where
    * they started rather than on /profile. Must be same-origin.
@@ -52,9 +50,23 @@ export interface IdentityGatePromptProps {
   onVerified?: () => void;
 }
 
+/** Dialog description for a given gate state. Owned here so the header cannot drift. */
+export function identityGateDescription(
+  state: VerificationState,
+  blockedAction: string,
+): string {
+  switch (state) {
+    case 'IN_PROGRESS':
+      return `Your check is still open. You cannot ${blockedAction} until it finishes.`;
+    case 'NOT_APPROVED':
+      return 'That document could not be verified. You can try again.';
+    default:
+      return `You need a verified identity before you can ${blockedAction}.`;
+  }
+}
+
 export function IdentityGatePrompt({
   state,
-  blockedAction,
   returnPath,
   onVerified,
 }: IdentityGatePromptProps) {
@@ -64,6 +76,7 @@ export function IdentityGatePrompt({
   const [isPending, startTransition] = useTransition();
 
   const resuming = state === 'IN_PROGRESS';
+  const retrying = state === 'NOT_APPROVED';
 
   /**
    * Re-read the provider's own answer and let the caller react to it.
@@ -107,30 +120,22 @@ export function IdentityGatePrompt({
     });
   }
 
+  const actionLabel = resuming
+    ? 'Continue with Stripe'
+    : retrying
+      ? 'Try again with Stripe'
+      : 'Verify with Stripe';
+
   return (
     <div className="space-y-group">
-      {resuming ? (
-        <p className="text-body text-muted-foreground">
-          Your check is still open. You cannot {blockedAction} until it finishes.
-        </p>
-      ) : null}
-      {state === 'NOT_APPROVED' ? (
-        <p className="flex gap-snug text-body text-destructive">
-          <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-          That document could not be verified. You can try again.
-        </p>
-      ) : null}
+      {state === 'NOT_STARTED' || resuming ? <IdentityCheckSteps /> : null}
 
-      <div className="flex flex-wrap gap-snug">
-        <Button type="button" onClick={handleStart} disabled={isPending} aria-busy={isPending}>
-          {isPending ? (
-            <Loader2 className="animate-spin" aria-hidden />
-          ) : (
-            <BadgeCheck className="size-3.5" aria-hidden />
-          )}
-          {resuming ? 'Continue with Stripe' : 'Verify with Stripe'}
-        </Button>
-      </div>
+      {retrying ? (
+        <p className="flex gap-snug text-body text-destructive">
+          <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+          A blurry photo is the usual reason. Take the photos again in good light.
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-body text-destructive">
@@ -138,6 +143,67 @@ export function IdentityGatePrompt({
         </p>
       ) : null}
       {notice ? <p className="text-body text-muted-foreground">{notice}</p> : null}
+
+      <CustodyNote>
+        This step opens on Stripe&apos;s pages. NoDitto never sees the document.
+      </CustodyNote>
+
+      {/* The action sits in the dialog's footer, where every other dialog puts
+          its confirming button, rather than mid-body above a caveat. */}
+      <DialogFooter>
+        <Button
+          type="button"
+          onClick={handleStart}
+          disabled={isPending}
+          aria-busy={isPending}
+        >
+          {isPending ? (
+            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          ) : (
+            <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
+          )}
+          {isPending ? 'Opening Stripe…' : actionLabel}
+        </Button>
+      </DialogFooter>
     </div>
+  );
+}
+
+/**
+ * What the hosted check actually asks for. Numbered because the order is real —
+ * Stripe takes the document first, then matches a selfie to it.
+ */
+function IdentityCheckSteps() {
+  return (
+    <ol className="space-y-cozy">
+      <li className="flex items-center gap-cozy">
+        <span
+          className="grid size-6 shrink-0 place-items-center rounded-full border border-border bg-muted text-meta font-semibold text-muted-foreground"
+          aria-hidden
+        >
+          1
+        </span>
+        <div className="min-w-0 space-y-tight">
+          <p className="text-body font-medium text-foreground">Photo ID</p>
+          <p className="text-body leading-relaxed text-muted-foreground">
+            A government document. Stripe may ask for the front and back.
+          </p>
+        </div>
+      </li>
+      <li className="flex items-center gap-cozy">
+        <span
+          className="grid size-6 shrink-0 place-items-center rounded-full border border-border bg-muted text-meta font-semibold text-muted-foreground"
+          aria-hidden
+        >
+          2
+        </span>
+        <div className="min-w-0 space-y-tight">
+          <p className="text-body font-medium text-foreground">Matching selfie</p>
+          <p className="text-body leading-relaxed text-muted-foreground">
+            Taken in the same flow, so the face matches the ID.
+          </p>
+        </div>
+      </li>
+    </ol>
   );
 }

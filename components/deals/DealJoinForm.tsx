@@ -10,7 +10,8 @@ import { useEffect, useState, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CreditCardIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { FieldError } from '@/components/motion/FieldError';
@@ -40,17 +41,13 @@ import { deriveItemTitle } from '@/domain/validation';
 import { claimDealInvite, type DealInvitePreview } from '@/lib/actions/dealInvites';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { navigateWithType } from '@/lib/motion/navigate';
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
-        <span className="sr-only">Loading payment form…</span>
-      </div>
-    ),
+    loading: () => <PaymentFormSkeleton />,
   },
 );
 
@@ -210,7 +207,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
               : 'Describe the card they are buying. You both continue in a sale room.'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-group">
         <DealInviteSummary preview={preview} />
 
         {needsCard ? (
@@ -238,24 +235,32 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
 
         {loading ? (
           <div className="flex items-center justify-center py-6" role="status">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="size-6 animate-spin text-muted-foreground" aria-hidden />
             <span className="sr-only">Loading payment details…</span>
           </div>
         ) : showCardForm ? (
-          <AddPaymentMethodForm
-            onAttached={() => {
-              setLoadingStatus(true);
-              getPaymentMethodStatus()
-                .then((result) => {
-                  setLoadingStatus(false);
-                  if (result.ok) {
-                    setHasPaymentMethod(result.data.hasPaymentMethod);
-                    setPaymentLabel(result.data.label);
-                  }
-                })
-                .catch(() => setLoadingStatus(false));
-            }}
-          />
+          <div className="space-y-cozy">
+            <div className="space-y-tight">
+              <p className="text-body font-medium">Add a payment method</p>
+              <p className="text-body text-muted-foreground">
+                Stripe stores the card. Nothing is charged until you agree to terms.
+              </p>
+            </div>
+            <AddPaymentMethodForm
+              onAttached={() => {
+                setLoadingStatus(true);
+                getPaymentMethodStatus()
+                  .then((result) => {
+                    setLoadingStatus(false);
+                    if (result.ok) {
+                      setHasPaymentMethod(result.data.hasPaymentMethod);
+                      setPaymentLabel(result.data.label);
+                    }
+                  })
+                  .catch(() => setLoadingStatus(false));
+              }}
+            />
+          </div>
         ) : needsCheckout && showCheckout ? (
           <>
             {preview.sellerIdentity ? (
@@ -274,7 +279,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
               </p>
             )}
             <div className="flex items-center gap-3 rounded-lg border p-3">
-              <CreditCard className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-body font-medium">
                   {paymentLabel ?? 'Card on file'}
@@ -298,22 +303,24 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
 
         <FieldError message={error ?? undefined} />
       </CardContent>
-      <CardFooter>
-        <Button
-          type="button"
-          onClick={join}
-          disabled={
-            isPending ||
-            loading ||
-            showCardForm ||
-            (needsCheckout && !preview.sellerIdentity)
-          }
-          aria-busy={isPending}
-        >
-          {isPending ? <Loader2 className="animate-spin" aria-hidden /> : null}
-          {isPending ? 'Opening…' : 'Join this deal'}
-        </Button>
-      </CardFooter>
+      {/* While the card form is up, saving the card IS the action. A second,
+          permanently disabled Join button below it just reads as broken. */}
+      {showCardForm ? null : (
+        <CardFooter>
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={join}
+            disabled={
+              isPending || loading || (needsCheckout && !preview.sellerIdentity)
+            }
+            aria-busy={isPending}
+          >
+            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
+            {isPending ? 'Opening…' : 'Join this deal'}
+          </Button>
+        </CardFooter>
+      )}
 
       <UnlistedItemDialog
         open={itemDialogOpen}

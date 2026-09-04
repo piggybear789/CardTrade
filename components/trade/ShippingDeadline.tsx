@@ -13,7 +13,8 @@
 // Renders nothing for IN_PERSON trades, which have no deadline: both parties meet
 // and inspect on the spot, so they never race the authorisation window.
 
-import { AlertTriangle, Clock, PackageCheck } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Clock01Icon, PackageCheckIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -26,6 +27,16 @@ export interface ShippingDeadlineProps {
   viewerShipped: boolean;
   /** Whether the counterparty has dispatched theirs. */
   counterpartShipped: boolean;
+  /**
+   * Render as a chip rather than a banner.
+   *
+   * For hanging the clock off the step it constrains — the "Posted" tick on the
+   * postage rail — instead of floating a full-width block above the plan, where
+   * the deadline and the thing it is a deadline FOR were two unrelated elements.
+   * The chip still turns destructive when the dispatch is late; what it drops is
+   * the explanatory sentence, which the banner keeps for the overdue case.
+   */
+  compact?: boolean;
   className?: string;
 }
 
@@ -59,6 +70,7 @@ export function ShippingDeadline({
   overdueAt,
   viewerShipped,
   counterpartShipped,
+  compact = false,
   className,
 }: ShippingDeadlineProps) {
   // IN_PERSON, or collateral has not locked yet: nothing to say.
@@ -66,16 +78,40 @@ export function ShippingDeadline({
 
   const bothShipped = viewerShipped && counterpartShipped;
 
+  if (compact) {
+    // Both parcels are away, so the deadline is spent — and the rail's own tick
+    // already shows Posted as done. A chip saying so would be a third statement
+    // of the same fact.
+    if (bothShipped) return null;
+
+    const late = Boolean(overdueAt);
+    const hours = hoursUntil(deadlineAt);
+    return (
+      <span
+        className={cn(
+          'inline-flex max-w-full items-center gap-1 truncate rounded-full border px-2 py-0.5 text-meta font-medium',
+          late || (!viewerShipped && hours <= 12)
+            ? 'border-destructive/40 bg-destructive/10 text-destructive'
+            : 'border-iris/40 bg-iris/10 text-iris-ink',
+          className,
+        )}
+      >
+        <HugeiconsIcon icon={Clock01Icon} className="size-3 shrink-0" aria-hidden />
+        {late ? 'Overdue' : `${humaniseHours(hours)} left`}
+      </span>
+    );
+  }
+
   if (bothShipped) {
     return (
       <div
         className={cn(
-          'flex items-start gap-snug rounded-lg border bg-muted px-cozy py-snug text-body',
+          'flex items-center gap-snug rounded-lg border bg-muted px-cozy py-snug text-body',
           className,
         )}
         role="status"
       >
-        <PackageCheck className="mt-0.5 size-4 shrink-0 text-trust" aria-hidden />
+        <HugeiconsIcon icon={PackageCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
         <p className="text-muted-foreground">
           Both items are on their way. The dispatch deadline no longer applies.
         </p>
@@ -87,24 +123,25 @@ export function ShippingDeadline({
     return (
       <div
         className={cn(
-          'flex items-start gap-snug rounded-lg border border-destructive/40 bg-destructive/5 px-cozy py-snug text-body',
+          'rounded-lg border border-destructive/40 bg-destructive/5 px-cozy py-snug text-body',
           className,
         )}
         role="alert"
       >
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
-        <div className="min-w-0 space-y-1">
-          <p className="font-medium text-foreground">Dispatch is overdue</p>
-          <p className="text-muted-foreground">
-            {viewerShipped
-              ? 'You have posted, but the other trader has not. The collateral ' +
-                'authorisation expires about seven days after it was placed, so if ' +
-                'their item does not arrive, raise a dispute before then rather than after.'
-              : 'Post your item as soon as possible. The collateral authorisation ' +
-                'expires about seven days after it was placed, and this trade loses ' +
-                'its protection when that happens.'}
-          </p>
-        </div>
+        {/* The icon rides the title line rather than the whole block, matching
+            InspectionCountdown. Centred against a two-or-more-line block it
+            drifts down beside the body copy and stops reading as a label for
+            the headline it belongs to — and how far it drifts depends on how
+            much the body wraps, so it moves with the viewport. */}
+        <p className="flex items-center gap-snug font-medium text-foreground">
+          <HugeiconsIcon icon={TriangleAlertIcon} className="size-4 shrink-0 text-destructive" aria-hidden />
+          Dispatch is overdue
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          {viewerShipped
+            ? 'You have posted, they have not. Raise a dispute before the collateral lapses.'
+            : 'Post now — the trade loses its collateral protection when the hold lapses.'}
+        </p>
       </div>
     );
   }
@@ -116,33 +153,35 @@ export function ShippingDeadline({
   return (
     <div
       className={cn(
-        'flex items-start gap-snug rounded-lg border px-cozy py-snug text-body',
+        'rounded-lg border px-cozy py-snug text-body',
         urgent ? 'border-destructive/40 bg-destructive/5' : 'bg-muted',
         className,
       )}
       role={urgent ? 'alert' : 'status'}
     >
-      <Clock
-        className={cn(
-          'mt-0.5 size-4 shrink-0',
-          urgent ? 'text-destructive' : 'text-muted-foreground',
-        )}
-        aria-hidden
-      />
-      <div className="min-w-0 space-y-1">
-        <p className="font-medium text-foreground">
-          {viewerShipped
-            ? `Waiting on the other trader · ${humaniseHours(hours)} left`
-            : `Post within ${humaniseHours(hours)}`}
+      <p className="flex items-center gap-snug font-medium text-foreground">
+        <HugeiconsIcon icon={Clock01Icon}
+          className={cn(
+            'size-4 shrink-0',
+            urgent ? 'text-destructive' : 'text-muted-foreground',
+          )}
+          aria-hidden
+        />
+        {viewerShipped
+          ? `Waiting on the other trader · ${humaniseHours(hours)} left`
+          : `Post within ${humaniseHours(hours)}`}
+      </p>
+      {/* The WHY only when it changes what you do. "Posted trades have a dispatch
+          deadline so the trade finishes before the collateral authorisation
+          expires, about seven days after it was placed" is true, and it sat under
+          every countdown from day one telling a trader with nine days left a piece
+          of policy they could not act on. With hours to go it is the reason to
+          move, so it appears then. */}
+      {urgent ? (
+        <p className="mt-1 text-muted-foreground">
+          Miss it and the trade loses its collateral protection.
         </p>
-        <p className="text-muted-foreground">
-          {viewerShipped
-            ? 'You have posted. Their dispatch deadline keeps the trade inside the ' +
-              'collateral authorisation window.'
-            : 'Posted trades have a dispatch deadline so the trade finishes before ' +
-              'the collateral authorisation expires, about seven days after it was placed.'}
-        </p>
-      </div>
+      ) : null}
     </div>
   );
 }

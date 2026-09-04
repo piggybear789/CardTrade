@@ -22,6 +22,7 @@ import {
   flagStaleCollateralTrades,
   sweepTradeInspections,
 } from '@/lib/trades/inspectionSweep';
+import { advanceDueHandovers, placeDueTradeCollateral } from '@/lib/trades/bondPlacementSweep';
 import { sweepCashSaleInspections } from '@/lib/trades/cashSaleInspectionSweep';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 
@@ -49,17 +50,20 @@ function bearerToken(request: Request): string | null {
 
 /** Authenticate, run one pass, and report the outcome. Shared by GET and POST. */
 async function runSweep(request: Request): Promise<Response> {
-  const expected = process.env.JOBS_SECRET?.trim();
-  if (!expected) {
+  const jobsSecret = process.env.JOBS_SECRET?.trim();
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  const secrets = [jobsSecret, cronSecret].filter(Boolean) as string[];
+
+  if (secrets.length === 0) {
     // Fail closed. Never run an unauthenticated job that releases holds.
     return Response.json(
-      { ok: false, error: 'JOBS_SECRET is not configured' },
+      { ok: false, error: 'Neither JOBS_SECRET nor CRON_SECRET is configured' },
       { status: 503 },
     );
   }
 
   const token = bearerToken(request);
-  if (!token || !secretMatches(token, expected)) {
+  if (!token || !secrets.some((expected) => secretMatches(token, expected))) {
     return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -87,10 +91,34 @@ async function runSweep(request: Request): Promise<Response> {
       console.error('[jobs] trade-fee drain failed', error);
     }
 
-    // Trades stuck in COLLATERAL_PENDING. Detection only, no provider calls, and
-    // isolated for the same reason as the fee drain: a problem finding stale trades must
-    // never cost the half of this job that releases collateral. Rides this schedule
-    // because a second cron entry is a second thing to forget to configure.
+    // Authorise collateral for trades meeting within the day. This is the OTHER half
+    // of the money in this job — the inspection sweep releases holds, this one places
+    // them — and it is isolated for the same reason: a placement problem must never
+    // cost the release of collateral that is already held.
+    //
+    // Ordered after the release passes deliberately. If the wall clock runs out, the
+    // work that has already been left undone is a hold placed slightly later, not a
+    // trader's collateral left sitting past its deadline.
+    let bonds: Awaited<ReturnType<typeof placeDueTradeCollateral>> | null = null;
+    try {
+      bonds = await placeDueTradeCollateral();
+    } catch (error) {
+      console.error('[jobs] trade collateral placement failed', error);
+    }
+
+    // Open the inspection window on trades whose meeting time has passed without
+    // either side confirming. Isolated like the rest: a trade that cannot be advanced
+    // must not stop the ones behind it getting their dispute window.
+    let handovers: Awaited<ReturnType<typeof advanceDueHandovers>> | null = null;
+    try {
+      handovers = await advanceDueHandovers();
+    } catch (error) {
+      console.error('[jobs] handover advance failed', error);
+    }
+
+    // Trades whose meeting has arrived with no collateral behind it. Detection only,
+    // no provider calls, and isolated for the same reason as the fee drain. Rides this
+    // schedule because a second cron entry is a second thing to forget to configure.
     let stale: Awaited<ReturnType<typeof flagStaleCollateralTrades>> | null = null;
     try {
       stale = await flagStaleCollateralTrades();
@@ -98,7 +126,7 @@ async function runSweep(request: Request): Promise<Response> {
       console.error('[jobs] stale-collateral flagging failed', error);
     }
 
-    return Response.json({ ok: true, ...result, cashSales, fees, stale });
+    return Response.json({ ok: true, ...result, cashSales, fees, bonds, handovers, stale });
   } catch (error) {
     console.error('[jobs] trade-inspections failed', error);
     return Response.json({ ok: false, error: 'Inspection pass failed' }, { status: 500 });

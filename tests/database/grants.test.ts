@@ -137,6 +137,11 @@ const MUST_NOT_WORK: GrantCheck[] = [
   { flow: 'ESCALATION: self-approve payouts', table: 'profiles', column: 'merchant_status', privilege: 'UPDATE', allowed: false },
   { flow: 'ESCALATION: enable own settlements', table: 'profiles', column: 'merchant_settlements_enabled', privilege: 'UPDATE', allowed: false },
   { flow: 'ESCALATION: forge verified name', table: 'profiles', column: 'identity_check_name', privilege: 'UPDATE', allowed: false },
+  { flow: 'ESCALATION: write own identity person key', table: 'identity_person_keys', privilege: 'INSERT', allowed: false },
+  { flow: 'ESCALATION: read identity person keys', table: 'identity_person_keys', privilege: 'SELECT', allowed: false },
+  { flow: 'ESCALATION: write identity ban list', table: 'identity_bans', privilege: 'INSERT', allowed: false },
+  { flow: 'ESCALATION: read identity ban list', table: 'identity_bans', privilege: 'SELECT', allowed: false },
+  { flow: 'ESCALATION: update identity ban list', table: 'identity_bans', privilege: 'UPDATE', allowed: false },
   // F55: a member whose profile row is missing could otherwise INSERT one as an admin.
   { flow: 'ESCALATION: insert own profile row', table: 'profiles', privilege: 'INSERT', allowed: false },
 

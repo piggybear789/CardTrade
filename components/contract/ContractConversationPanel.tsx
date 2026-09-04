@@ -6,21 +6,22 @@
 // loading and failed states each room previously duplicated, so every flow shows
 // the same "Opening chat…" spinner and the same retry affordance.
 //
-// Live-step controls sit on the product strip (the `actions` slot), the way
-// 闲鱼 puts 我想要 beside the goods. While the thread is still opening those
-// same actions still sit there so the contract can be acted on without chat.
+// The live-step control docks between the log and the composer (the `actions`
+// slot), where the next thing to happen in the conversation would appear. While
+// the thread is still opening it docks in the same place, so the contract can be
+// acted on without chat and the control does not jump once chat arrives.
 //
 // It relies on `ContractSplit` for its bounded height — that is what lets the message
 // log scroll in place instead of growing the page.
 
 import type { ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
 
 import {
   ContractChat,
   ContractChatBar,
   type ContractChatSubject,
 } from '@/components/messages/ContractChat';
+import type { MessageLogShipment } from '@/components/messages/MessageLog';
 
 export interface ContractConversationPanelProps {
   /** Resolved thread id, or `null` while it is still being opened. */
@@ -35,8 +36,16 @@ export interface ContractConversationPanelProps {
   emptyHint?: string;
   /** Item strip under the person bar (Xianyu product header). */
   subject?: ContractChatSubject | null;
-  /** Live-step controls, rendered on the product strip. */
+  /** The live-step control. Docked between the log and the composer. */
   actions?: ReactNode;
+  /** Secondary actions about the counterparty, in the subject bar's ⋯ menu. */
+  menu?: ReactNode;
+  /** Phone back target. The bar is the top of the room below `md`. */
+  backHref?: string;
+  /** The flow's status in words, e.g. "In transit". */
+  statusLabel?: string | null;
+  /** Carrier details, so the shipped milestone can link out to tracking. */
+  shipment?: MessageLogShipment | null;
   /** True once opening the thread failed. */
   failed?: boolean;
   /** Re-run the self-heal; renders a "Try again" control when provided. */
@@ -53,6 +62,10 @@ export function ContractConversationPanel({
   emptyHint,
   subject,
   actions,
+  menu,
+  backHref,
+  statusLabel,
+  shipment = null,
   failed = false,
   onRetry,
 }: ContractConversationPanelProps) {
@@ -67,17 +80,23 @@ export function ContractConversationPanel({
         emptyHint={emptyHint}
         subject={subject}
         actions={actions}
+        menu={menu}
+        backHref={backHref}
+        statusLabel={statusLabel}
+        shipment={shipment}
       />
     );
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
       <ContractChatBar
         counterpartyName={counterpartyName}
         counterpartyAvatarPath={counterpartyAvatarPath}
         subject={subject}
-        actions={actions}
+        backHref={backHref}
+        statusLabel={statusLabel}
+        menu={menu}
       />
       <div className="grid min-h-0 flex-1 place-items-center p-cozy text-center text-body text-muted-foreground">
         {failed ? (
@@ -97,12 +116,22 @@ export function ContractConversationPanel({
             ) : null}
           </p>
         ) : (
-          <span className="flex items-center gap-snug">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
+          // Empty while it opens. The bar above and the dock below are already
+          // drawn, so the column reads as a chat with no messages yet rather
+          // than as a broken one, and a spinner in the middle of it was the
+          // loudest thing on the screen for the second it lasted.
+          <span className="sr-only" role="status">
             Opening chat…
           </span>
         )}
       </div>
+      {/* Docked in the same place it will be once the thread opens, so the
+          control does not jump when chat arrives. The original reason for
+          putting actions on the bar during this state still holds: a contract
+          has to be actionable even if its chat never loads. */}
+      {actions ? (
+        <div className="relative z-10 shrink-0 border-t bg-card">{actions}</div>
+      ) : null}
     </section>
   );
 }

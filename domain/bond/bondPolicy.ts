@@ -87,7 +87,15 @@ export function requiredBondCents(params: {
 /** One side of a Trade, for bond resolution. */
 export interface BondParty {
   verified: boolean;
-  /** FMV of that Trader's OWN paired Item, in cents. */
+  /**
+   * The value this Trader's bond is sized against, in cents.
+   *
+   * NOT this Trader's own goods. On a trade every caller passes the value of what
+   * this Trader RECEIVES — see `resolveTradeBonds` below, and both call sites in
+   * `tradeProposal.ts`, which cross the two sides deliberately. The name is
+   * historical: it predates bundles, when a side was a single paired Item and
+   * "their FMV" and "what they receive" could not diverge.
+   */
   fmvCents: number;
 }
 

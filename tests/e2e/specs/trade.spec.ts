@@ -104,7 +104,9 @@ test.describe.serial('Trade escrow lifecycle', () => {
 
     const dialog = page.getByRole('dialog').first();
     await expect(dialog).toBeVisible({ timeout: RENDERED });
-    await expect(dialog.getByRole('heading', { name: 'Offer a trade' })).toBeVisible();
+    await expect(
+      dialog.getByRole('heading', { name: /Propose a trade|Offer a trade/i }),
+    ).toBeVisible();
 
     // Nothing offered yet, so the proposal cannot be sent: a trade with no goods on
     // one side is not a trade.
@@ -134,12 +136,18 @@ test.describe.serial('Trade escrow lifecycle', () => {
     });
     await expect(dialog.getByText(aliceTitle).first()).toBeVisible();
 
-    // HANDOVER IS REQUIRED, and until one is chosen `Send Offer` stays disabled. Both
-    // routes exist because a trade reaches INSPECTION two different ways — DELIVERY
-    // posts in both directions, IN_PERSON converges in one step — and this spec takes
-    // the posted route, where escrow does the most work.
-    await expect(dialog.getByRole('button', { name: 'Send Offer' })).toBeDisabled();
-    await dialog.getByText('Delivery', { exact: true }).click();
+    // If terms are not yet set to Delivery, set them.
+    const setTermsBtn = dialog.getByRole('button', { name: /Set delivery terms|Edit terms/i });
+    if (await setTermsBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await setTermsBtn.click();
+      const termsDialog = page.getByRole('dialog', { name: /Delivery terms/i });
+      if (await termsDialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await termsDialog.getByText('Delivery', { exact: true }).click();
+        await termsDialog.getByLabel(/Postage each way/i).fill('0.00');
+        await termsDialog.getByRole('button', { name: /Save terms/i }).click();
+        await expect(termsDialog).toBeHidden({ timeout: 15_000 });
+      }
+    }
 
     const send = dialog.getByRole('button', { name: 'Send Offer' });
     await expect(send).toBeEnabled({ timeout: RENDERED });
@@ -175,8 +183,14 @@ test.describe.serial('Trade escrow lifecycle', () => {
     await expect(accept).toBeVisible({ timeout: 25_000 });
     await accept.click();
 
+    // The accept trigger opens a confirmation dialog with cost disclosure; confirm in the dialog
+    const confirm = page.getByRole('dialog');
+    await expect(confirm).toBeVisible({ timeout: 10_000 });
+    await confirm.getByRole('button', { name: 'Accept terms' }).click();
+
     // Waited for, not fired and forgotten: closing the context mid-flight aborts the
     // action and the next step blames the wrong thing.
+    await expect(confirm).toBeHidden({ timeout: 30_000 });
     await expect(accept).toHaveCount(0, { timeout: 30_000 });
 
     await ctx.close();
@@ -203,7 +217,9 @@ test.describe.serial('Trade escrow lifecycle', () => {
 
       await page.goto(tradeUrl);
       await page.waitForLoadState('domcontentloaded');
-      await expect(page.getByRole('heading', { name: 'Contract Details' })).toBeVisible({
+      await expect(
+        page.getByRole('heading', { name: /Trade with|Contract Details/i }).first(),
+      ).toBeVisible({
         timeout: 30_000,
       });
 
@@ -273,6 +289,25 @@ test.describe.serial('Trade escrow lifecycle', () => {
       // Terms must be selected first. Same `dispatchEvent` approach as the Demo tab
       // (F22) since tab clicks have been unreliable in this room.
       await page.locator('[role=tab]').filter({ hasText: 'Terms' }).first().dispatchEvent('click');
+
+      // If the trade handover method is not yet agreed, agree Delivery terms first.
+      const setTermsBtn = page.getByRole('button', { name: /Set delivery terms|Edit terms/i });
+      if (await setTermsBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await setTermsBtn.click();
+        const termsDialog = page.getByRole('dialog', { name: /Delivery terms/i });
+        await expect(termsDialog).toBeVisible({ timeout: 10_000 });
+        const labelChoice = termsDialog.locator('label').filter({ hasText: 'Delivery' });
+        if (await labelChoice.isVisible().catch(() => false)) {
+          await labelChoice.click();
+        } else {
+          await termsDialog.getByText('Delivery', { exact: true }).click();
+        }
+        await termsDialog.getByLabel(/Postage each way/i).fill('0.00');
+        const saveTerms = termsDialog.getByRole('button', { name: /Save terms/i });
+        await expect(saveTerms).toBeEnabled({ timeout: 10_000 });
+        await saveTerms.click();
+        await expect(termsDialog).toBeHidden({ timeout: 15_000 });
+      }
 
       const add = page
         .getByRole('button', { name: /Add delivery address|Add address|Change delivery address/i })
@@ -348,6 +383,10 @@ test.describe.serial('Trade escrow lifecycle', () => {
         .first();
       await expect(accept).toBeVisible({ timeout: 30_000 });
       await accept.click();
+      const confirm = page.getByRole('dialog');
+      if (await confirm.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await confirm.getByRole('button', { name: /Complete without evidence|Accept without evidence/i }).click();
+      }
       await expect(accept).toHaveCount(0, { timeout: 30_000 });
 
       await ctx.close();

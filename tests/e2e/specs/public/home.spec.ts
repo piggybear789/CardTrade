@@ -5,7 +5,7 @@
 // coverage gets built on top.
 import { test, expect } from '../../support/fixtures';
 
-test('landing page loads', async ({ page }) => {
+test('catalog homepage loads', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('NoDitto');
+  await expect(page).toHaveTitle(/NoDitto/);
 });

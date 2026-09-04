@@ -159,7 +159,8 @@ export function createSupabaseTradeProposalRepository(
       const { data } = await client
         .from('pre_auth_holds')
         .select('trade_id, trader_id, hold_ref, amount_cents, status')
-        .eq('trade_id', tradeId);
+        .eq('trade_id', tradeId)
+        .order('created_at', { ascending: true });
       const rows = (data ?? []) as Array<{
         trade_id: string;
         trader_id: string;
@@ -174,6 +175,14 @@ export function createSupabaseTradeProposalRepository(
         amountCents: Number(row.amount_cents),
         status: row.status,
       }));
+    },
+
+    async listTradeItemIds(tradeId: string): Promise<string[]> {
+      const { data } = await client
+        .from('trade_items')
+        .select('item_id')
+        .eq('trade_id', tradeId);
+      return ((data ?? []) as { item_id: string }[]).map((row) => row.item_id);
     },
 
     async markHoldStatus(holdRef: string, status: PreAuthHold['status']): Promise<void> {

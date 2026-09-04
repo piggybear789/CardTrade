@@ -34,6 +34,11 @@ import { createHash } from 'node:crypto';
 
 import type Stripe from 'stripe';
 
+// The authorisation length is shared with the inspection clock, which derives the
+// inspection window, the collateral margin and the meeting-lead cap from it. Keeping
+// a private copy here — as this file used to — is what lets those drift apart.
+import { CARD_AUTHORISATION_DAYS } from '../../fulfilment/inspection';
+
 import type {
   CaptureResult,
   Cents,
@@ -57,6 +62,11 @@ import type {
 } from '../types';
 import type { StripeConfig } from './config';
 import { metadataFor } from './metadata';
+import { identityFingerprints } from '../../identity/identityFingerprint';
+import {
+  identitySessionCreateParams,
+  identitySessionIdempotencyKey,
+} from './identitySession';
 
 /**
  * Collateral holds and cash collections are card-only on purpose.
@@ -192,8 +202,11 @@ export class StripeService implements PaymentService, PayerService {
    * Falls back to an equivalent inline session so a developer with only an API key
    * can exercise the flow.
    *
-   * Idempotent per Profile per return URL: a double-submitted button returns the same
-   * session rather than opening a second one the member could half-finish.
+   * Identity is independent of Connect. Prefill into the payout account happens
+   * later, at `createManagedMerchant`, from `verified_outputs`.
+   *
+   * Idempotent per Profile per return URL: a double-submitted button returns the
+   * same session rather than opening a second one the member could half-finish.
    *
    * @throws {Stripe.errors.StripeError} — deliberately. Matching `createPayer`, a
    * provider failure must leave verification state untouched; recording a PENDING
@@ -204,28 +217,29 @@ export class StripeService implements PaymentService, PayerService {
     returnUrl: string;
   }): Promise<IdentityCheck> {
     const flow = this.opts.config.identityVerificationFlow;
+    const body = identitySessionCreateParams({
+      profileId: params.profileId,
+      returnUrl: params.returnUrl,
+      verificationFlow: flow,
+    });
+    const idempotencyKey = identitySessionIdempotencyKey({
+      profileId: params.profileId,
+      returnUrl: params.returnUrl,
+    });
 
-    const session = await this.stripe.identity.verificationSessions.create(
-      {
-        ...(flow
-          ? { verification_flow: flow }
-          : {
-              type: 'document',
-              options: {
-                document: {
-                  require_matching_selfie: true,
-                  require_id_number: true,
-                  require_live_capture: true,
-                },
-              },
-            }),
-        return_url: params.returnUrl,
-        metadata: { cardtrade_profile_id: params.profileId },
-      },
-      { idempotencyKey: `identity:${params.profileId}:${params.returnUrl}` },
-    );
+    const session = await this.stripe.identity.verificationSessions.create(body, {
+      idempotencyKey,
+    });
 
-    return this.toIdentityCheck(session);
+    if (session.url) return this.toIdentityCheck(session);
+
+    // Idempotent replay of a session that was opened (or consumed) in the JS
+    // modal has no hosted URL. Mint a fresh one so "Continue with Stripe" can
+    // still leave for Stripe's pages instead of failing closed.
+    const fresh = await this.stripe.identity.verificationSessions.create(body, {
+      idempotencyKey: `${idempotencyKey}:retry:${session.id}`,
+    });
+    return this.toIdentityCheck(fresh);
   }
 
   /**
@@ -274,6 +288,24 @@ export class StripeService implements PaymentService, PayerService {
     const dob = verified?.dob ?? null;
     const addr = verified?.address ?? null;
 
+    // Hash immediately; the raw ID number never sits on IdentityCheck.
+    const fingerprints =
+      outcome === 'VERIFIED'
+        ? identityFingerprints(
+            {
+              idNumber: verified?.id_number,
+              firstName: verified?.first_name,
+              lastName: verified?.last_name,
+              dob:
+                dob && dob.day && dob.month && dob.year
+                  ? { day: dob.day, month: dob.month, year: dob.year }
+                  : null,
+              country: addr?.country,
+            },
+            this.opts.config.identityFingerprintSecret,
+          )
+        : [];
+
     return {
       sessionId: session.id,
       outcome,
@@ -303,6 +335,7 @@ export class StripeService implements PaymentService, PayerService {
               country: addr.country ?? null,
             }
           : null,
+      identityFingerprints: fingerprints,
     };
   }
 
@@ -941,6 +974,43 @@ export class StripeService implements PaymentService, PayerService {
   }
 
   /**
+   * Stamp Identity-verified name/DOB/address onto an existing connected account
+   * so hosted Connect onboarding does not collect a different legal identity.
+   *
+   * Stripe skips fields already present on the account (it does not offer a
+   * separate "lock" flag). Must run BEFORE the first Account Link / Account
+   * Session — after onboarding has started, Stripe may refuse the update.
+   *
+   * Empty individual (nothing in verified_outputs) is a no-op. Failures throw
+   * so the caller can degrade rather than block Identity itself.
+   */
+  async prefillManagedMerchant(
+    merchantRef: string,
+    prefill: NonNullable<ManagedMerchantDetails['prefill']>,
+  ): Promise<void> {
+    const account = await this.stripe.v2.core.accounts.retrieve(merchantRef, {
+      include: ['identity'],
+    });
+    const accountCountry = resolveAccountCountry(
+      (account as { identity?: { country?: string | null } | null }).identity?.country,
+      this.opts.config.country,
+    );
+    const individual = prefillIndividual(prefill, accountCountry);
+    if (Object.keys(individual).length === 0) return;
+
+    await this.stripe.v2.core.accounts.update(
+      merchantRef,
+      {
+        identity: {
+          individual: individual as Stripe.V2.Core.AccountUpdateParams.Identity.Individual,
+        },
+        include: ['identity'],
+      },
+      { idempotencyKey: `identity-prefill:${merchantRef}:${fingerprint(individual)}` },
+    );
+  }
+
+  /**
    * Start Stripe-hosted onboarding for a connected account.
    *
    * Stripe collects the legal entity, government registration, date of birth,
@@ -1133,8 +1203,9 @@ function resolveAccountCountry(
  * A short, stable digest of a request body, for use as part of an idempotency key.
  *
  * Key order is normalised so a body that is semantically identical produces the
- * same digest regardless of how it was assembled. It carries no secrets: the
- * bodies fingerprinted here hold a Profile id, an email and display names.
+ * same digest regardless of how it was assembled. Only the digest is kept (as
+ * part of an idempotency key). The hashed body may include identity fields that
+ * must never be logged in the clear.
  */
 function fingerprint(body: unknown): string {
   const canonical = JSON.stringify(body, (_key, value) =>
@@ -1208,13 +1279,6 @@ function chargeIdOf(intent: Stripe.PaymentIntent): string | undefined {
   return charge?.id;
 }
 
-/**
- * How long a card authorisation is assumed to last when the provider does not say.
- *
- * Seven days is Stripe's documented norm for an online card authorisation, and it is
- * the figure the whole inspection clock is designed around.
- */
-const ASSUMED_AUTHORISATION_DAYS = 7;
 
 /**
  * When the authorisation lapses, as an ISO-8601 string.
@@ -1245,5 +1309,5 @@ function captureBefore(intent: Stripe.PaymentIntent): string | undefined {
   if (intent.status !== 'requires_capture') return undefined;
 
   const created = typeof intent.created === 'number' ? intent.created * 1000 : Date.now();
-  return new Date(created + ASSUMED_AUTHORISATION_DAYS * 86_400_000).toISOString();
+  return new Date(created + CARD_AUTHORISATION_DAYS * 86_400_000).toISOString();
 }

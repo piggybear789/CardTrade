@@ -6,22 +6,19 @@
 // page as a proactive entry point. The BuyButton uses the inline
 // `AddPaymentMethodForm` directly without this wrapper.
 
-import { useState } from 'react';
+import { cloneElement, isValidElement, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CreditCardIcon } from '@hugeicons/core-free-icons';
+
+import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('./AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-gold" aria-hidden />
-        <span className="sr-only">Loading payment form…</span>
-      </div>
-    ),
+    loading: () => <PaymentFormSkeleton />,
   },
 );
 
@@ -29,9 +26,9 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 
 export interface AddPaymentMethodDialogProps {
@@ -46,21 +43,28 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
   const router = useRouter();
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button type="button" variant="outline">
-            <CreditCard aria-hidden />
-            Add payment method
-          </Button>
-        )}
-      </DialogTrigger>
+    <>
+      {trigger ? (
+        isValidElement<{ onClick?: () => void }>(trigger) ? (
+          cloneElement(trigger, {
+            onClick: () => setOpen(true),
+          })
+        ) : (
+          <div onClick={() => setOpen(true)}>{trigger}</div>
+        )
+      ) : (
+        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+          <HugeiconsIcon icon={CreditCardIcon} aria-hidden />
+          Add payment method
+        </Button>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
-        {/* Negative margin cancels DialogContent's flex gap: with the
-            description gone there is nothing to separate the title from
-            Stripe's own bordered card. */}
-        <DialogHeader className="-mb-3 sm:-mb-4">
+        <DialogHeader>
           <DialogTitle>Add a payment method</DialogTitle>
+          <DialogDescription>
+            Stripe stores the card. Nothing is charged until you agree to a purchase.
+          </DialogDescription>
         </DialogHeader>
         <AddPaymentMethodForm
           onAttached={() => {
@@ -68,12 +72,13 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
             // The card is stored server-side, so confirm it and re-render the
             // page that shows it. Without this the dialog just closed and the
             // save looked like it had not happened.
-            toast.success('Payment method saved with Stripe.');
+            
             router.refresh();
             onAttached?.();
           }}
         />
       </DialogContent>
     </Dialog>
+    </>
   );
 }

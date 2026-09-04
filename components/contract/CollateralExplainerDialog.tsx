@@ -7,13 +7,16 @@
 // member's pace without turning the inspector into a wall of text.
 
 import type { ReactNode } from 'react';
-import { CircleHelp } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { HelpCircleIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -40,16 +43,26 @@ export function CollateralExplainerDialog({
     <Dialog>
       <DialogTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto">
-          <CircleHelp className="mr-2 size-4" aria-hidden />
+          <HugeiconsIcon icon={HelpCircleIcon} className="mr-2 size-4" aria-hidden />
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl" mobile="sheet">
+      {/* No inner scroll container: DialogContent already scrolls, and nesting a
+          second one meant the wheel stalled at the boundary. `sm:max-w-lg`,
+          not 2xl — this is prose, and a 42rem measure left a wide empty band. */}
+      <DialogContent className="sm:max-w-lg" mobile="sheet">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 overflow-y-auto pr-0.5">{children}</div>
+        {children}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Got it
+            </Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

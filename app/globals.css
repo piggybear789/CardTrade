@@ -4,46 +4,172 @@
 
 @layer base {
   :root {
-    /* NoDitto: collector-ledger restraint with a controlled Ditto-purple accent. */
-    --background: 42 26% 93%;
-    /* ONE BLACK. Header, body ink, primary buttons, and inverse cards all
-       read this. Do not invent a second near-black — opacity is how it
-       lightens, not another HSL. `#0c0b0a` in the manifest is this value. */
-    --obsidian: 30 9% 4%;
-    --foreground: var(--obsidian);
-    --card: 40 30% 99%;
-    --card-foreground: var(--obsidian);
-    --popover: 40 30% 99%;
-    --popover-foreground: var(--obsidian);
-    --primary: var(--obsidian);
-    --primary-foreground: 42 33% 95%;
-    --secondary: 39 28% 88%;
-    --secondary-foreground: var(--obsidian);
-    /* Grouping tint on card — a whisper, not a khaki slab. Do not wash
-       with /20 or /30; do not use this as a field fill. */
-    --muted: 40 22% 90%;
-    --muted-foreground: 32 10% 34%;
-    --accent: 41 32% 84%;
-    --accent-foreground: var(--obsidian);
-    --destructive: 4 78% 40%;
-    --destructive-foreground: 42 33% 96%;
-    /* ONE hairline. Cards, dividers, fields, and outline controls all
-       share --border. --input is a semantic alias (`border-input` means
-       "this is a field") so fields cannot drift onto a second cream that
-       vanishes on card. Interactive edges lift to gold/40 on hover/focus.
-       Inverse surfaces use white/15. Semantic tints (gold, destructive,
-       trust) use /40. Focus rings stay parchment — no ink, no Ditto. */
-    --border: 36 18% 78%;
-    --input: var(--border);
-    --ring: var(--parchment);
+    /* NoDitto: violet-native, adapted from the "Violate eye" shadcn theme by
+       Dhiraj Arya (tweakcn.com/themes/cmm3earjf000004lbbthuasae).
+       
+       WHY VIOLET AND NOT THE OLD GOLD. Gold was a generic premium-fintech
+       signal that any marketplace could wear, and at `41 56% 30%` it was so
+       dark it never read as an accent at all — the "current section" wash
+       measured 1.14:1. Ditto is a purple shapeshifter; violet is the one hue
+       this product can own outright.
+       
+       FOUR VALUES DIVERGE FROM THE PUBLISHED THEME, each for a measured
+       contrast reason. They are marked WCAG below. Everything else is the
+       theme verbatim. */
+
+    /* WHITE PAGE, WHITE CARD. The page and the card are the same pure white and
+       the top of the ramp together; everything else steps down from them.
+       
+       The page was briefly tinted to 98% so a card would step off it. It works,
+       and it costs the product its one genuinely white surface — every screen
+       reads faintly grey, which is the look the tint was never meant to buy.
+       So the step is gone and the SEPARATION IS CARRIED THREE OTHER WAYS, in
+       this order of preference:
+       
+         1. The hairline, which is now darker (88 → 85) because it is doing the
+            work the surface step used to do. This is the default: a card is an
+            object because it has an edge.
+         2. `--muted` as a grouping tint INSIDE a card — a summary row, a
+            read-only note, a footnote block. A tint on the page is what got us
+            here; a tint on paper is legitimate depth.
+         3. Ink weight. A heading in `--foreground` semibold against body copy in
+            `--muted-foreground` separates two blocks more decisively than two
+            2-point surfaces ever did, and it survives being printed, screenshotted
+            or read at 200% zoom.
+       
+       Where a region genuinely must sit BELOW the page — the sidebar rail —
+       `--sidebar` still steps down to 96%. That is a different claim from "this
+       is a card" and it keeps its surface.
+       
+       THE RAMP, top to bottom:
+         background / card / popover  100   paper
+         sidebar                       96   the rail, below the page
+         muted/secondary               95   grouping tint ON card
+         accent                        92   selected tint
+         border                        85   the hairline
+       
+       THE NEUTRAL RAMP IS TINTED TOWARD THE ACCENT, NOT AWAY FROM IT. Muted,
+       border, input, sidebar and mist all carry a few points of chroma at 275° —
+       the lilac's own hue — so the greys read as part of the palette instead of
+       as a second, unrelated cool family. The page is the deliberate exception:
+       paper is white.
+       
+       `--background` mirrors into `app/manifest.ts` (`background_color`) and
+       `app/layout.tsx` (`viewport.themeColor`) as the literal `#ffffff`. */
+    --background: 0 0% 100%;
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --sidebar: 275 16% 96%;
+
+    /* ONE NEAR-BLACK. Header, body ink, and inverse surfaces all read this.
+       Do not invent a second one — opacity is how it lightens. */
+    --obsidian: 275 16% 7%;
+    --foreground: 275 10% 12%;
+    --card-foreground: var(--foreground);
+    --popover-foreground: var(--foreground);
+
+    /* THREE LILACS, ONE PER JOB, EACH EARNED BY A CONTRAST FLOOR.
+       
+       Hue 275 is the muted lilac from the naturals direction — softer and far
+       less saturated than the electric blue-violet this replaces, which is what
+       makes the whole interface read as calm rather than wired. One hue, three
+       depths, because no single value can do all three jobs:
+
+       Ratios are against WHITE, which the page and the card now share. The
+       tinted page was the worst case for all three and it is gone, so each of
+       these has slightly more headroom than the figures below claim:
+
+         --primary   fills that carry white text   white 6.72:1
+         --iris-ink  lilac AS text                 on page 4.94:1
+         --iris      rings, borders, markers       on page 3.73:1 (non-text) */
+    --primary: 275 38% 44%;
+    --primary-foreground: 0 0% 100%;
+    --iris: 275 34% 58%;
+    /* 52% → 51%. WCAG: the ramp pass darkened `--muted` from 96 to 95, and at
+       52% this measured 4.40:1 as text on it — under the 4.5 floor. One point
+       darker restores it (4.58:1 on muted, 4.94 on page, 5.19 on card) and is
+       imperceptible anywhere else. */
+    --iris-ink: 275 34% 51%;
+
+    --secondary: 275 20% 95%;
+    --secondary-foreground: 275 25% 28%;
+    /* Grouping tint — a whisper, not a slab. Do not wash with /20 or /30. */
+    --muted: 275 20% 95%;
+    --muted-foreground: 275 8% 42%;
+    /* The selected-state pair. Use `bg-accent text-accent-foreground` for
+       "current" — NOT a low-alpha primary wash, which measures ~1.1:1 and is
+       invisible. The tint alone is only 1.14:1 against the page; the TEXT is
+       what carries the state, at 5.49:1. */
+    --accent: 278 46% 92%;
+    --accent-foreground: 275 38% 44%;
+
+    /* The theme's hue and saturation (0, 80%) at a lightness that clears both
+       jobs. Stock #eb4f4f is 3.53:1 as text and 3.58:1 under white — it fails
+       in both directions. At 40% lightness it is 6.46:1 and 6.67:1. */
+    --destructive: 0 80% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* ONE hairline for dividers and card edges. --input is the semantic alias
+       for "this is a field", and it is NOT the same value: a field's border is
+       the only thing identifying it as a control, so SC 1.4.11 wants 3:1 from
+       it where a decorative divider needs nothing.
+       
+       A field's border is the only thing identifying it as a control, so it has
+       to carry the full 3:1 on its own — and against the PAGE, not the card,
+       because the page is now the darker of the two and is the worst case.
+       
+       Focus is the control's own edge at FULL opacity (`border-iris`), never an
+       alpha: any alpha under 100% drops it below 3:1. */
+    /* 88% → 85%. The hairline is now the PRIMARY separator rather than a
+       supporting one: with the page and the card both white, a card's edge is the
+       only thing saying it is an object. Three points darker takes it from 1.36:1
+       to 1.51:1 on white — still a hairline rather than a rule, but it holds a
+       container together instead of dissolving into it. */
+    --border: 275 18% 85%;
+    /* 60%, i.e. 3.30:1 against white — clear of the 3:1 floor in SC 1.4.11 with
+       room to spare. Left where it is now the page is back to white: it was
+       tightened from 62% when the page dropped to 98% and measured 2.88:1, and
+       the extra margin costs nothing. */
+    --input: 275 20% 60%;
+    --ring: var(--iris);
+
+    /* Teal for verified identity and provenance only, never decoration.
+       
+       RETUNED AGAINST THE VIOLET AND LEFT WHERE IT WAS. Six alternatives were
+       measured; every lighter teal drops below 4.5:1 as text (174 72% 30% is
+       4.41:1, 172 68% 32% is 4.15:1) and the only lighter one that passes,
+       186 78% 30%, closes the hue gap to the violet from 77° to 64°. This
+       value wins on both axes at 5.26:1 and 77°. Changing it would have been
+       cosmetic. */
     --trust: 173 80% 26%;
-    --gold: 41 56% 30%;
-    --ditto: 282 62% 62%;
-    /* Bright amber: "this is your move." Pale lavender read as decoration. */
-    --action: 41 94% 50%;
+    /* "This is your move" — the buy bar, the cash-sale room, accept-with-photo.
+       
+       PASTEL AMBER, NOT SAFETY ORANGE. This was `32 96% 52%`, a saturated
+       traffic-cone orange that was the loudest thing on any page it appeared on
+       — and it appears on the one control the room most wants to feel
+       approachable. The hue now sits at 40°, between the Pokopia lettering
+       orange (36°) and amber (45°), lightened to 68% so it reads as a warm
+       pastel rather than an alert.
+       
+       IT GOT MORE READABLE, NOT LESS. The label is obsidian, so lightening the
+       fill RAISES label contrast: 8.27:1 before, 12.28:1 now.
+       
+       WHAT IT COST is the fill's own edge. At 52% lightness the fill was 2.31:1
+       against the page and could pass as its own boundary; a pastel is 1.55:1
+       and cannot. That is what `--action-border` is for — see below. A pastel
+       fill with no defined edge is a tag, not a button. */
+    --action: 40 96% 68%;
     --action-foreground: var(--obsidian);
-    --parchment: 40 45% 90%;
-    --radius: 0.625rem;
+    /* The action control's EDGE, and the reason the pastel is allowed to be
+       pastel. Same hue, dark enough to clear the 3:1 in SC 1.4.11 against the
+       page (3.09:1), which is the floor for the boundary of a control when the
+       fill itself does not meet it. */
+    --action-border: 38 88% 42%;
+    /* Light tint for text and fills on the dark header, in the same 275° family
+       as everything else. 16:1 on the header. */
+    --mist: 275 20% 93%;
+
+    --radius: 0.5rem;
     --duration-exit: 150ms;
     --duration-enter: 210ms;
     --duration-move: 400ms;
@@ -66,38 +192,57 @@
   }
 
   html {
-    scroll-padding-top: calc(4rem + 1px + env(safe-area-inset-top));
-    scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
-    /* Focus rings already communicate the tap; the grey flash just looks
-       broken next to them on Android/iOS. */
+    /* Height of the sticky top chrome, as ONE number every full-height route can
+       subtract. Phones render the cream strip (`MobileChromeFrame`, inset + 54px);
+       from `md` the dark bar takes over at `h-16` + inset.
+
+       Six routes used to hardcode the desktop `4rem` at every width — the four
+       auth screens and both onboarding surfaces. Subtracting 64px where only 54
+       had been consumed left each `<main>` about 10px taller than the space
+       available, so every one of them carried a permanent few-pixel document
+       scroll on a phone. Read the variable; do not re-derive the number. */
+    --chrome-top: calc(3.375rem + env(safe-area-inset-top));
+
+    scroll-padding-top: calc(var(--chrome-top) + 1px);
+    scroll-padding-bottom: calc(
+      3.5rem + env(safe-area-inset-bottom) + var(--keyboard-inset, 0px)
+    );
+    /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 768px) {
+    html {
+      --chrome-top: calc(4rem + env(safe-area-inset-top));
+    }
   }
 
   body {
     /* Inherited size MUST match Button (`text-body` / 14px). Without this,
        unstyled copy is the browser's 16px and every control looks too small
        or too large depending on whether the neighbour set a token. */
-    @apply min-h-dvh overflow-x-clip bg-background font-sans text-body text-foreground antialiased;
-    background-image:
-      radial-gradient(circle at 8% 0%, hsl(var(--gold) / 0.055), transparent 24rem),
-      linear-gradient(hsl(var(--foreground) / 0.018) 1px, transparent 1px);
-    background-size: auto, 100% 4rem;
+    /* `tracking-[-0.01em]` is the theme's letter-spacing, applied at the root
+       so it reaches copy that sets none of its own. Headings, buttons and
+       labels declare their own tracking and are unaffected. */
+    @apply min-h-dvh overflow-x-clip bg-background font-sans text-body tracking-[-0.01em] text-foreground antialiased;
+    /* One violet bloom off the top-left corner. The 4rem ledger rules that
+       used to sit under this were drawn at 1.8% ink — below the perceptual
+       floor on any display, so they cost a paint and delivered nothing. They
+       belonged to the warm auction-ledger identity this palette replaces. */
+    background-image: radial-gradient(
+      circle at 8% 0%,
+      hsl(var(--iris) / 0.09),
+      transparent 26rem
+    );
   }
 
   ::selection {
-    color: hsl(var(--obsidian));
-    background: hsl(var(--gold) / 0.42);
+    color: hsl(var(--foreground));
+    background: hsl(var(--iris) / 0.3);
   }
 }
 
 @layer components {
-  /* Teal is reserved for verified identity and provenance, never decoration. */
-  .cardtrade-trust-mark {
-    color: hsl(var(--trust));
-    border-color: hsl(var(--trust) / 0.4);
-    background-color: hsl(var(--trust) / 0.1);
-  }
-
   /* ONE TYPEFACE APP-WIDE. Eyebrow labels, ledger figures, and body copy all use
      Plus Jakarta Sans. Uppercase + tracking already makes labels read as labels;
      tabular figures keep money aligned without introducing a second family. */
@@ -108,12 +253,13 @@
 
   .cardtrade-eyebrow {
     @apply inline-flex w-fit items-center rounded-sm border px-2 py-1;
-    color: hsl(var(--gold));
-    border-color: hsl(var(--gold) / 0.4);
-    background-color: hsl(var(--gold) / 0.08);
+    /* Text takes the deeper tone; the edge and the wash take the bright one. */
+    color: hsl(var(--iris-ink));
+    border-color: hsl(var(--iris) / 0.4);
+    background-color: hsl(var(--iris) / 0.08);
   }
 
-  /* Parchment-on-obsidian field styles for the search that sits directly in
+  /* Mist-on-obsidian field styles for the search that sits directly in
      the dark top bar. Scoped by class (not `.market-header input`) because
      the burger menu's light popover also mounts a search inside the header. */
   .market-search input {
@@ -123,15 +269,11 @@
   }
 
   .market-search input::placeholder {
-    color: hsl(var(--primary-foreground) / 0.58);
+    color: hsl(var(--primary-foreground) / 0.78);
   }
 
   .market-search > svg {
-    color: hsl(var(--primary-foreground) / 0.5);
-  }
-
-  .market-search input:focus-visible {
-    border-color: hsl(var(--gold) / 0.7);
+    color: hsl(var(--primary-foreground) / 0.92);
   }
 
   /* Native search cancel fights our X and is unstyled on the dark bar. */
@@ -153,30 +295,9 @@
     background: hsl(var(--obsidian));
   }
 
-  /* Selecting text on the landing page flashes Ditto purple instead of the
-     app-wide gold — one more edge the character lives at. */
-  .landing-selection ::selection {
-    color: hsl(var(--obsidian));
-    background: hsl(var(--ditto) / 0.38);
-  }
-
-  /* Ledger grid behind the landing hero. Body already draws 4rem rules at
-     ~2% ink — too faint to read as texture. This is the same gold grid as
-     the auth pages, masked so it sits under the headline and dies before
-     the card wall. */
-  .landing-ledger {
-    background-image:
-      radial-gradient(ellipse 50% 36% at 50% 14%, hsl(var(--gold) / 0.055), transparent 64%),
-      linear-gradient(hsl(var(--gold) / 0.085) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--gold) / 0.085) 1px, transparent 1px);
-    background-size: auto, 4.5rem 4.5rem, 4.5rem 4.5rem;
-    -webkit-mask-image: radial-gradient(ellipse 72% 58% at 50% 20%, #000 12%, transparent 66%);
-    mask-image: radial-gradient(ellipse 72% 58% at 50% 20%, #000 12%, transparent 66%);
-  }
-
   .ledger-strip {
     color: hsl(var(--obsidian));
-    background: hsl(var(--parchment));
+    background: hsl(var(--mist));
   }
 
   /* Sans, not mono — same single-typeface rule as the labels above. The COLUMN
@@ -192,27 +313,36 @@
     color: hsl(var(--trust));
   }
 
+  /* Ditto-purple character moments used to be a separate hue against a neutral
+     foundation. The foundation IS the hue now, so this reads as the accent pair
+     rather than inventing a second violet. */
   .noditto-character {
-    color: hsl(var(--ditto));
-    border-color: hsl(var(--ditto) / 0.3);
-    background-color: hsl(var(--ditto) / 0.1);
+    color: hsl(var(--accent-foreground));
+    border-color: hsl(var(--iris) / 0.3);
+    background-color: hsl(var(--accent));
   }
 
-  /* Hackathon / simulated-provider controls — gold dashed quarantine, never
+  /* Hackathon / simulated-provider controls — dashed violet quarantine, never
      product chrome. */
   .cardtrade-demo {
-    border-color: hsl(var(--gold) / 0.55);
-    background-color: hsl(var(--gold) / 0.07);
+    border-color: hsl(var(--iris) / 0.55);
+    background-color: hsl(var(--iris) / 0.07);
   }
 
   .cardtrade-demo-label {
-    color: hsl(var(--gold));
+    color: hsl(var(--iris-ink));
   }
 
-  /* Soft caution callouts (terms changed, collateral notice). */
+  /* Soft caution callouts (terms changed, collateral notice). Caution is the
+     ACTION orange, not the primary violet — a warning that wears the same hue
+     as every button is not a warning. */
+  /* Alphas raised with the base. These washes were struck from a 52%-lightness
+     orange; against the same white page a 68% pastel at 0.12 is barely a tint
+     and its 0.45 edge all but disappears. The border takes the darker
+     `--action-border` so the callout still has a defined edge. */
   .cardtrade-warning {
-    border-color: hsl(var(--gold) / 0.4);
-    background-color: hsl(var(--gold) / 0.1);
+    border-color: hsl(var(--action-border) / 0.5);
+    background-color: hsl(var(--action) / 0.22);
     color: hsl(var(--foreground));
   }
 
@@ -257,27 +387,8 @@
   position: absolute;
   inset: 0;
   border-radius: 9999px;
-  border: 2px solid hsl(var(--gold));
+  border: 2px solid hsl(var(--iris));
   animation: step-active-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-/* Landing-page listing marquee.
-   The track holds the tiles TWICE, so -50% lands exactly where 0% started and the
-   loop has no visible seam. Duration is long on purpose: this is ambient texture
-   behind the hero, and anything faster reads as an advert. */
-@keyframes listing-marquee {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(-50%, 0, 0); }
-}
-
-.animate-listing-marquee {
-  /* Duration tracks tile size, because distance is what changes while duration is fixed
-     — a longer track at the same duration reads as a faster row. Tuned for the current
-     ~10.5rem tile; revisit it if the tiles are resized again. */
-  animation: listing-marquee 60s linear infinite;
-  /* Promote to its own layer: without this the whole row repaints every frame and
-     the hero text above it can shimmer on lower-end machines. */
-  will-change: transform;
 }
 
 @keyframes fade {
@@ -404,6 +515,58 @@
 }
 ::view-transition-new(persistent-mobile-nav) {
   animation: none;
+}
+
+/* Catalog mosaic (phone). See `components/listings/catalogGrid.ts`.
+
+   Three rules, all scoped to below md, because the md-and-up grid must stay
+   exactly what it has always been: a uniform grid of 3:4 covers. */
+
+/* The cover's own shape, from `items.image_dims` (0106).
+
+   The base ratio is the 3:4 the md-and-up grid has always used, and only the
+   phone override below reads the stored dimensions. A tile whose dimensions are
+   unknown — a row the backfill has not reached, an external seeded URL, a photo
+   neither reader could decode — falls back through the custom property to
+   square on phone, rather than collapsing to nothing. */
+.catalog-cover {
+  aspect-ratio: 3 / 4;
+}
+
+@media (max-width: 767px) {
+  .catalog-cover {
+    aspect-ratio: var(--catalog-cover-aspect, 1 / 1);
+  }
+
+  /* `content-visibility: auto` needs a height for tiles it has skipped, and in a
+     mosaic that height differs per tile. Overrides the flat 18rem the card
+     carries as a Tailwind utility; wins on source order, since this file's
+     plain rules come after `@tailwind utilities`. */
+  .catalog-tile {
+    contain-intrinsic-size: auto var(--catalog-tile-height, 18rem);
+  }
+}
+
+/* Pre-hydration only, and only at md and up.
+
+   The mosaic is what the server renders, because the layout cannot be chosen
+   until the viewport is known and a phone is the safe assumption. On a desktop
+   that markup is briefly on screen before React swaps in the flat grid, and
+   without this it would paint as two columns of column-major tiles and then
+   snap. `display: contents` on the mosaic's wrappers hands the tiles straight
+   to the md grid, and `order` puts them back in feed order, so the interim
+   paint is identical to the final one and there is nothing to snap. */
+@media (min-width: 768px) {
+  .catalog-tile-slot {
+    order: var(--tile-order, 0);
+  }
+}
+
+/* next dev paints a circular N on the bottom-right, on top of Account. */
+@media (max-width: 767px) {
+  nextjs-portal {
+    display: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

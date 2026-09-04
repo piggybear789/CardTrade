@@ -8,6 +8,7 @@
 // navigation, so a stored session behaves exactly like a real browser's
 // cookie jar for as long as this suite runs.
 import { test as setup, expect } from '@playwright/test';
+import { isSignedInDestination } from './support/auth';
 import { SEED_USERS, storageStatePath } from './support/users';
 
 // THE SIGN-IN RATE LIMITER APPLIES TO THIS SUITE TOO, and it is not incidental.
@@ -23,9 +24,12 @@ import { SEED_USERS, storageStatePath } from './support/users';
 // URL assertion timing out on /sign-in, with the real reason only visible in the page
 // snapshot.
 //
-// Fixed HERE rather than by raising the limit or exempting the suite, because the limit
-// is real behaviour worth exercising, and an exemption would mean the one credential
-// path most worth protecting is the one path never tested with its protection on.
+// TWO DEFENCES, deliberately. The limit stays 5 in production because it is real
+// behaviour worth keeping; the suite's own server raises it to 100/min via
+// `AUTH_RATE_LIMIT_PER_MINUTE` (see `playwright.config.ts`), which is what makes a
+// serial run of SEED_USERS pass. The cooldown below is the backstop for a run against
+// a server without that override — it recognises the limiter's own message and waits
+// out its window rather than exempting the credential path from its own protection.
 const RATE_LIMIT_MESSAGE = /too many attempts/i;
 const RATE_LIMIT_COOLDOWN_MS = 65_000; // the limiter's 1m window, plus slack
 
@@ -66,11 +70,19 @@ for (const user of SEED_USERS) {
 
       // Race the success redirect against the limiter's own error, so a refusal is
       // recognised in a second instead of after the 20s URL budget expires.
+      //
+      // Both branches go through `isSignedInDestination`, the same predicate the final
+      // assertion below uses. A regex on `/\/(listings|onboarding)/` used to stand here
+      // and is now wrong: the catalog moved to `/` and `next.config.ts` permanently
+      // redirects `/listings`, so it never matches a successful sign-in and the poll
+      // would report one as 'pending' until it timed out.
       const rateLimited = page.getByRole('alert').filter({ hasText: RATE_LIMIT_MESSAGE });
+      const signedIn = () => isSignedInDestination(new URL(page.url()));
+
       await expect
         .poll(
           async () =>
-            /\/(listings|onboarding)/.test(new URL(page.url()).pathname)
+            signedIn()
               ? 'signed-in'
               : (await rateLimited.count()) > 0
                 ? 'rate-limited'
@@ -79,14 +91,13 @@ for (const user of SEED_USERS) {
         )
         .not.toBe('pending');
 
-      if (/\/(listings|onboarding)/.test(new URL(page.url()).pathname)) break;
+      if (signedIn()) break;
 
       expect(attempt, 'sign-in was rate limited twice — the cooldown did not help').toBe(1);
       await page.waitForTimeout(RATE_LIMIT_COOLDOWN_MS);
     }
 
-    // AuthForm redirects to /listings (or a preserved redirectTo) on success.
-    await expect(page).toHaveURL(/\/(listings|onboarding)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(isSignedInDestination, { timeout: 20_000 });
 
     await page.context().storageState({ path: storageStatePath(user) });
   });

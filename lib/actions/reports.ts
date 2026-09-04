@@ -12,6 +12,7 @@
 // async Server Action; shared shapes are `export type` only.
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { REASON_MIN, REASON_MAX, DETAILS_MAX } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -84,13 +85,14 @@ function validateReport(
   };
 }
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`,
+ * which revalidates the JWT against the auth server on every call.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -140,9 +142,7 @@ export async function reportItem(
   reason: string,
   details?: string,
 ): Promise<ReportActionResult> {
-  const supabase = await createClient();
-
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
   }
@@ -189,9 +189,7 @@ export async function reportUser(
   reason: string,
   details?: string,
 ): Promise<ReportActionResult> {
-  const supabase = await createClient();
-
-  const callerId = await getUserId(supabase);
+  const callerId = await getUserId();
   if (!callerId) {
     return { ok: false, error: 'not-authenticated' };
   }

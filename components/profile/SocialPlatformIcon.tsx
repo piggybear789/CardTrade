@@ -1,10 +1,11 @@
 // components/profile/SocialPlatformIcon.tsx
 //
-// Brand glyphs keyed by the domain registry slug. Lucide dropped its brand
-// icons, so these are inline paths — one source for both the editor and the
+// Brand glyphs keyed by the domain registry slug. Our icon set ships no brand
+// marks, so these are inline paths — one source for both the editor and the
 // public display.
 
-import { ExternalLink, Globe } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ExternalLinkIcon, GlobeIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
 
@@ -19,7 +20,7 @@ export function SocialPlatformIcon({
 
   switch (slug) {
     case 'website':
-      return <Globe className={base} aria-hidden />;
+      return <HugeiconsIcon icon={GlobeIcon} className={base} aria-hidden />;
     case 'instagram':
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={base} aria-hidden>
@@ -60,6 +61,6 @@ export function SocialPlatformIcon({
         </svg>
       );
     default:
-      return <ExternalLink className={base} aria-hidden />;
+      return <HugeiconsIcon icon={ExternalLinkIcon} className={base} aria-hidden />;
   }
 }

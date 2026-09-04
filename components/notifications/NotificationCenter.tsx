@@ -9,7 +9,8 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { BellOff, CheckCheck, Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BellOffIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { navigateWithType } from '@/lib/motion/navigate';
@@ -66,7 +67,7 @@ export function NotificationCenter({
   if (notifications.length === 0) {
     return (
       <EmptyState
-        icon={<BellOff className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={BellOffIcon} className="size-6" aria-hidden />}
         title="No Notifications Yet"
         description="Offers, messages, trades, and sales updates will show up here."
       />
@@ -83,9 +84,9 @@ export function NotificationCenter({
           disabled={isPending || unreadCount === 0}
         >
           {isPending ? (
-            <Loader2 className="animate-spin" aria-hidden />
+            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
           ) : (
-            <CheckCheck aria-hidden />
+            <HugeiconsIcon icon={CheckCheckIcon} aria-hidden />
           )}
           Mark all read
         </Button>
@@ -100,7 +101,7 @@ export function NotificationCenter({
                 type="button"
                 onClick={() => handleSelect(n)}
                 className={cn(
-                  'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                  'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
                   unread && 'bg-accent/40',
                 )}
               >

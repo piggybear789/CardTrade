@@ -20,6 +20,7 @@ import 'server-only';
 
 import { randomUUID } from 'node:crypto';
 import type { createAdminClient } from '@/lib/supabase/admin';
+import { moderateStoredPublicImage } from '@/lib/moderation/scanImage';
 import {
   ALLOWED_AVATAR_TYPES,
   MAX_AVATAR_BYTES,
@@ -151,6 +152,8 @@ export async function verifyStoredAvatar(
   if (size === 0 || size > MAX_AVATAR_BYTES) {
     throw new Error('Your picture must be under 2 MB.');
   }
+
+  await moderateStoredPublicImage(admin, PROFILE_IMAGES_BUCKET, path);
 }
 
 /**

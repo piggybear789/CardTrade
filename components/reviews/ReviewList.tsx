@@ -4,7 +4,8 @@
 // profile. Each row shows the reviewer's display name, that review's star
 // rating, an optional comment, and a relative timestamp. Server-rendered.
 
-import { MessageSquare } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { MessageSquareIcon } from '@hugeicons/core-free-icons';
 
 import { StarRating } from '@/components/listings/StarRating';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -33,7 +34,7 @@ export function ReviewList({
     // reaching this state.
     return (
       <EmptyState
-        icon={<MessageSquare className="size-6" aria-hidden />}
+        icon={<HugeiconsIcon icon={MessageSquareIcon} className="size-6" aria-hidden />}
         title="No Reviews Yet"
         description={`Reviews appear here once ${revieweeName} completes a sale, purchase, or trade.`}
         titleAs="h4"

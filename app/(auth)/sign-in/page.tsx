@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 // Suspense boundary because it reads the `redirectTo` search param.
 export default function SignInPage() {
   return (
-    <main className="relative flex min-h-[calc(100dvh-4rem)] items-center justify-center overflow-x-clip px-4 py-8 sm:px-6">
+    <main className="relative flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-4 py-8 sm:px-6">
       <div
         className="pointer-events-none absolute inset-0 bg-obsidian"
         aria-hidden="true"
@@ -25,7 +25,7 @@ export default function SignInPage() {
         aria-hidden="true"
       />
       <div className="relative w-full max-w-md">
-        <Suspense fallback={<AuthFormSkeleton />}>
+        <Suspense fallback={<AuthFormSkeleton mode="sign-in" />}>
           <AuthForm mode="sign-in" />
         </Suspense>
       </div>

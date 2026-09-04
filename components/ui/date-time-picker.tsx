@@ -6,7 +6,8 @@
 // with a calendar and a short list of meetup times. The value stays the same
 // `YYYY-MM-DDTHH:mm` string every fulfilment form already speaks.
 
-import { CalendarDays } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CalendarDaysIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -209,7 +210,7 @@ export function DateTimePicker({
               !parts && 'text-muted-foreground',
             )}
           >
-            <CalendarDays data-icon="inline-start" aria-hidden />
+            <HugeiconsIcon icon={CalendarDaysIcon} data-icon="inline-start" aria-hidden />
             {formatTrigger(value)}
           </Button>
         </PopoverTrigger>

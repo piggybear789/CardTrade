@@ -13,6 +13,7 @@
 // Results follow the discriminated `AccountActionResult` shape used elsewhere.
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { Tables, Enums } from '@/lib/supabase/database.types';
 
 /** A persisted item row (owner-scoped in this module). */
@@ -56,13 +57,16 @@ export interface TradeSummary {
   createdAt: string;
 }
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`.
+ * `getUser` revalidates the JWT against the auth server on every call, and the
+ * account pages reach this helper once per section on top of the shell's own
+ * read — previously a network round trip each.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -73,7 +77,7 @@ async function getUserId(
 export async function getMyListings(): Promise<AccountActionResult<ItemRow[]>> {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
 
   const { data, error } = await supabase
@@ -127,7 +131,7 @@ export async function getMyPurchases(): Promise<
 > {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
 
   const { data, error } = await supabase
@@ -149,7 +153,7 @@ export async function getMySales(): Promise<
 > {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
 
   const { data, error } = await supabase
@@ -174,7 +178,7 @@ export async function getMyTrades(): Promise<
 > {
   const supabase = await createClient();
 
-  const userId = await getUserId(supabase);
+  const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
 
   const { data, error } = await supabase

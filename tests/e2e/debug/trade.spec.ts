@@ -6,7 +6,7 @@ import { ensureSavedCard } from '../support/payments';
 
 /** Dump the interactive controls of whatever is on screen. */
 async function controls(page: import('@playwright/test').Page, label: string) {
-  await page.getByRole('heading', { name: '2-way trade' }).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+  await page.getByRole('heading', { name: 'Trade', exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
   const report = await page.evaluate(() => {
     const name = (el: Element) => {
       const aria = el.getAttribute('aria-label');

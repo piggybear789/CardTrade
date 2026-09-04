@@ -224,6 +224,89 @@ export type Database = {
           },
         ];
       };
+      /**
+       * HMAC person keys from Stripe Identity (0105). Service-role only.
+       * Never the raw government ID, name, or date of birth.
+       */
+      identity_person_keys: {
+        Row: {
+          fingerprint: string;
+          profile_id: string;
+          kind: 'document-id' | 'name-dob';
+          created_at: string;
+        };
+        Insert: {
+          fingerprint: string;
+          profile_id: string;
+          kind: 'document-id' | 'name-dob';
+          created_at?: string;
+        };
+        Update: {
+          fingerprint?: string;
+          profile_id?: string;
+          kind?: 'document-id' | 'name-dob';
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'identity_person_keys_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      /**
+       * Blocklist of Identity person keys (0105). A matching verification must
+       * not open the Identity_Gate. Service-role only.
+       */
+      identity_bans: {
+        Row: {
+          fingerprint: string;
+          created_at: string;
+          banned_by: string | null;
+          source_profile_id: string | null;
+          source_trade_id: string | null;
+        };
+        Insert: {
+          fingerprint: string;
+          created_at?: string;
+          banned_by?: string | null;
+          source_profile_id?: string | null;
+          source_trade_id?: string | null;
+        };
+        Update: {
+          fingerprint?: string;
+          created_at?: string;
+          banned_by?: string | null;
+          source_profile_id?: string | null;
+          source_trade_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'identity_bans_banned_by_fkey';
+            columns: ['banned_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'identity_bans_source_profile_id_fkey';
+            columns: ['source_profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'identity_bans_source_trade_id_fkey';
+            columns: ['source_trade_id'];
+            isOneToOne: false;
+            referencedRelation: 'trades';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       items: {
         Row: {
           id: string;
@@ -243,6 +326,15 @@ export type Database = {
           /** When the owner closed a SHOPFRONT. SINGLE listings use status. */
           closed_at: string | null;
           image_paths: string[];
+          /**
+           * Intrinsic pixel size per photo, index-aligned with `image_paths`
+           * (0106): `[{"w":800,"h":1120}, null, ...]`. `null` for the whole
+           * column means the row has never been examined; a `null` entry means
+           * that one photo's size is unknown. Read through
+           * `readImageDims()` in `lib/images/dimensions.ts`, never raw — part
+           * of what lands here is measured by a browser.
+           */
+          image_dims: Json | null;
           hidden: boolean;
           seller_rating: number | null;
           /**
@@ -299,6 +391,7 @@ export type Database = {
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
           image_paths: string[];
+          image_dims?: Json | null;
           hidden?: boolean;
           seller_rating?: number | null;
           seller_fraud_banned?: boolean;
@@ -325,6 +418,7 @@ export type Database = {
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
           image_paths?: string[];
+          image_dims?: Json | null;
           hidden?: boolean;
           seller_rating?: number | null;
           seller_fraud_banned?: boolean;
@@ -2358,6 +2452,30 @@ export type Database = {
       mark_cash_sale_refund_due: {
         Args: { p_cash_sale_id: string; p_amount_cents: number };
         Returns: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+      };
+      /**
+       * Records one seller-release attempt atomically (0110). SETTLED is terminal and
+       * the attempt counter increments from its own column, so two concurrent drain
+       * passes cannot undercount attempts or overwrite a settled release.
+       */
+      record_cash_sale_payout_result: {
+        Args: {
+          p_cash_sale_id: string;
+          p_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          p_transfer_ref?: string | null;
+          p_error?: string | null;
+        };
+        Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
+      };
+      /** Records one refund attempt atomically (0110). Mirrors the release above. */
+      record_cash_sale_refund_result: {
+        Args: {
+          p_cash_sale_id: string;
+          p_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          p_refund_ref?: string | null;
+          p_error?: string | null;
+        };
+        Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
       };
       /**
        * Records a dispute refund that failed after acceptance (0045). Reopens a

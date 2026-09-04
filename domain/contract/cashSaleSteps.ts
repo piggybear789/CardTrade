@@ -134,14 +134,14 @@ function haltOutcome(status: CashSaleStatus): {
         label: 'Cancelled here',
         short: 'Cancelled',
         detail:
-          'The agreement ended at this step and the item returned to the catalog. Nothing further was charged.',
+          'The sale ended here and the item returned to the catalog. Nothing was charged.',
       };
     case 'FAILED':
       return {
         label: 'Payment failed here',
         short: 'Failed',
         detail:
-          'The payment could not be collected at this step, so the item returned to the catalog.',
+          'The payment could not be collected, so the item returned to the catalog.',
       };
     default:
       return {
@@ -249,8 +249,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       short: 'Review',
       label: 'Dispute under review',
       detail: facts.disputeRaisedByMe
-        ? 'You raised a dispute. Funds are held securely while the case is reviewed.'
-        : `${counterpartyName} raised a dispute. Funds are held securely while the case is reviewed.`,
+        ? 'You raised a dispute. Funds are held while the case is reviewed.'
+        : `${counterpartyName} raised a dispute. Funds are held while it is reviewed.`,
       owner: 'platform',
       done: false,
     });
@@ -312,7 +312,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
           ? `You confirmed. Waiting for ${counterpartyName} to confirm.`
           : theirHandoverConfirmed
             ? `${counterpartyName} confirmed. Confirm after you meet.`
-            : 'Meet and confirm after the item changes hands. The sale completes when you both confirm.',
+            : 'Confirm after the item changes hands. The sale completes when you both do.',
       owner: bothConfirmed
         ? 'both'
         : myHandoverConfirmed
@@ -339,11 +339,12 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     drafts.push({
       id: 'inspect',
       short: '',
-      label: 'Buyer confirms the item',
+      label: 'Buyer accepts delivery',
+      compactLabel: 'Accept Delivery',
       detail:
         viewerRole === 'BUYER'
-          ? 'Complete the purchase to release the funds, or raise a dispute. Completes automatically when the window closes.'
-          : `Funds are released once ${counterpartyName} completes the purchase, or the inspection window closes.`,
+          ? 'Complete to release the funds, or dispute. Completes on its own at the deadline.'
+          : `Funds release when ${counterpartyName} completes, or when the window closes.`,
       owner: ownerFor('BUYER', viewerRole),
       done: status === 'COMPLETED' || RETURNING.has(status),
       action:
@@ -383,7 +384,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       short: '',
       label: 'Refund released',
       detail:
-        'The refund releases automatically once a carrier confirms the return reached the seller.',
+        'The refund releases once a carrier confirms the return arrived.',
       owner: 'platform',
       done: false,
     });

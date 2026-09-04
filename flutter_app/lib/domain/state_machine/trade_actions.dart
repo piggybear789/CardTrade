@@ -107,7 +107,10 @@ Set<TradeAction> availableActions(TradeFacts facts) {
       actions.add(TradeAction.proposeTerms);
 
     case TradeState.collateralPending:
-      // No user actions — system is placing holds
+      // A declined card leaves the trade here on purpose so the hold can be
+      // re-sought after they replace the card. The server no-ops if the first
+      // placement is still in flight.
+      actions.add(TradeAction.retryCollateral);
       break;
 
     case TradeState.collateralLocked:

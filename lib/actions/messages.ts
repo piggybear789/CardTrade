@@ -17,9 +17,10 @@
 // (type exports are erased and permitted in a 'use server' module).
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { MESSAGE_BODY_MIN, MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
-import type { Tables } from '@/lib/supabase/database.types';
+import type { Enums, Tables } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { attachmentPreviewLabel } from '@/lib/storage/messageAttachmentsShared';
@@ -49,13 +50,14 @@ function orderParticipants(
   return x < y ? { a: x, b: y } : { a: y, b: x };
 }
 
-/** Resolve the current authenticated user id, or `null`. */
-async function getUserId(
-  client: Awaited<ReturnType<typeof createClient>>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await client.auth.getUser();
+/**
+ * Resolve the current authenticated user id, or `null`.
+ *
+ * Reads through the request-cached lookup rather than `client.auth.getUser()`,
+ * which revalidates the JWT against the auth server on every call.
+ */
+async function getUserId(): Promise<string | null> {
+  const user = await getCachedAuthUser();
   return user?.id ?? null;
 }
 
@@ -86,7 +88,7 @@ export async function getOrCreateConversation(
 ): Promise<GetOrCreateConversationResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
   if (!otherUserId || otherUserId === me) {
     return { ok: false, error: 'self-conversation' };
@@ -211,7 +213,7 @@ export type ListMyConversationsResult =
 export async function listMyConversations(): Promise<ListMyConversationsResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const { data: convData, error } = await supabase
@@ -364,6 +366,34 @@ export type GetConversationError =
   | 'not-participant'
   | 'not-found';
 
+/**
+ * Carrier details for the sale this thread belongs to, once one is recorded.
+ *
+ * The shipped SYSTEM line embeds the carrier and number as PROSE — SQL's
+ * `describe_cash_sale_event` builds the sentence — so the thread cannot turn
+ * that into a link without the structured values alongside it.
+ */
+export interface ConversationShipment {
+  carrier: string | null;
+  trackingNumber: string;
+  /** Carrier deep link. Null for the manual provider, which cannot supply one. */
+  trackingUrl: string | null;
+}
+
+/**
+ * The cash sale this thread belongs to, when it has one.
+ *
+ * The ITEM's status and the CONTRACT's status are different facts and the
+ * thread was showing the wrong one: a finished purchase read "Sold", which is
+ * true of the listing and says nothing about whether the money settled. This
+ * also carries the id, because on a live or completed sale the contract room is
+ * the correct destination and the listing is not.
+ */
+export interface ConversationSaleSummary {
+  id: string;
+  status: Enums<'cash_sale_status'>;
+}
+
 /** A conversation with its participant, item context, and full message history. */
 export interface ConversationDetail {
   conversation: ConversationRow;
@@ -371,6 +401,10 @@ export interface ConversationDetail {
   item: ConversationItemSummary | null;
   /** Set when this thread is a 2-way trade's chat. */
   trade: ConversationTradeSummary | null;
+  /** Set when this thread belongs to a cash sale. */
+  sale: ConversationSaleSummary | null;
+  /** Set once the seller has recorded a shipment on the related cash sale. */
+  shipment: ConversationShipment | null;
   messages: MessageRow[];
 }
 
@@ -390,7 +424,7 @@ export async function getConversation(
 ): Promise<GetConversationResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const { data: conversation } = await supabase
@@ -410,8 +444,10 @@ export async function getConversation(
   }
 
   const otherId = conv.participant_a === me ? conv.participant_b : conv.participant_a;
+  const cashSaleId = (conv as ConversationRow & { cash_sale_id?: string | null })
+    .cash_sale_id;
 
-  const [profileRes, itemRes, messagesRes] = await Promise.all([
+  const [profileRes, itemRes, saleRes, messagesRes] = await Promise.all([
     supabase
       .from('public_profiles')
       .select('id, display_name, avatar_path')
@@ -422,6 +458,13 @@ export async function getConversation(
           .from('items')
           .select('id, title, image_paths, fmv_cents, status')
           .eq('id', conv.item_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    cashSaleId
+      ? supabase
+          .from('cash_sales')
+          .select('id, status, tracking_carrier, tracking_number, tracking_url')
+          .eq('id', cashSaleId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
@@ -441,6 +484,25 @@ export async function getConversation(
       }
     : null;
 
+  // A number is what makes the shipment real: the carrier and URL are both
+  // nullable, and a manual provider records the number with neither.
+  const trackingNumber = (saleRes.data?.tracking_number as string | null) ?? null;
+  const shipment: ConversationShipment | null = trackingNumber
+    ? {
+        carrier: (saleRes.data?.tracking_carrier as string | null) ?? null,
+        trackingNumber,
+        trackingUrl: (saleRes.data?.tracking_url as string | null) ?? null,
+      }
+    : null;
+
+  const saleId = (saleRes.data?.id as string | null) ?? null;
+  const sale: ConversationSaleSummary | null = saleId
+    ? {
+        id: saleId,
+        status: saleRes.data?.status as Enums<'cash_sale_status'>,
+      }
+    : null;
+
   return {
     ok: true,
     data: {
@@ -452,6 +514,8 @@ export async function getConversation(
       },
       item,
       trade: conv.trade_id ? { id: conv.trade_id } : null,
+      sale,
+      shipment,
       messages: (messagesRes.data ?? []) as MessageRow[],
     },
   };
@@ -495,7 +559,7 @@ export async function sendMessage(
 ): Promise<SendMessageResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   const trimmed = (body ?? '').trim();
@@ -621,7 +685,7 @@ export async function markConversationRead(
 ): Promise<MarkConversationReadResult> {
   const supabase = await createClient();
 
-  const me = await getUserId(supabase);
+  const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
 
   // System messages have no sender, and `sender_id <> me` never matches NULL, so

@@ -104,10 +104,22 @@ export interface ShipmentSnapshot {
 /** Why a set of fulfilment terms cannot be saved. */
 export type FulfilmentTermsError =
   | 'method-required'
+  /**
+   * A real method, but not one this flow offers. Trades are face-to-face only: their
+   * collateral is a card authorisation with a deadline, and postage in both directions
+   * cannot be made to fit inside it. A Cash_Sale has no such limit and still posts.
+   */
+  | 'method-not-supported'
   | 'meeting-place-required'
   | 'meeting-place-unresolved'
   | 'meeting-time-required'
   | 'meeting-time-past'
+  /**
+   * Scheduled so far ahead that the collateral would lapse before the inspection
+   * window closed. Trades only — a Cash_Sale's money is already collected and has
+   * no authorisation to outlive.
+   */
+  | 'meeting-time-too-far'
   | 'delivery-cost-required'
   | 'delivery-cost-invalid'
   | 'delivery-address-required'

@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { HugeiconsIcon } from '@hugeicons/react';
+import { XIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from "@/lib/utils";
 
@@ -33,11 +34,13 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
   typeof DialogPrimitive.Content
 > & {
   /**
-   * Mobile presentation below `sm`:
+   * Mobile presentation below `md` (768px, the chrome split):
    * - `sheet` (default) — docks to the bottom with safe-area padding
    * - `center` — floating card (lightbox / media viewers)
+   * - `page` — full-viewport wizard (onboarding). Overlay is solid `bg-card`
+   *   on phone so the marketplace does not dim behind a page that is the page.
    */
-  mobile?: "sheet" | "center";
+  mobile?: "sheet" | "center" | "page";
   /** Hide the close affordance for required, non-dismissable wizard steps. */
   showClose?: boolean;
   /**
@@ -59,9 +62,9 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
 const CENTRED_MOTION =
   "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]";
 
-/** {@link CENTRED_MOTION} for the `sm:` breakpoint, where the sheet variant centres. */
-const CENTRED_MOTION_SM =
-  "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]";
+/** {@link CENTRED_MOTION} for the `md:` breakpoint, where the sheet variant centres. */
+const CENTRED_MOTION_MD =
+  "md:data-[state=closed]:zoom-out-95 md:data-[state=open]:zoom-in-95 md:data-[state=closed]:slide-out-to-left-1/2 md:data-[state=closed]:slide-out-to-top-[48%] md:data-[state=open]:slide-in-from-left-1/2 md:data-[state=open]:slide-in-from-top-[48%]";
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
@@ -75,23 +78,27 @@ const DialogContent = React.forwardRef<
   ...props
 }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay
+      className={mobile === "page" ? "max-md:bg-card" : undefined}
+    />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:ring-2 focus-visible:ring-ring [scroll-padding-bottom:5.5rem]",
+        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-iris",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         mobile === "sheet" && [
-          // Phone: bottom sheet
-          "inset-x-0 bottom-0 top-auto max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
+          // Phone: bottom sheet. Children must not shrink — a pinned footer plus
+          // flex-shrink was compressing titles/fields instead of letting this
+          // scrollport move. `[&>*]:shrink-0` keeps each block its natural height.
+          "inset-x-0 bottom-[var(--keyboard-inset,0px)] top-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:shrink-0",
           animation === "default"
-            ? "max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=open]:duration-[240ms] max-sm:data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)] max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=closed]:duration-150 max-sm:data-[state=closed]:ease-in"
-            : "max-sm:data-[state=open]:animate-dialog-fade-in max-sm:data-[state=closed]:animate-dialog-fade-out",
-          // sm+: centred on the viewport (not the content column beside the rail)
-          "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-4 sm:rounded-lg sm:border sm:border-border sm:p-6 sm:pb-6",
+            ? "max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=open]:duration-[240ms] max-md:data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)] max-md:data-[state=closed]:slide-out-to-bottom max-md:data-[state=closed]:duration-150 max-md:data-[state=closed]:ease-in"
+            : "max-md:data-[state=open]:animate-dialog-fade-in max-md:data-[state=closed]:animate-dialog-fade-out",
+          // md+: centred on the viewport (not the content column beside the rail)
+          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:gap-4 md:rounded-lg md:border md:border-border md:p-6 md:pb-6",
           animation === "default"
-            ? CENTRED_MOTION_SM
-            : "sm:data-[state=open]:animate-dialog-fade-in sm:data-[state=closed]:animate-dialog-fade-out",
+            ? CENTRED_MOTION_MD
+            : "md:data-[state=open]:animate-dialog-fade-in md:data-[state=closed]:animate-dialog-fade-out",
         ],
         mobile === "center" && [
           "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-xl p-4",
@@ -103,14 +110,26 @@ const DialogContent = React.forwardRef<
             : "data-[state=open]:animate-dialog-fade-in data-[state=closed]:animate-dialog-fade-out",
           "sm:max-h-[calc(100dvh-3rem)] sm:w-[calc(100%-2rem)] sm:p-6",
         ],
+        mobile === "page" && [
+          // Phone: the wizard IS the page. Full viewport, no sheet chrome.
+          // `bottom` tracks `--keyboard-inset` so the footer sits above the
+          // software keyboard and the flex scroll region shrinks with it.
+          "inset-x-0 top-0 bottom-[var(--keyboard-inset,0px)] h-auto max-h-none translate-x-0 translate-y-0 overflow-hidden rounded-none border-0 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none",
+          "max-md:data-[state=open]:animate-dialog-fade-in max-md:data-[state=closed]:animate-dialog-fade-out",
+          // md+: same centred card as the sheet variant
+          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-lg md:border md:border-border md:p-6 md:pb-6 md:pt-6 md:shadow-lg",
+          animation === "default"
+            ? CENTRED_MOTION_MD
+            : "md:data-[state=open]:animate-dialog-fade-in md:data-[state=closed]:animate-dialog-fade-out",
+        ],
         className,
       )}
       {...props}
     >
       {children}
       {showClose ? (
-        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-muted/80 opacity-90 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none sm:size-8 sm:rounded-sm sm:bg-transparent sm:opacity-70">
-          <X className="size-4" aria-hidden="true" />
+        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-iris disabled:pointer-events-none sm:size-8 sm:opacity-70">
+          <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden="true" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       ) : null}
@@ -139,9 +158,13 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      // Stick actions to the visible bottom of the sheet while content scrolls.
-      "sticky bottom-0 z-10 mt-auto flex flex-col-reverse gap-2 border-t border-border bg-card/95 pt-3 backdrop-blur supports-[backdrop-filter]:bg-card/90 [&>a]:w-full [&>button]:w-full",
-      "sm:static sm:z-auto sm:mt-0 sm:border-0 sm:bg-transparent sm:pt-0 sm:backdrop-blur-none sm:flex-row sm:justify-end sm:gap-2 sm:[&>a]:w-auto sm:[&>button]:w-auto",
+      // In flow, not sticky. Pinning Back/Continue to the sheet bottom reserved
+      // a bar (two stacked full-width buttons on phone) and flexed the title
+      // and fields into the leftover sliver — especially once the keyboard
+      // inset shrinks max-height. Actions sit after the content; the sheet
+      // scrolls if needed. Phone: one row so two actions share a line.
+      "flex flex-row gap-2 [&>a]:min-w-0 [&>a]:flex-1 [&>button]:min-w-0 [&>button]:flex-1",
+      "md:justify-end md:[&>a]:flex-none md:[&>button]:flex-none",
       className,
     )}
     {...props}

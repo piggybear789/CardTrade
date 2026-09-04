@@ -83,7 +83,7 @@ export function SocialLinksDisplay({
             aria-label={`${link.label}: ${link.handle}`}
             className={cn(
               shared,
-              'transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'border border-transparent transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris',
             )}
           >
             {icon}

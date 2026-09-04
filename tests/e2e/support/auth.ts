@@ -25,7 +25,7 @@
 // it is not, and it covers every cause — rotation, expiry, an accidental sign-out, a
 // member deleted and reseeded.
 
-import { expect, type Browser } from '@playwright/test';
+import { expect, test, type Browser } from '@playwright/test';
 import { storageStatePath, type SeedUser } from './users';
 
 /**
@@ -63,7 +63,45 @@ export async function ensureFreshSession(browser: Browser, user: SeedUser): Prom
     await expect(emailField).toBeEditable({ timeout: 15_000 });
     await emailField.fill(user.email);
     await page.getByLabel('Password').fill(user.password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    // THE REPAIR PATH IS RATE LIMITED TOO, and it is the one place that hurts most.
+    //
+    // `authLimiter` (lib/rateLimiters.ts) allows 5 attempts per minute keyed by IP
+    // when nobody is signed in yet. This helper runs from `beforeAll` in most spec
+    // files, so under `fullyParallel` several workers repair several members at the
+    // same moment and trip it — and then the repair itself fails, leaving exactly the
+    // stale jar it exists to fix. The spec carries on and its next context loads a
+    // signed-out page, which surfaces far away as a missing control: `ensureSavedCard`
+    // waiting forever for "Buy now" on a listing page rendered for a guest.
+    //
+    // Same treatment as auth.setup.ts: recognise the limiter's own message and back
+    // off past its window rather than widening the limit for everyone.
+    const rateLimited = page.getByRole('alert').filter({ hasText: /too many attempts/i });
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      await page.getByRole('button', { name: 'Sign in' }).click();
+
+      await expect
+        .poll(
+          async () =>
+            /\/(listings|onboarding)/.test(new URL(page.url()).pathname)
+              ? 'signed-in'
+              : (await rateLimited.count()) > 0
+                ? 'rate-limited'
+                : 'pending',
+          { timeout: 30_000 },
+        )
+        .not.toBe('pending');
+
+      if (/\/(listings|onboarding)/.test(new URL(page.url()).pathname)) break;
+
+      expect(
+        attempt,
+        `session repair for ${user.email} was rate limited twice — the cooldown did not help`,
+      ).toBe(1);
+      await page.waitForTimeout(65_000); // the limiter's 1m window, plus slack
+    }
+
     await expect(page).toHaveURL(/\/(listings|onboarding)/, { timeout: 30_000 });
 
     await context.storageState({ path: statePath });
@@ -72,11 +110,20 @@ export async function ensureFreshSession(browser: Browser, user: SeedUser): Prom
   }
 }
 
-/** {@link ensureFreshSession} for several members, in sequence. */
+/**
+ * {@link ensureFreshSession} for several members, in sequence.
+ *
+ * Raises the calling hook's budget, because a repair may have to sit out the auth
+ * limiter's one-minute window (see the loop above) and several members are repaired
+ * one after another. At the default 90s a rate-limited repair would be killed
+ * mid-cooldown and reported as the hook hanging.
+ */
 export async function ensureFreshSessions(
   browser: Browser,
   users: readonly SeedUser[],
 ): Promise<void> {
+  test.setTimeout(90_000 + users.length * 100_000);
+
   for (const user of users) {
     await ensureFreshSession(browser, user);
   }

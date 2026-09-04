@@ -1651,3 +1651,149 @@ Worth recording, because in both cases the database corrected me:
   the 0075 columns is unverified. The orchestrator decision logic is tested; the SQL is not.
 - The remaining Server Actions (~20 modules), covered only by e2e.
 - The nine items in F69, unchanged.
+
+---
+
+# Round 8 — repairing the suite after the settings/compose refactors
+
+Every failure in this round was the suite disagreeing with a shipped UI change, with one
+exception, which is F71 below and is not fixed.
+
+## F71 — A `Select` option renders outside the viewport on a phone (severity 3, OPEN)
+
+The `Game` dropdown on the create-listing form cannot be operated on the `mobile`
+project (iPhone 14, 390x664). The option resolves, reports visible/enabled/stable, and
+then Playwright reports the same three lines until the test budget expires:
+
+```
+- scrolling into view if needed
+- done scrolling
+- element is outside of the viewport
+```
+
+It blocks five tests — `listings` creates/edits, `cash-sale` and `offers` seller listing
+steps, and the `trade` pair setup — because `createListing` is the gateway helper for
+all of them. Desktop hit it once as well, in the first run of the round, so it is
+viewport-sensitive rather than strictly engine-specific.
+
+**Not worked around, deliberately.** `click({ force: true })` makes it pass and would
+also have made it pass if a member genuinely could not tap that option, which is the
+whole reason the `mobile` project runs real WebKit rather than Chromium emulation. The
+same reasoning is written into `chooseTile` in tests/e2e/support/deals.ts, where forcing
+was rejected for the identical reason.
+
+**What it likely is, and what to check first.** Radix positions `SelectContent` with
+collision detection, so an option landing off-screen points at the popper config or at a
+transformed/scrolling ancestor defeating it — `position`, `avoidCollisions` and
+`--radix-select-content-available-height` on `components/ui/select.tsx` are where to
+start. Worth confirming by hand on a real phone before assuming it is an automation
+artefact: if the popover really does overflow, a seller on a phone cannot choose a game,
+which would be a listing-blocking defect and not a test problem.
+
+## What was test drift, and what it teaches
+
+Recorded because the SHAPE repeated: in every case a control was renamed, removed or
+moved, and the test reported it as the feature being broken.
+
+1. **`ItemForm` has no Title field** and labels its prose field `Description`. The helper
+   still looked for `Describe what you are selling`, which now exists only as card copy
+   that `getByLabel` cannot see. Six failures across three lifecycles, all as 90s
+   timeouts on a field that renders fine.
+2. **`/profile` became a tabbed "Settings" surface.** "Profile" survives only as a tab
+   LABEL, and `SettingsSection` labels render through `SectionLabel`, which is a `<p>` —
+   so `getByRole('heading')` cannot reach "Payment method", "Identity" or "Payout
+   account". Only the `<h3>`s inside `PayoutsDashboard` are headings.
+3. **"Identity" is not usable as a locator anywhere.** `KycRailStatus` renders
+   `<p id="marketplace-identity">Identity</p>` in the rail of every marketplace view, so
+   an exact text match finds it even when the identity card is not rendered at all.
+4. **Consent checkboxes are gone from the buy and offer dialogs.** Both now state
+   "Verified seller" with the provider-verified legal name and no acknowledgement. Note
+   that `initiateCashSale` still refuses without `buyerConfirmedSellerIdentity` — the
+   client simply sends it unconditionally. The server gate is intact; it is no longer a
+   user action. Whether that is the intended reading of consent is a product question,
+   not a test one.
+5. **Declining an offer is two steps.** `OffersSection` wraps the row action in a
+   `ConfirmDialog`, so one click only opens it. The accept path in the same file already
+   knew this; decline had been missed, and asserted that a still-pending offer had
+   retired.
+6. **Compose is a dialog, so there are two dialogs.** `fillUnlistedCard`'s
+   `getByRole('dialog')` was unambiguous when `/deals/new` was a page. The ambiguity is
+   invisible until the end, where `toBeHidden()` re-resolves to the open compose dialog.
+7. **`ChoiceTile` radios are `sr-only`, and `.check()` cannot always click them.** Inside
+   the compose dialog the input's own 1x1 point is covered by a sibling `<span>`, so the
+   hit test never passes while the actionability wait does — it reads as the control
+   never rendering. Fixed by clicking the tile. The listing form's kind tiles get away
+   with `.check()` only because their `align="start"` layout leaves that point on the
+   label.
+8. **Two viewport-conditional assertions.** The account link (`hidden … sm:inline`) and
+   the rail's identity badge both render text that also appears elsewhere, so `.first()`
+   selected a hidden node on mobile and reported an update as not having happened.
+9. **A search page echoes its own query.** `private-deal`'s "not in the catalog" check
+   used `getByText(description)` and matched the search field's value plus the "no
+   results" copy — a false POSITIVE on a privacy claim. `offers.spec.ts` had already
+   recorded this trap and asserts on the absence of a link instead.
+
+## The auth limiter is part of the suite's environment
+
+`authLimiter` allows 5 attempts per minute keyed by IP when nobody is signed in yet.
+Two paths sign in repeatedly and both were unprotected:
+
+* `auth.setup.ts` signs in all seven seeded members back to back, so members six and
+  seven — the two staff personas — were refused, their jars were never written, and
+  because both browser projects declare `dependencies: ['setup']` the entire suite
+  reported "did not run". The visible failure was a URL assertion timing out on
+  `/sign-in`, with the real reason only in the page snapshot.
+* `ensureFreshSession` repairs a stale jar from `beforeAll`, so under `fullyParallel`
+  several workers repair several members at once. When it trips, the repair fails
+  silently and leaves the stale jar it exists to fix; the spec then loads a signed-out
+  page and fails somewhere unrelated — observed as `ensureSavedCard` waiting for "Buy
+  now" on a listing rendered for a guest.
+
+Both now recognise the limiter's own message and back off past its window. Neither
+raises the limit nor exempts the suite: this is the credential path most worth
+protecting, and an exemption would mean it is the one path never tested with its
+protection on.
+
+## F72 — A declined offer does not reach the buyer's Past list (severity 2, OPEN, needs confirmation)
+
+Exposed only once declining actually worked (see item 5 above — the spec had been
+clicking the trigger and never confirming, so this step had never run against a genuinely
+declined offer).
+
+Sequence: CAROL offers $40 on ERIN's listing, ERIN declines and the row's action retires
+as expected. CAROL then loads `/offers?show=past` and the section counts read:
+
+```
+Active 1
+Past 0
+No Past Offers
+```
+
+So a settled offer is either still counted as Active for the buyer, or is absent from both
+partitions. The page was authenticated as CAROL — this is not a session artefact.
+
+**Not yet confirmed as a defect**, and one alternative reading has to be ruled out first:
+CAROL also holds a live $70 counter from the other describe in that file, so `Active 1`
+may legitimately be that one, which would still leave `Past 0` unexplained but changes
+where to look. Check whether the buyer-side Active/Past split treats `DECLINED` as
+settled, and whether it agrees with the seller-side split — the two views read the same
+rows and should partition them the same way.
+
+## What the suite still cannot do on its own: shared cookie jars under parallelism
+
+`ensureFreshSession` repairs a stale jar once per FILE, from `beforeAll`. That is not
+enough for a file that opens a new context per test over several minutes, which the trade,
+private-deal and profile specs all do. The rotation problem this helper documents then
+reasserts itself mid-file: the first context rotates the refresh token, a later context
+replays the retired one outside the 10-second reuse window, and the token family is
+revoked. The test lands on a signed-out page and fails on whatever control it wanted next.
+
+Confirmed in this round, from page snapshots rather than inference: `trade` "both traders
+list an item of equal value" and the Verification-tab test both failed on a rendered
+sign-in page while their own `beforeAll` had succeeded minutes earlier.
+
+The rate-limit backoff added in this round does NOT fix this — it only makes the repair
+succeed when it runs. Closing it properly means one of: repairing per test rather than per
+file (and paying for the sign-ins), holding one context per member for the length of a
+file instead of one per test, or giving each spec file its own jar per member so contexts
+stop sharing a rotating credential. That is a harness design decision, not a spec fix.

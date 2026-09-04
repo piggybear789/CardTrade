@@ -183,7 +183,11 @@ test.describe('Listing form', () => {
 
     // The returned detail URL is deliberately discarded: the navigation below goes
     // through the Edit link instead, for the reason in the next comment.
-    await createListing(page, { title: original });
+    //
+    // An explicit body, so the description's exact value is known below. The default
+    // would work too, but asserting against a constant defined in the helper couples
+    // this test to it for no gain.
+    await createListing(page, { title: original, description: 'Original body.' });
 
     // On WebKit, `router.refresh()` fires a soft navigation that competes with the
     // subsequent `goto`. Simply waiting for a load state is not enough because the
@@ -196,9 +200,16 @@ test.describe('Listing form', () => {
     await expect(page).toHaveURL(/\/edit/, { timeout: 15_000 });
     await page.waitForLoadState('domcontentloaded');
 
-    const titleInput = page.getByLabel('Title');
-    await expect(titleInput).toHaveValue(original, { timeout: 10_000 });
-    await titleInput.fill(updated);
+    // EDITED THROUGH THE DESCRIPTION, because there is no Title field to edit.
+    // `ItemForm` takes one prose field and the server derives `items.title` from its
+    // first line (`deriveItemTitle`), on the create AND the edit form. This test still
+    // proves what it always did — that an edit reaches the catalog heading — it just
+    // goes through the field that actually owns the title.
+    const descriptionInput = page.getByLabel('Description', { exact: true });
+    await expect(descriptionInput).toHaveValue(`${original}. Original body.`, {
+      timeout: 10_000,
+    });
+    await descriptionInput.fill(updated);
 
     await page.getByRole('button', { name: /Save changes|Update listing/i }).click();
 

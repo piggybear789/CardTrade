@@ -17,9 +17,9 @@
 // LABELS AND STRUCTURE READ OFF THE RUNNING ROOM (tests/e2e/debug/inspect.spec.ts):
 //   * The room's <h1> is "Sale"; the ITEM title is an h2 and appears twice (header
 //     and the Item panel).
-//   * The progress rail is a row of BUTTONS whose accessible names are the step
-//     names, and the live one is suffixed " — current step". That suffix is the
-//     cleanest state assertion in the whole flow: it is what the member reads.
+//   * There is NO progress rail in this room any more, and nothing replaced it —
+//     see `currentStep` below and F73. The live step survives only as the action
+//     card's `sr-only` <h3>, which is what `currentStep` reads.
 //     Steps: "Set handover terms" → "Payment collected and held" →
 //     fulfilment (ship or handover) → complete the purchase.
 //   * The buyer pays as soon as terms exist. There is no seller confirm.
@@ -43,9 +43,28 @@ test.beforeAll(async ({ browser }) => {
 
 const PRICE_DOLLARS = '150.00';
 
-/** The rail marks the live step by suffixing its accessible name. */
+/**
+ * The live step, read off the action card.
+ *
+ * THIS USED TO READ THE PROGRESS RAIL, matching a tick button whose accessible name
+ * was suffixed " — current step". That rail is gone from this room:
+ * `ContractProgressRail` is still defined, still exported from
+ * `components/contract/index.ts`, and still described there as the top of the room's
+ * spine — but NOTHING renders it anywhere in the app. `CashSaleView` derives the same
+ * steps with `deriveCashSaleSteps` and passes only the live one to
+ * `ContractActionCard`. Recorded as F73; it is a product question, not a test one.
+ *
+ * So the step label now lives in exactly one place: that card's `<h3>`. With
+ * `appearance="header"`, which is what this room uses, the heading is `sr-only` — the
+ * room has NO visible statement of where the contract has got to.
+ *
+ * Hence `toBeAttached`, not `toBeVisible`, at every call site. Asserting visibility
+ * would fail on copy that is deliberately screen-reader-only, and the accessible name
+ * is still derived from the same pure step function the rail used, so this checks the
+ * same fact.
+ */
 function currentStep(page: Page, name: string) {
-  return page.getByRole('button', { name: `${name} — current step` });
+  return page.getByRole('heading', { name, level: 3 });
 }
 
 /** Expand the collapsed mock-payments panel and fire one of its webhooks. */
@@ -98,9 +117,18 @@ test.describe.serial('Cash sale lifecycle', () => {
     await expect(checkout).toBeVisible({ timeout: 25_000 });
   }
   
-  // The seller-identity confirmation is a hard gate: `initiateCashSale` refuses
-  // with BUYER_CONFIRMATION_REQUIRED without it, so this is not decoration.
-  await dialog.getByRole('checkbox').check();
+  // THE DISCLOSURE IS ASSERTED, NOT ACKNOWLEDGED — and the change is worth knowing.
+  //
+  // `initiateCashSale` still refuses without `buyerConfirmedSellerIdentity`, so the
+  // gate exists server-side. What changed is that no user action satisfies it any
+  // more: `BuyButton` removed the checkbox, states "Verified seller" with the
+  // provider-verified legal name, and sends the flag unconditionally. Same move as
+  // `MakeOfferDialog` and the one recorded in `PayoutOnboarding` — consent is stated
+  // beside the button that acts on it.
+  //
+  // So what is testable here is the DISCLOSURE, and it is load-bearing: a null seller
+  // identity blocks the entire buy path.
+  await expect(dialog.getByText('Verified seller')).toBeVisible();
   await dialog.getByRole('button', { name: 'Reserve item and agree terms' }).click();
   
   await expect(page).toHaveURL(/\/sales\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
@@ -114,7 +142,7 @@ test.describe.serial('Cash sale lifecycle', () => {
   await expect(
     page.getByRole('heading', { name: /^(Purchase|Sale)$/ }).first(),
   ).toBeVisible({ timeout: RENDERED });
-  await expect(currentStep(page, 'Set handover terms')).toBeVisible({
+  await expect(currentStep(page, 'Set handover terms')).toBeAttached({
     timeout: RENDERED,
   });
   
@@ -184,7 +212,7 @@ test.describe.serial('Cash sale lifecycle', () => {
 
     // Refused, so nothing was committed and the contract is still at terms.
     await page.keyboard.press('Escape');
-    await expect(currentStep(page, 'Set handover terms')).toBeVisible({
+    await expect(currentStep(page, 'Set handover terms')).toBeAttached({
       timeout: RENDERED,
     });
 
@@ -218,7 +246,7 @@ test.describe.serial('Cash sale lifecycle', () => {
     await expect(dialog).toBeHidden({ timeout: 25_000 });
 
     // Terms proposed, so the buyer can pay.
-    await expect(currentStep(page, 'Payment collected and held')).toBeVisible({
+    await expect(currentStep(page, 'Payment collected and held')).toBeAttached({
       timeout: 25_000,
     });
 

@@ -169,8 +169,19 @@ export async function createListing(
   await expect(page.locator('#condition')).toBeFocused({ timeout: 10_000 });
 
   // One prose field, and the marked label leads it so the derived title contains it.
+  //
+  // Matched EXACTLY on `Description`, which is what `ItemForm` labels it. This helper
+  // previously looked for `Describe what you are selling`; that string now lives only
+  // in the card's own `CardDescription` ("Describe your collectible and set its
+  // price…"), which `getByLabel` cannot see. The miss cost 6 failures across three
+  // lifecycles — cash-sale, trade and offers all reach escrow through this one line —
+  // and every one of them surfaced as a 90s timeout on a field that renders fine.
+  //
+  // `exact` because a substring match would also accept a future second field whose
+  // label merely CONTAINS "Description", and filling the wrong box here would fail
+  // much later, at the derived title.
   await page
-    .getByLabel(/Describe what you are selling/)
+    .getByLabel('Description', { exact: true })
     .fill(`${title}. ${description}`);
   await page.getByLabel('Price').fill(priceDollars);
 

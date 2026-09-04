@@ -64,9 +64,19 @@ async function makeOffer(page: Page, itemId: string, dollars: string, note: stri
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 15_000 });
 
-  // The identity confirmation is a hard gate — `initiateCashSale`-style refusal
-  // applies to offers too, because accepting one opens a contract with this payee.
-  await dialog.getByRole('checkbox').check();
+  // THE SELLER DISCLOSURE IS ASSERTED, NOT ACKNOWLEDGED.
+  //
+  // This step used to `check()` a confirmation checkbox in the dialog. There is no
+  // such checkbox — `MakeOfferDialog` states who the seller is and leaves it at that,
+  // which is the same move recorded in `PayoutOnboarding`: consent checkboxes were
+  // replaced by a statement beside the button that acts on it. The dead step cost 2
+  // failures as a 90s timeout on a control that does not exist.
+  //
+  // What the product actually requires here is the DISCLOSURE, and it is load-bearing:
+  // a null seller identity blocks the entire buy path, so asserting it renders is a
+  // stronger check than ticking a box ever was.
+  await expect(dialog.getByText('Verified seller')).toBeVisible();
+
   await dialog.getByLabel('Your offer').fill(dollars);
   await dialog.getByLabel(/Message/i).fill(note);
   await dialog.getByRole('button', { name: 'Send offer' }).click();
@@ -103,12 +113,35 @@ test.describe.serial('Offer declined', () => {
   await expect(page.getByRole('button', { name: 'Accept' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Counter' })).toBeVisible();
   
-  await page.getByRole('button', { name: 'Decline' }).click();
+  // DECLINING IS TWO STEPS, exactly as accepting is further down this file.
+  // `OffersSection` wraps the row action in a `ConfirmDialog` (the trigger carries
+  // `aria-haspopup="dialog"`), so one click only OPENS the confirmation and the offer
+  // stays PENDING. Asserting the action had retired therefore failed against a row
+  // that was never declined — and read as "declining does not work".
+  //
+  // Trigger is "Decline", confirm is "Decline offer", so both must be matched
+  // EXACTLY: the default substring match makes `'Decline'` hit both and can re-click
+  // the trigger underneath the open dialog.
+  await page.getByRole('button', { name: 'Decline', exact: true }).click();
+  
+  const confirm = page.getByRole('dialog');
+  await expect(confirm).toBeVisible({ timeout: 15_000 });
+  await confirm.getByRole('button', { name: 'Decline offer' }).click();
   
   // Declined is terminal, so every action retires.
-  await expect(page.getByRole('button', { name: 'Decline' })).toHaveCount(0, {
-    timeout: 20_000,
-  });
+  await expect(
+    page.getByRole('button', { name: 'Decline', exact: true }),
+  ).toHaveCount(0, { timeout: 20_000 });
+
+  // AND THE STATUS ACTUALLY CHANGED. The retiring of the controls alone does not
+  // prove the decline PERSISTED — the row re-renders on `router.refresh()` either
+  // way, so a refusal that only toasted would look identical here.
+  //
+  // Asserted because the next test in this block then failed to find the offer under
+  // Past while `isOfferPast` correctly counts everything non-PENDING as past
+  // (lib/lifecycle.ts). That leaves two candidates — the decline not persisting, or
+  // `listMyOffers` omitting the row — and this assertion is what tells them apart.
+  await expect(page.getByText('Declined').first()).toBeVisible({ timeout: 20_000 });
   await ctx.close(); });
 
   test('the buyer finds it under Past', async ({ browser }) => { const ctx = await browser.newContext({ storageState: storageStatePath(CAROL) });

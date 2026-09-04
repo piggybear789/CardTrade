@@ -99,11 +99,30 @@ const SelectContent = React.forwardRef<
       {...props}
     >
       <SelectScrollUpButton />
+      {/* THE VIEWPORT MUST NOT BE PINNED TO THE TRIGGER'S HEIGHT.
+
+          shadcn ships `h-[var(--radix-select-trigger-height)]` here. That was survivable
+          while options were shorter than the trigger, and stopped being so when
+          `SelectItem` gained `min-h-11` for touch targets (44px) against a trigger of
+          `h-10` (40px): the viewport became SHORTER THAN ONE OPTION, and `Content` has
+          `overflow-hidden`, so every option after the first was clipped outside a
+          container with a fixed height.
+
+          A pointer cannot reach them and neither can automation — Playwright reported
+          the option as visible, enabled and stable, then "element is outside of the
+          viewport" after scrolling, forever. It blocked the `Game` dropdown on the
+          create-listing form on the mobile project, which took out five specs, because
+          `createListing` is the gateway for the cash-sale, trade and offers lifecycles.
+
+          `--radix-select-content-available-height` is Radix's own measurement of the
+          space between the trigger and the edge of the window, so this grows to fit the
+          options and stops at the window rather than at 40px. `Content` keeps its
+          `max-h-96`, so the list still scrolls rather than running the full height. */}
       <SelectPrimitive.Viewport
         className={cn(
           "overscroll-contain p-1",
           position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+            "max-h-[var(--radix-select-content-available-height)] w-full min-w-[var(--radix-select-trigger-width)]"
         )}
       >
         {children}

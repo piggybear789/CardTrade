@@ -32,6 +32,11 @@ export const VERIFICATION_RETURN_PATH = '/profile?tab=verification';
 
 export interface VerificationSequenceProps {
   identityDone: boolean;
+  /**
+   * Whether the last identity attempt was declined, so the first paint says so instead
+   * of offering a fresh "Continue with Stripe" and correcting itself a moment later.
+   */
+  identityFailed?: boolean;
   payoutDone: boolean;
   /** The document-backed name, shown as step one's receipt once it exists. */
   verifiedName: string | null;
@@ -39,6 +44,7 @@ export interface VerificationSequenceProps {
 
 export function VerificationSequence({
   identityDone,
+  identityFailed = false,
   payoutDone,
   verifiedName,
 }: VerificationSequenceProps) {
@@ -49,7 +55,7 @@ export function VerificationSequence({
       returnPath={VERIFICATION_RETURN_PATH}
       // The page already read both gates on the server, so the spine opens on the
       // answer instead of a skeleton it would resolve to the same thing.
-      initialStatus={{ identityDone, payoutDone, verifiedName }}
+      initialStatus={{ identityDone, identityFailed, payoutDone, verifiedName }}
       // Hand the decision back to the server rather than routing away: this tab's
       // content is derived from the same two gates, so a re-render is the update.
       // Only the mock provider finishes in-page — the hosted flow leaves for Stripe

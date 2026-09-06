@@ -46,8 +46,15 @@ export function IdentityReturnRefresh() {
         // Retryable, and said so: a document check fails for mundane reasons and a
         // dead end here reads as a ban.
         toast.error('We could not verify that document. You can try again.');
-      } else {
-        toast.info('Still checking your document. We will update this automatically.');
+      } else if (result.ok && result.data.progress === 'PROCESSING') {
+        // The document is IN, which is the fact a returning member wants confirmed. The
+        // page's own verification step carries the persistent version of this; the toast
+        // is only the acknowledgement that the submission landed.
+        toast.info('Document received. Stripe is checking it now.');
+      } else if (result.ok) {
+        // A session exists but nothing was submitted, so this is not a wait — saying
+        // "still checking" would promise a result that is not coming.
+        toast.info('Your identity check is not finished yet.');
       }
 
       // Strip the marker so a manual reload does not re-run this.

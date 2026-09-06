@@ -135,6 +135,9 @@ export default async function ProfilePage({
 
   const identityStatus = identity.ok ? identity.data.status : null;
   const identityVerified = identityStatus === 'VERIFIED';
+  // Passed through rather than discarded: "not verified" is three different screens,
+  // and a declined attempt is the one the member most needs named on the first paint.
+  const identityFailed = identityStatus === 'FAILED';
 
   // Payout readiness reads BOTH columns, matching `canReceiveFunds`: an approved
   // account whose transfers are still inactive is an unfinished setup, not a
@@ -216,6 +219,7 @@ export default async function ProfilePage({
             verification: (
               <VerificationPanel
                 identityVerified={identityVerified}
+                identityFailed={identityFailed}
                 payoutsActive={payoutsActive}
                 verifiedName={identity.ok ? identity.data.verifiedName : null}
                 identityReadOk={identity.ok}
@@ -343,6 +347,7 @@ function ProfilePanel({
  */
 function VerificationPanel({
   identityVerified,
+  identityFailed,
   payoutsActive,
   verifiedName,
   identityReadOk,
@@ -350,6 +355,8 @@ function VerificationPanel({
   demoEnabled,
 }: {
   identityVerified: boolean;
+  /** Whether the last identity attempt was declined — see `VerificationSequence`. */
+  identityFailed: boolean;
   payoutsActive: boolean;
   verifiedName: string | null;
   identityReadOk: boolean;
@@ -398,6 +405,7 @@ function VerificationPanel({
           <SettingsPanelRow>
             <VerificationSequence
               identityDone={identityVerified}
+              identityFailed={identityFailed}
               payoutDone={payoutsActive}
               verifiedName={verifiedName}
             />

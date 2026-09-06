@@ -225,14 +225,26 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
   async createIdentityCheck(params: {
     profileId: string;
     returnUrl: string;
+    existingSessionId?: string | null;
   }): Promise<IdentityCheck> {
-    const sessionId = `vs_${shortHash(params.profileId)}`;
+    // The mock session id is derived from the profile, so it is inherently the same
+    // session on a retry — which matches the real binding's resume-rather-than-replace
+    // behaviour. `existingSessionId` is accepted for contract parity and to keep a
+    // caller-persisted id authoritative over our own derivation.
+    const sessionId = params.existingSessionId ?? `vs_${shortHash(params.profileId)}`;
     this.identityByProfile.set(params.profileId, sessionId);
     this.profileByIdentity.set(sessionId, params.profileId);
+
+    // A retry has to be able to leave a previous verdict behind, or the demo can only
+    // ever fail once: the outcome is recorded against a session id derived from the
+    // profile, so without clearing it a second attempt reads back the old refusal and
+    // the member is told to try again by a flow that cannot succeed.
+    this.identityOutcomes.delete(sessionId);
 
     return {
       sessionId,
       outcome: 'PENDING',
+      progress: 'NOT_SUBMITTED',
       verifiedName: null,
       verifiedAt: null,
       // Back to the caller's own return URL: there is no provider page to host, and
@@ -251,6 +263,7 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     return {
       sessionId,
       outcome,
+      progress: outcome === 'PENDING' ? 'NOT_SUBMITTED' : 'DECIDED',
       // A deterministic stand-in for a document-backed name, so the disclosure path
       // is exercisable locally.
       verifiedName: verified ? `Mock Member ${shortHash(profileId ?? sessionId)}` : null,

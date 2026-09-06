@@ -77,9 +77,12 @@ describe('IdentityCheckCard', () => {
   });
 
   it('reports an in-progress check without offering a verified badge', () => {
+    // The copy is deliberately hedged: this card reads a column, and PENDING covers both
+    // "submitted, being checked" and "started and walked away". Asserting the document is
+    // with Stripe would be a claim the column cannot support.
     render(<IdentityCheckCard status="PENDING" />);
 
-    expect(screen.getByText(/being checked/i)).toBeInTheDocument();
+    expect(screen.getByText(/pick up where you left off/i)).toBeInTheDocument();
     expect(screen.queryByText(/^Verified as/i)).not.toBeInTheDocument();
   });
 

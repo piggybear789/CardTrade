@@ -727,11 +727,59 @@ export interface PayerService {
 /** Outcome of a provider identity check. Mirrors `cardtrade.identity_check_status`. */
 export type IdentityCheckOutcome = 'PENDING' | 'VERIFIED' | 'FAILED';
 
+/**
+ * HOW FAR THROUGH THE CHECK THE MEMBER IS, as distinct from what the check DECIDED.
+ *
+ * WHY THIS EXISTS. `identity_check_status` has one non-terminal value, PENDING, and
+ * migration 0069's own enum comment admits it means two unrelated things: "session
+ * created, member has not finished" AND "Stripe is processing". Those need opposite
+ * screens — the first is waiting on the MEMBER and must offer a button, the second is
+ * waiting on the PROVIDER and must not, because there is nothing for them to do and
+ * the button is a lie. Collapsing them is what made a submitted document render
+ * identically to an untouched one.
+ *
+ * TRANSIENT AND DELIBERATELY NOT PERSISTED. It is a fact about the provider's session,
+ * not about our member, and it changes without anyone telling us. Giving it a column
+ * would mean a fifth enum value that the Identity_Gate must then be shown to ignore,
+ * in SQL and TypeScript and the Dart port, to answer a question the read-back already
+ * answers for free. `getIdentityCheckState` therefore reports NOT_SUBMITTED for a
+ * PENDING row it cannot see behind, and only `readIdentityCheck` resolves it.
+ *
+ * It is NOT a second opinion about verification. Never gate on it — that is
+ * `satisfiesIdentityGate` reading `outcome`, and nothing else.
+ */
+export type IdentityCheckProgress =
+  /**
+   * No submission yet: created, or declined-and-resumable. The member still has work
+   * to do, and a hosted URL will take them to it.
+   */
+  | 'NOT_SUBMITTED'
+  /**
+   * The member submitted and the provider is deciding. Typically a minute or three,
+   * occasionally a manual review taking far longer. There is no URL and no action —
+   * the only honest screen is "we are waiting too".
+   */
+  | 'PROCESSING'
+  /** The provider reached a verdict: accepted, or declined with a reason. */
+  | 'DECIDED'
+  /**
+   * Cancelled or redacted, so the provider will accept no further submission against
+   * it. Distinct from DECIDED because nothing was decided — the session is simply
+   * dead, and a retry has to start a NEW one rather than resume this.
+   */
+  | 'UNUSABLE';
+
 /** A provider identity verification session. */
 export interface IdentityCheck {
   /** Provider session id (`vs_...`). Persisted so a webhook can be reconciled. */
   sessionId: string;
   outcome: IdentityCheckOutcome;
+  /**
+   * TRANSIENT. How far through the check the member is — see
+   * {@link IdentityCheckProgress}. Optional on the contract so a binding that cannot
+   * tell simply omits it; callers treat an absent value as NOT_SUBMITTED.
+   */
+  progress?: IdentityCheckProgress;
   /**
    * Full name the provider read off the document, when it accepted one.
    *
@@ -827,12 +875,31 @@ export interface EmbeddedClientSecret {
  */
 export interface IdentityService {
   /**
-   * Start a verification session and return the URL to send the member to.
+   * Start, RESUME, or replace a verification session and return the URL to send the
+   * member to.
    *
    * `returnUrl` is where the provider sends them afterwards. Returning does NOT
    * prove the check passed — the outcome arrives by webhook, or by reading the
    * session back — so callers must not treat the redirect as success. This is the
    * same trap as Connect's hosted onboarding return.
+   *
+   * `existingSessionId` IS THE RETRY PATH, AND PASSING IT IS NOT OPTIONAL IN SPIRIT.
+   * A caller that already persisted a session id must pass it, because the provider's
+   * hosted link is single-use and the one cached against an idempotent replay of
+   * "create" is the CONSUMED one. Handing that back sends the member to a page which
+   * immediately bounces them to `returnUrl` — which is precisely the bug where "Try
+   * again" after a declined document looked like a button that did nothing.
+   *
+   * Reusing the session is also what the provider recommends: the session object is
+   * what accumulates the failed attempts, so a fresh one per retry throws that history
+   * away. The binding therefore resumes wherever it can and starts a new session only
+   * when the old one can accept no further submission ({@link IdentityCheckProgress}
+   * UNUSABLE).
+   *
+   * A resumed session may legitimately come back with NO `hostedUrl`: an already
+   * VERIFIED session has nothing left to do, and a PROCESSING one is waiting on the
+   * provider. Callers must read {@link IdentityCheck.progress} rather than treating a
+   * missing URL as a failure.
    *
    * Identity does not attach to a Connect person. Verified outputs are forwarded
    * later when the payout account is created.
@@ -840,6 +907,8 @@ export interface IdentityService {
   createIdentityCheck(params: {
     profileId: string;
     returnUrl: string;
+    /** The session id already persisted for this Profile, when there is one. */
+    existingSessionId?: string | null;
   }): Promise<IdentityCheck>;
 
   /**

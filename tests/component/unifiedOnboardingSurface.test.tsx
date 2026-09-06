@@ -48,12 +48,20 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
 
-/** An `IdentityCheckState` result, PENDING unless a test says otherwise. */
+/**
+ * An `IdentityCheckState` result, PENDING unless a test says otherwise.
+ *
+ * `progress` defaults to NOT_SUBMITTED rather than PROCESSING, matching the action:
+ * PENDING means "a session exists", and assuming a review is under way is exactly the
+ * conflation the field was added to end. A test that means "the provider has the
+ * document" says `progress: 'PROCESSING'`.
+ */
 function identity(over: Record<string, unknown> = {}) {
   return {
     ok: true as const,
     data: {
       status: 'PENDING',
+      progress: 'NOT_SUBMITTED',
       verifiedName: null,
       verifiedAt: null,
       failureReason: null,
@@ -149,8 +157,8 @@ describe('UnifiedOnboardingSurface — returning from Stripe', () => {
     // Stripe takes about seven seconds to go processing -> verified. The member is
     // back here in one or two, so a single read on return loses this race every time.
     refreshIdentityCheck
-      .mockResolvedValueOnce(identity({ status: 'PENDING' }))
-      .mockResolvedValueOnce(identity({ status: 'PENDING' }))
+      .mockResolvedValueOnce(identity({ status: 'PENDING', progress: 'PROCESSING' }))
+      .mockResolvedValueOnce(identity({ status: 'PENDING', progress: 'PROCESSING' }))
       .mockResolvedValue(identity({ status: 'VERIFIED', verifiedName: 'Ada Lovelace' }));
 
     await mountSurface();
@@ -158,7 +166,7 @@ describe('UnifiedOnboardingSurface — returning from Stripe', () => {
     // Nothing has passed yet, and the surface says it is waiting rather than
     // pretending the step is untouched.
     expect(screen.queryByText(/Verified as/)).not.toBeInTheDocument();
-    expect(screen.getByText(/checking with stripe/i)).toBeInTheDocument();
+    expect(screen.getByText(/your document is with stripe/i)).toBeInTheDocument();
 
     await advance(10_000);
 
@@ -169,7 +177,7 @@ describe('UnifiedOnboardingSurface — returning from Stripe', () => {
   it('gives up after its budget and says the review is still running', async () => {
     // A manual review can take minutes. An endless spinner is a worse answer than
     // telling the member to come back, so the loop is bounded and terminates in words.
-    refreshIdentityCheck.mockResolvedValue(identity({ status: 'PENDING' }));
+    refreshIdentityCheck.mockResolvedValue(identity({ status: 'PENDING', progress: 'PROCESSING' }));
 
     await mountSurface();
     await advance(PAST_THE_POLL_BUDGET_MS);
@@ -180,6 +188,74 @@ describe('UnifiedOnboardingSurface — returning from Stripe', () => {
     const settled = refreshIdentityCheck.mock.calls.length;
     await advance(PAST_THE_POLL_BUDGET_MS);
     expect(refreshIdentityCheck).toHaveBeenCalledTimes(settled);
+  });
+});
+
+describe('UnifiedOnboardingSurface — a check the provider is still reviewing', () => {
+  it('says the document is with Stripe instead of offering to start over', async () => {
+    // THE BUG. A submitted document under review rendered EXACTLY like an untouched
+    // step — same description, same "Continue with Stripe" — because the surface
+    // reduced status to `identityDone: boolean` and PENDING covers both. The member has
+    // already done their part; the only honest screen says so and offers no restart.
+    refreshIdentityCheck.mockResolvedValue(identity({ status: 'PENDING', progress: 'PROCESSING' }));
+
+    await mountSurface();
+
+    expect(screen.getByText(/your document is with stripe/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /continue with stripe/i })).toBeNull();
+    // And emphatically not dressed up as a failed attempt.
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull();
+  });
+
+  it('distinguishes an abandoned check from one under review', async () => {
+    // A session exists but nothing was submitted. That is waiting on the MEMBER, so the
+    // button has to stay — telling them Stripe is reviewing would be a spinner that
+    // nothing can ever clear, because no result is coming.
+    refreshIdentityCheck.mockResolvedValue(
+      identity({ status: 'PENDING', progress: 'NOT_SUBMITTED' }),
+    );
+
+    await mountSurface();
+
+    expect(screen.queryByText(/your document is with stripe/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /continue with stripe/i })).toBeInTheDocument();
+  });
+
+  it('offers a way to check again once it stops polling, rather than asking for a reload', async () => {
+    refreshIdentityCheck.mockResolvedValue(identity({ status: 'PENDING', progress: 'PROCESSING' }));
+
+    await mountSurface();
+    await advance(PAST_THE_POLL_BUDGET_MS);
+
+    const recheck = screen.getByRole('button', { name: /check again/i });
+    expect(recheck).toBeEnabled();
+
+    // And it resolves the step, so the waiting state has an exit that is not a page load.
+    refreshIdentityCheck.mockResolvedValue(
+      identity({ status: 'VERIFIED', verifiedName: 'Ada Lovelace' }),
+    );
+    await act(async () => {
+      recheck.click();
+    });
+
+    expect(screen.getByText('Verified as Ada Lovelace')).toBeInTheDocument();
+  });
+
+  it('reports the review again on a later visit, not just on the return from Stripe', async () => {
+    // A member does not stay on this page waiting. They come back, and the surface has
+    // to still know — which it can only learn from the provider, because no column
+    // records "submitted, under review". This is why the mount read-back is
+    // unconditional and only the repeated POLLING is capped.
+    refreshIdentityCheck.mockResolvedValue(identity({ status: 'PENDING', progress: 'PROCESSING' }));
+
+    const { unmount } = await mountSurface();
+    await advance(PAST_THE_POLL_BUDGET_MS);
+    unmount();
+
+    await mountSurface();
+
+    expect(screen.getByText(/your document is with stripe/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /continue with stripe/i })).toBeNull();
   });
 });
 

@@ -36,6 +36,7 @@ import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identi
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
+import type { IdentityCheckProgress } from '@/domain/services/types';
 import { type ActionResult, fail, ok } from './result';
 
 /**
@@ -183,21 +184,43 @@ export type IdentityCheckError =
 
 /** What a caller needs to send the member to the provider. */
 export interface StartedIdentityCheck {
-  /** Provider-hosted URL. Single-use and short-lived — never cached. */
-  url: string;
+  /**
+   * Provider-hosted URL. Single-use and short-lived — never cached.
+   *
+   * NULL WHEN THERE IS NOWHERE TO SEND THEM, which is a success rather than a fault:
+   * the provider is mid-decision, or the check has already passed. Read
+   * {@link StartedIdentityCheck.progress} before treating an absent URL as an error —
+   * the alternative is telling a member their verification is broken while it is in
+   * fact being reviewed.
+   */
+  url: string | null;
   sessionId: string;
+  /** How far through the check the member is. See `IdentityCheckProgress`. */
+  progress: IdentityCheckProgress;
 }
 
 /**
- * Start (or resume) the caller's identity check and hand back the hosted URL.
+ * Start, RESUME, or replace the caller's identity check and hand back a hosted URL.
+ *
+ * PASSES THE PERSISTED SESSION ID TO THE PROVIDER, WHICH IS THE WHOLE FIX FOR A RETRY
+ * THAT WENT NOWHERE. This used to call `createIdentityCheck` without reading our own
+ * row first, so the provider replayed its idempotent create and returned the hosted
+ * link minted for the FIRST attempt. That link is single-use: pressing "Try again"
+ * after a declined document opened a consumed page which immediately redirected back
+ * to `returnPath`, so the button looked broken. The binding now resumes the session
+ * and mints a fresh link — and reuse is also what the provider recommends, because the
+ * session is what records the failed attempts.
  *
  * PERSISTS PENDING BEFORE RETURNING, so a member who abandons the flow and comes
  * back is shown "in progress" rather than "not started" and can be reconciled by
  * webhook. The session id is stored for exactly that: the pipeline resolves an
  * event carrying no metadata through the indexed `identity_check_session_id`.
  *
- * DOES NOT mark anyone verified. `createIdentityCheck` throws rather than returning
- * a status precisely so a provider failure leaves verification state untouched.
+ * DOES NOT mark anyone verified — with one narrow exception it would be wrong to
+ * omit: if the resumed session has ALREADY passed, the decision is applied through the
+ * same single writer the webhook uses. Writing PENDING over it instead would un-verify
+ * a member for pressing a button. `createIdentityCheck` throws rather than returning a
+ * status precisely so a provider failure leaves verification state untouched.
  */
 export async function beginIdentityCheck(
   returnPath = '/profile?tab=verification',
@@ -217,11 +240,23 @@ export async function beginIdentityCheck(
   const path = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
   const separator = path.includes('?') ? '&' : '?';
 
+  // Service role: these columns are provider-owned and carry no member update grant.
+  const admin = createAdminClient();
+
+  // READ BEFORE STARTING. The persisted session is what the provider needs in order to
+  // resume rather than replay, and replaying is what handed a member a dead link.
+  const { data: existing } = await admin
+    .from('profiles')
+    .select('identity_check_session_id')
+    .eq('id', user.id)
+    .maybeSingle();
+
   let check;
   try {
     check = await payments.createIdentityCheck({
       profileId: user.id,
       returnUrl: `${origin}${path}${separator}identity=complete`,
+      existingSessionId: (existing?.identity_check_session_id as string | null) ?? null,
     });
   } catch (err) {
     return fail(
@@ -230,14 +265,35 @@ export async function beginIdentityCheck(
     );
   }
 
-  if (!check.hostedUrl) {
+  const progress = check.progress ?? 'NOT_SUBMITTED';
+
+  // ALREADY PASSED. Apply it through the shared writer rather than persisting PENDING,
+  // which would un-verify a member for pressing a button. The fingerprint and ban
+  // checks live in there, so this cannot open the gate by a shortcut.
+  if (check.outcome === 'VERIFIED') {
+    try {
+      const decision = await applyIdentityDecision({ profileId: user.id, check });
+      if (decision === 'verified') await pushVerifiedIdentityToConnect(user.id);
+    } catch (err) {
+      return fail(
+        'PERSIST_FAILED',
+        err instanceof Error
+          ? friendlyWriteFailure(err, 'Could not update identity status.')
+          : 'Could not update identity status.',
+      );
+    }
+    return ok({ url: null, sessionId: check.sessionId, progress: 'DECIDED' });
+  }
+
+  // NO LINK AND NOT DECIDED means the provider is still reviewing a submission. That is
+  // a legitimate state with nothing for the member to do, so report it as one: the old
+  // blanket START_FAILED here told them verification was broken mid-review.
+  if (!check.hostedUrl && progress !== 'PROCESSING') {
     return fail('START_FAILED', 'The provider did not return a verification link.');
   }
 
-  // Service role: these columns are provider-owned and carry no member update grant.
   // Only move NONE/FAILED to PENDING — never overwrite a VERIFIED member, so a stray
   // second call cannot un-verify someone.
-  const admin = createAdminClient();
   const { error } = await admin
     .from('profiles')
     .update({
@@ -249,7 +305,7 @@ export async function beginIdentityCheck(
 
   if (error) return fail('PERSIST_FAILED', friendlyWriteFailure(error, 'Could not save identity check state.'));
 
-  return ok({ url: check.hostedUrl, sessionId: check.sessionId });
+  return ok({ url: check.hostedUrl ?? null, sessionId: check.sessionId, progress });
 }
 
 /** What the browser needs to render the embedded `stripe.verifyIdentity` modal. */
@@ -293,6 +349,16 @@ export async function beginEmbeddedIdentity(
   const path = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
   const separator = path.includes('?') ? '&' : '?';
 
+  const admin = createAdminClient();
+
+  // Same read-before-start as the hosted path: a client secret, like a hosted link, is
+  // single-use, so the session has to be resumed rather than replayed.
+  const { data: existing } = await admin
+    .from('profiles')
+    .select('identity_check_session_id')
+    .eq('id', user.id)
+    .maybeSingle();
+
   let check;
   let secret;
   try {
@@ -301,6 +367,7 @@ export async function beginEmbeddedIdentity(
       // Harmless for the embedded modal (which does not redirect); kept so a session
       // is equally resumable through the hosted fallback.
       returnUrl: `${origin}${path}${separator}identity=complete`,
+      existingSessionId: (existing?.identity_check_session_id as string | null) ?? null,
     });
     secret = await payments.createIdentitySessionSecret(check.sessionId);
   } catch (err) {
@@ -312,7 +379,6 @@ export async function beginEmbeddedIdentity(
 
   // Persist PENDING + session id (service role: these columns carry no member update
   // grant). Never overwrite a VERIFIED member, so a stray call cannot un-verify.
-  const admin = createAdminClient();
   const { error } = await admin
     .from('profiles')
     .update({
@@ -334,6 +400,17 @@ export async function beginEmbeddedIdentity(
 /** The caller's own identity check state, for a status card. */
 export interface IdentityCheckState {
   status: IdentityCheckStatus;
+  /**
+   * WHETHER THE WAIT IS OURS OR THEIRS, which `status` cannot express: PENDING covers
+   * both "started it and walked away" and "submitted, provider deciding", and those
+   * want opposite screens — one needs a button, the other needs the button to stop
+   * being offered.
+   *
+   * ONLY MEANINGFUL FROM {@link refreshIdentityCheck}. It is not a column, so
+   * {@link getIdentityCheckState} reports NOT_SUBMITTED for any PENDING row rather
+   * than guessing at a review it cannot see.
+   */
+  progress: IdentityCheckProgress;
   verifiedName: string | null;
   verifiedAt: string | null;
   /**
@@ -370,8 +447,15 @@ export async function getIdentityCheckState(): Promise<
     .eq('id', user.id)
     .maybeSingle();
 
+  const status = (data?.identity_check_status as IdentityCheckStatus | null) ?? 'NONE';
+
   return ok({
-    status: ((data?.identity_check_status as IdentityCheckStatus | null) ?? 'NONE'),
+    status,
+    // Derived, not read: there is no progress column. A decided row is DECIDED; a
+    // PENDING one is reported as waiting on the MEMBER, because claiming a review that
+    // may not be happening would show a spinner nothing can ever clear. The read-back
+    // is what resolves it.
+    progress: (status === 'VERIFIED' || status === 'FAILED' ? 'DECIDED' : 'NOT_SUBMITTED'),
     verifiedName: (data?.identity_check_name as string | null) ?? null,
     verifiedAt: (data?.identity_check_verified_at as string | null) ?? null,
     // No column to read it from. Only the read-back carries a reason.
@@ -449,6 +533,10 @@ export async function refreshIdentityCheck(): Promise<
 
   return ok({
     status,
+    // Straight from the provider — this is the one path that actually knows. A
+    // 'blocked' decision reports DECIDED rather than a review still running: nothing
+    // more is coming for that session.
+    progress: decision === 'blocked' ? 'DECIDED' : (check.progress ?? 'NOT_SUBMITTED'),
     verifiedName:
       decision === 'verified'
         ? (check.verifiedName ?? ((profile?.identity_check_name as string | null) ?? null))

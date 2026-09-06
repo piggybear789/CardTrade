@@ -45,6 +45,68 @@ describe('InMemoryService identity binding', () => {
     expect(second.sessionId).toBe(first.sessionId);
   });
 
+  it('resumes the session the caller names, rather than starting a rival one', async () => {
+    // The retry contract. Reusing the session is what the provider recommends — it is
+    // where the failed attempts are recorded — and the caller has already persisted this
+    // id, so replacing it would orphan the row a webhook resolves through.
+    const service = new InMemoryService();
+
+    const resumed = await service.createIdentityCheck({
+      profileId: 'profile-1',
+      returnUrl: 'http://localhost:3000/x',
+      existingSessionId: 'vs_persisted',
+    });
+
+    expect(resumed.sessionId).toBe('vs_persisted');
+    // And it is indexed both ways, so a webhook carrying no metadata still resolves.
+    expect(service.profileByIdentity.get('vs_persisted')).toBe('profile-1');
+  });
+
+  it('reports a fresh session as waiting on the member, not on the provider', async () => {
+    // `progress` is the thing `outcome` cannot say: PENDING covers "created, nothing
+    // submitted" and "submitted, being checked", and those are opposite screens.
+    const service = new InMemoryService();
+
+    const check = await service.createIdentityCheck({
+      profileId: 'profile-1',
+      returnUrl: 'http://localhost:3000/x',
+    });
+
+    expect(check.outcome).toBe('PENDING');
+    expect(check.progress).toBe('NOT_SUBMITTED');
+  });
+
+  it('can be parked mid-review, which is PENDING with nothing for the member to do', async () => {
+    const service = new InMemoryService();
+    const created = await service.createIdentityCheck({
+      profileId: 'profile-1',
+      returnUrl: 'http://localhost:3000/x',
+    });
+
+    service.setIdentityProgress(created.sessionId, 'PROCESSING');
+    const read = await service.readIdentityCheck(created.sessionId);
+
+    // Still undecided — so it must NOT open the gate — but distinguishable from an
+    // untouched step, which is the whole point.
+    expect(read.outcome).toBe('PENDING');
+    expect(read.progress).toBe('PROCESSING');
+    expect(satisfiesIdentityGate({ identityCheckStatus: 'PENDING' })).toBe(false);
+  });
+
+  it('reports a decided session as decided, whichever way it went', async () => {
+    const service = new InMemoryService();
+    const created = await service.createIdentityCheck({
+      profileId: 'profile-1',
+      returnUrl: 'http://localhost:3000/x',
+    });
+
+    service.setIdentityOutcome(created.sessionId, 'FAILED');
+    expect((await service.readIdentityCheck(created.sessionId)).progress).toBe('DECIDED');
+
+    service.setIdentityOutcome(created.sessionId, 'VERIFIED');
+    expect((await service.readIdentityCheck(created.sessionId)).progress).toBe('DECIDED');
+  });
+
   it('returns the caller return URL as the hosted URL', async () => {
     const service = new InMemoryService();
 

@@ -48,6 +48,7 @@ import type {
   ManagedMerchantDetails,
   IdentityCheck,
   IdentityCheckOutcome,
+  IdentityCheckProgress,
   Payer,
   PayerCreateOptions,
   PayerDetails,
@@ -211,11 +212,34 @@ export class StripeService implements PaymentService, PayerService {
    * @throws {Stripe.errors.StripeError} — deliberately. Matching `createPayer`, a
    * provider failure must leave verification state untouched; recording a PENDING
    * session that does not exist would strand the member with no way to resume.
+   *
+   * RESUMES BY RETRIEVE WHEN GIVEN `existingSessionId`, AND THAT ORDERING IS THE
+   * WHOLE POINT. A hosted verification link is single-use. The `url` on an idempotent
+   * replay of `create` is the one minted for the FIRST attempt, so replaying it after
+   * a declined document sent the member to a consumed page that redirected them
+   * straight back to `returnUrl` — "Try again" appearing to reload the same screen.
+   * Stripe's documented retry is explicit about the remedy: retrieve the session to
+   * get a fresh URL. Reusing the session is what it recommends generally too, since
+   * the session object is what accumulates the failed attempts.
+   *
+   * So a new session is opened only when the old one can take no further submission.
    */
   async createIdentityCheck(params: {
     profileId: string;
     returnUrl: string;
+    existingSessionId?: string | null;
   }): Promise<IdentityCheck> {
+    // What the previous session, if any, forces us to do. One we can still use is
+    // resumed; only a dead one is replaced, and it has to be NAMED in the idempotency
+    // key below or the create simply replays it.
+    let supersedes: string | null = null;
+
+    if (params.existingSessionId) {
+      const resumed = await this.resumeIdentitySession(params.existingSessionId);
+      if (resumed) return resumed;
+      supersedes = params.existingSessionId;
+    }
+
     const flow = this.opts.config.identityVerificationFlow;
     const body = identitySessionCreateParams({
       profileId: params.profileId,
@@ -225,6 +249,7 @@ export class StripeService implements PaymentService, PayerService {
     const idempotencyKey = identitySessionIdempotencyKey({
       profileId: params.profileId,
       returnUrl: params.returnUrl,
+      supersedes,
     });
 
     const session = await this.stripe.identity.verificationSessions.create(body, {
@@ -233,13 +258,42 @@ export class StripeService implements PaymentService, PayerService {
 
     if (session.url) return this.toIdentityCheck(session);
 
-    // Idempotent replay of a session that was opened (or consumed) in the JS
-    // modal has no hosted URL. Mint a fresh one so "Continue with Stripe" can
-    // still leave for Stripe's pages instead of failing closed.
+    // Idempotent replay of a session that was opened (or consumed) in the JS modal
+    // has no hosted URL. Retrieve it for a fresh one — the same remedy as the resume
+    // path above — and open a genuinely new session only if it is beyond use.
+    const replayed = await this.resumeIdentitySession(session.id);
+    if (replayed) return replayed;
+
     const fresh = await this.stripe.identity.verificationSessions.create(body, {
       idempotencyKey: `${idempotencyKey}:retry:${session.id}`,
     });
     return this.toIdentityCheck(fresh);
+  }
+
+  /**
+   * Retrieve an existing session and report whether it is still worth using.
+   *
+   * Returns the check when it is — carrying a FRESH hosted URL if the member still
+   * has something to do, or none if the provider is mid-decision or already finished.
+   * Returns `null` only when the session is dead (cancelled or redacted), which is the
+   * caller's signal to open a new one.
+   *
+   * A DECLINED session belongs to the first category, not the second: the provider
+   * accepts another submission against it and keeps the attempt history there.
+   */
+  private async resumeIdentitySession(sessionId: string): Promise<IdentityCheck | null> {
+    const session = await this.stripe.identity.verificationSessions.retrieve(sessionId, {
+      expand: ['verified_outputs'],
+    });
+    const check = this.toIdentityCheck(session);
+
+    if (check.progress === 'UNUSABLE') return null;
+
+    // Something the member must act on, with nowhere to send them, is not resumable —
+    // report it dead rather than handing back a session that cannot be opened.
+    if (check.progress === 'NOT_SUBMITTED' && !check.hostedUrl) return null;
+
+    return check;
   }
 
   /**
@@ -273,6 +327,20 @@ export class StripeService implements PaymentService, PayerService {
           session.status === 'requires_input' && session.last_error
           ? 'FAILED'
           : 'PENDING';
+
+    // WHAT `outcome` CANNOT SAY. PENDING covers two provider states that need opposite
+    // screens: `created`/`requires_input`-without-error is waiting on the MEMBER and
+    // wants a button, `processing` is waiting on STRIPE and must not offer one. It also
+    // swallowed `canceled`, reporting a session that can never move again as though a
+    // verdict were still coming. See `IdentityCheckProgress`.
+    const progress: IdentityCheckProgress =
+      session.status === 'canceled'
+        ? 'UNUSABLE'
+        : session.status === 'verified' || (session.status === 'requires_input' && session.last_error)
+          ? 'DECIDED'
+          : session.status === 'processing'
+            ? 'PROCESSING'
+            : 'NOT_SUBMITTED';
 
     const verified = session.verified_outputs ?? null;
     const first = verified?.first_name?.trim() ?? '';
@@ -309,6 +377,7 @@ export class StripeService implements PaymentService, PayerService {
     return {
       sessionId: session.id,
       outcome,
+      progress,
       // Only ever populated from `verified_outputs`, i.e. read off the document
       // Stripe accepted. Never from anything the member typed.
       verifiedName: outcome === 'VERIFIED' ? fullName : null,

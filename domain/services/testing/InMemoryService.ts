@@ -35,6 +35,7 @@ import type {
   IdentityService,
   IdentityCheck,
   IdentityCheckOutcome,
+  IdentityCheckProgress,
 } from '../types';
 
 /** A forced outcome for a simulated payment operation. */
@@ -126,6 +127,13 @@ export class InMemoryService
   /** Outcomes a test has driven, keyed by session id. Absent means PENDING. */
   readonly identityOutcomes = new Map<string, IdentityCheckOutcome>();
 
+  /**
+   * Progress a test has driven, keyed by session id. Absent means "derive it from the
+   * outcome", which is right for every case except PROCESSING — the one state that is
+   * PENDING yet has nothing for the member to do.
+   */
+  readonly identityProgress = new Map<string, IdentityCheckProgress>();
+
   readonly holds = new Map<string, PreAuthHold>();
   /** Every capture requested, in order (settled and failed). */
   readonly captures: InMemoryCapture[] = [];
@@ -179,18 +187,31 @@ export class InMemoryService
   async createIdentityCheck(params: {
     profileId: string;
     returnUrl: string;
+    existingSessionId?: string | null;
   }): Promise<IdentityCheck> {
-    const existing = this.identityByProfile.get(params.profileId);
-    const sessionId = existing ?? `vs_${this.nextId()}_${params.profileId}`;
+    // RESUMES RATHER THAN REPLACES, matching the real binding: the provider keeps the
+    // failed-attempt history on the session, and a caller has already persisted this
+    // id. The caller's `existingSessionId` wins over our own index so a test can
+    // exercise the resume path explicitly.
+    const known = params.existingSessionId ?? this.identityByProfile.get(params.profileId);
+    const sessionId = known ?? `vs_${this.nextId()}_${params.profileId}`;
     this.identityByProfile.set(params.profileId, sessionId);
     this.profileByIdentity.set(sessionId, params.profileId);
 
+    const outcome = this.identityOutcomes.get(sessionId) ?? 'PENDING';
+
     return {
       sessionId,
-      outcome: this.identityOutcomes.get(sessionId) ?? 'PENDING',
+      outcome,
+      // A decided session has nothing left to submit; anything else is waiting on the
+      // member. There is no PROCESSING here because nothing takes time in a fake —
+      // drive that state with `setIdentityOutcome` plus `readIdentityCheck` if needed.
+      progress: outcome === 'PENDING' ? 'NOT_SUBMITTED' : 'DECIDED',
       verifiedName: null,
       verifiedAt: null,
-      // No provider page to host, so the caller's own return URL stands in.
+      // No provider page to host, so the caller's own return URL stands in. Unlike the
+      // real binding this link never goes stale, which is exactly why the fresh-URL
+      // behaviour has to be asserted against the Stripe binding instead of here.
       hostedUrl: params.returnUrl,
       failureReason: null,
     };
@@ -205,6 +226,7 @@ export class InMemoryService
     return {
       sessionId,
       outcome,
+      progress: this.identityProgress.get(sessionId) ?? (outcome === 'PENDING' ? 'NOT_SUBMITTED' : 'DECIDED'),
       // Stands in for the document-backed name from `verified_outputs`, so the
       // disclosure path is exercisable without a real document.
       verifiedName: verified ? `Verified ${profileId ?? sessionId}` : null,
@@ -222,6 +244,20 @@ export class InMemoryService
    */
   setIdentityOutcome(sessionId: string, outcome: IdentityCheckOutcome): void {
     this.identityOutcomes.set(sessionId, outcome);
+  }
+
+  /**
+   * Test control: park a session mid-review, so the "waiting on the provider" screen
+   * is reachable without a real document.
+   *
+   * SEPARATE FROM THE OUTCOME ON PURPOSE. Progress and outcome answer different
+   * questions — "has the member finished" versus "what did the provider decide" — and
+   * PROCESSING is the state where the outcome is still PENDING but there is nothing
+   * for the member to do. Folding it into `setIdentityOutcome` would reintroduce the
+   * conflation this field exists to undo.
+   */
+  setIdentityProgress(sessionId: string, progress: IdentityCheckProgress): void {
+    this.identityProgress.set(sessionId, progress);
   }
 
   /** Convenience for the common case: verify a Profile without knowing its session. */

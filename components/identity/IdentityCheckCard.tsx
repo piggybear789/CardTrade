@@ -71,6 +71,16 @@ export function IdentityCheckCard({
         toast.error(result.message);
         return;
       }
+      if (!result.data.url) {
+        // No link means there is nowhere to send them: the provider is mid-review, or
+        // the check has already passed. Either way it is news, not a fault.
+        toast.info(
+          result.data.progress === 'PROCESSING'
+            ? 'Stripe is still checking your document.'
+            : 'Your identity check is already complete.',
+        );
+        return;
+      }
       // Full navigation, not a router push: the destination is Stripe's own origin.
       window.location.assign(result.data.url);
     });
@@ -106,9 +116,14 @@ export function IdentityCheckCard({
         ) : null}
 
         {status === 'PENDING' ? (
+          // DELIBERATELY HEDGED. PENDING means either "submitted, being checked" or
+          // "started and walked away", and this card reads a column that cannot tell
+          // them apart — so it must not assert the document is with Stripe when the
+          // member may never have uploaded one. The live surface resolves it through
+          // `IdentityCheckState.progress`; here the button below covers both cases.
           <p className="text-body text-muted-foreground">
-            Your document is being checked. This is usually quick — we will update this
-            automatically.
+            Your check is in progress. If you did not finish on Stripe&apos;s pages, pick
+            up where you left off below.
           </p>
         ) : null}
 

@@ -9,12 +9,26 @@ import type Stripe from 'stripe';
  * Idempotency key for a verification session.
  *
  * Scoped to profile + return URL so a double-click replays the same session.
+ *
+ * `supersedes` widens that scope by the id of a session being REPLACED, and exists
+ * because the base key is otherwise a trap: once a session is cancelled or redacted
+ * the provider will accept nothing more against it, and a create under the same key
+ * replays that dead session forever rather than opening the new one the caller asked
+ * for. Naming the corpse in the key is what makes "start a genuinely new session"
+ * expressible while keeping it deterministic — a double-clicked retry still replays
+ * its own single new session instead of opening two.
+ *
+ * It is NOT a per-attempt nonce. A declined session is resumed rather than replaced
+ * (the provider tracks failed attempts on the session), so this is reached only for
+ * the dead-session case.
  */
 export function identitySessionIdempotencyKey(params: {
   profileId: string;
   returnUrl: string;
+  supersedes?: string | null;
 }): string {
-  return `identity:${params.profileId}:${params.returnUrl}`;
+  const base = `identity:${params.profileId}:${params.returnUrl}`;
+  return params.supersedes ? `${base}:after:${params.supersedes}` : base;
 }
 
 /**

@@ -73,9 +73,22 @@ const REVIEW_POLL_DELAYS_MS = [1_500, 2_500, 3_500, 5_000, 7_000, 9_000, 12_000]
 const DECLINED_WITHOUT_REASON =
   'Stripe could not verify that document. You can try again with a different one.';
 
-/** Shown when the poll budget runs out with the session still under review. */
+/**
+ * Shown when the poll budget runs out with the session still under review.
+ *
+ * PHRASED AS A WAIT, NOT A PROBLEM, and rendered in the waiting slot rather than the
+ * `problem` one. It used to go into `problem`, which also flipped the button to "Try
+ * again" — so a member whose document was being reviewed perfectly normally was told,
+ * in effect, that their attempt had failed and they should start over. The two states
+ * now render differently because they ARE different: one is waiting on Stripe, the
+ * other is waiting on the member.
+ */
 const STILL_UNDER_REVIEW =
-  'Stripe is still reviewing your document. This can take a few minutes — reload this page to check again.';
+  'Stripe is still reviewing your document. Checks usually finish in a few minutes, but a manual review can take longer. You can safely leave this page — we will update it when the result arrives.';
+
+/** Shown while a submitted document is known to be with the provider. */
+const UNDER_REVIEW_NOW =
+  'Your document is with Stripe. This usually takes a minute or two, and there is nothing for you to do.';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -84,6 +97,15 @@ export interface OnboardingStatusSnapshot {
   identityDone: boolean;
   payoutDone: boolean;
   verifiedName: string | null;
+  /**
+   * Whether the member's last identity attempt was DECLINED, when the caller knows.
+   *
+   * Carried separately from `identityDone` because "not verified" is three different
+   * screens — never started, under review, declined — and a boolean can only say which
+   * one by accident. Optional: a caller that does not know omits it and the mount
+   * read-back settles it a moment later.
+   */
+  identityFailed?: boolean;
 }
 
 export interface UnifiedOnboardingSurfaceProps {
@@ -132,8 +154,29 @@ export function UnifiedOnboardingSurface({
   const [loadError, setLoadError] = useState(false);
   /** True only while a real session is known to be mid-review at the provider. */
   const [identityChecking, setIdentityChecking] = useState(false);
-  /** The provider's verdict, or our own note that it has not delivered one yet. */
-  const [identityProblem, setIdentityProblem] = useState<string | null>(null);
+  /**
+   * The provider's DECLINE, and nothing else.
+   *
+   * It used to double as "no verdict yet", which is what put review copy next to a
+   * "Try again" button. A wait is now {@link identityWaiting} instead.
+   */
+  const [identityProblem, setIdentityProblem] = useState<string | null>(
+    // A server render that already knows the last attempt was declined says so on the
+    // first paint, rather than offering "Continue with Stripe" and correcting itself.
+    initialStatus?.identityFailed ? DECLINED_WITHOUT_REASON : null,
+  );
+  /**
+   * Why the member is waiting rather than acting, when they are.
+   *
+   * PERSISTENT, UNLIKE {@link identityChecking}, which lives only for the duration of
+   * the poll loop and is reset once per component instance. A submitted document under
+   * review has to keep reading as one across re-mounts and tab switches — the previous
+   * behaviour showed the spinner for forty seconds and then reverted to a screen
+   * indistinguishable from never having started.
+   */
+  const [identityWaiting, setIdentityWaiting] = useState<string | null>(null);
+  /** True while an on-demand "Check again" is in flight. */
+  const [identityRechecking, setIdentityRechecking] = useState(false);
 
   const settledChange = useRef(onSettledChange);
   settledChange.current = onSettledChange;
@@ -191,6 +234,14 @@ export function UnifiedOnboardingSurface({
 
     setIdentityDone(identityOk);
     setVerifiedName(identity.ok ? identity.data.verifiedName : null);
+
+    // Our columns DO know the difference between declined and not-yet-started, and
+    // throwing that away is what made a refusal render as a fresh start. They cannot
+    // see a review in progress — there is no column for it — so that stays with the
+    // read-back below.
+    if (identity.ok && identity.data.status === 'FAILED') {
+      setIdentityProblem((current) => current ?? DECLINED_WITHOUT_REASON);
+    }
     setPayoutDone(payoutOk);
     setLoaded(true);
     // Read through a ref so `load` stays referentially stable. An inline arrow from the
@@ -217,8 +268,22 @@ export function UnifiedOnboardingSurface({
     const snapshot = await load();
     if (!snapshot || !current()) return;
 
-    if (!snapshot.identityOk && !identityPolled.current) {
+    if (!snapshot.identityOk) {
       let verdictReached = false;
+      // Whether the LAST read actually found the provider mid-review. The lapsed-budget
+      // copy below is only honest if it did — a member who started a session and
+      // abandoned it is waiting on themselves, and telling them Stripe is still
+      // reviewing would be a spinner that nothing can ever clear.
+      let sawProcessing = false;
+
+      // ONE READ ALWAYS, THE LOOP AT MOST ONCE. The distinction matters because the
+      // loop is held to a single run per component instance, and `<Activity>` re-mounts
+      // this surface every time the Verification tab is opened. Gating the whole block
+      // on that ref meant a member returning to a document still under review got the
+      // untouched-step screen, since our own columns cannot see a review in progress.
+      // One provider read is what recovers it; the repeated polling is the expensive
+      // part and stays capped.
+      const mayPoll = !identityPolled.current;
 
       for (let attempt = 0; attempt <= REVIEW_POLL_DELAYS_MS.length; attempt += 1) {
         const read = await refreshIdentityCheck();
@@ -236,6 +301,7 @@ export function UnifiedOnboardingSurface({
           setIdentityDone(true);
           setVerifiedName(read.data.verifiedName);
           setIdentityProblem(null);
+          setIdentityWaiting(null);
           settledChange.current?.(snapshot.payoutOk);
           verdictReached = true;
           break;
@@ -245,9 +311,33 @@ export function UnifiedOnboardingSurface({
           // Stripe's own sentence when it gave one ("The document is invalid."), because
           // it tells the member what to change. Ours only when it did not.
           setIdentityProblem(read.data.failureReason ?? DECLINED_WITHOUT_REASON);
+          setIdentityWaiting(null);
           verdictReached = true;
           break;
         }
+
+        // THE PROVIDER HAS THE DOCUMENT. Say so from the first read, and keep saying
+        // it: this is the state that previously rendered as though nothing had
+        // happened. Distinguishing it is the whole reason `progress` exists — a PENDING
+        // status alone cannot tell "submitted, under review" from "never started".
+        if (read.data.progress === 'PROCESSING') {
+          sawProcessing = true;
+          setIdentityWaiting(UNDER_REVIEW_NOW);
+          setIdentityProblem(null);
+        } else {
+          // AN UNFINISHED SESSION, AND NO VERDICT IS COMING — the member started and
+          // walked away without submitting, so polling would ask the same question
+          // forty times and get the same answer. Stop, and leave the step offering its
+          // button rather than a spinner that stands in front of the only useful
+          // control on the page.
+          sawProcessing = false;
+          setIdentityWaiting(null);
+          break;
+        }
+
+        // A re-mount gets its single read above and stops here, leaving the waiting
+        // copy standing rather than replacing it with a spinner that cannot resolve.
+        if (!mayPoll) break;
 
         const delay = REVIEW_POLL_DELAYS_MS[attempt];
         if (delay === undefined) break;
@@ -260,9 +350,15 @@ export function UnifiedOnboardingSurface({
       }
 
       if (!current()) return;
-      identityPolled.current = true;
+      // Only a run that was ALLOWED to poll consumes the budget. A read-only pass on a
+      // re-mount must not, or the first real visit could be denied its poll.
+      if (mayPoll) identityPolled.current = true;
       setIdentityChecking(false);
-      if (!verdictReached) setIdentityProblem(STILL_UNDER_REVIEW);
+      // A budget that ran out on a review still running leaves the member WAITING, not
+      // failed. This used to write into `identityProblem`, which put review copy in the
+      // problem box and relabelled the button "Try again" — telling someone whose check
+      // was progressing normally to start over.
+      if (!verdictReached && sawProcessing && mayPoll) setIdentityWaiting(STILL_UNDER_REVIEW);
     }
 
     // Payouts get the same read-back but no poll. Connect reports `payouts_enabled` on
@@ -290,7 +386,53 @@ export function UnifiedOnboardingSurface({
   function finishIdentity() {
     setIdentityDone(true);
     setIdentityProblem(null);
+    setIdentityWaiting(null);
     void load();
+  }
+
+  /**
+   * Starting the check revealed the provider is already reviewing a submission.
+   *
+   * Reached when there was no link to send the member to — which is a confirmation
+   * rather than a fault, and used to surface as "could not open Stripe".
+   */
+  function identityUnderReview() {
+    setIdentityProblem(null);
+    setIdentityWaiting(UNDER_REVIEW_NOW);
+  }
+
+  /**
+   * Ask the provider once more, on demand.
+   *
+   * THE ONE THING A WAITING MEMBER CAN ACTUALLY DO, and the previous copy's advice was
+   * to reload the page — which re-ran the whole surface to answer a question a single
+   * request answers. It also gives the review state an honest control, so the step is
+   * not a spinner with no affordance at all.
+   */
+  function recheckIdentity() {
+    setIdentityRechecking(true);
+    void (async () => {
+      const read = await refreshIdentityCheck();
+      setIdentityRechecking(false);
+      if (!read.ok) return;
+
+      if (read.data.status === 'VERIFIED') {
+        setIdentityDone(true);
+        setVerifiedName(read.data.verifiedName);
+        setIdentityProblem(null);
+        setIdentityWaiting(null);
+        settledChange.current?.(payoutDone);
+        return;
+      }
+      if (read.data.status === 'FAILED') {
+        setIdentityProblem(read.data.failureReason ?? DECLINED_WITHOUT_REASON);
+        setIdentityWaiting(null);
+        return;
+      }
+      // Still nothing decided. Leave the waiting copy in place rather than clearing it
+      // and offering a button the member has no use for.
+      setIdentityWaiting(read.data.progress === 'PROCESSING' ? UNDER_REVIEW_NOW : null);
+    })();
   }
 
   function finishPayout() {
@@ -399,26 +541,52 @@ export function UnifiedOnboardingSurface({
           title="Verify your identity"
           description="We verify your identity to block known fraudsters from selling on the platform."
           receipt={verifiedName ? `Verified as ${verifiedName}` : 'Verified'}
+          // THE DECLINE ONLY. A wait is rendered as one below, because routing it here
+          // also relabelled the button "Try again".
           problem={identityProblem}
           hasNext
         >
-          {identityChecking ? (
-            <p
-              role="status"
-              className="flex items-center gap-snug text-body leading-relaxed text-muted-foreground"
-            >
-              <HugeiconsIcon
-                icon={LoaderCircleIcon}
-                className="size-4 shrink-0 animate-spin"
-                aria-hidden
-              />
-              Checking with Stripe…
-            </p>
+          {identityWaiting || identityChecking ? (
+            // WAITING ON THE PROVIDER, so there is deliberately no "Continue with
+            // Stripe" here: the member has already done their part and a button that
+            // restarts the check is the wrong thing to put in front of them. This state
+            // replaces the one where a submitted document rendered exactly like an
+            // untouched step.
+            <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
+              <p
+                role="status"
+                className="flex min-w-0 items-start gap-snug text-pretty text-body leading-relaxed text-muted-foreground sm:text-right"
+              >
+                <HugeiconsIcon
+                  icon={LoaderCircleIcon}
+                  className="mt-0.5 size-4 shrink-0 animate-spin"
+                  aria-hidden
+                />
+                <span>{identityWaiting ?? 'Checking with Stripe…'}</span>
+              </p>
+
+              {/* Only once the automatic polling has given up. While it is still running
+                  this would race it and ask the member to do what the page is already
+                  doing. */}
+              {identityWaiting && !identityChecking ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={recheckIdentity}
+                  disabled={identityRechecking}
+                  aria-busy={identityRechecking}
+                  className="w-full sm:w-auto"
+                >
+                  {identityRechecking ? 'Checking…' : 'Check again'}
+                </Button>
+              ) : null}
+            </div>
           ) : (
             <HostedProviderStep
               step="identity"
               returnPath={returnPath}
               onComplete={finishIdentity}
+              onProcessing={identityUnderReview}
               retry={identityProblem !== null}
             />
           )}

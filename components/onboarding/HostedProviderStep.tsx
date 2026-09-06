@@ -38,6 +38,15 @@ export interface HostedProviderStepProps {
    * declined document look like a broken page.
    */
   retry?: boolean;
+  /**
+   * Raised when starting revealed the provider is already reviewing a submission, so
+   * there is nowhere to send the member.
+   *
+   * NOT AN ERROR, AND THAT DISTINCTION IS THE POINT. Reaching this means the document
+   * is in, which is the one thing a waiting member wants confirmed — reporting it as
+   * "could not open Stripe" turned a working check into an apparent outage.
+   */
+  onProcessing?: () => void;
 }
 
 export function HostedProviderStep({
@@ -45,6 +54,7 @@ export function HostedProviderStep({
   returnPath = '/onboarding',
   onComplete,
   retry = false,
+  onProcessing,
 }: HostedProviderStepProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -64,10 +74,22 @@ export function HostedProviderStep({
             window.location.assign(started.data.url);
             return;
           }
+
+          // NO LINK IS NOT AUTOMATICALLY A FAULT. Either the provider is mid-review of
+          // a document already submitted, or this is the mock with no page to host.
+          if (started.data.progress === 'PROCESSING') {
+            onProcessing?.();
+            return;
+          }
+
           // Mock: there is no hosted page, so read back and report.
           const refreshed = await refreshIdentityCheck();
           if (refreshed.ok && refreshed.data.status === 'VERIFIED') {
             onComplete();
+            return;
+          }
+          if (refreshed.ok && refreshed.data.progress === 'PROCESSING') {
+            onProcessing?.();
             return;
           }
           setError('The simulated identity check did not complete. Try again.');

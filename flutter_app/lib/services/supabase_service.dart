@@ -13,9 +13,16 @@ class SupabaseService {
 
   /// Initialize Supabase. Call once at app startup.
   Future<void> initialize() async {
+    // `publishableKey`, not the deprecated `anonKey`. This is a PARAMETER rename
+    // over the SAME value: `supabase_flutter` 2.17.1 resolves
+    // `publishableKey ?? anonKey!` into one `effectiveKey` and passes it on
+    // unchanged, and the key FORMAT is discriminated from the value's own prefix
+    // (`supabase`'s `isNewApiKey`), never from which parameter carried it. So the
+    // legacy JWT key `Env.supabaseAnonKey` compiles in stays valid here and no new
+    // credential has to be provisioned to close the deprecation.
     await Supabase.initialize(
       url: Env.supabaseUrl,
-      anonKey: Env.supabaseAnonKey,
+      publishableKey: Env.supabaseAnonKey,
     );
     _client = Supabase.instance.client;
   }

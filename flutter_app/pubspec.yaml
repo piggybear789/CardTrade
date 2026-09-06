@@ -28,13 +28,27 @@ dependencies:
   json_annotation: ^4.9.0
 
   # UI
-  google_fonts: ^8.2.1
+  #
+  # `google_fonts` is deliberately NOT a dependency. Req 12.5 of
+  # .kiro/specs/mobile-visual-parity asks the four Plus Jakarta Sans faces to be
+  # BUNDLED, so the first paint on a device with no network is the product typeface
+  # rather than the platform default. `google_fonts` fetches at runtime and caches,
+  # which is the opposite guarantee. The faces are declared under `flutter: fonts:`
+  # below and its Dart reference count was zero when it was removed.
+  #
+  # `shimmer` is deliberately NOT a dependency either. Req 11.2 specifies an
+  # opacity-pulse skeleton that holds STATIC at 1.0 while reduce-motion is enabled;
+  # a travelling gradient cannot honour that. `widgets/common/skeleton.dart` replaced
+  # it in task 3.1 and its Dart reference count was zero when it was removed.
+  #
+  # `smooth_page_indicator` is deliberately NOT a dependency either. The listing
+  # gallery draws its own page dots from product tokens in
+  # `features/listings/widgets/listing_gallery.dart`, so the package was displaced
+  # rather than restyled, and its Dart reference count was zero when it was removed.
   flutter_svg: ^2.0.10+1
   cached_network_image: ^3.3.1
-  shimmer: ^3.0.0
   flutter_staggered_grid_view: ^0.7.0
   photo_view: ^0.15.0
-  smooth_page_indicator: ^2.0.1
 
   # Forms & Validation
   flutter_form_builder: ^10.3.0+2
@@ -56,7 +70,20 @@ dependencies:
   http: ^1.2.2
 
   # Icons
-  lucide_icons: ^0.257.0
+  #
+  # There is deliberately NO icon package at all. Every glyph is a Material icon,
+  # routed through `core/theme/icons.dart`.
+  #
+  # `lucide_icons` is deliberately NOT a dependency. Its removal was written into
+  # task 10.2 of .kiro/specs/mobile-visual-parity, which Req 12.9 foreclosed when the
+  # Hugeicons measurement failed, so the screens reached Material icons by a different
+  # route than the one that would have deleted it. Its Dart reference count was zero
+  # when it was removed.
+  #
+  # `hugeicons` is deliberately NOT a dependency. It was pinned at 1.1.7 and measured on
+  # 2026-09-06: 53 of the web's 104 glyph names do not resolve (51.0%), so Req 12.9 of
+  # .kiro/specs/mobile-visual-parity fired and Material icons stay. Do not add it back
+  # without reading that decision record first.
 
   # Storage
   flutter_secure_storage: ^11.0.0
@@ -78,5 +105,36 @@ flutter:
   assets:
     - assets/images/
     - assets/images/empty_states/
+    # The typeface licence ships WITH the binary because OFL 1.1 requires the licence
+    # to travel with the font, and a `fonts:` entry bundles only the face itself.
+    - assets/fonts/OFL.txt
+
+  # ONE FAMILY, FOUR FACES. Req 12.5–12.6: exactly the four weights the web uses,
+  # bundled as assets, and no second family — no monospace in particular. Column
+  # alignment for money is a font FEATURE (`FontFeature.tabularFigures` on the roles
+  # in `core/theme/text_roles.dart`, Req 12.7), not a second typeface.
+  #
+  # Each face is a STATIC instance, not the variable font: a weight Flutter cannot
+  # find is SYNTHESISED from the nearest bundled one, which reads as the right text
+  # in the wrong weight rather than as a failure. Req 12.10 makes an unbundled weight
+  # a test failure instead, enforced by `tests/unit/mobileThemeAgreement.test.ts`
+  # (Property P11) and `test/theme/typeface_test.dart`.
+  #
+  # Provenance: fetched 2026-09-06 from fonts.gstatic.com (Google Fonts
+  # `plusjakartasans` v12, latin subset) as TrueType, one static instance per weight;
+  # each file's OS/2 usWeightClass was verified to be the weight it is declared at and
+  # each carries no `fvar` table. Licence: SIL OFL 1.1, bundled at
+  # `assets/fonts/OFL.txt` as the licence requires.
+  fonts:
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-Bold.ttf
+          weight: 700
 
 

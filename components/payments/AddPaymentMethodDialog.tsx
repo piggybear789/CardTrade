@@ -6,12 +6,13 @@
 // page as a proactive entry point. The BuyButton uses the inline
 // `AddPaymentMethodForm` directly without this wrapper.
 
-import { cloneElement, isValidElement, useState } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CreditCardIcon } from '@hugeicons/core-free-icons';
 
+import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
 import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
@@ -44,14 +45,11 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
 
   return (
     <>
+      {/* See the note in `EditProfileDialog`: the inline `isValidElement` branch that
+          used to be here emitted a `div` on the server and a cloned `button` in the
+          browser, which is a hydration mismatch. The helper preserves the element. */}
       {trigger ? (
-        isValidElement<{ onClick?: () => void }>(trigger) ? (
-          cloneElement(trigger, {
-            onClick: () => setOpen(true),
-          })
-        ) : (
-          <div onClick={() => setOpen(true)}>{trigger}</div>
-        )
+        withRowOpenHandler(trigger, () => setOpen(true))
       ) : (
         <Button type="button" variant="outline" onClick={() => setOpen(true)}>
           <HugeiconsIcon icon={CreditCardIcon} aria-hidden />

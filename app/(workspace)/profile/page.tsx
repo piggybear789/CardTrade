@@ -25,7 +25,7 @@
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { CreditCardIcon, ShieldCheckIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
+import { ShieldCheckIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -39,9 +39,11 @@ import { PayoutReturnRefresh } from '@/components/payouts/PayoutReturnRefresh';
 import { VerificationSequence } from '@/components/profile/VerificationSequence';
 import { PayoutsDashboard } from '@/components/payouts/PayoutsDashboard';
 import { PayoutSummary } from '@/components/payouts/PayoutSummary';
-import { EditProfileDialog } from '@/components/profile/EditProfileDialog';
+import {
+  NameAndEmailSettingRow,
+  PaymentMethodSettingRow,
+} from '@/components/account/SettingsDialogRows';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
-import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
 import {
   BioSettingRow,
   LinksSettingRow,
@@ -266,18 +268,16 @@ function ProfilePanel({
     // heading; the tab name is the heading.
     <div className="space-y-group md:space-y-section">
       <SettingsGroup>
-        <EditProfileDialog
+        {/* A CLIENT COMPONENT BUILDS THIS ROW, not this Server Component. The dialog
+            identifies its trigger with `isValidElement` and clones a handler onto it,
+            which is only reliable when the element was created on the same side of the
+            RSC boundary as the clone. Constructing it here has failed three different
+            ways — an unserialisable handler, then a hydration mismatch, then a silently
+            handler-less row. See the header of `SettingsDialogRows`. */}
+        <NameAndEmailSettingRow
           avatarPath={avatarPath}
           displayName={displayName}
           contactEmail={contactEmail}
-          trigger={
-            // `interactive`, NOT `onClick={() => {}}`. This is a Server Component and
-            // the row renders here, so a function in its output cannot cross into the
-            // client dialog — React refuses to serialise it and the route error
-            // boundary takes the whole account surface with it. `EditProfileDialog`
-            // clones this row and attaches the real handler.
-            <SettingsListRow interactive label="Name and email" value={contactEmail} />
-          }
         />
         <BioSettingRow bio={bio} />
         <LinksSettingRow links={socialLinks} />
@@ -432,25 +432,11 @@ async function PaymentMethodRow() {
   const paymentMethod = result.ok ? result.data : null;
   const hasCard = Boolean(paymentMethod?.hasPaymentMethod);
 
-  return (
-    <AddPaymentMethodDialog
-      trigger={
-        <SettingsListRow
-          // See the note on the "Name and email" row above: a function prop here is
-          // unserialisable across the boundary and kills the page.
-          interactive
-          icon={CreditCardIcon}
-          label="Payment method"
-          // ONE LINE. The card used to be the value beside a two-line label carrying
-          // the expiry, so it floated against the middle of a block it was supposed to
-          // be reading out. The expiry belongs in the editor, not in a list whose job
-          // is "what is set".
-          value={hasCard ? (paymentMethod?.label ?? 'Card saved') : 'Add a card'}
-          description={hasCard ? undefined : 'Required to buy or back a trade.'}
-        />
-      }
-    />
-  );
+  // The live read stays here; only plain data crosses into the client row, which builds
+  // its own dialog trigger. This row was the one that proved the trigger-passing pattern
+  // fails silently: streaming inside this Suspense boundary stopped the dialog's clone
+  // from identifying it at all, so it rendered as a button that opened nothing.
+  return <PaymentMethodSettingRow hasCard={hasCard} label={paymentMethod?.label ?? null} />;
 }
 
 /** Reporting only — this tab never hosts onboarding. */

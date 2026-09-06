@@ -6,11 +6,12 @@
 // far more often than they are changed, so the page shows what is set and keeps
 // the inputs behind a deliberate action.
 
-import { cloneElement, isValidElement, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { PencilIcon } from '@hugeicons/core-free-icons';
 
 import { ProfileForm } from './ProfileForm';
+import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
 import {
   Dialog,
   DialogContent,
@@ -40,14 +41,18 @@ export function EditProfileDialog({
 
   return (
     <>
+      {/* `withRowOpenHandler` RATHER THAN AN INLINE `isValidElement` BRANCH. The branch
+          that used to be here fell back to `<div onClick=…>{trigger}</div>`, and those
+          two arms emit different TAGS — so a trigger whose element identity differed
+          between the SSR pass and the browser produced a hydration mismatch.
+          
+          It also relies on the trigger being built by a CLIENT caller: this helper
+          returns the element untouched when it cannot clone, which keeps hydration
+          correct but attaches no handler. `SettingsDialogRows` is what guarantees the
+          caller is client-side; see its header for the three failures that established
+          this. */}
       {trigger ? (
-        isValidElement<{ onClick?: () => void }>(trigger) ? (
-          cloneElement(trigger, {
-            onClick: () => setOpen(true),
-          })
-        ) : (
-          <div onClick={() => setOpen(true)}>{trigger}</div>
-        )
+        withRowOpenHandler(trigger, () => setOpen(true))
       ) : (
         <button
           type="button"

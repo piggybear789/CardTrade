@@ -1,6 +1,26 @@
 // components/account/SettingsPrimitives.tsx
+'use client';
+
+// components/account/SettingsPrimitives.tsx
 //
 // Shared building blocks for the account settings tabs.
+//
+// A CLIENT MODULE, AND THAT IS LOAD-BEARING — nothing here uses a hook, so it reads
+// like it could be a Server Component, and it was one.
+//
+// The rows are handed to client dialogs as a `trigger` prop, and those dialogs identify
+// them with `isValidElement(trigger)` before `cloneElement`-ing an `onClick` on
+// (`EditProfileDialog`, `AddPaymentMethodDialog`, and `withRowOpenHandler` below). That
+// check CANNOT be relied on for a prop that crossed the RSC boundary: while these were
+// Server Components, `isValidElement` was false during the SSR pass and true in the
+// browser, so the server emitted the dialogs' bare `<div>` fallback wrapper and the
+// client emitted the cloned `<button>`. React reported a hydration mismatch, threw the
+// tree away, and the rows ended up as controls that did not open anything.
+//
+// As client components the element is a real element on BOTH passes, so the two agree
+// and the clone lands. The cost is that every prop from a Server Component caller must
+// be serialisable — see `interactive` on {@link SettingsListRow} for the one that used
+// to be a function and crashed the page.
 //
 // TRANSLATED, NOT COPIED. The design reference these follow is dark-themed and
 // names fonts this app does not load (Fraunces, JetBrains Mono). The app ships a

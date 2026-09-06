@@ -29,7 +29,7 @@ class Ok<T> extends Result<T> {
 
 /// Failed result carrying an error code, optional human message, and optional field.
 class Err<T> extends Result<T> {
-  const Err(this.error, {this.message, this.field});
+  const Err(this.error, {this.message, this.field, this.details});
 
   /// Machine-readable error code (e.g. 'REGION_MISMATCH', 'NOT_FOUND').
   final String error;
@@ -39,6 +39,21 @@ class Err<T> extends Result<T> {
 
   /// The specific form field that failed validation, if applicable.
   final String? field;
+
+  /// Whatever else the server put on the failure body, beyond `error`,
+  /// `message` and `field`.
+  ///
+  /// The web `ActionResult` shape is not closed: `app/api/mobile/account/close`
+  /// returns `blockers` on a `MONEY_IN_FLIGHT` refusal (Req 7.3) so the client can
+  /// render the blocking categories, and narrowing the failure to three fields
+  /// would drop them on the floor. Nothing here is INTERPRETED as a rule — it is
+  /// the server's own payload, carried through for presentation.
+  ///
+  /// Deliberately absent from [operator ==] and [hashCode], which identify a
+  /// failure by its code, message and field: two refusals with the same code are
+  /// the same failure, and a map compared by reference would make every one of
+  /// them unequal to an otherwise identical expectation.
+  final Map<String, dynamic>? details;
 
   @override
   bool operator ==(Object other) =>

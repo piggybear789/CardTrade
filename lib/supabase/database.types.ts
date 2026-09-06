@@ -113,6 +113,14 @@ export type Database = {
           /** Optional social media handles keyed by platform slug (0085). */
           social_links: Record<string, string> | null;
           bio: string | null;
+          /**
+           * When this account was closed (0111, Req 7.4). Null for an open account.
+           *
+           * Written only by the account-closure orchestrator on the service-role
+           * path: `authenticated` holds no UPDATE grant on it, because a
+           * member-writable closure flag is a way to fake a closed account.
+           */
+          closed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -162,6 +170,7 @@ export type Database = {
           fraud_ban_trade_id?: string | null;
           social_links?: Record<string, string> | null;
           bio?: string | null;
+          closed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -211,6 +220,7 @@ export type Database = {
           fraud_ban_trade_id?: string | null;
           social_links?: Record<string, string> | null;
           bio?: string | null;
+          closed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2212,7 +2222,30 @@ export type Database = {
            * disclosure and never provider-verified. Render it as untrusted copy.
            */
           bio: string | null;
+          /**
+           * When the account was closed (0111, Req 7.4). Null for an open account.
+           *
+           * A closed account STILL RETURNS A ROW here, with `display_name` replaced
+           * by a fixed anonymous label and `avatar_path`, `social_links` and `bio`
+           * null (Req 7.5) — a contract counterparty and an arbitrator still need to
+           * see someone on the other side of a completed contract. Discovery reads
+           * `discoverable_profiles` instead, which omits closed accounts.
+           */
+          closed_at: string | null;
         };
+        Relationships: [];
+      };
+      /**
+       * Discovery projection (0111): `public_profiles` with closed accounts omitted.
+       *
+       * Read by seller browse and directory surfaces. A contract room, message
+       * thread, review list or arbitration case must NOT read this view — it would
+       * hide a counterparty from a live contract. Same columns as
+       * `public_profiles`, so moving a discovery read onto it is a relation-name
+       * change and nothing else.
+       */
+      discoverable_profiles: {
+        Row: Database['cardtrade']['Views']['public_profiles']['Row'];
         Relationships: [];
       };
     };

@@ -112,6 +112,14 @@ abstract class CashSaleSummary with _$CashSaleSummary {
   const factory CashSaleSummary({
     required String id,
     required CashSaleStatus status,
+    /// Which listing this contract is against.
+    ///
+    /// Read so the listing detail can link the viewer to the contract they
+    /// already hold, and the owner to every contract open against their listing
+    /// (Req 6.1, 6.10), out of rows the server already returns to this member.
+    /// Nullable because paths other than the sales list build a summary without
+    /// it.
+    String? itemId,
     required String itemTitle,
     required int agreedPriceCents,
     @Default([]) List<String> itemImagePaths,

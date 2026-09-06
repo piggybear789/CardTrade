@@ -1,18 +1,34 @@
+// One row in the conversation list, and the ONE place Req 9.8 and 9.9 are drawn.
+//
+// The row is three things: who, what they last said, and when. The name and the
+// preview are both at the `body` level and separated by WEIGHT and by token rather
+// than by size, which is the Subtext_Rule — the preview was a smaller face before,
+// so a long thread list read as two type scales interleaved.
+//
+// Unread is signalled three ways, not one: the name and preview go semibold, and a
+// marker carries the count. Weight and a number both survive greyscale, which is
+// what Req 13.11 asks for and what a coloured dot alone would fail.
+//
+// The relative time comes from `core/relative_time.dart`, whose ladder is the
+// web's. `timeago` disagreed with it at every boundary — "a moment ago" under 45
+// seconds, "about an hour ago" at 50 minutes — so the two clients reported
+// different ages for the same message.
+//
+// Requirements 9.8, 9.9, 13.6, 13.7, 13.10, 13.11.
+
 import 'package:flutter/material.dart';
 
-import 'package:cardtrade/core/extensions.dart';
+import 'package:cardtrade/core/relative_time.dart';
 import 'package:cardtrade/core/theme.dart';
 import 'package:cardtrade/models/conversation.dart';
 import 'package:cardtrade/widgets/common/avatar.dart';
 
-/// A single row in the conversations list — Xianyu-style layout.
-///
-/// Three-column layout: avatar (with unread badge), content (name + badge,
-/// last message, timestamp), and optional item thumbnail placeholder.
+/// A single row in the conversations list.
 class ConversationTile extends StatelessWidget {
   const ConversationTile({
     required this.conversation,
     required this.onTap,
+    this.now,
     super.key,
   });
 
@@ -22,187 +38,162 @@ class ConversationTile extends StatelessWidget {
   /// Called when the tile is tapped.
   final VoidCallback onTap;
 
-  bool get _isUnread => (conversation.unreadCount ?? 0) > 0;
+  /// The instant the relative time is measured against. Injected only by tests.
+  final DateTime? now;
+
+  int get _unreadCount => conversation.unreadCount ?? 0;
+
+  bool get _isUnread => _unreadCount > 0;
+
+  /// A short label naming the contract this conversation belongs to, if any.
+  String? get _contextLabel {
+    if (conversation.tradeId != null) return 'Trade';
+    if (conversation.cashSaleId != null) return 'Sale';
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final String name = conversation.otherParticipantName ?? 'NoDitto member';
+    final String? label = _contextLabel;
+    final FontWeight nameWeight =
+        _isUnread ? FontWeight.w700 : FontWeight.w600;
+
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingLg,
-          vertical: AppTheme.spacingLg,
+          horizontal: AppSpacing.cozy,
+          vertical: AppSpacing.cozy,
         ),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
+          // The whole row is the control, so its own height is the hit area and
+          // `TapTarget` has nothing to add.
+          constraints: const BoxConstraints(minHeight: AppMetrics.minHitArea),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ─── Avatar with unread badge ─────────────────────────
-              _AvatarWithBadge(
+            spacing: AppSpacing.cozy,
+            children: <Widget>[
+              Avatar(
                 imageUrl: conversation.otherParticipantAvatar,
-                displayName: conversation.otherParticipantName,
-                unreadCount: conversation.unreadCount ?? 0,
+                displayName: name,
+                size: AvatarSize.md,
               ),
-              const SizedBox(width: AppTheme.spacingMd),
 
-              // ─── Middle content ──────────────────────────────────
+              // ─── Name, preview ───────────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Row 1: Name + status badge
+                  children: <Widget>[
                     Row(
-                      children: [
+                      spacing: AppSpacing.snug,
+                      children: <Widget>[
                         Flexible(
                           child: Text(
-                            conversation.otherParticipantName ?? 'Unknown',
+                            name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTheme.rowName.copyWith(
-                              fontWeight: _isUnread ? FontWeight.w700 : FontWeight.w600,
-                              color: AppTheme.primary,
-                            ),
+                            style: AppText.rowName.copyWith(fontWeight: nameWeight),
                           ),
                         ),
-                        if (_statusLabel != null) ...[
-                          const SizedBox(width: AppTheme.spacingSm),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.parchment,
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusFull),
-                            ),
-                            child: Text(
-                              _statusLabel!,
-                              style: AppTheme.badgeText.copyWith(
-                                color: AppTheme.secondary,
-                              ),
-                            ),
-                          ),
-                        ],
+                        if (label != null) _ContextBadge(label: label),
                       ],
                     ),
-                    const SizedBox(height: 2),
-
-                    // Row 2: Last message preview
+                    const SizedBox(height: AppSpacing.tight),
                     Text(
                       conversation.lastMessageBody ?? '',
+                      // Req 9.8: the preview is the one line in this row that is
+                      // deliberately truncated — a list of previews that wrapped
+                      // would be a list of paragraphs.
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _isUnread
-                          ? AppTheme.supportText.copyWith(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w500,
-                            )
-                          : AppTheme.supportText,
+                          ? AppText.supportText.copyWith(fontWeight: FontWeight.w600)
+                          : AppText.supportText,
                     ),
-                    const SizedBox(height: 2),
-
-                    // Row 3: Relative timestamp
-                    if (conversation.lastMessageAt != null)
-                      Text(
-                        conversation.lastMessageAt!.timeAgo,
-                        style: AppTheme.metaText,
-                      ),
                   ],
                 ),
               ),
 
-              // ─── Right: item thumbnail placeholder ────────────────
-              if (conversation.contextTitle != null) ...[
-                const SizedBox(width: AppTheme.spacingMd),
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceVariant,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.image_outlined,
-                    size: 20,
-                    color: AppTheme.muted,
-                  ),
-                ),
-              ],
+              // ─── Time, unread marker ─────────────────────────────────
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (conversation.lastMessageAt != null)
+                    Text(
+                      relativeTimeLabel(conversation.lastMessageAt!, now: now),
+                      style: AppText.metaText,
+                    ),
+                  if (_isUnread) ...<Widget>[
+                    const SizedBox(height: AppSpacing.tight),
+                    _UnreadMarker(count: _unreadCount),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
-  /// Derives a short status label from the contract link.
-  String? get _statusLabel {
-    if (conversation.tradeId != null) return 'Trade';
-    if (conversation.cashSaleId != null) return 'Sale';
-    return null;
-  }
 }
 
-/// Avatar circle with an overlaid unread count badge (top-right).
-class _AvatarWithBadge extends StatelessWidget {
-  const _AvatarWithBadge({
-    required this.imageUrl,
-    required this.displayName,
-    required this.unreadCount,
-  });
+/// The `Trade` / `Sale` eyebrow beside a name, when the thread has a contract.
+class _ContextBadge extends StatelessWidget {
+  const _ContextBadge({required this.label});
 
-  final String? imageUrl;
-  final String? displayName;
-  final int unreadCount;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.snug),
+        decoration: BoxDecoration(
+          color: AppTint.eyebrow.fill,
+          border: Border.all(
+            color: AppTint.eyebrow.edge!,
+            width: AppMetrics.hairline,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.full),
+        ),
+        child: Text(
+          label,
+          style: AppText.badgeText.copyWith(color: AppTint.eyebrow.ink),
+        ),
+      );
+}
+
+/// The unread count, as a number and not only as a colour (Req 9.9, 13.11).
+class _UnreadMarker extends StatelessWidget {
+  const _UnreadMarker({required this.count});
+
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            top: 2,
-            child: SizedBox(
-              width: 44,
-              height: 44,
-              child: Avatar(
-                imageUrl: imageUrl,
-                displayName: displayName,
-                size: AvatarSize.md,
-              ),
-            ),
+    final String text = count > 99 ? '99+' : '$count';
+    return Semantics(
+      // Spoken as a count rather than as a bare number, so a screen reader does
+      // not read the marker as part of the relative time above it.
+      label: count == 1 ? '1 unread message' : '$count unread messages',
+      child: ExcludeSemantics(
+        child: Container(
+          constraints: const BoxConstraints(
+            minWidth: AppSpacing.group,
+            minHeight: AppSpacing.group,
           ),
-          if (unreadCount > 0)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.danger,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  unreadCount > 99 ? '99+' : '$unreadCount',
-                  style: AppTheme.badgeText.copyWith(
-                    color: Colors.white,
-                    fontSize: 9,
-                  ),
-                ),
-              ),
-            ),
-        ],
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.tight),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(AppRadius.full),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: AppText.badgeText.copyWith(color: AppColors.primaryForeground),
+          ),
+        ),
       ),
     );
   }

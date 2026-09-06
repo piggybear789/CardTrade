@@ -3,16 +3,21 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
 import 'package:cardtrade/core/image_url.dart';
+import 'package:cardtrade/core/theme.dart';
+import 'package:cardtrade/widgets/common/controls.dart';
 
 /// Fullscreen image gallery with pinch-zoom and swipe between images.
 ///
-/// Features:
-/// - PhotoViewGallery for smooth horizontal swiping between images
+/// The dark surround is `--obsidian` and its ink is `--mist`: the theme's one
+/// declared dark region, not `Colors.black` and `Colors.white` (Req 1.9). Its
+/// controls are drawn on an obsidian scrim at the same alpha the listing card
+/// uses for a cover marker, so the two read as the same product.
+///
+/// - `PhotoViewGallery` for horizontal swiping between images
 /// - Pinch-to-zoom on each image
-/// - Page counter overlay when multiple images
-/// - Close button (top-left) with 44x44 touch target
+/// - Page counter overlay when more than one image is present
+/// - Close control drawn at 40dp with a 48dp hit area (Req 13.6)
 /// - Swipe down to dismiss
-/// - Loading indicator while images load
 class FullscreenImageViewer extends StatefulWidget {
   const FullscreenImageViewer({
     required this.imagePaths,
@@ -49,6 +54,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
   /// Tracks cumulative vertical drag distance for swipe-to-dismiss.
   double _verticalDragOffset = 0;
 
+  /// Drag distance and fling speed that dismiss the viewer. Gesture thresholds,
+  /// not spacing.
+  static const double _dismissDragDistance = 100;
+  static const double _dismissFlingVelocity = 500;
+
   @override
   void initState() {
     super.initState();
@@ -69,15 +79,15 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.obsidian,
       body: GestureDetector(
         onVerticalDragUpdate: (details) {
           _verticalDragOffset += details.delta.dy;
         },
         onVerticalDragEnd: (details) {
-          // Dismiss if dragged down more than 100px or with high velocity
-          if (_verticalDragOffset > 100 ||
-              details.primaryVelocity != null && details.primaryVelocity! > 500) {
+          if (_verticalDragOffset > _dismissDragDistance ||
+              details.primaryVelocity != null &&
+                  details.primaryVelocity! > _dismissFlingVelocity) {
             Navigator.of(context).pop();
           }
           _verticalDragOffset = 0;
@@ -89,10 +99,10 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
               pageController: _pageController,
               itemCount: widget.imagePaths.length,
               onPageChanged: _onPageChanged,
-              backgroundDecoration: const BoxDecoration(color: Colors.black),
+              backgroundDecoration: const BoxDecoration(color: AppColors.obsidian),
               loadingBuilder: (context, event) => const Center(
                 child: CircularProgressIndicator(
-                  color: Colors.white70,
+                  color: AppColors.mist,
                   strokeWidth: 2,
                 ),
               ),
@@ -112,52 +122,40 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
               },
             ),
 
-            // ─── Close button (top-left) ───────────────────────────
+            // ─── Close control (top-left) ──────────────────────────
             Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 12,
-              child: Semantics(
-                button: true,
-                label: 'Close image viewer',
-                child: Material(
-                  type: MaterialType.circle,
-                  color: Colors.black.withValues(alpha: 0.5),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: Icon(
-                        Icons.close_rounded,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ),
+              top: MediaQuery.of(context).padding.top + AppSpacing.snug,
+              left: AppSpacing.cozy,
+              child: AppIconButton(
+                icon: Icons.close_rounded,
+                semanticLabel: 'Close image viewer',
+                onPressed: () => Navigator.of(context).pop(),
+                background: AppTint.binderMarker.fill,
+                foreground: AppColors.mist,
+                iconSize: AppIconSize.display,
               ),
             ),
 
-            // ─── Page counter (top-center) ─────────────────────────
+            // ─── Page counter (top-centre) ─────────────────────────
             if (widget.imagePaths.length > 1)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 16,
+                top: MediaQuery.of(context).padding.top + AppSpacing.group,
                 left: 0,
                 right: 0,
                 child: Center(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.cozy,
+                      vertical: AppSpacing.tight,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(16),
+                      color: AppTint.binderMarker.fill,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
                     ),
                     child: Text(
                       '${_currentIndex + 1} / ${widget.imagePaths.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
+                      style: AppText.metaText.copyWith(
+                        color: AppColors.mist,
                         fontWeight: FontWeight.w500,
                       ),
                     ),

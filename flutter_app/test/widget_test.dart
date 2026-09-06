@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 
 import 'package:cardtrade/core/money.dart';
+import 'package:cardtrade/core/theme.dart';
 import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/models/item.dart';
 import 'package:cardtrade/models/offer.dart';
@@ -21,6 +22,7 @@ import 'package:cardtrade/widgets/common/confirmation_dialog.dart';
 import 'package:cardtrade/widgets/common/loading_indicator.dart';
 import 'package:cardtrade/widgets/common/error_view.dart';
 import 'package:cardtrade/widgets/common/avatar.dart';
+import 'package:cardtrade/widgets/common/tap_target.dart';
 import 'package:cardtrade/features/auth/screens/sign_in_screen.dart';
 import 'package:cardtrade/features/auth/screens/sign_up_screen.dart';
 import 'package:cardtrade/features/auth/screens/forgot_password_screen.dart';
@@ -434,7 +436,11 @@ void main() {
         }
       });
 
-      testWidgets('Mint has green background', (tester) async {
+      testWidgets('every grade gets the same neutral mist pill', (tester) async {
+        // The web has never colour-coded a condition: the detail page draws it as
+        // `bg-mist … text-muted-foreground` and the card as plain muted text. A
+        // per-grade colour ramp would also imply a judgement the marketplace does
+        // not make.
         await tester.pumpWidget(buildTestWidget(
           const ConditionBadge(condition: 'Mint'),
         ));
@@ -446,8 +452,7 @@ void main() {
           ).first,
         );
         final decoration = container.decoration as BoxDecoration;
-        // Green bg: Color(0xFFdcfce7)
-        expect(decoration.color, equals(const Color(0xFFdcfce7)));
+        expect(decoration.color, equals(AppColors.mist));
       });
     });
 
@@ -803,7 +808,13 @@ void main() {
         await tester.enterText(fields.at(2), 'short');  // < 8 chars
         await tester.enterText(fields.at(3), 'short');
 
-        await tester.tap(find.widgetWithText(FilledButton, 'Create Account'));
+        // The confirm field reveals the strength indicator, which pushes the
+        // submit button's centre past the 600dp test viewport. Scroll it in
+        // rather than tapping a point the hit test cannot reach.
+        final submit = find.widgetWithText(FilledButton, 'Create Account');
+        await tester.ensureVisible(submit);
+        await tester.pumpAndSettle();
+        await tester.tap(submit);
         await tester.pumpAndSettle();
 
         // There's a permanent hint AND the validation error, both say
@@ -865,8 +876,13 @@ void main() {
         await tester.enterText(fields.at(2), 'Password123!');
         await tester.enterText(fields.at(3), 'Password123!');
 
-        // Don't check the terms checkbox
-        await tester.tap(find.widgetWithText(FilledButton, 'Create Account'));
+        // Don't check the terms checkbox.
+        // Scroll the button in first: with all four fields filled its centre
+        // sits below the 600dp test viewport, so a bare tap misses.
+        final submit = find.widgetWithText(FilledButton, 'Create Account');
+        await tester.ensureVisible(submit);
+        await tester.pumpAndSettle();
+        await tester.tap(submit);
         await tester.pumpAndSettle();
 
         // Terms error is now shown as inline text (not a SnackBar)
@@ -1014,7 +1030,7 @@ void main() {
         expect(find.textContaining('From'), findsOneWidget);
       });
 
-      testWidgets('heart button has minimum 48dp touch target (critical UX fix)',
+      testWidgets('watch control is drawn at 32 and touched at 48 (Req 5.5)',
           (tester) async {
         final item = makeTestItemSummary();
 
@@ -1034,20 +1050,22 @@ void main() {
         ));
         await tester.pumpAndSettle();
 
-        // The _WatchlistHeart wraps in a SizedBox(width: 48, height: 48)
-        // Find the InkWell inside the heart overlay area
-        final heartContainer = find.byWidgetPredicate(
-          (widget) =>
-              widget is SizedBox &&
-              widget.width == 48 &&
-              widget.height == 48,
+        // VISIBLE SIZE AND HIT AREA ARE TWO NUMBERS. The control is drawn at the
+        // web's phone size and given its touch rectangle by TapTarget, which
+        // inflates the hit test and not the layout — so a SizedBox(48) is
+        // exactly what should NOT be here (Req 5.5, 13.6).
+        final targets = tester.renderObjectList<RenderTapTarget>(
+          find.byType(TapTarget),
         );
-        expect(heartContainer, findsAtLeast(1));
+        expect(targets, isNotEmpty);
 
-        // Verify the actual rendered size is at least 48x48
-        final size = tester.getSize(heartContainer.first);
-        expect(size.width, greaterThanOrEqualTo(48.0));
-        expect(size.height, greaterThanOrEqualTo(48.0));
+        final watch = targets.first;
+        expect(watch.drawnRect.width, AppMetrics.watchControl);
+        expect(watch.drawnRect.height, AppMetrics.watchControl);
+        expect(watch.targetRect.width,
+            greaterThanOrEqualTo(AppMetrics.minHitArea));
+        expect(watch.targetRect.height,
+            greaterThanOrEqualTo(AppMetrics.minHitArea));
       });
 
       testWidgets('shows verified badge when seller is verified', (tester) async {
@@ -1096,7 +1114,10 @@ void main() {
         expect(find.text('Binder'), findsOneWidget);
       });
 
-      testWidgets('shows location label', (tester) async {
+      testWidgets('keeps location off the tile (Req 5.3)', (tester) async {
+        // The web's phone tile has room for three facts and where the parcel
+        // ships from is not one of them. The card used to print it as a fourth
+        // muted line; it is now absent, as it is on the web below md.
         final item = makeTestItemSummary(locationLabel: 'Melbourne, VIC');
 
         await tester.pumpWidget(buildTestWidget(
@@ -1115,7 +1136,7 @@ void main() {
         ));
         await tester.pumpAndSettle();
 
-        expect(find.text('Melbourne, VIC'), findsOneWidget);
+        expect(find.text('Melbourne, VIC'), findsNothing);
       });
     });
 

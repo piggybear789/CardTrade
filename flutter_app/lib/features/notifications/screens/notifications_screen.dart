@@ -8,7 +8,8 @@ import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/models/notification.dart';
 import 'package:cardtrade/providers/notifications_provider.dart';
 import 'package:cardtrade/widgets/common/empty_state.dart';
-import 'package:cardtrade/widgets/common/error_view.dart';
+import 'package:cardtrade/widgets/common/load_state.dart';
+import 'package:cardtrade/widgets/common/skeleton.dart';
 
 /// Notifications list screen.
 ///
@@ -24,6 +25,19 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   bool _isMarkingRead = false;
+
+  /// Placeholder rows drawn while the first read runs.
+  static const int _skeletonRows = 8;
+
+  /// What a failure or a failed refresh calls this request, in member terms.
+  static const String _operation = 'your notifications';
+
+  /// Inset to the row's text column, past the type disc and the gap after it.
+  static const double _rowIndent =
+      AppSpacing.cozy + _discDiameter + AppSpacing.snug;
+
+  /// Diameter of the type disc each row leads with.
+  static const double _discDiameter = 40;
 
   Future<void> _markAllRead() async {
     setState(() => _isMarkingRead = true);
@@ -57,40 +71,42 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           ),
         ],
       ),
-      body: notificationsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ErrorView(
-          message: error.toString(),
-          onRetry: () => ref.invalidate(notificationsProvider),
+      body: AsyncStateView<List<AppNotification>>(
+        value: notificationsAsync,
+        operation: _operation,
+        onRetry: () async {
+          ref.invalidate(notificationsProvider);
+          await ref.read(notificationsProvider.future);
+        },
+        loadingAnnouncement: 'Loading your notifications',
+        skeleton: (_) => ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: _skeletonRows,
+          separatorBuilder: (_, _) => const Divider(indent: _rowIndent),
+          itemBuilder: (_, _) => const SkeletonListTile(),
         ),
-        data: (notifications) {
+        builder: (context, notifications) {
           if (notifications.isEmpty) {
-            return const EmptyState(
-              icon: Icons.notifications_none_rounded,
-              title: 'No notifications',
-              subtitle: "You're all caught up!",
+            return const PullableFill(
+              child: EmptyState(
+                icon: Icons.notifications_none_rounded,
+                title: 'No notifications',
+                subtitle: "You're all caught up!",
+              ),
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(notificationsProvider);
-              await ref.read(notificationsProvider.future);
+          return ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: notifications.length,
+            separatorBuilder: (_, _) => const Divider(indent: _rowIndent),
+            itemBuilder: (context, index) {
+              final notification = notifications[index];
+              return _NotificationTile(
+                notification: notification,
+                onTap: () => _navigate(context, notification),
+              );
             },
-            child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: notifications.length,
-              separatorBuilder: (_, _) => const Divider(
-                indent: AppTheme.spacingLg + 40 + AppTheme.spacingMd,
-              ),
-              itemBuilder: (context, index) {
-                final notification = notifications[index];
-                return _NotificationTile(
-                  notification: notification,
-                  onTap: () => _navigate(context, notification),
-                );
-              },
-            ),
           );
         },
       ),
@@ -116,11 +132,11 @@ class _NotificationTile extends StatelessWidget {
   final VoidCallback onTap;
 
   (IconData, Color) get _typeIcon => switch (notification.type) {
-        NotificationType.offer => (Icons.local_offer_rounded, AppTheme.accent),
-        NotificationType.message => (Icons.chat_rounded, AppTheme.accent),
-        NotificationType.trade => (Icons.swap_horiz_rounded, AppTheme.warning),
-        NotificationType.sale => (Icons.shopping_bag_rounded, AppTheme.success),
-        NotificationType.system => (Icons.info_rounded, AppTheme.secondary),
+        NotificationType.offer => (Icons.local_offer_rounded, AppColors.irisInk),
+        NotificationType.message => (Icons.chat_rounded, AppColors.irisInk),
+        NotificationType.trade => (Icons.swap_horiz_rounded, AppColors.actionBorder),
+        NotificationType.sale => (Icons.shopping_bag_rounded, AppColors.trust),
+        NotificationType.system => (Icons.info_rounded, AppColors.mutedForeground),
       };
 
   @override
@@ -131,10 +147,10 @@ class _NotificationTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: isUnread ? AppTheme.accentLight.withValues(alpha: 0.3) : null,
+        color: isUnread ? AppTint.eyebrow.fill!.withValues(alpha: 0.3) : null,
         padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingLg,
-          vertical: AppTheme.spacingMd,
+          horizontal: AppSpacing.cozy,
+          vertical: AppSpacing.snug,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +165,7 @@ class _NotificationTile extends StatelessWidget {
               ),
               child: Icon(icon, size: 20, color: color),
             ),
-            const SizedBox(width: AppTheme.spacingMd),
+            const SizedBox(width: AppSpacing.snug),
 
             // ─── Content ─────────────────────────────────────────
             Expanded(
@@ -191,13 +207,13 @@ class _NotificationTile extends StatelessWidget {
 
             // ─── Unread Dot ──────────────────────────────────────
             if (isUnread) ...[
-              const SizedBox(width: AppTheme.spacingSm),
+              const SizedBox(width: AppSpacing.tight),
               Container(
                 width: 8,
                 height: 8,
                 margin: const EdgeInsets.only(top: 6),
                 decoration: const BoxDecoration(
-                  color: AppTheme.accent,
+                  color: AppColors.irisInk,
                   shape: BoxShape.circle,
                 ),
               ),

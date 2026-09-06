@@ -1,0 +1,562 @@
+{
+  "pbtResults": {
+    "7.2 Write a property test for the validator": {
+      "status": "passed",
+      "lastRunTimestamp": 1788672054038
+    },
+    "8.6 Write property tests for the closure invariants": {
+      "status": "failed",
+      "failingExample": "Property 3 (\"leaves the record count unchanged while no public read path returns the old identity\") in tests/property/accountClosureRecords.test.ts.\n\nError: Property failed after 1 tests\n{ seed: -1200536590, path: \"1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:25:25:25:25:49:49\", endOnFailure: true }\nCounterexample: [{\"profile\":{\"id\":\"00000000-0000-1000-8000-000000000000\",\"display_name\":\"!\",\"avatar_path\":null,\"bio\":\"key\",\"social_links\":null,\"identity_check_name\":null,\"merchant_legal_entity_name\":null,\"identity_check_status\":\"VERIFIED\",\"merchant_ref\":null,\"closed_at\":null},\"records\":[{\"id\":\"rec-0\",\"table\":\"cash_sales\",\"profile_id\":\"00000000-0000-1000-8000-000000000000\"}],\"personKeys\":[],\"bystander\":{\"id\":\"00000000-0000-1000-8000-000000000001\",\"display_name\":\"key\",...,\"closed_at\":null}}]\nGot AssertionError: expected [ 'Closed account', null, null, ...(17) ] to not include 'key'\n  at tests/property/accountClosureRecords.test.ts:382:33 (expect(reachable).not.toContain(previous.bio))\n\nTriage: this looks like a generator defect, not a product defect. The closing member's bio is \"key\" and the UNTOUCHED bystander's display_name is also \"key\". closeAccount did the right thing — it nulled the bio and substituted the anonymous label — but everyPubliclyReachableValue(db) flattens every profile including the bystander, so the string is still reachable via a different member's name. The scenario generator filters only on r.id !== r.bystanderId; nothing forbids the bystander's display_name from colliding with the closing member's bio, display_name, avatar_path or social_links. Intermittent because the seed is random per run: the same test passes in isolation.\n\nNot fixed here — task 17.1 is verification only.",
+      "lastRunTimestamp": 1788679487069
+    }
+  },
+  "executionHistory": {
+    "1.1 Change `applicationId` and `namespace` to `app.noditto` and move the Kotlin source": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202677
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670219725
+      }
+    ],
+    "1.2 Set the member-facing name and description": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202709
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670220674
+      }
+    ],
+    "2.1 Add a release signing config that fails closed": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202737
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671159193
+      }
+    ],
+    "2.2 Keep the keystore out of the repository": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202766
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788672591693
+      }
+    ],
+    "3.1 Declare what the dependencies require": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202822
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671160132
+      }
+    ],
+    "3.2 Request the notification permission at first need": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202865
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788673540727
+      }
+    ],
+    "4.1 Add the pure link resolver": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202892
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670221636
+      }
+    ],
+    "4.3 Declare the intent filters": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202919
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671594502
+      }
+    ],
+    "4.4 Route the resolved target": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202947
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788672592420
+      }
+    ],
+    "4.5 Serve the Digital Asset Links file": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670202975
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788673541900
+      }
+    ],
+    "5. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203018
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682316564
+      }
+    ],
+    "6.1 Ship the NoDitto launcher icon": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203068
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670794312
+      }
+    ],
+    "6.2 Replace the scaffolded splash": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203095
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671161547
+      }
+    ],
+    "6.3 Resolve the empty declared asset directories": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203122
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788672401330
+      }
+    ],
+    "7.1 Add the config validator and make it reachable": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203149
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671595451
+      }
+    ],
+    "7.3 Wire the gate into startup": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203177
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788673542615
+      }
+    ],
+    "7.4 Complete the config files": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203206
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788673959207
+      }
+    ],
+    "8.1 Add the pure eligibility rule": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203237
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670223014
+      }
+    ],
+    "8.3 Add the migration": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203265
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670223580
+      }
+    ],
+    "8.4 Add the orchestrator and repository interface": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203293
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671162125
+      }
+    ],
+    "8.5 Add the Supabase repository": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203323
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671596404
+      }
+    ],
+    "8.7 Add the web entry point": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203397
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788673543536
+      }
+    ],
+    "8.8 Add the mobile endpoint and pair it": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203452
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788673960159
+      }
+    ],
+    "9.1 Replace the stub with the real flow": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203481
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788674460119
+      }
+    ],
+    "10. Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203509
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682317510
+      }
+    ],
+    "11.1 Add the error reporter seam": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203538
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788672593353
+      }
+    ],
+    "11.2 Wire the error hooks": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203566
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788673960967
+      }
+    ],
+    "12.1 Enable shrinking with keep rules": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203594
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788671597397
+      }
+    ],
+    "12.2 Produce and record the signed App Bundle": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203622
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788675163626
+      }
+    ],
+    "13.1 Add a release-config parse test": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203657
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788678703380
+      }
+    ],
+    "13.2 Add source-absence checks": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203711
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788678703941
+      }
+    ],
+    "14.1 Announce handoffs and remove orphan controls": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203743
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788674460955
+      }
+    ],
+    "14.2 Indicate message attachments as web-viewable": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203771
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788675162709
+      }
+    ],
+    "15.1 Rewrite BUILD.md": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203825
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788676099135
+      }
+    ],
+    "15.2 Add STORE.md": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203875
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788676099802
+      }
+    ],
+    "16. Final checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203906
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682318441
+      }
+    ],
+    "17.1 Run the Verification_Suite and compare": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788670203938
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788679224458
+      },
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682076707
+      }
+    ],
+    "17. Verify against the recorded baselines": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682076793
+      }
+    ],
+    "1. Settle app identity": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682325358
+      }
+    ],
+    "2. Release signing": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682326305
+      }
+    ],
+    "3. Manifest permissions and the UCrop activity": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682327279
+      }
+    ],
+    "4. Deep links": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682328163
+      }
+    ],
+    "6. Brand assets": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682328920
+      }
+    ],
+    "7. Fail-closed runtime configuration": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682334658
+      }
+    ],
+    "8. Account closure — server capability": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682335619
+      }
+    ],
+    "9. Account closure — client": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682336567
+      }
+    ],
+    "11. Observability": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682337534
+      }
+    ],
+    "12. Shrinking and the release artifact": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682338491
+      }
+    ],
+    "13. Guard the release configuration": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682344336
+      }
+    ],
+    "14. Handoff scope": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682345283
+      }
+    ],
+    "15. Documentation and store artifacts": [
+      {
+        "executionId": "e5f6df6c-a022-418c-8f87-78e93a6595f2",
+        "chatSessionId": "sess_25bee3d1-e83a-419d-b4ae-14316d17da7a",
+        "timestamp": 1788682345969
+      }
+    ]
+  }
+}

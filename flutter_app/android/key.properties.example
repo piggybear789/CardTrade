@@ -1,0 +1,29 @@
+# Release signing template — Req 2.2, 2.4, 2.7.
+#
+# Copy this file to flutter_app/android/key.properties and fill in your own values.
+# key.properties is git-ignored and MUST NEVER be committed. This example file is tracked
+# and MUST NEVER be given values.
+#
+# See flutter_app/BUILD.md > Release signing for the keytool command that creates the
+# keystore, and for what happens if the upload key is lost.
+#
+# A release Gradle task fails closed when key.properties is absent. Debug builds and
+# `flutter test` do not need it.
+
+# Absolute path to the upload keystore.
+#
+# KEEP THE KEYSTORE OUTSIDE THIS REPOSITORY. Point storeFile at a directory that no
+# `git add` can reach — e.g. C:/Users/<you>/keys/noditto-upload.jks — so an over-eager
+# `git add -A` cannot stage the signing key even if an ignore rule is ever loosened.
+# Use forward slashes on Windows; Gradle reads this as a plain string.
+storeFile=
+
+# Password protecting the keystore file itself.
+storePassword=
+
+# Alias of the upload key inside that keystore (the -alias passed to keytool).
+keyAlias=
+
+# Password protecting that key. Often the same as storePassword, but keytool allows
+# them to differ.
+keyPassword=

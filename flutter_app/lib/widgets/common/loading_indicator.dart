@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 
-/// A centered loading indicator with an optional descriptive message.
+/// A centred spinner with an optional message.
 ///
-/// Uses [CircularProgressIndicator.adaptive] for platform-appropriate styling
-/// and the app's accent color.
+/// For an indeterminate wait with nothing to stand in for. Where the shape of the
+/// content IS known, prefer the skeleton in `skeleton.dart`: it reserves the
+/// layout, so nothing moves when the data arrives (Req 11.1).
 class LoadingIndicator extends StatelessWidget {
   const LoadingIndicator({this.message, super.key});
 
@@ -16,20 +17,18 @@ class LoadingIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingXl),
+        padding: const EdgeInsets.all(AppSpacing.group),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const CircularProgressIndicator.adaptive(
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.iris),
             ),
             if (message != null) ...[
-              const SizedBox(height: AppTheme.spacingLg),
+              const SizedBox(height: AppSpacing.cozy),
               Text(
                 message!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.secondary,
-                    ),
+                style: AppText.supportText,
                 textAlign: TextAlign.center,
               ),
             ],

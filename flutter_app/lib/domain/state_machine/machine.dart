@@ -10,7 +10,7 @@ import '../../models/enums.dart';
 
 /// The full transitions table. Read this rather than any summary.
 ///
-/// Map<CurrentState, Map<Event, NextState>>
+/// `Map<CurrentState, Map<Event, NextState>>`
 const Map<TradeState, Map<TradeEvent, TradeState>> transitions = {
   TradeState.negotiating: {
     TradeEvent.termsAgreed: TradeState.collateralPending,

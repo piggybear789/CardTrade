@@ -130,10 +130,20 @@ class MobileApiClient {
       return Ok(data as T);
     }
 
+    // Everything beyond the three standard keys travels on `details`. The account
+    // closure endpoint puts `blockers` there (Req 7.3) and reshaping the body here
+    // would lose them; the client renders them, it does not evaluate them.
+    const standardKeys = <String>{'ok', 'error', 'message', 'field'};
+    final extra = <String, dynamic>{
+      for (final entry in json.entries)
+        if (!standardKeys.contains(entry.key)) entry.key: entry.value,
+    };
+
     return Err(
       json['error'] as String? ?? 'UNKNOWN',
       message: json['message'] as String? ?? 'An error occurred.',
       field: json['field'] as String?,
+      details: extra.isEmpty ? null : extra,
     );
   }
 

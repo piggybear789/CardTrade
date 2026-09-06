@@ -10,9 +10,9 @@ import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/providers/auth_provider.dart';
 import 'package:cardtrade/providers/sales_provider.dart';
 import 'package:cardtrade/widgets/common/empty_state.dart';
-import 'package:cardtrade/widgets/common/error_view.dart';
 import 'package:cardtrade/widgets/common/fullscreen_image_viewer.dart';
-import 'package:cardtrade/widgets/common/loading_indicator.dart';
+import 'package:cardtrade/widgets/common/load_state.dart';
+import 'package:cardtrade/widgets/common/skeleton.dart';
 import 'package:cardtrade/widgets/common/status_badge.dart';
 
 /// Screen listing the current user's cash sales split into
@@ -20,9 +20,17 @@ import 'package:cardtrade/widgets/common/status_badge.dart';
 class SalesListScreen extends ConsumerWidget {
   const SalesListScreen({super.key});
 
+  /// Placeholder rows drawn while the first read runs.
+  static const int _skeletonRows = 5;
+
+  /// What a failure or a failed refresh calls this request, in member terms.
+  ///
+  /// One name for both tabs, because it is one read: splitting it into "your
+  /// purchases" and "your sales" would describe two requests that do not exist.
+  static const String _operation = 'your purchases and sales';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final salesAsync = ref.watch(mySalesProvider);
     final currentUser = ref.watch(currentUserProvider);
 
     return DefaultTabController(
@@ -37,18 +45,29 @@ class SalesListScreen extends ConsumerWidget {
             ],
           ),
         ),
-        body: salesAsync.when(
-          loading: () => const LoadingIndicator(),
-          error: (error, _) => ErrorView(
-            message: 'Failed to load transactions',
-            onRetry: () => ref.invalidate(mySalesProvider),
+        body: AsyncStateView<List<CashSaleSummary>>(
+          value: ref.watch(mySalesProvider),
+          operation: _operation,
+          onRetry: () async {
+            ref.invalidate(mySalesProvider);
+            await ref.read(mySalesProvider.future);
+          },
+          loadingAnnouncement: 'Loading your purchases and sales',
+          // One placeholder behind both tabs: the read is one request, so a
+          // per-tab placeholder would imply two.
+          skeleton: (_) => ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(AppSpacing.cozy),
+            itemCount: _skeletonRows,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.snug),
+            itemBuilder: (_, _) => const SkeletonListTile(),
           ),
-          data: (sales) {
+          builder: (context, sales) {
+            // Which side of a contract the member is on is read from the rows the
+            // server sent, not decided here (Req 14.12).
             final userId = currentUser?.id ?? '';
-            final purchases =
-                sales.where((s) => s.buyerId == userId).toList();
-            final mySales =
-                sales.where((s) => s.sellerId == userId).toList();
+            final purchases = sales.where((s) => s.buyerId == userId).toList();
+            final mySales = sales.where((s) => s.sellerId == userId).toList();
 
             return TabBarView(
               children: [
@@ -56,12 +75,7 @@ class SalesListScreen extends ConsumerWidget {
                   sales: purchases,
                   emptyIcon: Icons.shopping_bag_outlined,
                   emptyTitle: 'No purchases yet',
-                  emptySubtitle:
-                      'Items you buy will appear here.',
-                  onRefresh: () async {
-                    ref.invalidate(mySalesProvider);
-                    await ref.read(mySalesProvider.future);
-                  },
+                  emptySubtitle: 'Items you buy will appear here.',
                 ),
                 _SalesList(
                   sales: mySales,
@@ -69,10 +83,6 @@ class SalesListScreen extends ConsumerWidget {
                   emptyTitle: 'No sales yet',
                   emptySubtitle:
                       'When someone buys from you, it will appear here.',
-                  onRefresh: () async {
-                    ref.invalidate(mySalesProvider);
-                    await ref.read(mySalesProvider.future);
-                  },
                 ),
               ],
             );
@@ -83,46 +93,48 @@ class SalesListScreen extends ConsumerWidget {
   }
 }
 
+/// One tab's rows, or its empty state.
+///
+/// It carries no refresh of its own: the gesture belongs to the [AsyncStateView]
+/// above both tabs, so one pull refreshes the one read behind them and a pull on
+/// either tab cannot start a second (Req 11.6).
 class _SalesList extends StatelessWidget {
   const _SalesList({
     required this.sales,
     required this.emptyIcon,
     required this.emptyTitle,
     required this.emptySubtitle,
-    required this.onRefresh,
   });
 
   final List<CashSaleSummary> sales;
   final IconData emptyIcon;
   final String emptyTitle;
   final String emptySubtitle;
-  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
     if (sales.isEmpty) {
-      return EmptyState(
-        icon: emptyIcon,
-        title: emptyTitle,
-        subtitle: emptySubtitle,
+      return PullableFill(
+        child: EmptyState(
+          icon: emptyIcon,
+          title: emptyTitle,
+          subtitle: emptySubtitle,
+        ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
-        itemCount: sales.length,
-        separatorBuilder: (_, _) =>
-            const SizedBox(height: AppTheme.spacingMd),
-        itemBuilder: (context, index) {
-          final sale = sales[index];
-          return _SaleCard(
-            sale: sale,
-            onTap: () => context.push('/sales/${sale.id}'),
-          );
-        },
-      ),
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(AppSpacing.cozy),
+      itemCount: sales.length,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.snug),
+      itemBuilder: (context, index) {
+        final sale = sales[index];
+        return _SaleCard(
+          sale: sale,
+          onTap: () => context.push('/sales/${sale.id}'),
+        );
+      },
     );
   }
 }
@@ -146,7 +158,7 @@ class _SaleCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          padding: const EdgeInsets.all(AppSpacing.cozy),
           child: Row(
             children: [
               // ─── Item image ────────────────────────────────────
@@ -161,7 +173,7 @@ class _SaleCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceVariant,
+                    color: AppColors.muted,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     border: Border.all(color: AppTheme.border),
                   ),
@@ -172,16 +184,16 @@ class _SaleCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => const Center(
                             child: Icon(Icons.image_outlined,
-                                color: AppTheme.muted, size: 24),
+                                color: AppColors.mutedForeground, size: 24),
                           ),
                         )
                       : const Center(
                           child: Icon(Icons.image_outlined,
-                              color: AppTheme.muted, size: 24),
+                              color: AppColors.mutedForeground, size: 24),
                         ),
                 ),
               ),
-              const SizedBox(width: AppTheme.spacingMd),
+              const SizedBox(width: AppSpacing.snug),
 
               // ─── Content ───────────────────────────────────────
               Expanded(
@@ -201,10 +213,10 @@ class _SaleCard extends StatelessWidget {
                       Money.format(sale.agreedPriceCents, sale.currency),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.accent,
+                        color: AppColors.irisInk,
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingXs),
+                    const SizedBox(height: AppSpacing.snug),
                     Row(
                       children: [
                         if (sale.counterpartDisplayName != null)
@@ -225,7 +237,7 @@ class _SaleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppTheme.spacingSm),
+              const SizedBox(width: AppSpacing.tight),
 
               // ─── Status badge ──────────────────────────────────
               _buildStatusBadge(sale.status),

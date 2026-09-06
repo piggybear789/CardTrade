@@ -1,319 +1,332 @@
-import 'package:cached_network_image/cached_network_image.dart';
+// The listing detail screen, ported from `app/(workspace)/listings/[id]/page.tsx`
+// and its `ListingDetailStack`.
+//
+// REGION ORDER IS THE POINT OF THIS FILE. Gallery, then price and title, then
+// condition and category, then the seller disclosure, then the description, then
+// location — the same facts in the same order the website discloses them, so a
+// buyer is never asked to commit on less information than the web gave them
+// (Req 6.1). The actions region is DOCKED above the Mobile_Shell for a signed-in
+// non-owner looking at an open listing they hold no contract on, and is the last
+// region of the scroll for everyone else.
+//
+// THE ADVISORY IS NOT THE GUARD. The region notice and the seller disclosure are
+// disclosure only: `checkRegionCompatibility` is read here so a member who
+// arrived from a shared link or their watchlist learns before filling in a
+// contract rather than after, and the orchestrator refuses regardless (Req 6.12).
+// Nothing on this screen decides eligibility.
+//
+// REPORTING IS AN ANNOUNCED HANDOFF, not a form that files nothing. See
+// [_ReportSheet] (Req 12.2, 12.5).
+//
+// Requirements 6.1–6.12, 12.2, 12.5, 13.6–13.12, 14.6, 14.12.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import 'package:cardtrade/core/image_url.dart';
 import 'package:cardtrade/core/money.dart';
 import 'package:cardtrade/core/theme.dart';
+import 'package:cardtrade/core/web_handoff.dart';
+import 'package:cardtrade/domain/region/regions.dart';
+import 'package:cardtrade/models/cash_sale.dart';
+import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/models/item.dart';
+import 'package:cardtrade/models/profile.dart';
+import 'package:cardtrade/providers/auth_provider.dart';
 import 'package:cardtrade/providers/listings_provider.dart';
 import 'package:cardtrade/providers/offers_provider.dart';
+import 'package:cardtrade/providers/profile_provider.dart';
+import 'package:cardtrade/providers/sales_provider.dart';
 import 'package:cardtrade/providers/watchlist_provider.dart';
+import 'package:cardtrade/widgets/common/app_scaffold.dart';
+import 'package:cardtrade/widgets/common/condition_badge.dart';
+import 'package:cardtrade/widgets/common/controls.dart';
 import 'package:cardtrade/widgets/common/error_view.dart';
-import 'package:cardtrade/widgets/common/fullscreen_image_viewer.dart';
-import 'package:cardtrade/widgets/common/loading_indicator.dart';
-import 'package:cardtrade/widgets/common/verified_badge.dart';
+import 'package:cardtrade/widgets/common/mobile_chrome.dart';
+import 'package:cardtrade/widgets/common/price_display.dart';
+import 'package:cardtrade/widgets/common/skeleton.dart';
 
-/// Detail screen for a single listing — Xianyu-style mobile marketplace layout.
-///
-/// Displays image carousel, seller row, price block, metadata, description,
-/// details section, and a sticky bottom action bar with buy/chat/offer CTAs.
+import 'package:cardtrade/features/listings/widgets/listing_actions.dart';
+import 'package:cardtrade/features/listings/widgets/listing_description.dart';
+import 'package:cardtrade/features/listings/widgets/listing_gallery.dart';
+import 'package:cardtrade/features/listings/widgets/listing_notice.dart';
+import 'package:cardtrade/features/listings/widgets/listing_seller.dart';
+
+/// One listing, in full.
 class ListingDetailScreen extends ConsumerWidget {
-  const ListingDetailScreen({
-    required this.itemId,
-    super.key,
-  });
+  const ListingDetailScreen({required this.itemId, super.key});
 
   final String itemId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final itemAsync = ref.watch(itemDetailProvider(itemId));
+    final AsyncValue<Item?> itemAsync = ref.watch(itemDetailProvider(itemId));
 
     return itemAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: LoadingIndicator()),
-      ),
-      error: (error, _) => Scaffold(
-        appBar: AppBar(),
+      loading: () => const AppScaffold(body: _DetailSkeleton()),
+      error: (Object error, _) => AppScaffold(
+        onBack: () => context.pop(),
         body: ErrorView(
           message: error.toString(),
           onRetry: () => ref.invalidate(itemDetailProvider(itemId)),
         ),
       ),
-      data: (item) {
+      data: (Item? item) {
         if (item == null) {
-          return Scaffold(
-            appBar: AppBar(),
+          return AppScaffold(
+            onBack: () => context.pop(),
             body: const ErrorView(
               title: 'Listing not found',
               message: 'This listing may have been removed.',
             ),
           );
         }
-        return _DetailContent(item: item);
+        return _DetailView(item: item);
       },
     );
   }
 }
 
-class _DetailContent extends ConsumerStatefulWidget {
-  const _DetailContent({required this.item});
+class _DetailView extends ConsumerWidget {
+  const _DetailView({required this.item});
 
   final Item item;
 
-  @override
-  ConsumerState<_DetailContent> createState() => _DetailContentState();
-}
-
-class _DetailContentState extends ConsumerState<_DetailContent> {
-  final PageController _pageController = PageController();
-  bool _descriptionExpanded = false;
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  /// Shares this listing via the system share sheet.
-  void _shareItem(Item item) {
-    final url = '${const String.fromEnvironment('WEB_APP_URL', defaultValue: 'https://cardtrade.app')}/listings/${item.id}';
+  /// Shares this listing, through the same web URL the handoff already owns
+  /// (Req 14.6).
+  void _share() {
     SharePlus.instance.share(
-      ShareParams(
-        text: '${item.title} — $url',
-      ),
+      ShareParams(text: '${item.title} — ${WebHandoff.listing(item.id)}'),
     );
   }
 
-  /// Shows a modal bottom sheet for reporting this listing.
-  Future<void> _showReportSheet(BuildContext context, String itemId) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => _ReportSheet(itemId: itemId),
-    );
-  }
+  Future<void> _report(BuildContext context) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _ReportSheet(itemId: item.id),
+      );
+
+  Future<void> _makeOffer(BuildContext context) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _MakeOfferSheet(item: item),
+      );
 
   @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-    final isShopfront = item.isShopfront;
-    final isWatching = ref.watch(isWatchingProvider(item.id));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final String? viewerId = ref.watch(currentUserProvider)?.id;
+    final bool isOwner = viewerId != null && viewerId == item.ownerId;
+    final bool isAuthenticated = viewerId != null;
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // ─── 1. Image Carousel ──────────────────────────────────────
-          SliverToBoxAdapter(
-            child: _ImageCarousel(
-              images: item.imagePaths,
-              pageController: _pageController,
-              onShare: () => _shareItem(item),
-            ),
+    final AsyncValue<PublicProfile?> sellerAsync =
+        ref.watch(publicProfileProvider(item.ownerId));
+    final PublicProfile? seller = sellerAsync.value;
+
+    // A binder or bulk listing is never RESERVED and never SOLD — it holds
+    // nothing — so being unclosed is the whole test of whether it is open for
+    // business (0064). A single listing is open only while AVAILABLE.
+    final bool isOpen = item.isShopfront
+        ? item.closedAt == null && !item.hidden
+        : item.isAvailable;
+
+    final List<CashSaleSummary> contracts = _liveContractsOnThisItem(ref);
+    final List<CashSaleSummary> mine = isOwner
+        ? const <CashSaleSummary>[]
+        : contracts
+            .where((CashSaleSummary sale) => sale.buyerId == viewerId)
+            .toList();
+    final String? myContractId = mine.isEmpty ? null : mine.first.id;
+    final List<CashSaleSummary> openContracts = isOwner
+        ? contracts
+            .where((CashSaleSummary sale) => sale.sellerId == viewerId)
+            .toList()
+        : const <CashSaleSummary>[];
+
+    final bool docked = !isOwner && isOpen && myContractId == null;
+
+    final ListingActions actions = ListingActions(
+      item: item,
+      placement: docked
+          ? ListingActionsPlacement.docked
+          : ListingActionsPlacement.inline,
+      isOwner: isOwner,
+      isAuthenticated: isAuthenticated,
+      isOpen: isOpen,
+      hasSellerDisclosure: _disclosedName(seller) != null,
+      regionNotice: _regionNotice(ref, seller, isOwner: isOwner),
+      myContractId: myContractId,
+      openContracts: openContracts,
+      onMakeOffer: () => _makeOffer(context),
+    );
+
+    return AppScaffold(
+      onBack: () => context.pop(),
+      backSemanticLabel: 'Back to the catalog',
+      actions: <ChromeAction>[
+        ChromeAction(
+          icon: Icons.share_outlined,
+          semanticLabel: 'Share this listing',
+          onPressed: _share,
+        ),
+        // Reporting is offered to a signed-in non-owner only, as the web strip
+        // does: an owner reports their own listing to nobody.
+        if (isAuthenticated && !isOwner)
+          ChromeAction(
+            icon: Icons.flag_outlined,
+            semanticLabel: 'Report this listing',
+            onPressed: () => _report(context),
           ),
+      ],
+      bottomBar: docked ? actions : null,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(itemDetailProvider(item.id));
+          ref.invalidate(publicProfileProvider(item.ownerId));
+        },
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            // ── 1. Gallery ──────────────────────────────────────────────────
+            ListingGallery(title: item.title, imagePaths: item.imagePaths),
 
-          // ─── Content ────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingLg,
-              ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.group),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppTheme.spacingLg),
+                spacing: AppSpacing.group,
+                children: <Widget>[
+                  // ── 2. Price and title ────────────────────────────────────
+                  _PriceAndTitle(item: item),
 
-                  // ─── 2. Seller row ────────────────────────────────
-                  _SellerRow(item: item),
+                  // ── 3. Condition and category ─────────────────────────────
+                  _ConditionAndCategory(item: item),
 
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── 3. Price block ───────────────────────────────
-                  _PriceBlock(item: item),
-
-                  const SizedBox(height: AppTheme.spacingMd),
-
-                  // ─── 4. Metadata row ──────────────────────────────
-                  _MetadataRow(item: item),
-
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── 5. Shopfront banner ──────────────────────────
-                  if (isShopfront) ...[
-                    _ShopfrontBanner(),
-                    const SizedBox(height: AppTheme.spacingXl),
-                  ],
-
-                  // ─── 6. Title ─────────────────────────────────────
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingMd),
-
-                  // ─── 7. Description ───────────────────────────────
-                  _DescriptionBlock(
-                    description: item.description,
-                    expanded: _descriptionExpanded,
-                    onToggle: () {
-                      setState(
-                        () => _descriptionExpanded = !_descriptionExpanded,
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── 8. Details section ───────────────────────────
-                  _DetailsSection(item: item),
-
-                  // ─── 9. Report link ───────────────────────────────
-                  const SizedBox(height: AppTheme.spacingXxl),
-                  TextButton(
-                    onPressed: () => _showReportSheet(context, item.id),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(0, 44),
-                      padding: EdgeInsets.zero,
-                      foregroundColor: AppTheme.muted,
-                      textStyle: AppTheme.metaText,
+                  // A binder's copy states that NOTHING IS HELD, because on
+                  // every other listing opening a contract reserves the goods
+                  // and leaving that implicit is the difference between a
+                  // disappointed buyer and a misled one (Req 6.7).
+                  if (item.isShopfront)
+                    const ListingNotice(
+                      icon: Icons.collections_bookmark_outlined,
+                      message:
+                          'This is a binder or bulk listing. Browse it and ask '
+                          'the seller for the cards you want — nothing is held '
+                          'until you and the seller agree terms.',
                     ),
-                    child: const Text('Report this listing'),
+
+                  // ── 4. Seller disclosure ──────────────────────────────────
+                  ListingSeller(
+                    displayName: seller?.displayName,
+                    avatarUrl: seller?.avatarPath == null
+                        ? null
+                        : ImageUrl.avatar(seller!.avatarPath),
+                    identityVerified: item.sellerIdentityVerified,
+                    disclosedName: _disclosedName(seller),
+                    rating: seller?.rating ?? item.sellerRating,
+                    ratingCount: seller?.ratingCount ?? 0,
+                    isOwner: isOwner,
+                    onOpenProfile: () => context
+                        .push(isOwner ? '/profile' : '/sellers/${item.ownerId}'),
                   ),
 
-                  // Bottom safe area for action bar
-                  const SizedBox(height: 80),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+                  // ── 5. Description ────────────────────────────────────────
+                  ListingDescription(description: item.description),
 
-      // ─── Sticky Bottom Action Bar ────────────────────────────────────
-      bottomNavigationBar: _BottomBar(
-        item: item,
-        isShopfront: isShopfront,
-        isWatching: isWatching,
-      ),
-    );
-  }
-}
-
-// ─── 2. Seller Row ────────────────────────────────────────────────────────────
-
-class _SellerRow extends StatelessWidget {
-  const _SellerRow({required this.item});
-
-  final Item item;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'View seller profile',
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          onTap: () => context.push('/sellers/${item.ownerId}'),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
-              child: Row(
-                children: [
-                  // Small avatar
-                  const CircleAvatar(
-                    radius: 14,
-                    backgroundColor: AppTheme.border,
-                    child: Icon(Icons.person, size: 14, color: AppTheme.muted),
-                  ),
-                  const SizedBox(width: AppTheme.spacingMd),
-
-                  // Display name
-                  const Text(
-                    'Seller',
-                    style: AppTheme.rowName,
-                  ),
-
-                  // Verified badge
-                  if (item.sellerIdentityVerified) ...[
-                    const SizedBox(width: AppTheme.spacingXs),
-                    const VerifiedBadge(size: VerifiedBadgeSize.small),
-                  ],
-
-                  const Spacer(),
-
-                  // Location on right
+                  // ── 6. Location ───────────────────────────────────────────
                   if (item.locationLabel != null)
-                    Text(
-                      item.locationLabel!,
-                      style: AppTheme.metaText,
-                    ),
+                    _Location(label: item.locationLabel!),
+
+                  // The actions region, inline as the last region wherever the
+                  // docked bar is not drawn (Req 6.1).
+                  if (!docked) actions,
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+
+  /// The provider-verified legal name the server discloses for this seller, or
+  /// null.
+  ///
+  /// Read from `public_profiles`, which is the only place the client sees it. A
+  /// blank string is an absence, not a name.
+  static String? _disclosedName(PublicProfile? seller) {
+    final String name = seller?.identityCheckName?.trim() ?? '';
+    return name.isEmpty ? null : name;
+  }
+
+  /// Every live contract the SERVER already returns to this member, narrowed to
+  /// this listing.
+  ///
+  /// No new query and no new rule: `mySalesProvider` is the member's own
+  /// RLS-scoped sales list, and `isTerminalCashSaleStatus` is the existing
+  /// predicate for whether one has finished.
+  List<CashSaleSummary> _liveContractsOnThisItem(WidgetRef ref) {
+    final List<CashSaleSummary> sales = ref.watch(mySalesProvider).value ??
+        const <CashSaleSummary>[];
+    return sales
+        .where((CashSaleSummary sale) =>
+            sale.itemId == item.id && !isTerminalCashSaleStatus(sale.status))
+        .toList();
+  }
+
+  /// Why this viewer and this seller cannot contract across their regions, or
+  /// null.
+  ///
+  /// Evaluated ONLY through `checkRegionCompatibility`, the same rule the
+  /// orchestrator follows. A viewer who has simply not set their own region is
+  /// not warned here: that is their own incomplete onboarding rather than
+  /// anything about this listing, and it is surfaced where it can be fixed.
+  String? _regionNotice(
+    WidgetRef ref,
+    PublicProfile? seller, {
+    required bool isOwner,
+  }) {
+    if (isOwner) return null;
+    final Profile? viewer = ref.watch(myProfileProvider).value;
+    if (viewer == null || seller == null) return null;
+    final RegionMismatch? mismatch =
+        checkRegionCompatibility(viewer.regionCode, seller.regionCode);
+    if (mismatch == null) return null;
+    if (mismatch.reason == RegionMismatchReason.unknownRegion) return null;
+    return mismatch.message;
+  }
 }
 
-// ─── 3. Price Block ───────────────────────────────────────────────────────────
-
-class _PriceBlock extends StatelessWidget {
-  const _PriceBlock({required this.item});
+/// The hero price and the listing's title.
+///
+/// The price is the `display` level of the Type_Scale and nothing else on this
+/// screen is drawn larger (Req 6.2). A binder's figure is an indicative "from",
+/// which the role marks in words rather than by shrinking a fraction of it.
+class _PriceAndTitle extends StatelessWidget {
+  const _PriceAndTitle({required this.item});
 
   final Item item;
 
   @override
   Widget build(BuildContext context) {
-    final isShopfront = item.isShopfront;
-    final priceText = Money.format(item.fmvCents, item.currency);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Price with optional 'from' prefix
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                if (isShopfront)
-                  TextSpan(
-                    text: 'from ',
-                    style: AppTheme.supportText.copyWith(color: AppTheme.gold),
-                  ),
-                TextSpan(
-                  text: priceText,
-                  style: AppTheme.priceHero,
-                ),
-              ],
-            ),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: AppSpacing.snug,
+      children: <Widget>[
+        PriceDisplay(
+          minorUnits: item.fmvCents,
+          currency: item.currency,
+          size: PriceSize.large,
+          showFromPrefix: item.isShopfront,
         ),
-
-        // Condition pill on right
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppTheme.parchment,
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-          ),
-          child: Text(
-            item.condition,
-            style: AppTheme.badgeText.copyWith(color: AppTheme.secondary),
+        Text(
+          item.title,
+          // No line cap: a title cut at a 2.0 text scale is a listing a member
+          // cannot name (Req 13.10).
+          style: AppType.subhead.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppColors.foreground,
           ),
         ),
       ],
@@ -321,642 +334,165 @@ class _PriceBlock extends StatelessWidget {
   }
 }
 
-// ─── 4. Metadata Row ──────────────────────────────────────────────────────────
-
-class _MetadataRow extends ConsumerWidget {
-  const _MetadataRow({required this.item});
+/// The condition, the card game, and how many members are watching.
+class _ConditionAndCategory extends ConsumerWidget {
+  const _ConditionAndCategory({required this.item});
 
   final Item item;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final watchCount = ref.watch(watchCountProvider(item.id)).value ?? 0;
-    final savesLabel = watchCount == 1 ? '1 save' : '$watchCount saves';
-    final kindLabel =
-        item.isShopfront ? 'Binder listing' : 'Single item';
-    final parts = <String>[
-      savesLabel,
+    final int watchCount = ref.watch(watchCountProvider(item.id)).value ?? 0;
+    final List<String> meta = <String>[
       item.category,
-      kindLabel,
+      item.isShopfront ? 'Binder or bulk listing' : 'Single item',
+      if (watchCount > 0) watchCount == 1 ? '1 save' : '$watchCount saves',
     ];
 
-    return Text(
-      parts.join(' · '),
-      style: AppTheme.metaText,
-    );
-  }
-}
-
-// ─── 5. Shopfront Banner ──────────────────────────────────────────────────────
-
-class _ShopfrontBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppTheme.accentLight,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(
-          color: AppTheme.gold.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.library_books_rounded,
-            size: 16,
-            color: AppTheme.accent,
-          ),
-          const SizedBox(width: AppTheme.spacingSm),
-          Expanded(
-            child: Text(
-              'This is a binder listing. Browse the collection and request '
-              'specific items — nothing is held until you agree on terms.',
-              style: AppTheme.supportText.copyWith(color: AppTheme.accentDark),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── 7. Description Block ─────────────────────────────────────────────────────
-
-class _DescriptionBlock extends StatelessWidget {
-  const _DescriptionBlock({
-    required this.description,
-    required this.expanded,
-    required this.onToggle,
-  });
-
-  final String description;
-  final bool expanded;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final needsExpand = description.length > 200;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Semantics(
-          button: needsExpand,
-          label: needsExpand
-              ? (expanded ? 'Collapse description' : 'Expand description')
-              : null,
-          child: GestureDetector(
-            onTap: needsExpand ? onToggle : null,
-            child: AnimatedCrossFade(
-              firstChild: ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.white, Colors.white, Colors.transparent],
-                  stops: [0.0, 0.7, 1.0],
-                ).createShader(bounds),
-                blendMode: BlendMode.dstIn,
-                child: Text(
-                  description,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.bodyText,
-                ),
-              ),
-              secondChild: Text(
-                description,
-                style: AppTheme.bodyText,
-              ),
-              crossFadeState: expanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 200),
-            ),
+      spacing: AppSpacing.snug,
+      children: <Widget>[
+        // A binder holds mixed stock, so it states no single condition.
+        if (!item.isShopfront && item.condition.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConditionBadge(condition: item.condition),
           ),
-        ),
-        if (needsExpand) ...[
-          const SizedBox(height: AppTheme.spacingXs),
-          TextButton(
-            onPressed: onToggle,
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: EdgeInsets.zero,
-              foregroundColor: AppTheme.accent,
-              textStyle: AppTheme.supportText.copyWith(
-                fontWeight: FontWeight.w500,
-                color: AppTheme.accent,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 14,
-                  color: AppTheme.accent,
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  expanded ? 'Show less' : 'Read more',
-                ),
-              ],
-            ),
-          ),
-        ],
+        Text(meta.join(' · '), style: AppText.metaText),
       ],
     );
   }
 }
 
-// ─── 8. Details Section ───────────────────────────────────────────────────────
-
-class _DetailsSection extends StatelessWidget {
-  const _DetailsSection({required this.item});
-
-  final Item item;
-
-  @override
-  Widget build(BuildContext context) {
-    final kindLabel =
-        item.isShopfront ? 'Binder listing' : 'Single item';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _DetailLabelValue(label: 'Condition', value: item.condition),
-        const SizedBox(height: AppTheme.spacingSm),
-        _DetailLabelValue(label: 'Game', value: item.category),
-        const SizedBox(height: AppTheme.spacingSm),
-        _DetailLabelValue(label: 'Listing type', value: kindLabel),
-        if (item.locationLabel != null) ...[
-          const SizedBox(height: AppTheme.spacingSm),
-          _DetailLabelValue(label: 'Location', value: item.locationLabel!),
-        ],
-      ],
-    );
-  }
-}
-
-class _DetailLabelValue extends StatelessWidget {
-  const _DetailLabelValue({
-    required this.label,
-    required this.value,
-  });
+/// Where the goods are, to suburb precision and no finer.
+class _Location extends StatelessWidget {
+  const _Location({required this.label});
 
   final String label;
-  final String value;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            label,
-            style: AppTheme.detailLabel,
+      spacing: AppSpacing.snug,
+      children: <Widget>[
+        const ExcludeSemantics(
+          child: Icon(
+            Icons.location_on_outlined,
+            size: AppIconSize.base,
+            color: AppColors.mutedForeground,
           ),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: AppTheme.detailValue,
-          ),
+          child: Text('Based near $label', style: AppText.supportText),
         ),
       ],
     );
   }
 }
 
-// ─── Sticky Bottom Bar ────────────────────────────────────────────────────────
-
-class _BottomBar extends ConsumerStatefulWidget {
-  const _BottomBar({
-    required this.item,
-    required this.isShopfront,
-    required this.isWatching,
-  });
-
-  final Item item;
-  final bool isShopfront;
-  final AsyncValue<bool> isWatching;
-
-  @override
-  ConsumerState<_BottomBar> createState() => _BottomBarState();
-}
-
-class _BottomBarState extends ConsumerState<_BottomBar> {
-  bool _isToggling = false;
-
-  Future<void> _handleWatchlistToggle() async {
-    if (_isToggling) return;
-    setState(() => _isToggling = true);
-    try {
-      final service = ref.read(watchlistServiceProvider);
-      final watching = widget.isWatching.value ?? false;
-      if (watching) {
-        await service.removeFromWatchlist(widget.item.id);
-      } else {
-        await service.addToWatchlist(widget.item.id);
-      }
-      ref.invalidate(isWatchingProvider(widget.item.id));
-      ref.invalidate(watchCountProvider(widget.item.id));
-      ref.invalidate(savedItemsProvider);
-    } finally {
-      if (mounted) setState(() => _isToggling = false);
-    }
-  }
+/// The detail screen while it loads: the same regions, at the same sizes.
+///
+/// The gallery box is reserved to the shape the gallery will draw, so the copy
+/// below it does not walk down the screen when the photo arrives (Req 11.1).
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
-    final isShopfront = widget.isShopfront;
-    final isWatching = widget.isWatching;
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppTheme.spacingLg,
-        AppTheme.spacingMd,
-        AppTheme.spacingLg,
-        MediaQuery.of(context).padding.bottom + AppTheme.spacingMd,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: const Border(
-          top: BorderSide(color: AppTheme.border),
-        ),
-        boxShadow: AppTheme.shadowMd,
-      ),
-      child: Row(
-        children: [
-          // Chat icon button (44x44 touch target)
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              onPressed: () => context.push('/messages'),
-              icon: const Icon(
-                Icons.chat_bubble_outline,
-                size: 20,
-                color: AppTheme.secondary,
-              ),
-            ),
+    return const SkeletonRegion(
+      announcement: 'Loading this listing',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          AspectRatio(
+            aspectRatio: 1,
+            child: SkeletonBox(height: double.infinity, borderRadius: 0),
           ),
-
-          // Save/star icon button (44x44 touch target)
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              onPressed: _handleWatchlistToggle,
-              icon: Icon(
-                isWatching.value == true
-                    ? Icons.star_rounded
-                    : Icons.star_border_rounded,
-                size: 22,
-                color: isWatching.value == true
-                    ? AppTheme.gold
-                    : AppTheme.secondary,
-              ),
-            ),
-          ),
-
-          const SizedBox(width: AppTheme.spacingSm),
-
-          // Offer text button (single listings only)
-          if (!isShopfront) ...[
-            TextButton(
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) => _MakeOfferSheet(item: item),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: const Size(0, 36),
-                textStyle: AppTheme.supportText.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              child: const Text('Offer'),
-            ),
-            const SizedBox(width: AppTheme.spacingSm),
-          ],
-
-          // Buy Now / Browse & Buy
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => context.push('/sales/buy/${item.id}'),
-              child: Text(isShopfront ? 'Browse & Buy' : 'Buy Now'),
-            ),
-          ),
-
-          const SizedBox(width: AppTheme.spacingSm),
-
-          // Chat filled button
-          Expanded(
-            child: FilledButton(
-              onPressed: () => context.push('/messages'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.gold,
-              ),
-              child: const Text('Chat'),
+          Padding(
+            padding: EdgeInsets.all(AppSpacing.group),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: AppSpacing.group,
+              children: <Widget>[
+                SkeletonTextLines(level: AppText.priceHero, widths: <double>[0.4]),
+                SkeletonTextLines(
+                    level: AppType.subhead, widths: <double>[1, 0.7]),
+                SkeletonTextLines(level: AppText.metaText, widths: <double>[0.5]),
+                SkeletonTextLines(
+                    level: AppText.bodyText, widths: <double>[1, 1, 0.8]),
+              ],
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-// ─── Image Carousel ───────────────────────────────────────────────────────────
-
-/// Image carousel with PageView and smooth page indicator dots.
-class _ImageCarousel extends StatelessWidget {
-  const _ImageCarousel({
-    required this.images,
-    required this.pageController,
-    this.onShare,
-  });
-
-  final List<String> images;
-  final PageController pageController;
-  final VoidCallback? onShare;
-
-  @override
-  Widget build(BuildContext context) {
-    if (images.isEmpty) {
-      return Container(
-        height: 350,
-        color: AppTheme.surfaceVariant,
-        child: const Center(
-          child: Icon(Icons.image_outlined, size: 64, color: AppTheme.muted),
-        ),
-      );
-    }
-
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      children: [
-        SizedBox(
-          height: 350,
-          child: PageView.builder(
-            controller: pageController,
-            itemCount: images.length,
-            itemBuilder: (context, index) {
-              return Semantics(
-                button: true,
-                label: 'View image ${index + 1} of ${images.length} fullscreen',
-                child: GestureDetector(
-                  onTap: () => FullscreenImageViewer.show(
-                    context,
-                    images,
-                    initialIndex: index,
-                  ),
-                child: CachedNetworkImage(
-                  imageUrl:
-                      ImageUrl.itemImage(images[index], size: ImageSize.large),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (_, _) => Container(
-                    color: AppTheme.surfaceVariant,
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (_, _, _) => Container(
-                    color: AppTheme.surfaceVariant,
-                    child: const Icon(Icons.broken_image_outlined,
-                        size: 48, color: AppTheme.muted),
-                  ),
-                ),
-              ),
-              );
-            },
-          ),
-        ),
-
-        // Back button
-        Positioned(
-          top: MediaQuery.of(context).padding.top + AppTheme.spacingSm,
-          left: AppTheme.spacingMd,
-          child: Semantics(
-            button: true,
-            label: 'Go back',
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Material(
-                color: AppTheme.surface.withValues(alpha: 0.9),
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => context.pop(),
-                  child: const Center(
-                    child: Icon(Icons.arrow_back_rounded,
-                        size: 20, color: AppTheme.primary),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // Share button
-        Positioned(
-          top: MediaQuery.of(context).padding.top + AppTheme.spacingSm,
-          right: AppTheme.spacingMd,
-          child: Semantics(
-            button: true,
-            label: 'Share this listing',
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Material(
-                color: AppTheme.surface.withValues(alpha: 0.9),
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onShare,
-                  child: const Center(
-                    child: Icon(Icons.share_rounded,
-                        size: 20, color: AppTheme.primary),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // Page indicator dots
-        if (images.length > 1)
-          Positioned(
-            bottom: AppTheme.spacingLg,
-            child: SmoothPageIndicator(
-              controller: pageController,
-              count: images.length,
-              effect: WormEffect(
-                dotHeight: 8,
-                dotWidth: 8,
-                spacing: 6,
-                activeDotColor: AppTheme.accent,
-                dotColor: AppTheme.surface.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }
 
 // ─── Report Sheet ─────────────────────────────────────────────────────────────
 
-/// Modal bottom sheet for reporting a listing.
+/// Reporting a listing — an announced handoff to the website (Req 12.2, 12.5).
 ///
-/// Collects a reason and optional details, then submits (Req: user safety).
-class _ReportSheet extends StatefulWidget {
+/// THIS SHEET USED TO BE A FORM THAT FILED NOTHING. It collected a reason and a
+/// description, enabled a "Submit report" button, closed itself and then said in a
+/// snack bar that reporting was not available — after the member had written their
+/// evidence out and watched it be discarded. `lib/actions/reports.ts` is a Server
+/// Action with no mobile endpoint in front of it, so the app cannot file the
+/// report; that is a reason to hand off, not a reason to mime the form.
+///
+/// The control is NOT removed. Removing it would leave a member looking at a
+/// counterfeit or a scam with no way to raise it, which is worse than a browser
+/// trip.
+class _ReportSheet extends StatelessWidget {
   const _ReportSheet({required this.itemId});
 
   final String itemId;
 
   @override
-  State<_ReportSheet> createState() => _ReportSheetState();
-}
-
-class _ReportSheetState extends State<_ReportSheet> {
-  static const _reasons = [
-    'Inappropriate content',
-    'Counterfeit/fake item',
-    'Misleading description',
-    'Scam/fraud',
-    'Other',
-  ];
-
-  String? _selectedReason;
-  final _detailsController = TextEditingController();
-  bool _isSubmitting = false;
-
-  @override
-  void dispose() {
-    _detailsController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_selectedReason == null) return;
-
-    setState(() => _isSubmitting = true);
-
-    // Report submission is not yet implemented — the server has no report
-    // endpoint. Show an honest message rather than faking success.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reporting is not yet available. Please contact support if you believe this listing violates our policies.'),
-        duration: Duration(seconds: 5),
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final Uri page = WebHandoff.reportListing(itemId);
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppTheme.spacingLg,
-        AppTheme.spacingLg,
-        AppTheme.spacingLg,
-        MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingLg,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Title
-          Text(
-            'Report this listing',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Reason dropdown
-          DropdownButtonFormField<String>(
-            initialValue: _selectedReason,
-            decoration: const InputDecoration(
-              labelText: 'Reason',
-              border: OutlineInputBorder(),
-            ),
-            items: _reasons
-                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                .toList(),
-            onChanged: (value) => setState(() => _selectedReason = value),
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
-
-          // Details text field
-          TextField(
-            controller: _detailsController,
-            decoration: const InputDecoration(
-              labelText: 'Details (optional)',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Submit button
-          FilledButton(
-            onPressed:
-                _selectedReason != null && !_isSubmitting ? _submit : null,
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Submit Report'),
-          ),
-        ],
-      ),
+    return _SheetFrame(
+      title: 'Report this listing',
+      children: <Widget>[
+        const Text(
+          'Reports go to our moderation queue with the listing attached. The '
+          'seller is not told who reported them.',
+          style: AppText.supportText,
+          softWrap: true,
+        ),
+        Text(
+          'Opens ${WebHandoff.pageLabel(page)} in your browser. You will leave '
+          'the app.',
+          style: AppText.metaText,
+          softWrap: true,
+        ),
+        AppButton(
+          label: 'Report this listing on the website',
+          icon: Icons.open_in_new_rounded,
+          variant: AppButtonVariant.action,
+          fillWidth: true,
+          // The browser is opened while this context is still mounted, so a
+          // failure to launch can still be reported on it. The sheet closes
+          // afterwards rather than before.
+          onPressed: () async {
+            await WebHandoff.openOrWarn(context, page);
+            if (context.mounted) Navigator.of(context).pop();
+          },
+        ),
+      ],
     );
   }
 }
-
 
 // ─── Make Offer Sheet ─────────────────────────────────────────────────────────
 
-/// Modal bottom sheet for making an offer on a listing.
+/// An offer on a SINGLE listing: one amount against one object.
 ///
-/// Collects a dollar amount and optional message, then submits via the
-/// offers service. Uses integer-only math to convert dollars to cents.
+/// A binder is never offered on — one amount against a whole inventory says
+/// nothing about which cards — which is why the control that opens this sheet is
+/// absent there (0081, Req 6.10).
 class _MakeOfferSheet extends ConsumerStatefulWidget {
   const _MakeOfferSheet({required this.item});
 
@@ -967,9 +503,10 @@ class _MakeOfferSheet extends ConsumerStatefulWidget {
 }
 
 class _MakeOfferSheetState extends ConsumerState<_MakeOfferSheet> {
-  final _amountController = TextEditingController();
-  final _messageController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
   bool _isSubmitting = false;
+  String? _amountError;
 
   @override
   void dispose() {
@@ -978,56 +515,55 @@ class _MakeOfferSheetState extends ConsumerState<_MakeOfferSheet> {
     super.dispose();
   }
 
-  /// Parses a dollar string to integer cents using INTEGER math only.
-  /// Returns null if the input is invalid.
-  int? _parseDollarsToCents(String input) {
-    final trimmed = input.trim();
+  /// Parses a major-unit string to integer minor units using INTEGER math only.
+  /// Returns null where the input is not an amount.
+  int? _parseToMinorUnits(String input) {
+    final String trimmed = input.trim();
     if (trimmed.isEmpty) return null;
 
-    final parts = trimmed.split('.');
+    final List<String> parts = trimmed.split('.');
     if (parts.length > 2) return null;
 
-    final wholePart = int.tryParse(parts[0]);
-    if (wholePart == null || wholePart < 0) return null;
+    final int? whole = int.tryParse(parts[0]);
+    if (whole == null || whole < 0) return null;
 
-    int fracPart = 0;
+    int fraction = 0;
     if (parts.length == 2) {
-      var fracStr = parts[1];
-      if (fracStr.length > 2) return null; // max 2 decimal places
-      fracStr = fracStr.padRight(2, '0');
-      fracPart = int.tryParse(fracStr) ?? 0;
+      String digits = parts[1];
+      if (digits.length > 2) return null;
+      digits = digits.padRight(2, '0');
+      fraction = int.tryParse(digits) ?? 0;
     }
 
-    return wholePart * 100 + fracPart;
+    return whole * 100 + fraction;
   }
 
   Future<void> _submit() async {
-    final cents = _parseDollarsToCents(_amountController.text);
-    if (cents == null || cents <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid amount greater than \$0')),
-      );
+    final int? minorUnits = _parseToMinorUnits(_amountController.text);
+    if (minorUnits == null || minorUnits <= 0) {
+      setState(() => _amountError = 'Enter an amount greater than zero.');
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _amountError = null;
+      _isSubmitting = true;
+    });
     try {
-      final message = _messageController.text.trim();
+      final String message = _messageController.text.trim();
       await ref.read(offersServiceProvider).makeOffer(
             itemId: widget.item.id,
-            amountCents: cents,
-            message: message.isNotEmpty ? message : null,
+            amountCents: minorUnits,
+            message: message.isEmpty ? null : message,
           );
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offer sent successfully')),
+        const SnackBar(content: Text('Your offer has been sent')),
       );
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send offer: $e')),
-      );
+      setState(() => _amountError = ErrorView.sanitise(error.toString()));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -1035,85 +571,87 @@ class _MakeOfferSheetState extends ConsumerState<_MakeOfferSheet> {
 
   @override
   Widget build(BuildContext context) {
+    return _SheetFrame(
+      title: 'Make an offer',
+      children: <Widget>[
+        Text(
+          'Asking ${Money.format(widget.item.fmvCents, widget.item.currency)}',
+          style: AppText.supportText,
+        ),
+        AppTextField(
+          controller: _amountController,
+          label: 'Your offer',
+          hint: '0.00',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          errorText: _amountError,
+          enabled: !_isSubmitting,
+        ),
+        AppTextField(
+          controller: _messageController,
+          label: 'Message (optional)',
+          maxLines: 2,
+          enabled: !_isSubmitting,
+        ),
+        AppButton(
+          label: _isSubmitting ? 'Sending…' : 'Send offer',
+          variant: AppButtonVariant.action,
+          fillWidth: true,
+          onPressed: _isSubmitting ? null : _submit,
+        ),
+      ],
+    );
+  }
+}
+
+/// The shared frame both sheets sit in: drag handle, title, then content spaced
+/// far enough apart that adjacent 48-pixel touch targets do not intersect
+/// (Req 13.6).
+class _SheetFrame extends StatelessWidget {
+  const _SheetFrame({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  /// The drag handle's drawn size — a decorative bar, not a control.
+  static const double _handleWidth = AppSpacing.section + AppSpacing.snug;
+  static const double _handleHeight = AppSpacing.tight;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppTheme.spacingLg,
-        AppTheme.spacingLg,
-        AppTheme.spacingLg,
-        MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingLg,
+      padding: EdgeInsets.only(
+        left: AppSpacing.group,
+        right: AppSpacing.group,
+        top: AppSpacing.cozy,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpacing.group,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
+        spacing: AppSpacing.group,
+        children: <Widget>[
           Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.border,
-                borderRadius: BorderRadius.circular(2),
+            child: ExcludeSemantics(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+                child: const SizedBox(
+                  width: _handleWidth,
+                  height: _handleHeight,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Title
           Text(
-            'Make an offer',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
-
-          // Asking price reference
-          Text(
-            'Asking: ${Money.format(widget.item.fmvCents, widget.item.currency)}',
-            style: AppTheme.supportText,
-          ),
-          const SizedBox(height: AppTheme.spacingXl),
-
-          // Amount text field
-          TextField(
-            controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: AppTheme.priceCard.copyWith(fontSize: 18),
-            decoration: InputDecoration(
-              prefixText: '\$ ',
-              prefixStyle: AppTheme.priceCard.copyWith(fontSize: 18),
-              border: const OutlineInputBorder(),
-              hintText: '0.00',
+            title,
+            style: AppType.subhead.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.foreground,
             ),
           ),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Optional message
-          TextField(
-            controller: _messageController,
-            maxLines: 2,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'Add a message (optional)',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingXl),
-
-          // Submit button
-          FilledButton(
-            onPressed: _isSubmitting ? null : _submit,
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Submit Offer'),
-          ),
+          ...children,
         ],
       ),
     );

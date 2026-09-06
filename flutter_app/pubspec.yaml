@@ -1,5 +1,5 @@
 name: cardtrade
-description: CardTrade — peer-to-peer collectibles marketplace with trustless escrow.
+description: NoDitto — buy, sell and trade trading cards, with your payment held in escrow and swaps backed by a temporary card hold.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -102,9 +102,19 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # `assets/images/` and `assets/images/empty_states/` are deliberately NOT declared.
+  # Req 5.6 of .kiro/specs/mobile-release-readiness: a declared directory must ship at
+  # least one asset or the declaration goes. Nothing in `lib/` or `test/` resolves a path
+  # under either one — no `AssetImage`, `Image.asset`, `SvgPicture.asset`, `rootBundle`
+  # or `precacheImage` — so both held only `.gitkeep` and bundled it into the binary.
+  # If the branded empty-state illustrations AUDIT.md asks for are ever drawn, declare
+  # the directory in the same change that adds the artwork and the widget reading it.
+  #
+  # `assets/brand/` is NOT declared either, and must not be: it is SOURCE artwork, read
+  # by `tool/generate_brand_icons.mjs` at generation time and by Android resources at
+  # build time. No Dart code loads it, so declaring it would ship the launcher masters
+  # inside the app for nothing.
   assets:
-    - assets/images/
-    - assets/images/empty_states/
     # The typeface licence ships WITH the binary because OFL 1.1 requires the licence
     # to travel with the font, and a `fonts:` entry bundles only the face itself.
     - assets/fonts/OFL.txt

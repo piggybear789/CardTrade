@@ -1,27 +1,45 @@
-import 'package:cached_network_image/cached_network_image.dart';
+// One tile in the browse mosaic, ported from `CatalogItemCard` in
+// `components/listings/ItemCard.tsx`.
+//
+// The tile is bounded by a one-pixel `--border` edge and not by its shadow: the
+// card and the page are both white now, so the edge is the only thing separating
+// them (Req 3.10).
+//
+// WHAT IS DELIBERATELY ABSENT. Location, which the web keeps off the phone tile
+// because the tile has three facts' worth of room and where the parcel ships from
+// is not one of the three (Req 5.3). And a condition on a binder, which holds
+// mixed stock and therefore states no single one.
+//
+// Requirements 5.1–5.8, 5.11, 5.12, 13.6, 13.7, 13.11, 13.12, 14.5.
+
 import 'package:flutter/material.dart';
-import 'package:cardtrade/core/image_url.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:cardtrade/core/image_url.dart';
 import 'package:cardtrade/core/money.dart';
 import 'package:cardtrade/core/theme.dart';
 import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/models/item.dart';
-import 'package:cardtrade/providers/watchlist_provider.dart';
+import 'package:cardtrade/widgets/common/avatar.dart';
 import 'package:cardtrade/widgets/common/verified_badge.dart';
 
-/// Compact card for the masonry catalog grid — Xianyu-inspired.
-///
-/// Displays an item image, price, title, seller info, and condition.
-/// Tapping navigates to the listing detail screen.
+import 'listing_cover.dart';
+import 'watch_control.dart';
+
+/// A browse tile: cover, title, category and condition, price, seller.
 class ListingCard extends ConsumerStatefulWidget {
   const ListingCard({
     required this.item,
+    this.showWatchControl = true,
     super.key,
   });
 
   final ItemSummary item;
+
+  /// Whether the watchlist control sits on the cover. The web hides it for a
+  /// listing's own owner and for a signed-out reader.
+  final bool showWatchControl;
 
   @override
   ConsumerState<ListingCard> createState() => _ListingCardState();
@@ -29,20 +47,19 @@ class ListingCard extends ConsumerStatefulWidget {
 
 class _ListingCardState extends ConsumerState<ListingCard>
     with SingleTickerProviderStateMixin {
-  late AnimationController _scaleController;
-  late Animation<double> _scaleAnimation;
+  /// The web's `active:scale-[0.97]` press feedback.
+  static const double _pressedScale = 0.97;
+  static const Duration _pressDuration = Duration(milliseconds: 100);
 
-  @override
-  void initState() {
-    super.initState();
-    _scaleController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
-    );
-  }
+  late final AnimationController _scaleController = AnimationController(
+    vsync: this,
+    duration: _pressDuration,
+  );
+
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: _pressedScale,
+  ).animate(CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -50,309 +67,288 @@ class _ListingCardState extends ConsumerState<ListingCard>
     super.dispose();
   }
 
+  /// Req 13.12: under reduce-motion the end state is applied rather than
+  /// animated to, which is the transition collapsing to zero and not the state
+  /// change being dropped.
+  void _press(bool down) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scaleController.value = down ? 1 : 0;
+      return;
+    }
+    if (down) {
+      _scaleController.forward();
+    } else {
+      _scaleController.reverse();
+    }
+  }
+
+  /// Which of the three unavailable states scrims this tile.
+  ///
+  /// Reads only facts the server already reported. A binder is never RESERVED
+  /// and never SOLD — it holds nothing — so it can only be CLOSED (Req 5.11).
+  ListingCoverState get _coverState {
+    final ItemSummary item = widget.item;
+    if (item.listingKind == ListingKind.shopfront) {
+      return item.closedAt == null
+          ? ListingCoverState.open
+          : ListingCoverState.closed;
+    }
+    return switch (item.status) {
+      ItemStatus.sold => ListingCoverState.sold,
+      ItemStatus.reserved => ListingCoverState.reserved,
+      ItemStatus.available => ListingCoverState.open,
+    };
+  }
+
+  /// Everything the tile says, in one sentence, for a reader who cannot see it.
+  ///
+  /// A binder's line states that NOTHING IS HELD, here as well as on the tile,
+  /// because on every other listing opening a contract reserves the goods and
+  /// leaving that implicit is the difference between a disappointed buyer and a
+  /// misled one (Req 5.7).
+  String get _spokenLabel {
+    final ItemSummary item = widget.item;
+    final bool isBinder = item.listingKind == ListingKind.shopfront;
+    final String price = Money.format(item.fmvCents, item.currency);
+    final List<String> parts = <String>[
+      item.title,
+      isBinder ? 'Binder or bulk listing, from $price' : price,
+      if (isBinder)
+        'Nothing is held until you and the seller agree terms'
+      else if (item.condition.isNotEmpty)
+        item.condition,
+      if (_coverState.isUnavailable) _coverState.spokenLabel,
+    ];
+    return parts.join('. ');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
-    final isShopfront = item.listingKind == ListingKind.shopfront;
-    final imageUrl = item.imagePaths.isNotEmpty
-        ? ImageUrl.itemImage(item.imagePaths.first, size: ImageSize.small)
-        : null;
+    final ItemSummary item = widget.item;
+    final bool isBinder = item.listingKind == ListingKind.shopfront;
+    final ListingCoverState state = _coverState;
+
+    final Widget tile = DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border, width: AppMetrics.hairline),
+        boxShadow: AppElevation.market,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          ListingCoverBox(
+            title: item.title,
+            imageUrl: item.imagePaths.isEmpty
+                ? null
+                : ImageUrl.itemImage(item.imagePaths.first,
+                    size: ImageSize.small),
+            state: state,
+            coverWidthPx: item.coverWidthPx,
+            coverHeightPx: item.coverHeightPx,
+            isBinder: isBinder,
+            topRightControl:
+                widget.showWatchControl ? WatchControl(itemId: item.id) : null,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.snug),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: AppSpacing.tight,
+              children: <Widget>[
+                Text(
+                  item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.cardTitle,
+                ),
+                _CategoryAndCondition(
+                  category: item.category,
+                  // A binder holds mixed stock, so it states no condition.
+                  condition: isBinder ? null : item.condition,
+                ),
+                _CardPrice(
+                  minorUnits: item.fmvCents,
+                  currency: item.currency,
+                  indicative: isBinder,
+                ),
+                _SellerRow(item: item),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Semantics(
       button: true,
-      label: '${item.title}, ${Money.format(item.fmvCents, item.currency)}',
+      label: _spokenLabel,
       child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) => Transform.scale(
-          scale: _scaleAnimation.value,
-          child: child,
-        ),
+        animation: _scale,
+        builder: (context, child) =>
+            Transform.scale(scale: _scale.value, child: child),
         child: GestureDetector(
-          onTapDown: (_) => _scaleController.forward(),
+          onTapDown: (_) => _press(true),
           onTapUp: (_) {
-            _scaleController.reverse();
-            context.push('/listings/${item.id}');
+            _press(false);
+            context.push('/listings/${widget.item.id}');
           },
-          onTapCancel: () => _scaleController.reverse(),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            boxShadow: AppTheme.shadowSm,
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ─── Image ─────────────────────────────────────────────
-              Stack(
-                children: [
-                  AspectRatio(
-                    aspectRatio: 3 / 4,
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(AppTheme.radiusLg),
-                      ),
-                      child: imageUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (_, _) => Container(
-                                color: AppTheme.surfaceVariant,
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.image_outlined,
-                                    color: AppTheme.muted,
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (_, _, _) => Container(
-                                color: AppTheme.surfaceVariant,
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.broken_image_outlined,
-                                    color: AppTheme.muted,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Container(
-                              color: AppTheme.surfaceVariant,
-                              child: const Center(
-                                child: Icon(
-                                  Icons.image_outlined,
-                                  color: AppTheme.muted,
-                                  size: 32,
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
-                  // Sold/Reserved overlay
-                  if (item.status != ItemStatus.available)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(AppTheme.radiusLg),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            item.status == ItemStatus.sold
-                                ? 'SOLD'
-                                : 'RESERVED',
-                            style: AppTheme.badgeText.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  // Heart overlay
-                  Positioned(
-                    top: AppTheme.spacingSm,
-                    right: AppTheme.spacingSm,
-                    child: _WatchlistHeart(itemId: item.id),
-                  ),
-                  // Shopfront indicator
-                  if (isShopfront)
-                    Positioned(
-                      top: AppTheme.spacingSm,
-                      left: AppTheme.spacingSm,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.75),
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusSm),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.library_books_rounded,
-                              size: 12,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Binder',
-                              style: AppTheme.badgeText.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-
-              // ─── Content ───────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.cardTitle,
-                    ),
-                    const SizedBox(height: 2),
-
-                    // Price
-                    Text(
-                      isShopfront
-                          ? 'From ${Money.format(item.fmvCents, item.currency)}'
-                          : Money.format(item.fmvCents, item.currency),
-                      style: AppTheme.priceCard,
-                    ),
-                    const SizedBox(height: 2),
-
-                    // Seller row
-                    Row(
-                      children: [
-                        // Tiny avatar
-                        CircleAvatar(
-                          radius: 8,
-                          backgroundColor: AppTheme.surfaceVariant,
-                          backgroundImage: item.ownerAvatarPath != null
-                              ? CachedNetworkImageProvider(
-                                  ImageUrl.avatar(item.ownerAvatarPath))
-                              : null,
-                          child: item.ownerAvatarPath == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 9,
-                                  color: AppTheme.muted,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: AppTheme.spacingXs),
-                        Flexible(
-                          child: Text(
-                            item.ownerDisplayName ?? 'Seller',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTheme.metaText,
-                          ),
-                        ),
-                        if (item.sellerIdentityVerified) ...[
-                          const SizedBox(width: 2),
-                          const VerifiedBadge(size: VerifiedBadgeSize.small),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-
-                    // Location
-                    if (item.locationLabel != null)
-                      Text(
-                        item.locationLabel!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTheme.metaText,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          onTapCancel: () => _press(false),
+          // The whole tile is drawn at 70 percent while it is unavailable, as
+          // the web's `opacity-70` does (Req 5.11).
+          child: state.isUnavailable
+              ? Opacity(opacity: 0.7, child: tile)
+              : tile,
         ),
-      ),
       ),
     );
   }
 }
 
-/// Heart icon overlay for watchlist toggle with optimistic UI.
-class _WatchlistHeart extends ConsumerStatefulWidget {
-  const _WatchlistHeart({required this.itemId});
+/// Game and condition as plain muted reading text with a hairline between them.
+///
+/// Both at the `body` level and de-emphasised by COLOUR, never by dropping a
+/// step (Subtext_Rule, Req 5.3, 2.13).
+class _CategoryAndCondition extends StatelessWidget {
+  const _CategoryAndCondition({required this.category, this.condition});
 
-  final String itemId;
+  final String category;
+  final String? condition;
 
-  @override
-  ConsumerState<_WatchlistHeart> createState() => _WatchlistHeartState();
-}
-
-class _WatchlistHeartState extends ConsumerState<_WatchlistHeart> {
-  bool? _optimisticWatching;
-
-  Future<void> _toggle(bool currentlyWatching) async {
-    final newValue = !currentlyWatching;
-    setState(() => _optimisticWatching = newValue);
-
-    try {
-      final service = ref.read(watchlistServiceProvider);
-      if (newValue) {
-        await service.addToWatchlist(widget.itemId);
-      } else {
-        await service.removeFromWatchlist(widget.itemId);
-      }
-      ref.invalidate(isWatchingProvider(widget.itemId));
-      ref.invalidate(savedItemsProvider);
-    } catch (e) {
-      // Revert on failure
-      if (mounted) {
-        setState(() => _optimisticWatching = currentlyWatching);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not update watchlist'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        // Clear optimistic state once provider has refreshed
-        setState(() => _optimisticWatching = null);
-      }
-    }
-  }
+  /// Height of the hairline between the two facts, the web's `h-3`.
+  static const double _dividerHeight = 12;
 
   @override
   Widget build(BuildContext context) {
-    final isWatching = ref.watch(isWatchingProvider(widget.itemId));
-    final watching = _optimisticWatching ?? (isWatching.value ?? false);
+    final String? stated =
+        (condition == null || condition!.isEmpty) ? null : condition;
 
-    return Semantics(
-      button: true,
-      label: watching ? 'Remove from watchlist' : 'Add to watchlist',
-      child: SizedBox(
-        width: 48,
-        height: 48,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () => _toggle(isWatching.value ?? false),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surface.withValues(alpha: 0.9),
-                shape: BoxShape.circle,
-                boxShadow: AppTheme.shadowSm,
-              ),
-              child: Icon(
-                watching
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-                size: 18,
-                color: watching ? AppTheme.danger : AppTheme.secondary,
-              ),
+    // A Wrap rather than a Row: at a 2.0 text scale the game and the condition
+    // together are wider than a mosaic column, and a Row overflows there. These
+    // two facts are READING TEXT, so Req 13.10 says they reflow onto another line
+    // — unlike the title, the price and the seller's name, which the web clamps
+    // on purpose.
+    return Wrap(
+      spacing: AppSpacing.tight,
+      runSpacing: AppSpacing.tight,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: <Widget>[
+        Text(category, style: AppText.supportText),
+        if (stated != null) ...<Widget>[
+          const SizedBox(
+            width: AppMetrics.hairline,
+            height: _dividerHeight,
+            child: ColoredBox(color: AppColors.border),
+          ),
+          Text(stated, style: AppText.supportText),
+        ],
+      ],
+    );
+  }
+}
+
+/// The card price: symbol at `body`, the digits that decide the purchase at
+/// `head`, the minor units at `body`, all bold in `--iris-ink` with tabular,
+/// lining figures (Req 5.3, 5.4).
+///
+/// Every part is one Type_Scale level of the `priceCard` role, so nothing here
+/// introduces a size — it selects between two that already exist.
+class _CardPrice extends StatelessWidget {
+  const _CardPrice({
+    required this.minorUnits,
+    required this.currency,
+    required this.indicative,
+  });
+
+  final int minorUnits;
+  final String currency;
+
+  /// A binder's price is an indicative "from", not an asking price.
+  final bool indicative;
+
+  /// Splits a FORMATTED amount into symbol, major units and minor units.
+  ///
+  /// Operates on the formatted output rather than the raw minor units because
+  /// both the symbol and the decimal separator are locale-dependent: `Money`
+  /// has already decided them and re-deciding here would drift from it. The same
+  /// regex the web's `splitMoney` uses. Nothing in it is a currency symbol or a
+  /// minor-unit divisor — `Money.format` remains the only money formatter in the
+  /// client (Req 14.5).
+  static ({String symbol, String major, String minor}) split(
+      String formatted) {
+    final RegExpMatch? match =
+        RegExp(r'^(\D*)(.*?)([.,]\d{2})?$').firstMatch(formatted);
+    if (match == null) {
+      return (symbol: '', major: formatted, minor: '');
+    }
+    return (
+      symbol: match.group(1) ?? '',
+      major: match.group(2) ?? '',
+      minor: match.group(3) ?? '',
+    );
+  }
+
+  /// The `priceCard` role stepped down to the `body` level for the parts that
+  /// recede. Weight, colour and figure treatment come from the role.
+  static TextStyle get _atBody => AppText.priceCard.copyWith(
+        fontSize: AppType.body.fontSize,
+        height: AppType.body.height,
+        letterSpacing: AppType.body.letterSpacing,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = split(Money.format(minorUnits, currency));
+
+    return Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          if (indicative)
+            TextSpan(
+              text: 'From ',
+              style: AppText.metaText.copyWith(fontWeight: FontWeight.w600),
             ),
+          TextSpan(text: parts.symbol, style: _atBody),
+          TextSpan(text: parts.major, style: AppText.priceCard),
+          if (parts.minor.isNotEmpty)
+            TextSpan(text: parts.minor, style: _atBody),
+        ],
+      ),
+      maxLines: 1,
+    );
+  }
+}
+
+/// The seller line: a small avatar, the display name, and the identity marker.
+class _SellerRow extends StatelessWidget {
+  const _SellerRow({required this.item});
+
+  final ItemSummary item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      spacing: AppSpacing.tight,
+      children: <Widget>[
+        Avatar(
+          imageUrl: item.ownerAvatarPath == null
+              ? null
+              : ImageUrl.avatar(item.ownerAvatarPath),
+          displayName: item.ownerDisplayName,
+          size: AvatarSize.xs,
+        ),
+        Flexible(
+          child: Text(
+            item.ownerDisplayName ?? 'Seller',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.supportText,
           ),
         ),
-      ),
+        if (item.sellerIdentityVerified)
+          const VerifiedBadge(size: VerifiedBadgeSize.small),
+      ],
     );
   }
 }

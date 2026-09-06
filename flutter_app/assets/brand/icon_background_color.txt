@@ -1,0 +1,5 @@
+#FF77469B
+
+# The adaptive icon background, as a value rather than a raster.
+# Source of truth: AppColors.primary in lib/core/theme/tokens.g.dart.
+# Regenerate with `node tool/generate_brand_icons.mjs` after a token change.

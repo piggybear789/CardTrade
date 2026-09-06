@@ -9,7 +9,7 @@ import 'supabase_service.dart';
 
 /// Production HTTP wrapper around [SupabaseService].
 ///
-/// - Catches PostgrestException and network errors, returns Result<T>.
+/// - Catches PostgrestException and network errors, returns `Result<T>`.
 /// - Retries transient failures (429, 503, network) with exponential backoff.
 /// - Logs errors in debug mode.
 /// - Provides a clean interface for queries and RPC calls.

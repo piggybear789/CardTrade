@@ -243,3 +243,99 @@ export async function getMyTrades(): Promise<
 
   return { ok: true, data: summaries };
 }
+// ---------------------------------------------------------------------------
+// Account closure — the web entry point (Req 7.1)
+// ---------------------------------------------------------------------------
+//
+// One capability, two entry points. `closeAccount` in
+// `domain/orchestrator/accountClosureOrchestrator.ts` is the Account_Closure_Service;
+// this action is the WEB door onto it and `app/api/mobile/account/close` is the mobile
+// one. Nothing below re-derives the Money_In_Flight rule, re-checks eligibility, or
+// writes anything itself — that would be the second copy Req 7.1 exists to prevent.
+//
+// A NOTE ON WHERE CONSTANTS GO. A `'use server'` module may only export async
+// functions, so anything shareable this flow needs — a limit, a label, a code — belongs
+// in `lib/marketplace-constants.ts` (or `lib/actions/result.ts` for types), never as a
+// `export const` here.
+
+import { revalidatePath } from 'next/cache';
+
+import { signOut } from '@/lib/actions/auth';
+import { createDefaultAccountClosureOrchestrator } from '@/domain/orchestrator/supabaseAccountClosureRepository';
+import type { CloseAccountResult } from '@/domain/orchestrator/accountClosureOrchestrator';
+
+/**
+ * Close the signed-in member's own account (Req 7.1, 7.2, 7.3, 7.7).
+ *
+ * TAKES NO PARAMETERS, DELIBERATELY. Every export of a `'use server'` module is an
+ * endpoint that anyone who learns its id can POST to, so a `profileId` argument would
+ * be an attacker-supplied target reaching a service-role-backed write. The caller
+ * identity comes from the session and is passed as BOTH `callerProfileId` and
+ * `targetProfileId`, which makes the orchestrator's own-account guard (Req 7.7) hold
+ * trivially rather than by trusting this action to have checked something.
+ *
+ * The closure instant is supplied here (`new Date()`) because the orchestrator takes
+ * it as a required parameter and reads no clock of its own.
+ *
+ * RETURNED VERBATIM, NO TRANSLATION. `CloseAccountResult` is structurally identical to
+ * `ActionResult<{ closedAt: string }, CloseAccountError>` from `lib/actions/result.ts`
+ * — `{ ok: true; data }` / `{ ok: false; error; message }` — with one addition: the
+ * failure variant may carry `blockers`, the Money_In_Flight categories Req 7.3 requires
+ * the member be told. Narrowing this to `ActionResult` would drop them, so the
+ * orchestrator's type is passed through unchanged. Nothing throws for an expected
+ * failure.
+ *
+ * ON SUCCESS THE MEMBER IS SIGNED OUT (Req 7.2). The orchestrator has already revoked
+ * their sessions server-side, but on the web the session also lives in a cookie this
+ * request owns, so `signOut()` from `lib/actions/auth.ts` clears it rather than any
+ * hand-rolled cookie deletion. A failure to clear the cookie is not reported as a
+ * closure failure: the account IS closed, the sessions ARE revoked, and the stale
+ * cookie stops working at its next refresh — telling the member closure failed would
+ * be the false statement Req 7.8 forbids.
+ */
+export async function closeMyAccount(): Promise<CloseAccountResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    // The same code and shape the orchestrator's own missing-caller branch returns, so
+    // the UI has one case to render whichever layer refused.
+    return {
+      ok: false,
+      error: 'NOT_ACCOUNT_OWNER',
+      message: 'Sign in to close your account.',
+    };
+  }
+
+  const orchestrator = createDefaultAccountClosureOrchestrator();
+  const result = await orchestrator.closeAccount({
+    callerProfileId: user.id,
+    targetProfileId: user.id,
+    at: new Date(),
+  });
+
+  if (!result.ok) {
+    return result;
+  }
+
+  // What closure invalidates: the member's own account surfaces, and every public read
+  // path that rendered their display name or avatar. Migration 0111 has
+  // `public_profiles` substitute the anonymous label from `closed_at` alone, so these
+  // paths are stale rather than wrong — but a cached page still showing the real name
+  // is exactly what Req 7.5 asks be removed from every public read path.
+  revalidatePath('/profile');
+  revalidatePath(`/sellers/${user.id}`);
+  // The catalog cards and listing detail pages both disclose the seller. `[id]` is
+  // revalidated as a route rather than per id, because closure does not know which
+  // listings the member fronted and their listings survive closure.
+  revalidatePath('/');
+  revalidatePath('/listings/[id]', 'page');
+
+  // Req 7.2: clear this request's session cookie. Best-effort, for the reason in the
+  // doc comment above.
+  await signOut();
+
+  return result;
+}

@@ -7,14 +7,21 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:cardtrade/core/constants.dart';
+import 'package:cardtrade/core/money.dart';
 import 'package:cardtrade/core/theme.dart';
 import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/providers/listings_provider.dart';
+import 'package:cardtrade/widgets/common/controls.dart';
+import 'package:cardtrade/widgets/common/error_view.dart';
 
-/// Screen for creating a new listing — Xianyu/FB-Marketplace quick-list style.
+/// Screen for creating a new listing — photo-first, with a sticky publish bar.
 ///
-/// Photo-first, minimal form with sticky publish bar. Fixes the image upload
-/// bug (images are uploaded to Storage before createItem is called).
+/// Every failure this form can present is presented INLINE, on the control it
+/// concerns, and stays there until that control becomes valid (Req 8.5, 8.6). It
+/// used to raise three of them — no image, no condition, and the server's own
+/// refusal — in a snack bar, which is gone before a screen reader reaches the
+/// control and never said which control it meant. Values are retained on every
+/// failure, because the controllers outlive the submission (Req 8.11).
 class CreateListingScreen extends ConsumerStatefulWidget {
   const CreateListingScreen({super.key});
 
@@ -24,7 +31,6 @@ class CreateListingScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _fmvController = TextEditingController();
@@ -35,8 +41,26 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   ListingKind _listingKind = ListingKind.single;
   final List<XFile> _images = [];
   bool _isSubmitting = false;
-  String _submitLabel = 'Publish';
   bool _detailsExpanded = true;
+
+  /// The currency the price field is denominated in.
+  ///
+  /// A new row's currency is derived server-side from the seller's region by the
+  /// `set_row_currency_from_region` trigger, so this is the FIELD's presentation
+  /// only, and AU is the sole trading region today. It decides how many digits the
+  /// amount carries, which is why it is passed to `Money` rather than assumed.
+  static const String _currency = 'aud';
+
+  // Inline field failures. Each is rendered by the control it names.
+  String? _titleError;
+  String? _priceError;
+  String? _descriptionError;
+  String? _categoryError;
+  String? _conditionError;
+  String? _imagesError;
+
+  /// A refusal the form cannot attach to a control it presents (Req 8.11).
+  String? _formError;
 
   @override
   void dispose() {
@@ -45,17 +69,6 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     _fmvController.dispose();
     _locationController.dispose();
     super.dispose();
-  }
-
-  /// Parses a dollar string to integer cents without float precision loss.
-  int _parseCents(String value) {
-    if (value.isEmpty) return 0;
-    final parts = value.split('.');
-    final whole = int.tryParse(parts[0]) ?? 0;
-    final fraction = parts.length > 1
-        ? parts[1].padRight(2, '0').substring(0, 2)
-        : '00';
-    return whole * 100 + (int.tryParse(fraction) ?? 0);
   }
 
   Future<void> _pickImages() async {
@@ -77,25 +90,85 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     setState(() => _images.removeAt(index));
   }
 
-  Future<void> _publish() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_images.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one image')),
-      );
+  // ── Validation ─────────────────────────────────────────────────────────────
+  //
+  // The rules and the words are the ones the `Form` validators and the two snack
+  // bars carried; only WHERE each message is presented has changed.
+
+  static String? _validateTitle(String value) {
+    if (value.trim().isEmpty) return 'Title is required';
+    if (value.trim().length < 3) return 'Title must be at least 3 characters';
+    return null;
+  }
+
+  static String? _validateDescription(String value) {
+    if (value.trim().isEmpty) return 'Description is required';
+    if (value.trim().length > AppConstants.descriptionMaxLength) {
+      return 'Description is too long';
+    }
+    return null;
+  }
+
+  static String? _validatePrice(String value) {
+    if (value.isEmpty) return 'Price is required';
+    final int cents = Money.parseAmountText(value, _currency);
+    if (cents <= 0) return 'Enter a valid price';
+    if (cents > AppConstants.fmvMaxCents) return 'Price exceeds maximum allowed';
+    return null;
+  }
+
+  /// Re-runs a control's validator once the form already carries a message, so a
+  /// message clears as the member fixes it rather than surviving until submit.
+  void _revalidate(void Function() apply) {
+    if (_titleError == null &&
+        _priceError == null &&
+        _descriptionError == null &&
+        _categoryError == null &&
+        _conditionError == null &&
+        _imagesError == null) {
       return;
     }
-    if (_selectedCondition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a condition')),
-      );
+    setState(apply);
+  }
+
+  Future<void> _publish() async {
+    final String? titleError = _validateTitle(_titleController.text);
+    final String? priceError = _validatePrice(_fmvController.text);
+    final String? descriptionError =
+        _validateDescription(_descriptionController.text);
+    final String? categoryError =
+        _selectedCategory == null ? 'Please select a game' : null;
+    final String? conditionError =
+        _selectedCondition == null ? 'Please select a condition' : null;
+    final String? imagesError =
+        _images.isEmpty ? 'Add at least one image' : null;
+
+    setState(() {
+      _titleError = titleError;
+      _priceError = priceError;
+      _descriptionError = descriptionError;
+      _categoryError = categoryError;
+      _conditionError = conditionError;
+      _imagesError = imagesError;
+      _formError = null;
+    });
+
+    if (titleError != null ||
+        priceError != null ||
+        descriptionError != null ||
+        categoryError != null ||
+        conditionError != null ||
+        imagesError != null) {
+      // A closed Details section would hide the game and condition messages, so
+      // the section that holds an invalid control is opened rather than the
+      // member being told about a control they cannot see.
+      if (categoryError != null || conditionError != null) {
+        setState(() => _detailsExpanded = true);
+      }
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-      _submitLabel = 'Uploading images...';
-    });
+    setState(() => _isSubmitting = true);
 
     try {
       // Upload images to Storage
@@ -107,20 +180,17 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             .uploadItemImages(files);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Image upload failed: $e')),
-          );
+          setState(() => _imagesError = ErrorView.sanitise(e.toString()));
         }
         return;
       }
 
       if (!mounted) return;
-      setState(() => _submitLabel = 'Publishing...');
 
       final service = ref.read(listingsServiceProvider);
-      // Parse FMV from dollar string to cents without float precision loss
-      final fmvCents = _parseCents(
-          _fmvController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+      // Dollars text to integer minor units through the one formatter that knows
+      // how many digits the currency has (Req 14.5).
+      final fmvCents = Money.parseAmountText(_fmvController.text, _currency);
 
       await service.createItem(
         title: _titleController.text.trim(),
@@ -148,17 +218,10 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to publish: $e')),
-        );
+        setState(() => _formError = ErrorView.sanitise(e.toString()));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-          _submitLabel = 'Publish';
-        });
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -170,118 +233,86 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       ),
       body: Column(
         children: [
-          // Scrollable form content
+          // Scrollable form content. No `Form`: each control carries its own
+          // message where Req 8.5 puts it, and `_publish` runs the same
+          // validators in the same order.
           Expanded(
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.spacingXl,
-                  AppTheme.spacingLg,
-                  AppTheme.spacingXl,
-                  AppTheme.spacingXxl,
-                ),
-                children: [
-                  // ─── 1. Photo Grid (top, prominent) ───────────────
-                  _PhotoGrid(
-                    images: _images,
-                    onAdd: _pickImages,
-                    onRemove: _removeImage,
-                  ),
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── 2. Title ─────────────────────────────────────
-                  TextFormField(
-                    controller: _titleController,
-                    maxLength: AppConstants.titleMaxLength,
-                    style: Theme.of(context).textTheme.titleLarge,
-                    decoration: InputDecoration(
-                      hintText: 'What are you selling?',
-                      hintStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppTheme.muted,
-                      ),
-                      counterStyle: AppTheme.metaText,
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Title is required';
-                      }
-                      if (val.trim().length < 3) {
-                        return 'Title must be at least 3 characters';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: AppTheme.spacingLg),
-
-                  // ─── 3. Price ─────────────────────────────────────
-                  TextFormField(
-                    controller: _fmvController,
-                    style: AppTheme.priceCard.copyWith(fontSize: 18),
-                    decoration: InputDecoration(
-                      prefixText: '\$ ',
-                      prefixStyle: AppTheme.priceCard.copyWith(
-                        fontSize: 18,
-                        color: AppTheme.gold,
-                      ),
-                      hintText: '0.00',
-                      hintStyle: AppTheme.priceCard.copyWith(
-                        fontSize: 18,
-                        color: AppTheme.muted,
-                      ),
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                    ],
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Price is required';
-                      final parsed = double.tryParse(val);
-                      if (parsed == null || parsed <= 0) {
-                        return 'Enter a valid price';
-                      }
-                      final cents = _parseCents(val);
-                      if (cents > AppConstants.fmvMaxCents) {
-                        return 'Price exceeds maximum allowed';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: AppTheme.spacingLg),
-
-                  // ─── 4. Description ───────────────────────────────
-                  TextFormField(
-                    controller: _descriptionController,
-                    maxLength: AppConstants.descriptionMaxLength,
-                    maxLines: null,
-                    minLines: 4,
-                    style: AppTheme.bodyText,
-                    decoration: InputDecoration(
-                      hintText:
-                          'Describe condition, provenance, any flaws...',
-                      hintStyle: AppTheme.bodyText.copyWith(
-                        color: AppTheme.muted,
-                      ),
-                      alignLabelWithHint: true,
-                      counterStyle: AppTheme.metaText,
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Description is required';
-                      }
-                      if (val.trim().length > AppConstants.descriptionMaxLength) {
-                        return 'Description is too long';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: AppTheme.spacingLg),
-
-                  // ─── 5. Collapsible Details Section ────────────────
-                  _buildDetailsSection(),
-                ],
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.group,
+                AppSpacing.cozy,
+                AppSpacing.group,
+                AppSpacing.section,
               ),
+              children: [
+                // ─── 1. Photo Grid (top, prominent) ───────────────
+                _PhotoGrid(
+                  images: _images,
+                  onAdd: _pickImages,
+                  onRemove: _removeImage,
+                ),
+                if (_imagesError != null) ...[
+                  const SizedBox(height: AppSpacing.tight),
+                  Text(
+                    _imagesError!,
+                    softWrap: true,
+                    style:
+                        AppText.bodyText.copyWith(color: AppColors.destructive),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.group),
+
+                // ─── 2. Title ─────────────────────────────────────
+                AppTextField(
+                  controller: _titleController,
+                  label: 'Title',
+                  hint: 'What are you selling?',
+                  maxLength: AppConstants.titleMaxLength,
+                  errorText: _titleError,
+                  onChanged: (value) => _revalidate(
+                    () => _titleError = _validateTitle(value),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.group),
+
+                // ─── 3. Price ─────────────────────────────────────
+                AppTextField(
+                  controller: _fmvController,
+                  label: 'Price',
+                  hint: '0.00',
+                  // The symbol lives inside the field, as the web's money input
+                  // does, so the label does not have to name the currency.
+                  prefixText: '${Money.symbolFor(_currency)} ',
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                  ],
+                  errorText: _priceError,
+                  onChanged: (value) => _revalidate(
+                    () => _priceError = _validatePrice(value),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.group),
+
+                // ─── 4. Description ───────────────────────────────
+                AppTextField(
+                  controller: _descriptionController,
+                  label: 'Description',
+                  hint: 'Describe condition, provenance, any flaws...',
+                  maxLength: AppConstants.descriptionMaxLength,
+                  maxLines: null,
+                  minLines: 4,
+                  errorText: _descriptionError,
+                  onChanged: (value) => _revalidate(
+                    () => _descriptionError = _validateDescription(value),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.group),
+
+                // ─── 5. Collapsible Details Section ────────────────
+                _buildDetailsSection(),
+              ],
             ),
           ),
 
@@ -293,42 +324,44 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   }
 
   Widget _buildDetailsSection() {
-    final theme = Theme.of(context);
-
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.border, width: 0.5),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border, width: AppMetrics.hairline),
       ),
       child: Column(
         children: [
           // Header / toggle
-          InkWell(
-            onTap: () => setState(() => _detailsExpanded = !_detailsExpanded),
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingLg,
-                vertical: AppTheme.spacingMd,
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    'Details',
-                    style: AppTheme.sectionLabel,
+          Semantics(
+            button: true,
+            expanded: _detailsExpanded,
+            label: 'Details',
+            child: InkWell(
+              onTap: () => setState(() => _detailsExpanded = !_detailsExpanded),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.cozy,
+                  vertical: AppSpacing.snug,
+                ),
+                child: ExcludeSemantics(
+                  child: Row(
+                    children: [
+                      const Text('Details', style: AppText.sectionLabel),
+                      const Spacer(),
+                      AnimatedRotation(
+                        turns: _detailsExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: AppIconSize.large,
+                          color: AppColors.mutedForeground,
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  AnimatedRotation(
-                    turns: _detailsExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 20,
-                      color: AppTheme.secondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -337,10 +370,10 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
           AnimatedCrossFade(
             firstChild: Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppTheme.spacingLg,
+                AppSpacing.cozy,
                 0,
-                AppTheme.spacingLg,
-                AppTheme.spacingLg,
+                AppSpacing.cozy,
+                AppSpacing.cozy,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,64 +382,52 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: _selectedCategory,
                     decoration: InputDecoration(
-                      hintText: 'Game',
-                      hintStyle: AppTheme.bodyText.copyWith(
-                        color: AppTheme.muted,
-                      ),
+                      label: const Text('Game', softWrap: true),
+                      errorText: _categoryError,
                     ),
                     items: AppConstants.games
                         .map((c) =>
                             DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
-                    onChanged: (val) =>
-                        setState(() => _selectedCategory = val),
-                    validator: (val) =>
-                        val == null ? 'Please select a game' : null,
+                    onChanged: (val) => setState(() {
+                      _selectedCategory = val;
+                      _categoryError =
+                          val == null ? 'Please select a game' : null;
+                    }),
                   ),
-                  const SizedBox(height: AppTheme.spacingLg),
+                  const SizedBox(height: AppSpacing.group),
 
                   // Condition chips
-                  Text('Condition', style: theme.textTheme.labelLarge),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  Wrap(
-                    spacing: AppTheme.spacingSm,
-                    runSpacing: AppTheme.spacingSm,
-                    children: AppConstants.conditions.map((cond) {
-                      return ChoiceChip(
-                        label: Text(cond),
-                        selected: _selectedCondition == cond,
-                        onSelected: (selected) {
-                          setState(() =>
-                              _selectedCondition = selected ? cond : null);
-                        },
-                      );
-                    }).toList(),
+                  AppChoiceChips<String>(
+                    label: 'Condition',
+                    options: AppConstants.conditions,
+                    selected: _selectedCondition,
+                    labelOf: (condition) => condition,
+                    helperText: 'Select the condition of your item',
+                    errorText: _conditionError,
+                    onSelected: (condition) => setState(() {
+                      _selectedCondition = condition;
+                      _conditionError = condition == null
+                          ? 'Please select a condition'
+                          : null;
+                    }),
                   ),
-                  if (_selectedCondition == null) ...[
-                    const SizedBox(height: AppTheme.spacingXs),
-                    Text(
-                      'Select the condition of your item',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.muted,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: AppTheme.spacingLg),
+                  const SizedBox(height: AppSpacing.group),
 
                   // Listing kind
-                  Text('Listing type', style: theme.textTheme.labelLarge),
-                  const SizedBox(height: AppTheme.spacingSm),
+                  const Text('Listing type', style: AppText.bodyText),
+                  const SizedBox(height: AppSpacing.snug),
                   SegmentedButton<ListingKind>(
                     segments: const [
                       ButtonSegment(
                         value: ListingKind.single,
                         label: Text('Single item'),
-                        icon: Icon(Icons.style_outlined, size: 16),
+                        icon: Icon(Icons.style_outlined),
                       ),
                       ButtonSegment(
                         value: ListingKind.shopfront,
                         label: Text('Binder'),
-                        icon: Icon(Icons.library_books_outlined, size: 16),
+                        icon: Icon(Icons.library_books_outlined),
                       ),
                     ],
                     selected: {_listingKind},
@@ -415,38 +436,36 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                     },
                   ),
                   if (_listingKind == ListingKind.shopfront) ...[
-                    const SizedBox(height: AppTheme.spacingSm),
+                    const SizedBox(height: AppSpacing.snug),
                     Container(
-                      padding: const EdgeInsets.all(AppTheme.spacingMd),
+                      padding: const EdgeInsets.all(AppSpacing.snug),
                       decoration: BoxDecoration(
-                        color: AppTheme.warningLight,
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusSm),
-                      ),
-                      child: Text(
-                        'A binder listing lets buyers browse and request '
-                        'specific items. Nothing is held — multiple buyers '
-                        'can negotiate simultaneously.',
-                        style: AppTheme.supportText.copyWith(
-                          color: AppTheme.warning,
+                        color: AppTint.caution.fill,
+                        border: Border.all(
+                          color: AppTint.caution.edge!,
+                          width: AppMetrics.hairline,
                         ),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      // Member copy always says nothing is held on a binder: on
+                      // every other listing opening a contract reserves the goods.
+                      child: Text(
+                        'A binder or bulk listing lets buyers browse and request '
+                        'specific cards. Nothing is held — several buyers can '
+                        'negotiate at the same time.',
+                        style: AppText.bodyText
+                            .copyWith(color: AppTint.caution.ink),
                       ),
                     ),
                   ],
-                  const SizedBox(height: AppTheme.spacingLg),
+                  const SizedBox(height: AppSpacing.group),
 
                   // Location
-                  TextFormField(
+                  AppTextField(
                     controller: _locationController,
-                    style: AppTheme.bodyText,
-                    decoration: InputDecoration(
-                      hintText: 'City or suburb',
-                      hintStyle: AppTheme.bodyText.copyWith(
-                        color: AppTheme.muted,
-                      ),
-                      prefixIcon:
-                          const Icon(Icons.location_on_outlined, size: 18),
-                    ),
+                    label: 'Location',
+                    hint: 'City or suburb',
+                    prefixIcon: const Icon(Icons.location_on_outlined),
                   ),
                 ],
               ),
@@ -465,61 +484,40 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(
-        AppTheme.spacingXl,
-        AppTheme.spacingMd,
-        AppTheme.spacingXl,
-        AppTheme.spacingXl,
+        AppSpacing.group,
+        AppSpacing.snug,
+        AppSpacing.group,
+        AppSpacing.group,
       ),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: AppColors.card,
         border: const Border(
-          top: BorderSide(color: AppTheme.border, width: 0.5),
+          top: BorderSide(color: AppColors.border, width: AppMetrics.hairline),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.obsidian.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        boxShadow: AppElevation.market,
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          width: double.infinity,
-          height: 40,
-          child: FilledButton(
-            onPressed: _isSubmitting ? null : _publish,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.gold,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor:
-                  AppTheme.gold.withValues(alpha: 0.5),
-              disabledForegroundColor:
-                  Colors.white.withValues(alpha: 0.7),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-              textStyle: Theme.of(context).textTheme.labelLarge,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Req 8.11: a refusal that names no field, or one this form does not
+            // present, is summarised immediately above the control that submitted
+            // it, and stays until the next submission.
+            if (_formError != null) ...[
+              AppFormSummary(message: _formError!),
+              const SizedBox(height: AppSpacing.snug),
+            ],
+            // Drawn at 40 and touched at 48, and busy INSIDE those bounds, so the
+            // bar does not change height while a member waits (Req 8.7, 8.10).
+            AppButton(
+              label: 'Publish',
+              variant: AppButtonVariant.action,
+              fillWidth: true,
+              busy: _isSubmitting,
+              onPressed: _publish,
             ),
-            child: _isSubmitting
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: AppTheme.spacingMd),
-                      Text(_submitLabel),
-                    ],
-                  )
-                : const Text('Publish'),
-          ),
+          ],
         ),
       ),
     );
@@ -548,8 +546,8 @@ class _PhotoGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisSpacing: AppTheme.spacingMd,
-        crossAxisSpacing: AppTheme.spacingMd,
+        mainAxisSpacing: AppSpacing.snug,
+        crossAxisSpacing: AppSpacing.snug,
       ),
       itemCount: itemCount,
       itemBuilder: (context, index) {
@@ -585,37 +583,42 @@ class _AddPhotoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: CustomPaint(
-        painter: _DashedBorderPainter(
-          color: AppTheme.border,
-          radius: AppTheme.radiusMd,
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceVariant.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.camera_alt_outlined,
-                color: AppTheme.muted,
-                size: 28,
+    // The tile is the whole grid cell, so it is well past 48 on both axes and
+    // needs no expansion — only a label, which it had none of (Req 13.7).
+    return Semantics(
+      button: true,
+      label: 'Add photos, $count of ${AppConstants.imagesMax} added',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: ExcludeSemantics(
+          child: CustomPaint(
+            painter: _DashedBorderPainter(
+              color: AppColors.border,
+              radius: AppRadius.md,
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.muted,
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              const SizedBox(height: AppTheme.spacingXs),
-              const Text(
-                'Add Photo',
-                style: AppTheme.metaText,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.camera_alt_outlined,
+                    color: AppColors.mutedForeground,
+                    size: AppIconSize.display,
+                  ),
+                  const SizedBox(height: AppSpacing.tight),
+                  const Text('Add photo', style: AppText.metaText),
+                  Text(
+                    '$count/${AppConstants.imagesMax}',
+                    style: AppText.metaText,
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                '$count/${AppConstants.imagesMax}',
-                style: AppTheme.metaText,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -680,58 +683,54 @@ class _ImageThumbnail extends StatelessWidget {
     return Stack(
       children: [
         // Thumbnail image
-        GestureDetector(
-          onTap: () => _showLocalImagePreview(context, file),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            child: FutureBuilder<dynamic>(
-              future: file.readAsBytes(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  return Image.memory(
-                    snapshot.data!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+        Semantics(
+          button: true,
+          label: 'Preview photo',
+          child: InkWell(
+            onTap: () => _showLocalImagePreview(context, file),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: FutureBuilder<dynamic>(
+                future: file.readAsBytes(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Image.memory(
+                      snapshot.data!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    );
+                  }
+                  return const ColoredBox(
+                    color: AppColors.muted,
+                    child: Center(
+                      child: SizedBox(
+                        width: AppIconSize.large,
+                        height: AppIconSize.large,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
                   );
-                }
-                return Container(
-                  color: AppTheme.surfaceVariant,
-                  child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                );
-              },
+                },
+              ),
             ),
           ),
         ),
 
-        // Remove button (48x48 touch target)
+        // Drawn at 32, touched at 48 — the separation lives in AppIconButton,
+        // rather than the SizedBox(48) this used to inflate its layout with.
         Positioned(
           top: 0,
           right: 0,
-          child: Semantics(
-            button: true,
-            label: 'Remove image',
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: IconButton.filled(
-                onPressed: onRemove,
-                icon: const Icon(Icons.close, size: 16),
-                style: IconButton.styleFrom(
-                  backgroundColor:
-                      AppTheme.obsidian.withValues(alpha: 0.6),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(48, 48),
-                  padding: EdgeInsets.zero,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 36,
-                  minHeight: 36,
-                ),
-              ),
-            ),
+          child: AppIconButton(
+            icon: Icons.close_rounded,
+            semanticLabel: 'Remove photo',
+            visibleSize: AppMetrics.watchControl,
+            iconSize: AppIconSize.button,
+            background: AppTint.coverScrim.fill,
+            foreground: AppColors.mist,
+            onPressed: onRemove,
           ),
         ),
 
@@ -746,12 +745,12 @@ class _ImageThumbnail extends StatelessWidget {
                 vertical: 2,
               ),
               decoration: BoxDecoration(
-                color: AppTheme.gold.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                color: AppTint.binderMarker.fill,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Text(
                 'Cover',
-                style: AppTheme.badgeText.copyWith(color: Colors.white),
+                style: AppText.badgeText.copyWith(color: AppColors.mist),
               ),
             ),
           ),
@@ -762,11 +761,16 @@ class _ImageThumbnail extends StatelessWidget {
 
 /// Shows a fullscreen dialog preview of a locally-picked image.
 void _showLocalImagePreview(BuildContext context, XFile file) {
+  // The dark surround is `--obsidian` with `--mist` ink, the theme's one declared
+  // dark region — the same treatment `FullscreenImageViewer` gives a published
+  // photo, so a picked one does not look like a different product. That shared
+  // viewer cannot be reused here: it reads storage paths, and this file has not
+  // been uploaded yet.
   showDialog(
     context: context,
-    barrierColor: Colors.black87,
+    barrierColor: AppColors.obsidian,
     builder: (ctx) => Dialog.fullscreen(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.obsidian,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -782,37 +786,26 @@ void _showLocalImagePreview(BuildContext context, XFile file) {
                     ),
                   );
                 }
-                return const CircularProgressIndicator(
-                  color: Colors.white70,
-                  strokeWidth: 2,
+                return const SizedBox(
+                  width: AppIconSize.display,
+                  height: AppIconSize.display,
+                  child: CircularProgressIndicator(
+                    color: AppColors.mist,
+                    strokeWidth: 2,
+                  ),
                 );
               },
             ),
           ),
           Positioned(
-            top: MediaQuery.of(ctx).padding.top + 8,
-            left: 12,
-            child: Semantics(
-              button: true,
-              label: 'Close preview',
-              child: GestureDetector(
-                onTap: () => Navigator.of(ctx).pop(),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
+            top: MediaQuery.of(ctx).padding.top + AppSpacing.snug,
+            left: AppSpacing.cozy,
+            child: AppIconButton(
+              icon: Icons.close_rounded,
+              semanticLabel: 'Close preview',
+              foreground: AppColors.mist,
+              background: AppTint.coverScrim.fill,
+              onPressed: () => Navigator.of(ctx).pop(),
             ),
           ),
         ],

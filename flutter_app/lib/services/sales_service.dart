@@ -2,6 +2,7 @@ import '../core/api_routes.dart';
 import '../core/result.dart';
 import '../models/cash_sale.dart';
 import '../models/cash_sale_item.dart';
+import '../models/contract_step.dart';
 import 'mobile_api_client.dart';
 import 'supabase_service.dart';
 
@@ -26,7 +27,7 @@ class SalesService {
     final response = await _supabase
         .from('cash_sales')
         .select('''
-          id, status, item_title, agreed_price_cents, item_image_paths,
+          id, item_id, status, item_title, agreed_price_cents, item_image_paths,
           currency, buyer_id, seller_id, updated_at
         ''')
         .or('buyer_id.eq.$userId,seller_id.eq.$userId')
@@ -60,6 +61,25 @@ class SalesService {
     return (response as List)
         .map((json) => CashSaleItem.fromJson(json))
         .toList();
+  }
+
+  /// Fetch the contract step plan the server derived for this sale.
+  ///
+  /// A READ that goes through the mobile API rather than Supabase, because the plan
+  /// is not a row: it is what `domain/contract/cashSaleSteps.ts` makes of the row
+  /// for the viewer's own side, and this app declares no step plan of its own
+  /// (`.kiro/specs/mobile-parity/` Req 11.1–11.3).
+  ///
+  /// Returns the NEUTRAL plan — an empty list — for every failure: no session, a
+  /// transport error, or a refusal from the server. Never a fallback list and never
+  /// a guessed first step (Req 11.5).
+  Future<List<ContractStep>> getStepPlan(String saleId) async {
+    final Result<dynamic> result = await _api.post<dynamic>(
+      ApiRoutes.cashSaleStepPlan,
+      body: {'cashSaleId': saleId},
+    );
+    if (result.isErr) return const <ContractStep>[];
+    return contractStepsFromServed(result.dataOrNull);
   }
 
   /// Subscribe to real-time sale changes.

@@ -1,263 +1,187 @@
+// What step two of verification involves, and the outbound action that starts it.
+//
+// PAYOUT SETUP IS NOT THE IDENTITY GATE, IN EITHER DIRECTION. This screen presents
+// only `canReceiveFunds` — approved, settlements enabled, and an account reference —
+// and says nothing about whether the member is verified. A member may legitimately
+// hold either step without the other, so nothing here is drawn as an error for the
+// absence of the other one (Req 10.2, 10.3).
+//
+// THE STATE IS THE PROVIDER'S, READ BACK. `canReceiveFunds` in
+// `domain/identity/identity_gate.dart` is the only evaluation; returning from the
+// hosted flow proves nothing, and a resume re-reads the row (Req 10.7, 14.12).
+//
+// THE HOSTED FLOW IS A HANDOFF, and this file now says so through `WebHandoff`
+// rather than a private base URL and a bare `launchUrl` (Req 10.6, 14.6).
+//
+// PAYOUT REPORTING IS NOT HERE. What a member is owed and what has landed is a
+// seven-query read model on the web with no mobile counterpart; the hub links to it
+// rather than approximating it.
+//
+// Requirements 10.2–10.7, 13.6–13.12, 14.6, 14.12.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import 'package:cardtrade/core/extensions.dart';
 import 'package:cardtrade/core/theme.dart';
-import 'package:cardtrade/providers/profile_provider.dart';
+import 'package:cardtrade/core/web_handoff.dart';
+import 'package:cardtrade/domain/identity/identity_gate.dart' as gate;
+import 'package:cardtrade/models/profile.dart';
+import 'package:cardtrade/widgets/common/app_scaffold.dart';
+import 'package:cardtrade/widgets/common/controls.dart';
 import 'package:cardtrade/widgets/common/error_view.dart';
+import 'package:cardtrade/widgets/common/status_badge.dart';
+import 'package:cardtrade/features/profile/widgets/profile_reread.dart';
+import 'package:cardtrade/features/profile/widgets/profile_sections.dart';
 
-// TODO: move to Env when the production domain is set
-const _webAppBaseUrl = 'https://cardtrade.app';
-
-/// Payout setup screen that explains Connect onboarding and provides
-/// a CTA to launch Stripe Connect's hosted onboarding flow.
-///
-/// Shows current status: pending, active, or not started.
+/// Step two of verification: where a member's money is sent.
 class PayoutSetupScreen extends ConsumerWidget {
   const PayoutSetupScreen({super.key});
 
+  /// The step's heading, in the words the web's sequence uses.
+  static const String title = 'Add payout details';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(myProfileProvider);
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Payout Setup'),
-      ),
-      body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ErrorView(
-          message: error.toString(),
-          onRetry: () => ref.read(myProfileProvider.notifier).refresh(),
-        ),
-        data: (profile) {
+    return AppScaffold(
+      title: title,
+      onBack: () => Navigator.of(context).maybePop(),
+      body: ProfileReRead(
+        builder: (BuildContext context, ProfileReadState state) {
+          final Profile? profile = state.lastReported;
           if (profile == null) {
-            return const Center(child: Text('Profile not found.'));
+            if (state.read.hasError) {
+              return ErrorView(
+                title: 'We could not load your payout status',
+                message: 'Your payout status did not load. Please try again.',
+                onRetry: state.retry,
+              );
+            }
+            return const ProfileStepSkeleton(
+              announcement: 'Loading your payout status',
+            );
           }
 
-          final isActive = profile.canReceiveFunds;
-          final hasMerchant = profile.merchantRef != null;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── Status ────────────────────────────────────────
-                if (isActive)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppTheme.spacingLg),
-                    decoration: BoxDecoration(
-                      color: AppTheme.successLight,
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusLg),
-                      border: Border.all(
-                        color: AppTheme.success.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_rounded,
-                          color: AppTheme.success,
-                          size: 32,
-                        ),
-                        const SizedBox(width: AppTheme.spacingMd),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Payouts active',
-                                style:
-                                    theme.textTheme.labelLarge?.copyWith(
-                                  color: AppTheme.success,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'You can receive funds from sales and trade dispute resolutions.',
-                                style:
-                                    theme.textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.secondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (hasMerchant)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppTheme.spacingLg),
-                    decoration: BoxDecoration(
-                      color: AppTheme.warningLight,
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusLg),
-                      border: Border.all(
-                        color: AppTheme.warning.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.hourglass_top_rounded,
-                          color: AppTheme.warning,
-                          size: 32,
-                        ),
-                        const SizedBox(width: AppTheme.spacingMd),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Setup in progress',
-                                style:
-                                    theme.textTheme.labelLarge?.copyWith(
-                                  color: AppTheme.warning,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Complete your onboarding to start receiving payouts.',
-                                style:
-                                    theme.textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.secondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                if (!isActive) ...[
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── Explanation ──────────────────────────────────
-                  Text(
-                    'Set up payouts',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  Text(
-                    'To receive money from sales and dispute resolutions, you '
-                    'need to set up a payout account. This is handled securely '
-                    'by Stripe — we never see your bank details.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.secondary,
-                      height: 1.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── How it works ────────────────────────────────
-                  Text(
-                    'How it works',
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  const _StepItem(number: '1', text: 'Tap "Set Up Payouts" below'),
-                  const _StepItem(
-                    number: '2',
-                    text: 'Complete the Stripe onboarding form',
-                  ),
-                  const _StepItem(
-                    number: '3',
-                    text: "You're ready to receive payments",
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingXxl),
-
-                  // ─── CTA ─────────────────────────────────────────
-                  const Text(
-                    'Setup opens in your browser',
-                    style: AppTheme.metaText,
-                  ),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _startPayoutSetup(context),
-                      icon: const Icon(Icons.account_balance_rounded),
-                      label: Text(
-                        hasMerchant
-                            ? 'Continue Setup'
-                            : 'Set Up Payouts',
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+          return _PayoutStep(
+            payable: gate.canReceiveFunds(
+              merchantStatus: profile.merchantStatus,
+              merchantSettlementsEnabled: profile.merchantSettlementsEnabled,
+              merchantRef: profile.merchantRef,
             ),
+            // Whether the account SHELL exists. It is the difference between
+            // starting the hosted flow and resuming it, and nothing more: creating
+            // the account is the beginning of onboarding, never its completion.
+            started: profile.merchantRef != null,
+            reReadOverdue: state.overdue,
+            onReRead: state.retry,
           );
         },
       ),
     );
   }
-
-  Future<void> _startPayoutSetup(BuildContext context) async {
-    final uri = Uri.parse('$_webAppBaseUrl/profile/payouts');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        context.showError('Could not open payout setup page');
-      }
-    }
-  }
 }
 
-/// A numbered step item for the setup instructions.
-class _StepItem extends StatelessWidget {
-  const _StepItem({
-    required this.number,
-    required this.text,
+class _PayoutStep extends StatelessWidget {
+  const _PayoutStep({
+    required this.payable,
+    required this.started,
+    required this.reReadOverdue,
+    required this.onReRead,
   });
 
-  final String number;
-  final String text;
+  final bool payable;
+  final bool started;
+  final bool reReadOverdue;
+  final VoidCallback onReRead;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.spacingMd),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: AppTheme.accentLight,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              number,
-              style: AppTheme.rowName.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppTheme.accent,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.group,
+        AppSpacing.snug,
+        AppSpacing.group,
+        AppSpacing.section,
+      ),
+      children: <Widget>[
+        Row(
+          spacing: AppSpacing.snug,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                payable ? 'Your payout account is set up' : PayoutSetupScreen.title,
+                style: AppType.subhead.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.foreground,
+                ),
+                softWrap: true,
               ),
             ),
-          ),
-          const SizedBox(width: AppTheme.spacingMd),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium,
+            StatusBadge(
+              label: payable ? 'Passed' : 'Pending',
+              variant: payable
+                  ? StatusBadgeVariant.completed
+                  : StatusBadgeVariant.neutral,
             ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.snug),
+        Text(
+          payable
+              ? 'Money from a completed sale, and any collateral awarded to you, '
+                  'is released to this account.'
+              : 'This is where money from a sale is sent. Our payment provider '
+                  'collects your bank details directly — we never see them.',
+          style: AppText.supportText,
+          softWrap: true,
+        ),
+
+        if (!payable) ...<Widget>[
+          const SizedBox(height: AppSpacing.section),
+          const Text('What this unlocks', style: AppText.sectionLabel),
+          const SizedBox(height: AppSpacing.snug),
+          const Text(
+            'Receiving money. Listing, selling and trading do not need it, and '
+            'buying never does.',
+            style: AppText.bodyText,
+            softWrap: true,
+          ),
+
+          const SizedBox(height: AppSpacing.section),
+          Text(
+            'Opens ${WebHandoff.pageLabel(WebHandoff.payoutSetup)} in your '
+            'browser. You will leave the app and come back to this screen.',
+            style: AppText.metaText,
+            softWrap: true,
+          ),
+          const SizedBox(height: AppSpacing.snug),
+          AppButton(
+            label: started
+                ? 'Finish payout setup on the website'
+                : 'Add payout details on the website',
+            icon: Icons.open_in_new_rounded,
+            fillWidth: true,
+            onPressed: () =>
+                WebHandoff.openOrWarn(context, WebHandoff.payoutSetup),
           ),
         ],
-      ),
+
+        if (payable) ...<Widget>[
+          const SizedBox(height: AppSpacing.section),
+          ProfileMenuRow(
+            icon: Icons.account_balance_wallet_outlined,
+            label: 'View your payouts',
+            trailingNote: 'Opens ${WebHandoff.pageLabel(WebHandoff.payoutReport)} '
+                'in your browser',
+            leavesApp: true,
+            onTap: () => WebHandoff.openOrWarn(context, WebHandoff.payoutReport),
+          ),
+        ],
+
+        if (reReadOverdue) ...<Widget>[
+          const SizedBox(height: AppSpacing.group),
+          ProfileReReadNotice(onReRead: onReRead),
+        ],
+      ],
     );
   }
 }

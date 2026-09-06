@@ -1470,6 +1470,12 @@ Four layers, each doing what the layer below cannot.
 `npx vitest --run --project domain` covers it on a machine that has never built the app
 (Req 15.8). No browser, no Flutter, no network.
 
+> **Runner footnote, not a failure.** On some machines the theme-agreement file needs
+> `--testTimeout=30000`: its filesystem scans over `flutter_app/` exceed Vitest's 5s
+> default when the suite runs in parallel. That is a runner limit rather than a
+> disagreement — the assertions themselves pass. Use
+> `npx vitest --run --project domain --testTimeout=30000` if it times out.
+
 | Kind | What |
 | --- | --- |
 | Property tests (`fast-check`, ≥100 runs each) | P1, P2, P13, Property 21, Property 23 |
@@ -1543,6 +1549,10 @@ graph TD
 
     S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
 ```
+
+The analyzer counts on the nodes above are the **projection**, not the outcome. The measured
+figure after Stage 9 was 2, and after the two follow-ups it is **0** — see
+[Measured final state](#measured-final-state).
 
 ### What each stage lands, and why in that order
 
@@ -1625,7 +1635,8 @@ have its issue cleared in the same change; Req 14.10 routes a logic defect out i
 | 7 | 4 | `settings_screen.dart:118` context-after-await (Req 10.10) |
 | 8, 9 | 4 | — |
 
-The four that remain, and why:
+The four the projection expected to remain, and why it expected them (all four are now
+closed — see [Measured final state](#measured-final-state)):
 
 - `domain/state_machine/machine.dart:13` and `services/api_client.dart:12` — doc-comment
   HTML. Neither file is touched by this spec, so Req 14.8 does not fire.
@@ -1640,12 +1651,24 @@ The four that remain, and why:
 #### Final state, measured at the Stage 9 audit (task 12.2)
 
 The projection above was right about the count at every stage and wrong about two of the
-four survivors. `flutter analyze` now reports **2 issues**, both `info`:
+four survivors. At the Stage 9 audit `flutter analyze` reported **2 issues**, both `info`.
+**Both have since been closed as follow-ups, so the measured final count is 0** —
+`flutter analyze` reports `No issues found!`:
 
-| Remaining | Why it stays |
+| Was remaining at the audit | What closed it |
 | --- | --- |
-| `features/trades/screens/propose_trade_screen.dart:169` — `unrelated_type_equality_checks` | **Deliberate, and required to stay.** The line moved from 152 while the file was restyled; the defect did not. Req 14.10 keeps it listed here and records it in `.kiro/specs/mobile-parity/`, which now carries the analysis under §"`propose_trade_screen.dart` compares an `ItemStatus` to a `String`". |
+| `features/trades/screens/propose_trade_screen.dart:169` — `unrelated_type_equality_checks` | **CLOSED by the follow-up owned by `.kiro/specs/mobile-parity/`.** The line moved from 152 while the file was restyled; the defect did not. It is now a documented top-level predicate, `canOfferItemInTrade(item) => item.status == ItemStatus.available && item.listingKind == ListingKind.single` — an enum compared to an enum, matching the website's own-item picker in `app/(workspace)/trades/new/page.tsx`. Fixed in the code, **not** suppressed or allowlisted. `.kiro/specs/mobile-parity/` carries the root cause and the reasoning under §"RESOLVED — `propose_trade_screen.dart` compared an `ItemStatus` to a `String`". |
 | `services/supabase_service.dart:18` — deprecated `anonKey` | **CLOSED as a follow-up, and it was never a credentials change.** See below. |
+
+**Correcting this design's own claim that the first row must stay listed.** Req 14.10 kept
+the `propose_trade_screen.dart` info in the baseline for as long as it existed, because
+fixing it changes which branch runs and a presentation spec may not make that call. That
+routing was correct and is not being revised: the fix landed in the spec that owns the
+functional gap list, having first established what the branch was meant to gate. Once the
+defect is gone there is no issue left to list, so the earlier statement that the issue
+"must remain listed" and that the analyzer count "floors at 4" is spent — it described a
+floor under an unfixed defect, not a permanent one. Req 14.8's floor-only rule is
+satisfied by 0.
 
 The two doc-comment `unintended_html_in_doc_comment` infos were cleared — a `Map<...>`
 and a `Result<T>` wrapped in backticks in `domain/state_machine/machine.dart:13` and
@@ -1658,11 +1681,15 @@ edit that leaves the analyzer at a floor of genuinely-deliberate issues is worth
 a strict reading of which files were in scope — the two remaining are now both *decisions*
 rather than a mix of decisions and residue.
 
-#### Two dependencies left declared at zero references (task 12.2)
+#### Two dependencies were left declared at zero references (task 12.2) — since REMOVED
+
+**Read this section as history: neither package is declared any more** — the follow-up two
+subsections down removed both. The deferral is kept because the reasoning for it, and the
+fact that the risk it hedged against did not materialise, is the useful part.
 
 `google_fonts` and `shimmer` were removed once their Dart reference counts hit zero, as
-tasks 10.3 and 3.1 required. Two others are now also at zero and are still declared in
-`pubspec.yaml`:
+tasks 10.3 and 3.1 required. Two others reached zero at the audit and were, at that point,
+still declared in `pubspec.yaml`:
 
 - **`lucide_icons`** — zero references. Its removal was written into task 10.2, which
   Req 12.9 foreclosed, so no task authorises the removal and the screens reached Material
@@ -1670,7 +1697,7 @@ tasks 10.3 and 3.1 required. Two others are now also at zero and are still decla
 - **`smooth_page_indicator`** — zero references. `listing_gallery.dart` draws its own dots
   from product tokens instead, which is why register entry R5 above needed correcting.
 
-Both are dead weight in the bundle and neither is a correctness problem. They are left
+Both were dead weight in the bundle and neither was a correctness problem. They were left
 declared rather than removed because dropping a dependency means a `pub get` and a
 lockfile change on the way out of a spec whose remaining work is documentation, and a
 resolver moving other transitive versions at that point buys risk for no visual gain. The
@@ -1726,12 +1753,24 @@ field's own doc comment already says "anonymous (publishable) key". Should the p
 later issue an `sb_publishable_…` key, it drops into the same define with no code change,
 which is the state this rename leaves behind.
 
-`flutter analyze` is now at **0 issues**. The `propose_trade_screen.dart`
-`unrelated_type_equality_checks` info listed above no longer reports either — the file was
-subsequently rewritten to compare `item.status == ItemStatus.available`, an enum to an
-enum, so the defect Req 14.10 required to stay listed was fixed in the code rather than
-suppressed. Req 14.8's floor-only rule is satisfied; the table above is retained as the
-record of what each issue WAS.
+#### Measured final state
+
+`flutter analyze` reports:
+
+```
+No issues found!
+```
+
+**0 issues, down from the 10-issue baseline**, and nothing is suppressed, allowlisted or
+`// ignore:`-d to get there. Both surviving infos were fixed in the code: the
+`propose_trade_screen.dart` comparison became the `canOfferItemInTrade` predicate (owned
+by `.kiro/specs/mobile-parity/`), and `anonKey` became `publishableKey` over the same
+value. Req 14.8's floor-only rule is satisfied. Every analyzer table in this document is
+retained as the record of what each issue WAS and what the projection expected — none of
+them describes a live issue.
+
+Alongside it: `flutter test` 903 passed / 1 skipped, including all 156 golden comparisons;
+`npx vitest --run --project domain` 691 passed across 55 files.
 
 ### One deviation from Req 1.5's letter, and why
 
@@ -2016,8 +2055,17 @@ constraint on screen authors that no criterion currently states, and it should b
 ### 5. Req 14.8 versus Req 14.10 for `propose_trade_screen.dart:152`
 
 Resolved: **Req 14.10 wins.** It is the more specific rule, it names this exact issue as a
-logic defect, and it explicitly requires the issue to remain listed in the baseline. The
-analyzer table's expected count therefore floors at 4, not 3.
+logic defect, and it required the issue to remain listed in the baseline for as long as the
+defect existed. Under that reading the analyzer table's expected count floored at 4, not 3.
+
+**Since closed, and the floor was never permanent.** The routing stands — this spec
+restyled the file and left the comparison exactly as it found it. The defect was then fixed
+in the spec that owns the functional gap list, `.kiro/specs/mobile-parity/`, which
+established what the branch was meant to gate before touching it: the file now declares
+`canOfferItemInTrade`, comparing `ItemStatus` to `ItemStatus` and `ListingKind` to
+`ListingKind`. Req 14.10 requires a *live* logic defect to stay listed; it does not require
+a fixed one to be re-listed. The measured count is **0** — see
+[Measured final state](#measured-final-state).
 
 ### And one deliberate divergence, for the record
 

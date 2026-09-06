@@ -147,6 +147,43 @@ Opening a trade negotiation is different — it is handed off only because
 should not, and an agent optimising for native coverage will be tempted; the reasoning
 is in the file's own header comment.
 
+### The contract step plan is served, not ported
+
+This is a scope correction inherited from `.kiro/specs/mobile-visual-parity/`, and it is
+recorded here because this spec owns functional gaps. That spec's Req 7.10 asked the
+mobile rail and action card to render the ordered step list from an Advisory_Domain_Port
+of `domain/contract/cashSaleSteps.ts` and `domain/contract/tradeSteps.ts`. No such port
+exists, and its own Req 14.1 / 14.11 plus `.kiro/steering/flutter.md` forbid creating one.
+The blocking analysis, and the reason a generated lookup table is not a way out, is in
+`.kiro/specs/mobile-visual-parity/design.md` §"Requirement conflicts that need resolving
+before implementation" → conflict 1.
+
+The split is now:
+
+| Owned by `mobile-visual-parity` | Owned here (Requirement 11) |
+| --- | --- |
+| Styling the rail, action card, detail rows and money table to the web treatment | Deriving the step plan for all 13 `Cash_Sale_Status` and 9 `Trade_State` values |
+| Presenting an unrecognised status neutrally — no done/active/halted step, no action | Delivering that plan to the client over the mobile API tier |
+| Not declaring a step list in a Mobile_Screen where feasible | Removing the two hard-coded lists once the plan is available |
+
+The mechanism is the tier this design already builds. One read endpoint under
+`app/api/mobile/`, authenticated by `lib/api/mobileSession.ts`, calling the same
+derivation the web contract room calls and returning the resolved steps — label, detail
+line, and done/active/halted — as data. Nothing new is decided on the client, so this
+does not touch Property 3: the port count stays at eight.
+
+The alternative that looks cheaper is a generated table, since `domain/generated/*.g.dart`
+is already excluded from the port count. It is not cheaper. `CashSaleStepFacts` spans 13
+statuses × 2 viewer roles × `termsSet` × `isDelivery` × `hasTracking` × two handover flags
+× three optional return and dispute flags × `haltedAt`, and the detail lines interpolate
+the counterparty's name. That is thousands of rows carrying string templates — a second
+implementation wearing a table's clothes.
+
+Until this lands, both rooms keep their local lists and the rail is styled over them. That
+is a deliberate interim state, not an oversight: a correctly styled rail over a hard-coded
+list is a smaller lie than one over a re-derived plan, and no money or eligibility
+decision reads the rail.
+
 ## Correctness Properties
 
 Properties that must hold when this spec is complete, each stated so a failure is
@@ -213,6 +250,15 @@ Replaying a failed write creates at most one row. A retried `initiateCashSale` o
 `makeOffer` does not produce two contracts or two offers.
 
 **Validates: Requirements 4.4**
+
+### Property 9: The rail renders no step the server did not derive
+
+Every step the mobile contract room shows came from `domain/contract/cashSaleSteps.ts` or
+`domain/contract/tradeSteps.ts` over the wire. No Mobile_Screen declares a step list, no
+Dart module derives one, and when the plan is absent the room shows the neutral state
+rather than a first step.
+
+**Validates: Requirements 11.1, 11.3, 11.5, 11.6**
 
 ## Error Handling
 

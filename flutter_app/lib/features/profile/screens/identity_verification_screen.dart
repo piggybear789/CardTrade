@@ -1,232 +1,230 @@
+// What step one of verification involves, and the outbound action that starts it.
+//
+// THIS SCREEN EXPLAINS; STRIPE DECIDES. The session is created with the secret key,
+// which is not in this bundle and must not be, so the check itself runs on a hosted
+// page in the device browser. The affordance names that page and says it leaves the
+// app rather than implying the check happens here (Req 10.6, 14.13), and it goes
+// through `WebHandoff` rather than reaching for `url_launcher` and a base URL of its
+// own — which is what this file did, with a second copy of the web address in a
+// `TODO` comment beside it.
+//
+// THE STATUS IS THE SERVER'S. `verificationState` in
+// `domain/identity/identity_gate.dart` is the only reading of it, and returning from
+// the browser does not change it; a resume re-reads the row and the mark follows that
+// (Req 10.2, 10.7, 14.12).
+//
+// PENDING IS NOT FAILED, AND FAILED IS NOT PENDING. The screen this replaces drew
+// two states — verified and pending — and drew a rejected check as an untouched one,
+// offering "Start Verification" to a member whose check had come back not approved
+// with nothing to say that it had.
+//
+// Requirements 10.2–10.7, 13.6–13.12, 14.6, 14.12.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import 'package:cardtrade/core/extensions.dart';
 import 'package:cardtrade/core/theme.dart';
-import 'package:cardtrade/models/enums.dart';
-import 'package:cardtrade/providers/profile_provider.dart';
+import 'package:cardtrade/core/web_handoff.dart';
+import 'package:cardtrade/domain/identity/identity_gate.dart';
+import 'package:cardtrade/models/profile.dart';
+import 'package:cardtrade/widgets/common/app_scaffold.dart';
+import 'package:cardtrade/widgets/common/controls.dart';
 import 'package:cardtrade/widgets/common/error_view.dart';
+import 'package:cardtrade/widgets/common/status_badge.dart';
+import 'package:cardtrade/features/profile/widgets/profile_reread.dart';
+import 'package:cardtrade/features/profile/widgets/profile_sections.dart';
 
-// TODO: move to Env when the production domain is set
-const _webAppBaseUrl = 'https://cardtrade.app';
-
-/// Explanation screen for identity verification (Stripe Identity).
-///
-/// Shows what verification means, why it's needed, a benefits list,
-/// and a CTA to launch the Stripe Identity flow in the browser.
-/// Displays current status if already verified or pending.
+/// Step one of verification: what it asks for and what it unlocks.
 class IdentityVerificationScreen extends ConsumerWidget {
   const IdentityVerificationScreen({super.key});
 
+  /// The step's heading, in the words the web's sequence uses.
+  static const String title = 'Verify your identity';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(myProfileProvider);
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Identity Verification'),
-      ),
-      body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ErrorView(
-          message: error.toString(),
-          onRetry: () => ref.read(myProfileProvider.notifier).refresh(),
-        ),
-        data: (profile) {
+    return AppScaffold(
+      title: title,
+      onBack: () => Navigator.of(context).maybePop(),
+      body: ProfileReRead(
+        builder: (BuildContext context, ProfileReadState state) {
+          final Profile? profile = state.lastReported;
           if (profile == null) {
-            return const Center(child: Text('Profile not found.'));
+            if (state.read.hasError) {
+              return ErrorView(
+                title: 'We could not load your status',
+                message: 'Your verification status did not load. '
+                    'Please try again.',
+                onRetry: state.retry,
+              );
+            }
+            return const ProfileStepSkeleton(
+              announcement: 'Loading your status',
+            );
           }
 
-          final status = profile.identityCheckStatus;
-          final isVerified = status == IdentityCheckStatus.verified;
-          final isPending = status == IdentityCheckStatus.pending;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── Status Indicator ──────────────────────────────
-                if (isVerified)
-                  const _StatusBanner(
-                    icon: Icons.check_circle_rounded,
-                    color: AppTheme.success,
-                    label: 'Identity verified',
-                    description:
-                        'Your identity has been verified. You can list items, sell, and trade.',
-                  )
-                else if (isPending)
-                  const _StatusBanner(
-                    icon: Icons.hourglass_top_rounded,
-                    color: AppTheme.warning,
-                    label: 'Verification pending',
-                    description:
-                        'Your identity check is being reviewed. This usually takes a few minutes.',
-                  ),
-
-                if (!isVerified) ...[
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── Explanation ──────────────────────────────────
-                  Text(
-                    'Why verify your identity?',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  Text(
-                    "CardTrade verifies every seller's identity with a photo ID "
-                    'and selfie check to keep the marketplace safe. This protects '
-                    'both buyers and sellers.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.secondary,
-                      height: 1.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── Benefits List ───────────────────────────────
-                  Text(
-                    'What you unlock',
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  const _BenefitItem(
-                    icon: Icons.storefront_rounded,
-                    text: 'List items for sale',
-                  ),
-                  const _BenefitItem(
-                    icon: Icons.swap_horiz_rounded,
-                    text: 'Propose and accept trades',
-                  ),
-                  const _BenefitItem(
-                    icon: Icons.verified_user_rounded,
-                    text: 'Verified badge on your profile',
-                  ),
-                  const _BenefitItem(
-                    icon: Icons.shield_rounded,
-                    text: 'Dispute resolution & fraud protection',
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingXl),
-
-                  // ─── What's needed ───────────────────────────────
-                  Text(
-                    "What you'll need",
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  const _BenefitItem(
-                    icon: Icons.badge_outlined,
-                    text: 'A valid government-issued photo ID',
-                  ),
-                  const _BenefitItem(
-                    icon: Icons.face_rounded,
-                    text: 'A selfie for comparison',
-                  ),
-
-                  const SizedBox(height: AppTheme.spacingXxl),
-
-                  // ─── CTA ─────────────────────────────────────────
-                  if (!isPending) ...[
-                    const Text(
-                      'Verification opens in your browser',
-                      style: AppTheme.metaText,
-                    ),
-                    const SizedBox(height: AppTheme.spacingSm),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _startVerification(context),
-                        icon: const Icon(Icons.verified_rounded),
-                        label: const Text('Start Verification'),
-                      ),
-                    ),
-                  ],
-                ],
-              ],
-            ),
+          return _IdentityStep(
+            state: verificationState(profile.identityCheckStatus),
+            verifiedName: profile.identityCheckName,
+            reReadOverdue: state.overdue,
+            onReRead: state.retry,
           );
         },
       ),
     );
   }
-
-  Future<void> _startVerification(BuildContext context) async {
-    final uri = Uri.parse('$_webAppBaseUrl/profile/identity');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        context.showError('Could not open verification page');
-      }
-    }
-  }
 }
 
-/// A status banner showing the current verification state.
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.description,
+class _IdentityStep extends StatelessWidget {
+  const _IdentityStep({
+    required this.state,
+    required this.verifiedName,
+    required this.reReadOverdue,
+    required this.onReRead,
   });
 
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String description;
+  final VerificationState state;
+
+  /// The document-backed name, which is the whole of what the check gives back to
+  /// the app. Never a document number, an address or a date of birth.
+  final String? verifiedName;
+
+  final bool reReadOverdue;
+  final VoidCallback onReRead;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+    final bool passed = state == VerificationState.verified;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.group,
+        AppSpacing.snug,
+        AppSpacing.group,
+        AppSpacing.section,
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(width: AppTheme.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                      ),
+      children: <Widget>[
+        Row(
+          spacing: AppSpacing.snug,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                _headline(state),
+                style: AppType.subhead.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.foreground,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.secondary,
-                      ),
-                ),
-              ],
+                softWrap: true,
+              ),
+            ),
+            StatusBadge(label: _statusLabel(state), variant: _variant(state)),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.snug),
+        Text(_explanation(state), style: AppText.supportText, softWrap: true),
+
+        if (passed && verifiedName != null) ...<Widget>[
+          const SizedBox(height: AppSpacing.snug),
+          Text('Verified as $verifiedName', style: AppText.bodyText),
+        ],
+
+        if (!passed) ...<Widget>[
+          const SizedBox(height: AppSpacing.section),
+          const Text('What this unlocks', style: AppText.sectionLabel),
+          const SizedBox(height: AppSpacing.snug),
+          const _StepFact(
+            icon: Icons.storefront_rounded,
+            text: 'Listing cards for sale',
+          ),
+          const _StepFact(
+            icon: Icons.swap_horiz_rounded,
+            text: 'Entering a trade',
+          ),
+          const _StepFact(
+            icon: Icons.verified_user_rounded,
+            text: 'Being named as the seller on a contract',
+          ),
+
+          const SizedBox(height: AppSpacing.section),
+          const Text("What you'll need", style: AppText.sectionLabel),
+          const SizedBox(height: AppSpacing.snug),
+          const _StepFact(
+            icon: Icons.badge_outlined,
+            text: 'A government-issued photo ID',
+          ),
+          const _StepFact(
+            icon: Icons.face_rounded,
+            text: 'A selfie, to compare against it',
+          ),
+
+          const SizedBox(height: AppSpacing.section),
+          Text(
+            'Opens ${WebHandoff.pageLabel(WebHandoff.identityVerification)} in '
+            'your browser. You will leave the app and come back to this screen.',
+            style: AppText.metaText,
+            softWrap: true,
+          ),
+          const SizedBox(height: AppSpacing.snug),
+          AppButton(
+            label: state == VerificationState.inProgress
+                ? 'Check your verification on the website'
+                : 'Verify on the website',
+            icon: Icons.open_in_new_rounded,
+            fillWidth: true,
+            onPressed: () => WebHandoff.openOrWarn(
+              context,
+              WebHandoff.identityVerification,
             ),
           ),
         ],
-      ),
+
+        if (reReadOverdue) ...<Widget>[
+          const SizedBox(height: AppSpacing.group),
+          ProfileReReadNotice(onReRead: onReRead),
+        ],
+      ],
     );
   }
+
+  static String _headline(VerificationState state) => switch (state) {
+        VerificationState.verified => 'Your identity is verified',
+        VerificationState.inProgress => 'Your check is being reviewed',
+        VerificationState.notApproved => 'Your check was not approved',
+        VerificationState.notStarted => IdentityVerificationScreen.title,
+      };
+
+  static String _statusLabel(VerificationState state) => switch (state) {
+        VerificationState.verified => 'Passed',
+        VerificationState.inProgress => 'In review',
+        VerificationState.notApproved => 'Not approved',
+        VerificationState.notStarted => 'Pending',
+      };
+
+  static StatusBadgeVariant _variant(VerificationState state) => switch (state) {
+        VerificationState.verified => StatusBadgeVariant.completed,
+        VerificationState.inProgress => StatusBadgeVariant.pending,
+        VerificationState.notApproved => StatusBadgeVariant.error,
+        VerificationState.notStarted => StatusBadgeVariant.neutral,
+      };
+
+  static String _explanation(VerificationState state) => switch (state) {
+        VerificationState.verified =>
+          'You can list cards, sell and enter trades.',
+        VerificationState.inProgress =>
+          'This usually takes a few minutes. You do not need to do anything '
+              'else while it is reviewed.',
+        VerificationState.notApproved =>
+          'You can try again on the website. A clearer photo of the same '
+              'document is usually enough.',
+        VerificationState.notStarted =>
+          'We check every seller against a photo ID to keep known fraudsters '
+              'off the marketplace. Buying does not need it.',
+      };
 }
 
-/// A single benefit item with icon and text.
-class _BenefitItem extends StatelessWidget {
-  const _BenefitItem({
-    required this.icon,
-    required this.text,
-  });
+/// One line of what a step unlocks or asks for.
+class _StepFact extends StatelessWidget {
+  const _StepFact({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
@@ -234,26 +232,25 @@ class _BenefitItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.spacingMd),
+      padding: const EdgeInsets.only(bottom: AppSpacing.snug),
       child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingSm),
-            decoration: BoxDecoration(
-              color: AppTheme.accentLight,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: Icon(icon, size: 18, color: AppTheme.accent),
-          ),
-          const SizedBox(width: AppTheme.spacingMd),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.snug,
+        children: <Widget>[
+          ExcludeSemantics(
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.snug),
+              decoration: BoxDecoration(
+                color: AppTint.eyebrow.fill,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(icon, size: AppIconSize.base, color: AppColors.irisInk),
             ),
           ),
+          Expanded(child: Text(text, style: AppText.bodyText, softWrap: true)),
         ],
       ),
     );
   }
 }
+

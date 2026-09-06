@@ -19,10 +19,10 @@ export type {
   ContractStepStatus,
 } from './steps';
 
-export { CASH_SALE_SECTIONS, deriveCashSaleSteps } from './cashSaleSteps';
+export { CASH_SALE_SECTIONS, deriveCashSaleSteps, isCashSaleStatus } from './cashSaleSteps';
 export type { CashSaleStepFacts } from './cashSaleSteps';
 
-export { TRADE_SECTIONS, deriveTradeSteps } from './tradeSteps';
+export { TRADE_SECTIONS, deriveTradeSteps, isTradeState } from './tradeSteps';
 export type { TradeStepFacts } from './tradeSteps';
 
 export { derivePostageSteps } from './postageSteps';

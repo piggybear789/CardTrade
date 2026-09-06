@@ -25,6 +25,21 @@ android/app/release/
 *.freezed.dart
 *.g.dart
 
+# Golden failure diffs. `flutter test` writes these next to the goldens on any mismatch
+# (four images per failing golden), so they reappear on every red run and would otherwise
+# be stageable. The baselines themselves under test/golden/ stay tracked — only the
+# failure output is transient.
+test/golden/**/failures/
+
+# Release signing (NEVER commit a keystore or a password) — Req 2.4, 2.7.
+# android/.gitignore already covers these under android/; these patterns extend the same
+# refusal to the whole flutter_app/ subtree, because a keystore dropped at flutter_app/
+# or under lib/ would otherwise be stageable. key.properties.example is tracked on purpose:
+# it holds field names and no values.
+key.properties
+*.jks
+*.keystore
+
 # Environment (NEVER commit real keys)
 config/dev.env
 config/staging.env

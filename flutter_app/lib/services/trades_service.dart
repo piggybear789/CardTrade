@@ -1,5 +1,6 @@
 import '../core/api_routes.dart';
 import '../core/result.dart';
+import '../models/contract_step.dart';
 import '../models/pre_auth_hold.dart';
 import '../models/trade.dart';
 import 'mobile_api_client.dart';
@@ -78,6 +79,25 @@ class TradesService {
         .order('created_at');
 
     return (response as List).map((j) => PreAuthHold.fromJson(j)).toList();
+  }
+
+  /// Fetch the contract step plan the server derived for this trade.
+  ///
+  /// A READ that goes through the mobile API rather than Supabase, because the plan
+  /// is not a row: `domain/contract/tradeSteps.ts` branches on the fulfilment
+  /// method, reads the aggregate `TradeFacts` behind the state machine, and names
+  /// whichever trader is outstanding. This app declares no step plan of its own
+  /// (`.kiro/specs/mobile-parity/` Req 11.1–11.3).
+  ///
+  /// Returns the NEUTRAL plan — an empty list — for every failure: no session, a
+  /// transport error, or a refusal from the server (Req 11.5).
+  Future<List<ContractStep>> getStepPlan(String tradeId) async {
+    final Result<dynamic> result = await _api.post<dynamic>(
+      ApiRoutes.tradeStepPlan,
+      body: {'tradeId': tradeId},
+    );
+    if (result.isErr) return const <ContractStep>[];
+    return contractStepsFromServed(result.dataOrNull);
   }
 
   /// Subscribe to real-time trade changes.

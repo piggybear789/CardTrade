@@ -79,6 +79,9 @@ class ListingsService {
             listingKind: _parseListingKind(json['listing_kind']),
             status: _parseItemStatus(json['status']),
             imagePaths: _parseStringList(json['image_paths']),
+            closedAt: DateTime.tryParse(json['closed_at']?.toString() ?? ''),
+            coverWidthPx: _parseCoverEdge(json['image_dims'], 'w'),
+            coverHeightPx: _parseCoverEdge(json['image_dims'], 'h'),
             sellerIdentityVerified: json['seller_identity_verified'] as bool? ?? false,
             sellerRating: (json['seller_rating'] as num?)?.toDouble(),
             locationLabel: json['location_label'] as String?,
@@ -222,6 +225,27 @@ class ListingsService {
       default: return ItemStatus.available;
     }
   }
+
+  /// One edge of the COVER photo out of the `items.image_dims` jsonb array.
+  ///
+  /// The column is aligned index-for-index with `image_paths` (migration 0106),
+  /// so entry 0 describes the cover. Anything that is not a positive integer
+  /// comes back null rather than as a guess: a null has a defined meaning
+  /// downstream — reserve a square — and a fabricated edge silently produces a
+  /// wrongly shaped tile. Mirrors `sanitizeImageDim` in `lib/images/dimensions.ts`.
+  static int? _parseCoverEdge(dynamic dims, String key) {
+    if (dims is! List || dims.isEmpty) return null;
+    final first = dims.first;
+    if (first is! Map) return null;
+    final edge = first[key];
+    if (edge is! num) return null;
+    final pixels = edge.toInt();
+    if (pixels < 1 || pixels > _maxImageEdgePx) return null;
+    return pixels;
+  }
+
+  /// Widest and tallest edge believed, matching `MAX_EDGE` on the web.
+  static const int _maxImageEdgePx = 30000;
 
   static List<String> _parseStringList(dynamic value) {
     if (value == null) return [];

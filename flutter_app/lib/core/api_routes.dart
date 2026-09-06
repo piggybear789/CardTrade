@@ -34,6 +34,13 @@ abstract final class ApiRoutes {
   static String get cashSaleSyncTracking => '$base/cash-sale/sync-tracking';
   static String get cashSaleRaiseDispute => '$base/cash-sale/raise-dispute';
 
+  /// The contract step plan, derived by `domain/contract/cashSaleSteps.ts`.
+  ///
+  /// A READ that the room cannot work without: the sale room declares no step list of
+  /// its own, so what the rail draws comes from here or the room presents the neutral
+  /// state. See `features/sales/widgets/sale_progress_rail.dart`.
+  static String get cashSaleStepPlan => '$base/cash-sale/step-plan';
+
   // ─── Trade Negotiation ────────────────────────────────────────────────────
   static String get tradeOpen => '$base/trades/open';
   static String get tradeProposeTerms => '$base/trades/propose-terms';
@@ -54,6 +61,10 @@ abstract final class ApiRoutes {
   static String get tradeGetDeliveryAddresses => '$base/trades/get-delivery-addresses';
   static String get tradeSyncTracking => '$base/trades/sync-tracking';
 
+  /// The contract step plan, derived by `domain/contract/tradeSteps.ts`. Same
+  /// reasoning as `cashSaleStepPlan`.
+  static String get tradeStepPlan => '$base/trades/step-plan';
+
   // ─── Offers ───────────────────────────────────────────────────────────────
   static String get offersMake => '$base/offers/make';
   static String get offersCounter => '$base/offers/counter';
@@ -67,6 +78,9 @@ abstract final class ApiRoutes {
   static String get messagesMarkRead => '$base/messages/mark-read';
   static String get messagesListConversations => '$base/messages/list-conversations';
   static String get messagesGetConversation => '$base/messages/get-conversation';
+
+  // ─── Account ──────────────────────────────────────────────────────────────
+  static String get accountClose => '$base/account/close';
 
   // ─── Payments ─────────────────────────────────────────────────────────────
   static String get paymentsBeginCardSetup => '$base/payments/begin-card-setup';

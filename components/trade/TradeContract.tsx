@@ -100,6 +100,7 @@ import {
   type TradeRow,
   type TradeTransitionRow,
 } from '@/lib/realtime/useTradeRealtime';
+import { deriveHoldLegs } from '@/domain/state-machine/holdLegs';
 import type {
   TradeFacts,
   TradeState,
@@ -119,21 +120,15 @@ import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
  * Keep this in step with `factsFromTrade` in `lib/actions/tradeLifecycleStore.ts`. The
  * duplication exists because that module is `server-only`, not because the two are
  * allowed to disagree.
+ *
+ * The two hold-derived legs are NOT duplicated: they come from `deriveHoldLegs` in the
+ * pure layer, which the mobile step-plan endpoint reads too. See that module for why.
  */
 function deriveFacts(
   trade: TradeRow,
   holds: { trader_id: string; status: string; created_at?: string }[],
 ): TradeFacts {
-  const latestStatus = (traderId: string) => {
-    const theirs = holds
-      .filter((h) => h.trader_id === traderId)
-      .toSorted((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
-    return theirs[theirs.length - 1]?.status;
-  };
-  const initiatorStatus = latestStatus(trade.initiator_id);
-  const counterpartStatus = latestStatus(trade.counterpart_id);
-  const seekEnded = (status: string | undefined) =>
-    status === 'FAILED' || status === 'VOIDED' || status === 'EXPIRED';
+  const holdLegs = deriveHoldLegs(holds, trade.initiator_id, trade.counterpart_id);
   return {
     termsAccepted: {
       initiator: trade.initiator_terms_accepted_version === trade.terms_version,
@@ -156,11 +151,7 @@ function deriveFacts(
       counterpart: trade.counterpart_handover_confirmed_at != null,
     },
     fulfilmentMethod: trade.handover_method,
-    holdsActive: {
-      initiator: initiatorStatus === 'ACTIVE',
-      counterpart: counterpartStatus === 'ACTIVE',
-    },
-    collateralSeekFailed: seekEnded(initiatorStatus) || seekEnded(counterpartStatus),
+    ...holdLegs,
   };
 }
 

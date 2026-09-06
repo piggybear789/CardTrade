@@ -1,190 +1,35 @@
+// The trade room's rail: the SERVED step plan, styled.
+//
+// THIS FILE USED TO DECLARE THE PLAN AND NO LONGER DOES. It held six column
+// labels, a `Map<TradeState, int>` placing each state on one of them, and a set of
+// states it called halted — a step plan in an app bundle that the server had never
+// agreed to. `domain/contract/tradeSteps.ts` derives the real one, which also
+// BRANCHES on the fulfilment method (a posted trade ships and confirms arrival; a
+// face-to-face one meets once) and names whichever trader is outstanding. A
+// hard-coded six-column list cannot express either.
+//
+// `app/api/mobile/trades/step-plan` serves it for the trade the caller is a party
+// to. The room reads it through `tradeStepPlanProvider` and passes it here. Every
+// label, detail line and done/active/pending/halted mark was decided by the server
+// (`.kiro/specs/mobile-parity/` Req 11.1–11.3).
+//
+// AN UNAVAILABLE PLAN IS AN EMPTY LIST and draws nothing — no session, a transport
+// failure, or a state the server declines to place. Nothing to fall back to, by
+// construction (Req 11.5, and mobile-visual-parity Req 7.11).
+//
+// Requirements 7.2, 7.3, 7.11, 14.12; mobile-parity 11.3, 11.5, 11.6.
+
 import 'package:flutter/material.dart';
 
-import 'package:cardtrade/core/theme.dart';
-import 'package:cardtrade/models/enums.dart';
+import 'package:cardtrade/widgets/contract/contract.dart';
 
-/// Horizontal stepper showing the trade lifecycle states.
-///
-/// States displayed: Proposed → Terms → Collateral → Transit/Handover →
-/// Inspection → Complete.
-///
-/// Current state is highlighted with the accent color; past states show
-/// checkmarks; future states are muted.
+/// Horizontal stepper showing the trade lifecycle, as the server described it.
 class TradeProgressRail extends StatelessWidget {
-  const TradeProgressRail({
-    required this.currentState,
-    this.handoverMethod,
-    super.key,
-  });
+  const TradeProgressRail({required this.steps, super.key});
 
-  /// The current trade state.
-  final TradeState currentState;
-
-  /// If provided, the transit step label adapts (Transit vs Handover).
-  final HandoverMethod? handoverMethod;
-
-  /// Ordered list of display steps mapped from trade states.
-  static const _stepLabels = [
-    'Proposed',
-    'Terms',
-    'Collateral',
-    'Transit', // dynamically becomes 'Handover' for in-person
-    'Inspection',
-    'Complete',
-  ];
-
-  /// Maps a TradeState to the step index in the progress rail.
-  int get _currentStepIndex {
-    return switch (currentState) {
-      TradeState.negotiating => 0,
-      TradeState.collateralPending => 2,
-      TradeState.collateralLocked => 2,
-      TradeState.inTransit => 3,
-      TradeState.inspection => 4,
-      TradeState.completed => 5,
-      TradeState.disputed => 4, // show at inspection level
-      TradeState.fraudResolved => 5,
-      TradeState.cancelled => 0, // terminal, show at start
-    };
-  }
+  /// The served plan, unmodified. Empty is the neutral presentation.
+  final List<ContractStep> steps;
 
   @override
-  Widget build(BuildContext context) {
-    final stepIndex = _currentStepIndex;
-    final labels = List<String>.from(_stepLabels);
-
-    // Adapt transit step label for in-person trades.
-    if (handoverMethod == HandoverMethod.inPerson) {
-      labels[3] = 'Handover';
-    }
-
-    return SizedBox(
-      height: 60,
-      child: Row(
-        children: List.generate(labels.length, (index) {
-          final isCompleted = index < stepIndex;
-          final isCurrent = index == stepIndex;
-
-          return Expanded(
-            child: _StepItem(
-              label: labels[index],
-              isCompleted: isCompleted,
-              isCurrent: isCurrent,
-              isFirst: index == 0,
-              isLast: index == labels.length - 1,
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _StepItem extends StatelessWidget {
-  const _StepItem({
-    required this.label,
-    required this.isCompleted,
-    required this.isCurrent,
-    required this.isFirst,
-    required this.isLast,
-  });
-
-  final String label;
-  final bool isCompleted;
-  final bool isCurrent;
-  final bool isFirst;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color circleColor;
-    final Widget circleChild;
-
-    if (isCompleted) {
-      circleColor = AppTheme.success;
-      circleChild = const Icon(Icons.check, size: 12, color: Colors.white);
-    } else if (isCurrent) {
-      circleColor = AppTheme.accent;
-      circleChild = Container(
-        width: 6,
-        height: 6,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-      );
-    } else {
-      circleColor = AppTheme.border;
-      circleChild = const SizedBox.shrink();
-    }
-
-    final lineColor = isCompleted ? AppTheme.success : AppTheme.border;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            // Left connector line
-            Expanded(
-              child: isFirst
-                  ? const SizedBox.shrink()
-                  : AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      height: 2,
-                      color: lineColor,
-                    ),
-            ),
-            // Circle indicator
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: isCurrent ? 22 : 18,
-              height: isCurrent ? 22 : 18,
-              decoration: BoxDecoration(
-                color: circleColor,
-                shape: BoxShape.circle,
-                boxShadow: isCurrent
-                    ? [
-                        BoxShadow(
-                          color: AppTheme.accent.withValues(alpha: 0.3),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Center(child: circleChild),
-            ),
-            // Right connector line
-            Expanded(
-              child: isLast
-                  ? const SizedBox.shrink()
-                  : AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      height: 2,
-                      color: isCurrent || isCompleted
-                          ? lineColor
-                          : AppTheme.border,
-                    ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppTheme.spacingXs),
-        Text(
-          label,
-          style: AppTheme.metaText.copyWith(
-            fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
-            color: isCurrent
-                ? AppTheme.accent
-                : isCompleted
-                    ? AppTheme.primary
-                    : AppTheme.muted,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => ContractProgressRail(steps: steps);
 }

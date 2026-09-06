@@ -56,10 +56,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Color _strengthColor() {
-    if (_passwordStrength <= 0.2) return AppTheme.danger;
-    if (_passwordStrength <= 0.4) return AppTheme.warning;
-    if (_passwordStrength <= 0.6) return AppTheme.warning;
-    return AppTheme.success;
+    if (_passwordStrength <= 0.2) return AppColors.destructive;
+    if (_passwordStrength <= 0.4) return AppColors.actionBorder;
+    if (_passwordStrength <= 0.6) return AppColors.actionBorder;
+    return AppColors.trust;
   }
 
   String _strengthLabel() {
@@ -90,14 +90,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(state.error.toString()),
-          backgroundColor: AppTheme.danger,
+          backgroundColor: AppColors.destructive,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Check your email to confirm your account'),
-          backgroundColor: AppTheme.success,
+          backgroundColor: AppColors.trust,
         ),
       );
       context.go(AppRoutes.signIn);
@@ -120,8 +120,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingXl,
-              vertical: AppTheme.spacingLg,
+              horizontal: AppSpacing.group,
+              vertical: AppSpacing.cozy,
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
@@ -137,15 +137,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       style: Theme.of(context).textTheme.headlineLarge,
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: AppTheme.spacingSm),
+                    const SizedBox(height: AppSpacing.tight),
                     Text(
                       'Join the CardTrade community',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.secondary,
+                            color: AppColors.mutedForeground,
                           ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: AppTheme.spacingXxl),
+                    const SizedBox(height: AppSpacing.section),
 
                     // ─── Display Name ────────────────────────────────────
                     TextFormField(
@@ -168,7 +168,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: AppTheme.spacingLg),
+                    const SizedBox(height: AppSpacing.cozy),
 
                     // ─── Email ────────────────────────────────────────────
                     TextFormField(
@@ -191,7 +191,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: AppTheme.spacingLg),
+                    const SizedBox(height: AppSpacing.cozy),
 
                     // ─── Password ─────────────────────────────────────────
                     TextFormField(
@@ -207,7 +207,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: AppTheme.muted,
+                            color: AppColors.mutedForeground,
                           ),
                           onPressed: () {
                             setState(() => _obscurePassword = !_obscurePassword);
@@ -228,7 +228,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     // ─── Password Hint ───────────────────────────────────
                     const Padding(
                       padding: EdgeInsets.only(
-                        top: AppTheme.spacingXs,
+                        top: AppSpacing.snug,
                         left: 48,
                       ),
                       child: Text(
@@ -239,7 +239,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                     // ─── Password Strength Indicator ─────────────────────
                     if (_passwordController.text.isNotEmpty) ...[
-                      const SizedBox(height: AppTheme.spacingSm),
+                      const SizedBox(height: AppSpacing.tight),
                       Row(
                         children: [
                           Expanded(
@@ -254,7 +254,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: AppTheme.spacingSm),
+                          const SizedBox(width: AppSpacing.tight),
                           Text(
                             _strengthLabel(),
                             style:
@@ -266,7 +266,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ],
                       ),
                     ],
-                    const SizedBox(height: AppTheme.spacingLg),
+                    const SizedBox(height: AppSpacing.cozy),
 
                     // ─── Confirm Password ────────────────────────────────
                     TextFormField(
@@ -281,7 +281,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             _obscureConfirm
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: AppTheme.muted,
+                            color: AppColors.mutedForeground,
                           ),
                           onPressed: () {
                             setState(() => _obscureConfirm = !_obscureConfirm);
@@ -298,7 +298,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: AppTheme.spacingXl),
+                    const SizedBox(height: AppSpacing.group),
 
                     // ─── Terms Acceptance ─────────────────────────────────
                     Row(
@@ -316,14 +316,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                 if (_acceptedTerms) _showTermsError = false;
                               });
                             },
-                            activeColor: AppTheme.accent,
+                            activeColor: AppColors.primary,
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(AppTheme.radiusSm - 2),
                             ),
                           ),
                         ),
-                        const SizedBox(width: AppTheme.spacingSm),
+                        const SizedBox(width: AppSpacing.tight),
                         Expanded(
                           child: GestureDetector(
                             onTap: () {
@@ -337,7 +337,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
-                                  ?.copyWith(color: AppTheme.secondary),
+                                  ?.copyWith(color: AppColors.mutedForeground),
                             ),
                           ),
                         ),
@@ -346,17 +346,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     if (_showTermsError)
                       Padding(
                         padding: const EdgeInsets.only(
-                          top: AppTheme.spacingXs,
+                          top: AppSpacing.snug,
                           left: 32,
                         ),
                         child: Text(
                           'You must accept the terms to continue',
                           style: AppTheme.supportText.copyWith(
-                            color: AppTheme.danger,
+                            color: AppColors.destructive,
                           ),
                         ),
                       ),
-                    const SizedBox(height: AppTheme.spacingXl),
+                    const SizedBox(height: AppSpacing.group),
 
                     // ─── Create Account Button ───────────────────────────
                     FilledButton(
@@ -372,7 +372,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             )
                           : const Text('Create Account'),
                     ),
-                    const SizedBox(height: AppTheme.spacingXxl),
+                    const SizedBox(height: AppSpacing.section),
 
                     // ─── Sign In Link ────────────────────────────────────
                     Wrap(
@@ -382,7 +382,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         Text(
                           'Already have an account?',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.secondary,
+                                color: AppColors.mutedForeground,
                               ),
                         ),
                         TextButton(

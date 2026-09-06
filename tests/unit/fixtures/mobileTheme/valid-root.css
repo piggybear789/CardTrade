@@ -1,0 +1,13 @@
+/* Valid fixture: the parser must ignore this retired-looking declaration. */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 275 10% 10%;
+  --ring: var(--foreground);
+  --radius: 0.5rem;
+  --duration-exit: 150ms;
+}
+
+.dark {
+  --background: 0 0% 0%;
+  --dark-only: 0 0% 50%;
+}

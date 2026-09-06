@@ -21,6 +21,7 @@
     "test:e2e:killserver": "node scripts/e2e/kill-dev-server.mjs",
     "audit:mobile": "tsx scripts/mobile-api-audit.ts",
     "generate:dart-vocab": "tsx scripts/generate-dart-vocabulary.ts",
+    "generate:mobile-tokens": "tsx scripts/generate-mobile-tokens.ts",
     "smoke:mobile": "tsx --env-file=.env.local scripts/smoke-mobile-api.ts",
     "smoke:stripe": "tsx --env-file=.env.local scripts/smoke-stripe-test.ts",
     "smoke:stripe:refund": "tsx --env-file=.env.local scripts/smoke-stripe-refund.ts",

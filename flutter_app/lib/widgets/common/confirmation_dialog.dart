@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import 'tap_target.dart';
 
 /// A reusable Material 3 confirmation dialog.
 ///
@@ -82,27 +83,30 @@ class ConfirmationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return AlertDialog(
-      title: Text(title),
-      content: Text(
-        message,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: AppTheme.secondary,
-        ),
-      ),
+      title: Text(title, style: AppType.subhead.copyWith(fontWeight: FontWeight.w600)),
+      content: Text(message, style: AppText.supportText),
+      // Both actions keep their drawn height and take their 48-pixel touch
+      // rectangle from TapTarget (Req 8.7, 13.6). The dialog's action bar spaces
+      // them apart, so the two targets do not intersect.
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(cancelLabel),
+        TapTarget(
+          child: TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(cancelLabel),
+          ),
         ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: isDanger
-              ? FilledButton.styleFrom(backgroundColor: AppTheme.danger)
-              : null,
-          child: Text(confirmLabel),
+        TapTarget(
+          child: FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: isDanger
+                ? FilledButton.styleFrom(
+                    backgroundColor: AppColors.destructive,
+                    foregroundColor: AppColors.destructiveForeground,
+                  )
+                : null,
+            child: Text(confirmLabel),
+          ),
         ),
       ],
     );

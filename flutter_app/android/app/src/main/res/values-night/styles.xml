@@ -16,6 +16,11 @@
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
     <style name="NormalTheme" parent="Theme.MaterialComponents.NoActionBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- Req 5.5: this is the one that mattered. Under a dark system theme the
+             scaffold's ?android:colorBackground resolved to this dark parent's grey,
+             so the window went dark and then swapped to the app's light first frame -
+             main.dart passes no darkTheme, so there is no dark first frame to match.
+             @color/splash_background is AppColors.background in values-night too. -->
+        <item name="android:windowBackground">@color/splash_background</item>
     </style>
 </resources>

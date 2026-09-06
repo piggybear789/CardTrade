@@ -40,7 +40,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(state.error.toString()),
-          backgroundColor: AppTheme.danger,
+          backgroundColor: AppColors.destructive,
         ),
       );
     } else {
@@ -64,8 +64,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingXl,
-              vertical: AppTheme.spacingXxl,
+              horizontal: AppSpacing.group,
+              vertical: AppSpacing.section,
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
@@ -88,31 +88,31 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppTheme.accentLight,
+              color: AppTint.eyebrow.fill!,
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             ),
             child: const Icon(
               Icons.lock_reset_rounded,
               size: 32,
-              color: AppTheme.accent,
+              color: AppColors.irisInk,
             ),
           ),
-          const SizedBox(height: AppTheme.spacingXl),
+          const SizedBox(height: AppSpacing.group),
 
           // ─── Title ─────────────────────────────────────────────────────
           Text(
             'Reset Password',
             style: Theme.of(context).textTheme.headlineLarge,
           ),
-          const SizedBox(height: AppTheme.spacingSm),
+          const SizedBox(height: AppSpacing.tight),
           Text(
             "Enter your email and we'll send you a link to reset your password.",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.secondary,
+                  color: AppColors.mutedForeground,
                 ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppTheme.spacingXxl),
+          const SizedBox(height: AppSpacing.section),
 
           // ─── Email Field ───────────────────────────────────────────────
           TextFormField(
@@ -136,7 +136,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             },
             onFieldSubmitted: (_) => _handleSendReset(),
           ),
-          const SizedBox(height: AppTheme.spacingXl),
+          const SizedBox(height: AppSpacing.group),
 
           // ─── Send Reset Link Button ────────────────────────────────────
           SizedBox(
@@ -155,7 +155,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   : const Text('Send Reset Link'),
             ),
           ),
-          const SizedBox(height: AppTheme.spacingXl),
+          const SizedBox(height: AppSpacing.group),
 
           // ─── Back to Sign In ───────────────────────────────────────────
           TextButton(
@@ -175,32 +175,33 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         Container(
           width: 80,
           height: 80,
-          decoration: const BoxDecoration(
-            color: AppTheme.successLight,
+          // Not const: the success tint is composed with an alpha at runtime.
+          decoration: BoxDecoration(
+            color: AppTint.successChip.fill!,
             shape: BoxShape.circle,
           ),
           child: const Icon(
             Icons.mark_email_read_outlined,
             size: 40,
-            color: AppTheme.success,
+            color: AppColors.trust,
           ),
         ),
-        const SizedBox(height: AppTheme.spacingXl),
+        const SizedBox(height: AppSpacing.group),
 
         // ─── Title ───────────────────────────────────────────────────────
         Text(
           'Check your email',
           style: Theme.of(context).textTheme.headlineLarge,
         ),
-        const SizedBox(height: AppTheme.spacingSm),
+        const SizedBox(height: AppSpacing.tight),
         Text(
           'We sent a password reset link to',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.secondary,
+                color: AppColors.mutedForeground,
               ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: AppTheme.spacingXs),
+        const SizedBox(height: AppSpacing.snug),
         Text(
           _emailController.text.trim(),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -208,13 +209,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: AppTheme.spacingXxl),
+        const SizedBox(height: AppSpacing.section),
 
         // ─── Instruction ─────────────────────────────────────────────────
         Container(
-          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          padding: const EdgeInsets.all(AppSpacing.cozy),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceVariant,
+            color: AppColors.muted,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
           child: Row(
@@ -222,9 +223,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               const Icon(
                 Icons.info_outline_rounded,
                 size: 20,
-                color: AppTheme.secondary,
+                color: AppColors.mutedForeground,
               ),
-              const SizedBox(width: AppTheme.spacingSm),
+              const SizedBox(width: AppSpacing.tight),
               Expanded(
                 child: Text(
                   "Didn't receive the email? Check your spam folder or try again.",
@@ -234,7 +235,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ],
           ),
         ),
-        const SizedBox(height: AppTheme.spacingXl),
+        const SizedBox(height: AppSpacing.group),
 
         // ─── Try Again / Back ────────────────────────────────────────────
         SizedBox(
@@ -244,7 +245,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             child: const Text('Try a different email'),
           ),
         ),
-        const SizedBox(height: AppTheme.spacingMd),
+        const SizedBox(height: AppSpacing.snug),
         TextButton(
           onPressed: () => context.go(AppRoutes.signIn),
           child: const Text('Back to Sign In'),

@@ -345,6 +345,77 @@ success is called out in the audit and is the pattern to eliminate everywhere.
 
 ---
 
+### Requirement 11: Serve the contract step plan with the contract data
+
+**User Story:** As a member in a contract room on mobile, I want the progress rail and
+the action card to show the same steps in the same order as the website, so that the two
+clients do not describe one contract differently.
+
+**Where this requirement came from.** It is a scope correction handed over from
+`.kiro/specs/mobile-visual-parity/`. That spec's Req 7.10 asked the mobile rail and
+action card to render "the ordered step list that the Advisory_Domain_Port of
+`domain/contract/cashSaleSteps.ts` and `domain/contract/tradeSteps.ts` returns" — but no
+such port exists, and creating one is forbidden three ways: by that spec's own Req 14.1
+(a ninth module under `flutter_app/lib/domain/` fails the token-agreement test), by its
+Req 14.11 (a port may not gain an exported symbol with no TypeScript counterpart), and by
+`.kiro/steering/flutter.md` ("Do not add a NINTH port"). The full analysis, including why
+a generated lookup table does not work here, is in
+`.kiro/specs/mobile-visual-parity/design.md` §"Requirement conflicts that need resolving
+before implementation" → conflict 1, "BLOCKING — Req 7.10 requires a Dart port that
+Req 14.1 forbids".
+
+**The resolution, recorded.** `mobile-visual-parity` keeps only the half a presentation
+spec may legally hold: no step list declared in a Mobile_Screen where feasible, the rail
+and action card styled to the web's rail/action-card/detail-row treatment, and an
+unrecognised status presented neutrally with no done/active/halted step and no action
+(its Req 7.11). The missing DERIVATION — a step plan covering all 13 `Cash_Sale_Status`
+values and all 9 `Trade_State` values, with the same ordering, detail lines and halted
+marker the web renders — is a functional gap and is owned here. That is the second of the
+three options that design weighed, and it is the one `flutter.md` points at: "ask first
+whether the answer can come down with the data."
+
+Until this requirement is implemented, both rooms keep their hard-coded local step lists
+(`features/trades/widgets/trade_progress_rail.dart`,
+`features/sales/screens/sale_room_screen.dart`). A correctly styled rail over a
+hard-coded list is a smaller lie than a rail over a re-implemented plan, and it is the
+state `mobile-visual-parity` is permitted to leave behind.
+
+#### Acceptance Criteria
+
+11.1. THE contract step plan SHALL be derived on the server by
+`domain/contract/cashSaleSteps.ts` and `domain/contract/tradeSteps.ts` — the same modules
+the web contract room reads — and SHALL be delivered to the Flutter client as data.
+
+11.2. THE delivery mechanism SHALL be the mobile API tier described in Requirement 3: a
+thin route handler under `app/api/mobile/` that authenticates the session, calls the
+existing derivation for a contract the caller participates in, and returns the plan.
+It SHALL add no new business logic and SHALL reimplement no step, ordering or halted
+rule.
+
+11.3. THE plan SHALL carry, per step, everything the rail and action card need to render
+without deciding anything: the step label, its detail line already resolved (including
+any counterparty name), and its done / active / halted state.
+
+11.4. NO ninth hand-written Dart domain port SHALL be added, and NO generated
+business-rule table SHALL be introduced for this. Requirement 7.4 stands unchanged. The
+`CashSaleStepFacts` input space — 13 statuses × 2 viewer roles × `termsSet` ×
+`isDelivery` × `hasTracking` × two handover flags × three optional return and dispute
+flags × `haltedAt`, with interpolated names in the detail lines — is a re-implementation
+with extra steps rather than a table, which is why generation was rejected.
+
+11.5. WHEN the plan is unavailable — no session, a transport failure, or a status the
+server does not recognise — THEN the room SHALL present the neutral state:
+no done/active/halted step and no action, per `mobile-visual-parity` Req 7.11. It SHALL
+NOT fall back to a locally declared step list, and SHALL NOT default to the first step.
+
+11.6. WHEN this requirement is implemented THEN `features/trades/widgets/trade_progress_rail.dart`
+and `features/sales/screens/sale_room_screen.dart` SHALL no longer declare a step list,
+and `npm run audit:mobile`, `tests/unit/mobileRpcContract.test.ts` and
+`tests/unit/mobileDomainAgreement.test.ts` SHALL all remain green with no assertion
+weakened, skipped or allowlisted.
+
+---
+
 ### Non-goals and prohibitions
 
 These are failure modes, not preferences. Each has a cheaper wrong answer that a guard

@@ -3,9 +3,16 @@
          here rather than only in the debug manifest, which would leave release
          builds unable to reach the backend at all. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ (API 33) will not post a local notification without this,
+         and flutter_local_notifications ^22.3.0 declares it too. Requested
+         lazily at the first point the app would post a notification, never at
+         cold start: a permission dialog with no context is the one members
+         deny. Declining is not fatal — the in-app notification centre is a
+         server read and keeps working. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
-        android:label="CardTrade"
+        android:label="NoDitto"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -29,7 +36,98 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Hands an incoming VIEW intent to go_router, which passes the Uri
+                 to resolveDeepLink in lib/core/deep_link.dart (decision D7). This
+                 one flag is why no deep-link package is needed: app_links and
+                 uni_links would each add a platform channel and keep rules to do
+                 what the embedding already does. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="true"/>
+            <!-- App Links: https on the NoDitto host (Req 4.1).
+
+                 PATH-SCOPED DELIBERATELY. A host filter with no path claims every
+                 https://noditto.app/... URL on the device, including /help, /terms,
+                 the marketing pages and the whole web app — and resolveDeepLink
+                 sends nearly all of those to the catalog, which is a worse outcome
+                 than letting the browser open the page the member tapped. So the
+                 prefixes below are exactly the paths this app can serve, and they
+                 match what the resolver accepts (kInviteSegment = 't',
+                 kKnownRoutePrefixes) — no more, no less:
+                   /t/         Deal_Invite tokens. Written with the trailing slash
+                               because android:pathPrefix is a plain string prefix:
+                               a bare "/t" would also swallow /terms and /trades.
+                   /profile    where the Stripe Identity and Connect return URLs
+                               land by default (lib/actions/identity.ts builds
+                               /profile?tab=verification&identity=complete, and
+                               lib/actions/merchant.ts /profile?payouts=complete).
+                   /onboarding the other return path the same two actions default
+                               to, via UnifiedOnboardingSurface.
+                   /listings/  a return path too (IdentityGatePrompt returns the
+                               member to /listings/{id}), and a route this app has.
+
+                 A RETURN MARKER IS A QUERY, AND AN INTENT FILTER CANNOT MATCH A
+                 QUERY. android:path* matches the path only, so the marker paths
+                 have to be claimed whole; ?identity= and ?payouts= cannot narrow
+                 them. One consequence is recorded rather than hidden: this app
+                 declares no /onboarding route, so a bare noditto.app/onboarding
+                 link is claimed here and then degrades to the catalog (Req 4.6).
+                 That is the intended failure mode — the marker links, which are
+                 the ones members actually receive, resolve to their screen.
+
+                 VERIFICATION WILL NOT COMPLETE until the Digital Asset Links
+                 statement at https://noditto.app/.well-known/assetlinks.json
+                 carries the SHA-256 of the Play APP SIGNING key — NOT the upload
+                 key's. Play App Signing re-signs the bundle, so the upload key's
+                 fingerprint is the wrong one and is the standard reason App Links
+                 silently fail: the intent falls through to the browser with no
+                 error anywhere. Until ANDROID_APP_SIGNING_SHA256 is set on the
+                 server (decision D10, task 4.5), the statement list is empty, this
+                 filter is unverified, and the custom scheme below carries the load. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="noditto.app" android:pathPrefix="/t/"/>
+                <data android:scheme="https" android:host="noditto.app" android:pathPrefix="/profile"/>
+                <data android:scheme="https" android:host="noditto.app" android:pathPrefix="/onboarding"/>
+                <data android:scheme="https" android:host="noditto.app" android:pathPrefix="/listings/"/>
+            </intent-filter>
+            <!-- The custom scheme reserved to NoDitto (Req 4.2): the fallback while
+                 App Link verification has not completed, which per decision D10 is
+                 the state this app ships in.
+
+                 NO HOST, DELIBERATELY. Android delivers noditto://t/ABC with "t" as
+                 the URI authority and noditto:///t/ABC with "t" as a path segment;
+                 a filter carrying a scheme and no host matches both, which is what
+                 is wanted, because _segmentsFor in lib/core/deep_link.dart folds
+                 the two shapes together and resolves them identically. Pinning a
+                 host here would reject one of the two shapes at the OS boundary,
+                 before the resolver ever saw it.
+
+                 Unlike the https filter this one needs no path scoping: the scheme
+                 belongs to this app, so there is no other handler to steal a link
+                 from and nothing on the device emits it except us. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="noditto"/>
+            </intent-filter>
         </activity>
+        <!-- image_cropper ^12.2.1 starts com.yalantis:ucrop's activity BY NAME,
+             so it has to be declared by the host app: without this entry the
+             avatar crop crashes with ActivityNotFoundException in release and
+             debug alike. UCropActivity inflates an AppCompat action bar, hence
+             the AppCompat theme — resolvable here because ucrop and
+             androidx.preference both pull in androidx.appcompat, and the launch
+             themes in res/values/styles.xml already parent a
+             MaterialComponents theme that derives from it. This is a resource
+             reference only; it touches no app theme token. -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -66,6 +66,43 @@ export interface CashSaleStepFacts {
   haltedAt?: CashSaleStatus | null;
 }
 
+/**
+ * Every status {@link deriveCashSaleSteps} can place, as a runtime value.
+ *
+ * Exists because the union is erased at compile time and the plan is now SERVED to a
+ * second client (`.kiro/specs/mobile-parity/` Req 11.5). A row carrying a status this
+ * module has never seen — a migration adding one, most plausibly — would otherwise fall
+ * through every predicate below and produce a plan that looks derived and is not. The
+ * `satisfies` clause makes adding a status to the union a compile error here rather than
+ * a silently mis-drawn contract room.
+ */
+const PLACEABLE = {
+  AGREEMENT: true,
+  PAYMENT_PENDING: true,
+  ESCROW_HELD: true,
+  IN_TRANSIT: true,
+  HANDOVER: true,
+  INSPECTION: true,
+  COMPLETED: true,
+  DISPUTED: true,
+  CANCELLED: true,
+  FAILED: true,
+  REFUNDED: true,
+  RETURN_PENDING: true,
+  RETURN_IN_TRANSIT: true,
+} as const satisfies Record<CashSaleStatus, true>;
+
+/**
+ * Whether this module can place `value` on a plan.
+ *
+ * Callers that read a status from outside TypeScript's reach — a database row, a
+ * request body — must narrow through this rather than casting. Refusing is the
+ * correct outcome for an unknown status; guessing is not.
+ */
+export function isCashSaleStatus(value: unknown): value is CashSaleStatus {
+  return typeof value === 'string' && Object.hasOwn(PLACEABLE, value);
+}
+
 /** Statuses where the contract is closed and no plan remains. */
 const CLOSED: ReadonlySet<CashSaleStatus> = new Set<CashSaleStatus>([
   'CANCELLED',

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/cash_sale.dart';
 import '../models/cash_sale_item.dart';
+import '../models/contract_step.dart';
 import '../services/sales_service.dart';
 import 'auth_provider.dart';
 
@@ -38,4 +39,21 @@ final saleLineItemsProvider =
     FutureProvider.family<List<CashSaleItem>, String>((ref, saleId) async {
   final service = ref.read(salesServiceProvider);
   return service.getLineItems(saleId);
+});
+
+/// The contract step plan the server derived for a cash sale.
+///
+/// The room declares no step list, so this is the only source of one. It never
+/// throws and never errors: an unavailable plan is an EMPTY list, which the rail
+/// draws as nothing and the action card answers with no action (Req 11.5). Exposing
+/// a failure here would invite a `when(error: …)` branch that guessed a rail.
+///
+/// It watches the sale stream so the plan is re-derived when the contract moves —
+/// the plan is a function of the row, and a stale rail beside a fresh status badge
+/// would be the two clients disagreeing inside one screen.
+final saleStepPlanProvider =
+    FutureProvider.family<List<ContractStep>, String>((ref, saleId) async {
+  ref.watch(saleStreamProvider(saleId));
+  final service = ref.read(salesServiceProvider);
+  return service.getStepPlan(saleId);
 });

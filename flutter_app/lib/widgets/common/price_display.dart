@@ -5,9 +5,14 @@ import '../../core/theme.dart';
 
 /// Displays a formatted price from integer minor units.
 ///
-/// Supports an optional strikethrough for original/was prices and
-/// a 'From' prefix for shopfront (binder) listings where the price
-/// is indicative rather than fixed.
+/// [Money.format] stays the ONLY money formatter in the client; this widget
+/// chooses a [AppText] money role and nothing else. Each role is one Type_Scale
+/// level with tabular, lining figures so digits align down a column, matching
+/// the web's `.display-value` treatment.
+///
+/// Supporting parts — the superseded price and the indicative `From` marker on a
+/// binder or bulk listing — are de-emphasised by COLOUR at a scale level, never
+/// by scaling a fraction off the price's own size (Subtext_Rule, Req 2.13).
 class PriceDisplay extends StatelessWidget {
   const PriceDisplay({
     required this.minorUnits,
@@ -19,72 +24,60 @@ class PriceDisplay extends StatelessWidget {
     super.key,
   });
 
-  /// Price in the currency's smallest unit (e.g. cents for AUD).
+  /// Price in the currency's smallest unit (for example cents for AUD).
   final int minorUnits;
 
-  /// ISO 4217 currency code (e.g. 'aud', 'jpy').
+  /// ISO 4217 currency code (for example 'aud', 'jpy').
   final String currency;
 
   /// If set, displayed as strikethrough above the current price.
   final int? originalMinorUnits;
 
-  /// Whether to prefix the price with 'From' (shopfront listings).
+  /// Whether to prefix the price with 'From' (binder or bulk listings).
   final bool showFromPrefix;
 
   /// Whether this specific price should render with a line-through.
   final bool isStrikethrough;
 
-  /// Controls the text size.
+  /// Which money role to draw the price with.
   final PriceSize size;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final formattedPrice = Money.format(minorUnits, currency);
 
     final priceStyle = switch (size) {
-      PriceSize.small => AppTheme.priceInline,
-      PriceSize.medium => AppTheme.priceCard,
-      PriceSize.large => AppTheme.priceHero,
+      PriceSize.small => AppText.priceInline,
+      PriceSize.medium => AppText.priceCard,
+      PriceSize.large => AppText.priceHero,
     };
-
-    final fontSize = priceStyle.fontSize!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Original price (strikethrough)
+        // The superseded price: same reading level, muted, struck through.
         if (originalMinorUnits != null)
           Text(
             Money.format(originalMinorUnits!, currency),
-            style: theme.textTheme.bodySmall?.copyWith(
+            style: AppText.supportText.copyWith(
               decoration: TextDecoration.lineThrough,
-              color: AppTheme.muted,
-              fontSize: fontSize * 0.7,
             ),
           ),
-        // Current price
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
+        // A Wrap rather than a Row: at a 2.0 text scale a hero price plus its
+        // `From` marker is wider than a phone, and a Row overflows there rather
+        // than reflowing, which Req 13.10 forbids. The marker drops onto its own
+        // line instead and the figure keeps the full width.
+        Wrap(
+          spacing: AppSpacing.tight,
+          crossAxisAlignment: WrapCrossAlignment.end,
           children: [
-            if (showFromPrefix)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text(
-                  'From',
-                  style: AppTheme.supportText.copyWith(
-                    fontSize: fontSize * 0.65,
-                  ),
-                ),
-              ),
+            if (showFromPrefix) const Text('From', style: AppText.metaText),
             Text(
               formattedPrice,
               style: isStrikethrough
                   ? priceStyle.copyWith(
-                      color: AppTheme.muted,
+                      color: AppColors.mutedForeground,
                       decoration: TextDecoration.lineThrough,
                     )
                   : priceStyle,
@@ -96,5 +89,5 @@ class PriceDisplay extends StatelessWidget {
   }
 }
 
-/// Price text size variants.
+/// Money role variants for [PriceDisplay].
 enum PriceSize { small, medium, large }

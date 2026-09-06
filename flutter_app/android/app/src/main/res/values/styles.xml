@@ -18,6 +18,11 @@
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
     <style name="NormalTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- Req 5.5: the same colour the splash sits on and the same colour the first
+             Flutter frame paints (AppColors.background). The scaffold used
+             ?android:colorBackground, which is the theme's own background rather than
+             the app's; matching the app is what removes the flash between the launch
+             window, this window and the first frame. -->
+        <item name="android:windowBackground">@color/splash_background</item>
     </style>
 </resources>

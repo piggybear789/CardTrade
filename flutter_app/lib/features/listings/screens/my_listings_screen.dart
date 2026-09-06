@@ -9,21 +9,28 @@ import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/models/item.dart';
 import 'package:cardtrade/providers/listings_provider.dart';
 import 'package:cardtrade/widgets/common/empty_state.dart';
-import 'package:cardtrade/widgets/common/error_view.dart';
-import 'package:cardtrade/widgets/common/shimmer_loading.dart';
+import 'package:cardtrade/widgets/common/load_state.dart';
+import 'package:cardtrade/widgets/common/skeleton.dart';
 import 'package:cardtrade/widgets/common/status_badge.dart';
 
 /// Screen displaying the current user's listings.
 ///
 /// Provides a simple list with image, title, price, and status badge per item.
-/// Tap navigates to the listing detail. Pull-to-refresh supported.
+/// Tap navigates to the listing detail. The four states — placeholder, rows,
+/// empty and failure — come from [AsyncStateView], which is also what makes the
+/// pull ignore a second pull and keeps the rows on screen when a refresh fails
+/// (Req 11.1, 11.3–11.6, 11.8, 11.10).
 class MyListingsScreen extends ConsumerWidget {
   const MyListingsScreen({super.key});
 
+  /// Placeholder rows drawn while the first read runs.
+  static const int _skeletonRows = 6;
+
+  /// What a failure or a failed refresh calls this request, in member terms.
+  static const String _operation = 'your listings';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final listingsAsync = ref.watch(myListingsProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Listings'),
@@ -35,41 +42,42 @@ class MyListingsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: listingsAsync.when(
-        loading: () => ListView.builder(
-          itemCount: 6,
-          padding: const EdgeInsets.all(AppTheme.spacingLg),
-          itemBuilder: (_, _) => const Padding(
-            padding: EdgeInsets.only(bottom: AppTheme.spacingMd),
-            child: ShimmerListTile(),
-          ),
+      body: AsyncStateView<List<Item>>(
+        value: ref.watch(myListingsProvider),
+        operation: _operation,
+        onRetry: () async {
+          ref.invalidate(myListingsProvider);
+          await ref.read(myListingsProvider.future);
+        },
+        loadingAnnouncement: 'Loading your listings',
+        skeleton: (_) => ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.cozy),
+          itemCount: _skeletonRows,
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.snug),
+          itemBuilder: (_, _) => const SkeletonListTile(),
         ),
-        error: (error, _) => ErrorView(
-          message: error.toString(),
-          onRetry: () => ref.invalidate(myListingsProvider),
-        ),
-        data: (listings) {
+        builder: (context, listings) {
           if (listings.isEmpty) {
-            return EmptyState(
-              icon: Icons.storefront_outlined,
-              title: 'No listings yet',
-              subtitle: 'Create your first listing to start selling or trading.',
-              actionLabel: 'Create your first listing',
-              onAction: () => context.push('/listings/new'),
+            return PullableFill(
+              child: EmptyState(
+                icon: Icons.storefront_outlined,
+                title: 'No listings yet',
+                subtitle:
+                    'Create your first listing to start selling or trading.',
+                actionLabel: 'Create your first listing',
+                onAction: () => context.push('/listings/new'),
+              ),
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(myListingsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppTheme.spacingLg),
-              itemCount: listings.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AppTheme.spacingMd),
-              itemBuilder: (context, index) {
-                return _MyListingTile(item: listings[index]);
-              },
-            ),
+          return ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(AppSpacing.cozy),
+            itemCount: listings.length,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.snug),
+            itemBuilder: (context, index) =>
+                _MyListingTile(item: listings[index]),
           );
         },
       ),
@@ -93,9 +101,9 @@ class _MyListingTile extends StatelessWidget {
       onTap: () => context.push('/listings/${item.id}'),
       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
       child: Container(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        padding: const EdgeInsets.all(AppSpacing.snug),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(color: AppTheme.border),
         ),
@@ -112,22 +120,22 @@ class _MyListingTile extends StatelessWidget {
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
                         placeholder: (_, _) => Container(
-                          color: AppTheme.surfaceVariant,
+                          color: AppColors.muted,
                         ),
                         errorWidget: (_, _, _) => Container(
-                          color: AppTheme.surfaceVariant,
+                          color: AppColors.muted,
                           child: const Icon(Icons.image_outlined,
-                              color: AppTheme.muted),
+                              color: AppColors.mutedForeground),
                         ),
                       )
                     : Container(
-                        color: AppTheme.surfaceVariant,
+                        color: AppColors.muted,
                         child: const Icon(Icons.image_outlined,
-                            color: AppTheme.muted),
+                            color: AppColors.mutedForeground),
                       ),
               ),
             ),
-            const SizedBox(width: AppTheme.spacingMd),
+            const SizedBox(width: AppSpacing.snug),
 
             // Content
             Expanded(
@@ -143,7 +151,7 @@ class _MyListingTile extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingXs),
+                  const SizedBox(height: AppSpacing.snug),
 
                   // Price
                   Text(
@@ -152,24 +160,24 @@ class _MyListingTile extends StatelessWidget {
                         : Money.format(item.fmvCents, item.currency),
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.primary,
+                      color: AppColors.irisInk,
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingXs),
+                  const SizedBox(height: AppSpacing.snug),
 
                   // Status + Kind
                   Row(
                     children: [
                       _statusBadge(item.status),
                       if (isShopfront) ...[
-                        const SizedBox(width: AppTheme.spacingSm),
+                        const SizedBox(width: AppSpacing.tight),
                         const StatusBadge(
                           label: 'Binder',
                           variant: StatusBadgeVariant.neutral,
                         ),
                       ],
                       if (item.closedAt != null) ...[
-                        const SizedBox(width: AppTheme.spacingSm),
+                        const SizedBox(width: AppSpacing.tight),
                         const StatusBadge.error('Closed'),
                       ],
                     ],
@@ -181,7 +189,7 @@ class _MyListingTile extends StatelessWidget {
             // Chevron
             const Icon(
               Icons.chevron_right_rounded,
-              color: AppTheme.muted,
+              color: AppColors.mutedForeground,
             ),
           ],
         ),

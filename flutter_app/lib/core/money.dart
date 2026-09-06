@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 ///
 /// All money in the app is integer minor units (cents for most currencies,
 /// yen for JPY). This matches the web app's convention end-to-end.
+///
+/// Mirrors `lib/format.ts` in the web app.
 abstract final class Money {
   /// Returns the number of minor unit digits for a currency.
   ///
@@ -80,6 +82,55 @@ abstract final class Money {
       // a readable figure rather than losing the amount entirely.
       return '${lower.toUpperCase()} ${value.toStringAsFixed(digits)}';
     }
+  }
+
+  /// The bare symbol a money FIELD labels itself with, e.g. `$`, `£`, `¥`.
+  ///
+  /// Mirrors `currencyPresentation().symbol` in `lib/format.ts`, and exists for the
+  /// same reason: inside an input the member is typing an amount whose currency is
+  /// fixed by their region, so repeating the code would be noise. Derived from
+  /// [format] rather than from a second table, so a currency cannot be shown with
+  /// one symbol in a field and another in a price.
+  static String symbolFor(String currency) {
+    final String formatted = format(0, currency);
+    final String symbol = formatted.replaceAll(RegExp(r'[\d.,\s]'), '');
+    return symbol.isEmpty ? formatted.trim() : symbol;
+  }
+
+  /// An integer minor-unit amount as the plain text a money field holds.
+  ///
+  /// No symbol and no digit grouping: this is an editable value, not a display
+  /// figure. [minorUnitDigits] owns the division, so 12345 is "123.45" in AUD and
+  /// "12345" in JPY — a hand-written `/ 100` is a silent tenfold error on a
+  /// zero-decimal currency and Req 14.5 forbids one.
+  static String amountText(int minorUnits, String currency) {
+    final int digits = minorUnitDigits(currency);
+    if (digits == 0) return minorUnits.toString();
+    final int divisor = digits == 2 ? 100 : 1000;
+    final int whole = minorUnits ~/ divisor;
+    final int fraction = minorUnits.remainder(divisor).abs();
+    return '$whole.${fraction.toString().padLeft(digits, '0')}';
+  }
+
+  /// The text a money field holds, back to integer minor units.
+  ///
+  /// Integer arithmetic throughout, deliberately: `19.99` must be 1999 and
+  /// `double * 100` gives 1998. Anything that is not a digit or a decimal point is
+  /// dropped, and surplus fraction digits are truncated rather than rounded,
+  /// because rounding a typed amount up would charge more than was typed.
+  static int parseAmountText(String text, String currency) {
+    final String cleaned = text.replaceAll(RegExp(r'[^0-9.]'), '');
+    if (cleaned.isEmpty) return 0;
+
+    final int digits = minorUnitDigits(currency);
+    final List<String> parts = cleaned.split('.');
+    final int whole = int.tryParse(parts[0]) ?? 0;
+    if (digits == 0) return whole;
+
+    final int scale = digits == 2 ? 100 : 1000;
+    if (parts.length == 1) return whole * scale;
+    final String fraction = parts[1].padRight(digits, '0').substring(0, digits);
+    return whole * scale + (int.tryParse(fraction) ?? 0);
   }
 
   /// Formats a money amount with an explicit sign for non-zero values.

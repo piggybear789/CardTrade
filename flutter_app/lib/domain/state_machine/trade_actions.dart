@@ -1,6 +1,6 @@
 /// Trade Actions — derives which buttons to show based on trade state and facts.
 ///
-/// Mirrors the action derivation logic in the web app.
+/// Mirrors `domain/state-machine/actions.ts` in the web app.
 /// This drives the trade room UI: which buttons are visible, enabled, disabled.
 library;
 import '../../models/enums.dart';

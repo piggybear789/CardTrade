@@ -91,6 +91,12 @@ tests, and 121 info-level lints.
       "name": "Final verification and handover notes",
       "tasks": ["11.1", "11.2", "11.3"],
       "dependsOn": [5, 6, 7]
+    },
+    {
+      "wave": 9,
+      "name": "Serve the contract step plan (inherited from mobile-visual-parity Req 7.10)",
+      "tasks": ["12.1", "12.2", "12.3", "12.4", "12.5"],
+      "dependsOn": [3]
     }
   ]
 }
@@ -283,7 +289,39 @@ Sequencing rules that matter:
   - Visual and interaction quality needs human review; say so rather than claiming it
   - _Requirements: 3.2_
 
+- [x] 12. Serve the contract step plan with the contract data (inherited scope correction)
+  - Recorded from `.kiro/specs/mobile-visual-parity/` task 6.1. That spec's Req 7.10 named an Advisory_Domain_Port of `domain/contract/cashSaleSteps.ts` / `tradeSteps.ts` that does not exist and may not be created. See `.kiro/specs/mobile-visual-parity/design.md` §"Requirement conflicts that need resolving before implementation" → conflict 1, and Requirement 11 plus §"The contract step plan is served, not ported" in this spec.
+  - This wave is independent of waves 1–8 and is NOT part of the completed work above.
+- [x] 12.1 Add a mobile read endpoint returning the derived step plan
+  - Thin handler under `app/api/mobile/`, authenticated by `lib/api/mobileSession.ts`, calling the same derivation the web contract room calls for a contract the caller participates in
+  - Add no business logic; reimplement no step, ordering or halted rule
+  - Pair it in `tests/unit/mobileRpcContract.test.ts` like every other endpoint
+  - _Requirements: 11.1, 11.2_
+- [x] 12.2 Return every fact the rail and action card need to render without deciding
+  - Per step: label, detail line already resolved (including any counterparty name), and done / active / halted
+  - _Requirements: 11.3_
+- [x] 12.3 Remove the two hard-coded step lists
+  - `features/trades/widgets/trade_progress_rail.dart` and `features/sales/screens/sale_room_screen.dart` stop declaring a list and render the served plan
+  - AS BUILT: the sale room held no list — it called `saleContractSteps`, and the list lived in `features/sales/widgets/sale_progress_rail.dart`. Both rails lost their labels, their `Map<State, int>` and their halted set; the sale room stopped reaching for a local derivation. `widgets/contract/contract_step.dart` also lost `contractSteps()`, the column-index builder that existed only to serve those lists, and moved to `models/contract_step.dart` so the service and provider can read the served plan without importing the widget layer.
+  - No ninth Dart domain port, no generated business-rule table — Requirement 7.4 stands
+  - _Requirements: 11.4, 11.6_
+- [x] 12.4 Present the neutral state when the plan is unavailable
+  - No session, transport failure, or a status the server does not recognise: no done/active/halted step and no action; never fall back to a local list and never default to the first step
+  - _Requirements: 11.5_
+- [x] 12.5 Verify
+  - `npm run audit:mobile`; `npx vitest --run tests/unit/mobileRpcContract.test.ts`; `npx vitest --run tests/unit/mobileDomainAgreement.test.ts`; from `flutter_app/`: `flutter test` and `flutter analyze`
+  - No assertion weakened, skipped or allowlisted
+  - AS RUN: `audit:mobile` PASS (49 Dart declarations ⇄ 49 handlers, 0 RPC call sites, 0 contract-table writes). The three vitest guards green, plus `mobileReleaseSourceAbsence`. `flutter analyze --no-pub` → "No issues found!". `flutter test --no-pub` → 1024 passed. The 22 contract-room goldens moved because the rails now draw the served labels and were re-baselined; every other golden directory is untouched.
+  - The `mobile-release-readiness` Req 12.1 assertion in `tests/unit/mobileReleaseSourceAbsence.test.ts` is now a plain `it`, and its pending-state proof was replaced by a check that the parser still READS the three rail sources — an absence check that parsed nothing would pass vacuously.
+  - _Requirements: 11.6_
+
 ## Notes
+
+**Task 12 is an inherited scope correction, not part of the 1–11 handover.** It exists
+because a presentation spec cannot legally acquire a business derivation, and this spec is
+the recorded owner of functional gaps. Do not "solve" it inside
+`mobile-visual-parity`, and do not solve it here with a ninth port or a generated
+contract-plan table — both are refused for the reasons written down in Requirement 11.4.
 
 **Read `.kiro/steering/flutter.md` first.** It states the rules these tasks enforce and
 why each cheaper wrong answer is wrong. The prohibitions at the end of
@@ -357,6 +395,100 @@ rooms each have their own conversation panel implementation. The shared
 `ConversationPanel` widget from `widgets/common/` exists but isn't used everywhere.
 Full deduplication deferred.
 
+### Message attachments are web-only (recorded by mobile-visual-parity task 8.2)
+
+Chat can carry one photo or PDF per message (migration 0100, and 0102 permits an
+attachment with no caption). The Flutter client can neither send one nor open one,
+and both halves of that are FUNCTIONAL gaps rather than styling ones, so they are
+recorded here rather than closed inside the visual spec:
+
+- **Sending.** `POST /api/mobile/messages/send` takes `conversationId` and `body`
+  and nothing else. Staging a file would mean an upload into the private
+  `message-attachments` bucket plus the four `attachment_*` columns on the insert —
+  a new endpoint shape, which mobile-visual-parity task 8.2 is explicitly barred
+  from adding.
+- **Viewing.** The bucket is private, so a stored path is not a URL. The website
+  resolves one through `signConversationAttachments`, a server action that checks
+  participation before signing; there is no mobile route in front of it, and the app
+  bundle holds only a member JWT. Do NOT close this by making the bucket public or
+  by shipping a service-role key — the participation check is the access control.
+
+What task 8.2 DID land, so that this gap is visible rather than silent: the Dart
+`Message` model now names the four attachment columns it was already receiving, and
+`MessageBubble` presents what a message carries per Req 9.5 — a file attachment as a
+named row with its size, and an image as a 224-pixel thumbnail when a resolved URL is
+supplied, falling back to the same labelled "Photo" placeholder the web shows for a
+path it could not sign. A conversation with a photo in it therefore reads as having
+one, instead of showing an empty bubble. Wiring a signing route is all that is left,
+and the bubble already takes the URL as a parameter.
+
+### RESOLVED — `propose_trade_screen.dart` compared an `ItemStatus` to a `String` (recorded by mobile-visual-parity task 12.2)
+
+**Status: FIXED.** The history below is kept because the record of why it was deferred out
+of a presentation spec is worth more than a deleted paragraph; the resolution follows it.
+
+`flutter analyze` reported `unrelated_type_equality_checks` at
+`features/trades/screens/propose_trade_screen.dart:169` — the line moved from 152 while
+that file was restyled, the defect did not. An `ItemStatus` enum value was compared against
+a string literal, so the comparison was **always false** and the branch behind it never
+runs. It decides which of the member's own items are offerable, which is an eligibility
+decision, so fixing it changes what the screen decides.
+
+That is why it is here and not there. `mobile-visual-parity` Req 14.10 routes a baseline
+analyzer issue out of a presentation spec when its fix would change which branch runs, and
+its Req 14.8 ("clear analyzer issues in files you touch") deliberately loses to 14.10 as
+the more specific rule — see conflict 5 in that spec's design. The visual spec touched the
+file, restyled it, and left the comparison exactly as it found it.
+
+Whoever closes it should establish what the branch was meant to gate before changing the
+comparison, because "always false" has been the shipped behaviour and the correct
+right-hand side is a judgement about which statuses may be offered — not a cast. The
+Trading_Region and Identity_Gate guards on the server re-evaluate offer eligibility
+regardless, so this is a client-side affordance bug, not a hole in a money path.
+
+#### How it was closed
+
+The advice above was followed rather than short-circuited with a cast. The file now
+declares a documented top-level predicate, used as `items.where(canOfferItemInTrade)`:
+
+```dart
+bool canOfferItemInTrade(Item item) =>
+    item.status == ItemStatus.available &&
+    item.listingKind == ListingKind.single;
+```
+
+**Root cause.** `item.status == 'AVAILABLE'` compared an `ItemStatus` enum against a
+`String`, so it was always false, no item ever passed the filter, and the selector always
+rendered "You have no available items to trade." The screen was not mis-filtering; it was
+filtering everything out.
+
+**Where the intended behaviour came from.** Not invented — read off the website's own-item
+picker in `app/(workspace)/trades/new/page.tsx`, which selects
+`.eq('status','AVAILABLE').eq('listing_kind','SINGLE')`. Both halves are load-bearing:
+
+- **AVAILABLE**, because `RESERVED` means a contract already holds that card and `SOLD`
+  means it is gone. Offering either is offering something the member cannot deliver.
+- **SINGLE**, because 0081 refuses a shopfront on the **offering** side of a trade. A
+  binder side is valued at whatever is offered against it, so a binder in the offering
+  slot leaves both sides inheriting their value from each other with nothing valued, and
+  `requiredBondCents` returning 0 for a zero side would confirm escrow behind no
+  collateral.
+
+**Two deliberate omissions, so neither reads as an oversight.** `closed_at` is *not*
+consulted: it is only how a binder stops trading, and a binder cannot reach this branch
+once SINGLE is required. And **hidden items are kept**, matching the web — an item held
+privately for a previous invite is still a legitimate thing to put up. `Item.isAvailable`
+was rejected as the predicate for exactly that reason: it excludes hidden items and does
+not exclude a shopfront, so it is wrong in both directions.
+
+**This remains a client-side affordance fix, not a money-path change.** The predicate
+decides which buttons the member sees; the server re-evaluates offer eligibility, the
+Trading_Region check and the Identity_Gate regardless, and a Dart guard that says yes is
+never permission. Covered by `flutter_app/test/widgets/propose_trade_test.dart` (8 tests).
+
+With this and the `anonKey` → `publishableKey` rename closed, `flutter analyze` reports
+`No issues found!` — 0 issues, down from the 10-issue baseline.
+
 ### Action name corrections (Requirement 3.1)
 
 - The cash-sale dispute action is `disputeCashSale` (not `raiseDispute` as in the
@@ -393,3 +525,16 @@ npm run smoke:mobile     → requires running server (not exercised in this pass
 flutter test             → requires Flutter SDK (not exercised from this env)
 flutter analyze          → requires Flutter SDK (not exercised from this env)
 ```
+
+Measured later, on a machine with the Flutter SDK, after the `propose_trade_screen.dart`
+and `anonKey` follow-ups landed:
+
+```
+flutter analyze                        → No issues found!
+flutter test                           → 903 passed / 1 skipped (156 goldens compared)
+npx vitest --run --project domain      → 691 passed / 55 files
+```
+
+Footnote on that last command: the theme-agreement file needs `--testTimeout=30000` on some
+machines, because its filesystem scans over `flutter_app/` exceed Vitest's 5s default under
+parallel load. That is a runner limit, not a failing assertion.

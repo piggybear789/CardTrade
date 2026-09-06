@@ -9,7 +9,8 @@ import 'package:cardtrade/models/offer.dart';
 import 'package:cardtrade/providers/offers_provider.dart';
 import 'package:cardtrade/widgets/common/confirmation_dialog.dart';
 import 'package:cardtrade/widgets/common/empty_state.dart';
-import 'package:cardtrade/widgets/common/error_view.dart';
+import 'package:cardtrade/widgets/common/load_state.dart';
+import 'package:cardtrade/widgets/common/skeleton.dart';
 import 'package:cardtrade/widgets/common/status_badge.dart';
 
 /// Offers screen with Received / Sent tabs.
@@ -54,99 +55,99 @@ class _OffersScreenState extends ConsumerState<OffersScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _ReceivedOffersTab(),
-          _SentOffersTab(),
+        children: [
+          _OffersTab(
+            provider: receivedOffersProvider,
+            operation: 'the offers you\'ve received',
+            emptyIcon: Icons.local_offer_outlined,
+            emptyTitle: 'No offers received',
+            emptySubtitle: 'Offers from buyers will appear here.',
+            cardBuilder: (offer) => _ReceivedOfferCard(offer: offer),
+          ),
+          _OffersTab(
+            provider: sentOffersProvider,
+            operation: 'the offers you\'ve sent',
+            emptyIcon: Icons.send_rounded,
+            emptyTitle: 'No offers sent',
+            emptySubtitle: 'Offers you make on listings will appear here.',
+            cardBuilder: (offer) => _SentOfferCard(offer: offer),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Received offers tab content.
-class _ReceivedOffersTab extends ConsumerWidget {
-  const _ReceivedOffersTab();
+/// One offers tab, in whichever of its four states its own read is in.
+///
+/// The two tabs are two separate reads — unlike the sales screen's — so each keeps
+/// its own gate, its own pull and its own failure notice. Naming the operation per
+/// tab is what makes a failure on the Sent tab say so rather than blaming offers in
+/// general (Req 11.4).
+class _OffersTab extends ConsumerWidget {
+  const _OffersTab({
+    required this.provider,
+    required this.operation,
+    required this.emptyIcon,
+    required this.emptyTitle,
+    required this.emptySubtitle,
+    required this.cardBuilder,
+  });
+
+  final FutureProvider<List<Offer>> provider;
+  final String operation;
+  final IconData emptyIcon;
+  final String emptyTitle;
+  final String emptySubtitle;
+  final Widget Function(Offer offer) cardBuilder;
+
+  /// Placeholder rows drawn while the first read runs.
+  static const int _skeletonRows = 4;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final offersAsync = ref.watch(receivedOffersProvider);
-
-    return offersAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => ErrorView(
-        message: error.toString(),
-        onRetry: () => ref.invalidate(receivedOffersProvider),
+    return AsyncStateView<List<Offer>>(
+      value: ref.watch(provider),
+      operation: operation,
+      onRetry: () async {
+        ref.invalidate(provider);
+        await ref.read(provider.future);
+      },
+      loadingAnnouncement: 'Loading $operation',
+      skeleton: (_) => _list(
+        itemCount: _skeletonRows,
+        itemBuilder: (_, _) => const SkeletonListTile(),
       ),
-      data: (offers) {
+      builder: (context, offers) {
         if (offers.isEmpty) {
-          return const EmptyState(
-            icon: Icons.local_offer_outlined,
-            title: 'No offers received',
-            subtitle: 'Offers from buyers will appear here.',
+          return PullableFill(
+            child: EmptyState(
+              icon: emptyIcon,
+              title: emptyTitle,
+              subtitle: emptySubtitle,
+            ),
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(receivedOffersProvider);
-            await ref.read(receivedOffersProvider.future);
-          },
-          child: ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            itemCount: offers.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(height: AppTheme.spacingMd),
-            itemBuilder: (context, index) {
-              return _ReceivedOfferCard(offer: offers[index]);
-            },
-          ),
+        return _list(
+          itemCount: offers.length,
+          itemBuilder: (context, index) => cardBuilder(offers[index]),
         );
       },
     );
   }
-}
 
-/// Sent offers tab content.
-class _SentOffersTab extends ConsumerWidget {
-  const _SentOffersTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final offersAsync = ref.watch(sentOffersProvider);
-
-    return offersAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => ErrorView(
-        message: error.toString(),
-        onRetry: () => ref.invalidate(sentOffersProvider),
-      ),
-      data: (offers) {
-        if (offers.isEmpty) {
-          return const EmptyState(
-            icon: Icons.send_rounded,
-            title: 'No offers sent',
-            subtitle: 'Offers you make on listings will appear here.',
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(sentOffersProvider);
-            await ref.read(sentOffersProvider.future);
-          },
-          child: ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            itemCount: offers.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(height: AppTheme.spacingMd),
-            itemBuilder: (context, index) {
-              return _SentOfferCard(offer: offers[index]);
-            },
-          ),
-        );
-      },
+  /// One list for the placeholder and the rows, so the two share their geometry.
+  static Widget _list({
+    required int itemCount,
+    required Widget Function(BuildContext, int) itemBuilder,
+  }) {
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(AppSpacing.cozy),
+      itemCount: itemCount,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.snug),
+      itemBuilder: itemBuilder,
     );
   }
 }
@@ -265,7 +266,7 @@ class _ReceivedOfferCardState extends ConsumerState<_ReceivedOfferCard> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        padding: const EdgeInsets.all(AppSpacing.cozy),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -298,7 +299,7 @@ class _ReceivedOfferCardState extends ConsumerState<_ReceivedOfferCard> {
             ),
 
             if (offer.message != null && offer.message!.isNotEmpty) ...[
-              const SizedBox(height: AppTheme.spacingSm),
+              const SizedBox(height: AppSpacing.tight),
               Text(
                 offer.message!,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -311,7 +312,7 @@ class _ReceivedOfferCardState extends ConsumerState<_ReceivedOfferCard> {
 
             // ─── Actions ───────────────────────────────────────────
             if (offer.isPending) ...[
-              const SizedBox(height: AppTheme.spacingMd),
+              const SizedBox(height: AppSpacing.snug),
 
               if (_showCounter) ...[
                 Row(
@@ -331,7 +332,7 @@ class _ReceivedOfferCardState extends ConsumerState<_ReceivedOfferCard> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: AppTheme.spacingSm),
+                    const SizedBox(width: AppSpacing.tight),
                     IconButton.filled(
                       onPressed: _isLoading ? null : _submitCounter,
                       icon: _isLoading
@@ -345,7 +346,7 @@ class _ReceivedOfferCardState extends ConsumerState<_ReceivedOfferCard> {
                             )
                           : const Icon(Icons.check_rounded, size: 18),
                       style: IconButton.styleFrom(
-                        backgroundColor: AppTheme.accent,
+                        backgroundColor: AppColors.primary,
                       ),
                     ),
                     IconButton(
@@ -374,14 +375,14 @@ class _ReceivedOfferCardState extends ConsumerState<_ReceivedOfferCard> {
                             : const Text('Accept'),
                       ),
                     ),
-                    const SizedBox(width: AppTheme.spacingSm),
+                    const SizedBox(width: AppSpacing.tight),
                     Expanded(
                       child: OutlinedButton(
                         onPressed: _isLoading ? null : _declineOffer,
                         child: const Text('Decline'),
                       ),
                     ),
-                    const SizedBox(width: AppTheme.spacingSm),
+                    const SizedBox(width: AppSpacing.tight),
                     Expanded(
                       child: TextButton(
                         onPressed: _isLoading
@@ -453,7 +454,7 @@ class _SentOfferCardState extends ConsumerState<_SentOfferCard> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        padding: const EdgeInsets.all(AppSpacing.cozy),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -484,7 +485,7 @@ class _SentOfferCardState extends ConsumerState<_SentOfferCard> {
               ],
             ),
             if (offer.message != null && offer.message!.isNotEmpty) ...[
-              const SizedBox(height: AppTheme.spacingSm),
+              const SizedBox(height: AppSpacing.tight),
               Text(
                 offer.message!,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -495,14 +496,14 @@ class _SentOfferCardState extends ConsumerState<_SentOfferCard> {
               ),
             ],
             if (offer.isPending) ...[
-              const SizedBox(height: AppTheme.spacingMd),
+              const SizedBox(height: AppSpacing.snug),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: _isLoading ? null : _withdrawOffer,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.danger,
-                    side: const BorderSide(color: AppTheme.danger),
+                    foregroundColor: AppColors.destructive,
+                    side: const BorderSide(color: AppColors.destructive),
                   ),
                   child: _isLoading
                       ? const SizedBox(
@@ -510,7 +511,7 @@ class _SentOfferCardState extends ConsumerState<_SentOfferCard> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppTheme.danger,
+                            color: AppColors.destructive,
                           ),
                         )
                       : const Text('Withdraw'),

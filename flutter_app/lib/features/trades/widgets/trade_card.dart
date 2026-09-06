@@ -34,7 +34,7 @@ class TradeCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          padding: const EdgeInsets.all(AppSpacing.cozy),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -42,19 +42,19 @@ class TradeCard extends StatelessWidget {
               Row(
                 children: [
                   _ItemThumbnail(imagePath: trade.initiatorItemImage),
-                  const SizedBox(width: AppTheme.spacingSm),
+                  const SizedBox(width: AppSpacing.tight),
                   const Icon(
                     Icons.swap_horiz_rounded,
                     size: 20,
-                    color: AppTheme.muted,
+                    color: AppColors.mutedForeground,
                   ),
-                  const SizedBox(width: AppTheme.spacingSm),
+                  const SizedBox(width: AppSpacing.tight),
                   _ItemThumbnail(imagePath: trade.counterpartItemImage),
                   const Spacer(),
                   _buildStateBadge(trade.state),
                 ],
               ),
-              const SizedBox(height: AppTheme.spacingMd),
+              const SizedBox(height: AppSpacing.snug),
 
               // ─── Item titles ─────────────────────────────────────────
               Text(
@@ -65,7 +65,7 @@ class TradeCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: AppTheme.spacingSm),
+              const SizedBox(height: AppSpacing.tight),
 
               // ─── Counterpart + timestamp ─────────────────────────────
               Row(
@@ -75,7 +75,7 @@ class TradeCard extends StatelessWidget {
                     displayName: trade.counterpartDisplayName,
                     size: AvatarSize.xs,
                   ),
-                  const SizedBox(width: AppTheme.spacingSm),
+                  const SizedBox(width: AppSpacing.tight),
                   Expanded(
                     child: Text(
                       trade.counterpartDisplayName ?? 'Unknown',
@@ -127,7 +127,7 @@ class _ItemThumbnail extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant,
+        color: AppColors.muted,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.border),
       ),
@@ -147,7 +147,7 @@ class _ItemThumbnail extends StatelessWidget {
       child: Icon(
         Icons.image_outlined,
         size: 20,
-        color: AppTheme.muted,
+        color: AppColors.mutedForeground,
       ),
     );
   }

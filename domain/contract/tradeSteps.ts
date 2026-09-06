@@ -17,8 +17,22 @@
 // Step actions are all `focus` rather than `act`: `ActionBar` remains the single
 // place trade actions are wired, and the plan points at it.
 
+import { TRANSITIONS } from '@/domain/state-machine/machine';
 import type { TradeFacts, TradeState, TradeViewerRole } from '@/domain/state-machine/types';
 import { sequenceSteps, type ContractStep, type ContractStepDraft } from './steps';
+
+/**
+ * Whether `value` is a Trade_State this module can place on a plan.
+ *
+ * Reads the transition table rather than re-listing the union, because that table is
+ * already keyed by every state and is the source of truth the steering docs point at.
+ * Needed because the plan is now SERVED to a second client (`.kiro/specs/mobile-parity/`
+ * Req 11.5): a state read from a database row is a string as far as the type system is
+ * concerned, and a plan derived from an unknown one would look derived without being.
+ */
+export function isTradeState(value: unknown): value is TradeState {
+  return typeof value === 'string' && Object.hasOwn(TRANSITIONS, value);
+}
 
 /** Section ids the trade plan's `focus` actions point at. */
 export const TRADE_SECTIONS = {

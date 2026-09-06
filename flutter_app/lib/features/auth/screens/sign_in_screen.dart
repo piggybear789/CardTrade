@@ -46,7 +46,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(state.error.toString()),
-          backgroundColor: AppTheme.danger,
+          backgroundColor: AppColors.destructive,
         ),
       );
     }
@@ -58,7 +58,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Enter a valid email address first'),
-          backgroundColor: AppTheme.warning,
+          backgroundColor: AppColors.actionBorder,
         ),
       );
       return;
@@ -73,14 +73,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(state.error.toString()),
-          backgroundColor: AppTheme.danger,
+          backgroundColor: AppColors.destructive,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Magic link sent — check your email'),
-          backgroundColor: AppTheme.success,
+          backgroundColor: AppColors.trust,
         ),
       );
     }
@@ -96,8 +96,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingXl,
-              vertical: AppTheme.spacingXxl,
+              horizontal: AppSpacing.group,
+              vertical: AppSpacing.section,
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
@@ -111,28 +111,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: AppTheme.accentLight,
+                        color: AppTint.eyebrow.fill!,
                         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       ),
                       child: const Icon(
                         Icons.swap_horiz_rounded,
                         size: 32,
-                        color: AppTheme.accent,
+                        color: AppColors.irisInk,
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingLg),
+                    const SizedBox(height: AppSpacing.cozy),
                     Text(
                       'CardTrade',
                       style: Theme.of(context).textTheme.headlineLarge,
                     ),
-                    const SizedBox(height: AppTheme.spacingSm),
+                    const SizedBox(height: AppSpacing.tight),
                     Text(
                       'Sign in to your account',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.secondary,
+                            color: AppColors.mutedForeground,
                           ),
                     ),
-                    const SizedBox(height: AppTheme.spacingXxxl),
+                    const SizedBox(height: AppSpacing.section),
 
                     // ─── Email Field ─────────────────────────────────────
                     TextFormField(
@@ -155,7 +155,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: AppTheme.spacingLg),
+                    const SizedBox(height: AppSpacing.cozy),
 
                     // ─── Password Field ──────────────────────────────────
                     TextFormField(
@@ -171,7 +171,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: AppTheme.muted,
+                            color: AppColors.mutedForeground,
                           ),
                           onPressed: () {
                             setState(() => _obscurePassword = !_obscurePassword);
@@ -195,7 +195,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         child: const Text('Forgot password?'),
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingLg),
+                    const SizedBox(height: AppSpacing.cozy),
 
                     // ─── Sign In Button ──────────────────────────────────
                     SizedBox(
@@ -214,7 +214,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             : const Text('Sign In'),
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingMd),
+                    const SizedBox(height: AppSpacing.snug),
 
                     // ─── Magic Link Button ───────────────────────────────
                     SizedBox(
@@ -225,7 +225,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         label: const Text('Send magic link'),
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingXxxl),
+                    const SizedBox(height: AppSpacing.section),
 
                     // ─── Sign Up Link ────────────────────────────────────
                     Wrap(
@@ -235,7 +235,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         Text(
                           "Don't have an account?",
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.secondary,
+                                color: AppColors.mutedForeground,
                               ),
                         ),
                         TextButton(
@@ -246,7 +246,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
 
                     // ─── Browse Without Signing In ───────────────────────
-                    const SizedBox(height: AppTheme.spacingMd),
+                    const SizedBox(height: AppSpacing.snug),
                     TextButton(
                       onPressed: () => context.go(AppRoutes.home),
                       child: const Text(

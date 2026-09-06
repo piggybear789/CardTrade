@@ -174,4 +174,78 @@ void main() {
       expect(result, contains('12.99'));
     });
   });
+
+  // The money FIELD helpers. These exist because two listing forms each carried
+  // their own `/ 100` and their own dollars-to-cents parse, and one of them was a
+  // recorded defect: a hand-written divisor renders ¥12,345 as "123.45".
+  group('Money.amountText()', () {
+    test('AUD keeps two digits', () {
+      expect(Money.amountText(1299, 'aud'), '12.99');
+      expect(Money.amountText(500, 'aud'), '5.00');
+      expect(Money.amountText(1, 'aud'), '0.01');
+      expect(Money.amountText(0, 'aud'), '0.00');
+    });
+
+    test('JPY has no subunit, so the figure is the whole amount', () {
+      expect(Money.amountText(12345, 'jpy'), '12345');
+    });
+
+    test('carries no symbol and no digit grouping', () {
+      expect(Money.amountText(123456789, 'aud'), '1234567.89');
+    });
+  });
+
+  group('Money.parseAmountText()', () {
+    test('parses with integer arithmetic, so 19.99 is 1999 and not 1998', () {
+      expect(Money.parseAmountText('19.99', 'aud'), 1999);
+      expect(Money.parseAmountText('9.99', 'aud'), 999);
+      expect(Money.parseAmountText('29.99', 'aud'), 2999);
+      expect(Money.parseAmountText('0.01', 'aud'), 1);
+      expect(Money.parseAmountText('999.99', 'aud'), 99999);
+    });
+
+    test('a missing or short fraction is padded, a long one truncated', () {
+      expect(Money.parseAmountText('12', 'aud'), 1200);
+      expect(Money.parseAmountText('12.', 'aud'), 1200);
+      expect(Money.parseAmountText('12.5', 'aud'), 1250);
+      expect(Money.parseAmountText('12.999', 'aud'), 1299);
+    });
+
+    test('drops anything that is not a digit or a point', () {
+      expect(Money.parseAmountText('\$ 12.99', 'aud'), 1299);
+      expect(Money.parseAmountText('', 'aud'), 0);
+      expect(Money.parseAmountText('abc', 'aud'), 0);
+    });
+
+    test('a zero-decimal currency takes the whole number as minor units', () {
+      expect(Money.parseAmountText('12345', 'jpy'), 12345);
+      expect(Money.parseAmountText('12345.67', 'jpy'), 12345);
+    });
+
+    test('round-trips whatever amountText produced', () {
+      for (final int minorUnits in <int>[0, 1, 99, 100, 1999, 123456789]) {
+        expect(
+          Money.parseAmountText(Money.amountText(minorUnits, 'aud'), 'aud'),
+          minorUnits,
+        );
+        expect(
+          Money.parseAmountText(Money.amountText(minorUnits, 'jpy'), 'jpy'),
+          minorUnits,
+        );
+      }
+    });
+  });
+
+  group('Money.symbolFor()', () {
+    test('is the bare symbol a field labels itself with', () {
+      expect(Money.symbolFor('aud'), '\$');
+      expect(Money.symbolFor('jpy'), '¥');
+      expect(Money.symbolFor('gbp'), '£');
+    });
+
+    test('an unusable code degrades rather than throwing', () {
+      expect(Money.symbolFor(''), '\$');
+      expect(Money.symbolFor('xyz'), 'XYZ');
+    });
+  });
 }

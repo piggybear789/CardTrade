@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:cardtrade/core/constants.dart';
+import 'package:cardtrade/core/money.dart';
 import 'package:cardtrade/core/theme.dart';
 import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/models/item.dart';
 import 'package:cardtrade/providers/listings_provider.dart';
 import 'package:cardtrade/widgets/common/confirmation_dialog.dart';
+import 'package:cardtrade/widgets/common/controls.dart';
 import 'package:cardtrade/widgets/common/error_view.dart';
 import 'package:cardtrade/widgets/common/loading_indicator.dart';
 
@@ -17,6 +21,13 @@ import 'package:cardtrade/widgets/common/loading_indicator.dart';
 ///
 /// Pre-populates the form with the current item data and allows updates.
 /// Includes delete/close action in the app bar menu.
+///
+/// Every field is an [AppTextField] and every failure is inline on the field it
+/// concerns (Req 8.5, 8.6): a validation message in a snack bar is gone before a
+/// screen reader reaches the field, and it never said which field it was about.
+/// The submit control wears the busy treatment inside its own bounds (Req 8.10),
+/// and a refusal that names no field lands in an [AppFormSummary] above it
+/// (Req 8.11) with every entered value still in place.
 class EditListingScreen extends ConsumerStatefulWidget {
   const EditListingScreen({
     required this.itemId,
@@ -30,7 +41,6 @@ class EditListingScreen extends ConsumerStatefulWidget {
 }
 
 class _EditListingScreenState extends ConsumerState<EditListingScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _fmvController = TextEditingController();
@@ -44,17 +54,21 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
   bool _isSubmitting = false;
   bool _initialized = false;
 
-  /// Dollars string to integer cents using integer arithmetic only.
-  /// `19.99` must be 1999 — `double * 100` gives 1998.
-  static int _parseCents(String value) {
-    final trimmed = value.replaceAll(RegExp(r'[^0-9.]'), '').trim();
-    if (trimmed.isEmpty) return 0;
-    final parts = trimmed.split('.');
-    final whole = int.tryParse(parts[0]) ?? 0;
-    if (parts.length == 1) return whole * 100;
-    final fraction = parts[1].padRight(2, '0').substring(0, 2);
-    return whole * 100 + (int.tryParse(fraction) ?? 0);
-  }
+  /// The currency this listing is denominated in, read off the row rather than
+  /// assumed: it decides how many digits the price field holds.
+  String _currency = 'aud';
+
+  // Inline field failures. Each holds the message its own validator produced, and
+  // each is rendered by the field it names (Req 8.5), never in a snack bar.
+  String? _titleError;
+  String? _categoryError;
+  String? _descriptionError;
+  String? _priceError;
+  String? _imagesError;
+
+  /// A failure the form cannot attach to a field it presents (Req 8.11). Stays
+  /// rendered until the next submission.
+  String? _formError;
 
   @override
   void dispose() {
@@ -70,7 +84,11 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
     _initialized = true;
     _titleController.text = item.title;
     _descriptionController.text = item.description;
-    _fmvController.text = (item.fmvCents / 100).toStringAsFixed(2);
+    // `Money.amountText`, not `fmvCents / 100`: the divisor belongs to
+    // `minorUnitDigits`, and hand-writing 100 renders ¥12,345 as "123.45"
+    // (Req 14.5).
+    _currency = item.currency;
+    _fmvController.text = Money.amountText(item.fmvCents, _currency);
     _locationController.text = item.locationLabel ?? '';
     _selectedCategory = item.category;
     _selectedCondition = item.condition;
@@ -102,12 +120,69 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
     setState(() => _newImages.removeAt(index));
   }
 
+  // ── Validation ─────────────────────────────────────────────────────────────
+  //
+  // The rules and the words are exactly the ones the `Form` validators carried;
+  // only WHERE the message is presented has changed. Each returns null when the
+  // value is acceptable, so a field that becomes valid loses its message
+  // (Req 8.5).
+
+  static String? _validateTitle(String value) {
+    if (value.trim().isEmpty) return 'Title is required';
+    if (value.trim().length < 3) return 'Title must be at least 3 characters';
+    return null;
+  }
+
+  static String? _validateDescription(String value) {
+    if (value.trim().isEmpty) return 'Description is required';
+    return null;
+  }
+
+  String? _validatePrice(String value) {
+    if (value.isEmpty) return 'Price is required';
+    if (Money.parseAmountText(value, _currency) <= 0) return 'Enter a valid price';
+    return null;
+  }
+
+  String? _validateCategory() =>
+      _selectedCategory == null ? 'Please select a game' : null;
+
+  /// Re-runs one field's validator once it already carries a message, so the
+  /// message clears as the member fixes it rather than surviving until submit.
+  void _revalidate(void Function() apply) {
+    if (_titleError == null &&
+        _descriptionError == null &&
+        _priceError == null &&
+        _categoryError == null &&
+        _imagesError == null) {
+      return;
+    }
+    setState(apply);
+  }
+
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_existingImages.isEmpty && _newImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one image')),
-      );
+    final String? titleError = _validateTitle(_titleController.text);
+    final String? descriptionError = _validateDescription(_descriptionController.text);
+    final String? priceError = _validatePrice(_fmvController.text);
+    final String? categoryError = _validateCategory();
+    final bool noImages = _existingImages.isEmpty && _newImages.isEmpty;
+
+    setState(() {
+      _titleError = titleError;
+      _descriptionError = descriptionError;
+      _priceError = priceError;
+      _categoryError = categoryError;
+      // Photos are a group rather than a field, so its failure sits with the
+      // group's own label — the position criterion 5 gives a field's message.
+      _imagesError = noImages ? 'Add at least one image' : null;
+      _formError = null;
+    });
+
+    if (titleError != null ||
+        descriptionError != null ||
+        priceError != null ||
+        categoryError != null ||
+        noImages) {
       return;
     }
 
@@ -115,10 +190,32 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
 
     try {
       final service = ref.read(listingsServiceProvider);
-      final fmvCents = _parseCents(_fmvController.text);
+      final fmvCents = Money.parseAmountText(_fmvController.text, _currency);
 
-      // TODO: upload new images and combine with existing paths
-      final allImages = [..._existingImages];
+      // The picked photos are UPLOADED, not dropped (Req 12.5). This was a
+      // `TODO` beside `[..._existingImages]`: the grid let a member add photos,
+      // drew their thumbnails, and then saved the listing without them while
+      // reporting success — a control for a capability the screen did not
+      // perform. The upload is the same `StorageService` call the create screen
+      // makes, so there is one definition of where an item image lands.
+      final List<String> allImages = [..._existingImages];
+      if (_newImages.isNotEmpty) {
+        final List<File> files =
+            _newImages.map((XFile picked) => File(picked.path)).toList();
+        try {
+          allImages.addAll(
+            await ref.read(storageServiceProvider).uploadItemImages(files),
+          );
+        } catch (e) {
+          // A photo that did not upload belongs on the photo group, which is
+          // where its own message already goes (Req 8.5).
+          if (mounted) {
+            setState(() => _imagesError = ErrorView.sanitise(e.toString()));
+          }
+          return;
+        }
+      }
+      if (!mounted) return;
 
       await service.updateItem(widget.itemId, {
         'title': _titleController.text.trim(),
@@ -143,10 +240,11 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
         context.pop();
       }
     } catch (e) {
+      // A refusal that names no field is a form-level summary above the submit
+      // control, not a toast (Req 8.11), and it is sanitised on the way there so
+      // a provider identifier cannot reach a member's screen.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: $e')),
-        );
+        setState(() => _formError = ErrorView.sanitise(e.toString()));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -191,9 +289,7 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
+        setState(() => _formError = ErrorView.sanitise(e.toString()));
       }
     }
   }
@@ -201,7 +297,6 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
   @override
   Widget build(BuildContext context) {
     final itemAsync = ref.watch(itemDetailProvider(widget.itemId));
-    final theme = Theme.of(context);
 
     return itemAsync.when(
       loading: () => const Scaffold(
@@ -244,13 +339,16 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
                           item.isShopfront
                               ? Icons.close_rounded
                               : Icons.delete_outline_rounded,
-                          size: 18,
-                          color: AppTheme.danger,
+                          size: AppIconSize.large,
+                          color: AppColors.destructive,
                         ),
-                        const SizedBox(width: AppTheme.spacingSm),
+                        const SizedBox(width: AppSpacing.tight),
                         Text(
-                          item.isShopfront ? 'Close Binder' : 'Delete Listing',
-                          style: const TextStyle(color: AppTheme.danger),
+                          item.isShopfront
+                              ? 'Close this listing'
+                              : 'Delete listing',
+                          style: AppText.bodyText
+                              .copyWith(color: AppColors.destructive),
                         ),
                       ],
                     ),
@@ -259,181 +357,164 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
               ),
             ],
           ),
-          body: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(AppTheme.spacingLg),
-              children: [
-                // ─── Image Section ────────────────────────────────────
-                Text('Photos', style: theme.textTheme.labelLarge),
-                const SizedBox(height: AppTheme.spacingXs),
+          // No `Form`: each field carries its own message in the position
+          // Req 8.5 gives it, and the submit path runs the same validators in
+          // the same order. Fields are stacked at `group` so their 48-pixel
+          // targets do not intersect (Req 13.6).
+          body: ListView(
+            padding: const EdgeInsets.all(AppSpacing.cozy),
+            children: [
+              // ─── Image Section ────────────────────────────────────
+              const Text('Photos', style: AppText.bodyText),
+              const SizedBox(height: AppSpacing.snug),
+              Text(
+                '${_existingImages.length + _newImages.length}/${AppConstants.imagesMax} images',
+                style: AppText.supportText,
+              ),
+              const SizedBox(height: AppSpacing.tight),
+              _EditImageGrid(
+                existingImages: _existingImages,
+                newImages: _newImages,
+                onAdd: _pickImages,
+                onRemoveExisting: _removeExistingImage,
+                onRemoveNew: _removeNewImage,
+              ),
+              if (_imagesError != null) ...[
+                const SizedBox(height: AppSpacing.tight),
                 Text(
-                  '${_existingImages.length + _newImages.length}/${AppConstants.imagesMax} images',
-                  style: theme.textTheme.bodySmall,
+                  _imagesError!,
+                  softWrap: true,
+                  style: AppText.bodyText.copyWith(color: AppColors.destructive),
                 ),
-                const SizedBox(height: AppTheme.spacingSm),
-                _EditImageGrid(
-                  existingImages: _existingImages,
-                  newImages: _newImages,
-                  onAdd: _pickImages,
-                  onRemoveExisting: _removeExistingImage,
-                  onRemoveNew: _removeNewImage,
-                ),
-                const SizedBox(height: AppTheme.spacingXl),
-
-                // ─── Title ────────────────────────────────────────────
-                TextFormField(
-                  controller: _titleController,
-                  maxLength: AppConstants.titleMaxLength,
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                  ),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Title is required';
-                    }
-                    if (val.trim().length < 3) {
-                      return 'Title must be at least 3 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-
-                // ─── Category ─────────────────────────────────────────
-                DropdownButtonFormField<String>(
-                  // Guarded, unlike the create screen: an existing listing may carry a
-                  // category from before 0104 that is not in `games`, and the dropdown
-                  // throws when its value is absent from `items`.
-                  initialValue: AppConstants.games.contains(_selectedCategory)
-                      ? _selectedCategory
-                      : null,
-                  decoration: const InputDecoration(labelText: 'Game'),
-                  items: AppConstants.games
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (val) => setState(() => _selectedCategory = val),
-                  validator: (val) =>
-                      val == null ? 'Please select a game' : null,
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-
-                // ─── Condition ────────────────────────────────────────
-                Text('Condition', style: theme.textTheme.labelLarge),
-                const SizedBox(height: AppTheme.spacingSm),
-                Wrap(
-                  spacing: AppTheme.spacingSm,
-                  children: AppConstants.conditions.map((cond) {
-                    return ChoiceChip(
-                      label: Text(cond),
-                      selected: _selectedCondition == cond,
-                      onSelected: (selected) {
-                        setState(
-                            () => _selectedCondition = selected ? cond : null);
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-
-                // ─── Description ──────────────────────────────────────
-                TextFormField(
-                  controller: _descriptionController,
-                  maxLength: AppConstants.descriptionMaxLength,
-                  maxLines: 5,
-                  minLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    alignLabelWithHint: true,
-                  ),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Description is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-
-                // ─── Listing Kind (read-only if shopfront already has contracts) ─
-                Text('Listing type', style: theme.textTheme.labelLarge),
-                const SizedBox(height: AppTheme.spacingSm),
-                SegmentedButton<ListingKind>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ListingKind.single,
-                      label: Text('Single Item'),
-                      icon: Icon(Icons.style_outlined),
-                    ),
-                    ButtonSegment(
-                      value: ListingKind.shopfront,
-                      label: Text('Binder'),
-                      icon: Icon(Icons.library_books_outlined),
-                    ),
-                  ],
-                  selected: {_listingKind},
-                  onSelectionChanged: (selection) {
-                    setState(() => _listingKind = selection.first);
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-
-                // ─── FMV ──────────────────────────────────────────────
-                TextFormField(
-                  controller: _fmvController,
-                  decoration: InputDecoration(
-                    labelText: _listingKind == ListingKind.shopfront
-                        ? 'Collection value (indicative)'
-                        : 'Price',
-                    prefixText: '\$ ',
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                  ],
-                  validator: (val) {
-                    if (val == null || val.isEmpty) return 'Price is required';
-                    final parsed = double.tryParse(val);
-                    if (parsed == null || parsed <= 0) {
-                      return 'Enter a valid price';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-
-                // ─── Location ─────────────────────────────────────────
-                TextFormField(
-                  controller: _locationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Location',
-                    hintText: 'City or suburb',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingXxl),
-
-                // ─── Actions ──────────────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _isSubmitting ? null : _save,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Save Changes'),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingXxl),
               ],
-            ),
+              const SizedBox(height: AppSpacing.group),
+
+              // ─── Title ────────────────────────────────────────────
+              AppTextField(
+                controller: _titleController,
+                label: 'Title',
+                maxLength: AppConstants.titleMaxLength,
+                errorText: _titleError,
+                onChanged: (value) => _revalidate(
+                  () => _titleError = _validateTitle(value),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.group),
+
+              // ─── Category ─────────────────────────────────────────
+              DropdownButtonFormField<String>(
+                // Guarded, unlike the create screen: an existing listing may carry a
+                // category from before 0104 that is not in `games`, and the dropdown
+                // throws when its value is absent from `items`.
+                initialValue: AppConstants.games.contains(_selectedCategory)
+                    ? _selectedCategory
+                    : null,
+                decoration: InputDecoration(
+                  label: const Text('Game', softWrap: true),
+                  errorText: _categoryError,
+                ),
+                items: AppConstants.games
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (val) => setState(() {
+                  _selectedCategory = val;
+                  _categoryError = _validateCategory();
+                }),
+              ),
+              const SizedBox(height: AppSpacing.group),
+
+              // ─── Condition ────────────────────────────────────────
+              AppChoiceChips<String>(
+                label: 'Condition',
+                options: AppConstants.conditions,
+                selected: _selectedCondition,
+                labelOf: (condition) => condition,
+                onSelected: (condition) =>
+                    setState(() => _selectedCondition = condition),
+              ),
+              const SizedBox(height: AppSpacing.group),
+
+              // ─── Description ──────────────────────────────────────
+              AppTextField(
+                controller: _descriptionController,
+                label: 'Description',
+                maxLength: AppConstants.descriptionMaxLength,
+                maxLines: 5,
+                minLines: 3,
+                errorText: _descriptionError,
+                onChanged: (value) => _revalidate(
+                  () => _descriptionError = _validateDescription(value),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.group),
+
+              // ─── Listing Kind ─────────────────────────────────────
+              const Text('Listing type', style: AppText.bodyText),
+              const SizedBox(height: AppSpacing.snug),
+              SegmentedButton<ListingKind>(
+                segments: const [
+                  ButtonSegment(
+                    value: ListingKind.single,
+                    label: Text('Single item'),
+                    icon: Icon(Icons.style_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ListingKind.shopfront,
+                    label: Text('Binder'),
+                    icon: Icon(Icons.library_books_outlined),
+                  ),
+                ],
+                selected: {_listingKind},
+                onSelectionChanged: (selection) {
+                  setState(() => _listingKind = selection.first);
+                },
+              ),
+              const SizedBox(height: AppSpacing.group),
+
+              // ─── FMV ──────────────────────────────────────────────
+              AppTextField(
+                controller: _fmvController,
+                label: _listingKind == ListingKind.shopfront
+                    ? 'Collection value (indicative)'
+                    : 'Price',
+                // The symbol sits inside the field, as the web's money input does,
+                // so the label does not have to name the currency.
+                prefixText: '${Money.symbolFor(_currency)} ',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                ],
+                errorText: _priceError,
+                onChanged: (value) => _revalidate(
+                  () => _priceError = _validatePrice(value),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.group),
+
+              // ─── Location ─────────────────────────────────────────
+              AppTextField(
+                controller: _locationController,
+                label: 'Location',
+                hint: 'City or suburb',
+                prefixIcon: const Icon(Icons.location_on_outlined),
+              ),
+              const SizedBox(height: AppSpacing.section),
+
+              // ─── Actions ──────────────────────────────────────────
+              if (_formError != null) ...[
+                AppFormSummary(message: _formError!),
+                const SizedBox(height: AppSpacing.cozy),
+              ],
+              AppButton(
+                label: 'Save changes',
+                variant: AppButtonVariant.primary,
+                fillWidth: true,
+                busy: _isSubmitting,
+                onPressed: _save,
+              ),
+              const SizedBox(height: AppSpacing.section),
+            ],
           ),
         );
       },
@@ -467,25 +548,35 @@ class _EditImageGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        mainAxisSpacing: AppTheme.spacingSm,
-        crossAxisSpacing: AppTheme.spacingSm,
+        mainAxisSpacing: AppSpacing.tight,
+        crossAxisSpacing: AppSpacing.tight,
       ),
       itemCount: totalImages + (canAdd ? 1 : 0),
       itemBuilder: (context, index) {
         // Add button at the end
         if (index == totalImages) {
-          return GestureDetector(
-            onTap: onAdd,
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: const Icon(
-                Icons.add_photo_alternate_outlined,
-                color: AppTheme.muted,
-                size: 28,
+          return Semantics(
+            button: true,
+            label: 'Add photos',
+            child: InkWell(
+              onTap: onAdd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.muted,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: AppColors.border,
+                    width: AppMetrics.hairline,
+                  ),
+                ),
+                child: const ExcludeSemantics(
+                  child: Icon(
+                    Icons.add_photo_alternate_outlined,
+                    color: AppColors.mutedForeground,
+                    size: AppIconSize.display,
+                  ),
+                ),
               ),
             ),
           );
@@ -496,7 +587,7 @@ class _EditImageGrid extends StatelessWidget {
           return Stack(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 child: Image.network(
                   existingImages[index],
                   fit: BoxFit.cover,
@@ -504,23 +595,20 @@ class _EditImageGrid extends StatelessWidget {
                   height: double.infinity,
                 ),
               ),
+              // Drawn at 32 in the corner of a thumbnail, touched at 48 — the
+              // separation lives in AppIconButton, and the label is required
+              // there rather than optional (Req 13.6, 13.7).
               Positioned(
-                top: 4,
-                right: 4,
-                child: GestureDetector(
-                  onTap: () => onRemoveExisting(index),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: AppTheme.danger,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                  ),
+                top: 0,
+                right: 0,
+                child: AppIconButton(
+                  icon: Icons.close_rounded,
+                  semanticLabel: 'Remove image ${index + 1}',
+                  visibleSize: AppMetrics.watchControl,
+                  iconSize: AppIconSize.button,
+                  background: AppColors.destructive,
+                  foreground: AppColors.destructiveForeground,
+                  onPressed: () => onRemoveExisting(index),
                 ),
               ),
             ],
@@ -532,7 +620,7 @@ class _EditImageGrid extends StatelessWidget {
         return Stack(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               child: FutureBuilder<dynamic>(
                 future: newImages[newIndex].readAsBytes(),
                 builder: (context, snapshot) {
@@ -544,32 +632,31 @@ class _EditImageGrid extends StatelessWidget {
                       height: double.infinity,
                     );
                   }
-                  return Container(
-                    color: AppTheme.surfaceVariant,
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  return const ColoredBox(
+                    color: AppColors.muted,
+                    child: Center(
+                      child: SizedBox(
+                        width: AppIconSize.large,
+                        height: AppIconSize.large,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                     ),
                   );
                 },
               ),
             ),
             Positioned(
-              top: 4,
-              right: 4,
-              child: GestureDetector(
-                onTap: () => onRemoveNew(newIndex),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: AppTheme.danger,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                ),
+              top: 0,
+              right: 0,
+              child: AppIconButton(
+                icon: Icons.close_rounded,
+                semanticLabel:
+                    'Remove image ${existingImages.length + newIndex + 1}',
+                visibleSize: AppMetrics.watchControl,
+                iconSize: AppIconSize.button,
+                background: AppColors.destructive,
+                foreground: AppColors.destructiveForeground,
+                onPressed: () => onRemoveNew(newIndex),
               ),
             ),
           ],

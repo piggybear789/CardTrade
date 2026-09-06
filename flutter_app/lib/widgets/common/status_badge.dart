@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 
-/// A small colored pill badge displaying a status label.
+/// A small pill badge stating a contract or listing status.
 ///
-/// Color is determined by [StatusBadgeVariant]:
-/// - [completed] — green
-/// - [active] — blue
-/// - [pending] — amber
-/// - [error] — red
-/// - [neutral] — slate/gray
+/// Every variant is a named [AppTint] — a palette token at the alpha the web
+/// applies to the same wash — rather than a colour of its own (Req 1.7, 1.8):
+/// - [completed] → the trust chip, matching the web's verified/settled treatment
+/// - [active] → the iris eyebrow wash
+/// - [pending] → the `.cardtrade-warning` caution wash
+/// - [error] → the `border-destructive/40 bg-destructive/10` alert wash
+/// - [neutral] → the flat `--muted` surface
+///
+/// The label is always rendered as text, so colour is never the only signal.
 class StatusBadge extends StatelessWidget {
   const StatusBadge({
     required this.label,
@@ -20,7 +23,7 @@ class StatusBadge extends StatelessWidget {
   /// The status text displayed inside the badge.
   final String label;
 
-  /// Color variant of the badge.
+  /// Semantic variant of the badge.
   final StatusBadgeVariant variant;
 
   /// Convenience constructors for common states.
@@ -38,32 +41,35 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (bgColor, fgColor) = switch (variant) {
-      StatusBadgeVariant.completed => (AppTheme.successLight, AppTheme.success),
-      StatusBadgeVariant.active => (AppTheme.accentLight, AppTheme.accent),
-      StatusBadgeVariant.pending => (AppTheme.warningLight, AppTheme.warning),
-      StatusBadgeVariant.error => (AppTheme.dangerLight, AppTheme.danger),
-      StatusBadgeVariant.neutral => (AppTheme.surfaceVariant, AppTheme.secondary),
+    final tint = switch (variant) {
+      StatusBadgeVariant.completed => AppTint.successChip,
+      StatusBadgeVariant.active => AppTint.eyebrow,
+      StatusBadgeVariant.pending => AppTint.caution,
+      StatusBadgeVariant.error => AppTint.alert,
+      StatusBadgeVariant.neutral => const Tint(fill: AppColors.muted, ink: AppColors.mutedForeground),
     };
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingSm,
-        vertical: AppTheme.spacingXs,
+        horizontal: AppSpacing.snug,
+        vertical: AppSpacing.tight,
       ),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        color: tint.fill,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: tint.edge == null
+            ? null
+            : Border.all(color: tint.edge!, width: AppMetrics.hairline),
       ),
       child: Text(
         label,
-        style: AppTheme.badgeText.copyWith(color: fgColor),
+        style: AppText.badgeText.copyWith(color: tint.ink),
       ),
     );
   }
 }
 
-/// Semantic color variants for [StatusBadge].
+/// Semantic variants for [StatusBadge].
 enum StatusBadgeVariant {
   completed,
   active,

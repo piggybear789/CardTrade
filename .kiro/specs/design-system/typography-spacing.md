@@ -5,45 +5,46 @@ rules** and the reasoning. Read both before changing either.
 
 ## Why this exists
 
-`tailwind.config.ts` defined `text-meta/body/subhead/head/display` and
-`p-tight/snug/group/section/region` — and then **nothing used them**. A sweep found
-**0** references to all ten tokens against **649** raw `text-*` size classes and 26
-bracket one-offs (`text-[11px]`, `text-[0.7rem]`, `text-[10px]`, …). The scale was
-dead code, so every component picked its own sizes and the same semantic role — a
-line of helper text under a field — rendered at 12px on one card and 14px on the next.
+`tailwind.config.ts` defines the type and spacing utilities; this document records
+how to apply them. A previous sweep found raw `text-*` classes and bracket one-offs
+(`text-[11px]`, `text-[0.7rem]`, `text-[10px]`, …) standing in for the same semantic
+roles, so components could render helper copy at different sizes without a reason.
 
-Two flaws in the original tokens are corrected, and both matter:
+Two rules in the tokens matter:
 
-1. **`fontSize` no longer bakes in `fontWeight`.** The original paired weight with
-   size so a component "picks a level". But 649 call sites carry their own
-   `font-medium` / `font-semibold` / `font-bold`, and a `fontSize` utility that also
-   sets weight collides with them — same specificity, resolved by CSS source order,
-   which is not something a component author can see or reason about. Size and
-   line-height are paired (line-height is almost never overridden); **weight stays an
-   explicit utility.** This makes every token a safe drop-in.
+1. **`fontSize` never bakes in `fontWeight`.** Size and line-height are paired, but
+   **weight stays an explicit utility.** A size utility is therefore safe to combine
+   with a component's intentional `font-medium`, `font-semibold`, or `font-bold`.
+2. **The scale is deliberately compact.** `body` is 13px, while `lead` stays at 16px
+   for touch fields so iOS Safari does not zoom a focused input. The values describe
+   the current product rather than an aspirational scale.
 
-2. **The values now match the app's actual body size.** `body` was `0.9375rem` (15px)
-   while 316 call sites used `text-sm` (14px). Migrating would have nudged nearly
-   every sentence in the product by 1px for no stated reason. `body` is `0.875rem`.
-   The scale describes this app; it is not an aspiration it fails to meet.
+`lead` supplies the 16px field floor, `cozy` supplies the 12px dense-spacing step, and
+`nav` supplies the sidebar rail's 15px scanning register. `nav` is not content copy.
 
-Two levels were added because the real usage needed them and their absence is what
-forced the bracket one-offs: `lead` (16px, was `text-base` ×34) and `cozy` (12px
-spacing, was `p-3`/`gap-3` — 118 `gap-3` uses had no token to land on).
+### Flutter port
+
+This document's no-`flutter_app/**` rule applies to the original web presentation
+sweep only. `.kiro/specs/mobile-visual-parity/` is the deliberate Flutter port of this
+same seven-level scale: it reads the values from `tailwind.config.ts`, preserves their
+size/line-height pairings, and preserves the Subtext_Rule and Compact_Row_Rule below.
+It does not make this document a second source of token values.
 
 ## Type scale
 
-| Token | Size | Use it for |
-| --- | --- | --- |
-| `text-meta` | 12px | **Chrome only**: badges, timestamps, counts, dense table cells, key-value micro-labels |
-| `text-body` | 14px | Body copy, helper text, descriptions, disclosure copy, form labels |
-| `text-lead` | 16px | Lead paragraphs, card titles, emphasised single values |
-| `text-subhead` | 18px | Panel and card headings |
-| `text-head` | 24px | Section headings, page titles inside a shell |
-| `text-display` | 32px | Hero / landing headlines only |
+| Token | Size | Line height | Use it for |
+| --- | --- | --- | --- |
+| `text-meta` | 12px (`0.75rem`) | `1.4` | **Chrome only**: badges, timestamps, counts, dense table cells, key-value micro-labels |
+| `text-body` | 13px (`0.8125rem`) | `1.6` | Body copy, helper text, descriptions, disclosure copy, form labels |
+| `text-nav` | 15px (`0.9375rem`) | `1.4` | **Sidebar rail only**; never content copy |
+| `text-lead` | 16px (`1rem`) | `1.5` | Lead paragraphs, card titles, emphasised single values, and touch-field text |
+| `text-subhead` | 17px (`1.0625rem`) | `1.4` | Panel and card headings |
+| `text-head` | 21px (`1.3125rem`) | `1.25` | Section headings, page titles inside a shell |
+| `text-display` | 28px (`1.75rem`) | `1.1` | Hero / landing headlines only |
 
-`.market-label` / `.cardtrade-eyebrow` (11px, uppercase, tracked) stay as they are —
-they are a *component*, not a size, and already centralised in `globals.css`.
+The table is a readable mirror, not a token source: `tailwind.config.ts` owns every
+size and line-height value. `text-nav` exists for the desktop sidebar rail and must not
+be used to create a seventh content register at mobile width.
 
 ### The subtext rule — this is the one the user asked for
 
@@ -89,9 +90,9 @@ they must not change the font size.
 `size="sm"` on `Button` does **not** shrink type. If a 14px control looks loud,
 the neighbours are too small — raise them.
 
-The document `body` is `text-body`. Unstyled copy inherits 14px so it matches
-every button. Do not omit a size class and rely on the browser's 16px — that is
-what made controls look out of place on pages that never set a token.
+The document body is `text-body`. Unstyled copy inherits 13px so it matches the
+product's body register. Do not omit a size class and rely on the browser's 16px — that
+is what made controls look out of place on pages that never set a token.
 
 ## Spacing scale
 
@@ -131,8 +132,10 @@ Standard card padding is `p-group`. A dense or nested row is `p-cozy`.
 4. **Leave `components/ui/**` primitives conservative.** They are shadcn upstream;
    change sizes there only where the file already diverges from upstream, because a
    primitive's size propagates everywhere at once.
-5. **Do not touch** `domain/**`, `lib/**`, `tests/**`, `supabase/**`, or
-   `flutter_app/**`. This is a presentation-layer change only.
+5. **Do not touch** `domain/**`, `lib/**`, `tests/**`, or `supabase/**`. For this
+   original web sweep, do not touch `flutter_app/**` either; the deliberate Flutter
+   port is owned separately by `.kiro/specs/mobile-visual-parity/` and must preserve
+   the Subtext_Rule and Compact_Row_Rule above.
 6. **Do not restructure markup.** No new wrappers, no removed elements, no changed
    component APIs. Class attributes only.
 7. Preserve `cn()` usage and conditional class expressions — replace the size token

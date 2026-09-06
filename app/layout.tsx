@@ -19,10 +19,29 @@ import './globals.css';
 // alignment for money is preserved by `tabular-nums` in `.display-value`, a font
 // FEATURE that does not need a second family. Nothing references `font-mono` now,
 // so loading it was a download for no rendered glyphs.
+// `optional`, NOT `swap` — AND NOT ABSENT. `next/font/google` defaults `display` to
+// `swap`, so deleting this line would leave the behaviour unchanged rather than remove
+// it; the swap has to be opted out of explicitly.
+//
+// WHAT `swap` WAS DOING. It paints the fallback immediately and then replaces it the
+// moment the webfont arrives, with no upper bound on how late that is. On a phone that
+// replacement is the flicker: Plus Jakarta's glyph widths differ from the system face,
+// so every line of text re-renders and reflows partway through the first paint.
+//
+// `optional` gives the font a ~100ms block window and then commits for the rest of the
+// page load: if it arrived, it is used from the first paint; if it did not, the fallback
+// is kept and NOTHING swaps. Because this font is preloaded from the root layout it
+// usually wins that window, so most visits still get the brand face — and the ones that
+// do not get a stable page instead of a late repaint.
+//
+// The trade-off, stated plainly: on a cold cache over a slow connection a first visit
+// can render entirely in the fallback, and the brand face appears on the next
+// navigation. `adjustFontFallback` stays on (the default), so that fallback is
+// metric-matched and the difference is glyph shapes rather than layout.
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-plus-jakarta',
-  display: 'swap',
+  display: 'optional',
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';

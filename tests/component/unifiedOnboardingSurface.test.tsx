@@ -44,7 +44,15 @@ vi.mock('@/lib/actions/merchant', () => ({
   startIdentityVerification: (...args: unknown[]) => startIdentityVerification(...args),
 }));
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// `refresh` as well as `push`: the surface calls it when a provider read-back is what
+// discovered a step had completed, so the server-rendered copy elsewhere on the page
+// stops contradicting the tick. A shim missing it turned that into an unhandled
+// rejection that aborted the rest of reconciliation — the tests still passed, which is
+// exactly why the mock has to match the real router's surface.
+const routerRefresh = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: routerRefresh }),
+}));
 
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
 

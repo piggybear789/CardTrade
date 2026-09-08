@@ -16,12 +16,16 @@
 // two things a settings page answers differently from a wizard.
 //
 // WHAT DIFFERS. The hosted Stripe flows return to this tab rather than `/onboarding`,
-// and there is no exit CTA: a wizard has somewhere to send you, a settings tab is
-// already where the member chose to be, so the spine's ticks are the confirmation.
+// and completion offers a LINK onward instead of a wizard exit — see the `completion`
+// prop below for why the ticks alone were not enough.
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
+import { Button } from '@/components/ui/button';
 
 /**
  * Where Stripe sends the member back to. Shared with the page so the return markers
@@ -61,7 +65,26 @@ export function VerificationSequence({
       // Only the mock provider finishes in-page — the hosted flow leaves for Stripe
       // and comes back through `PayoutReturnRefresh`, which refreshes as well.
       onComplete={refresh}
-      completion={null}
+      // A WAY ONWARD, NOT A WIZARD EXIT, and that is why this is a link rather than
+      // `onComplete`. This used to pass `null` on the reasoning that a settings tab is
+      // already where the member chose to be, so the two ticks could be the whole
+      // confirmation. That holds for a member who opened Verification to look at it,
+      // and not at all for the one who just finished the second step: they came here to
+      // become a seller, both gates are now green, and the page answered by going
+      // quiet. Listing is the only thing the sequence just unlocked, so it is the one
+      // thing worth offering.
+      //
+      // Navigating rather than completing also keeps the wizard's semantics intact —
+      // `onComplete` means "this flow is over, take me out of it", which is false on a
+      // settings page the member can simply stay on.
+      completion={
+        <Button asChild className="w-full sm:w-auto">
+          <Link href="/listings/new">
+            List an item
+            <HugeiconsIcon icon={ArrowRight01Icon} className="ml-2 size-4" aria-hidden />
+          </Link>
+        </Button>
+      }
     />
   );
 }

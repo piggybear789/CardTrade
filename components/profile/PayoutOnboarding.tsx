@@ -30,7 +30,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BadgeCheckIcon, ExternalLinkIcon, LoaderCircleIcon, RefreshCwIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { BadgeCheckIcon, ExternalLinkIcon, LoaderCircleIcon, RefreshCwIcon, ShieldAlertIcon, ShieldCheckIcon, Timer01Icon } from '@hugeicons/core-free-icons';
 
 import {
   createPayoutOnboardingLink,
@@ -59,6 +59,38 @@ const STATUS_BADGE: Record<
   REJECTED: { label: 'Action needed', variant: 'destructive' },
 };
 
+/**
+ * The one place this card renders a failure, so the two kinds cannot drift apart.
+ *
+ * `blocked` means the refusal was about NoDitto's platform rather than this member
+ * (`provider-unavailable`). That is deliberately NOT destructive and deliberately
+ * `role="status"`: their account is fine, so announcing an error would be false, and
+ * red text next to a payout button reads as "you did this wrong".
+ */
+function PayoutNotice({ message, blocked }: { message: string | null; blocked: boolean }) {
+  if (!message) return null;
+  if (!blocked) {
+    return (
+      <p role="alert" className="text-body text-destructive">
+        {message}
+      </p>
+    );
+  }
+  return (
+    <div role="status" className="flex gap-cozy rounded-lg border bg-muted/40 p-group">
+      <HugeiconsIcon
+        icon={Timer01Icon}
+        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+        aria-hidden
+      />
+      <div className="min-w-0 space-y-tight">
+        <p className="text-body font-medium text-foreground">Waiting on Stripe</p>
+        <p className="text-body leading-relaxed text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 export function PayoutOnboarding({
   context,
   compact = false,
@@ -70,6 +102,13 @@ export function PayoutOnboarding({
   const searchParams = useSearchParams();
   const [state, setState] = useState(context.state);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Set when the refusal was `provider-unavailable` — NoDitto's platform cannot create
+   * connected accounts yet, so this member is not the blocker and nothing they press
+   * will change that. Drives tone and the button label; see the same split in
+   * `EmbeddedPayoutStep`'s `Phase`.
+   */
+  const [platformBlocked, setPlatformBlocked] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const needsPayoutCompletion = Boolean(state.merchantRef) && !state.settlementsEnabled;
@@ -101,6 +140,7 @@ export function PayoutOnboarding({
     startTransition(async () => {
       const link = await createPayoutOnboardingLink();
       if (!link.ok) {
+        setPlatformBlocked(link.error === 'provider-unavailable');
         setError(link.message);
         return;
       }
@@ -115,10 +155,12 @@ export function PayoutOnboarding({
    */
   function handleStart() {
     setError(null);
+    setPlatformBlocked(false);
 
     startTransition(async () => {
       const result = await startIdentityVerification();
       if (!result.ok) {
+        setPlatformBlocked(result.error === 'provider-unavailable');
         setError(result.message);
         return;
       }
@@ -139,6 +181,9 @@ export function PayoutOnboarding({
     startTransition(async () => {
       const result = await refreshPayoutStatus();
       if (!result.ok) {
+        // A read-back failure is never the platform gate, so the neutral tone must not
+        // survive from a previous submission attempt.
+        setPlatformBlocked(false);
         setError(result.message);
         return;
       }
@@ -215,7 +260,7 @@ export function PayoutOnboarding({
               {needsPayoutCompletion ? 'Continue with Stripe' : 'Manage with Stripe'}
             </Button>
           ) : null}
-          {error ? <p role="alert" className="text-body text-destructive">{error}</p> : null}
+          <PayoutNotice message={error} blocked={platformBlocked} />
         </CardContent>
       </Card>
     );
@@ -317,31 +362,44 @@ export function PayoutOnboarding({
                 description now carries. Three blocks of prose around one button read
                 as a wall; the two that remain each say something the other does not. */}
 
-            {error ? (
-              <p role="alert" className="text-body text-destructive">
-                {error}
-              </p>
-            ) : null}
+            <PayoutNotice message={error} blocked={platformBlocked} />
 
-            <Button type="button" onClick={handleStart} disabled={isPending} aria-busy={isPending}>
+            <Button
+              type="button"
+              onClick={handleStart}
+              disabled={isPending}
+              aria-busy={isPending}
+              // Demoted while the platform is the blocker: the primary action on this
+              // card cannot succeed, so it should not look like the way forward.
+              variant={platformBlocked ? 'outline' : 'default'}
+            >
               {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : (
-                <HugeiconsIcon icon={BadgeCheckIcon} className="size-3.5" aria-hidden />
+                <HugeiconsIcon
+                  icon={platformBlocked ? RefreshCwIcon : BadgeCheckIcon}
+                  className="size-3.5"
+                  aria-hidden
+                />
               )}
-              {context.hostedOnboarding ? 'Verify with Stripe' : 'Submit payout setup'}
+              {platformBlocked
+                ? 'Check again'
+                : context.hostedOnboarding
+                  ? 'Verify with Stripe'
+                  : 'Submit payout setup'}
             </Button>
             {/* Buyer-disclosure consent (Req 4.8-4.12). Pressing the button is
-                the consent; the sentence states what that consent covers. */}
-            <p className="text-body text-muted-foreground">
-              The payout name Stripe reports can be shown to a buyer for an agreed sale.
-            </p>
+                the consent; the sentence states what that consent covers. Suppressed
+                while the platform is blocked: there is no disclosure to consent to
+                when no account can be created, and the sentence only adds noise to a
+                message whose point is that nothing is being asked of them. */}
+            {platformBlocked ? null : (
+              <p className="text-body text-muted-foreground">
+                The payout name Stripe reports can be shown to a buyer for an agreed sale.
+              </p>
+            )}
           </div>
         ) : null}
 
-        {error && !needsSetup ? (
-          <p role="alert" className="text-body text-destructive">
-            {error}
-          </p>
-        ) : null}
+        {!needsSetup ? <PayoutNotice message={error} blocked={platformBlocked} /> : null}
       </CardContent>
     </Card>
   );

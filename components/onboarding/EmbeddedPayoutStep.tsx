@@ -35,7 +35,7 @@ import {
 } from '@stripe/react-connect-js';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, LandmarkIcon } from '@hugeicons/core-free-icons';
+import { ArrowRight01Icon, LandmarkIcon, RefreshCwIcon, Timer01Icon } from '@hugeicons/core-free-icons';
 
 import { beginEmbeddedPayout, refreshPayoutStatus } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CustodyNote } from './OnboardingSpine';
 import { isRealPublishableKey } from './stripeBrowser';
 
-type Phase = 'idle' | 'starting' | 'ready' | 'failed';
+/**
+ * `blocked` is NOT a flavour of `failed`, and collapsing the two is the bug this
+ * phase exists to prevent. `failed` means the attempt went wrong and pressing the
+ * button again is the reasonable next move, so it renders destructively with "Try
+ * again". `blocked` means the PLATFORM cannot create accounts yet
+ * (`provider-unavailable`): the member has done everything asked of them, the
+ * refusal is identical on every press, and red text plus a retry reads as their own
+ * account being broken. It gets neutral tone, `role="status"`, and a control that
+ * only re-checks.
+ */
+type Phase = 'idle' | 'starting' | 'ready' | 'failed' | 'blocked';
 
 /**
  * Where a member fixes the field a failure blamed. A "Try again" button is useless when
@@ -99,7 +109,8 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
             onUnsupported();
             return;
           }
-          setPhase('failed');
+          // Platform-side, so it does not belong in the error phase. See `Phase`.
+          setPhase(started.error === 'provider-unavailable' ? 'blocked' : 'failed');
           setError(started.message);
           setErrorField(started.field ?? null);
           return;
@@ -181,6 +192,40 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
           'above — nothing you entered is lost.',
       );
     });
+  }
+
+  if (phase === 'blocked') {
+    return (
+      <div className="space-y-group">
+        {/* Muted, not destructive, and `status` rather than `alert`: nothing has gone
+            wrong with this member's account and a screen reader should not be told an
+            error occurred. */}
+        <div
+          role="status"
+          className="flex gap-cozy rounded-lg border bg-muted/40 p-group"
+        >
+          <HugeiconsIcon
+            icon={Timer01Icon}
+            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+          <div className="min-w-0 space-y-tight">
+            <p className="text-body font-medium text-foreground">Waiting on Stripe</p>
+            <p className="text-body leading-relaxed text-muted-foreground">{error}</p>
+          </div>
+        </div>
+
+        {/* CHECKS, it does not retry. Same handler, different promise: the platform
+            gate can clear at any moment without the member doing anything, so a way to
+            look again is useful — as long as the label does not imply their last
+            attempt was somehow at fault. Secondary styling keeps it off the critical
+            path, because there is nothing here for them to complete. */}
+        <Button type="button" variant="outline" onClick={handleStart}>
+          <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" aria-hidden />
+          Check again
+        </Button>
+      </div>
+    );
   }
 
   if (phase === 'idle' || phase === 'failed') {

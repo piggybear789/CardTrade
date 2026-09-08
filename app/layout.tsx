@@ -19,29 +19,36 @@ import './globals.css';
 // alignment for money is preserved by `tabular-nums` in `.display-value`, a font
 // FEATURE that does not need a second family. Nothing references `font-mono` now,
 // so loading it was a download for no rendered glyphs.
-// `optional`, NOT `swap` — AND NOT ABSENT. `next/font/google` defaults `display` to
-// `swap`, so deleting this line would leave the behaviour unchanged rather than remove
-// it; the swap has to be opted out of explicitly.
+// `swap`, AND STATED EXPLICITLY even though it is `next/font/google`'s default, because
+// this line has been changed in both directions and the next person deserves the reason
+// rather than an absent option.
 //
-// WHAT `swap` WAS DOING. It paints the fallback immediately and then replaces it the
-// moment the webfont arrives, with no upper bound on how late that is. On a phone that
-// replacement is the flicker: Plus Jakarta's glyph widths differ from the system face,
-// so every line of text re-renders and reflows partway through the first paint.
+// IT WAS `optional`, AND `optional` IS WHY THE BRAND FACE DID NOT RENDER. That value
+// gives the font a ~100ms block window and then COMMITS for the rest of the page load:
+// if the file did not arrive inside the window, the fallback is kept and nothing swaps,
+// however early the font lands afterwards. The bet was that a root-layout preload wins
+// 100ms often enough that most visits still get Plus Jakarta.
 //
-// `optional` gives the font a ~100ms block window and then commits for the rest of the
-// page load: if it arrived, it is used from the first paint; if it did not, the fallback
-// is kept and NOTHING swaps. Because this font is preloaded from the root layout it
-// usually wins that window, so most visits still get the brand face — and the ones that
-// do not get a stable page instead of a late repaint.
+// It does not. A dev server compiling on demand loses that window nearly every time, so
+// the app renders in the system face on every cold load and the design is only ever seen
+// by accident — which is the bug this reverses, reported as "the fonts don't load on
+// desktop". Production is better but not reliable, and a typeface that appears at random
+// is worse than one that appears late.
 //
-// The trade-off, stated plainly: on a cold cache over a slow connection a first visit
-// can render entirely in the fallback, and the brand face appears on the next
-// navigation. `adjustFontFallback` stays on (the default), so that fallback is
-// metric-matched and the difference is glyph shapes rather than layout.
+// WHAT `optional` WAS BUYING, and why losing it is affordable. `swap` paints the
+// fallback and replaces it whenever the webfont arrives, so the replacement can land
+// after first paint. `adjustFontFallback` stays on (the default): Next synthesises a
+// metric-matched local fallback with `size-adjust` and matching metric overrides, so the
+// fallback occupies the same space Plus Jakarta will. The swap therefore changes glyph
+// SHAPES and not line boxes, which is a repaint rather than the reflow the previous
+// comment was avoiding.
+//
+// If the swap ever needs to be tighter than that, the lever is `preload` and the subset,
+// not `display` — starving the page of its typeface is not a performance win.
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-plus-jakarta',
-  display: 'optional',
+  display: 'swap',
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';

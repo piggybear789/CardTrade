@@ -428,7 +428,22 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // is what keeps that field usable inside a definite-height card — do not assume a
   // popover in this rail can grow downwards.
   return (
-    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-hidden lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    // `overflow-clip`, NEVER `overflow-hidden`. Both clip identically, and the
+    // difference is the whole bug: `hidden` makes this a SCROLL CONTAINER on both
+    // axes, and below `lg` this card wraps every field on the page. Nothing here is
+    // meant to scroll sideways, but a scroll container does not need a scrollbar to
+    // be scrolled — the browser's own "bring the focused element into view" scrolls
+    // it on every focus, and the member cannot pan it back, because a touch drag on
+    // an `overflow:hidden` box is refused. That is the shift-to-the-left on tapping
+    // any field, and Radix makes it worse on a Select: opening moves focus into the
+    // portalled list and closing restores it to the trigger, so one interaction is
+    // three scroll-into-view calls.
+    //
+    // `clip` is not a scroll container at all, so there is no scroll offset to
+    // acquire. The clipping the rounded corners and the footer border rely on is
+    // unchanged, and so is `PlaceSearch`'s drop-up measurement — `clippingBounds`
+    // looks for a non-`visible` overflow, which `clip` still is.
+    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-clip lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
@@ -446,7 +461,17 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         noValidate
         className="lg:contents"
       >
-        <CardContent className="grid gap-5 lg:contents">
+        {/* `pt-0` is `CardContent`'s default, and it is right only because a
+            `CardHeader` normally sits above it supplying the top padding. In CREATE
+            mode that header is `max-md:hidden` — the mobile chrome already renders
+            "New Listing", so a second title in the card was a duplicate — which left
+            this as the card's first child with no top padding at all, so "Photos" sat
+            flush against the border. Restored under the same condition that removes
+            the header, rather than unconditionally: from `md` the header is back and
+            `pt-0` is correct again. */}
+        <CardContent
+          className={`grid gap-5 lg:contents${mode === "create" ? " max-md:pt-group" : ""}`}
+        >
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
           {/* `lg:min-h-0` + `lg:overflow-hidden` are what make the photo actually

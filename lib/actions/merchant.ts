@@ -57,6 +57,19 @@ export type MerchantOnboardingActionError =
   | 'disclosure-consent-required'
   | 'not-supported'
   | 'submission-failed'
+  /**
+   * The PLATFORM cannot create connected accounts yet, so no member can finish
+   * payout setup.
+   *
+   * DISTINCT FROM `submission-failed` BECAUSE THE MEMBER IS NOT INVOLVED. Every
+   * other failure here is either about their data (`validation-error`) or a
+   * transient provider fault worth retrying; this one is about NoDitto's own
+   * Stripe account and will refuse identically no matter how many times they
+   * press the button. A surface that renders it as a red error beside "Try
+   * again" is telling them to fix something they cannot reach, which is how a
+   * platform configuration gap reads as the member's account being broken.
+   */
+  | 'provider-unavailable'
   | 'profile-not-found';
 
 /**
@@ -435,6 +448,35 @@ function isProviderEmailRejection(detail: string | undefined): boolean {
 }
 
 /**
+ * Whether a provider submission failure was about OUR platform account rather than
+ * the member's.
+ *
+ * Stripe refuses `accounts.create` until the platform has completed its own account
+ * activation AND its Connect platform profile, and it reports that with prose about
+ * the *account* needing activation — which, read on a page where a member just
+ * finished verifying themselves, sounds unambiguously like THEIR account. It is not:
+ * the platform profile is a one-time review of the marketplace operator, and the
+ * refusal is identical for every member until it clears.
+ *
+ * Like {@link isProviderEmailRejection} this reads a message string, which is not a
+ * contract. It only ever upgrades the wording of a failure that already happened and
+ * gates nothing, so a missed match degrades to the generic `submission-failed` copy
+ * rather than to anything unsafe.
+ */
+function isProviderPlatformNotReady(detail: string | undefined): boolean {
+  if (!detail) return false;
+  const text = detail.toLowerCase();
+  return (
+    (text.includes('must be activated') && text.includes('create accounts')) ||
+    text.includes('activate your account') ||
+    text.includes("signed up for connect") ||
+    text.includes('only stripe connect platforms') ||
+    text.includes('platform profile') ||
+    (text.includes('responsibilit') && text.includes('accept'))
+  );
+}
+
+/**
  * Normalise a caller-supplied return path into a same-origin prefix ending in
  * `?` or `&`, ready for the `payouts=` marker to be appended.
  *
@@ -618,6 +660,23 @@ export async function submitMerchantOnboarding(
           'The active payment provider does not support payout accounts.',
         );
       case 'SUBMISSION_FAILED': {
+        // CHECKED FIRST, because this one is not about this member at all and the
+        // message would otherwise be read as if it were. The provider detail is
+        // logged rather than shown: it names our platform's activation state, which
+        // is operator information, and it is the only record of the cause once the
+        // member sees the neutral copy instead.
+        if (isProviderPlatformNotReady(result.detail)) {
+          console.error(
+            `[payouts] provider refused account creation at the platform level: ${result.detail}`,
+          );
+          return fail(
+            'provider-unavailable',
+            'Payout setup is not open yet — NoDitto is still finishing its own ' +
+              'verification with Stripe. This is on our side, not yours: your ID check ' +
+              'is complete and stays that way, and there is nothing here for you to ' +
+              'redo. We will email you the moment payouts open.',
+          );
+        }
         // An email the provider refuses for a reason only IT can know — an
         // unsupported or disposable domain (`email_domain_invalid_for_recipient`),
         // which no local regex can predict. Reported against the field so the UI
@@ -632,9 +691,20 @@ export async function submitMerchantOnboarding(
             'contactEmail',
           );
         }
+        // LOGGED, NOT SHOWN. This used to return `result.detail` — the provider's own
+        // sentence, verbatim — which is how "Your account must be activated in order
+        // to create accounts" reached a seller who had just passed their ID check and
+        // read it as a verdict on themselves. Provider prose is written for the
+        // integrator, not the member: it names platform state, internal parameters and
+        // error identifiers. An unclassified cause now shows neutral copy here and
+        // appears in the logs, which is the signal to add a case above.
+        console.error(
+          `[payouts] provider refused account creation: ${result.detail ?? 'no detail'}`,
+        );
         return fail(
           'submission-failed',
-          result.detail ?? 'Payout setup could not be submitted. Please try again.',
+          'Payout setup could not be completed just now. Your ID check is unaffected — ' +
+            'try again in a few minutes, and contact support if it keeps happening.',
         );
       }
       case 'PROFILE_NOT_FOUND':

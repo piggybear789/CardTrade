@@ -181,6 +181,50 @@ export function UnifiedOnboardingSurface({
   const settledChange = useRef(onSettledChange);
   settledChange.current = onSettledChange;
 
+  // Read through a ref for the same reason as `settledChange`: `reconcile` is a
+  // `useCallback` the mount effect depends on, so anything captured directly would have
+  // to join its dependency list, and a dependency that changes identity per render
+  // re-fires the effect and re-runs the whole reconciliation.
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  /**
+   * Whether each step has EVER been observed complete during this visit.
+   *
+   * COMPLETION IS MONOTONIC WITHIN A MOUNT, and this is what makes it so. `load` reads
+   * our own columns, which a webhook writes, and it says so itself: fast enough to
+   * paint against, not authoritative. Feeding that read straight into the state meant a
+   * weaker source could RETRACT a fact a stronger one had already established — so a
+   * step that had just ticked flipped back to "Continue with Stripe" the next time the
+   * columns were read, then forward again when the provider was asked. That is the
+   * flicker; the ticks were not disagreeing about the truth, they were disagreeing
+   * about which read won.
+   *
+   * Refs rather than reading the state, because `load` sets both and then reports the
+   * pair to `onSettledChange` in the same pass — state updates are not visible until
+   * the next render, so the report would lag one read behind and drive the same flicker
+   * in the wizard's footer controls.
+   *
+   * A GENUINE downgrade (Stripe later restricts an account) still shows, because it
+   * arrives as a fresh server render and therefore a fresh `initialStatus`. What is
+   * suppressed is only a retraction mid-visit, and no in-session path produces one
+   * deliberately: every provider read-back below sets done and never clears it.
+   */
+  const everIdentityDone = useRef(initialStatus?.identityDone ?? false);
+  const everPayoutDone = useRef(initialStatus?.payoutDone ?? false);
+
+  /** Latch identity complete. Always use these rather than `setXDone(true)` directly. */
+  const markIdentityDone = useCallback(() => {
+    everIdentityDone.current = true;
+    setIdentityDone(true);
+  }, []);
+
+  /** Latch payouts complete. */
+  const markPayoutDone = useCallback(() => {
+    everPayoutDone.current = true;
+    setPayoutDone(true);
+  }, []);
+
   // Which poll run owns the component. Bumped on every mount AND every unmount, so an
   // in-flight poll can tell that it has been superseded and stop writing.
   //
@@ -229,11 +273,18 @@ export function UnifiedOnboardingSurface({
       return null;
     }
 
-    const identityOk = identity.ok && identity.data.status === 'VERIFIED';
-    const payoutOk = merchant.ok && merchant.data.settlementsEnabled;
+    // Latched, not assigned. See `everIdentityDone` for why a column read must not be
+    // allowed to un-tick a step the provider already confirmed.
+    if (identity.ok && identity.data.status === 'VERIFIED') everIdentityDone.current = true;
+    if (merchant.ok && merchant.data.settlementsEnabled) everPayoutDone.current = true;
+    const identityOk = everIdentityDone.current;
+    const payoutOk = everPayoutDone.current;
 
     setIdentityDone(identityOk);
-    setVerifiedName(identity.ok ? identity.data.verifiedName : null);
+    // Only overwrite a name with one that exists: the same absent→present rule the
+    // provider-reported name follows server-side. A column read that raced the webhook
+    // would otherwise blank the receipt under an already-ticked step.
+    setVerifiedName((current) => (identity.ok ? (identity.data.verifiedName ?? current) : current));
 
     // Our columns DO know the difference between declined and not-yet-started, and
     // throwing that away is what made a refusal render as a fresh start. They cannot
@@ -298,11 +349,19 @@ export function UnifiedOnboardingSurface({
         }
 
         if (read.data.status === 'VERIFIED') {
-          setIdentityDone(true);
+          markIdentityDone();
           setVerifiedName(read.data.verifiedName);
           setIdentityProblem(null);
           setIdentityWaiting(null);
           settledChange.current?.(snapshot.payoutOk);
+          // THE READ-BACK FOUND IT, SO THE SERVER DOES NOT KNOW YET. Anything on the
+          // page rendered from these columns on the server — the account header's
+          // verification line, for one — is still showing the pre-check answer and
+          // cannot follow client state. Refreshing is what stops the header
+          // contradicting the tick beside it. Self-terminating: the next server render
+          // reports done, so `snapshot.identityOk` is true and this branch is not
+          // reached again.
+          routerRef.current.refresh();
           verdictReached = true;
           break;
         }
@@ -368,11 +427,16 @@ export function UnifiedOnboardingSurface({
       const read = await refreshPayoutStatus();
       if (!current()) return;
       if (read.ok && read.data.settlementsEnabled) {
-        setPayoutDone(true);
+        markPayoutDone();
         settledChange.current?.(true);
+        // Same reasoning as the identity read-back above. This is the case that shipped
+        // visibly: the spine read "Payouts active" while the header two rows higher
+        // still read "Payouts not set up", because that line is a server-rendered prop
+        // and only this read knew any better.
+        routerRef.current.refresh();
       }
     }
-  }, [load]);
+  }, [load, markIdentityDone, markPayoutDone]);
 
   useEffect(() => {
     const run = runId.current + 1;
@@ -384,7 +448,7 @@ export function UnifiedOnboardingSurface({
   }, [reconcile]);
 
   function finishIdentity() {
-    setIdentityDone(true);
+    markIdentityDone();
     setIdentityProblem(null);
     setIdentityWaiting(null);
     void load();
@@ -417,11 +481,12 @@ export function UnifiedOnboardingSurface({
       if (!read.ok) return;
 
       if (read.data.status === 'VERIFIED') {
-        setIdentityDone(true);
+        markIdentityDone();
         setVerifiedName(read.data.verifiedName);
         setIdentityProblem(null);
         setIdentityWaiting(null);
         settledChange.current?.(payoutDone);
+        routerRef.current.refresh();
         return;
       }
       if (read.data.status === 'FAILED') {
@@ -436,7 +501,7 @@ export function UnifiedOnboardingSurface({
   }
 
   function finishPayout() {
-    setPayoutDone(true);
+    markPayoutDone();
     if (onComplete) onComplete();
     else router.push('/');
   }
@@ -622,9 +687,10 @@ export function UnifiedOnboardingSurface({
           prominent control was "Back" — a dead end dressed as a confirmation. The spine
           above already shows both ticks, so this is just the exit.
 
-          Which is why it is overridable rather than fixed: "Start listing" is the right
-          answer for a wizard the member is trying to leave, and the wrong one on a
-          settings tab they deliberately opened. That caller passes `null`. */}
+          Which is why it is overridable rather than fixed. The default calls
+          `finishPayout`, which is a wizard exit — correct for a flow the member is
+          trying to leave, wrong on a settings tab they can simply stay on. That caller
+          passes a plain link instead; see `VerificationSequence`. */}
       {bothDone ? exit : null}
     </div>
   );

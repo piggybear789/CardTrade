@@ -18,11 +18,12 @@
 
 import { useState, useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ExternalLinkIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { ExternalLinkIcon, LoaderCircleIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { startIdentityVerification, refreshPayoutStatus } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface HostedProviderStepProps {
   step: 'identity' | 'payout';
@@ -57,10 +58,20 @@ export function HostedProviderStep({
   onProcessing,
 }: HostedProviderStepProps) {
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Whether the message above the button is this member's problem.
+   *
+   * `notice` covers `provider-unavailable`: NoDitto's own platform setup is
+   * incomplete, so nothing the member does changes the outcome. Rendering that in
+   * destructive red under a "Continue with Stripe" button told a seller who had just
+   * passed their ID check that they had broken something.
+   */
+  const [tone, setTone] = useState<'error' | 'notice'>('error');
   const [isPending, startTransition] = useTransition();
 
   function handleContinue() {
     setError(null);
+    setTone('error');
     startTransition(async () => {
       try {
         if (step === 'identity') {
@@ -98,6 +109,7 @@ export function HostedProviderStep({
 
         const started = await startIdentityVerification(returnPath);
         if (!started.ok) {
+          if (started.error === 'provider-unavailable') setTone('notice');
           setError(started.message);
           return;
         }
@@ -123,9 +135,17 @@ export function HostedProviderStep({
     <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
       {error ? (
         <p
-          role="alert"
-          className="min-w-0 text-pretty break-words text-body leading-relaxed text-destructive sm:text-right"
+          // `status`, not `alert`, when the platform is the blocker: no error has
+          // befallen this member and announcing one is simply inaccurate.
+          role={tone === 'notice' ? 'status' : 'alert'}
+          className={cn(
+            'min-w-0 text-pretty break-words text-body leading-relaxed sm:text-right',
+            tone === 'notice' ? 'text-muted-foreground' : 'text-destructive',
+          )}
         >
+          {tone === 'notice' ? (
+            <span className="mb-tight block font-medium text-foreground">Waiting on Stripe</span>
+          ) : null}
           {error}
         </p>
       ) : null}
@@ -135,14 +155,27 @@ export function HostedProviderStep({
         onClick={handleContinue}
         disabled={isPending}
         aria-busy={isPending}
+        // Demoted once the platform is the blocker: leaving a primary call to action
+        // on screen invites a press that cannot succeed.
+        variant={tone === 'notice' ? 'outline' : 'default'}
         className="w-full sm:w-auto"
       >
         {isPending ? (
           <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
+          <HugeiconsIcon
+            icon={tone === 'notice' ? RefreshCwIcon : ExternalLinkIcon}
+            className="size-3.5"
+            aria-hidden
+          />
         )}
-        {isPending ? 'Opening…' : retry ? 'Try again' : 'Continue with Stripe'}
+        {isPending
+          ? 'Opening…'
+          : tone === 'notice'
+            ? 'Check again'
+            : retry
+              ? 'Try again'
+              : 'Continue with Stripe'}
       </Button>
     </div>
   );

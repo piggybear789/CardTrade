@@ -70,6 +70,7 @@ export function NotificationCenter({
         icon={<HugeiconsIcon icon={BellOffIcon} className="size-6" aria-hidden />}
         title="No Notifications Yet"
         description="Offers, messages, trades, and sales updates will show up here."
+        fill
       />
     );
   }

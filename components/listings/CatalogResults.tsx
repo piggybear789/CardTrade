@@ -67,7 +67,12 @@ export function CatalogResults() {
     <div
       role="region"
       aria-label={resultTitle}
-      className="min-w-0 max-md:bg-background"
+      // A column below `md`, so an empty catalog can take the space the grid would
+      // have had and centre in it (see `fill` on EmptyState). With a grid present it
+      // is inert — header and grid stack the same either way — and it stops at `md`
+      // regardless: desktop is the one width where a sibling below the grid can be
+      // pushed by a growing one, since the pager renders there and not on phones.
+      className="min-w-0 max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:bg-background"
     >
       <header className="mb-group bg-background pb-0 sm:mb-4 sm:border-b sm:border-border md:bg-transparent sm:pb-4">
         <div className="flex flex-col gap-group sm:gap-3">
@@ -125,6 +130,9 @@ export function CatalogResults() {
       <div
         aria-busy={isPending}
         className={cn(
+          // Second link in the chain that carries the column's leftover height down
+          // to an empty-catalog state. A grid child keeps its natural height.
+          'max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col',
           'motion-safe:transition-opacity motion-safe:duration-300 motion-safe:ease-out',
           isPending && 'opacity-70 pointer-events-none',
         )}
@@ -263,6 +271,7 @@ function EmptyCatalog() {
       description="List a collectible for sale or trade and it will appear here."
       action={{ label: 'List an Item', href: '/listings/new' }}
       compact
+      fill
     />
   );
 }
@@ -279,6 +288,7 @@ function EmptyRegion({ regionCode }: { regionCode: string }) {
         variant: 'outline',
       }}
       compact
+      fill
     />
   );
 }
@@ -312,6 +322,7 @@ function NoMatches({ regionCode }: { regionCode: string | null }) {
         variant: 'outline',
       }}
       compact
+      fill
     />
   );
 }

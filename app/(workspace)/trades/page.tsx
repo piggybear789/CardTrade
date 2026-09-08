@@ -121,6 +121,7 @@ export default async function TradesPage({
           title="No Finished Trades"
           description="Completed trades, resolved disputes and closed offers will be kept here."
           compact
+          fill
         />
       ) : (
         <StartDealEmptyState
@@ -130,6 +131,7 @@ export default async function TradesPage({
           description="Find an item you would like, then offer whatever you think is fair for it. Or send a private deal link."
           help={{ label: 'How holds and disputes work', href: '/help#holds' }}
           compact
+          fill
         />
       )}
     </MarketplaceShell>

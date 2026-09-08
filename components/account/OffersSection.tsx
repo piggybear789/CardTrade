@@ -72,6 +72,7 @@ export function OffersSection({
         title="No Past Offers"
         description="Decided or withdrawn offers will be kept here."
         compact
+        fill
       />
     ) : (
       <EmptyState

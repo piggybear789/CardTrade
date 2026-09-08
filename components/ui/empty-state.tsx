@@ -3,7 +3,8 @@
 // Shared state for empty collections and first-use guidance. Keeps icon, copy,
 // spacing, and mobile action width consistent across features. See `variant` for
 // the two jobs it does — a placeholder inside a section, or a whole route — which
-// diverge on phones.
+// diverge on phones, and `fill` for the case in between: a section state that is
+// the only thing on the page below `md`, which is every empty hub.
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
@@ -20,6 +21,7 @@ export function EmptyState({
   className,
   compact = false,
   hideActionOnMobile = false,
+  fill = false,
   titleAs: Title = 'h2',
   variant = 'section',
 }: {
@@ -45,6 +47,27 @@ export function EmptyState({
   /** Hide the CTA on phones when the hub already offers the same action. */
   hideActionOnMobile?: boolean;
   /**
+   * This state IS the content of its page below `md` — a hub with nothing in it.
+   *
+   * Purchases, Sales, Offers, Saved, My Listings and an unlisted catalog all have a
+   * heading and a scope filter above the state and NOTHING below it. The plain
+   * `section` treatment left the copy and its CTA pinned under the tabs with the
+   * remaining two thirds of the phone blank, which reads as content that failed to
+   * load rather than a list that is empty. `fill` claims the space the list would
+   * have taken and centres the state in it, icon included, because at that point it
+   * is an island by construction — the objection `section` records to centring only
+   * holds when there is more page underneath.
+   *
+   * Below `md` only. On desktop the state stays where the first row would be, inside
+   * the dashed placeholder, so a page with sections below it is unaffected.
+   *
+   * This needs height handed down to do anything: every ancestor between here and
+   * the shell's content column has to be a `flex-1` column. Where the chain is
+   * broken it degrades to the top-aligned state instead of breaking the layout, so
+   * check the chain when adding a call site.
+   */
+  fill?: boolean;
+  /**
    * Match the state title to its surrounding document outline.
    *
    * `h4` exists because the workspace nests three levels before a section's content:
@@ -57,10 +80,10 @@ export function EmptyState({
    * Which of the two jobs this state is doing. They want opposite things on a phone,
    * and until this existed both got the section treatment.
    *
-   * `section` stands in for the first row of a list. It has a heading above it and
-   * more page below, so on phones it stays left-aligned in the reading column and
-   * drops its icon — a centred island there reads as unrelated to the section it
-   * belongs to.
+   * `section` stands in for the first row of a list. When there is more page below
+   * it, on phones it stays left-aligned in the reading column and drops its icon — a
+   * centred island there reads as unrelated to the section it belongs to. When there
+   * is not, pass `fill`, which is the same variant read the other way.
    *
    * `page` IS the route: an identity gate, a 403, a dead end. Nothing frames it and
    * nothing follows it, so it centres at every width, keeps its icon as the focal
@@ -71,6 +94,10 @@ export function EmptyState({
   variant?: 'section' | 'page';
 }) {
   const isPage = variant === 'page';
+  // A filled section state is centred on phones for the same reason a page state is,
+  // so the two share every mobile treatment except the card chrome and the action
+  // width. `isPage` alone stays the desktop-centring switch.
+  const isCentredOnMobile = isPage || fill;
   const actionSize = 'sm';
 
   // A page's action is the only thing to press on the route, so on phones it
@@ -92,7 +119,14 @@ export function EmptyState({
         // the vertical half.
         isPage
           ? 'max-md:px-0'
-          : 'rounded-lg border border-dashed border-border bg-card max-md:items-start max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:px-0 max-md:text-left',
+          : cn(
+              'rounded-lg border border-dashed border-border bg-card max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:px-0',
+              // `flex-1` and nothing else: the root already centres both axes, so
+              // taking the column's leftover height is the whole of the change.
+              // `flex-basis: 0` means a short viewport still falls back to the
+              // content height rather than clipping the CTA.
+              fill ? 'max-md:flex-1' : 'max-md:items-start max-md:text-left',
+            ),
         compact ? 'py-4 md:py-10' : 'py-5 md:py-14',
         className,
       )}
@@ -102,7 +136,7 @@ export function EmptyState({
           aria-hidden="true"
           className={cn(
             'items-center justify-center rounded-full border bg-muted text-muted-foreground md:flex md:size-12',
-            isPage ? 'flex size-12' : 'mb-1 hidden size-8 md:mb-0',
+            isCentredOnMobile ? 'flex size-12' : 'mb-1 hidden size-8 md:mb-0',
           )}
         >
           {icon}
@@ -111,8 +145,12 @@ export function EmptyState({
       <Title
         className={cn(
           'font-semibold',
-          isPage ? 'text-lead' : 'text-body md:text-lead',
-          icon && (isPage ? 'mt-snug' : 'md:mt-snug'),
+          // `text-body` is the list-row size, right for a state standing in for a
+          // row. Centred, it puts the title at the description's size and leaves
+          // weight alone to carry the hierarchy, which is not enough when the pair
+          // is the only thing on the screen.
+          isCentredOnMobile ? 'text-lead' : 'text-body md:text-lead',
+          icon && (isCentredOnMobile ? 'mt-snug' : 'md:mt-snug'),
         )}
       >
         {title}

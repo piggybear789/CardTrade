@@ -47,7 +47,10 @@ export default async function NotificationsPage() {
           <SectionLoadError label="notifications" />
         </div>
       ) : (
-        <div className="flex w-full flex-col">
+        // `flex-1`/`min-h-0` so the empty state's `fill` has height to claim: the
+        // shell column hands its leftover space down only as far as the chain of
+        // flex children reaches, and this wrapper was where it stopped.
+        <div className="flex min-h-0 w-full flex-1 flex-col">
           <NotificationCenter
             userId={user.id}
             initialNotifications={result.notifications}

@@ -42,8 +42,12 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
       </CardHeader>
 
       {/* `gap-5`, matching `ItemForm`'s `CardContent`. `gap-8` put 12px of extra
-          air between the photo panel and the details rail on every phone. */}
-      <CardContent className="grid gap-5 lg:contents">
+          air between the photo panel and the details rail on every phone.
+          `grid-cols-1` also matches `ItemForm`: it pins the stacked mobile column
+          to `minmax(0, 1fr)` so it tracks the card's width rather than its
+          content, keeping the placeholder the same width as the form it stands in
+          for. */}
+      <CardContent className="grid grid-cols-1 gap-5 lg:contents">
         {/* Photos panel */}
         {/* `lg:bg-card` and the cover's aspect ratio both mirror ItemForm: the
             panel used to paint `lg:bg-muted`, so it visibly changed colour on
@@ -111,8 +115,9 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           </div>
 
           {/* `gap-3`, matching `ItemForm`. `gap-5` here added 8px between
-              Category and Condition, which stack on a phone. */}
-          <div className="grid gap-3 sm:grid-cols-2">
+              Category and Condition, which stack on a phone. `grid-cols-1` below
+              `sm` matches the form's taxonomy row. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <TextLines className="text-body leading-none" widths={['w-20']} />
               {/* `h-9 md:h-7`, matching `SelectTrigger` — which now matches

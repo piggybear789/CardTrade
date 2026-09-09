@@ -469,8 +469,20 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             flush against the border. Restored under the same condition that removes
             the header, rather than unconditionally: from `md` the header is back and
             `pt-0` is correct again. */}
+        {/* `grid-cols-1`, not a bare `grid`. Below `lg` this is the stacked
+            single-column layout, and a bare grid gives its one implicit column a
+            track of `auto`, which sizes to the widest child's MIN-CONTENT. An
+            `<input>`/`<textarea>`/`SelectTrigger` carries a large intrinsic width —
+            larger still at the 16px touch type floor these fields use to stop iOS
+            zooming — so that `auto` track grew past the phone's width, and because
+            the `Card` clips (`overflow-clip`), the surplus was sheared off the right
+            edge: the "right side shrinking" a member sees. `grid-cols-1` is
+            `minmax(0, 1fr)`, whose `0` floor lets the column shrink to the container
+            instead of the content, so the fields track the card's width and wrap
+            rather than overflow. Irrelevant from `lg`, where `lg:contents` dissolves
+            this grid entirely. */}
         <CardContent
-          className={`grid gap-5 lg:contents${mode === "create" ? " max-md:pt-group" : ""}`}
+          className={`grid grid-cols-1 gap-5 lg:contents${mode === "create" ? " max-md:pt-group" : ""}`}
         >
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
@@ -708,7 +720,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : null}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            {/* `grid-cols-1` below `sm` for the same reason as the outer grid: a
+                bare grid's implicit `auto` column sizes to the Select triggers'
+                min-content and overflows the clipped card on a phone. `minmax(0,
+                1fr)` lets the single column shrink to the row's width. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="game">Category</Label>
                 <Select

@@ -406,7 +406,7 @@ function HeaderSearchInner({
           // Worth stating because it has been broken twice: the base string set
           // `text-body` under a comment claiming the opposite, and the chrome pill set
           // it again to match the games row — both winning over Input through
-          // tailwind-merge. That resolves to the same 13px today, but while Input still
+          // tailwind-merge. That resolves to the same size today, but while Input still
           // floored touch at 16px it pinned the public catalog search, the first thing a
           // phone visitor taps, at a size iOS Safari zooms in on and does not undo.
           'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',

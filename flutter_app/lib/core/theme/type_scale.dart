@@ -22,7 +22,10 @@ abstract final class AppType {
   static double tracking(double sizePx) => -0.01 * sizePx;
 
   static const TextStyle meta = TextStyle(fontSize: 12, height: 1.4, letterSpacing: -0.12);
-  static const TextStyle body = TextStyle(fontSize: 13, height: 1.6, letterSpacing: -0.13);
+  // Tracks the web `body` token, which is under test at 14px. P4 in
+  // `tests/unit/mobileThemeAgreement.test.ts` compares every level's size and line
+  // height against `tailwind.config.ts`, so this moves with it or the harness fails.
+  static const TextStyle body = TextStyle(fontSize: 14, height: 1.6, letterSpacing: -0.14);
   static const TextStyle nav = TextStyle(fontSize: 15, height: 1.4, letterSpacing: -0.15);
   static const TextStyle lead = TextStyle(fontSize: 16, height: 1.5, letterSpacing: -0.16);
   static const TextStyle subhead = TextStyle(fontSize: 17, height: 1.4, letterSpacing: -0.17);

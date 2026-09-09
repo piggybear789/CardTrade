@@ -89,7 +89,9 @@ export function MarketplaceNav({
                           // pointer target, so this clears the floor comfortably
                           // and the rows stay easy to hit while scanning.
                           // `text-nav`, not `text-body`: the rail holds 15px while
-                          // the body scale sits at 13px. See the token's note.
+                          // the body scale sits below it. See the token's note —
+                          // at `body` = 14px that gap is one pixel and `nav` is
+                          // arguably no longer earning its keep.
                           'relative flex items-center gap-3 rounded-lg px-3 py-2 text-nav transition-colors border border-transparent focus:outline-none focus-visible:border-iris',
                           // A NEUTRAL SURFACE AND A 2px VIOLET MARKER, not a
                           // violet slab. The accent pair reads the state in

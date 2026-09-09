@@ -15,14 +15,21 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           // every field sat 4px proud of the button next to it.
           //
           // `py-1` follows from the height: at 28px, `py-2` left a 12px content box
-          // for 13px text and clipped descenders.
+          // and clipped descenders.
+          //
+          // WATCH THE 28px CONTROL AT `body` = 14px. `md:h-7` less the 2px border
+          // and 8px of `py-1` is an 18px content box, against a 22.4px line box —
+          // so the desktop field is now the tight one, where it used to have room.
+          // A phone is fine: `h-9` leaves 26px. If descenders clip at `md`, the fix
+          // is this control's height, not the type token.
           //
           // `text-body` unconditionally, on touch as well as desktop, so the field
           // text matches the labels and body copy around it. We used to floor touch
           // devices at `text-lead` (16px) via `pointer-fine:text-body`, purely to
           // stop iOS Safari zooming the page on focus. That floor read as "the input
-          // font is too big" next to the 13px UI, so it has been removed: fields are
-          // 13px everywhere, and the iOS focus-zoom is an accepted tradeoff.
+          // font is too big" next to the surrounding UI, so it has been removed:
+          // fields are `body` everywhere, and the iOS focus-zoom is an accepted
+          // tradeoff. 14px does not avoid the zoom — the threshold is 16px.
           "flex h-9 w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-3 py-1 text-body md:h-7 file:border-0 file:bg-transparent file:text-body file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-iris focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground",
           className
         )}

@@ -24,10 +24,10 @@ export function Skeleton({
  *
  * Give it the real element's type classes and the reserved height comes from the
  * type scale rather than from an `h-4` picked by eye. That distinction is most of
- * why placeholders used to run short: `h-4` is 16px, but `text-body` is a 20.8px
+ * why placeholders used to run short: `h-4` is 16px, but `text-body` is a 22.4px
  * line, `text-lead` is 24px and `text-head` is 26.25px, so a row of three bars
  * could be 20px under the content it stood for and a list of six under by 100px.
- * A `Label`, meanwhile, is `leading-none` at 13px — the same `h-4` overshoots it.
+ * A `Label`, meanwhile, is `leading-none` at 14px — the same `h-4` overshoots it.
  *
  * Each width gets its own block so it lands on its own line whatever its width,
  * and the bar is `0.9em` so the usual half-leading survives above and below it

@@ -138,10 +138,24 @@ const config: Config = {
       // specificity — resolved by CSS source order, which the component author cannot
       // see. Weight stays an explicit utility so every token is a safe drop-in.
       //
-      // THE SCALE CAME DOWN A NOTCH. `body` is 0.8125rem (13px), `subhead` 17px,
-      // `head` 21px, `display` 28px — a denser register throughout, with the
-      // line-height ratios unchanged so the rhythm scales with it rather than
-      // going cramped.
+      // THE SCALE CAME DOWN A NOTCH. `subhead` 17px, `head` 21px, `display` 28px
+      // — a denser register throughout, with the line-height ratios unchanged so
+      // the rhythm scales with it rather than going cramped.
+      //
+      // `body` IS UNDER TEST AT 0.875rem (14px). It shipped at 0.8125rem (13px),
+      // which read tight on a phone, so it has been raised one step to be looked
+      // at on a device. Two things move with it and are easy to miss:
+      //
+      //   - Its line box is now 22.4px, not 20.8px. `Skeleton` reserves height
+      //     from the type scale, so any hand-computed placeholder height derived
+      //     from a `text-body` line has to be recomputed — see the description
+      //     field in `ItemFormSkeleton`.
+      //   - `nav` is 15px, and its whole justification is being a step above
+      //     `body` for the sidebar rail. At 14px that step is one pixel, which is
+      //     not a register. If 14px stays, `nav` needs revisiting or retiring.
+      //
+      // 14px does NOT change the iOS focus-zoom position: the threshold is 16px,
+      // so a focused field still zooms. See the `lead` note below.
       //
       // TWO LEVELS DID NOT MOVE, and neither is negotiable:
       //
@@ -158,22 +172,26 @@ const config: Config = {
       //   It used to be. `Input`, `Textarea` and `SelectTrigger` set it on touch
       //   because iOS Safari zooms the viewport when a focused field's text is
       //   under 16px and does not zoom back out, leaving the member on a
-      //   magnified page mid-form. That floor was removed deliberately: at 13px
-      //   the fields match the labels and body copy around them, and the
-      //   focus-zoom is an accepted tradeoff. The behaviour is real and still
-      //   current, so if a mobile form is ever reported as "jumping on tap",
-      //   this is the cause and the fix is a 16px floor scoped to iOS —
-      //   `@supports (-webkit-touch-callout: none)` — not a pointer or width
-      //   query. Do NOT reintroduce it per-component: a floor on some fields and
-      //   not others is what left four bare inputs at 16px while `Input` was 13px.
+      //   magnified page mid-form. That floor was removed deliberately: the
+      //   fields match the labels and body copy around them at `body`, and the
+      //   focus-zoom is an accepted tradeoff. Raising `body` to 14px does not
+      //   change that — the threshold is 16px, not "close to 16px". The
+      //   behaviour is real and still current, so if a mobile form is ever
+      //   reported as "jumping on tap", this is the cause and the fix is a 16px
+      //   floor scoped to iOS — `@supports (-webkit-touch-callout: none)` — not
+      //   a pointer or width query. Do NOT reintroduce it per-component: a floor
+      //   on some fields and not others is what left four bare inputs at 16px
+      //   while `Input` was already down at `body`.
       fontSize: {
         meta: ["0.75rem", { lineHeight: "1.4" }],
-        body: ["0.8125rem", { lineHeight: "1.6" }],
+        body: ["0.875rem", { lineHeight: "1.6" }],
         // THE SIDEBAR RAIL ONLY, and deliberately one step above `body`.
         //
         // The rail is eleven navigation targets in a narrow column, read by
         // flicking down a list rather than by reading a sentence — a register
-        // where 13px stops being dense and starts being hard to scan. It sits on
+        // where the body size stops being dense and starts being hard to scan.
+        // NOTE: that argument was written against a 13px `body` and is weak at
+        // 14px, where this token is only one pixel larger. It sits on
         // `--sidebar` too, which is a step darker than the page, so its ink has
         // slightly less contrast to work with than body copy does.
         //
@@ -242,8 +260,8 @@ const config: Config = {
   // It existed for one thing: gating the 16px field floor on the device's primary
   // pointer, because iOS Safari's focus-zoom is a property of the INPUT DEVICE and
   // not of window width — a desktop window dragged under 640px was pushed to 16px
-  // it never needed, while an iPad at 900px was handed 13px and zoomed on every
-  // field. Correct reasoning, but the floor itself is gone: fields are `body`
+  // it never needed, while an iPad at 900px was handed the body size and zoomed on
+  // every field. Correct reasoning, but the floor itself is gone: fields are `body`
   // everywhere now, so the variant had no call sites left.
   //
   // If the focus-zoom ever has to be suppressed again, the gate is NOT this one.

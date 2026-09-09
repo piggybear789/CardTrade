@@ -69,7 +69,7 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         <div className="space-y-2">
           {/* Sign-in only. The recovery link sits beside the password label as
               `inline-flex min-h-11 items-center`, which makes the row 44px rather
-              than the label's own 13px — sign-up has no password to recover, so
+              than the label's own 14px — sign-up has no password to recover, so
               there the row is just the label. */}
           {mode === 'sign-in' ? (
             <div className="flex min-h-11 items-center justify-between gap-cozy">

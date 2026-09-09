@@ -8,8 +8,8 @@ const Textarea = React.forwardRef<
 >(({ className, ...props }, ref) => {
   return (
     <textarea
-      // `text-body` unconditionally, matching Input — the text is 13px on touch as
-      // well as desktop so it lines up with the surrounding UI. The old
+      // `text-body` unconditionally, matching Input — the same size on touch as on
+      // desktop so it lines up with the surrounding UI. The old
       // `text-lead pointer-fine:text-body` floored touch at 16px to avoid iOS
       // focus-zoom; that floor has been removed and the zoom is an accepted tradeoff.
       className={cn(

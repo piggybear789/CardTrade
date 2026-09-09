@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 // different system rather than as part of this one.
 //
 // SIZE: the default is `h-7` (28px) from `md`, with the horizontal padding
-// tightened to match. Against a 13px body and a spacing scale that stops at 16px,
+// tightened to match. Against a 14px body and a spacing scale that stops at 16px,
 // a 36px pill with 16px of side padding read inflated — the label occupied about
 // half the control.
 //
@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 // floor; the conformance requirement is WCAG 2.2 SC 2.5.8, which asks for 24x24
 // CSS pixels, and 36 clears that with half again to spare. What the reduction
 // buys is a phone that does not look like a tablet UI scaled down — a stack of
-// 44px bars against a 13px body was the loudest thing on every mobile screen.
+// 44px bars against a 14px body was the loudest thing on every mobile screen.
 //
 // THE SPLIT IS THE POINT: do not collapse it. 28px is a pointer target and is
 // under the floor once you allow for the imprecision of a thumb.

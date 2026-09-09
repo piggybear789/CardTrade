@@ -15,12 +15,20 @@ Two rules in the tokens matter:
 1. **`fontSize` never bakes in `fontWeight`.** Size and line-height are paired, but
    **weight stays an explicit utility.** A size utility is therefore safe to combine
    with a component's intentional `font-medium`, `font-semibold`, or `font-bold`.
-2. **The scale is deliberately compact.** `body` is 13px, while `lead` stays at 16px
-   for touch fields so iOS Safari does not zoom a focused input. The values describe
-   the current product rather than an aspirational scale.
+2. **The scale is deliberately compact.** `body` is **under test at 14px**, having
+   shipped at 13px. The values describe the current product rather than an
+   aspirational scale.
 
-`lead` supplies the 16px field floor, `cozy` supplies the 12px dense-spacing step, and
-`nav` supplies the sidebar rail's 15px scanning register. `nav` is not content copy.
+`cozy` supplies the 12px dense-spacing step, and `nav` supplies the sidebar rail's 15px
+scanning register. `nav` is not content copy — though at `body` = 14px it is only one
+pixel above it, so if 14px stays, `nav` needs revisiting.
+
+**`lead` is no longer a field floor.** Fields used to be floored at 16px on touch
+because iOS Safari zooms a focused input whose text is under 16px and does not zoom
+back out. That floor was removed deliberately: fields render at `body`, and the
+focus-zoom is an accepted tradeoff. 14px does not avoid it — the threshold is 16px. If
+it ever has to be suppressed, scope it to iOS with
+`@supports (-webkit-touch-callout: none)`, not to a pointer or a width.
 
 ### Flutter port
 
@@ -35,9 +43,9 @@ It does not make this document a second source of token values.
 | Token | Size | Line height | Use it for |
 | --- | --- | --- | --- |
 | `text-meta` | 12px (`0.75rem`) | `1.4` | **Chrome only**: badges, timestamps, counts, dense table cells, key-value micro-labels |
-| `text-body` | 13px (`0.8125rem`) | `1.6` | Body copy, helper text, descriptions, disclosure copy, form labels |
+| `text-body` | 14px (`0.875rem`) | `1.6` | Body copy, helper text, descriptions, disclosure copy, form labels, and all field text |
 | `text-nav` | 15px (`0.9375rem`) | `1.4` | **Sidebar rail only**; never content copy |
-| `text-lead` | 16px (`1rem`) | `1.5` | Lead paragraphs, card titles, emphasised single values, and touch-field text |
+| `text-lead` | 16px (`1rem`) | `1.5` | Lead paragraphs, card titles, emphasised single values |
 | `text-subhead` | 17px (`1.0625rem`) | `1.4` | Panel and card headings |
 | `text-head` | 21px (`1.3125rem`) | `1.25` | Section headings, page titles inside a shell |
 | `text-display` | 28px (`1.75rem`) | `1.1` | Hero / landing headlines only |
@@ -70,9 +78,9 @@ lighter muted was carrying disclosure copy and form help.
 
 A dense strip (chat header, list row, composer) feels small because of **padding
 and height**, not because the sentences dropped a size. Controls keep their
-primitive type: `Button` is `text-body`, `Input`/`Textarea` are `text-lead sm:text-body`
-(16px on a phone so iOS does not zoom). Compact variants may shorten the field;
-they must not change the font size.
+primitive type: `Button`, `Input`, `Textarea` and `SelectTrigger` are all `text-body`,
+at every width and on every pointer. Compact variants may shorten the field; they must
+not change the font size.
 
 ```tsx
 // RIGHT — title at lead, facts at body, CTA at body. Emphasis is fill/weight.
@@ -90,7 +98,7 @@ they must not change the font size.
 `size="sm"` on `Button` does **not** shrink type. If a 14px control looks loud,
 the neighbours are too small — raise them.
 
-The document body is `text-body`. Unstyled copy inherits 13px so it matches the
+The document body is `text-body`. Unstyled copy inherits 14px so it matches the
 product's body register. Do not omit a size class and rely on the browser's 16px — that
 is what made controls look out of place on pages that never set a token.
 

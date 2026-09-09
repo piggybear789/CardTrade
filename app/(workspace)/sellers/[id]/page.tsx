@@ -252,7 +252,7 @@ export default async function SellerProfilePage({
         {/* `text-subhead`, the size every other panel heading in the app takes —
             `CardTitle`, `DialogTitle` and `SheetTitle` are all `text-subhead
             font-semibold`. This was `text-body md:text-subhead`, which on a phone
-            set a section heading at 13px: the exact size of the body copy under
+            set a section heading at body size: the exact size of the body copy under
             it, and two notches below the seller's name in the same outline. */}
         <h2 id="listings-heading" className="mb-3 text-subhead font-semibold md:mb-4">
           Available listings

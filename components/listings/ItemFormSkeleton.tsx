@@ -104,11 +104,13 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
 
           <div className="space-y-2">
             <TextLines className="text-body leading-none" widths={['w-24']} />
-            {/* `Textarea rows={4}`: four lines of `text-lead` (24px) plus `py-2`
-                and the border is 114px on touch, and four of `text-body` (20.8px)
-                is 101px wherever there is a real pointer. Follows the Textarea's
-                own `pointer-fine:` gate, not a width breakpoint. */}
-            <Skeleton className="h-[114px] w-full pointer-fine:h-[101px]" />
+            {/* `Textarea rows={4}`: four lines of `text-body` (20.8px) plus `py-2`
+                and the border is 101px, at every width and on every pointer. It used
+                to fork — 114px on touch, where the Textarea was floored at
+                `text-lead` (24px) to stop iOS Safari zooming on focus. That floor is
+                gone, so the fork would now stand 13px taller than the control it
+                covers and shift the form on swap. */}
+            <Skeleton className="h-[101px] w-full" />
             {/* "The first line is used as the listing title in the catalog." —
                 two lines at the width this rail ever has on a phone or at `lg`. */}
             <TextLines className="text-body" widths={['w-full', 'w-2/5']} />

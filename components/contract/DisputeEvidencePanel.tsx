@@ -343,7 +343,10 @@ export function DisputeEvidencePanel({
                   placeholder="What you sent or received, its condition, the dates that matter, and anything the tracking or photos show."
                   disabled={busy}
                   aria-describedby="evidence-statement-count"
-                  className="block w-full resize-y bg-transparent px-3.5 py-cozy text-lead placeholder:text-muted-foreground focus:outline-none disabled:opacity-60 pointer-fine:text-body"
+                  // A bare field rather than a `Textarea`, so the border and the
+                  // character counter can share one box — which means it has to restate
+                  // the type. `text-body`, tracking `Textarea`.
+                  className="block w-full resize-y bg-transparent px-3.5 py-cozy text-body placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
                 />
                 <div className="flex items-center justify-end border-t px-3.5 py-snug">
                   <span

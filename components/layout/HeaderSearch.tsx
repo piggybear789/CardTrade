@@ -400,15 +400,15 @@ function HeaderSearchInner({
         spellCheck={false}
         enterKeyHint="search"
         className={cn(
-          // NO `text-body` on any appearance. All three inherit Input's
-          // `text-lead pointer-fine:text-body`, which is the iOS zoom floor on touch
-          // and 13px wherever there is a real pointer.
+          // NO font-size on any appearance. All three inherit Input's `text-body`, so
+          // a change to the field type reaches this field too instead of stopping here.
           //
-          // The base string used to set `text-body` under a comment claiming the
-          // opposite, and the chrome pill set it again to match the games row. Both
-          // won over Input through tailwind-merge, so the search field on the public
-          // catalog — the first thing a phone visitor taps — rendered at 13px and
-          // zoomed the viewport on focus, with no way back out but a pinch.
+          // Worth stating because it has been broken twice: the base string set
+          // `text-body` under a comment claiming the opposite, and the chrome pill set
+          // it again to match the games row — both winning over Input through
+          // tailwind-merge. That resolves to the same 13px today, but while Input still
+          // floored touch at 16px it pinned the public catalog search, the first thing a
+          // phone visitor taps, at a size iOS Safari zooms in on and does not undo.
           'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',

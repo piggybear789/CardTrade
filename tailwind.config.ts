@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-import plugin from "tailwindcss/plugin";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 const config: Config = {
@@ -152,13 +151,21 @@ const config: Config = {
       //   Muted foreground is 42% lightness, and below 12px it stops being
       //   readable copy and starts being decoration.
       //
-      //   `lead` stays at exactly 1rem because `Input`, `Textarea` and
-      //   `SelectTrigger` set it on touch. iOS Safari zooms the viewport when a
-      //   focused field's text is under 16px, and it does not zoom back out —
-      //   the user is left on a magnified page mid-form. Anything below 1rem
-      //   here breaks every mobile form in the product. Devices with a precise
-      //   pointer step those controls down to `body` via `pointer-fine:`, which
-      //   is where the density was actually wanted.
+      //   `lead` stays at exactly 1rem, but it is now a TYPE choice and nothing
+      //   more — a card title, a thread subject, a page-level empty state. It is
+      //   no longer load-bearing for form fields.
+      //
+      //   It used to be. `Input`, `Textarea` and `SelectTrigger` set it on touch
+      //   because iOS Safari zooms the viewport when a focused field's text is
+      //   under 16px and does not zoom back out, leaving the member on a
+      //   magnified page mid-form. That floor was removed deliberately: at 13px
+      //   the fields match the labels and body copy around them, and the
+      //   focus-zoom is an accepted tradeoff. The behaviour is real and still
+      //   current, so if a mobile form is ever reported as "jumping on tap",
+      //   this is the cause and the fix is a 16px floor scoped to iOS —
+      //   `@supports (-webkit-touch-callout: none)` — not a pointer or width
+      //   query. Do NOT reintroduce it per-component: a floor on some fields and
+      //   not others is what left four bare inputs at 16px while `Input` was 13px.
       fontSize: {
         meta: ["0.75rem", { lineHeight: "1.4" }],
         body: ["0.8125rem", { lineHeight: "1.6" }],
@@ -230,25 +237,20 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    tailwindcssAnimate,
-    // `pointer-fine:` — the device's PRIMARY input is precise: mouse, trackpad,
-    // stylus. This is the right gate for the 16px field floor, and `sm:` never was.
-    //
-    // The floor exists for one browser behaviour: iOS Safari zooms the viewport
-    // when a focused field's text is under 16px, and it does not zoom back out.
-    // That is a property of the INPUT DEVICE, not of how wide the window happens
-    // to be, so a width breakpoint got it wrong at both ends — a desktop window
-    // dragged under 640px was pushed to 16px it never needed, while an iPad at
-    // 900px was handed 13px and zoomed on every field.
-    //
-    // A touchscreen laptop reports `pointer: fine` with `any-pointer: coarse`, and
-    // that is the behaviour we want: desktop browsers do not zoom on focus, so the
-    // presence of a touchscreen is irrelevant. Hence `pointer`, not `any-pointer`.
-    plugin(({ addVariant }) => {
-      addVariant("pointer-fine", "@media (pointer: fine)");
-    }),
-  ],
+  // NO `pointer-fine:` VARIANT, and it is not an oversight.
+  //
+  // It existed for one thing: gating the 16px field floor on the device's primary
+  // pointer, because iOS Safari's focus-zoom is a property of the INPUT DEVICE and
+  // not of window width — a desktop window dragged under 640px was pushed to 16px
+  // it never needed, while an iPad at 900px was handed 13px and zoomed on every
+  // field. Correct reasoning, but the floor itself is gone: fields are `body`
+  // everywhere now, so the variant had no call sites left.
+  //
+  // If the focus-zoom ever has to be suppressed again, the gate is NOT this one.
+  // `pointer: coarse` also catches Android, which does not zoom, so it would floor
+  // devices that need nothing. Scope it to the browser that has the behaviour:
+  // `@supports (-webkit-touch-callout: none)`. See the `lead` note above.
+  plugins: [tailwindcssAnimate],
 };
 
 export default config;

@@ -54,7 +54,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -538,7 +537,32 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               )}
             </button>
 
-            <Input
+            {/* A BARE `<input>`, NEVER THE `Input` COMPONENT. This is visually
+                hidden and driven by the dropzone button above it, so none of
+                `Input`'s styling is wanted — and applying it made the whole page
+                scroll sideways on a phone.
+                
+                `sr-only` sets `position:absolute; width:1px; margin:-1px`, while
+                `Input`'s base string sets `w-full h-9`. tailwind-merge keeps both:
+                it groups `sr-only` on its own and does not treat it as conflicting
+                with `w-*`, so the two land in the same CSS layer and `w-full` wins
+                on source order. That left an ABSOLUTELY POSITIONED, 100%-wide box.
+                
+                Nothing between here and the root is positioned, so its containing
+                block was the initial containing block: `width:100%` resolved
+                against the VIEWPORT rather than the card, and the `Card`'s
+                `overflow-clip` did not clip it, because an abs-pos box is only
+                clipped by an ancestor that is inside its containing block. Sitting
+                at its static-position offset — the shell and card padding, a
+                constant 32px — it reached 32px past the right edge at EVERY
+                viewport width, and `body`'s `overflow-x: clip` could not absorb it
+                either, for the same containing-block reason. Measured at 320px and
+                390px: `documentElement.scrollWidth` 352 and 422.
+                
+                The three other file inputs in the app (`MessageComposer`,
+                `AvatarUploadField`, `UnlistedItemDialog`) are already bare
+                `<input>`s. This was the only one that was not. */}
+            <input
               id="images"
               name="images"
               ref={fileInputRef}

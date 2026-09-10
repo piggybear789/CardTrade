@@ -31,7 +31,9 @@
 -- The kyc_status / kyc_reason columns were dropped in migration 0043.
 update cardtrade.profiles set
   payer_id = coalesce(payer_id, 'payer_demo_kitsunearia'),
-  payment_token = coalesce(payment_token, 'tok_demo_kitsunearia'),
+  -- `payment_token` was the retired provider's column; the saved instrument is now a
+  -- Stripe payment-method id in `payment_source_id`.
+  payment_source_id = coalesce(payment_source_id, 'pm_demo_kitsunearia'),
   payment_token_type = coalesce(payment_token_type, 'bank-account'),
   payment_method_label = coalesce(payment_method_label, 'BSB 062-000 acct ••••3391'),
   merchant_ref = coalesce(nullif(merchant_ref, ''), 'mch_demo_kitsunearia'),
@@ -217,7 +219,9 @@ Offered as part of a trade proposal (plus cash) — still available if that fall
 Cheap way into a nice piece of art. Offered in a trade proposal.$d$,
    'PSA 6', 8900, 'AVAILABLE', '307004271831/front.jpg', 5)
 ) as v(id, owner, title, descr, cond, fmv, status, front, age_days)
-cross join (select 'https://emojqulpbiyqoyggespp.supabase.co/storage/v1/object/public/card-images/' as base) b
+-- RELATIVE object paths — see the matching note in seed_marketplace.sql. Objects come
+-- from: node scripts/copy-demo-seed-images.mjs --from <old-bucket-url>
+cross join (select 'demo-seed/' as base) b
 on conflict (id) do nothing;
 
 -- Two catalogue items move state because a demo contract now depends on them.

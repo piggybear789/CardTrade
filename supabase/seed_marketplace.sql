@@ -101,7 +101,7 @@ on conflict (id) do nothing;
 
 insert into cardtrade.profiles (
   id, display_name, contact_email, payer_id,
-  payment_token, payment_token_type, payment_method_label,
+  payment_source_id, payment_token_type, payment_method_label,
   merchant_ref, merchant_status, merchant_compliance_status,
   merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled,
   merchant_submitted_at, merchant_decision_at, merchant_notes,
@@ -188,7 +188,7 @@ on conflict (id) do nothing;
 -- Community members: verified buyers with a payment method, no storefront.
 insert into cardtrade.profiles (
   id, display_name, contact_email, payer_id,
-  payment_token, payment_token_type, payment_method_label,
+  payment_source_id, payment_token_type, payment_method_label,
   merchant_ref, merchant_status, merchant_compliance_status,
   merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled,
   merchant_submitted_at, merchant_decision_at,
@@ -560,7 +560,12 @@ Yes, a 1. There is a crease through the centre of the artwork, the corners are r
 Buy this if you want the art on your shelf for a tenth of what a clean copy costs, or if you collect low-pop grade extremes. Do not buy it expecting to crack and re-grade.$d$,
    'PSA 1', 12000, 'AVAILABLE', false, '298419679393/front.jpg', 40)
 ) as v(id, owner, title, descr, cond, fmv, status, hidden, front, age_days)
-cross join (select 'https://emojqulpbiyqoyggespp.supabase.co/storage/v1/object/public/card-images/' as base) b
+-- RELATIVE object paths, resolved by `itemImageUrl()` against NEXT_PUBLIC_SUPABASE_URL
+-- and the `item-images` bucket. This used to be an absolute URL into the `card-images`
+-- bucket of the Pokedle project, which pinned checked-in SQL to one project's ref and
+-- broke the demo catalogue the moment the marketplace got its own project.
+-- Populate the objects with: node scripts/copy-demo-seed-images.mjs --from <old-bucket-url>
+cross join (select 'demo-seed/' as base) b
 on conflict (id) do nothing;
 
 -- =============================================================================
@@ -571,9 +576,26 @@ on conflict (id) do nothing;
 -- owner, the status split, the price band, the description template, and the age.
 -- Cards already used by an existing listing are skipped, so re-running adds
 -- nothing and changes nothing.
+--
+-- CONDITIONAL. `public.graded_cards` belongs to the Pokedle app, which the marketplace
+-- used to share a Supabase project with. On a standalone marketplace project that table
+-- does not exist, and an unguarded reference to it is a PARSE error — it would fail the
+-- whole seed file, not just this section. So the statement is executed dynamically and
+-- only when the table is present.
+--
+-- Consequence, stated rather than hidden: on a standalone project this section inserts
+-- NOTHING, so the demo catalogue is the ~16 hand-authored listings in 4a rather than ~86.
+-- There is no substitute source of card metadata here, and inventing one would put fake
+-- Pokemon names and set names into demo data.
+do $outer$
+begin
+  if to_regclass('public.graded_cards') is null then
+    raise notice 'seed_marketplace 4b skipped: public.graded_cards not present (standalone project). Hand-authored listings from 4a are unaffected.';
+    return;
+  end if;
 
-with base as (select 'https://emojqulpbiyqoyggespp.supabase.co/storage/v1/object/public/card-images/' as b),
-used as (select unnest(image_paths) as url from cardtrade.items),
+  execute $bulk$
+with used as (select unnest(image_paths) as url from cardtrade.items),
 sellers(rn, id) as (values
   (0, '5eed0001-0000-4000-8000-000000000001'),  -- Marcus: the biggest shelf
   (1, '5eed0001-0000-4000-8000-000000000001'),
@@ -614,7 +636,8 @@ pool as (
     and gc.set_name is not null
     and char_length(gc.set_name) between 4 and 40
     and gc.grading_agency in ('PSA','BGS','CGC','TAG')
-    and gc.front_image_url like 'https://emojqulpbiyqoyggespp.supabase.co/%'
+    -- Was pinned to one project's storage hostname; any Storage object URL will do.
+    and gc.front_image_url like 'https://%/storage/v1/object/public/%'
     and not exists (select 1 from used u where u.url = gc.front_image_url)
   order by md5('cardtrade.seed.pool:' || gc.id::text)
   limit 70
@@ -701,3 +724,5 @@ select
   now() - ((p.h % 40) || ' days')::interval
 from priced p
 on conflict (id) do nothing;
+  $bulk$;
+end $outer$;

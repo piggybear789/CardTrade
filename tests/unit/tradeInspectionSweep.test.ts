@@ -20,14 +20,17 @@
 // The provider seam and the state machine are mocked; what is under test is the sweep's
 // own control flow, which is where all three defects lived.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import { createFakeAdmin, type FakeAdmin } from './fakes/supabaseChain';
 
 /** Swapped per test before importing the sweep. */
 let admin: FakeAdmin;
-let applyEvent: ReturnType<typeof vi.fn>;
-let finalize: ReturnType<typeof vi.fn>;
+// Bare `Mock` rather than `ReturnType<typeof vi.fn>` — see the note in tradeFeeDrain.test.ts:
+// Vitest 5 widened `vi.fn`'s constraint to include `Constructable`, and ReturnType resolves
+// to the constraint, producing a union that cannot be called.
+let applyEvent: Mock;
+let finalize: Mock;
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => admin.client,

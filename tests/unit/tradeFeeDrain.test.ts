@@ -22,12 +22,17 @@
 // owns its own SQL, and it is cheaper than leaving the only unattended fee-collection path
 // unexercised.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import { createFakeAdmin, type FakeAdmin } from './fakes/supabaseChain';
 
 let admin: FakeAdmin;
-let requestTransfer: ReturnType<typeof vi.fn>;
+// `Mock` and not `ReturnType<typeof vi.fn>`: ReturnType instantiates a generic with its
+// CONSTRAINT, and Vitest 5 widened `vi.fn`'s constraint to `Procedure | Constructable`,
+// which is not callable without narrowing. Bare `Mock` defaults to `Procedure`, which is
+// what this was before the upgrade — permissive enough for the differently-shaped
+// implementations each test assigns below.
+let requestTransfer: Mock;
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => admin.client,

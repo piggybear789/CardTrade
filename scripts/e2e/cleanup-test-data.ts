@@ -608,7 +608,25 @@ async function main(): Promise<void> {
     deleteByIdsIn('trade_delivery_details', 'trade_id', tradeIds),
   );
   total += await step('trade_items', () => deleteByIdsIn('trade_items', 'trade_id', tradeIds));
-  total += await step('cash_sale_items', () => deleteByIdsIn('cash_sale_items', 'cash_sale_id', cashSaleIds));
+  // cash_sale_items: NOT deleted here. Left to the ON DELETE CASCADE below, because a
+  // direct delete is IMPOSSIBLE for any contract that has been paid.
+  //
+  // `cash_sale_items_frozen_after_agreement` (0064) is a BEFORE INSERT OR UPDATE OR DELETE
+  // row trigger that raises "Cash-sale contents are locked once payment has started"
+  // whenever the parent sale's status is anything but AGREEMENT. It fires on DELETE too,
+  // by design — the freeze is what makes the Commitment_Point mean something, and a
+  // deletable line item would be a hole in it.
+  //
+  // The cascade is not a hole. That trigger's condition is `v_status is not null and
+  // v_status <> 'AGREEMENT'`, and the `is not null` half is what makes this work: when the
+  // parent `cash_sales` row is deleted, the FK's cascade removes the children in the same
+  // transaction, by which point the parent is already gone and the status lookup returns
+  // null. Verified against a paid ESCROW_HELD shopfront contract: deleting the parent took
+  // all three frozen lines with it.
+  //
+  // This ran for as long as it did because nothing had cleaned up a PAID shopfront
+  // contract before — an unpaid one is still in AGREEMENT and deletes fine, which is why
+  // the step looked correct.
   total += await step('cash_sale_events', () => deleteByIdsIn('cash_sale_events', 'cash_sale_id', cashSaleIds));
   total += await step('cash_sale_delivery_details', () =>
     deleteByIdsIn('cash_sale_delivery_details', 'cash_sale_id', cashSaleIds),

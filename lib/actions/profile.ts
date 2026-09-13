@@ -236,6 +236,19 @@ export async function completeOnboarding(
     );
   }
 
+  // REVALIDATE, because `onboarding_completed_at` is the column `proxy.ts` gates every
+  // protected route and the catalog on. Without this the write persisted and the wizard
+  // then went nowhere: the member's next hop was served from the client Router Cache,
+  // which had been populated by prefetches issued moments earlier — while the column was
+  // still null — and therefore held middleware's redirect BACK to /onboarding. Clicking
+  // Continue wrote the row, replayed that cached redirect, and returned the member to the
+  // step they had just completed, which reads as a frozen button rather than a failure.
+  //
+  // `'layout'` and not `'page'`, for the same reason as `updateProfile`: the gate is
+  // evaluated for every authenticated route plus the catalog, so revalidating one page
+  // would leave the rest holding the stale pre-onboarding answer.
+  revalidatePath('/', 'layout');
+
   return ok({
     displayName: data.display_name,
     onboardingCompletedAt: data.onboarding_completed_at,

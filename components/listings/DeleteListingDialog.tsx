@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -41,11 +41,18 @@ export function DeleteListingDialog({
   itemTitle,
   className,
   compact = false,
+  size,
 }: {
   itemId: string;
   itemTitle: string;
   className?: string;
   compact?: boolean;
+  /**
+   * Forwarded to the trigger `Button`. Callers used to set `className="h-10"`,
+   * which pinned a pixel height beside siblings naming a size token — that is how
+   * the owner bar ended up 40px and the in-flow owner row 28px.
+   */
+  size?: ButtonProps['size'];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -73,6 +80,7 @@ export function DeleteListingDialog({
         <Button
           type="button"
           variant="destructive"
+          size={size}
           className={className ?? 'w-full sm:w-auto'}
           aria-label="Delete listing"
         >

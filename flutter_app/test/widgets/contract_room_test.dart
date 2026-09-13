@@ -240,7 +240,7 @@ void main() {
         stepPlan: plan,
       );
 
-      expect(activeContractStep(plan)?.label, 'Buyer accepts delivery');
+      expect(activeContractStep(plan)?.label, 'Accept the item, or report a problem');
 
       expect(_actionCardHeight(tester), greaterThan(0));
       expect(find.text('Accept the item'), findsOneWidget);
@@ -542,7 +542,7 @@ void main() {
           },
           <String, dynamic>{
             'id': 'payment',
-            'label': 'Payment collected and held',
+            'label': 'Pay to start the escrow',
             'railLabel': '',
             'status': 'active',
           },
@@ -555,7 +555,7 @@ void main() {
       // An empty rail label falls back to the full one: a phone marker with no
       // accessible name is not reachable, which the web rail can afford and this
       // cannot.
-      expect(steps.last.railLabel, 'Payment collected and held');
+      expect(steps.last.railLabel, 'Pay to start the escrow');
       expect(activeContractStep(steps)?.id, 'payment');
     });
 

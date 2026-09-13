@@ -191,11 +191,16 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  /** The submit control's resting label, shared by the footer and the phone header. */
+  const submitLabel = mode === "create" ? "Create listing" : "Save changes";
+
+  // BOTH MODES PUBLISH NOW. This was `if (mode !== "create") return`, so the phone
+  // header could only ever offer Create — an edit had its submit at the bottom of a
+  // long scrolling form with a Cancel above it.
   React.useEffect(() => {
-    if (mode !== "create") return;
-    publishItemFormChrome({ submitting: isSubmitting });
+    publishItemFormChrome({ submitting: isSubmitting, label: submitLabel });
     return () => publishItemFormChrome(null);
-  }, [mode, isSubmitting]);
+  }, [isSubmitting, submitLabel]);
 
   React.useEffect(() => {
     const isDirty =
@@ -442,7 +447,19 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     // acquire. The clipping the rounded corners and the footer border rely on is
     // unchanged, and so is `PlaceSearch`'s drop-up measurement — `clippingBounds`
     // looks for a non-`visible` overflow, which `clip` still is.
-    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-clip lg:grid lg:h-[calc(100svh-7rem)] lg:max-h-[52rem] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    // NO `lg:max-h`. The card is `100svh-7rem` and that is all — it was also capped
+    // at `52rem` (832px), which on anything taller than about a 950px viewport left
+    // the card short of the space it had while the details rail scrolled internally
+    // anyway. Measured at 1920x1080: the card stopped at 832px with 155px of viewport
+    // still empty below it, and the rail hid 49px of itself. Removing the cap lets it
+    // use the height and the rail's scrollbar goes away on a tall display.
+    //
+    // The height is still PINNED to the viewport, deliberately. That is what keeps
+    // the header and footer in place and makes the rail the single scrolling region,
+    // and it is what gives both columns a definite height to fill. Unpinning it was
+    // tried and reverted: with a content-sized row the two columns compete to set the
+    // height and the photo panel wins as soon as the filmstrip has a few rows in it.
+    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-clip lg:grid lg:h-[calc(100svh-7rem)] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
@@ -455,7 +472,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       </CardHeader>
 
       <form
-        id={mode === "create" ? ITEM_FORM_ID : undefined}
+        // Unconditional. It was create-only, for the phone header's benefit; the
+        // header now submits in edit mode too and `form=` needs the id to exist.
+        id={ITEM_FORM_ID}
         onSubmit={handleSubmit}
         noValidate
         className="lg:contents"
@@ -489,12 +508,56 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               yield space to the filmstrip instead of overflowing the fixed panel: a
               grid item defaults to `min-height:auto`, which refuses to shrink below
               its content. */}
-          <div className="space-y-3 lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden lg:bg-card lg:p-8">
+          {/* `flex flex-col` WITH `gap`, not `space-y`. The column was `space-y-3`
+              with an `lg:space-y-group` override, and stacking two `space-y` values
+              through a breakpoint is hard to reason about — `gap` is one declaration
+              that the flex container owns.
+              
+              `gap-group` (16px) at `lg`, up from 12px: at `cozy` the label sat almost
+              on the cover and the filmstrip almost on that, so three separate things
+              read as one crowded block. `group` is the scale's "between related
+              components" step, which the form's own field blocks already use. */}
+          <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-8">
+            {/* NO COUNT LINE UNDER THE LABEL. "Add 1–10 photos. N selected." spent a
+                whole row restating what the panel already shows: the tiles are the
+                count, and the add target disappearing at ten is the ceiling. The
+                bounds are still enforced — `IMAGES_MIN` on submit, `IMAGES_MAX` on the
+                add tile — and a shortfall is reported by `imagesError` below, which is
+                where a member actually needs to read it. */}
             <Label htmlFor="images">Photos</Label>
-            <p className="text-body text-muted-foreground">
-              Add {IMAGES_MIN}–{IMAGES_MAX} photos. {totalImages} selected.
-            </p>
 
+            {/* SIDE BY SIDE BELOW `lg`, stacked from `lg`. On a phone the cover and
+                the filmstrip used to run top-down, which spent two blocks of vertical
+                space on photos before the member reached a single field. Beside each
+                other they cost one.
+                
+                `lg:contents` dissolves this wrapper at `lg`, so the desktop panel is
+                untouched: cover and strip go back to being direct flex children of
+                the column, with the cover taking the remainder.
+                
+                `grid-cols-1` when there are no photos yet — otherwise the empty
+                drop target would sit in two thirds of the row with a dead column
+                beside it. `items-start` so the strip keeps its own height instead of
+                stretching to the cover's. */}
+            {/* THE ROW OWNS THE HEIGHT, so both sides are the same height by
+                construction rather than by one of them winning.
+                
+                `aspect-[15/14]` is derived, not picked: the cover takes two thirds of
+                the row, and a trading card is about 5:7, so a card-shaped cover wants
+                a height of (2/3 x width) x 1.4 = 0.93 x width. That makes the ROW
+                roughly 15:14. Both children are then `h-full` and end level.
+                
+                Doing it here rather than on the cover is what avoids the trap this
+                layout kept falling into: an aspect ratio resolves against WIDTH, which
+                is definite, so the row height never depends on how much content either
+                side happens to have. */}
+            <div
+              className={`grid gap-cozy lg:contents lg:aspect-auto${
+                totalImages > 0
+                  ? " aspect-[15/14] grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+                  : " aspect-[16/10] max-h-[22svh] grid-cols-1"
+              }`}
+            >
             {/* Large cover preview / empty drop target. Clicking it opens the
                 file picker, same affordance as the thumbnail grid below.
 
@@ -517,7 +580,17 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSubmitting}
-              className={`flex aspect-[16/10] max-h-[22svh] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-dashed border-input bg-muted text-muted-foreground transition-colors hover:border-iris/50 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:aspect-auto md:min-h-[10rem] md:max-h-none md:flex-1`}
+              // `p-cozy lg:p-group` — the photo needs room INSIDE its own frame. The
+              // image is `h-full w-full object-contain`, so with no padding it grew to
+              // the button's edges and sat directly against the border, which read as
+              // the frame gripping the card rather than presenting it.
+              //
+              // A 1px SOLID `--input` edge, not a 2px dashed one. This is a control, and
+              // `--input` is the token that says so — it is the same edge every field on
+              // this form wears, at the 3:1 SC 1.4.11 wants. The dashes were carrying
+              // "drop a file here" on a button that says "Add photos" in words directly
+              // beneath the icon, and at 2px they were the heaviest line on the page.
+              className={`flex h-full w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:min-h-[10rem] lg:h-auto lg:flex-1 lg:p-group`}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
@@ -580,18 +653,30 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 one can be removed individually.
 
                 `lg:shrink-0` so the strip keeps its size and the COVER gives way
-                instead — the cover is the flexible one. Capped and scrollable because
-                ten thumbnails in four columns is three rows, which at this panel width
-                is taller than the cover's floor; without the cap the panel would
-                overflow its now-fixed height. */}
+                instead — the cover is the flexible one.
+                
+                TWO COLUMN COUNTS, BOTH SET BY THE WIDTH THE STRIP ACTUALLY GETS.
+                
+                `lg:grid-cols-8` is why this no longer scrolls. Four columns was wrong
+                on the desktop panel: at roughly 800px wide `aspect-square` made each
+                thumbnail about 194px — nearly the size of the cover it previews — so
+                ten photos needed three rows, taller than the cover's own floor. The
+                strip was therefore capped at `9.5rem` with `overflow-y-auto`, making
+                the seller scroll a panel that had room to spare. At eight columns a
+                thumbnail is about 96px and ten photos is two rows.
+                
+                `grid-cols-1` below `lg`: the strip now sits BESIDE the cover in about
+                a third of the row, so it reads as a vertical filmstrip rather than a
+                grid. It was four columns when it ran full width under the cover, which
+                in a ~115px cell would be ~25px thumbnails. */}
             {totalImages > 0 ? (
-              <ul className="grid grid-cols-4 gap-2 lg:max-h-[9.5rem] lg:shrink-0 lg:overflow-y-auto">
+              <ul className="grid h-full min-h-0 grid-cols-1 content-start gap-2 overflow-y-auto lg:h-auto lg:content-normal lg:grid-cols-8 lg:overflow-visible lg:shrink-0">
                 {keptPaths.map((path) => {
                   const url = itemImageUrl(path);
                   return (
                     <li
                       key={path}
-                      className="group relative aspect-square overflow-hidden rounded-md border bg-muted"
+                      className="group relative aspect-[5/7] overflow-hidden rounded-md border bg-muted lg:aspect-square"
                     >
                       {url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -623,7 +708,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 {newFiles.map((file, index) => (
                   <li
                     key={`${file.name}-${index}`}
-                    className="group relative aspect-square overflow-hidden rounded-md border bg-muted"
+                    className="group relative aspect-[5/7] overflow-hidden rounded-md border bg-muted lg:aspect-square"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -653,7 +738,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex aspect-square w-full items-center justify-center rounded-md border-2 border-dashed border-input text-muted-foreground transition-colors hover:border-iris/50 hover:bg-muted focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground"
+                      className="flex aspect-[5/7] w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground lg:aspect-square"
                       aria-label="Add another photo"
                     >
                       <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
@@ -662,6 +747,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 ) : null}
               </ul>
             ) : null}
+            </div>
 
             {imagesError ? (
               <FieldError id="images-error" message={imagesError} />
@@ -731,10 +817,12 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 }
                 disabled={isSubmitting}
               />
-              <div className="flex items-center justify-between">
-                <p className="text-body text-muted-foreground">
-                  The first line is used as the listing title in the catalog.
-                </p>
+              {/* `justify-end`, not `justify-between`. The row used to pair the
+                  counter with "The first line is used as the listing title in the
+                  catalog."; with that hint gone, `justify-between` would park the
+                  counter on the left. The title derivation still happens —
+                  `deriveItemTitle` reads the first line — it just is not narrated. */}
+              <div className="flex items-center justify-end">
                 <span className="text-meta text-muted-foreground tabular-nums">
                   {description.length}/2000
                 </span>
@@ -849,33 +937,24 @@ export function ItemForm({ mode, item }: ItemFormProps) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex-col items-stretch gap-2 border-t bg-card px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              navigateWithType(
-                router,
-                item ? `/listings/${item.id}` : "/",
-                "nav-back",
-              )
-            }
-            disabled={isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            Cancel
-          </Button>
+        {/* `max-md:hidden`, because below `md` the phone header carries the submit and
+            a second one down here would be a duplicate — and two controls with the
+            same accessible name break the strict locator in
+            `tests/e2e/support/listings.ts`. From `md` the mobile chrome is
+            `md:hidden`, so this footer is the only submit there is.
+            
+            NO CANCEL. It was an outline button paired with the submit; dismissal is
+            the back chevron in the header on a phone and browser-back elsewhere, and
+            a destructive-adjacent "Cancel" next to "Save changes" invited the misread
+            that it discards rather than navigates. */}
+        <CardFooter className="max-md:hidden flex-col items-stretch gap-2 border-t bg-card px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
           <Button
             type="submit"
             disabled={isSubmitting}
             aria-busy={isSubmitting}
             className="w-full sm:w-auto"
           >
-            {isSubmitting
-              ? "Saving…"
-              : mode === "create"
-                ? "Create listing"
-                : "Save changes"}
+            {isSubmitting ? "Saving…" : submitLabel}
           </Button>
         </CardFooter>
       </form>

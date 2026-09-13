@@ -71,9 +71,13 @@ export function InspectionCountdown({
     <div
       className={cn(
         'rounded-lg border px-group py-cozy text-body',
+        // The alarming branch keeps a red edge, because there the border IS the
+        // signal and red is not otherwise on the page. The calm branch is a plain
+        // hairline over a violet wash: it is a running clock, not a warning, and a
+        // violet frame put it at the same weight as the alarm.
         alarming
           ? 'border-destructive/40 bg-destructive/5'
-          : 'border-dashed border-iris/40 bg-iris/10',
+          : 'border-border bg-iris/[0.07]',
         className,
       )}
       role={alarming ? 'alert' : undefined}
@@ -84,10 +88,22 @@ export function InspectionCountdown({
       >
         Inspection window · {remainingLabel(hours)}
       </p>
-      <p className="mt-1 text-muted-foreground">
+      {/* THE DEADLINE INSTANT IS NAMED IN BOTH BRANCHES, and it used to be named in
+          only one.
+
+          The waiting party got "You have already acted." and nothing else — no date, no
+          time — so the one figure this banner exists to carry was withheld from the
+          person who can do nothing but wait for it. "When does this resolve?" is
+          precisely their question, and a heading reading "4 days left" is a rounding of
+          the answer, not the answer.
+
+          "You have already acted" was also untrue for a Cash_Sale seller. Inspection is
+          the BUYER's step; the seller never had an action in it to have already taken.
+          The copy now says who it is waiting on and until when. */}
+      <p className="mt-1 text-muted-foreground" suppressHydrationWarning>
         {viewerMustAct
           ? `Check what you received, then accept it or raise a dispute by ${formatContractDateTime(deadlineAt)}. ${expiryConsequence}`
-          : `You have already acted. ${expiryConsequence}`}
+          : `Nothing is needed from you until ${formatContractDateTime(deadlineAt)}. ${expiryConsequence}`}
       </p>
       {collateralLapsesFirst ? (
         <p className="mt-2 text-body text-destructive">

@@ -21,7 +21,7 @@ function EvidenceMedia({
 }) {
   if (!url) {
     return (
-      <div className="grid aspect-square place-items-center rounded-md border border-dashed bg-muted px-snug text-center text-meta leading-tight text-muted-foreground">
+      <div className="grid aspect-square place-items-center rounded-md border border-border bg-muted px-snug text-center text-meta leading-tight text-muted-foreground">
         Unavailable
       </div>
     );

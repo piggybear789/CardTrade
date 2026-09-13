@@ -217,15 +217,24 @@ List<ContractStep> saleStepPlanFixture({
   final List<List<String>> shape = inPerson
       ? <List<String>>[
           <String>['terms', 'Discuss Terms', 'Set handover terms'],
-          <String>['payment', 'Payment', 'Payment collected and held'],
+          // Labels are role-dependent on the TypeScript side; these fixtures are the
+          // BUYER's voice, matching `viewerRole: 'BUYER'` in `deriveCashSaleSteps`.
+          <String>['payment', 'Payment', 'Pay to start the escrow'],
           <String>['handover', 'Delivery', 'Both confirm the handover'],
         ]
       : <List<String>>[
           <String>['terms', 'Discuss Terms', 'Set handover terms'],
-          <String>['payment', 'Payment', 'Payment collected and held'],
-          <String>['ship', 'Delivery', 'Seller ships with tracking'],
-          <String>['receive', 'Received', 'Buyer confirms the item arrived'],
-          <String>['inspect', 'Buyer accepts delivery', 'Buyer accepts delivery'],
+          // The BUYER's voice throughout, matching `viewerRole: 'BUYER'`. The seller
+          // reads "Waiting for <name> to …" for the steps they do not own.
+          //
+          // The name in the `ship` label is a stand-in: the server interpolates the
+          // real counterparty display name there, and no test asserts this string —
+          // they assert the buyer-owned steps. If one ever does, take the name from a
+          // fixture constant rather than hardcoding it twice.
+          <String>['payment', 'Payment', 'Pay to start the escrow'],
+          <String>['ship', 'Delivery', 'Waiting for the seller to post it'],
+          <String>['receive', 'Received', 'Confirm it arrived'],
+          <String>['inspect', 'Accept or report', 'Accept the item, or report a problem'],
         ];
 
   return _planFrom(shape, reached: reached, halted: halted, complete: complete);

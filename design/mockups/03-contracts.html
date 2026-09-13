@@ -1,0 +1,1291 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoDitto board — 03 Contracts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+<div class="board">
+
+<p class="crumbs"><a href="index.html">← Board index</a> · <a href="index.html#bugs">Bugs</a> ·
+  <a href="02-entry.html">← Getting in</a></p>
+<div class="board-top">
+  <div>
+    <p class="board-kicker">Sheet 03 · round 2</p>
+    <h1>Contracts</h1>
+    <p>The rooms keep their current layout. What changes is copy and placement: the room has to say what
+      you must do and by when, and the component that already says it has to be somewhere you can see
+      it.</p>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate kept" id="cashroom">
+  <header>
+    <h2>Cash sale room <span class="asis">CURRENT LAYOUT KEPT</span></h2>
+    <span class="route">/sales/[id] · /purchases · components/sales/CashSaleView.tsx</span>
+    <p class="intent">
+      Round 1's restructure is <b>withdrawn</b>: the flush shell, the 3fr/2fr split, the tab inspector on
+      the left, the chat on the right and the action dock inside the chat column all stay. Two things
+      change, both narrow and both bugs — <b>B1</b> the step label's voice, and <b>B2</b> where
+      <code>InspectionCountdown</code> renders.
+      <br><br>
+      <b>On your question:</b> yes, the sentence largely already exists.
+      <code>InspectionCountdown</code> renders "Inspection window · 2 days left" and then "accept it or
+      raise a dispute by {date}. {expiryConsequence}". The problem is not the copy, it is that in the
+      cash sale it lives inside the <em>Protection tab</em> — which on a phone is behind the bottom
+      sheet — while the trade room renders the same component as a banner. So one room shows it and one
+      hides it.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — buyer, INSPECTION</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span>
+          <nav><a>Marketplace</a><a>Sell</a><a class="on">Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="ic">✉<span class="dot"></span></span><span class="ic">🔔</span>
+            <span class="me"><span class="avatar xs">GR</span> grandline</span></div></div>
+
+        <div class="shell">
+          <aside class="rail"><h1>Purchase</h1>
+            <div class="navlist mt-g"><a>◉ Browse</a><a class="on">Purchases <span class="n">2</span></a>
+              <a>Sales</a><a>⇄ Trades</a><a>Offers</a></div></aside>
+
+          <section class="content flush">
+            <!-- ContractHeader, as built -->
+            <div class="card">
+              <div class="between">
+                <div>
+                  <h1 class="h-sub">BGS 10 Black Label Mimikyu VMAX Alternate Art</h1>
+                  <div class="row gap-c mt-s">
+                    <span class="meta num strong">$1,942.50 total</span>
+                    <span class="meta muted">You and kitsunearia</span>
+                  </div>
+                </div>
+                <div class="row gap-s" style="position:relative">
+                  <i class="pin abs" style="right:-9px;top:-20px">1</i>
+                  <span class="badge b-held">● Inspecting</span>
+                  <span class="meta muted"><span class="dot-live"></span> Live</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- B2: InspectionCountdown as a banner, matching the trade room -->
+            <div class="card tint-iris mt-g" style="border-style:dashed;position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">2</i>
+              <p class="h-sub">Inspection window · 2 days left</p>
+              <p class="meta muted mt-s">Check what you received, then accept it or raise a dispute by
+                16 Sep 2026, 2:14pm. If you do nothing, the sale completes on its own and the seller is
+                paid.</p>
+            </div>
+
+            <div class="cols c-3-2 mt-g equal" style="min-height:0">
+              <!-- inspector, as built -->
+              <div class="card flat" style="display:flex;flex-direction:column;min-height:0">
+                <div class="tabs" style="padding-left:var(--s-snug)">
+                  <span class="tab on">Item</span><span class="tab">Terms</span>
+                  <span class="tab">Payment</span><span class="tab">Protection</span>
+                  <span class="tab">History <span class="n">9</span></span>
+                </div>
+                <div style="padding:var(--s-group);overflow:hidden">
+                  <span class="eyebrow">Item</span>
+                  <div class="ph-img dark mt-c" style="height:180px;border-radius:var(--radius);display:grid;place-items:center">
+                    <div class="ph-img" style="width:26%;height:88%;border-radius:4px"></div>
+                  </div>
+                  <div class="mt-g">
+                    <span class="price big"><span class="sym">$</span><span class="maj">1,850</span><span class="min">.00</span></span>
+                    <h3 class="h-head mt-s">BGS 10 Black Label Mimikyu VMAX Alternate Art</h3>
+                    <span class="badge b-outline mt-s">Graded</span>
+                    <p class="meta muted mt-c">Mint slab, straight from a personal collection. Never
+                      resubmitted. Shipped in a team bag inside a bubble mailer with tracking.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- chat column, as built -->
+              <div class="card flat" style="display:flex;flex-direction:column;min-height:0">
+                <div class="chatbar">
+                  <div class="thumb s ph-img"></div>
+                  <div class="stack" style="flex:1;min-width:0">
+                    <span class="h-lead" style="font-size:var(--t-body)">BGS 10 Black Label Mimikyu…</span>
+                    <span class="meta muted">$1,942.50 · Inspecting · kitsunearia</span>
+                  </div>
+                  <span class="btn btn-ghost icon">⋯</span>
+                </div>
+                <div class="chatlog">
+                  <span class="daydiv">Mon 5 Sep</span>
+                  <span class="bub them">Posted this morning, tracking is on the contract 👍</span>
+                  <span class="bub me">Perfect, thank you!</span>
+                  <span class="daydiv">Tue 9 Sep</span>
+                  <span class="bub them">Tracking says delivered — hope it arrived safely.</span>
+                  <span class="bub me">Just got in, opening it tonight</span>
+                </div>
+
+                <!-- action dock, as built — B1: copy in the second person, with the deadline -->
+                <div class="dock" style="position:relative;padding:var(--s-cozy)">
+                  <i class="pin abs" style="left:-9px;top:14px">3</i>
+                  <div style="flex:1;min-width:0">
+                    <h3 class="h-lead">Accept the card, or report a problem</h3>
+                    <p class="meta muted">You have 2 days 6 hours. Do nothing and it completes on its
+                      own.</p>
+                  </div>
+                  <span class="btn btn-action sm">Accept</span>
+                  <span class="btn btn-ghost icon">⋯</span>
+                </div>
+
+                <div class="composer">
+                  <span class="input ph" style="flex:1;min-height:34px">Message kitsunearia…</span>
+                  <span class="btn btn-ghost icon">📎</span><span class="btn btn-primary icon">↑</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — chat is the room, as built</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+
+        <!-- chat bar IS the top of the room, as built -->
+        <div class="chatbar" style="border-bottom:1px solid hsl(var(--border))">
+          <span class="btn btn-ghost icon">←</span>
+          <div class="thumb s ph-img"></div>
+          <div class="stack" style="flex:1;min-width:0">
+            <span class="meta strong">BGS 10 Mimikyu VMAX Alt Art</span>
+            <span class="meta muted">$1,942.50 · Inspecting · ⓘ</span>
+          </div>
+          <span class="btn btn-ghost icon">⋯</span>
+        </div>
+
+        <!-- B2: the countdown is visible without opening the sheet -->
+        <div style="padding:var(--s-snug) var(--s-cozy);background:hsl(var(--iris)/.09);border-bottom:1px solid hsl(var(--iris)/.3);position:relative">
+          <i class="pin abs" style="right:6px;top:6px">4</i>
+          <p class="meta strong">Inspection window · 2 days left</p>
+          <p class="meta muted">Accept or raise a dispute by 16 Sep, 2:14pm. Do nothing and the sale
+            completes and the seller is paid.</p>
+        </div>
+
+        <div class="chatlog" style="flex:1">
+          <span class="daydiv">Mon 5 Sep</span>
+          <span class="bub them">Posted this morning, tracking is on the contract 👍</span>
+          <span class="bub me">Perfect, thank you!</span>
+          <span class="daydiv">Tue 9 Sep</span>
+          <span class="bub them">Tracking says delivered — hope it arrived safely.</span>
+          <span class="bub me">Just got in, opening it tonight</span>
+        </div>
+
+        <div class="dock" style="padding:var(--s-cozy);position:relative">
+          <i class="pin abs" style="left:auto;right:2px;top:10px">5</i>
+          <div style="flex:1;min-width:0">
+            <h3 class="h-lead" style="font-size:var(--t-body)">Accept the card, or report a problem</h3>
+            <p class="meta muted">2 days 6 hours left</p>
+          </div>
+          <span class="btn btn-action sm">Accept</span>
+          <span class="btn btn-ghost icon">⋯</span>
+        </div>
+        <div class="composer">
+          <span class="input ph" style="flex:1;min-height:34px">Message…</span>
+          <span class="btn btn-primary icon">↑</span>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a class="on"><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">B4</span>
+        <b>The header carries a status badge, and the tones become semantic.</b> The cash-sale header
+        passes <em>no</em> status today while the trade header passes one — same component, two
+        contracts. And <code>CANCELLED</code> renders <code>outline</code> here but
+        <code>secondary</code> in the trade room. "Inspecting" now uses the filled-iris "money is held"
+        tone, which is what distinguishes it from "In transit" — currently both are the same solid chip.
+        <span class="src">See <a href="index.html#palette">P3</a>.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="chg">B2</span>
+        <b><code>InspectionCountdown</code> moves out of the Protection tab and becomes a banner.</b>
+        This is not a new component or new copy — it is the existing one, rendered where the trade room
+        already renders it. Today a buyer has to open the third tab of the inspector to discover that a
+        clock is running which will pay the seller without them. Same component, same strings, one
+        placement instead of two.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">B1</span>
+        <b>The dock title speaks to the reader, and names the deadline.</b> This is the change you were
+        asking about, and the answer is that the <em>sentence</em> exists but the <em>title</em> does
+        not. <code>deriveCashSaleSteps</code> emits <code>label: 'Buyer confirms the item arrived'</code>
+        — and that label is the dock's <code>&lt;h3&gt;</code>, so the buyer reads a third-person
+        description of themselves as the largest text in the card. The <code>detail</code> beneath it
+        <em>is</em> in the right voice, but it is <code>hidden</code> below <code>md</code>. Fixing the
+        labels fixes the rail captions too, since both read the same field.
+        <br>
+        Voice is also inconsistent across steps as written: "Set handover terms" is imperative,
+        "Payment collected and held" is passive, "Buyer confirms the item arrived" is third person. One
+        voice — second-person imperative — for all of them.
+      </div></li>
+      <li><i class="pin">4</i><div><span class="chg">B2</span>
+        <b>On mobile the countdown is the one thing that must not be behind the sheet.</b> Same fix, and
+        this is where it matters: the phone room <em>is</em> the chat, so every contract fact lives
+        behind a docked sheet. A deadline with an automatic financial outcome cannot be one of them.
+      </div></li>
+      <li><i class="pin">5</i><div><span class="chg">B1</span>
+        <b>The phone dock gets the deadline on its second line.</b> The <code>detail</code> line is
+        hidden below <code>md</code> by design, which is a reasonable space decision — but it means the
+        phone shows the least informative half. A short deadline string fits the same budget.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Everything structural.</b> The flush shell, the 3fr/2fr split with a 24rem chat floor, panes
+        that scroll internally rather than a scrolling document, the tab inspector and its
+        <code>action</code> slot, the dock living in the chat column, the bottom sheet on mobile with its
+        "Done" button and no ✕, the fee restated in the pay dialog, and absolute rather than relative
+        timestamps.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate kept" id="traderoom">
+  <header>
+    <h2>Trade room <span class="asis">CURRENT LAYOUT KEPT</span></h2>
+    <span class="route">/trades/[id] · components/trade/TradeContract.tsx</span>
+    <p class="intent">
+      Same treatment: current layout, the two-column exchange ledger untouched, and the same two copy
+      fixes. The trade room already renders <code>InspectionCountdown</code> as a banner, so <b>B2</b> is
+      only a fix on the cash side — this frame is what the cash room is being brought into line with.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — COLLATERAL_LOCKED, delivery</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span>
+          <nav><a>Marketplace</a><a>Sell</a><a class="on">Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="ic">✉</span><span class="ic">🔔</span>
+            <span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+
+        <div class="shell">
+          <aside class="rail"><h1>Trade</h1>
+            <div class="navlist mt-g"><a>◉ Browse</a><a>Purchases</a><a>Sales</a>
+              <a class="on">⇄ Trades <span class="n">2</span></a><a>Offers</a></div></aside>
+
+          <section class="content flush">
+            <div class="card">
+              <div class="between">
+                <div><h1 class="h-sub">Trade with grandline</h1>
+                  <p class="meta num strong mt-s">$920.00</p></div>
+                <div class="row gap-s">
+                  <span class="badge b-live">● Collateral locked</span>
+                  <span class="meta muted"><span class="dot-live"></span> Live</span></div>
+              </div>
+            </div>
+
+            <div class="card tint-warn mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <p class="h-sub">Post your card by 14 Sep · 4 days left</p>
+              <p class="meta muted mt-s">Neither of you has posted yet. Both collateral holds expire
+                17 Sep — after that the authorisations lapse on their own and the guarantee is gone.</p>
+            </div>
+
+            <div class="cols c-3-2 mt-g equal" style="min-height:0">
+              <div class="card flat" style="display:flex;flex-direction:column;min-height:0">
+                <div class="tabs" style="padding-left:var(--s-snug)">
+                  <span class="tab on">Exchange</span><span class="tab">Terms</span>
+                  <span class="tab">Collateral</span><span class="tab">History <span class="n">6</span></span>
+                </div>
+                <div style="padding:var(--s-group);overflow:hidden">
+                  <span class="eyebrow">Exchange</span>
+                  <div class="grid c-1-1 mt-c" style="gap:var(--s-cozy);align-items:start;position:relative">
+                    <i class="pin abs" style="left:calc(50% - 8px);top:64px;z-index:3">2</i>
+                    <div class="card">
+                      <div class="between"><span class="badge b-secondary">You send</span>
+                        <div style="text-align:right"><span class="eyebrow">Value</span>
+                          <div class="strong num" style="font-size:var(--t-head)">$920.00</div></div></div>
+                      <div class="row gap-c mt-c"><div class="thumb m ph-img"></div>
+                        <div class="stack"><span class="meta strong">Umbreon VMAX Alt Art</span>
+                          <span class="meta muted">NEAR MINT</span>
+                          <span class="meta muted num">$920.00</span></div></div>
+                      <div class="hr" style="margin:var(--s-cozy) 0"></div>
+                      <div class="mtable" style="gap:var(--s-snug)">
+                        <div class="mr"><span class="k meta">Cash you pay via Stripe</span>
+                          <span class="v meta muted">—</span></div>
+                        <div class="mr"><span class="k meta">NoDitto fee (5%)</span>
+                          <span class="v meta muted num">$46.00</span></div></div>
+                    </div>
+                    <div class="card">
+                      <div class="between"><span class="badge b-secondary">You receive</span>
+                        <div style="text-align:right"><span class="eyebrow">Value</span>
+                          <div class="strong num" style="font-size:var(--t-head)">$920.00</div></div></div>
+                      <div class="row gap-c mt-c"><div class="thumb m ph-img"></div>
+                        <div class="stack"><span class="meta strong">Charizard ex SIR</span>
+                          <span class="meta muted">NEAR MINT</span>
+                          <span class="meta muted num">$920.00</span></div></div>
+                      <div class="hr" style="margin:var(--s-cozy) 0"></div>
+                      <div class="mtable" style="gap:var(--s-snug)">
+                        <div class="mr"><span class="k meta">Cash they pay via Stripe</span>
+                          <span class="v meta muted">—</span></div>
+                        <div class="mr"><span class="k meta">NoDitto fee (5%)</span>
+                          <span class="v meta muted num">$46.00</span></div></div>
+                    </div>
+                  </div>
+                  <p class="help mt-c">The bundle and cash were fixed when you both accepted the terms,
+                    so neither side can change them now.</p>
+                </div>
+              </div>
+
+              <div class="card flat" style="display:flex;flex-direction:column;min-height:0">
+                <div class="chatbar">
+                  <div class="thumb s ph-img"></div>
+                  <div class="stack" style="flex:1;min-width:0">
+                    <span class="h-lead" style="font-size:var(--t-body)">Umbreon VMAX Alt Art</span>
+                    <span class="meta muted">$920.00 · Collateral locked · grandline</span></div>
+                  <span class="btn btn-ghost icon">⋯</span>
+                </div>
+                <div class="chatlog">
+                  <span class="daydiv">Wed 10 Sep</span>
+                  <span class="bub them">Accepted! Posting Friday if that works</span>
+                  <span class="bub me">Same here. Sleeve + toploader + team bag?</span>
+                  <span class="bub them">Always 👌</span>
+                </div>
+                <div class="dock warn" style="padding:var(--s-cozy);position:relative">
+                  <i class="pin abs" style="left:-9px;top:14px">3</i>
+                  <div style="flex:1;min-width:0">
+                    <h3 class="h-lead">Post your card and add the tracking number</h3>
+                    <p class="meta muted">4 days left. grandline hasn't posted either.</p>
+                  </div>
+                  <span class="btn btn-action sm">Record shipment</span>
+                  <span class="btn btn-ghost icon">⋯</span>
+                </div>
+                <div class="composer">
+                  <span class="input ph" style="flex:1;min-height:34px">Message about the trade…</span>
+                  <span class="btn btn-ghost icon">📎</span><span class="btn btn-primary icon">↑</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — details sheet open, Collateral tab</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div style="flex:1;min-height:0;background:hsl(var(--foreground)/.25);position:relative">
+          <div class="chatbar" style="background:hsl(var(--card));border-bottom:1px solid hsl(var(--border))">
+            <span class="btn btn-ghost icon">←</span>
+            <div class="thumb s ph-img"></div>
+            <div class="stack" style="flex:1;min-width:0">
+              <span class="meta strong">Umbreon VMAX Alt Art</span>
+              <span class="meta muted">$920.00 · Collateral locked · ⓘ</span></div>
+          </div>
+
+          <!-- docked sheet, as built: rounded top, Done, no X, sits 1px above the hub -->
+          <div style="position:absolute;left:0;right:0;bottom:0;height:78%;background:hsl(var(--card));border-top-left-radius:16px;border-top-right-radius:16px;display:flex;flex-direction:column;overflow:hidden">
+            <div class="between" style="padding:var(--s-cozy) var(--s-group);border-bottom:1px solid hsl(var(--border))">
+              <div class="stack" style="min-width:0">
+                <span class="h-lead" style="font-size:var(--t-body)">Trade</span>
+                <div class="row gap-s"><span class="badge b-live" style="font-size:10px">● Collateral locked</span>
+                  <span class="meta num muted">$920.00</span></div></div>
+              <span class="btn btn-ghost sm">Done</span>
+            </div>
+            <div class="tabs" style="padding-left:var(--s-snug)">
+              <span class="tab">Exchange</span><span class="tab">Terms</span>
+              <span class="tab on">Collateral</span><span class="tab">History</span></div>
+            <div style="padding:var(--s-group);overflow:hidden;position:relative">
+              <i class="pin abs" style="right:6px;top:6px">4</i>
+              <span class="eyebrow" style="display:block">Collateral</span>
+              <p class="meta muted mt-s">A temporary card authorisation, not a payment. Your available
+                balance may dip while the trade runs; nothing is charged unless something goes wrong.</p>
+
+              <div class="card tint-iris mt-c" style="padding:var(--s-cozy)">
+                <div class="between"><span class="meta muted">On the line</span>
+                  <span class="strong num" style="font-size:var(--t-subhead)">$920.00</span></div>
+                <p class="help">Expires 17 Sep — authorisations lapse after about 7 days.</p>
+              </div>
+
+              <div class="card flat mt-c">
+                <div class="listrow" style="padding:var(--s-snug) var(--s-cozy)">
+                  <div class="lead"><div class="s">Your hold</div></div>
+                  <span class="meta num muted">$920.00</span>
+                  <span class="badge b-live">Active</span></div>
+                <div class="listrow" style="padding:var(--s-snug) var(--s-cozy)">
+                  <div class="lead"><div class="s">grandline's hold</div></div>
+                  <span class="meta num muted">$920.00</span>
+                  <span class="badge b-live">Active</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a class="on"><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="keep">KEEP</span> <span class="add">ADD</span>
+        <b>Keep the banner; add the hold expiry to it.</b> The banner placement is already right here —
+        that is what the cash room is being brought into line with. The addition is the expiry date:
+        authorisations lapse after about seven days, the platform already tracks
+        <code>expiresAt</code> and treats expiry as a real state
+        (<code>Expired — no longer protected</code>), and pg_cron already warns on it — but the trader is
+        never told the date in the room. The one deadline that can silently remove their protection is
+        invisible until it has passed.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="keep">KEEP</span>
+        <b>The two-column ledger, untouched.</b> This is the best-composed thing in either room: two
+        valued sides, the fee disclosed on the side that pays it, and a <code>rotate-90 lg:rotate-0</code>
+        arrow so it stacks honestly on a phone. Round 1 proposed renaming its tab and reinstating a
+        Payment tab; withdrawn.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">B1</span>
+        <b>Same voice fix as the cash room.</b> Second person, with the deadline and what the other side
+        has done. "grandline hasn't posted either" is the fact a trader actually wants and it is already
+        in the step's <code>detail</code>.
+      </div></li>
+      <li><i class="pin">4</i><div><span class="keep">KEEP</span>
+        <b>The docked sheet, exactly as built</b> — definite height rather than a max, rounded top,
+        "Done" instead of a ✕ over a truncating title, sitting one pixel clear of the hub bar so its
+        border does the separating. All three of those are documented decisions and all three are right.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="dispute">
+  <header>
+    <h2>Dispute and return</h2>
+    <span class="route">/sales/[id] — Dispute / Return tabs · components/contract/DisputeEvidencePanel.tsx</span>
+    <p class="intent">
+      Kept from round 1. This is the one place a progress rail survives: a dispute is the state where the
+      halted tick has something to say and where "how long does this take" is the member's first
+      question. The tab still only exists once a dispute does.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — buyer, DISPUTED</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a class="on">Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">GR</span> grandline</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Purchase</h1>
+            <div class="navlist mt-g"><a>◉ Browse</a><a class="on">Purchases</a><a>Sales</a>
+              <a>⇄ Trades</a></div></aside>
+          <section class="content flush">
+            <div class="card tint-dang" style="position:relative;padding:var(--s-group) var(--s-group) var(--s-cozy)">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <div class="between">
+                <div class="stack">
+                  <div class="row gap-s"><span class="badge b-dang">● Disputed</span>
+                    <span class="meta muted">Raised by you, 11 Sep · CS-8241-KQ</span></div>
+                  <h1 class="h-sub mt-s">A NoDitto staff member is reviewing this</h1>
+                  <span class="meta muted">Your $1,942.50 stays held until it's decided. Neither of you
+                    can be paid in the meantime.</span>
+                </div>
+                <div class="row gap-s"><span class="btn btn-outline sm">Withdraw</span>
+                  <span class="btn btn-primary sm">Add evidence</span></div>
+              </div>
+              <div class="mt-g">
+                <div class="stepper">
+                  <div class="st done"><div class="lane"><span class="ln void"></span><span class="nd">✓</span><span class="ln bad"></span></div>
+                    <div class="cap"><span class="l">Delivered</span><span class="d">9 Sep</span></div></div>
+                  <div class="st bad"><div class="lane"><span class="ln bad"></span><span class="nd">✕</span><span class="ln"></span></div>
+                    <div class="cap"><span class="l">Dispute raised</span><span class="d">11 Sep</span></div></div>
+                  <div class="st now"><div class="lane"><span class="ln"></span><span class="nd">3</span><span class="ln"></span></div>
+                    <div class="cap"><span class="l">Both submit evidence</span><span class="d">by 14 Sep</span></div></div>
+                  <div class="st"><div class="lane"><span class="ln"></span><span class="nd">4</span><span class="ln"></span></div>
+                    <div class="cap"><span class="l">Staff decide</span><span class="d">2–3 days</span></div></div>
+                  <div class="st"><div class="lane"><span class="ln"></span><span class="nd">5</span><span class="ln void"></span></div>
+                    <div class="cap"><span class="l">Money moves</span></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="cols c-3-2 mt-g equal" style="min-height:0">
+              <div class="card flat" style="display:flex;flex-direction:column;min-height:0">
+                <div class="tabs" style="padding-left:var(--s-snug)">
+                  <span class="tab">Item</span><span class="tab">Terms</span><span class="tab">Payment</span>
+                  <span class="tab on dang">Dispute <span class="n">3</span></span><span class="tab">History</span></div>
+                <div style="padding:var(--s-group);overflow:hidden">
+                  <span class="eyebrow">Dispute</span>
+                  <p class="meta muted mt-s">Your account of what happened, with photos or video. Both of
+                    you can see everything here, and so can the staff member deciding it.</p>
+
+                  <div class="card tint-mute mt-g" style="position:relative">
+                    <i class="pin abs" style="left:-9px;top:14px">2</i>
+                    <span class="eyebrow">What can be decided</span>
+                    <div class="mtable mt-s" style="gap:var(--s-snug)">
+                      <div class="mr"><span class="k meta">Decided for you</span>
+                        <span class="v meta">$1,942.50 refunded to your card</span></div>
+                      <div class="mr"><span class="k meta">For you, card goes back</span>
+                        <span class="v meta">Refunded once the seller receives it</span></div>
+                      <div class="mr"><span class="k meta">Decided for the seller</span>
+                        <span class="v meta">Sale completes, seller paid $1,757.50</span></div>
+                      <div class="mr"><span class="k meta">Fraud found</span>
+                        <span class="v meta">Full refund, account banned</span></div>
+                    </div>
+                  </div>
+
+                  <div class="hr"></div>
+                  <div class="row gap-c" style="align-items:flex-start">
+                    <span class="avatar">GR</span>
+                    <div class="card" style="flex:1;padding:var(--s-cozy)">
+                      <div class="between"><span class="meta strong">You · 11 Sep, 8:42pm</span>
+                        <span class="badge b-secondary">3 photos</span></div>
+                      <p class="meta muted mt-s">The slab arrived cracked along the top seam and the label
+                        is scuffed. Photos show it as unpacked, plus the mailer.</p>
+                      <div class="row gap-s mt-c"><div class="thumb s ph-img"></div>
+                        <div class="thumb s ph-img"></div><div class="thumb s ph-img"></div></div>
+                    </div>
+                  </div>
+                  <div class="row gap-c mt-c" style="align-items:flex-start">
+                    <span class="avatar">KA</span>
+                    <div class="card" style="flex:1;padding:var(--s-cozy)">
+                      <div class="between"><span class="meta strong">kitsunearia · 12 Sep, 9:10am</span>
+                        <span class="badge b-secondary">2 photos</span></div>
+                      <p class="meta muted mt-s">Photographed intact on the day I posted it — attaching
+                        the packing shots and the lodgement receipt.</p></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card flat" style="display:flex;flex-direction:column;min-height:0">
+                <div class="chatbar"><div class="thumb s ph-img"></div>
+                  <div class="stack" style="flex:1;min-width:0">
+                    <span class="h-lead" style="font-size:var(--t-body)">BGS 10 Mimikyu VMAX</span>
+                    <span class="meta muted">Disputed · staff can read this</span></div></div>
+                <div class="chatlog">
+                  <span class="daydiv">Thu 11 Sep</span>
+                  <span class="bub me">Sorry to do this but the slab is cracked, I've raised it</span>
+                  <span class="bub them">That's horrible, it left here perfect. Happy to sort it out.</span>
+                </div>
+                <div class="dock dang" style="padding:var(--s-cozy)">
+                  <span class="meta" style="flex:1"><b>Staff are reviewing.</b>
+                    <span class="muted">You can keep talking — it may resolve without a decision.</span></span></div>
+                <div class="composer"><span class="input ph" style="flex:1;min-height:34px">Message…</span>
+                  <span class="btn btn-primary icon">↑</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — return required</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="chatbar" style="border-bottom:1px solid hsl(var(--border))">
+          <span class="btn btn-ghost icon">←</span><div class="thumb s ph-img"></div>
+          <div class="stack" style="flex:1;min-width:0"><span class="meta strong">BGS 10 Mimikyu VMAX</span>
+            <span class="meta muted">$1,942.50 · Return required · ⓘ</span></div></div>
+
+        <div style="padding:var(--s-cozy);background:hsl(var(--destructive)/.06);border-bottom:1px solid hsl(var(--destructive)/.3);position:relative">
+          <i class="pin abs" style="right:6px;top:6px">3</i>
+          <p class="meta strong">Post the card back by 19 Sep · 5 days left</p>
+          <p class="meta muted">You were awarded a full refund of $1,942.50. It releases automatically
+            the moment the carrier confirms delivery back to kitsunearia — the seller can't hold it up.
+            Miss the date and the refund lapses.</p>
+        </div>
+
+        <div class="mbody">
+          <div class="card" style="padding:var(--s-cozy)">
+            <span class="eyebrow">Send it to</span>
+            <p class="meta mt-s">Aria K. Fujimoto<br>PO Box 411<br>Newtown NSW 2042</p>
+            <span class="btn btn-outline sm w mt-c">Copy address</span>
+          </div>
+
+          <div class="vtl mt-g">
+            <div class="vstep done"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+              <div class="panel"><div class="t">Decided in your favour</div><div class="w">14 Sep</div></div></div>
+            <div class="vstep now"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+              <div class="panel"><div class="t">Post it back</div>
+                <div class="w">By 19 Sep, with tracking</div></div></div>
+            <div class="vstep"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+              <div class="panel"><div class="t">Carrier confirms delivery</div>
+                <div class="w">Refund releases the same moment</div></div></div>
+            <div class="vstep"><div class="gut"><span class="pipdot"></span></div>
+              <div class="panel"><div class="t">$1,942.50 back on your card</div>
+                <div class="w">2–5 business days from your bank</div></div></div>
+          </div>
+        </div>
+        <div class="dock dang" style="padding:var(--s-cozy)">
+          <div style="flex:1;min-width:0"><h3 class="h-lead" style="font-size:var(--t-body)">Record the return shipment</h3>
+            <p class="meta muted">5 days left</p></div>
+          <span class="btn btn-action sm">Record</span></div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a class="on"><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>A dispute gets a state header and a rail with a halted tick.</b> <code>ContractProgressRail</code>
+        already supports <code>halted</code> — an ✕ in destructive tone with the connecting line
+        recoloured — and today has nowhere to render it. A dispute is the one state where "what stage am
+        I at and how long does this take" is the whole question.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Publish the possible outcomes before either party writes anything.</b> The outcomes are fixed
+        and knowable — refund, return-conditional refund, sale stands, fraud — and a member currently
+        cannot find out what they are asking for. It also lowers the temperature: a buyer who can see
+        "decided for the seller" is a real branch argues differently.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/66b967c2-b7cf-4ce9-ac17-01a16a9f6791">Etsy</a> states the escalation path and its clock up front.</span>
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">CHANGE</span>
+        <b>The return banner leads with the deadline and the automatic release.</b> "Goods first, then
+        money" is defensible, but it only <em>feels</em> fair if the buyer can see that the refund is
+        automatic on carrier confirmation and that the seller cannot sit on it. Both facts, first.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>The Dispute tab only existing once a dispute does</b>, evidence visible to both parties and to
+        staff, the destructive tab label, and withdrawal while the case is open.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="lists">
+  <header>
+    <h2>Sales, purchases and trades</h2>
+    <span class="route">/sales · /purchases · /trades</span>
+    <p class="intent">
+      Kept from round 1, with the semantic status tones and aligned columns applied. On a platform with
+      automatic outcomes, the list is where a member finds out something is about to happen without them.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — sales</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a><a class="on">Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Sales</h1>
+            <div class="navlist mt-g"><a>◉ Browse</a><a>Purchases</a>
+              <a class="on">Sales <span class="n">4</span></a><a>⇄ Trades <span class="n">2</span></a>
+              <a>Offers <span class="n">3</span></a></div>
+            <div class="group"><span class="eyebrow">Money</span>
+              <div class="stack gap-s mt-s">
+                <span class="meta"><b class="num">$228.00</b> <span class="muted">clearing</span></span>
+                <span class="meta"><b class="num">$1,757.50</b> <span class="muted">held pending inspection</span></span>
+                <span class="meta iris-ink strong">Payouts →</span></div></div>
+          </aside>
+          <section class="content">
+            <div class="between">
+              <div><h2 class="h-head">Sales</h2>
+                <p class="meta muted mt-s">Contracts where you're the seller.</p></div>
+              <span class="select" style="width:180px;height:36px">Needs you first</span>
+            </div>
+
+            <div class="row gap-s mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:6px">1</i>
+              <span class="chip on count" data-n="2">Needs you</span>
+              <span class="chip count" data-n="4">Live</span>
+              <span class="chip count" data-n="1">Disputed</span>
+              <span class="chip count" data-n="62">Completed</span>
+            </div>
+
+            <div class="card flat rowgrid mt-g"
+                 style="--cols:44px minmax(0,1fr) 168px 108px 128px 108px;position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">2</i>
+              <div class="head"><span></span><span>Contract</span><span>Next step</span>
+                <span class="cell r-align">You receive</span><span class="cell c-align">Status</span><span></span></div>
+
+              <div class="r" style="background:hsl(var(--action)/.1)">
+                <div class="thumb s ph-img"></div>
+                <div class="cell"><div class="t">Rayquaza VMAX CSR Japanese</div>
+                  <div class="s">frostbite · opened 12 Sep · $410.00</div></div>
+                <div class="cell"><div class="t" style="font-size:var(--t-meta)">Set handover terms</div>
+                  <div class="s">waiting 19h</div></div>
+                <div class="cell r-align num muted">$389.50</div>
+                <div class="cell c-align"><span class="badge b-warn">Your move</span></div>
+                <div class="cell end"><span class="btn btn-action sm">Open</span></div>
+              </div>
+
+              <div class="r">
+                <div class="thumb s ph-img"></div>
+                <div class="cell"><div class="t">BGS 10 Mimikyu VMAX Alt Art</div>
+                  <div class="s">grandline · opened 4 Sep · $1,942.50</div></div>
+                <div class="cell"><div class="t" style="font-size:var(--t-meta);font-weight:500">Buyer has 2d 6h</div>
+                  <div class="s trust-ink">auto-completes 16 Sep</div></div>
+                <div class="cell r-align num">$1,757.50</div>
+                <div class="cell c-align"><span class="badge b-held">● Inspecting</span></div>
+                <div class="cell end"><span class="btn btn-outline sm">Open</span></div>
+              </div>
+
+              <div class="r">
+                <div class="thumb s ph-img"></div>
+                <div class="cell"><div class="t">4 cards from bulk binder</div>
+                  <div class="s">pipmaster · binder contract · $86.00</div></div>
+                <div class="cell"><div class="t" style="font-size:var(--t-meta);font-weight:500">In transit</div>
+                  <div class="s">AusPost · est. 15 Sep</div></div>
+                <div class="cell r-align num muted">$81.70</div>
+                <div class="cell c-align"><span class="badge b-live">● In transit</span></div>
+                <div class="cell end"><span class="btn btn-outline sm">Open</span></div>
+              </div>
+
+              <div class="r" style="background:hsl(var(--destructive)/.045)">
+                <div class="thumb s ph-img"></div>
+                <div class="cell"><div class="t">Umbreon VMAX Alt Art</div>
+                  <div class="s">cardsharp99 · opened 1 Sep · $920.00</div></div>
+                <div class="cell"><div class="t dang-ink" style="font-size:var(--t-meta)">Add evidence</div>
+                  <div class="s">by 14 Sep</div></div>
+                <div class="cell r-align muted meta">held</div>
+                <div class="cell c-align"><span class="badge b-dang">● Disputed</span></div>
+                <div class="cell end"><span class="btn btn-dang-o sm">Open</span></div>
+              </div>
+
+              <div class="r" style="opacity:.78">
+                <div class="thumb s ph-img"></div>
+                <div class="cell"><div class="t">Luffy OP01-003 Leader Parallel</div>
+                  <div class="s">grandline · completed 8 Sep · $240.00</div></div>
+                <div class="cell"><div class="s">Payout queued</div></div>
+                <div class="cell r-align num">$228.00</div>
+                <div class="cell c-align"><span class="badge b-trust">✓ Completed</span></div>
+                <div class="cell end"><span class="btn btn-ghost sm">Review</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — one tabbed surface</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">Deals</span><span class="btn btn-ghost icon">⌕</span></div>
+        <div class="mbody">
+          <div class="tabs" style="position:relative">
+            <i class="pin abs" style="left:auto;right:2px;top:6px">3</i>
+            <span class="tab on">Trades <span class="n">2</span></span>
+            <span class="tab">Buying <span class="n">2</span></span>
+            <span class="tab">Selling <span class="n">4</span></span>
+            <span class="tab">Offers <span class="n">3</span></span></div>
+
+          <div class="card tint-warn mt-c" style="padding:var(--s-cozy);position:relative">
+            <i class="pin abs" style="right:6px;top:6px">4</i>
+            <span class="meta"><b>2 things need you.</b>
+              <span class="muted">The nearest deadline is in 19 hours.</span></span>
+          </div>
+
+          <div class="card flat mt-c">
+            <div class="listrow top" style="background:hsl(var(--action)/.1)">
+              <div class="thumb m ph-img"></div>
+              <div class="lead"><div class="row gap-s"><span class="badge b-warn">Your move</span>
+                  <span class="meta muted">grandline</span></div>
+                <div class="t mt-s">Post your card by 14 Sep</div>
+                <div class="s">Umbreon VMAX ⇄ Charizard ex · $920 held each side</div>
+                <span class="btn btn-action sm mt-c">Record shipment</span></div>
+            </div>
+            <div class="listrow top">
+              <div class="thumb m ph-img"></div>
+              <div class="lead"><div class="row gap-s"><span class="badge b-secondary">Negotiating</span>
+                  <span class="meta muted">pipmaster</span></div>
+                <div class="t mt-s">They countered your terms</div>
+                <div class="s">Wants $40 cash to even · 2 cards for 1</div>
+                <span class="meta iris-ink strong mt-s">Review the counter →</span></div>
+            </div>
+          </div>
+
+          <p class="eyebrow mt-x">Finished</p>
+          <div class="card flat mt-s">
+            <div class="listrow" style="opacity:.8"><div class="thumb s ph-img"></div>
+              <div class="lead"><div class="t">Gengar VMAX ⇄ Mewtwo V Alt</div>
+                <div class="s">Completed 2 Sep · holds released</div></div>
+              <span class="badge b-trust">✓</span></div>
+            <div class="listrow" style="opacity:.8"><div class="thumb s ph-img"></div>
+              <div class="lead"><div class="t">Zard ex ⇄ Pikachu VMAX</div>
+                <div class="s">Cancelled 28 Aug · nothing charged</div></div>
+              <span class="badge b-secondary">—</span></div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a class="on"><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>Status chips with counts, defaulting to "needs you".</b> A contract list ordered
+        chronologically buries the two rows that matter under sixty completed sales.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>A "next step" column, aligned columns, and semantic tones.</b> Three things in one table. The
+        tones make it scannable by colour rather than by reading — <code>Your move</code> amber,
+        <code>In transit</code> outline iris, <code>Inspecting</code> filled iris,
+        <code>Completed</code> teal, <code>Disputed</code> red. The column answers "and what about it?",
+        including the automatic outcomes: "auto-completes 16 Sep" is a fact a seller currently cannot see
+        anywhere outside the room. Columns are declared on the container so every cell aligns down the
+        page. <span class="src">See <a href="index.html#palette">P3</a>.</span>
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">CHANGE</span>
+        <b>Three routes, one tabbed surface on mobile.</b> <code>/sales</code>,
+        <code>/purchases</code> and <code>/trades</code> are three destinations for one question — "what
+        am I in?" — which on a phone means three taps and no combined view of what is waiting. The routes
+        and their separate RLS scopes stay; only the presentation merges.
+      </div></li>
+      <li><i class="pin">4</i><div><span class="add">ADD</span>
+        <b>A "needs you" line with the nearest deadline.</b> The single most useful sentence on the route.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="offers">
+  <header>
+    <h2>Offers</h2>
+    <span class="route">/offers · lib/actions/offers.ts</span>
+    <p class="intent">Kept from round 1: grouped by listing, the counter chain drawn, and the two
+      consequences of accepting stated at the point of decision.</p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a><a class="on">Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Offers</h1>
+            <div class="navlist mt-g"><a>◉ Browse</a><a>Purchases</a><a>Sales</a><a>⇄ Trades</a>
+              <a class="on">Offers <span class="n">3</span></a></div></aside>
+          <section class="content">
+            <div class="between"><div><h2 class="h-head">Offers</h2>
+              <p class="meta muted mt-s">Price negotiations on single listings. Binders use a purchase
+                request instead.</p></div>
+              <div class="row gap-s"><span class="chip on count" data-n="3">Received</span>
+                <span class="chip count" data-n="1">Sent</span><span class="chip">Closed</span></div></div>
+
+            <div class="card mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <div class="between">
+                <div class="row gap-c"><div class="thumb l ph-img"></div>
+                  <div class="stack gap-t">
+                    <span class="h-lead">Rayquaza VMAX CSR — Japanese</span>
+                    <span class="meta muted">Your price <b class="num" style="color:hsl(var(--foreground))">$410.00</b> ·
+                      listed 6 days ago · 12 watching</span>
+                    <span class="badge b-warn" style="width:fit-content">2 offers waiting on you</span></div></div>
+                <span class="btn btn-outline sm">View listing</span>
+              </div>
+
+              <div class="hr"></div>
+
+              <div class="vtl" style="position:relative">
+                <i class="pin abs" style="left:-9px;top:2px">2</i>
+                <div class="vstep done"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+                  <div class="panel"><div class="t">frostbite offered $340</div>
+                    <div class="w">9 Sep, 7:12pm — 17% under asking</div></div></div>
+                <div class="vstep done"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+                  <div class="panel"><div class="t">You countered at $395</div>
+                    <div class="w">10 Sep, 8:04am</div></div></div>
+                <div class="vstep now"><div class="gut"><span class="pipdot"></span></div>
+                  <div class="panel">
+                    <div class="between"><div><div class="t">frostbite countered at $375</div>
+                      <div class="w">Waiting 19 hours · 9% under asking · you'd receive $356.25</div></div>
+                      <span class="price"><span class="sym">$</span><span class="maj">375</span></span></div>
+                    <div class="conseq"><b>Accepting opens a real purchase contract</b> at $375 and
+                      declines the other offer on this card. frostbite then pays into escrow — nothing is
+                      charged until they do.</div>
+                    <div class="row gap-s mt-c"><span class="btn btn-action">Accept $375</span>
+                      <span class="btn btn-outline">Counter</span>
+                      <span class="btn btn-ghost">Decline</span></div>
+                  </div></div>
+              </div>
+            </div>
+
+            <div class="card mt-g">
+              <div class="between">
+                <div class="row gap-c"><div class="thumb l ph-img"></div>
+                  <div class="stack gap-t"><span class="h-lead">Umbreon VMAX Alt Art</span>
+                    <span class="meta muted">Your price <b class="num" style="color:hsl(var(--foreground))">$920.00</b></span>
+                    <span class="meta">pipmaster offered <b class="num">$700</b> · 24% under asking</span></div></div>
+                <div class="row gap-s"><span class="btn btn-outline sm">Counter</span>
+                  <span class="btn btn-ghost sm">Decline</span></div></div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">←</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">Offers</span></div>
+        <div class="mbody">
+          <div class="tabs"><span class="tab on">Received 3</span><span class="tab">Sent 1</span>
+            <span class="tab">Closed</span></div>
+
+          <div class="card mt-c" style="padding:var(--s-cozy)">
+            <div class="row gap-c"><div class="thumb m ph-img"></div>
+              <div class="stack gap-t" style="min-width:0;flex:1">
+                <span class="meta strong">Rayquaza VMAX CSR Japanese</span>
+                <span class="meta muted">Asking $410 · 12 watching</span></div></div>
+
+            <div class="hr" style="margin:var(--s-cozy) 0"></div>
+            <div class="stack gap-t">
+              <span class="meta muted">$340 · frostbite · 9 Sep</span>
+              <span class="meta muted">$395 · you countered · 10 Sep</span>
+            </div>
+            <div class="card tint-warn mt-c" style="padding:var(--s-cozy);position:relative">
+              <i class="pin abs" style="right:6px;top:6px">3</i>
+              <div class="between"><span class="meta strong">frostbite countered</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">375</span></span></div>
+              <p class="help">Waiting 19h · you'd receive $356.25 after the 5% fee</p>
+              <p class="help" style="margin-top:var(--s-snug)"><b>Accepting opens a purchase contract</b>
+                and declines the other offer on this card.</p>
+              <div class="stack gap-s mt-c"><span class="btn btn-action w">Accept $375</span>
+                <div class="row gap-s"><span class="btn btn-outline w">Counter</span>
+                  <span class="btn btn-ghost w">Decline</span></div></div>
+            </div>
+          </div>
+
+          <div class="card mt-c" style="padding:var(--s-cozy)">
+            <div class="row gap-c"><div class="thumb m ph-img"></div>
+              <div class="stack gap-t" style="flex:1;min-width:0">
+                <span class="meta strong">Umbreon VMAX Alt Art</span>
+                <span class="meta muted">pipmaster offered $700 of $920</span></div>
+              <span class="btn btn-outline sm">⋯</span></div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a class="on"><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>Group by listing, not by offer.</b> A seller decides <em>between</em> competing offers on one
+        card; a flat list makes them reconstruct that grouping. The listing header also supplies the
+        denominator — asking price, watchers, days listed.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Draw the counter chain.</b> <code>parent_offer_id</code> already models it and nothing renders
+        it. Seeing $340 → $395 → $375 is what tells a seller whether to hold.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>State both consequences of accepting.</b> It opens a Cash_Sale <em>and</em> declines every
+        other pending offer on that item. Both are real, irreversible and currently undisclosed at the
+        point of decision. The seller's net after the fee belongs here too — it is the number they are
+        actually comparing.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Refusing offers on binders</b> and the <b>one-live-offer-per-buyer-per-item</b> rule.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate kept" id="newtrade">
+  <header>
+    <h2>Propose a trade <span class="asis">CURRENT DESIGN KEPT</span></h2>
+    <span class="route">/trades/new · components/trade/ProposeTradeDialog.tsx</span>
+    <p class="intent">
+      Round 1's three-step mobile flow and up-front collateral quote are <b>withdrawn</b>. The dialog stays
+      as built: pick your side, state what you want from theirs, cash to even, handover method, message.
+      One note survives and it is a sequencing point rather than a layout one — see below.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — as built</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a class="on">Marketplace</a><a>Sell</a><a>Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div style="flex:1;position:relative;background:hsl(var(--sidebar))">
+          <div style="position:absolute;inset:0;background:hsl(var(--foreground)/.35)"></div>
+          <div class="card" style="position:absolute;left:50%;top:28px;transform:translateX(-50%);width:680px;padding:0;overflow:hidden">
+            <div style="padding:var(--s-group);border-bottom:1px solid hsl(var(--border))">
+              <h2 class="h-sub">Offer a trade</h2>
+              <p class="meta muted mt-s">An even swap by value. Either of you can counter until you both
+                accept the same version.</p>
+            </div>
+
+            <div style="padding:var(--s-group)">
+              <div class="field"><span class="label">What you want from grandline</span>
+                <div class="card" style="padding:var(--s-cozy)">
+                  <div class="row gap-c"><div class="thumb m ph-img"></div>
+                    <div class="stack" style="flex:1"><span class="meta strong">Charizard ex SIR</span>
+                      <span class="meta muted">Near Mint · $920.00</span></div></div></div>
+              </div>
+
+              <div class="field"><span class="label">What you're putting up</span>
+                <div class="card" style="padding:var(--s-cozy)">
+                  <div class="row gap-c"><div class="thumb m ph-img"></div>
+                    <div class="stack" style="flex:1"><span class="meta strong">Umbreon VMAX Alt Art</span>
+                      <span class="meta muted">Near Mint · $920.00</span></div>
+                    <span class="btn btn-ghost icon">✕</span></div>
+                  <span class="btn btn-outline sm w mt-c">＋ Add another of your cards</span></div>
+              </div>
+
+              <div class="grid g2 tight">
+                <div><span class="label">Cash to even it up</span>
+                  <div class="row gap-s"><span class="select" style="width:130px">You pay</span>
+                    <span class="input num ph" style="flex:1">$ 0.00</span></div></div>
+                <div><span class="label">How will you swap?</span>
+                  <span class="select">Post to each other</span></div>
+              </div>
+
+              <div class="field mt-g" style="margin:0"><span class="label">Message (optional)</span>
+                <div class="textarea" style="min-height:56px"><span class="muted">Happy to post Friday if
+                  that suits…</span></div></div>
+            </div>
+
+            <div class="between" style="padding:var(--s-cozy) var(--s-group);border-top:1px solid hsl(var(--border))">
+              <span class="meta muted">Nothing is held until you both accept.</span>
+              <div class="row gap-s"><span class="btn btn-ghost">Cancel</span>
+                <span class="btn btn-primary">Send the offer</span></div>
+            </div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — full-page dialog, as built</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">✕</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">Offer a trade</span></div>
+        <div class="mbody">
+          <p class="meta muted">An even swap by value. Either of you can counter.</p>
+
+          <div class="field mt-c"><span class="label">What you want</span>
+            <div class="card" style="padding:var(--s-snug)">
+              <div class="row gap-c"><div class="thumb s ph-img"></div>
+                <div class="stack" style="flex:1"><span class="meta strong">Charizard ex SIR</span>
+                  <span class="meta muted">$920.00</span></div></div></div></div>
+
+          <div class="field"><span class="label">What you're putting up</span>
+            <div class="card" style="padding:var(--s-snug)">
+              <div class="row gap-c"><div class="thumb s ph-img"></div>
+                <div class="stack" style="flex:1"><span class="meta strong">Umbreon VMAX Alt Art</span>
+                  <span class="meta muted">$920.00</span></div>
+                <span class="btn btn-ghost icon">✕</span></div>
+              <span class="btn btn-outline sm w mt-s">＋ Add a card</span></div></div>
+
+          <div class="field"><span class="label">Cash to even it up</span>
+            <div class="row gap-s"><span class="select" style="width:110px">You pay</span>
+              <span class="input num ph" style="flex:1">$ 0.00</span></div></div>
+
+          <div class="field"><span class="label">How will you swap?</span>
+            <span class="select">Post to each other</span></div>
+
+          <div class="card tint-mute mt-c" style="padding:var(--s-cozy);position:relative">
+            <i class="pin abs" style="right:6px;top:6px">1</i>
+            <span class="meta"><b>Nothing is held until you both accept.</b>
+              <span class="muted">Collateral of about $920 will be authorised on your saved card at that
+              point — a hold, not a payment.</span></span>
+          </div>
+        </div>
+        <div class="mbar"><span class="btn btn-primary w lg">Send the offer</span></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>Notes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>One line, and it is a sequencing fix rather than a design change.</b> Collateral is sized by
+        <code>resolveTradeSideValues</code> — the same figure the hold uses and the room discloses — so it
+        can be quoted here at no cost. Today a trader agrees terms and <em>then</em> discovers a $920
+        authorisation is wanted, which on a high-value swap is exactly where a card gets declined and the
+        trade dies after both parties have committed. A saved card is also a hard prerequisite;
+        <code>acceptTradeTerms</code> surfaces that as an actionable message, which is good, but it is one
+        step later than the member needs it.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Everything else</b>, including refusing a binder as the offering side — the offering side is
+        what a binder side derives its value from, so a binder there leaves nothing valued — and requiring
+        a written description of which cards come out of a binder, since that text is part of the terms
+        and is what an arbitrator reads.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="invite">
+  <header>
+    <h2>Private deal invite</h2>
+    <span class="route">/t/[token] · /deals/new</span>
+    <p class="intent">
+      Simplified per the review. Round 1 had a two-column layout with a five-step explainer timeline, a
+      fee table, a "you don't need to verify" card and a credibility block — four things competing on a
+      page whose job is to get one person to say yes. Now: what it is, who from, what it costs, one
+      sentence of protection, one button.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — signed out</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop" style="justify-content:space-between">
+          <span class="logo">NoDitto</span>
+          <div class="row gap-s"><span class="btn btn-ghost sm" style="color:hsl(var(--mist))">Sign in</span></div></div>
+        <div style="flex:1;overflow:hidden;background:hsl(var(--sidebar));display:flex;align-items:flex-start;justify-content:center;padding:36px 0">
+          <div class="card" style="width:560px;padding:0;overflow:hidden;position:relative">
+            <i class="pin abs" style="left:-9px;top:20px">1</i>
+
+            <div class="row gap-c" style="padding:var(--s-group);border-bottom:1px solid hsl(var(--border))">
+              <span class="avatar md">KA</span>
+              <div class="stack gap-t" style="flex:1;min-width:0">
+                <div class="row gap-s"><span class="strong">kitsunearia</span>
+                  <span class="badge b-trust">✓ ID verified</span></div>
+                <span class="meta muted">wants to sell you a card · ★ 4.9 · 62 sales · 0 disputes upheld</span>
+              </div>
+            </div>
+
+            <div style="padding:var(--s-group)">
+              <div class="row gap-g" style="align-items:flex-start">
+                <div class="ph-img" style="width:150px;height:200px;border-radius:var(--radius);border:1px solid hsl(var(--border));flex:none"></div>
+                <div class="stack gap-c" style="min-width:0;flex:1">
+                  <div>
+                    <span class="price big"><span class="sym">$</span><span class="maj">1,850</span></span>
+                    <p class="meta muted">+ 5% fee · <b style="color:hsl(var(--foreground))">$1,942.50</b> total</p>
+                  </div>
+                  <div>
+                    <h1 class="h-sub">BGS 10 Black Label Mimikyu VMAX Alternate Art</h1>
+                    <p class="meta muted mt-s">Graded · private invite, not listed publicly ·
+                      expires in 12 days</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card tint-trust mt-g" style="padding:var(--s-cozy);position:relative">
+                <i class="pin abs" style="right:-9px;top:14px">2</i>
+                <span class="meta"><b class="trust-ink">You pay NoDitto, not kitsunearia.</b>
+                  <span class="muted">We hold it until the card is in your hands and you've had 7 days to
+                  check it. Not right — money back.</span></span>
+              </div>
+
+              <div class="stack gap-s mt-g">
+                <span class="btn btn-action lg w">Create an account and continue</span>
+                <span class="btn btn-ghost w">I already have an account</span>
+              </div>
+              <p class="help mt-c" style="text-align:center">Free, nothing charged yet, and you don't need
+                to verify your ID to buy.</p>
+            </div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — signed out</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">NoDitto</span>
+          <span class="btn btn-ghost sm">Sign in</span></div>
+        <div class="mbody" style="padding:0">
+          <div class="ph-img" style="height:210px"></div>
+          <div style="padding:var(--s-cozy)">
+            <div class="row gap-c">
+              <span class="avatar">KA</span>
+              <div class="stack gap-t" style="flex:1;min-width:0">
+                <div class="row gap-t"><span class="meta strong">kitsunearia</span>
+                  <span class="badge b-trust" style="padding:1px 6px">✓ </span></div>
+                <span class="meta muted">wants to sell you a card</span></div>
+            </div>
+
+            <div class="mt-c">
+              <span class="price big"><span class="sym">$</span><span class="maj">1,850</span></span>
+              <p class="meta muted">+ 5% fee · <b style="color:hsl(var(--foreground))">$1,942.50</b> total</p>
+              <p class="h-lead mt-s" style="font-weight:600">BGS 10 Black Label Mimikyu VMAX Alt Art</p>
+              <p class="meta muted mt-s">Graded · private invite · expires in 12 days</p>
+            </div>
+
+            <div class="card tint-trust mt-c" style="padding:var(--s-cozy);position:relative">
+              <i class="pin abs" style="right:6px;top:6px">3</i>
+              <span class="meta"><b class="trust-ink">You pay NoDitto, not the seller.</b>
+                <span class="muted">Held for 7 days after it reaches you. Not right — money back.</span></span>
+            </div>
+
+            <p class="help mt-c">★ 4.9 from 47 reviews · 62 sales · 0 disputes upheld · ID verified</p>
+          </div>
+        </div>
+        <div class="mbar" style="flex-direction:column;align-items:stretch;gap:var(--s-snug)">
+          <span class="btn btn-action w lg">Create an account and continue</span>
+          <span class="meta muted" style="text-align:center">Free · nothing charged yet · no ID needed to
+            buy</span>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>One column, one card, four facts.</b> Who is inviting you and whether they are trustworthy;
+        what the card is; what it costs in total; and that the money is protected. The five-step timeline,
+        the fee table and the separate "no ID needed" card are gone — the timeline in particular was
+        explaining a process to someone who has not yet decided they want the thing.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="keep">KEEP</span>
+        <b>"You pay NoDitto, not the seller" survives as the one protection line.</b> This is the only
+        page where a member may have no idea what the platform is, arriving from a link with no catalog
+        context and no reviews page in the flow — so one sentence of escrow has to stay even though the
+        listing page's version was cut.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">CHANGE</span>
+        <b>Credibility becomes one line of numbers, not a block.</b> Rating, sales, disputes, verified —
+        four figures on one line under the fold rather than a card competing with the price.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>The signed-out preview</b> — asking for an account before showing the deal would kill the flow —
+        the <b>14-day TTL and host revocation</b>, and <b>refusing a self-join</b>.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<p class="crumbs" style="margin-top:28px"><a href="index.html">← Board index</a> ·
+  <a href="04-comms-account.html">Next: Comms &amp; account →</a></p>
+
+</div>
+</body>
+</html>

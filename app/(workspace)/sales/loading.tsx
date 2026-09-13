@@ -19,11 +19,12 @@ export default function SalesLoading() {
         <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
       }
     >
-      <div className="min-w-0">
-        <SectionHeaderSkeleton hasMobileAction />
-        <SectionFilterSkeleton />
-        <ContractCardListSkeleton count={4} />
-      </div>
+      {/* No wrapper div: `sales/page.tsx` hangs these straight off `MarketplaceShell`,
+          and an extra node here breaks the `flex-1` chain that `ContractScopeEmptyState`
+          (`EmptyState … compact fill`) needs to claim the column's height. */}
+      <SectionHeaderSkeleton hasMobileAction />
+      <SectionFilterSkeleton labels={['Active', 'Needs you', 'Waiting', 'Past']} />
+      <ContractCardListSkeleton count={4} />
     </MarketplaceShellSkeleton>
   );
 }

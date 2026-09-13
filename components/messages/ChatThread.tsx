@@ -28,7 +28,8 @@ import { formatAud, itemImageUrl } from '@/lib/format';
 import { Avatar } from '@/components/ui/avatar';
 import { CASH_SALE_STATUS_MAP } from '@/components/sales/CashSaleStatusBadge';
 import { MessageComposer } from '@/components/messages/MessageComposer';
-import { MessageLog } from '@/components/messages/MessageLog';
+import { MESSAGE_COLUMN, MessageLog } from '@/components/messages/MessageLog';
+import { cn } from '@/lib/utils';
 
 export interface ChatThreadProps {
   /** The conversation being viewed. */
@@ -240,18 +241,55 @@ export function ChatThread({
         aria-label={`Conversation with ${displayName}`}
         aria-live="polite"
       >
-        <MessageLog
-          conversationId={conversationId}
-          messages={messages}
-          currentUserId={currentUserId}
-          counterpartyName={displayName}
-          counterpartyAvatarPath={otherAvatarPath}
-          emptyHint="No messages yet. Say hello to start the conversation."
-          shipment={shipment}
-          showAvatars
-          showReadReceipt
-        />
-        <div ref={bottomRef} />
+        {/* CAPPED, AND THE CAP IS THE POINT OF THE TWO-PANE LAYOUT'S OTHER HALF.
+            Uncapped, this column inherited the whole content width — a bubble could
+            run past 1000px on a wide viewport, which is roughly double a readable
+            measure.
+            
+            BOTTOM-ANCHORED, WHICH REVERSES AN EARLIER DECISION IN THIS FILE. A previous
+            pass bottom-anchored it, reverted, and left the reasoning above: on a thread
+            that is mostly a contract record it only moved the empty space from under the
+            content to above it, and a header floating clear of its own thread is worse
+            than a short page.
+            
+            What changed is that the empty space is no longer the same size or in the same
+            place. The thread had the full content width then; it now has a 44rem column
+            inside a pane, so a two-message thread left several hundred pixels between the
+            last bubble and the composer — the void is the loudest thing on the screen and
+            it sits exactly where a reader looks to type. Anchoring to the bottom is also
+            what every chat client does, and it is now the only reading consistent with
+            this log's own empty state, which sits just above the composer for the same
+            reason. The gap moves under the header, where it reads as "this conversation
+            is new" rather than as a gap.
+            
+            `min-h-full`, NOT `h-full`: a thread longer than the pane has to be allowed to
+            exceed it and scroll. `h-full` would clamp it to the container and clip.
+            
+            THE ANCHOR IS CONDITIONAL, and it has to be. An EMPTY thread centres its hint
+            instead — and centring cannot be left to the hint's own classes, because a
+            percentage height against this container's indefinite height resolves to auto,
+            so the hint is a single line tall and `justify-end` would park it at the bottom
+            whatever it asked for itself. The parent owns the axis, so the parent decides. */}
+        <div
+          className={cn(
+            MESSAGE_COLUMN,
+            'flex min-h-full flex-col',
+            messages.length > 0 ? 'justify-end' : 'justify-center',
+          )}
+        >
+          <MessageLog
+            conversationId={conversationId}
+            messages={messages}
+            currentUserId={currentUserId}
+            counterpartyName={displayName}
+            counterpartyAvatarPath={otherAvatarPath}
+            emptyHint="No messages yet. Say hello to start the conversation."
+            shipment={shipment}
+            showAvatars
+            showReadReceipt
+          />
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* THE TINTED DOCK IS GONE FROM THE THREAD. In the contract room that
@@ -264,15 +302,28 @@ export function ChatThread({
           holds nothing, and that is worth a line on its own — it is the only
           thing on this screen that says the conversation is not protection. */}
       {dock && !dock.underContract ? (
-        <p className="shrink-0 border-t px-group py-cozy text-body text-muted-foreground max-md:px-cozy">
-          Nothing is held while you are only talking. Make or accept an offer on
-          the listing to open a contract.
-        </p>
+        // The rule spans the pane, the sentence sits in the reading column — same
+        // division as the composer below it. Left full width, this line started at the
+        // pane's edge while every bubble above it began 40px in, which read as a
+        // different component rather than as part of the thread.
+        //
+        // A div wrapping a p, not a p with a wrapped child: a block element inside a
+        // <p> is invalid and the browser closes the paragraph early, which shows up as
+        // a hydration mismatch rather than as a layout bug.
+        <div className="shrink-0 border-t px-group py-cozy max-md:px-cozy">
+          <p className={cn(MESSAGE_COLUMN, 'text-body text-muted-foreground')}>
+            Nothing is held while you are only talking. Make or accept an offer on
+            the listing to open a contract.
+          </p>
+        </div>
       ) : null}
 
       <MessageComposer
         conversationId={conversationId}
         inputId="message-composer"
+        // Same column as the log, so the field's edges line up with the bubbles
+        // rather than running the full width of the pane underneath them.
+        contentClassName={MESSAGE_COLUMN}
         optimistic={{
           currentUserId,
           add: addOptimistic,

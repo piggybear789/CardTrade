@@ -47,6 +47,12 @@ export function MarketplaceShellSkeleton({
   flush = false,
   /** Match `MarketplaceShell.center` — short interstitials like the trade offer form. */
   center = false,
+  /**
+   * Match `MarketplaceShell.fill`. MUST be passed whenever the real route passes it: the
+   * cap is what decides how wide the content is, so a capped skeleton in front of a
+   * filled page shifts everything sideways the moment data lands.
+   */
+  fill = false,
   children,
 }: {
   title?: string;
@@ -54,6 +60,7 @@ export function MarketplaceShellSkeleton({
   filters?: ReactNode;
   flush?: boolean;
   center?: boolean;
+  fill?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -113,7 +120,8 @@ export function MarketplaceShellSkeleton({
         >
           <div
             className={cn(
-              'mx-auto flex min-h-0 w-full max-w-workspace flex-col',
+              'mx-auto flex min-h-0 w-full flex-col',
+              fill ? 'max-w-none' : 'max-w-workspace',
               center ? 'my-auto' : 'flex-1',
             )}
           >

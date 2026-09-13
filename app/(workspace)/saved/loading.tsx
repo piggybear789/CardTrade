@@ -21,10 +21,11 @@ export default function SavedLoading() {
         </RailPrimaryAction>
       }
     >
-      <div className="min-w-0">
-        <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
-        <CatalogTileGridSkeleton count={8} />
-      </div>
+      {/* No wrapper div: `saved/page.tsx` renders `SectionHeader` and
+          `WatchlistSection` as direct children of the shell, so the div that used to be
+          here was a node the real page does not have. */}
+      <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
+      <CatalogTileGridSkeleton count={8} />
     </MarketplaceShellSkeleton>
   );
 }

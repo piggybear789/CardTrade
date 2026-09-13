@@ -25,7 +25,7 @@ import { BellIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
-import { formatRelativeTime } from '@/lib/format';
+import { NotificationRowBody } from '@/components/notifications/notificationPresentation';
 import {
   Popover,
   PopoverContent,
@@ -158,36 +158,10 @@ export function NotificationBell({
                         unread && 'bg-accent/40',
                       )}
                     >
-                      <span
-                        className={cn(
-                          'mt-1.5 size-2 shrink-0 rounded-full',
-                          unread ? 'bg-destructive' : 'bg-transparent',
-                        )}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-baseline justify-between gap-2">
-                          <span
-                            className={cn(
-                              'truncate text-body',
-                              unread ? 'font-semibold' : 'font-medium',
-                            )}
-                          >
-                            {n.title}
-                          </span>
-                          <span
-                            className="shrink-0 text-meta text-muted-foreground"
-                            suppressHydrationWarning
-                          >
-                            {formatRelativeTime(n.created_at)}
-                          </span>
-                        </span>
-                        {n.body && (
-                          <span className="mt-0.5 line-clamp-2 block break-words text-body text-muted-foreground">
-                            {n.body}
-                          </span>
-                        )}
-                      </span>
+                      {/* The centre's row, term for term. The panel clamps the body
+                          because it is 28rem tall at most and three long notifications
+                          would fill it. */}
+                      <NotificationRowBody notification={n} clampBody />
                     </Link>
                   </li>
                 );

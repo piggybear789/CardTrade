@@ -44,6 +44,7 @@ import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
 import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
 import { MessageSellerButton } from "@/components/messages/MessageSellerButton";
 import {
+  GALLERY_RAIL_BAND_ML,
   ImageGallery,
   type GalleryImage,
 } from "@/components/listings/ImageGallery";
@@ -58,8 +59,8 @@ import { CloseShopfrontDialog } from "@/components/listings/CloseShopfrontDialog
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
-import { PlaceMap } from "@/components/location";
-import type { PlacePrecision } from "@/lib/location/types";
+/* `PlaceMap` and `PlacePrecision` are gone from this route: the suburb is a clause of
+   the meta line in both layouts now, not a plotted map. */
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusNotice } from "@/components/ui/status-notice";
@@ -390,7 +391,22 @@ export default async function ItemDetailPage({
           className="mb-2 hidden flex-wrap items-center justify-between gap-2 lg:flex"
           aria-label="Listing"
         >
-          <Button asChild variant="outline" size="sm">
+          {/* INSET TO SIT OVER THE PHOTO, NOT OVER THE THUMBNAIL RAIL.
+              
+              Only the back button moves. The badge cluster opposite it stays flush with
+              the content box's right edge, which is also the details column's edge, so
+              indenting the whole row would pull the badges 64px off that line to fix a
+              smaller misalignment on the other side.
+              
+              Conditional on the same thing the rail is: with one photo there is no rail,
+              the photo starts at the column's edge, and an inset here would create the
+              notch instead of removing it. */}
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className={images.length > 1 ? GALLERY_RAIL_BAND_ML : undefined}
+          >
             <Link href="/" transitionTypes={['nav-back']}>
               <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden="true" />
               Back to marketplace
@@ -415,7 +431,19 @@ export default async function ItemDetailPage({
         </nav>
 
         <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
-          <div className="hidden min-w-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
+          {/* THE GALLERY FILLS THIS COLUMN, SO THE PHOTO'S BOTTOM EDGE IS THE COLUMN'S.
+              
+              Which is the whole reason the action stack in the next column lines up with
+              the image: both columns are equal-height siblings of one `lg:flex-row`, so
+              once the photo reaches the bottom of this one, a stack pinned to the bottom
+              of that one is level with it. No padding, no offset constant.
+              
+              This needed the filmstrip to move out from under the frame — see
+              `GALLERY_SHELL`. While it sat below, this column could not both fill and end
+              at the photo, and the two attempts at squaring that (`lg:justify-center`,
+              then `lg:justify-end`) were only choosing which end of the column the
+              leftover thumbnail band showed up at. */}
+          <div className="hidden min-w-0 lg:flex lg:flex-1 lg:flex-col">
             <ViewTransition
               name={`listing-image-${item.id}`}
               share="morph"
@@ -424,6 +452,11 @@ export default async function ItemDetailPage({
               <ImageGallery
                 images={images}
                 title={listingTitle}
+                // Thumbnails under the frame. For a graded card the photo set is the
+                // evidence a buyer is reading — the back, the corners, the slab label —
+                // and paging through nine images with the «1/9» pill to reach one of
+                // them is the wrong cost for the most-scrutinised part of the page.
+                filmstrip
                 emptyHint={
                   isOwner
                     ? 'Add a photo so buyers can see the card.'
@@ -433,7 +466,18 @@ export default async function ItemDetailPage({
             </ViewTransition>
           </div>
 
-          <div className="flex min-w-0 flex-col pt-3 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-7 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          {/* NO BOTTOM PADDING AT `lg`, SO THE ACTION BLOCK ENDS WHERE THE PHOTO DOES.
+              
+              `ListingDesktopPane` pins its action stack to this column's bottom edge with
+              `mt-auto`, and the gallery beside it now fills its own column, so both end
+              on the row's bottom line by construction.
+              
+              The `lg:pb-7` this replaced was 28px of padding the gallery column did not
+              have, so the two content boxes finished 28px apart for no reason a reader
+              could see. It existed for the scrolling case — a long description otherwise
+              ends flush against the cut — and that belongs on the action stack itself,
+              where it does not shift the resting layout. */}
+          <div className="flex min-w-0 flex-col pt-3 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="lg:hidden">
               <ListingDetailStack
                 title={listingTitle}
@@ -443,6 +487,7 @@ export default async function ItemDetailPage({
                 category={item.category}
                 isShopfront={isShopfront}
                 locationLabel={item.location_label}
+                createdAt={item.created_at ?? null}
                 watchCount={watchCount}
                 isOwner={isOwner}
                 sellerId={item.owner_id}
@@ -465,7 +510,7 @@ export default async function ItemDetailPage({
                       <ImageGallery
                         images={images}
                         title={listingTitle}
-                        appearance="stack"
+                        appearance="carousel"
                       />
                     </div>
                   ) : null
@@ -487,20 +532,11 @@ export default async function ItemDetailPage({
                 </div>
               ) : null}
 
-              {item.location_label ||
-              (item.location_lat != null && item.location_lng != null) ? (
-                <section aria-label="Based near" className="mt-4">
-                  <PlaceMap
-                    lat={item.location_lat}
-                    lng={item.location_lng}
-                    label={item.location_label}
-                    precision={
-                      (item.location_precision as PlacePrecision | null) ?? 'suburb'
-                    }
-                    presentation="inline"
-                  />
-                </section>
-              ) : null}
+              {/* The inline "Based near" map was here. The suburb is now a clause of the
+                  meta line under the price, in both layouts — same fact, no 224px image
+                  and no Maps request on a page that already loads up to ten photos. The
+                  listing form only ever collected suburb precision, so plotting it was
+                  never telling a buyer more than the name did. */}
 
               {/* Phones get Report in the header instead; the desktop pane has
                   its own. This covers only the band between, where neither the
@@ -549,11 +585,7 @@ export default async function ItemDetailPage({
               sellerRatingCount={sellerRow?.rating_count ?? undefined}
               sellerIdentity={sellerIdentity}
               locationLabel={item.location_label}
-              locationLat={item.location_lat}
-              locationLng={item.location_lng}
-              locationPrecision={
-                (item.location_precision as PlacePrecision | null) ?? 'suburb'
-              }
+              createdAt={item.created_at ?? null}
             >
               {renderListingActions('message-seller-heading-desktop')}
             </ListingDesktopPane>
@@ -764,18 +796,30 @@ function ItemActions({
     }
 
     return (
-      <div className="grid grid-cols-3 gap-2">
-        <Button asChild variant="outline" className="min-w-0 w-full px-2">
+      // `size="lg"` (40px on touch, 36px from `md`), NOT the default. These three
+      // are the whole of what an owner came to this page to do, and at the default
+      // `md:h-7` they were 28px of height stretched across a third of the column
+      // each — the aspect ratio is what read as too thin, not the height alone.
+      // `lg` is also exactly what `ListingOwnerBar` already draws on a phone, so
+      // the two owner surfaces now agree instead of being 40px and 28px.
+      //
+      // `[1fr_1fr_auto]`, NOT `grid-cols-3`. Delete is `compact` — icon only, no
+      // label — so an equal third made it a wide red slab with one small glyph in
+      // the middle. An `auto` track sizes it to its content, which is the same
+      // shape `ListingOwnerBar` uses and for the same reason.
+      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+        <Button asChild variant="outline" size="lg" className="min-w-0 w-full px-2">
           <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
             <HugeiconsIcon icon={PencilIcon} aria-hidden />
             <span className="truncate">Edit</span>
           </Link>
         </Button>
-        <CopyTradeLink itemId={itemId} className="min-w-0 w-full px-2" />
+        <CopyTradeLink itemId={itemId} size="lg" className="min-w-0 w-full px-2" />
         <DeleteListingDialog
           itemId={itemId}
           itemTitle={itemTitle}
-          className="min-w-0 w-full px-2"
+          size="lg"
+          className="min-w-0 px-3"
           compact
         />
       </div>

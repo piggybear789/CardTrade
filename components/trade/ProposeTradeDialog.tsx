@@ -124,9 +124,8 @@ export function ProposeTradeDialog({
           <>
             <DialogHeader className="gap-snug">
               <div className="flex items-center gap-snug">
-                <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
                 <div className="min-w-0 space-y-1.5">
-                  <DialogTitle>Verify to trade</DialogTitle>
+                  <DialogTitle>Verify your identity to trade</DialogTitle>
                   <DialogDescription className="text-pretty leading-relaxed">
                     {identityGateDescription(viewerVerification!, 'trade')}
                   </DialogDescription>

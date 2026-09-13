@@ -47,7 +47,7 @@ export function DialogRow({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-body font-medium transition-colors hover:border-iris/50 hover:bg-muted focus-visible:border-iris focus-visible:outline-none',
+        'flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-body font-medium transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:border-iris focus-visible:outline-none',
         invalid && 'border-destructive',
       )}
     >

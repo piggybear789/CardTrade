@@ -20,10 +20,9 @@ export default function MyListingsLoading() {
         <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
       }
     >
-      <div className="min-w-0">
-        <SectionHeaderSkeleton hasMobileAction />
-        <CatalogTileGridSkeleton count={8} hasSeller={false} />
-      </div>
+      {/* No wrapper div — see the note in `saved/loading.tsx`. */}
+      <SectionHeaderSkeleton hasMobileAction />
+      <CatalogTileGridSkeleton count={8} hasSeller={false} />
     </MarketplaceShellSkeleton>
   );
 }

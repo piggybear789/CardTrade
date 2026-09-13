@@ -90,7 +90,7 @@ function MediaTile({
 
   if (!url) {
     return (
-      <div className="grid aspect-square place-items-center rounded-lg border border-dashed bg-muted text-muted-foreground">
+      <div className="grid aspect-square place-items-center rounded-lg border border-border bg-muted text-muted-foreground">
         <span className="px-2 text-center text-body leading-tight">
           Attachment unavailable
         </span>

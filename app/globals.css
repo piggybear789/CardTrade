@@ -42,29 +42,69 @@
        is a card" and it keeps its surface.
        
        THE RAMP, top to bottom:
-         background / card / popover  100   paper
-         sidebar                       96   the rail, below the page
-         muted/secondary               95   grouping tint ON card
-         accent                        92   selected tint
-         border                        85   the hairline
+         card / popover                100   an object ON the page
+         background                     98   paper, faintly tinted
+         sidebar                      95.5   the rail, below the page
+         muted/secondary                95   grouping tint ON card
+         accent                         92   selected tint
+         border                         88   the hairline
        
        THE NEUTRAL RAMP IS TINTED TOWARD THE ACCENT, NOT AWAY FROM IT. Muted,
        border, input, sidebar and mist all carry a few points of chroma at 275° —
        the lilac's own hue — so the greys read as part of the palette instead of
-       as a second, unrelated cool family. The page is the deliberate exception:
-       paper is white.
+       as a second, unrelated cool family.
+       
+       THE PAGE IS NOW TINTED, AND THAT REVERSES WHAT THIS COMMENT USED TO SAY.
+       It read "the page is the deliberate exception: paper is white", and the three
+       numbered notes above still describe why that was safe — the hairline, the
+       muted tint and ink weight took over the separating work. That argument was
+       about a page tint being a SUBSTITUTE for those things. It is not one here:
+       the hairline stays at its darker value and the ink weight is unchanged, so
+       nothing has been given up. What the tint buys is the pastel character the
+       palette is now built around, and it restores the one thing white paper could
+       never give — a card at 100% has a surface to sit above, rather than being an
+       object identified solely by a 1.5:1 edge.
+       
+       Two points of lightness is the whole change (100 → 98). Anything deeper and
+       `--muted` at 95 stops reading as a tint on paper and starts reading as the
+       same colour as the page.
        
        `--background` mirrors into `app/manifest.ts` (`background_color`) and
-       `app/layout.tsx` (`viewport.themeColor`) as the literal `#ffffff`. */
-    --background: 0 0% 100%;
+       `app/layout.tsx` (`viewport.themeColor`) as the literal `#fbf8fc`. Measured
+       ratios throughout this file come from `scripts/palette-contrast.mjs`; run it
+       after changing any value here. */
+    --background: 280 44% 98%;
     --card: 0 0% 100%;
     --popover: 0 0% 100%;
-    --sidebar: 275 16% 96%;
+    --sidebar: 280 34% 95.5%;
 
-    /* ONE NEAR-BLACK. Header, body ink, and inverse surfaces all read this.
-       Do not invent a second one — opacity is how it lightens. */
+    /* ONE DARK PLUM. Header, body ink, and inverse surfaces all read this.
+       Do not invent a second one — opacity is how it lightens.
+       
+       BACK TO NEAR-BLACK, AND THE ARGUMENT FOR LIFTING IT IS RECORDED BECAUSE IT
+       LOST ON LOOK RATHER THAN ON MEASUREMENT. The pastel retune took this to
+       `276 26% 16%`, reasoning that at 7% it was effectively black with a hint of
+       violet and read as a separate, harder design language bolted onto the top of a
+       pastel page. That is a fair description of what 7% is. It just turns out to be
+       what this product wants: the dark bar is chrome, not content, and a near-black
+       bar over a pastel page reads as a frame around the interface rather than as a
+       competing surface. 16% read washed out — a dark grey-violet that neither
+       committed to being black nor belonged to the tints below it.
+       
+       So this is the committed value again, restored deliberately. If it is ever
+       lifted a second time, the thing to check is not contrast — it has enormous
+       headroom either way — but whether the bar still reads as a frame.
+       
+       `--foreground` DOES NOT FOLLOW IT BACK. The retune moved body ink 12% → 17%
+       alongside the header, on the grounds that pastel surfaces under
+       12%-lightness ink look like two different products, and that reasoning is
+       untouched by the header going dark again: ink sits ON the pastel page, the
+       header sits above it, and they are answering different questions. 17% keeps
+       body copy at 14.30:1 on the page. The one dark plum rule still holds for
+       everything that IS chrome — header, overlays, letterboxing, the `contrast`
+       button — and opacity is still how it lightens. */
     --obsidian: 275 16% 7%;
-    --foreground: 275 10% 12%;
+    --foreground: 276 22% 17%;
     --card-foreground: var(--foreground);
     --popover-foreground: var(--foreground);
 
@@ -79,34 +119,63 @@
        tinted page was the worst case for all three and it is gone, so each of
        these has slightly more headroom than the figures below claim:
 
-         --primary   fills that carry white text   white 6.72:1
-         --iris-ink  lilac AS text                 on page 4.94:1
-         --iris      rings, borders, markers       on page 3.73:1 (non-text) */
-    --primary: 275 38% 44%;
+         --primary   fills that carry white text   white 5.91:1
+         --iris-ink  lilac AS text                 on page 6.14:1
+         --iris      rings, borders, markers       on page 3.85:1 (non-text)
+       
+       SOFTENED, NOT PASTELLED. `--primary` went 38%/44% → 34%/47%, which is as light
+       as it can be while white label text still clears 4.5:1. It is NOT a pastel
+       fill, and that is a constraint rather than a preference:
+       `--primary-foreground` is used as a stand-in for white on the obsidian header
+       (`SiteHeader`), on the near-black selected chips (`GenrePills`,
+       `CatalogControls`) and on the iris count badge (`mobile-chrome/variants`), so
+       inverting it to ink would turn all of those dark-on-dark. The pastel character
+       comes from the neutrals and from `--accent`, which IS the pastel violet
+       surface. If a pastel primary is ever wanted, those five call sites have to move
+       to `text-white` first. */
+    --primary: 276 34% 47%;
     --primary-foreground: 0 0% 100%;
-    --iris: 275 34% 58%;
-    /* 52% → 51%. WCAG: the ramp pass darkened `--muted` from 96 to 95, and at
-       52% this measured 4.40:1 as text on it — under the 4.5 floor. One point
-       darker restores it (4.58:1 on muted, 4.94 on page, 5.19 on card) and is
-       imperceptible anywhere else. */
-    --iris-ink: 275 34% 51%;
+    /* NOT lightened into the pastel range, and this is where the retune holds its
+       nerve. `border-iris` at full opacity IS the focus indicator (see `--border`
+       below), so it owes 3:1 against both the page and a card. A 70% lilac — which is
+       what "pastel" would want — measures 2.46:1 and fails. `--accent` is the pastel
+       violet SURFACE; this is the marker. */
+    --iris: 277 42% 58%;
+    /* 51% → 45%, and slightly more chroma. The binding constraint is this used as
+       text on `--muted`, which is the worst case of the four surfaces it lands on;
+       at 45% that measures 5.84:1, with 6.14 on the page and 6.48 on a card. The
+       extra depth also keeps it clearly distinct from `--iris` now that the two are
+       only 13 points apart in lightness. */
+    --iris-ink: 277 40% 45%;
 
-    --secondary: 275 20% 95%;
-    --secondary-foreground: 275 25% 28%;
-    /* Grouping tint — a whisper, not a slab. Do not wash with /20 or /30. */
-    --muted: 275 20% 95%;
-    --muted-foreground: 275 8% 42%;
+    --secondary: 281 32% 95%;
+    --secondary-foreground: 277 26% 32%;
+    /* Grouping tint — a whisper, not a slab. Do not wash with /20 or /30.
+       Kept ONE point above the page (96 vs 98) so it still reads as a tint on paper.
+       Any deeper and the two surfaces merge. */
+    --muted: 283 34% 96%;
+    --muted-foreground: 277 12% 44%;
     /* The selected-state pair. Use `bg-accent text-accent-foreground` for
        "current" — NOT a low-alpha primary wash, which measures ~1.1:1 and is
        invisible. The tint alone is only 1.14:1 against the page; the TEXT is
        what carries the state, at 5.49:1. */
-    --accent: 278 46% 92%;
-    --accent-foreground: 275 38% 44%;
+    --accent: 280 48% 92%;
+    --accent-foreground: 277 40% 40%;
 
-    /* The theme's hue and saturation (0, 80%) at a lightness that clears both
-       jobs. Stock #eb4f4f is 3.53:1 as text and 3.58:1 under white — it fails
-       in both directions. At 40% lightness it is 6.46:1 and 6.67:1. */
-    --destructive: 0 80% 40%;
+    /* 0° → 352°, AND THIS IS THE ONE HUE THAT MOVED.
+       
+       `--action` sits at 40°, so pure red was only 40° from it — the tightest gap in
+       the entire palette, between the two tokens carrying the most opposed meanings
+       in the product: "this is your move" and "this went wrong". Every other pair sits
+       76–130° apart. 352° opens that gap to 50° and pulls red into the 275°-tinted
+       family the neutrals already live in, so it reads as this palette's red rather
+       than as the browser's.
+       
+       Lightness went 40% → 45%, which is as light as white label text allows: 5.98:1
+       on the button, 5.66:1 as text on the page, 5.39:1 as text on `--muted`. Hue
+       rotation at constant S/L barely moves luminance, so the ratios the old comment
+       recorded still hold in kind. */
+    --destructive: 352 62% 45%;
     --destructive-foreground: 0 0% 100%;
 
     /* ONE hairline for dividers and card edges. --input is the semantic alias
@@ -125,12 +194,15 @@
        only thing saying it is an object. Three points darker takes it from 1.36:1
        to 1.51:1 on white — still a hairline rather than a rule, but it holds a
        container together instead of dissolving into it. */
-    --border: 275 18% 85%;
-    /* 60%, i.e. 3.30:1 against white — clear of the 3:1 floor in SC 1.4.11 with
-       room to spare. Left where it is now the page is back to white: it was
-       tightened from 62% when the page dropped to 98% and measured 2.88:1, and
-       the extra margin costs nothing. */
-    --input: 275 20% 60%;
+    /* 85 → 88, and more chroma. The surface step is back, so the hairline no longer
+       has to be the ONLY thing making a card an object — it can go back to being a
+       hairline rather than a rule. */
+    --border: 281 26% 88%;
+    /* 60% → 59%. A field's border is the only thing identifying it as a control, so it
+       owes the full 3:1 against the PAGE — and the page is tinted again, which is the
+       worse of the two surfaces. 3.36:1 on the page, 3.55:1 on a card. This is the
+       exact trap the previous comment describes falling into at 62%. */
+    --input: 277 26% 59%;
     --ring: var(--iris);
 
     /* Teal for verified identity and provenance only, never decoration.
@@ -140,8 +212,16 @@
        4.41:1, 172 68% 32% is 4.15:1) and the only lighter one that passes,
        186 78% 30%, closes the hue gap to the violet from 77° to 64°. This
        value wins on both axes at 5.26:1 and 77°. Changing it would have been
-       cosmetic. */
-    --trust: 173 80% 26%;
+       cosmetic.
+       
+       LIFTED FOR THE PASTEL RETUNE: 173/80/26 → 172/54/30. The hue argument above is
+       untouched — 172° is within a degree and the gap to the violet is now 104°. What
+       changed is that 26% lightness at 80% saturation is a near-black teal, which is
+       the same problem `--obsidian` had: it was the darkest, hardest colour on a page
+       otherwise made of tints. The binding constraint is `text-trust` on `--muted`,
+       not the button: at 30% that measures 4.89:1, and white on the trust button
+       clears at 5.43:1. Going lighter fails the muted case first. */
+    --trust: 172 54% 30%;
     /* "This is your move" — the buy bar, the cash-sale room, accept-with-photo.
        
        PASTEL AMBER, NOT SAFETY ORANGE. This was `32 96% 52%`, a saturated
@@ -157,17 +237,30 @@
        WHAT IT COST is the fill's own edge. At 52% lightness the fill was 2.31:1
        against the page and could pass as its own boundary; a pastel is 1.55:1
        and cannot. That is what `--action-border` is for — see below. A pastel
-       fill with no defined edge is a tag, not a button. */
-    --action: 40 96% 68%;
-    --action-foreground: var(--obsidian);
+       fill with no defined edge is a tag, not a button.
+
+       THE RETUNE BARELY TOUCHED THIS, because it was already the one pastel in the
+       old palette — which was itself the disharmony: a single soft amber among four
+       dark saturated accents. Now that the rest of the palette has come up to meet
+       it, it only needed 40° → 42° and 68% → 78%, the latter because the page is no
+       longer white and a 68% fill against a 98% page had less separation than it did
+       against 100%. The label is now a warm dark brown rather than `--obsidian`: on a
+       pastel amber, plum-black ink read as a borrowed colour. 9.32:1. */
+    --action: 42 92% 78%;
+    --action-foreground: 30 60% 18%;
     /* The action control's EDGE, and the reason the pastel is allowed to be
        pastel. Same hue, dark enough to clear the 3:1 in SC 1.4.11 against the
        page (3.09:1), which is the floor for the boundary of a control when the
-       fill itself does not meet it. */
-    --action-border: 38 88% 42%;
+       fill itself does not meet it.
+
+       Darkened 42% → 40% with slightly less chroma. The fill went lighter and the page
+       went off white, so both ends of this ratio moved the wrong way: at 42% it
+       measured 2.86:1 and failed. 3.32:1 now. */
+    --action-border: 38 82% 40%;
     /* Light tint for text and fills on the dark header, in the same 275° family
-       as everything else. 16:1 on the header. */
-    --mist: 275 20% 93%;
+       as everything else. 13:1 on the header — the header itself lightened, so this
+       lost headroom it did not need. */
+    --mist: 280 34% 93%;
 
     --radius: 0.5rem;
     --duration-exit: 150ms;
@@ -182,6 +275,47 @@
   * {
     @apply border-border;
   }
+
+  /* WHERE THE VIOLET IS ALLOWED, AND WHERE IT IS NOT.
+     
+     The palette above defines three lilacs and says what each is for. It does not
+     say how often to reach for them, and the answer drifted: by the time this note
+     was written, twenty-odd containers drew their EDGE in `--iris` — action cards,
+     arbitration cards, shopfront notices, countdowns, fulfilment tiles — and
+     fifteen more turned purple on hover. None of those was a state; each was one
+     component deciding it was important. The cumulative effect is that nothing
+     reads as important, and the one place the violet edge genuinely means something
+     (focus) has to compete with decoration wearing the same colour.
+     
+     So, the rule:
+     
+       Violet FILLS, TINTS, and MARKS. It does not draw a container's edge.
+     
+     ALLOWED as a border, and only these:
+       - `focus-visible:border-iris` — the focus indicator. This is why `--iris` is
+         not lightened into the pastel range (see the token comment): it owes 3:1
+         against both the page and a card. It is the reason the rule exists rather
+         than an exception to it.
+       - the CURRENT step of a progress rail or spine, and the SELECTED thumbnail in
+         a gallery strip — a marker for "you are here", which is a state.
+       - a slider THUMB, where the ring is the only thing locating the handle on its
+         track. Neutralising it would hide the one part of the control you drag.
+       - the edge of a filled control, where the border is the same colour as the
+         fill it wraps (`border-primary bg-primary`). That is not a violet border;
+         it is a violet button with a defined boundary.
+       - tone chips and pills, where the 1px edge IS the shape of the object rather
+         than the frame around a region. `--trust` does the same on its own chips.
+     
+     NEUTRAL otherwise: containers take `--border`, hover takes `--foreground` at a
+     low alpha. Keep the violet TINT where a panel needs to read as informational —
+     a wash carries that perfectly well without the frame.
+     
+     NO DASHED BORDERS. Dashed was carrying four unrelated jobs — empty state, file
+     dropzone, unavailable image, simulated-provider quarantine — which means it
+     signalled none of them, and at every one of those call sites the copy or the
+     icon already said the thing the dashes were meant to imply. A dashed 1px line
+     is also visually noisier than a solid one at the same value, which is the
+     opposite of what a placeholder wants. */
 
   /* Native controls sit on the flex cross-axis so a wrapping label does not
      leave the box hanging off the first line. `sr-only` radios are taken out
@@ -229,9 +363,13 @@
        used to sit under this were drawn at 1.8% ink — below the perceptual
        floor on any display, so they cost a paint and delivered nothing. They
        belonged to the warm auction-ledger identity this palette replaces. */
+    /* Halved from /0.09 to /0.045 now that the page carries its own tint. Against
+       white the bloom was the only colour on an empty page and had to work for it;
+       against a tinted page the two stack, and at the old strength the top-left
+       corner read as a different surface from the bottom-right. */
     background-image: radial-gradient(
       circle at 8% 0%,
-      hsl(var(--iris) / 0.09),
+      hsl(var(--iris) / 0.045),
       transparent 26rem
     );
   }
@@ -322,8 +460,15 @@
     background-color: hsl(var(--accent));
   }
 
-  /* Hackathon / simulated-provider controls — dashed violet quarantine, never
-     product chrome. */
+  /* Hackathon / simulated-provider controls — violet quarantine, never product
+     chrome.
+     
+     SOLID, NOT DASHED. The dashes were meant to say "this is not real", but they
+     said the same thing as an empty state and a file dropzone, and the panel
+     already carries a "Test mode" heading plus a violet wash no product surface
+     uses. The border is also the one place the quarantine can afford full-strength
+     iris under the border rule above: this is not product chrome, so it is not
+     bound by the rule that keeps product containers neutral. */
   .cardtrade-demo {
     border-color: hsl(var(--iris) / 0.55);
     background-color: hsl(var(--iris) / 0.07);

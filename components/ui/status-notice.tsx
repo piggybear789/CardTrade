@@ -23,7 +23,7 @@ export function StatusNotice({
     <div
       role="status"
       className={cn(
-        'flex flex-col gap-group rounded-lg border border-dashed border-border bg-muted px-group py-group',
+        'flex flex-col gap-group rounded-lg border border-border bg-muted px-group py-group',
         className,
       )}
     >

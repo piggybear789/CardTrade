@@ -60,7 +60,14 @@ function LocationRow({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1 text-body font-semibold underline-offset-4 hover:underline"
+          // `min-h-11 md:min-h-6` — a TARGET SIZE fix, not a style choice. As a bare
+          // `<a>` this was its text box and nothing more: `text-body` at 1.6 is
+          // 22.4px, under the 24x24 CSS pixels WCAG 2.2 SC 2.5.8 asks for, so it
+          // was the one control in the app actually failing the floor rather than
+          // merely sitting near it. 44px on touch is the pattern the recovery link
+          // in `AuthFormSkeleton` already uses; `md:min-h-6` clears the floor on a
+          // precise pointer without turning a fact row into a button.
+          className="inline-flex min-h-11 shrink-0 items-center gap-1 text-body font-semibold underline-offset-4 hover:underline md:min-h-6"
         >
           Open in Maps
           <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
@@ -106,7 +113,7 @@ export function PlaceMap({
     return (
       <div
         className={cn(
-          'flex items-center justify-center rounded-lg border border-dashed border-border bg-muted text-body text-muted-foreground',
+          'flex items-center justify-center rounded-lg border border-border bg-muted text-body text-muted-foreground',
           'h-14',
           className,
         )}
@@ -186,7 +193,9 @@ export function PlaceMap({
           href={externalUrl!}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-tight text-body font-semibold underline-offset-4 hover:underline"
+          // `min-h-11 md:min-h-6`, same reason as the `inline` variant above: a
+          // bare `<a>` is 22.4px tall, under SC 2.5.8's 24px floor.
+          className="inline-flex min-h-11 items-center gap-tight text-body font-semibold underline-offset-4 hover:underline md:min-h-6"
         >
           Open in Maps
           <HugeiconsIcon icon={ExternalLinkIcon} className="h-3.5 w-3.5" aria-hidden />

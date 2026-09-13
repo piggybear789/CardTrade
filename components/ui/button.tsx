@@ -67,10 +67,16 @@ const buttonVariants = cva(
           "border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80",
         destructive:
           "border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
+        // `hover:border-foreground/20`, not a violet edge. These two are the
+        // QUIET variants — the ones used where `default` would be too loud — and
+        // turning their border violet on hover put them back in the primary's
+        // colour at the exact moment the pointer was on them. The hover state is
+        // carried by the fill (`bg-accent` / `bg-secondary/75`); the edge only has
+        // to firm up.
         outline:
-          "border border-border bg-card/80 text-foreground hover:border-iris/50 hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
+          "border border-border bg-card/80 text-foreground hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
         secondary:
-          "border border-border bg-secondary text-secondary-foreground hover:border-iris/50 hover:bg-secondary/75 active:bg-secondary/60",
+          "border border-border bg-secondary text-secondary-foreground hover:border-foreground/20 hover:bg-secondary/75 active:bg-secondary/60",
         ghost:
           "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground",
         link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80",
@@ -83,8 +89,17 @@ const buttonVariants = cva(
         //
         // `lg` is the exception at 40px, and it is the only size that should
         // ever be the biggest thing on a screen.
-        default: "h-9 px-3 py-1.5 md:h-7 md:px-2.5",
-        sm: "h-8 rounded-md px-2.5 md:h-6 md:px-2",
+        // DESKTOP WENT 28px -> 32px WHEN `body` WENT 13px -> 14px, and the two are
+        // the same decision. A 28px control less its 2px border and 8px of `py-1.5`
+        // is an 18px content box; a 14px line at 1.6 is 22.4px. The text was larger
+        // than the box holding it, which is what reads as cramped — there was no
+        // breathing space above or below the glyphs. At 32px the content box is 22px
+        // and the line finally fits.
+        //
+        // Still a density split (32px pointer / 36px touch), just an honest one. If
+        // the type scale moves again, this is the first thing to re-derive.
+        default: "h-9 px-3 py-1.5 md:h-8 md:px-2.5",
+        sm: "h-8 rounded-md px-2.5 md:h-7 md:px-2",
         lg: "h-10 rounded-md px-5 md:h-9",
         icon: "size-8 md:size-7",
       },

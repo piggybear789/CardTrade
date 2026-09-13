@@ -19,17 +19,22 @@ export function ListingOwnerBar({
 }) {
   return (
     <div className="fixed inset-x-0 z-30 grid grid-cols-[1fr_1fr_auto] gap-2 border-t border-border bg-card px-3 pb-2 pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]">
-      <Button asChild variant="outline" className="h-10 w-full">
+      {/* `size="lg"` rather than `className="h-10"`. Same 40px on a phone, but it
+          names the token, so this bar and the in-flow owner row in
+          `listings/[id]/page.tsx` can no longer drift apart the way they had —
+          40px here against the default 28px there. */}
+      <Button asChild variant="outline" size="lg" className="w-full">
         <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
           <HugeiconsIcon icon={PencilIcon} aria-hidden />
           Edit
         </Link>
       </Button>
-      <CopyTradeLink itemId={itemId} className="h-10 w-full" />
+      <CopyTradeLink itemId={itemId} size="lg" className="w-full" />
       <DeleteListingDialog
         itemId={itemId}
         itemTitle={itemTitle}
-        className="h-10 px-3"
+        size="lg"
+        className="px-3"
         compact
       />
     </div>

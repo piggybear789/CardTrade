@@ -22,7 +22,8 @@ export const TRADE_STATUS_MAP: ContractStatusMap<TradeState> = {
   COLLATERAL_LOCKED: { label: 'Collateral locked', tone: 'default' },
   IN_TRANSIT: { label: 'In transit', tone: 'default' },
   INSPECTION: { label: 'Inspection', tone: 'default' },
-  COMPLETED: { label: 'Completed', tone: 'default' },
+  // Teal, matching `CASH_SALE_STATUS_MAP`. See the `trust` variant in `ui/badge`.
+  COMPLETED: { label: 'Completed', tone: 'trust' },
   DISPUTED: { label: 'Disputed', tone: 'destructive' },
   FRAUD_RESOLVED: { label: 'Fraud resolved', tone: 'destructive' },
   // Declined or withdrawn before terms were agreed. Neutral tone on purpose:

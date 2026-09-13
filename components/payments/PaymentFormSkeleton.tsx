@@ -23,8 +23,10 @@ export function PaymentFormSkeleton() {
           methods enabled on the account, so this reserves the common case rather
           than pretending to know it. */}
       <Skeleton className="h-60 w-full rounded-md" />
-      {/* Save card — a default `Button`, so 36px below `md`. */}
-      <Skeleton className="h-9 w-full rounded-md" />
+      {/* Save card — a default `Button`: 36px on touch, 32px from `md`. The `md`
+          height moved 28px -> 32px when `body` became 14px, so a flat `h-9` here now
+          stands 4px proud of the control it replaces on a pointer. */}
+      <Skeleton className="h-9 w-full rounded-md md:h-8" />
       {/* `ProcessorNote`, which wraps to two lines at phone width. */}
       <TextLines
         className="text-center text-body leading-relaxed"

@@ -42,15 +42,65 @@ export interface GalleryImage {
  * over max-height, so the frame never collapses.
  */
 const FRAME_HEIGHT =
-  'h-full min-h-[min(14rem,36dvh)] max-h-[calc(100dvh-10rem-env(safe-area-inset-top))] md:min-h-[min(22rem,55dvh)] lg:min-h-[22rem] lg:max-h-[calc(100%-3.5rem)]';
+  'h-full min-h-[min(14rem,36dvh)] max-h-[calc(100dvh-10rem-env(safe-area-inset-top))] md:min-h-[min(22rem,55dvh)] lg:min-h-[22rem] lg:max-h-full';
 
 /** Flutter listing photo: 350px cover, edge-to-edge on a phone. */
 const COVER_FRAME =
-  'h-[min(350px,70dvh)] w-full lg:h-full lg:min-h-[22rem] lg:max-h-[calc(100%-3.5rem)]';
+  'h-[min(350px,70dvh)] w-full lg:h-full lg:min-h-[22rem] lg:max-h-full';
 
 /** Empty cover stays shorter so price and description sit above the thumb chrome. */
 const COVER_EMPTY_FRAME =
-  'h-[min(11.5rem,42dvh)] w-full lg:h-full lg:min-h-[22rem] lg:max-h-[calc(100%-3.5rem)]';
+  'h-[min(11.5rem,42dvh)] w-full lg:h-full lg:min-h-[22rem] lg:max-h-full';
+
+/**
+ * Frame plus filmstrip, side by side from `lg` with the strip as a rail to the LEFT of the
+ * photo.
+ *
+ * THE SIDE RAIL IS WHAT MAKES THE PHOTO'S BOTTOM EDGE THE COLUMN'S BOTTOM EDGE. While the
+ * strip sat underneath, the gallery column ended one thumbnail band lower than the photo
+ * did, so the listing page's action stack — pinned to the bottom of the column beside it —
+ * finished 64px below the image no matter what that column was told to do. Every fix on
+ * that side was a correction after the fact: centring the gallery left slack under the
+ * strip, bottom-aligning it moved the slack above the photo, and padding the details
+ * column by the band's height put the same 4rem in two files to be kept in step by hand.
+ * Beside the frame, the strip occupies width instead of height and the mismatch does not
+ * exist to correct.
+ *
+ * It also reads better at this size: a 3.5rem rail costs a rounding error of width on a
+ * `lg` viewport, and a vertical strip can show eight or nine thumbnails at once where a
+ * horizontal one under a wide frame shows four and hides the rest behind a scroll.
+ *
+ * The rail is centred against the photo rather than hung from its top edge, so a listing
+ * with three photos reads as a pair of centred blocks instead of a short strip and a tall
+ * gap. `items-stretch` is therefore deliberately absent from the shell — the rail sets its
+ * own cross-axis alignment.
+ *
+ * IN PRACTICE THIS IS ALWAYS THE `lg` ROW. The only caller that opts into a filmstrip is
+ * the listing page's desktop pane, which is itself `hidden lg:flex`; a phone gets the
+ * `carousel` appearance, which has no strip at all. The column direction below `lg` is a
+ * defensible default for a future narrower caller rather than a layout that ships — worth
+ * knowing before reading the stacked classes as evidence of a phone design.
+ */
+const GALLERY_SHELL = 'flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-snug';
+
+/**
+ * The horizontal band the rail occupies at `lg`: its `w-14` plus the shell's `gap-snug`,
+ * so `3.5rem + 0.5rem = 4rem`. Applied as a left margin by anything that needs to line up
+ * with the PHOTO rather than with the gallery column's left edge.
+ *
+ * THE RAIL MADE THOSE TWO EDGES DIFFERENT. Everything in the listing header brackets the
+ * page's content box, and so does the gallery column — but the column's first child is now
+ * the rail, so the photo starts one band inboard and the back button above it no longer
+ * sits over the thing it goes back from. 64px is small enough to read as a mistake rather
+ * than as a margin, which is worse than a large gap would be.
+ *
+ * This is shared geometry in the sense `ROW_GRID` and `CONTRACT_ROW_GRID` already are: two
+ * elements in different files aligning to one line. It is NOT the `pb` constant this file
+ * used to export, which existed to cancel out a layout the structure got wrong — moving
+ * the rail deleted the need for that one, and no structural change removes the need for
+ * this one short of making the whole hero a single grid.
+ */
+export const GALLERY_RAIL_BAND_ML = 'lg:ml-16';
 
 /** Horizontal travel (px) that counts as a swipe, not a tap-to-enlarge. */
 const SWIPE_THRESHOLD_PX = 40;
@@ -65,22 +115,38 @@ export function ImageGallery({
   /** Override the listing page's viewport-tuned frame for embedded surfaces. */
   frameClassName,
   /**
-   * `stage` — mosaic + contain (contracts, peeks).
+   * `stage` — mosaic + contain (contracts, peeks, the desktop listing).
    * `cover` — full-bleed photo like the Flutter listing, with page dots.
-   * `stack` — one full-width frame per photo, natural aspect, no crop.
+   * `carousel` — one photo at a time, swiped horizontally, with dots. Phones.
    */
   appearance = 'stage',
   emptyHint,
+  filmstrip = false,
 }: {
   images: GalleryImage[];
   title: string;
   frameClassName?: string;
-  appearance?: 'stage' | 'cover' | 'stack';
+  appearance?: 'stage' | 'cover' | 'carousel';
   /** Cover empty-state copy. Owners get a prompt to add a photo. */
   emptyHint?: string;
+  /**
+   * Show a row of thumbnails under the frame, each jumping straight to that photo.
+   *
+   * OPT-IN rather than automatic on `stage`, because `stage` is also the contract room's
+   * item panel and a peek — surfaces where the photo is a reference, not the evidence.
+   * The listing page turns it on: for a graded card the photo set IS the valuation, and a
+   * buyer wanting the back or the slab label should not have to page through eight images
+   * to reach it.
+   *
+   * Turning this on also puts the gallery in {@link GALLERY_SHELL}, which from `lg` lays
+   * the strip out as a rail to the left of the frame. That is a layout contract with the
+   * caller as much as a look: the shell is `flex-1`, so the element handed to it should be
+   * a flex child that is allowed to grow.
+   */
+  filmstrip?: boolean;
 }) {
   const isCover = appearance === 'cover';
-  const isStack = appearance === 'stack';
+  const isCarousel = appearance === 'carousel';
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Track image URLs that fail to load so we can swap in a graceful placeholder
@@ -146,9 +212,9 @@ export function ImageGallery({
         : COVER_FRAME
       : FRAME_HEIGHT);
 
-  if (isStack) {
+  if (isCarousel) {
     return (
-      <StackedGallery
+      <SwipeCarousel
         images={images}
         title={title}
         failedSrcs={failedSrcs}
@@ -183,10 +249,14 @@ export function ImageGallery({
 
   return (
     <>
+      <GalleryShell enabled={filmstrip}>
       <div
         className={cn(
           frame,
           'group relative w-full overflow-hidden bg-muted',
+          // Beside the rail the frame takes the width that is left. `w-full` would still
+          // ask for all of it and push the rail out of the box.
+          filmstrip ? 'lg:w-auto lg:min-w-0 lg:flex-1' : null,
           isCover ? 'rounded-none lg:rounded-lg lg:border' : 'rounded-lg border',
         )}
       >
@@ -295,6 +365,85 @@ export function ImageGallery({
         ) : null}
       </div>
 
+      {/* THUMBNAILS, ONE TAP EACH. Only worth drawing for more than one photo — a strip
+          of one is a smaller copy of the image above it.
+          
+          `lg:order-first` rather than `lg:flex-row-reverse` on the shell: it moves this
+          one element and leaves the frame's position stated by the DOM, so a third child
+          added to the shell later lands where it reads. The photo stays first in the DOM
+          either way, which is the order a screen reader wants — the content, then the
+          control that navigates it. */}
+      {filmstrip && images.length > 1 ? (
+        <ul
+          className={cn(
+            'flex shrink-0 items-stretch gap-snug',
+            // Narrow fallback: a horizontal strip under the frame. No shipping caller
+            // reaches it today — see GALLERY_SHELL.
+            'mt-snug h-14 overflow-x-auto overscroll-x-contain',
+            // Desktop: a fixed-width rail on the left, scrolling vertically.
+            //
+            // CENTRED BY SIZING THE RAIL TO ITS THUMBNAILS AND CENTRING THE RAIL, not by
+            // centring the thumbnails inside a full-height rail. `justify-center` on a
+            // scroll container is the bug where the overflowing end is unreachable:
+            // centred content spills equally past both edges, and nothing can scroll
+            // above its own start, so with more photos than fit the first thumbnails
+            // become permanently invisible. `h-auto` + `max-h-full` + `self-center` gives
+            // a rail that is as tall as its contents and vertically centred when the
+            // photos fit, and exactly as tall as the frame — scrolling from the top, with
+            // every thumbnail reachable — when they do not.
+            'lg:order-first lg:mt-0 lg:h-auto lg:max-h-full lg:w-14 lg:flex-col lg:self-center lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-y-contain',
+            '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          )}
+          aria-label={`Photos of ${title}`}
+        >
+          {images.map((image, index) => {
+            const selected = index === activeIndex;
+            const failed = Boolean(failedSrcs[image.src]);
+            return (
+              <li key={image.src} className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  // `aria-current` rather than `aria-pressed`: these are not toggles,
+                  // they select which of a set is showing.
+                  aria-current={selected ? 'true' : undefined}
+                  aria-label={`Show photo ${index + 1} of ${images.length}`}
+                  className={cn(
+                    'size-14 overflow-hidden rounded-md border bg-muted transition-colors',
+                    'focus:outline-none focus-visible:border-iris',
+                    // The selected thumbnail carries a 2px iris edge. Not a scale or an
+                    // opacity change: the strip scrolls, and a transform would make the
+                    // selected tile clip against its neighbours mid-scroll.
+                    selected
+                      ? 'border-2 border-iris'
+                      : 'border-border opacity-70 hover:opacity-100',
+                  )}
+                >
+                  {failed ? (
+                    <span className="grid h-full w-full place-items-center text-muted-foreground">
+                      <HugeiconsIcon icon={ImageOffIcon} className="size-4" aria-hidden />
+                    </span>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={image.src}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                      onError={() =>
+                        setFailedSrcs((prevFailed) => ({ ...prevFailed, [image.src]: true }))
+                      }
+                    />
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      </GalleryShell>
+
       <ContractImageLightbox
         images={images.map((image) => image.src)}
         openIndex={lightboxIndex}
@@ -308,7 +457,54 @@ export function ImageGallery({
   );
 }
 
-function StackedGallery({
+/**
+ * Wraps the frame and the filmstrip in {@link GALLERY_SHELL} — but only when there is a
+ * filmstrip to place.
+ *
+ * CONDITIONAL BECAUSE AN UNCONDITIONAL WRAPPER WOULD BREAK EVERY OTHER CALLER. The frame
+ * sizes itself with `h-full` against whatever box contains it, and the contract room, the
+ * peek and the mosaic all pass their own `frameClassName` cap expecting that box to be
+ * the panel they put the gallery in. Slipping an auto-height div in between resolves
+ * `h-full` against content instead and the frame collapses.
+ *
+ * A component rather than a ternary around the JSX so the frame and strip are written
+ * once. `display: contents` would also work and is a smaller diff, but the listing page
+ * wraps this gallery in a `ViewTransition`, and a box with `display: contents` generates
+ * no box for the transition to capture.
+ */
+function GalleryShell({
+  enabled,
+  children,
+}: {
+  enabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (!enabled) return <>{children}</>;
+  return <div className={GALLERY_SHELL}>{children}</div>;
+}
+
+/**
+ * One photo at a time, swiped horizontally. The phone listing gallery.
+ *
+ * REPLACES A VERTICAL STACK. That stack drew every photo full-width at its natural
+ * aspect, one under the next, which is honest about shape but means a nine-photo listing
+ * puts several thousand pixels of scroll between the description and anything below it —
+ * and a buyer comparing the front against the back has to scroll back and forth past the
+ * ones in between. A carousel puts them a swipe apart.
+ *
+ * NATIVE SCROLL-SNAP, NOT A JS PAGER. `snap-x snap-mandatory` gives momentum, rubber
+ * banding, trackpad and keyboard scrolling and RTL for free, and it keeps working if
+ * hydration is slow — the photos are swipeable before any handler attaches. The only JS
+ * is reading `scrollLeft` back to light the right dot.
+ *
+ * ONE FRAME ASPECT FOR EVERY SLIDE, with `object-contain` and a blurred fill behind, the
+ * same treatment `stage` uses. Per-photo natural aspect cannot work in a carousel: the
+ * frame would change height as you swipe, shifting everything below it on every gesture.
+ * `object-contain` still never crops, so no photo is misrepresented — the letterboxing is
+ * just filled rather than left blank. `dim` is therefore unused here, and does not need
+ * to reserve height because the frame's own aspect does it.
+ */
+function SwipeCarousel({
   images,
   title,
   failedSrcs,
@@ -323,51 +519,109 @@ function StackedGallery({
   lightboxIndex: number | null;
   onLightboxChange: (next: number | null) => void;
 }) {
+  const trackRef = useRef<HTMLUListElement | null>(null);
+  const [visibleIndex, setVisibleIndex] = useState(0);
+
   if (images.length === 0) return null;
+
+  /** Which slide is under the viewport, from the scroll offset. */
+  function syncIndex() {
+    const track = trackRef.current;
+    if (!track || track.clientWidth === 0) return;
+    const next = Math.round(track.scrollLeft / track.clientWidth);
+    setVisibleIndex(Math.max(0, Math.min(next, images.length - 1)));
+  }
 
   return (
     <>
-      <ul className="flex flex-col gap-3">
-        {images.map((image, index) => {
-          const failed = Boolean(failedSrcs[image.src]);
-          return (
-            <li key={image.src}>
-              {failed ? (
-                <div className="flex min-h-24 w-full items-center justify-center rounded-lg border bg-muted text-muted-foreground">
-                  <HugeiconsIcon icon={ImageOffIcon} className="size-8" aria-hidden />
-                  <span className="sr-only">Photo could not be loaded for {title}</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onLightboxChange(index)}
-                  className="block w-full cursor-zoom-in overflow-hidden rounded-lg border bg-muted focus:outline-none focus-visible:border-iris"
-                  aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${title}`}
-                >
-                  {/* Natural aspect: width fills the column, height follows the
-                      file. `aspect-ratio` reserves that height up front when the
-                      size is stored, so the description above does not jump as
-                      each photo lands; once loaded the intrinsic ratio is the
-                      same value, so nothing moves. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className="block h-auto w-full"
-                    style={
-                      image.dim
-                        ? { aspectRatio: `${image.dim.w} / ${image.dim.h}` }
-                        : undefined
-                    }
-                    draggable={false}
-                    onError={() => onFail(image.src)}
-                  />
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="relative">
+        <ul
+          ref={trackRef}
+          onScroll={syncIndex}
+          className={cn(
+            'flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain',
+            // The scrollbar is suppressed because the dots and counter already say
+            // there is more, and a horizontal bar under a photo reads as chrome.
+            '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          )}
+          aria-label={`Photos of ${title}`}
+        >
+          {images.map((image, index) => {
+            const failed = Boolean(failedSrcs[image.src]);
+            return (
+              <li
+                key={image.src}
+                // `snap-center` with a full-width slide behaves as snap-start, and
+                // survives the case where a partial slide peeks at the edges.
+                className="relative aspect-[4/5] w-full shrink-0 snap-center overflow-hidden rounded-lg border bg-muted"
+              >
+                {failed ? (
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                    <HugeiconsIcon icon={ImageOffIcon} className="size-8" aria-hidden />
+                    <span className="sr-only">Photo could not be loaded for {title}</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={image.src}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full scale-110 object-cover opacity-90 blur-lg"
+                      draggable={false}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onLightboxChange(index)}
+                      className="absolute inset-0 z-[1] cursor-zoom-in border border-transparent focus:outline-none focus-visible:border-iris"
+                      aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${title}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image.src}
+                        alt={image.alt}
+                        className="h-full w-full object-contain"
+                        draggable={false}
+                        onError={() => onFail(image.src)}
+                      />
+                    </button>
+                  </>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+
+        {images.length > 1 ? (
+          <>
+            <p
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-3 z-[2] rounded-full border border-white/15 bg-obsidian/70 px-snug py-0.5 text-meta font-medium tabular-nums text-white/90 shadow-sm backdrop-blur"
+            >
+              {visibleIndex + 1}/{images.length}
+            </p>
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-3 z-[2] flex justify-center gap-1.5"
+              aria-hidden
+            >
+              {images.map((image, index) => (
+                <span
+                  key={image.src}
+                  className={cn(
+                    'h-2 rounded-full transition-all',
+                    index === visibleIndex ? 'w-4 bg-iris' : 'w-2 bg-card/70',
+                  )}
+                />
+              ))}
+            </div>
+            {/* Spoken position, since the counter and dots are both decorative. */}
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              Photo {visibleIndex + 1} of {images.length}
+            </p>
+          </>
+        ) : null}
+      </div>
+
       <ContractImageLightbox
         images={images.map((image) => image.src)}
         openIndex={lightboxIndex}

@@ -22,21 +22,37 @@ import { cn } from "@/lib/utils";
  * caller converts at submit.
  */
 export interface MoneyInputProps
-  extends Omit<React.ComponentProps<"input">, "type" | "inputMode"> {
+  extends Omit<React.ComponentProps<"input">, "type" | "inputMode" | "size"> {
   /**
    * Smallest accepted amount, in dollars. Defaults to `'0'` because most amounts
    * here may legitimately be free (postage included in the price, a $0 throw-in
    * line). Pass `'0.01'` where zero is not a real answer, e.g. an asking price.
    */
   min?: string;
+  /**
+   * `lg` when the amount is the POINT of the surface rather than one field among
+   * several — the price on a private-deal invite, where every other control exists
+   * to describe what the money is for.
+   *
+   * A PROP RATHER THAN A CALLER CLASS, because the currency symbol is positioned
+   * absolutely and set in `text-body`: passing `className="text-head"` scales the
+   * number and leaves the `$` small and vertically off, which is exactly the kind
+   * of near-miss that had nine hand-rolled money fields drifting apart before this
+   * component existed. Size is decided here so the symbol moves with it.
+   */
+  size?: "default" | "lg";
 }
 
 const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
-  ({ className, min = "0", placeholder = "0.00", ...props }, ref) => {
+  ({ className, min = "0", placeholder = "0.00", size = "default", ...props }, ref) => {
+    const large = size === "lg";
     return (
       <div className="relative">
         <span
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-body text-muted-foreground"
+          className={cn(
+            "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+            large ? "left-4 text-head" : "left-3 text-body",
+          )}
           aria-hidden
         >
           {CURRENCY_SYMBOL}
@@ -51,7 +67,16 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
           placeholder={placeholder}
           // `pl-7` clears the symbol. Merged rather than overridden so a caller can
           // still add its own classes without losing the offset.
-          className={cn("pl-7", className)}
+          //
+          // `tabular-nums` on the large variant only: at display size the digits are
+          // wide enough that proportional figures make the number jump sideways as it
+          // is typed.
+          className={cn(
+            large
+              ? "h-14 pl-11 text-head font-semibold tabular-nums md:h-14"
+              : "pl-7",
+            className,
+          )}
           {...props}
         />
       </div>

@@ -32,10 +32,20 @@ import type { ContractStep } from '@/domain/contract';
 /** Visual weight of the card, for terminal or degraded outcomes. */
 export type ContractActionTone = 'default' | 'success' | 'warning' | 'danger';
 
+// THE TINT CARRIES THE TONE; THE EDGE STAYS NEUTRAL — see the border rule in
+// globals.css. `default` and `warning` used to draw their own violet frames, and
+// this card is the single most repeated surface in the product: it is on every
+// cash sale and every trade, at every step. A violet-framed card here is most of
+// why the interface read as over-emphasised, and the frame was not carrying
+// anything the wash does not.
+//
+// `success` and `danger` keep their coloured edges. Those two are OUTCOMES rather
+// than "here is your next move", they are rare, and teal and red each appear
+// nowhere else on the surface — the edge is the signal, not decoration.
 const TONE: Record<ContractActionTone, string> = {
-  default: 'border-iris/40 bg-iris/[0.08]',
+  default: 'border-border bg-iris/[0.08]',
   success: 'border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.06)]',
-  warning: 'border-iris/40 bg-iris/[0.06]',
+  warning: 'border-border bg-iris/[0.06]',
   danger: 'border-destructive/40 bg-destructive/[0.06]',
 };
 

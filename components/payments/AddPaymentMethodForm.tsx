@@ -180,10 +180,27 @@ function CardSetupFields({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-group">
-      <PaymentElement
-        onReady={() => setReady(true)}
-        options={{ layout: 'tabs', fields: { billingDetails: { name: 'auto' } } }}
-      />
+      {/* THE THIRD WAIT, which the skeleton could not cover on its own.
+          
+          `PaymentFormSkeleton` reserves a 240px box for the two waits it owns — the
+          chunk download and the SetupIntent — and then unmounts the moment `session`
+          arrives. But Stripe's iframe mounts at roughly zero height and grows, so the
+          dialog went tall (skeleton) -> short (empty element) -> tall (real form),
+          collapsing and re-expanding in between. That is the flicker.
+          
+          `min-h-60` matches the skeleton's `h-60` exactly, so the box the placeholder
+          reserved is the box the element mounts into and nothing moves. Released on
+          `onReady` so the element can then settle to whatever height its enabled
+          payment methods actually need — one movement instead of three.
+          
+          It cannot simply be hidden until ready: Stripe needs the node laid out to
+          initialise, so `display:none` would mean `onReady` never fires. */}
+      <div className={ready ? undefined : 'min-h-60'}>
+        <PaymentElement
+          onReady={() => setReady(true)}
+          options={{ layout: 'tabs', fields: { billingDetails: { name: 'auto' } } }}
+        />
+      </div>
 
       {error ? (
         <p role="alert" className="text-body text-destructive">
@@ -236,7 +253,7 @@ function SimulatedCardSetup({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-group">
-      <div className="rounded-lg border border-dashed px-cozy py-snug text-body" role="note">
+      <div className="rounded-lg border border-border bg-muted px-cozy py-snug text-body" role="note">
         <p className="font-medium text-foreground">Simulated card entry</p>
         <p className="text-muted-foreground">
           No payment provider is configured, so saving adds a demo card (Visa

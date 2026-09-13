@@ -1,18 +1,28 @@
 // components/account/TradesSection.tsx
 //
-// The "Trades" section of the Account hub: collateral-backed swaps where the caller
-// is a participant. Each row shows the two items involved (yours vs. theirs by
-// role), the live trade-state badge, and a link to the trade contract at
-// /trades/[id].
+// The Trades list: collateral-backed swaps where the caller is a participant. One row
+// per trade — the two sides, WHAT THE TRADE IS WAITING ON, and the live state badge —
+// laid out on the same grid as Purchases and Sales so the three lists line up with each
+// other as well as with themselves. See `ContractRow.tsx`.
+//
+// A trade has no single cover photo, because its subject is an exchange rather than an
+// object, so the thumbnail slot carries the swap glyph instead.
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 
-import { MobileList, MobileListItem } from '@/components/ui/mobile-list';
 import { StateBadge } from '@/components/trade/StateBadge';
 import type { TradeSummary } from '@/lib/actions/account';
 import { EmptyState } from '@/components/account/EmptyState';
+import {
+  CONTRACT_ROW_GRID,
+  ContractRowTable,
+  ContractRowThumb,
+  NextMoveCell,
+} from '@/components/account/ContractRow';
+import { formatAud } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
 /**
  * A readable label for each side of a trade, relative to the caller. A side can
@@ -50,36 +60,57 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
   }
 
   return (
-    <MobileList variant="cards">
+    <ContractRowTable subject="Trade" label="Your trades">
       {trades.map((trade) => {
         const { yours, theirs } = tradePairLabel(trade);
+
         return (
-          <MobileListItem key={trade.id}>
-            <Link
-              href={`/trades/${trade.id}`}
-              transitionTypes={['nav-forward']}
-              className="flex min-h-11 items-center gap-group py-3.5 md:py-0 rounded-md border border-transparent focus:outline-none focus-visible:border-iris"
-            >
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                <HugeiconsIcon icon={ArrowLeftRightIcon} className="size-5" aria-hidden />
-              </div>
+          <li key={trade.id} className={cn(CONTRACT_ROW_GRID, 'px-group py-cozy')}>
+            <ContractRowThumb>
+              <HugeiconsIcon icon={ArrowLeftRightIcon} className="size-5" aria-hidden />
+            </ContractRowThumb>
 
-              <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 break-words text-lead font-medium">
-                  Your item {yours}
-                  <span className="mx-1.5 text-muted-foreground">↔</span>
-                  Their item {theirs}
-                </p>
-                <p className="mt-0.5 text-body capitalize text-muted-foreground">
-                  You are the {trade.role}
-                </p>
+            <div className="min-w-0">
+              <Link
+                href={`/trades/${trade.id}`}
+                transitionTypes={['nav-forward']}
+                className="block rounded-sm border border-transparent text-body font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:border-iris"
+              >
+                <span className="line-clamp-2 break-words">
+                  {yours}
+                  {/* The arrow is the whole subject of the row, so it is not decorative:
+                      without a text alternative the two sides run together into one
+                      title when read aloud. */}
+                  <span className="mx-1.5 text-muted-foreground" aria-hidden="true">
+                    ↔
+                  </span>
+                  <span className="sr-only">in exchange for</span>
+                  {theirs}
+                </span>
+              </Link>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-cozy gap-y-tight text-meta text-muted-foreground">
+                <span>with {trade.counterpartyName}</span>
+                {/* Cash to even out a swap. Shown only when there is some: "+ $0" on a
+                    straight trade is noise, and the sign says which way it moves. */}
+                {trade.cashAmountCents > 0 ? (
+                  <span className="tabular-nums">
+                    plus {formatAud(trade.cashAmountCents)} cash
+                  </span>
+                ) : null}
+                {/* Its own column from `md`; here below it, beside the counterparty. */}
+                <StateBadge state={trade.state} className="md:hidden" />
               </div>
+              <NextMoveCell move={trade.nextMove} className="mt-1 md:hidden" />
+            </div>
 
+            <NextMoveCell move={trade.nextMove} className="hidden md:flex" />
+
+            <span className="hidden justify-end md:flex">
               <StateBadge state={trade.state} className="shrink-0" />
-            </Link>
-          </MobileListItem>
+            </span>
+          </li>
         );
       })}
-    </MobileList>
+    </ContractRowTable>
   );
 }

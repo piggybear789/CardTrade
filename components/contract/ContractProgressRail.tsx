@@ -156,7 +156,10 @@ export function ContractProgressRail({
                     // The tick stays 20px visually, but an invisible overlay
                     // stretches the hit area to ~44px for touch guidelines.
                     "relative before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']",
-                    'hover:border-iris/50 hover:text-foreground',
+                    // Neutral on hover. The LIVE step below is a violet marker, and a
+                    // violet hover edge meant pointing at any step made it look like
+                    // the current one.
+                    'hover:border-foreground/20 hover:text-foreground',
                     'border border-transparent focus:outline-none focus-visible:border-iris',
                     done && 'cardtrade-success-chip',
                     live && 'animate-step-active border-iris bg-iris/25 text-foreground ring-2 ring-iris/25',

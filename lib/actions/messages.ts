@@ -188,6 +188,20 @@ export interface ConversationListEntry {
   trade: ConversationTradeSummary | null;
   /** Set when this thread is a dispute arbitration chat. */
   dispute: ConversationDisputeSummary | null;
+  /**
+   * Set when this thread IS a cash sale's contract thread, with the contract's live
+   * status.
+   *
+   * A DIFFERENT LINK FROM `dispute`, and the distinction is easy to get wrong.
+   * `conversations.cash_sale_id` is set only by `attach_dispute_conversation` (0019) —
+   * it means "this is the arbitration chat", enforced one-per-sale by a unique partial
+   * index. The ordinary sale thread is pointed at from the other side, by
+   * `cash_sales.conversation_id`, and carries `item_id` like any listing enquiry.
+   *
+   * So without this the inbox could not tell a live $400 contract from someone asking
+   * whether a card was still available: both were a name, a preview and a thumbnail.
+   */
+  sale: ConversationSaleSummary | null;
   lastMessage: { body: string; createdAt: string } | null;
   unreadCount: number;
 }
@@ -255,25 +269,35 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
   const conversationIds = conversations.map((c) => c.id);
 
   // Batch the enrichment lookups. Each tolerates missing rows (null).
-  const [profilesRes, itemsRes, cashSalesRes, messagesRes] = await Promise.all([
-    supabase
-      .from('public_profiles')
-      .select('id, display_name, avatar_path')
-      .in('id', otherIds),
-    itemIds.length > 0
-      ? supabase.from('items').select('id, title, image_paths').in('id', itemIds)
-      : Promise.resolve({ data: [] as { id: string; title: string; image_paths: string[] }[] }),
-    cashSaleIds.length > 0
-      ? supabase.from('cash_sales').select('id, item_title').in('id', cashSaleIds)
-      : Promise.resolve({ data: [] as { id: string; item_title: string }[] }),
-    supabase
-      .from('messages')
-      .select(
-        'id, conversation_id, sender_id, kind, body, read_at, created_at, attachment_path, attachment_name, attachment_mime',
-      )
-      .in('conversation_id', conversationIds)
-      .order('created_at', { ascending: false }),
-  ]);
+  const [profilesRes, itemsRes, cashSalesRes, saleThreadsRes, messagesRes] =
+    await Promise.all([
+      supabase
+        .from('public_profiles')
+        .select('id, display_name, avatar_path')
+        .in('id', otherIds),
+      itemIds.length > 0
+        ? supabase.from('items').select('id, title, image_paths').in('id', itemIds)
+        : Promise.resolve({ data: [] as { id: string; title: string; image_paths: string[] }[] }),
+      cashSaleIds.length > 0
+        ? supabase.from('cash_sales').select('id, item_title').in('id', cashSaleIds)
+        : Promise.resolve({ data: [] as { id: string; item_title: string }[] }),
+      // WHICH THREADS ARE CONTRACTS. Looked up from the sale's own
+      // `conversation_id` rather than from the conversation row, because a sale thread
+      // is not marked on the conversation at all — see `ConversationListEntry.sale`.
+      // RLS scopes `cash_sales` to its buyer and seller, who are exactly the two
+      // participants of the thread, so this returns a row or nothing.
+      supabase
+        .from('cash_sales')
+        .select('id, status, conversation_id')
+        .in('conversation_id', conversationIds),
+      supabase
+        .from('messages')
+        .select(
+          'id, conversation_id, sender_id, kind, body, read_at, created_at, attachment_path, attachment_name, attachment_mime',
+        )
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false }),
+    ]);
 
   const nameById = new Map<string, string | null>(
     (profilesRes.data ?? []).map((p) => [
@@ -306,6 +330,20 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       s.id as string,
       { id: s.id as string, itemTitle: (s as { item_title: string }).item_title },
     ]),
+  );
+
+  /** Keyed by CONVERSATION id, not sale id — this map answers "is this thread a contract". */
+  const saleByConversation = new Map<string, ConversationSaleSummary>(
+    (saleThreadsRes.data ?? []).flatMap((s) => {
+      const row = s as {
+        id: string;
+        status: Enums<'cash_sale_status'>;
+        conversation_id: string | null;
+      };
+      return row.conversation_id
+        ? ([[row.conversation_id, { id: row.id, status: row.status }]] as const)
+        : [];
+    }),
   );
 
   // Group messages by conversation (already sorted newest-first) so we can pick
@@ -348,6 +386,7 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       dispute: (c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id
         ? (disputeById.get((c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id!) ?? null)
         : null,
+      sale: saleByConversation.get(c.id) ?? null,
       lastMessage: latestByConversation.get(c.id) ?? null,
       unreadCount: unreadByConversation.get(c.id) ?? 0,
     };

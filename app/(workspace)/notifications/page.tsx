@@ -51,9 +51,15 @@ export default async function NotificationsPage() {
         // shell column hands its leftover space down only as far as the chain of
         // flex children reaches, and this wrapper was where it stopped.
         <div className="flex min-h-0 w-full flex-1 flex-col">
+          {/* `now` COMES FROM HERE, not from the client. The list groups rows by age,
+              and a `new Date()` inside a client component runs once on the server and
+              again in the browser — two different instants, so a row near a bucket
+              boundary could land in one group during SSR and another on hydration.
+              That is a structural mismatch, not a text one. */}
           <NotificationCenter
             userId={user.id}
             initialNotifications={result.notifications}
+            now={new Date().toISOString()}
           />
         </div>
       )}

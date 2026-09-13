@@ -81,10 +81,20 @@ export function CatalogResults() {
               across lines to keep the select beside it. */}
           <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4">
             <div className="min-w-0">
-              <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
-                {resultTitle}
-              </h2>
-              <CatalogResultCount note={closerNote} />
+              {/* Title and count on ONE BASELINE. `items-baseline` rather than
+                  `items-center`, because the two are different sizes and centring them
+                  leaves the count floating above the title's baseline. */}
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-cozy gap-y-0.5">
+                <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
+                  {resultTitle}
+                </h2>
+                <CatalogResultCount />
+              </div>
+              {closerNote ? (
+                <p className="mt-0.5 text-pretty text-meta text-muted-foreground sm:text-body">
+                  {closerNote}
+                </p>
+              ) : null}
             </div>
             {/* Sort only. It belongs beside the result count — the thing being
                 ordered is on screen — whereas the keyword filter belongs with

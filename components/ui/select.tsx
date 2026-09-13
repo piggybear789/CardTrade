@@ -35,12 +35,15 @@ const SelectTrigger = React.forwardRef<
       // switches the span to `display:-webkit-box`, and the ellipsis it produces is
       // sized against the span's own content rather than the space actually
       // available. `min-w-0` is required for either to shrink inside a flex row.
-      // `h-9 md:h-7` tracks Button and Input, and `text-body` matches them too:
+      // `h-9 md:h-8` tracks Button and Input, and `text-body` matches them too:
+      // 28px was raised to 32px when `body` went to 14px — see the note in Input for
+      // the arithmetic. A trigger that stayed at 28px would sit 4px shy of the field
+      // beside it.
       // the trigger text is the same size on touch as on desktop so it lines up
       // with the surrounding UI. The old `text-lead pointer-fine:text-body` floored touch
       // at 16px to avoid iOS focus-zoom; that floor has been removed and the zoom is
       // an accepted tradeoff.
-      "flex h-9 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-1 text-body md:h-7 placeholder:text-muted-foreground focus-visible:border-iris focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      "flex h-9 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-1 text-body md:h-8 placeholder:text-muted-foreground focus-visible:border-iris focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
       className
     )}
     {...props}

@@ -28,6 +28,24 @@ import {
 import { useConversationAttachments } from '@/components/messages/useConversationAttachments';
 
 /**
+ * The reading column for a conversation: centred, and no wider than 44rem.
+ *
+ * ONE DEFINITION FOR TWO ELEMENTS THAT MUST LINE UP. The log and the composer are
+ * siblings in a flex column — the log scrolls, the composer does not — so they cannot
+ * share a wrapper and each has to be capped on its own. Two hand-typed `max-w-[44rem]`s
+ * is how the field ends up a few pixels off the bubbles above it.
+ *
+ * 44rem was already the cap on system notices in this file, chosen as a readable measure
+ * of roughly 60-75 characters. It now governs the whole column, which is what the
+ * notices were quietly admitting the right width was: uncapped, a bubble on a 1920
+ * viewport could run past 1000px.
+ *
+ * A CAP, NOT A WIDTH. On a phone, and inside the contract room's already-narrow pane,
+ * `w-full` wins and nothing changes.
+ */
+export const MESSAGE_COLUMN = 'mx-auto w-full max-w-[44rem]';
+
+/**
  * The event codes that mean "the seller handed it to a carrier".
  * `SHIPMENT_RECORDED` is what the orchestrator logs; `SHIPPED` is the older
  * code still present in seeded and pre-0012 rooms.
@@ -257,7 +275,7 @@ function ContractMilestones({
         return (
           <li
             key={message.id}
-            className="mx-auto max-w-[44rem] text-center"
+            className={cn(MESSAGE_COLUMN, 'text-center')}
           >
             {/* STAMPED ABOVE, like any other message in the thread. It used to
                 trail the sentence after a middot, which kept each event to one

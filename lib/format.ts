@@ -297,3 +297,29 @@ export function formatContractDateTime(
         minute: '2-digit',
       });
 }
+
+/**
+ * Format an ISO timestamp as a short absolute date — e.g. `"12 Mar 2026"`.
+ *
+ * For facts whose DAY matters and whose time of day does not: when an identity
+ * check passed, when an account was closed. `formatContractDateTime` carries a
+ * time because a meeting or a deadline needs one; using it here would assert a
+ * precision the fact does not have.
+ *
+ * The year is always shown, unlike `formatRelativeTime`'s tail. These are dates a
+ * reader is weighing rather than skimming — "checked 12 Mar" is ambiguous by
+ * exactly the amount that matters.
+ *
+ * Returns `null` for missing or unparseable input so callers can render nothing.
+ */
+export function formatShortDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleDateString('en-AU', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+}

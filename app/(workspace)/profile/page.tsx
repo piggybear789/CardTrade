@@ -68,8 +68,10 @@ import {
   STAFF_NAV_GROUP,
   staffNavLinksFor,
 } from '@/components/layout/marketplace-nav-config';
+import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { resolveScope, type SectionScope } from '@/components/layout/SectionFilter';
+import { formatShortDate } from '@/lib/format';
 
 // ACCOUNT, NOT SETTINGS. One destination was called three things depending on where
 // you stood: the bottom nav said "Account", the desktop rail and the document title
@@ -220,6 +222,7 @@ export default async function ProfilePage({
               <VerificationPanel
                 identityVerified={identityVerified}
                 identityFailed={identityFailed}
+                identityVerifiedAt={identity.ok ? identity.data.verifiedAt : null}
                 payoutsActive={payoutsActive}
                 verifiedName={identity.ok ? identity.data.verifiedName : null}
                 identityReadOk={identity.ok}
@@ -350,6 +353,7 @@ function VerificationPanel({
   identityFailed,
   payoutsActive,
   verifiedName,
+  identityVerifiedAt,
   identityReadOk,
   payoutContextReadOk,
   demoEnabled,
@@ -359,10 +363,30 @@ function VerificationPanel({
   identityFailed: boolean;
   payoutsActive: boolean;
   verifiedName: string | null;
+  /**
+   * When the identity check passed, ISO 8601.
+   *
+   * Read all along by `getIdentitySummary` and thrown away by this page. A check with
+   * no date is an assertion; a check with one is a record.
+   */
+  identityVerifiedAt: string | null;
   identityReadOk: boolean;
   payoutContextReadOk: boolean;
   demoEnabled: boolean;
 }) {
+  // Built up rather than interpolated blind, because every part of it is optional: a
+  // member grandfathered in before 0069 has no document-backed name, and a webhook that
+  // arrived without `verified_outputs` has no date. Dropping a missing piece keeps the
+  // sentence true instead of printing "null · photo ID and selfie checked".
+  const checkedOn = formatShortDate(identityVerifiedAt);
+  const identityEvidence =
+    [
+      verifiedName,
+      checkedOn ? `photo ID and selfie checked ${checkedOn}` : 'photo ID and selfie checked',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
   return (
     <div className="space-y-group md:space-y-section">
       {/* Identity and payout setup only. The member summary (avatar, name,
@@ -375,22 +399,39 @@ function VerificationPanel({
         <>
           <div className="px-tight">
             <h3 className="text-lead font-semibold">You&apos;re set up to sell</h3>
+            {/* SAYS WHAT THE TWO STEPS ARE FOR, not just that they are done.
+                This read "Both checks are complete. There is nothing else to do here."
+                — true, and it left a member who had passed two different checks with no
+                idea why there were two of them or who holds what. Naming the split and
+                naming the provider is the part of this screen that does any work once
+                both rows are green. */}
             <p className="mt-0.5 text-body text-muted-foreground">
-              Both checks are complete. There is nothing else to do here.
+              Two checks, and they unlock different things. Both are handled by Stripe,
+              and there is nothing else to do here.
             </p>
           </div>
           <SettingsGroup>
+            {/* EVIDENCE, NOT A VALUE. The right-hand slot held the bare string
+                "Alice Nguyen", which states a name where a status belongs and buries
+                the only two facts worth having: WHAT was checked and WHEN. The name
+                moves into the description beside them and the slot carries the status
+                it was always implying. */}
             <SettingsListRow
               icon={ShieldCheckIcon}
               tone="verified"
               label="Identity"
-              value={verifiedName ?? 'Checked by Stripe'}
+              description={identityEvidence}
+              trailing={<Badge variant="trust">Verified</Badge>}
             />
             <SettingsListRow
               icon={Wallet01Icon}
               tone="verified"
-              label="Payouts"
-              value="Active"
+              label="Payout destination"
+              // THE PRIVACY FACT, which is the one thing a member actually hesitates
+              // over on this row. "Active" alone answers a question nobody asked; where
+              // their bank details went is the question they had.
+              description="Stripe collects your bank details directly. NoDitto never sees them."
+              trailing={<Badge variant="trust">Active</Badge>}
             />
           </SettingsGroup>
         </>

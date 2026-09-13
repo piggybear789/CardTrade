@@ -419,7 +419,7 @@ function DesktopGenrePills({
             <button
               type="button"
               aria-label="More games"
-              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-foreground/20 bg-background text-foreground shadow-sm transition-colors hover:border-iris/50 hover:bg-accent focus:outline-none focus-visible:border-iris"
+              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-foreground/20 bg-background text-foreground shadow-sm transition-colors hover:border-foreground/40 hover:bg-accent focus:outline-none focus-visible:border-iris"
             >
               {open ? (
                 <HugeiconsIcon icon={ChevronUpIcon} className="size-4" strokeWidth={1.75} aria-hidden />
@@ -518,7 +518,7 @@ function GenrePill({
         stretched ? 'min-w-0 w-full' : 'shrink-0',
         active
           ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-foreground/20 bg-card text-foreground shadow-sm hover:border-iris/50 hover:bg-accent',
+          : 'border-foreground/20 bg-card text-foreground shadow-sm hover:border-foreground/40 hover:bg-accent',
       )}
     >
       {/* Drawn mark, not the brand logo: the active pill inverts to a near-black

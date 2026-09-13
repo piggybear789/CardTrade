@@ -17,6 +17,8 @@ import { fail, ok, type ActionResult } from '@/lib/actions/result';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
+import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
+import { removeImages } from '@/lib/storage/itemImages';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { checkRegionCompatibility, regionMismatchMessage } from '@/domain/region';
@@ -39,7 +41,20 @@ export type DealInviteError =
   | 'invalid-input'
   | 'no-region'
   | 'region-mismatch'
+  // THREE CODES, NOT ONE, BECAUSE THEY ADDRESS DIFFERENT PEOPLE.
+  // `cashDealParties` makes the JOINER the seller on a host-BUYER invite, so a
+  // single "the seller is not verified" code was telling the person reading it
+  // about themselves while their verified counterparty sat on the other side of
+  // the link. That was reported as a false negative against the host, and it took
+  // a query of both profiles to see the message was about the reader.
+  /** The host is the seller on this invite and has not satisfied the Identity_Gate. */
   | 'seller-identity-unverified'
+  /** THE VIEWER is the one who has to verify: they are selling, or trading. */
+  | 'own-identity-unverified'
+  /** The host is the other trader on a TRADE invite and is not verified. */
+  | 'counterparty-identity-unverified'
+  /** Verified, but no buyer-safe disclosure to sell under yet. */
+  | 'seller-disclosure-incomplete'
   | 'item-create-failed'
   | 'not-found'
   | 'expired'
@@ -119,6 +134,21 @@ export interface DealInvitePreview {
     fmvCents: number;
   } | null;
   sellerIdentity: SellerIdentityDisclosure | null;
+  /**
+   * Why the signed-in viewer cannot claim this invite, or `null` when nothing
+   * knowable blocks them.
+   *
+   * DISCLOSURE, NOT ENFORCEMENT — `claimDealInvite` re-checks every condition and
+   * is the only thing that decides. This exists so the join form can say "you need
+   * to verify" BEFORE the member describes a card and uploads photos, which is the
+   * work that was previously thrown away: the refusal landed after
+   * `createHiddenItem` had already written an `items` row and its Storage objects,
+   * and only the invite lock was rolled back. Three orphaned rows with live images
+   * are what surfaced it, one per retry.
+   *
+   * Both this and the refusal read {@link claimBlock}, so the wording cannot drift.
+   */
+  viewerBlock: { reason: DealInviteError; message: string } | null;
   contractPath: string | null;
 }
 
@@ -185,6 +215,156 @@ async function createHiddenItem(
   return ok(created.data.id);
 }
 
+/**
+ * Undo a hidden Item created for a claim that then failed.
+ *
+ * `claimDealInvite` writes the joiner's card BEFORE it can know the contract will
+ * open, so a later refusal has to compensate or the row and its Storage objects
+ * leak. Scoped to `hidden = true` so a defect in the caller can never reach a real
+ * listing, and best-effort like `removeImages`: the refusal the caller is already
+ * returning is the more useful error.
+ */
+async function discardHiddenItem(itemId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('items')
+      .select('image_paths')
+      .eq('id', itemId)
+      .maybeSingle();
+    await admin.from('items').delete().eq('id', itemId).eq('hidden', true);
+    await removeImages(admin, (data?.image_paths as string[] | null) ?? []);
+  } catch {
+    // Best-effort. Never mask the refusal that triggered the cleanup.
+  }
+}
+
+/**
+ * Every reason a viewer cannot claim an invite that is knowable before any work
+ * is done, or `null` when none applies.
+ *
+ * ONE FUNCTION FOR TWO CALLERS. `claimDealInvite` uses it to refuse early and
+ * `getDealInvitePreview` uses it to disclose, so the join form's warning and the
+ * eventual refusal are the same sentence by construction rather than by two people
+ * remembering to edit both.
+ *
+ * WHO NEEDS THE IDENTITY_GATE HERE follows the role the claim will assign, not who
+ * happens to be reading:
+ *
+ * | Invite                     | Seller / traders           | Gated |
+ * | -------------------------- | -------------------------- | ----- |
+ * | `CASH_SALE` host `SELLER`  | seller = host              | host  |
+ * | `CASH_SALE` host `BUYER`   | seller = **joiner**        | viewer|
+ * | `TRADE`                    | both traders               | both  |
+ *
+ * A cash BUYER is deliberately ungated in every row: they are only ever refunded
+ * to their own card, so no transfer is ever sent to them.
+ *
+ * TRADE gating matches `openTradeNegotiation` in `lib/actions/trades.ts`, which
+ * refuses an unverified initiator or counterparty. The invite path calls
+ * `open_trade_negotiation` directly and so skipped it, which let two unverified
+ * members open a negotiation that could never reach escrow.
+ */
+async function claimBlock(
+  invite: InviteRow,
+  viewerId: string,
+): Promise<{ reason: DealInviteError; message: string } | null> {
+  if (invite.host_id === viewerId) {
+    return { reason: 'self-join', message: 'You cannot join your own deal.' };
+  }
+
+  const hostRegion = await requireTradingRegion(invite.host_id);
+  if (!hostRegion.ok) {
+    return { reason: 'region-mismatch', message: hostRegion.message };
+  }
+  const viewerRegion = await requireTradingRegion(viewerId);
+  if (!viewerRegion.ok) {
+    return { reason: 'no-region', message: viewerRegion.message };
+  }
+  const mismatch = checkRegionCompatibility(
+    viewerRegion.data,
+    hostRegion.data,
+    operationalRegions(),
+  );
+  if (mismatch) {
+    return { reason: 'region-mismatch', message: regionMismatchMessage(mismatch) };
+  }
+
+  if (invite.kind === 'TRADE') {
+    const viewerGate = await readIdentityGate(viewerId);
+    if (!viewerGate.satisfied) {
+      return {
+        reason: 'own-identity-unverified',
+        message: identityGateMessage('trade', viewerGate.state),
+      };
+    }
+    const hostGate = await readIdentityGate(invite.host_id);
+    if (!hostGate.satisfied) {
+      return {
+        reason: 'counterparty-identity-unverified',
+        message:
+          'The other trader has not verified their identity, so this trade cannot start yet.',
+      };
+    }
+    return null;
+  }
+
+  if (!invite.host_role) {
+    return { reason: 'wrong-kind', message: 'That cash deal is missing a host role.' };
+  }
+
+  const { sellerId } = cashDealParties(invite.host_role, invite.host_id, viewerId);
+  const sellerGate = await readIdentityGate(sellerId);
+  if (!sellerGate.satisfied) {
+    return sellerId === viewerId
+      ? {
+          reason: 'own-identity-unverified',
+          message: identityGateMessage('sell', sellerGate.state),
+        }
+      : {
+          reason: 'seller-identity-unverified',
+          message: 'The seller has not verified their identity yet.',
+        };
+  }
+
+  // Verified, but is there a name to disclose them under? `sellerIdentityDisclosure`
+  // wants more than the gate, and the shortfall is NOT an identity problem — see the
+  // note on `seller-disclosure-incomplete` below. Checked here so it is caught before
+  // the joiner's card is created too.
+  if (!(await loadSellerIdentityDisclosure(sellerId))) {
+    return disclosureGap(sellerId === viewerId);
+  }
+
+  return null;
+}
+
+/**
+ * The refusal for a seller who SATISFIES the Identity_Gate but has no buyer-safe
+ * disclosure.
+ *
+ * NOT A VERIFICATION FAILURE, AND MUST NOT BE WORDED AS ONE. Reaching this means
+ * `identity_check_status = 'VERIFIED'` yet `sellerIdentityDisclosure` returned
+ * null, and the only condition that can still be missing is
+ * `merchant_identity_disclosure_consented_at`, which `submitMerchantOnboarding`
+ * is the sole writer of — the Stripe Identity path
+ * (`lib/identity/applyIdentityDecision.ts`) never stamps it. So a member verified
+ * through Identity alone has no disclosure, even though the two-step model calls
+ * that a normal, valid state.
+ *
+ * Telling them "verify your identity" would send an already-verified member back
+ * to a check they have passed, which is the false negative this whole path was
+ * reported for. Point at payout setup instead, which is what actually writes the
+ * missing column today.
+ */
+function disclosureGap(isViewer: boolean): { reason: DealInviteError; message: string } {
+  return {
+    reason: 'seller-disclosure-incomplete',
+    message: isViewer
+      ? 'Your identity is verified, but selling also needs payout setup finished so buyers can see who they are paying. Finish it under Profile → Verification.'
+      : 'This seller is verified but has not finished payout setup, so they cannot sell yet.',
+  };
+}
+
 async function loadHiddenItem(
   itemId: string,
   expectedOwnerId: string,
@@ -235,12 +415,16 @@ export async function createDealInvite(
     hostRole = input.hostRole;
     priceCents = input.priceCents;
     if (input.hostRole === 'SELLER') {
-      const identity = await loadSellerIdentityDisclosure(userId);
-      if (!identity) {
-        return fail(
-          'seller-identity-unverified',
-          'Verify your identity before selling a card through a private deal.',
-        );
+      // The host IS the seller here, so this is second-person by construction. It
+      // still has to distinguish the two ways a disclosure comes back null, because
+      // "verify your identity" is unactionable for a member who already has.
+      const gate = await readIdentityGate(userId);
+      if (!gate.satisfied) {
+        return fail('own-identity-unverified', identityGateMessage('sell', gate.state));
+      }
+      if (!(await loadSellerIdentityDisclosure(userId))) {
+        const gap = disclosureGap(true);
+        return fail(gap.reason, gap.message);
       }
       const created = await createHiddenItem({
         ...input.item,
@@ -254,6 +438,14 @@ export async function createDealInvite(
       wantedDescription = input.wantedDescription.trim();
     }
   } else {
+    // Trade escrow gates BOTH traders, so an unverified host can only ever create an
+    // invite nobody can complete. Refused here for the same reason
+    // `openTradeNegotiation` refuses an unverified initiator, rather than letting the
+    // joiner discover it after describing their card.
+    const gate = await readIdentityGate(userId);
+    if (!gate.satisfied) {
+      return fail('own-identity-unverified', identityGateMessage('trade', gate.state));
+    }
     const wanted = wantedDescriptionProblem(input.wantedDescription, true);
     if (wanted) return fail('invalid-input', wanted, 'wantedDescription');
     wantedDescription = input.wantedDescription.trim();
@@ -413,6 +605,7 @@ export async function getDealInvitePreview(
     expiresAt: null,
     item: null,
     sellerIdentity: null,
+    viewerBlock: null,
     contractPath: null,
   };
   if (!token || token.length < 16) return empty;
@@ -471,6 +664,14 @@ export async function getDealInvitePreview(
     invite.kind === 'CASH_SALE' && invite.host_role === 'SELLER' ? invite.host_id : null;
   const sellerIdentity = sellerId ? await loadSellerIdentityDisclosure(sellerId) : null;
 
+  // Only for a signed-in non-host viewer of a live invite: the host gets
+  // `DealInviteShare`, a guest gets the sign-in preview, and a settled invite has
+  // nothing left to block.
+  const viewerBlock =
+    userId && userId !== invite.host_id && status === 'open'
+      ? await claimBlock(invite, userId)
+      : null;
+
   return {
     token,
     status,
@@ -486,6 +687,7 @@ export async function getDealInvitePreview(
     expiresAt: invite.expires_at,
     item,
     sellerIdentity,
+    viewerBlock,
     contractPath,
   };
 }
@@ -522,20 +724,12 @@ export async function claimDealInvite(
     if (path) return ok({ path });
     return fail('claimed', 'Someone already joined this deal.');
   }
-  if (invite.host_id === userId) {
-    return fail('self-join', 'You cannot join your own deal.');
-  }
-
-  const hostRegion = await requireTradingRegion(invite.host_id);
-  if (!hostRegion.ok) return fail('region-mismatch', hostRegion.message);
-  const joinerRegion = await requireTradingRegion(userId);
-  if (!joinerRegion.ok) return joinerRegion;
-  const mismatch = checkRegionCompatibility(
-    joinerRegion.data,
-    hostRegion.data,
-    operationalRegions(),
-  );
-  if (mismatch) return fail('region-mismatch', regionMismatchMessage(mismatch));
+  // BEFORE the joiner's card is written, not after. This covers self-join, both
+  // regions and every Identity_Gate this claim depends on — the checks that used to
+  // sit either side of `createHiddenItem`, with the identity one on the far side of
+  // it inside `openClaimedInvite`.
+  const blocked = await claimBlock(invite, userId);
+  if (blocked) return fail(blocked.reason, blocked.message);
 
   if (invite.kind === 'CASH_SALE' && invite.host_role === 'SELLER') {
     if (!input.buyerConfirmedSellerIdentity) {
@@ -571,6 +765,8 @@ export async function claimDealInvite(
     .select('id')
     .maybeSingle();
   if (!locked) {
+    // The card was created for a claim that lost the race, so it belongs to nothing.
+    if (joinerItemId) await discardHiddenItem(joinerItemId);
     return fail('claimed', 'Someone already joined this deal.');
   }
 
@@ -581,6 +777,9 @@ export async function claimDealInvite(
       .update({ claimed_at: null, claimed_by: null })
       .eq('id', invite.id)
       .eq('claimed_by', userId);
+    // Releasing the lock without this leaves the item behind, and the invite is
+    // claimable again — so a member retrying accumulates one orphan per attempt.
+    if (joinerItemId) await discardHiddenItem(joinerItemId);
     return opened;
   }
 
@@ -653,12 +852,24 @@ async function openClaimedInvite(
   const item = await loadHiddenItem(itemId, sellerId);
   if (!item.ok) return item;
 
+  // Still the authoritative read — `claimBlock` runs earlier to avoid wasted work,
+  // not instead of this, and only this call produces the `version` the sale snapshots.
+  // The refusal names the RIGHT party: on a host-BUYER invite `cashDealParties` makes
+  // the joiner the seller, so a fixed "the seller" reads as an accusation against the
+  // counterparty when it is about the person clicking Join.
   const identity = await loadSellerIdentityDisclosure(sellerId);
   if (!identity) {
-    return fail(
-      'seller-identity-unverified',
-      'The seller has not verified their identity yet.',
-    );
+    const gate = await readIdentityGate(sellerId);
+    if (gate.satisfied) {
+      const gap = disclosureGap(sellerId === joinerId);
+      return fail(gap.reason, gap.message);
+    }
+    return sellerId === joinerId
+      ? fail('own-identity-unverified', identityGateMessage('sell', gate.state))
+      : fail(
+          'seller-identity-unverified',
+          'The seller has not verified their identity yet.',
+        );
   }
 
   const result = await createDefaultCashSaleOrchestrator({

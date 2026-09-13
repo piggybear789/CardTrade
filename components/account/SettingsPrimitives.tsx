@@ -624,7 +624,7 @@ export function SettingsPlaceholder({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-11 flex-wrap items-center justify-between gap-cozy rounded-xl border border-dashed px-group py-group max-md:rounded-none max-md:border-0 max-md:px-group max-md:py-cozy">
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-cozy rounded-xl border border-border bg-muted px-group py-group max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:px-group max-md:py-cozy">
       <p className="text-body text-muted-foreground">{children}</p>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>

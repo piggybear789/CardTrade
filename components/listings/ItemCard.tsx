@@ -12,6 +12,7 @@ import { WatchButton } from '@/components/listings/WatchButton';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
 import { formatAud, itemImageUrl } from '@/lib/format';
+import { splitMoney } from '@/lib/listings/buyerPrice';
 import { cn } from '@/lib/utils';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
 import { tileIntrinsicHeight } from '@/components/listings/catalogGrid';
@@ -59,15 +60,10 @@ const UNAVAILABLE_LABEL: Record<string, string> = {
  * symbol and the decimal separator are locale-dependent. `Intl` has already
  * decided them, and re-deciding here would drift from it.
  */
-function splitMoney(formatted: string): {
-  symbol: string;
-  major: string;
-  minor: string;
-} {
-  const match = /^(\D*)(.*?)([.,]\d{2})?$/.exec(formatted);
-  if (!match) return { symbol: '', major: formatted, minor: '' };
-  return { symbol: match[1] ?? '', major: match[2] ?? '', minor: match[3] ?? '' };
-}
+/* `splitMoney` moved to `lib/listings/buyerPrice.ts`. It was private here while the
+   Flutter listing card carried a hand-port of it referring to "the same regex the web's
+   `splitMoney` uses" — a cross-client rule hidden inside one component — and the listing
+   detail panes wanted it too. */
 
 function unavailableLabelFor(item: CatalogItem): string | undefined {
   // A shopfront is never RESERVED or SOLD (0064), so the overlay can never
@@ -109,7 +105,12 @@ export function CatalogItemCard({
         // never reached the link and showed the default arrow. Setting it here
         // covers every child regardless of which one is under the pointer.
         'cursor-pointer transition-[box-shadow,border-color,transform] duration-150',
-        'hover:border-iris/40 hover:shadow-lift active:scale-[0.97]',
+        // The LIFT is the hover, not a colour change. A grid of these fills the
+        // catalog, so a violet edge under the pointer made the accent the most
+        // frequent thing in the product — and it was competing with the focus edge
+        // on the same element. `--foreground/20` firms the hairline; the shadow and
+        // the scale do the rest. See the border rule in globals.css.
+        'hover:border-foreground/20 hover:shadow-lift active:scale-[0.97]',
         inMosaic && 'catalog-tile',
         unavailableLabel && 'opacity-70',
       )}
@@ -130,6 +131,22 @@ export function CatalogItemCard({
       <div
         className={cn(
           'relative overflow-hidden bg-muted',
+          // `pointer-events-none` SO THE PHOTO IS ACTUALLY PART OF THE LINK.
+          //
+          // The hit area is `absolute inset-0 z-0`. This container is a LATER,
+          // POSITIONED sibling, so it paints above the anchor and — without this —
+          // swallowed every click that landed on it. The photo is most of the tile, so
+          // most of the tile did nothing: only the text block below was clickable, and
+          // that block works precisely because it already carries this class.
+          //
+          // Worse than a plain dead zone, the card sets `cursor-pointer` on itself to
+          // cover exactly this case, so the pointer promised a link over the photo and
+          // nothing happened on click. Half the bug had been found and only the cursor
+          // was fixed.
+          //
+          // `WatchButton` below restores `pointer-events-auto` on itself, which is the
+          // same arrangement the text block uses for the seller link.
+          'pointer-events-none',
           // Square at every width. The desktop cover used to be 3:4, which made
           // the tile tall enough that a row of them dominated the grid.
           inMosaic ? 'catalog-cover' : 'aspect-square',
@@ -196,22 +213,22 @@ export function CatalogItemCard({
         <h3 className="line-clamp-2 text-body font-medium leading-normal text-foreground">
           {item.title}
         </h3>
-        {/* Game and condition as plain muted text with a hairline between,
-            rather than a filled chip. Condition is the largest block in the
-            filter rail and was the one fact the grid never confirmed — filter
-            to "Graded" and nothing said graded. A binder holds mixed stock, so
-            it states no single condition. */}
-        <p className="flex min-w-0 items-center gap-1.5 text-body leading-tight text-muted-foreground">
-          <span className="truncate">{item.category}</span>
-          {!isShopfront && item.condition ? (
-            <>
-              <span
-                aria-hidden="true"
-                className="h-3 w-px shrink-0 bg-border"
-              />
-              <span className="shrink-0">{item.condition}</span>
-            </>
-          ) : null}
+        {/* THE GAME ONLY. Condition used to follow it behind a hairline — the
+            reasoning was that condition is the largest block in the filter rail
+            and the grid never confirmed it, so filtering to "Graded" showed
+            nothing that said graded.
+            
+            Dropped because the title already carries it where it matters. A
+            graded card is titled "BGS 10 Black Label Mimikyu": the grader, the
+            grade and the label are right there, and "| Graded" underneath added a
+            coarser restatement of a fact the buyer had already read. For the
+            ungraded conditions it was competing for a row that has about 125px
+            to spend, against a category that is the more useful sort key.
+            
+            The filter-confirmation argument is real but belongs to a surface with
+            room — the listing page states condition in full. */}
+        <p className="min-w-0 truncate text-body leading-tight text-muted-foreground">
+          {item.category}
         </p>
         {/* THE PRICE LEADS, AND THE SAVE COUNT SITS WITH IT. Not right-aligned
             across the tile: pushing the count to the far edge reads as a second
@@ -219,16 +236,33 @@ export function CatalogItemCard({
             price. Grouped immediately after it, the two read as one statement —
             what it costs, and how many people are watching it. */}
         <div className="flex min-w-0 items-baseline gap-1.5">
-          <p className="shrink-0 font-bold leading-none text-iris-ink">
+          {/* INK, NOT VIOLET, and this is the change the pastel retune specified and
+              never delivered here.
+
+              A catalog page is mostly prices — one per tile, twelve to a screen — so
+              setting them in the brand hue made violet the most repeated colour on the
+              busiest surface, and left nothing for the hue to MEAN. It is the marker
+              colour for state and focus; spending it on every number cost it that job.
+              The decision was applied to the design board and missed this file, so the
+              board and the app disagreed about the single most repeated element in the
+              product.
+
+              The symbol and the cents stay muted: the dollars are what decides a
+              purchase, and the rest is scaffolding around them. */}
+          <p className="shrink-0 font-bold leading-none text-foreground">
             {isShopfront ? (
-              <span className="text-meta font-semibold">From </span>
+              <span className="text-meta font-semibold text-muted-foreground">From </span>
             ) : null}
             {/* Three sizes: symbol smallest, digits largest, cents between.
                 Only the digits decide the purchase. */}
-            <span className="text-body">{price.symbol}</span>
+            <span className="text-body font-semibold text-muted-foreground">
+              {price.symbol}
+            </span>
             <span className="text-head">{price.major}</span>
             {price.minor ? (
-              <span className="text-body">{price.minor}</span>
+              <span className="text-body font-semibold text-muted-foreground">
+                {price.minor}
+              </span>
             ) : null}
           </p>
           {item.watch_count > 0 ? (
@@ -250,14 +284,23 @@ export function CatalogItemCard({
               size="xs"
               className="size-5 border-0"
             />
-            <span className="min-w-0 flex-1 truncate text-body text-muted-foreground">
+            {/* `text-meta`, not `text-body`. The seller line is the last thing on
+                the tile and the least of what a buyer is scanning — title, then
+                price, then who. At 12px `piggybear7890` fits the row it was being
+                truncated out of, which is worth more than two points of size on a
+                name nobody reads letter by letter.
+                
+                It also puts this variant in step with `ItemCardSellerRow`, which
+                has always drawn the name at `meta`. The two disagreed for no
+                stated reason.
+                
+                Within the type scale's rules: `meta` is the CHROME register and a
+                grid cell's supporting metadata is exactly that. It is floored at
+                12px precisely so this kind of reach-for-smaller stops here. */}
+            <span className="min-w-0 flex-1 truncate text-meta text-muted-foreground">
               {item.seller.displayName ?? 'Seller'}
             </span>
-            {item.seller.isVerified ? (
-              <span className="shrink-0">
-                <IdentityBadge verified size={12} />
-              </span>
-            ) : null}
+            <SellerReputation seller={item.seller} />
           </Link>
         ) : null}
       </div>
@@ -274,7 +317,7 @@ export function ItemCard({ item, initialWatching }: ItemCardProps) {
   return (
     <Card
       className={cn(
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border p-0 transition-[border-color,box-shadow] duration-150 hover:border-iris/50 hover:shadow-auction',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border-border p-0 transition-[border-color,box-shadow] duration-150 hover:border-foreground/20 hover:shadow-auction',
         unavailableLabel && 'opacity-70',
       )}
     >
@@ -478,12 +521,76 @@ function ItemCardSellerRow({
         ) : null}
       </Link>
 
-      {seller.rating != null ? (
-        <span className="flex shrink-0 items-center gap-tight text-meta tabular-nums text-muted-foreground">
-          <HugeiconsIcon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden="true" />
-          {seller.rating.toFixed(1)}
-        </span>
-      ) : null}
+      <SellerReputation seller={seller} showCount />
     </div>
+  );
+}
+
+/**
+ * A seller's standing, as one compact marker: stars-and-score, or "New seller".
+ *
+ * THIS REPLACED AN "ID verified" BADGE ON THE CATALOG CARD, and the swap is about
+ * information rather than taste. Publishing a listing requires the Identity_Gate, so
+ * a verified seller is a PRECONDITION of the card existing — the badge was true of
+ * every card in the grid and so discriminated between none of them. Reputation is
+ * what actually varies from seller to seller, and it is what a buyer scans this row
+ * for.
+ *
+ * Nothing was lost on the unverified side: `IdentityBadge` renders null when
+ * unverified, so the compact card never showed a negative signal to begin with.
+ * `ItemCardSellerRow` still shows its explicit unverified marker.
+ *
+ * ONE DEFINITION FOR BOTH CARD VARIANTS. The compact grid card and the richer
+ * carousel card had separately written rating spans that already disagreed — the
+ * richer one omitted the review count — which is how "4.9" from one review and "4.9"
+ * from two hundred came to look identical on one surface and not the other.
+ *
+ * `rating` and `ratingCount` already arrive on `CatalogSeller`, so this costs no
+ * extra query.
+ */
+function SellerReputation({
+  seller,
+  showCount = false,
+}: {
+  seller: NonNullable<CatalogItem['seller']>;
+  /** Append the review count. Off by default — only the wider card has room. */
+  showCount?: boolean;
+}) {
+  // NOTHING AT ALL when there is no rating, and that is a space decision, not an
+  // editorial one. A grid card gives this row about 125px after the avatar, so any
+  // second element comes straight out of the seller's name: a "New seller" marker
+  // here truncated `piggybear7890` to `piggy…`. A name a buyer can read is worth
+  // more than a label that says nothing they can act on, and since every seller
+  // starts unrated the label would have been on nearly every card.
+  if (seller.rating == null) return null;
+
+  return (
+    <span
+      // `text-meta` on both card variants, matching the seller name beside it.
+      className="flex shrink-0 items-center gap-tight text-meta tabular-nums text-muted-foreground"
+      // `role="img"` plus a label, because the star is `aria-hidden` and the bare
+      // digits would otherwise be announced as a loose number with nothing saying
+      // what it measures. That is the F1 mistake, in the densest grid in the app.
+      role="img"
+      aria-label={`Seller rated ${seller.rating.toFixed(1)} out of 5${
+        seller.ratingCount > 0 ? ` from ${seller.ratingCount} reviews` : ''
+      }`}
+    >
+      <HugeiconsIcon
+        icon={StarIcon}
+        className="size-3 fill-iris text-iris-ink"
+        aria-hidden="true"
+      />
+      {seller.rating.toFixed(1)}
+      {/* THE COUNT IS THE RICHER CARD'S ONLY, and the asymmetry is deliberate this
+          time. `(12)` is another ~22px off the seller's name on a grid card that
+          has none to give. The richer card is wider and its name is already on its
+          own line, so it can afford the precision — and the precision matters
+          there, because 4.9 from one review and 4.9 from two hundred are not the
+          same claim. */}
+      {showCount && seller.ratingCount > 0 ? (
+        <span className="text-muted-foreground/70">({seller.ratingCount})</span>
+      ) : null}
+    </span>
   );
 }

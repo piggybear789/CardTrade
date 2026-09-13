@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoDitto — redesign mockup board (round 2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+<div class="board">
+
+  <div class="board-top">
+    <div>
+      <p class="board-kicker">Round 2 · revised against review · September 2026</p>
+      <h1>NoDitto mockup board</h1>
+      <p>
+        Every member-facing surface at desktop (1280) and mobile (390), in the app's real tokens.
+        Round 1 proposed changes to all 28; this round keeps only what the review accepted and
+        renders the <b>current build</b> everywhere it won. Plates marked
+        <span class="asis">CURRENT DESIGN KEPT</span> are the app as it stands today, drawn from the
+        code so the board stays honest about what already exists.
+      </p>
+    </div>
+    <div class="legend">
+      <span><span class="keep">KEEP</span> already right</span>
+      <span><span class="chg">CHANGE</span> exists, reshaped</span>
+      <span><span class="add">ADD</span> new</span>
+      <span><span class="cut">CUT</span> remove</span>
+      <span><i class="pin">1</i> pin maps to a note</span>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="plate" id="palette">
+    <header>
+      <h2>The palette question — and a correction</h2>
+      <p class="intent">
+        Round 1 said the accent colours were over-saturated against a desaturated violet.
+        <b>That was wrong</b>, and reading <code>app/globals.css</code> properly is what shows it:
+        HSL saturation is not perceptual chroma. <code>--trust</code> at <code>80% 26%</code> is a
+        <em>dark, muted</em> teal, not a loud one, and the token comments record that six teal
+        alternatives were measured — 173° won on contrast (5.26:1) <em>and</em> on hue distance from
+        the violet (77°). <code>--action</code> had already been moved off safety orange
+        (32° → 40°) and gained <code>--action-border</code> because a pastel fill cannot be its own
+        edge. This palette is argued, not accidental.
+      </p>
+    </header>
+
+    <p class="frame-label">The hues, and the actual defect</p>
+    <div class="swatches">
+      <div class="sw"><div class="chipbox" style="background:hsl(275 38% 44%)"></div><div class="lbl"><b>primary 275°</b>brand fills</div></div>
+      <div class="sw"><div class="chipbox" style="background:hsl(275 34% 58%)"></div><div class="lbl"><b>iris 275°</b>rings, custody</div></div>
+      <div class="sw"><div class="chipbox" style="background:hsl(214 15% 88%)"></div><div class="lbl"><b>— 173→275 —</b>102° gap</div></div>
+      <div class="sw"><div class="chipbox" style="background:hsl(173 80% 26%)"></div><div class="lbl"><b>trust 173°</b>verified, settled</div></div>
+      <div class="sw"><div class="chipbox" style="background:hsl(214 15% 88%)"></div><div class="lbl"><b>— 40→173 —</b>133° gap</div></div>
+      <div class="sw"><div class="chipbox" style="background:hsl(40 96% 68%)"></div><div class="lbl"><b>action 40°</b>your move</div></div>
+      <div class="sw" style="border-color:hsl(var(--destructive));border-width:2px">
+        <div class="chipbox" style="background:hsl(0 80% 40%)"></div><div class="lbl"><b>destructive 0°</b>only 40° from action</div></div>
+      <div class="sw" style="border-color:hsl(var(--trust));border-width:2px">
+        <div class="chipbox" style="background:hsl(352 80% 40%)"></div><div class="lbl"><b>proposed 352°</b>48° gap, in family</div></div>
+    </div>
+
+    <div class="notes">
+      <h3>What actually changes</h3>
+      <ol>
+        <li><i class="pin">P1</i><div><span class="chg">CHANGE</span>
+          <b>One token: <code>--destructive</code> 0° → 352°.</b> The two closest hues in the whole
+          palette are <code>--action</code> (40°) and <code>--destructive</code> (0°) — 40° apart —
+          and they carry the most opposed meanings in the product: "this is your move" and "this went
+          wrong". Every other pair sits 77–133° apart. Moving red to 352° opens the gap to 48° and
+          pulls it into the 275°-tinted family the neutrals already live in. Luminance is unchanged at
+          constant S/L, so the measured 6.46:1 and 6.67:1 still hold.
+          <code>--action</code> deliberately does <em>not</em> move — its 40° is a reference to the
+          wordmark orange, per the token's own comment.
+        </div></li>
+        <li><i class="pin">P2</i><div><span class="chg">CHANGE</span>
+          <b>Take violet off prices.</b> This is the real answer to "don't abuse the purple". The
+          problem was never the hue, it was the <em>frequency</em>: <code>--iris-ink</code> is on
+          every price in the app, which is the single most repeated element there is, so violet ended
+          up meaning "money" as well as "platform". Prices become ink. Violet then means exactly one
+          thing — the platform's own presence: the rail, the active nav item, custody of funds, the
+          focus ring. It also settles the desktop/mobile disagreement on the listing route in favour
+          of the readable one.
+        </div></li>
+        <li><i class="pin">P3</i><div><span class="add">ADD</span>
+          <b>Five status tones out of the four existing hues. No new token.</b> The reason six
+          cash-sale statuses collapse onto one solid violet chip is that violet is doing both "brand"
+          and "in progress". Splitting on fill-versus-outline within one hue separates them honestly —
+          both are the platform holding something, differing in intensity — and no fifth hue has to be
+          invented to fit into a wheel that has no room for one.
+          <div class="tonelegend mt-c">
+            <div class="row2"><span class="badge b-secondary">Agreeing terms</span>
+              <span>neutral — nothing committed yet. Also negotiating, cancelled.</span></div>
+            <div class="row2"><span class="badge b-live">● In transit</span>
+              <span>in progress — iris outline. Posted, in transit, negotiating.</span></div>
+            <div class="row2"><span class="badge b-held">● Funds held</span>
+              <span>money is held — iris filled. Funds confirmed, inspecting.</span></div>
+            <div class="row2"><span class="badge b-warn">Your move</span>
+              <span>waiting on this member — action amber.</span></div>
+            <div class="row2"><span class="badge b-trust">✓ Completed</span>
+              <span>settled — trust teal. Completed, paid, verified.</span></div>
+            <div class="row2"><span class="badge b-dang">● Disputed</span>
+              <span>halted — destructive. Disputed, failed, return required.</span></div>
+          </div>
+        </div></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="plate" id="bugs">
+    <header>
+      <h2>Defects found in the current build</h2>
+      <p class="intent">
+        These are not design preferences. Each was found by reading the source and each is a thing the
+        code does that it almost certainly does not intend to do. They are ordered by what they cost a
+        member.
+      </p>
+    </header>
+
+    <div class="notes" style="margin-top:0">
+      <h3>Bugs</h3>
+      <ol>
+        <li><i class="pin">B1</i><div>
+          <b>Step labels describe the viewer in the third person — and they are the largest text in
+          the action card.</b> <code>deriveCashSaleSteps</code> emits
+          <code>label: 'Buyer confirms the item arrived'</code> and
+          <code>'Seller ships with tracking'</code>, and that label is the dock's
+          <code>&lt;h3&gt;</code>. So the buyer reads "Buyer confirms the item arrived" about
+          themselves. The <code>detail</code> beneath it <em>is</em> correctly second-person
+          ("Confirm receipt, or report it as not received") — but that line is
+          <code>hidden</code> below <code>md</code>, so on a phone the only copy shown is the one in
+          the wrong voice. Voice is also inconsistent between steps: "Set handover terms" is
+          imperative, "Payment collected and held" is passive, "Buyer confirms…" is third person.
+          <span class="src"><code>domain/contract/cashSaleSteps.ts</code> · <code>components/contract/ContractActionCard.tsx</code></span>
+        </div></li>
+
+        <li><i class="pin">B2</i><div>
+          <b><code>InspectionCountdown</code> renders in two different places in two rooms, and in the
+          cash sale it is behind a sheet.</b> The component is good and its copy is exactly what the
+          review asked for — "Inspection window · 2 days left", then "accept it or raise a dispute by
+          {date}. {expiryConsequence}". In the <b>trade</b> room it is a full-width banner above the
+          panes. In the <b>cash sale</b> it is inside the <em>Protection tab</em>, which on a phone is
+          behind the bottom sheet — so the deadline that silently completes the sale and pays the
+          seller is two taps from being seen. Same component, one visible and one not.
+          <span class="src"><code>CashSaleView.tsx</code> Protection tab vs <code>TradeContract.tsx</code> banner</span>
+        </div></li>
+
+        <li><i class="pin">B3</i><div>
+          <b>The onboarding step counter never says "1".</b> <code>PROGRESS_STEPS = STEPS =
+          ['welcome','username','region','intent']</code>, so the count is out of <b>4</b> — but the dot
+          row is hidden on <code>welcome</code>. The first number a member ever sees is therefore
+          <b>"Step 2 of 4"</b>, and the last is "4 of 4" on a screen that is followed by more work for
+          sellers.
+          <br><br>
+          <span class="keep">NOT A BUG</span> and worth recording as such, because round 1 called it one:
+          <code>seller-onboarding</code> is excluded from <code>STEPS</code> <em>deliberately</em>, and
+          the comment above the array gives the reason — it "sits off the end for sellers only, and
+          counting it would tell a buyer they are on step 4 of 5 of something they will never see."
+          That reasoning is correct. The fix is not to fold it in; it is to stop counting
+          <code>welcome</code>, so the visible sequence reads 1–2–3 of 3, and to give the seller step
+          its own two-item progress for identity and payouts.
+          <span class="src"><code>components/onboarding/OnboardingWizard.tsx</code></span>
+        </div></li>
+
+        <li><i class="pin">B4</i><div>
+          <b><code>CANCELLED</code> renders as a different badge variant depending on which room you
+          are in</b> — <code>outline</code> on a cash sale, <code>secondary</code> on a trade. One
+          state, two appearances, for no stated reason.
+          <span class="src"><code>CashSaleStatusBadge.tsx</code> vs <code>StateBadge.tsx</code></span>
+        </div></li>
+
+        <li><i class="pin">B5</i><div>
+          <b>Two search fields on desktop with different scopes and identical appearance.</b>
+          <code>CatalogFilterSearch</code> in the rail filters only the items already loaded;
+          <code>HeaderSearch</code> in the dark bar runs the real query. Both are a magnifier and a
+          text box, so on page 1 of 27 the rail field silently searches 48 of 1,284 items. Not being
+          actioned this round — recorded because it will keep being reported.
+          <span class="src"><code>components/listings/CatalogControls.tsx</code></span>
+        </div></li>
+
+        <li><i class="pin">B6</i><div>
+          <b>The same fact is named two different things one click apart.</b> The profile tab is
+          "Payout setup"; the card inside it is headed "Payout destination". The card's comment
+          explains at length why it must never say "Verified Account" — that reasoning is right and the
+          naming is still inconsistent with the tab that contains it.
+          <span class="src"><code>components/profile/PayoutOnboarding.tsx</code></span>
+        </div></li>
+
+        <li><i class="pin">B7</i><div>
+          <b>The action button is 1.55:1 against the page and depends entirely on its border.</b> This
+          is documented rather than accidental — <code>--action-border</code> exists for it — but it
+          means any usage of <code>--action</code> that drops the border silently degrades the primary
+          buy control into a tag. Worth stating as a rule rather than a comment on a token.
+          <span class="src"><code>app/globals.css</code> <code>--action</code> / <code>--action-border</code></span>
+        </div></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="plate" id="scope">
+    <header>
+      <h2>What this round builds, and what it drops</h2>
+      <p class="intent">Round 1 raised thirteen findings. The review accepted some, narrowed some and
+        declined others. Recording all three so nothing gets silently re-proposed.</p>
+    </header>
+
+    <div class="cols c-1-1" style="gap:var(--s-section)">
+      <div class="notes" style="margin:0">
+        <h3>Building</h3>
+        <ol>
+          <li><i class="pin">✓</i><div><b>Price ladder sidebar</b> — histogram, dual slider and typed
+            min/max on the catalog. <span class="src">Homepage</span></div></li>
+          <li><i class="pin">✓</i><div><b>Item count on the heading line.</b> <span class="src">Homepage</span></div></li>
+          <li><i class="pin">✓</i><div><b>Thumbnail filmstrip</b> on desktop listing detail.</div></li>
+          <li><i class="pin">✓</i><div><b>Meta line replacing the inline map</b> — "Single item ·
+            Listed 4 hours ago · Based in Newtown NSW".</div></li>
+          <li><i class="pin">✓</i><div><b>Left→right carousel</b> replacing the stacked photo list on
+            mobile listing detail.</div></li>
+          <li><i class="pin">✓</i><div><b>My listings as an aligned management table</b>, columns
+            locked across rows.</div></li>
+          <li><i class="pin">✓</i><div><b>Seller profile as one column with a full-width trust
+            band</b> — the two rails could never align by construction.</div></li>
+          <li><i class="pin">✓</i><div><b>Split-screen auth</b>, with the escrow explainer card
+            removed.</div></li>
+          <li><i class="pin">✓</i><div><b>Password recovery</b> with OAuth troubleshooting and the
+            session consequence.</div></li>
+          <li><i class="pin">✓</i><div><b>Dispute and return</b> state header, halted rail, and the
+            outcomes published up front.</div></li>
+          <li><i class="pin">✓</i><div><b>Contract lists</b> — status chips, "next step" column,
+            semantic tones, one tabbed surface on mobile.</div></li>
+          <li><i class="pin">✓</i><div><b>Offers</b> grouped by listing with the counter chain drawn.</div></li>
+          <li><i class="pin">✓</i><div><b>Messages</b> two-column desktop, contract badges, vertical
+            centring fixed.</div></li>
+          <li><i class="pin">✓</i><div><b>Notifications</b> with a deadline block and date grouping.</div></li>
+          <li><i class="pin">✓</i><div><b>Profile, payouts, all staff surfaces, help and system
+            states.</b></div></li>
+          <li><i class="pin">✓</i><div><b>Simplified private deal invite.</b></div></li>
+          <li><i class="pin">✓</i><div><b>Palette: P1, P2, P3</b> above.</div></li>
+        </ol>
+      </div>
+
+      <div class="notes" style="margin:0">
+        <h3>Dropped or narrowed</h3>
+        <ol>
+          <li><i class="pin">✕</i><div><b>Contract room restructure — dropped.</b> The current room
+            stays: flush shell, tab inspector left, chat right, action dock in the chat column. What
+            survives is copy only: the room must state the course of action and its deadline. See
+            <b>B1</b> and <b>B2</b> — the sentence already exists, it is in the wrong voice and in the
+            wrong place.</div></li>
+          <li><i class="pin">✕</i><div><b>Progress rail in the live rooms — dropped</b>, kept only for
+            the dispute flow where the halted state has nowhere else to show.</div></li>
+          <li><i class="pin">✕</i><div><b>Applied-filter chips, facet counts, mobile filter chips,
+            catalog FAB, floating result pill — dropped.</b> The price sidebar and the inline count are
+            the only catalog changes.</div></li>
+          <li><i class="pin">✕</i><div><b>Listing trust strip and fee card — dropped as designed.</b>
+            Reduced to one line beside the price, because the fee genuinely is not disclosed before
+            the contract room and "don't over-explain" and "don't hide the 5%" can both be satisfied
+            by a single sentence.</div></li>
+          <li><i class="pin">✕</i><div><b>Onboarding and identity redesign — dropped entirely.</b>
+            Current UI kept. <b>B3</b> is a bug in it and is worth fixing on its own.</div></li>
+          <li><i class="pin">✕</i><div><b>Payout setup redesign — dropped.</b> Current UI kept. The
+            restricted-account banner moves to the payouts dashboard, which the review kept.</div></li>
+          <li><i class="pin">✕</i><div><b>Propose-a-trade redesign — dropped.</b> Current dialog
+            kept.</div></li>
+          <li><i class="pin">—</i><div><b>Not reviewed, left as proposed:</b> the create/edit listing
+            form (named photo slots, four exits) and the page-versus-card surface step. Flagged on
+            their plates.</div></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <div class="plate">
+    <header>
+      <h2>Surfaces</h2>
+      <p class="intent">28 surfaces across five sheets, desktop and mobile each.</p>
+    </header>
+
+    <p class="frame-label">01 — Discovery</p>
+    <div class="toc" style="margin-bottom:22px">
+      <a href="01-discovery.html#catalog"><b>Catalog / homepage</b><span>Price ladder + inline count only</span><code>/</code></a>
+      <a href="01-discovery.html#listing"><b>Listing detail</b><span>Filmstrip, carousel, meta line, your buttons</span><code>/listings/[id]</code></a>
+      <a href="01-discovery.html#create"><b>Create &amp; edit listing</b><span>Not reviewed — as proposed</span><code>/listings/new</code></a>
+      <a href="01-discovery.html#mine"><b>My listings</b><span>Aligned management table</span><code>/listings/mine</code></a>
+      <a href="01-discovery.html#saved"><b>Saved</b><span>Watchlist</span><code>/saved</code></a>
+      <a href="01-discovery.html#seller"><b>Seller profile</b><span>One column, trust band</span><code>/sellers/[id]</code></a>
+    </div>
+
+    <p class="frame-label">02 — Getting in</p>
+    <div class="toc" style="margin-bottom:22px">
+      <a href="02-entry.html#signin"><b>Sign in</b><span>Split screen, explainer removed</span><code>/sign-in</code></a>
+      <a href="02-entry.html#signup"><b>Sign up</b><span>Three-step runway</span><code>/sign-up</code></a>
+      <a href="02-entry.html#recover"><b>Password recovery</b><span>OAuth + session consequence</span><code>/forgot-password</code></a>
+      <a href="02-entry.html#onboarding"><b>Onboarding wizard</b><span>Current design kept · B3</span><code>/onboarding</code></a>
+      <a href="02-entry.html#identity"><b>Identity verification</b><span>Current design kept</span><code>?tab=verification</code></a>
+      <a href="02-entry.html#payouts-setup"><b>Payout setup</b><span>Current design kept · B6</span><code>?tab=verification</code></a>
+    </div>
+
+    <p class="frame-label">03 — Contracts</p>
+    <div class="toc" style="margin-bottom:22px">
+      <a href="03-contracts.html#cashroom"><b>Cash sale room</b><span>Current layout · copy fix B1/B2</span><code>/sales/[id]</code></a>
+      <a href="03-contracts.html#traderoom"><b>Trade room</b><span>Current layout · copy fix B1/B2</span><code>/trades/[id]</code></a>
+      <a href="03-contracts.html#dispute"><b>Dispute &amp; return</b><span>Rebuilt</span><code>/sales/[id]</code></a>
+      <a href="03-contracts.html#lists"><b>Sales / purchases / trades</b><span>Rebuilt</span><code>/sales</code></a>
+      <a href="03-contracts.html#offers"><b>Offers</b><span>Rebuilt</span><code>/offers</code></a>
+      <a href="03-contracts.html#newtrade"><b>Propose a trade</b><span>Current design kept</span><code>/trades/new</code></a>
+      <a href="03-contracts.html#invite"><b>Private deal invite</b><span>Simplified</span><code>/t/[token]</code></a>
+    </div>
+
+    <p class="frame-label">04 — Comms &amp; account</p>
+    <div class="toc" style="margin-bottom:22px">
+      <a href="04-comms-account.html#inbox"><b>Messages inbox</b><span>Two column, centring fixed</span><code>/messages</code></a>
+      <a href="04-comms-account.html#thread"><b>Message thread</b><span>Rebuilt</span><code>/messages/[id]</code></a>
+      <a href="04-comms-account.html#notifications"><b>Notifications</b><span>Deadline block</span><code>/notifications</code></a>
+      <a href="04-comms-account.html#profile"><b>Profile &amp; settings</b><span>Audience per field</span><code>/profile</code></a>
+      <a href="04-comms-account.html#payouts"><b>Payouts</b><span>Four states + blocked banner</span><code>/profile/payouts</code></a>
+    </div>
+
+    <p class="frame-label">05 — Staff &amp; system</p>
+    <div class="toc">
+      <a href="05-admin-system.html#admin"><b>Admin operations</b><span>Custody first</span><code>/admin</code></a>
+      <a href="05-admin-system.html#queue"><b>Arbitration queue</b><span>Priority published</span><code>/admin/arbitration</code></a>
+      <a href="05-admin-system.html#case"><b>Arbitration case</b><span>Outcomes with consequences</span><code>/admin/arbitration/…</code></a>
+      <a href="05-admin-system.html#help"><b>Help &amp; policy</b><span>Rebuilt</span><code>/help</code></a>
+      <a href="05-admin-system.html#states"><b>System states</b><span>404, error, suspended, loading</span><code>not-found.tsx</code></a>
+    </div>
+  </div>
+
+  <p style="text-align:center;color:var(--ink-soft);font-size:13px;margin-top:32px">
+    Reference screens cited on the sheets belong to their respective owners and are curated by
+    <a href="https://mobbin.com" style="color:hsl(var(--iris-ink))">Mobbin</a>; they were consulted as
+    design references only and descriptions are paraphrased. Content was rephrased for compliance with
+    licensing restrictions.
+  </p>
+
+</div>
+</body>
+</html>

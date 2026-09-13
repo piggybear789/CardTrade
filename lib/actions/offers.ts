@@ -570,6 +570,25 @@ export async function listOffersForItem(
 /** The caller's role in a negotiation. */
 export type OfferRole = 'buyer' | 'seller';
 
+/**
+ * One offer in a negotiation's chain.
+ *
+ * A chain is what the two parties actually did — $80, countered at $110, countered
+ * back at $95 — and the account list previously showed only its last link. That is the
+ * one number a member cannot read anything into: whether $95 is a concession or a
+ * hardening depends entirely on what came before it.
+ */
+export interface OfferChainEntry {
+  id: string;
+  amountCents: number;
+  status: OfferStatus;
+  /** True when the caller made this offer rather than the counterparty. */
+  byMe: boolean;
+  /** The note attached to this offer, if any. */
+  message: string | null;
+  createdAt: string;
+}
+
 /** A negotiation summarized for the account "Offers" tab. */
 export interface MyOfferEntry {
   /** The id of the latest (live) offer in the negotiation. */
@@ -600,6 +619,26 @@ export interface MyOfferEntry {
   canWithdraw: boolean;
   /** ISO timestamp of the latest offer. */
   updatedAt: string;
+  /**
+   * Every offer that led to the live one, OLDEST FIRST. Always at least one — the live
+   * offer itself is the last element.
+   *
+   * Walked back through `parent_offer_id` rather than taken as "every offer between
+   * this pair on this item", which is what the negotiation key would have given. The
+   * two differ when a chain ends and a new one starts later: a declined $60 from March
+   * has no bearing on a fresh $90 in June, and presenting them as one negotiation would
+   * invent a history that never happened.
+   */
+  chain: OfferChainEntry[];
+  /**
+   * How many OTHER pending offers accepting this one would decline.
+   *
+   * Only ever non-zero for a seller: RLS scopes `offers` to the caller's own
+   * negotiations, so a buyer cannot see — and must not be told about — a rival bid.
+   * That asymmetry is the point. Accepting declines every other pending offer on the
+   * listing, and a seller weighing three of them is the person who needs to know.
+   */
+  otherPendingOnItem: number;
 }
 
 /** Errors surfaced by {@link listMyOffers}. */
@@ -613,6 +652,43 @@ export type ListMyOffersResult =
 /** Stable key for a negotiation: one item + one buyer + one seller. */
 function negotiationKey(offer: OfferRow): string {
   return `${offer.item_id}::${offer.buyer_id}::${offer.seller_id}`;
+}
+
+/**
+ * Walk a chain back from its live offer, oldest first.
+ *
+ * @param byId Every offer row the caller can read, keyed by id.
+ *
+ * The walk is bounded by a visited set rather than trusting the data: `parent_offer_id`
+ * is a self-reference, and a cycle — however it got there — would hang the request
+ * rather than fail it. Terminating early on a repeat gives a short chain, which is
+ * wrong but harmless; a spin is neither.
+ */
+function offerChain(
+  latest: OfferRow,
+  byId: Map<string, OfferRow>,
+  me: string,
+): OfferChainEntry[] {
+  const chain: OfferChainEntry[] = [];
+  const seen = new Set<string>();
+  let cursor: OfferRow | undefined = latest;
+
+  while (cursor && !seen.has(cursor.id)) {
+    seen.add(cursor.id);
+    chain.push({
+      id: cursor.id,
+      amountCents: cursor.amount_cents,
+      status: cursor.status,
+      byMe: cursor.offered_by === me,
+      message: cursor.message,
+      createdAt: cursor.created_at,
+    });
+    cursor = cursor.parent_offer_id
+      ? byId.get(cursor.parent_offer_id)
+      : undefined;
+  }
+
+  return chain.reverse();
 }
 
 /**
@@ -640,6 +716,20 @@ export async function listMyOffers(): Promise<ListMyOffersResult> {
   }
 
   const rows = (data ?? []) as OfferRow[];
+
+  // EVERY ROW IS KEPT, not just the latest per negotiation. The chain and the
+  // rival-offer count are both already in this result set — the previous version threw
+  // them away one line later and the list was the poorer for it.
+  const byId = new Map<string, OfferRow>(rows.map((row) => [row.id, row]));
+
+  // Pending offers per item, for the "accepting declines the others" count below.
+  const pendingByItem = new Map<string, OfferRow[]>();
+  for (const row of rows) {
+    if (row.status !== 'PENDING') continue;
+    const existing = pendingByItem.get(row.item_id);
+    if (existing) existing.push(row);
+    else pendingByItem.set(row.item_id, [row]);
+  }
 
   // Collapse each negotiation to its latest offer. Rows arrive newest-first, so
   // the first row seen per key is the live offer.
@@ -695,6 +785,7 @@ export async function listMyOffers(): Promise<ListMyOffersResult> {
     const offeredByMe = offer.offered_by === me;
     const isPending = offer.status === 'PENDING';
     const item = itemById.get(offer.item_id) ?? null;
+    const key = negotiationKey(offer);
     return {
       offerId: offer.id,
       itemId: offer.item_id,
@@ -709,6 +800,12 @@ export async function listMyOffers(): Promise<ListMyOffersResult> {
       isMyTurn: isPending && !offeredByMe,
       canWithdraw: isPending && offeredByMe,
       updatedAt: offer.updated_at,
+      chain: offerChain(offer, byId, me),
+      // Counted by NEGOTIATION, not by row: two pending offers cannot coexist in one
+      // chain, so anything with a different key is a different buyer.
+      otherPendingOnItem: (pendingByItem.get(offer.item_id) ?? []).filter(
+        (row) => negotiationKey(row) !== key,
+      ).length,
     };
   });
 

@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoDitto board — 04 Comms &amp; account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+<div class="board">
+
+<p class="crumbs"><a href="index.html">← Board index</a> · <a href="03-contracts.html">← Contracts</a></p>
+<div class="board-top">
+  <div>
+    <p class="board-kicker">Sheet 04</p>
+    <h1>Comms &amp; account</h1>
+    <p>Inbox, thread, notifications, profile settings, payouts. Where a member finds out something
+      happened, and where they control what other people see.</p>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="inbox">
+  <header>
+    <h2>Messages inbox</h2>
+    <span class="route">/messages</span>
+    <p class="intent">
+      <b>Today:</b> a list of 1:1 conversations, deduped by ordered participant pair plus an optional
+      item. <b>Proposal:</b> two columns on desktop so a reply doesn't cost a navigation, and — the
+      important part — show which conversations are attached to live money.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a><a>Deals</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="ic">✉<span class="dot"></span></span><span class="ic">🔔</span>
+            <span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Messages</h1>
+            <div class="navlist mt-g"><a class="on">All <span class="n">7</span></a>
+              <a>● Unread <span class="n">3</span></a><a>On a contract <span class="n">4</span></a>
+              <a>Just enquiries <span class="n">3</span></a><a>Archived</a></div>
+          </aside>
+          <section class="content flush" style="padding:0">
+            <div class="cols" style="grid-template-columns:340px minmax(0,1fr);gap:0;height:100%">
+              <div style="border-right:1px solid hsl(var(--border));display:flex;flex-direction:column;min-height:0">
+                <div style="padding:var(--s-cozy);border-bottom:1px solid hsl(var(--border))">
+                  <span class="input ph" style="height:34px">⌕ Search messages</span>
+                </div>
+                <div style="overflow:hidden;position:relative">
+                  <i class="pin abs" style="left:4px;top:6px">1</i>
+                  <div class="listrow unread" style="align-items:flex-start">
+                    <span class="avatar md">GR</span>
+                    <div class="lead"><div class="between"><span class="t">grandline</span>
+                      <span class="meta muted">2m</span></div>
+                      <span class="badge b-held" style="margin:3px 0">● Inspecting · $1,942.50</span>
+                      <div class="s">Just got in, opening it tonight</div></div>
+                  </div>
+                  <div class="listrow unread" style="align-items:flex-start">
+                    <span class="avatar md">FR</span>
+                    <div class="lead"><div class="between"><span class="t">frostbite</span>
+                      <span class="meta muted">19h</span></div>
+                      <span class="badge b-warn" style="margin:3px 0">Offer $375 · needs you</span>
+                      <div class="s">Would you take 375 for the Rayquaza?</div></div>
+                  </div>
+                  <div class="listrow" style="align-items:flex-start">
+                    <span class="avatar md">PM</span>
+                    <div class="lead"><div class="between"><span class="t">pipmaster</span>
+                      <span class="meta muted">1d</span></div>
+                      <span class="badge b-live" style="margin:3px 0">● Trade · negotiating</span>
+                      <div class="s">Countered — $40 to even it up?</div></div>
+                  </div>
+                  <div class="listrow" style="align-items:flex-start">
+                    <span class="avatar md">CS</span>
+                    <div class="lead"><div class="between"><span class="t">cardsharp99</span>
+                      <span class="meta muted">2d</span></div>
+                      <span class="badge b-dang" style="margin:3px 0">● Disputed · $920</span>
+                      <div class="s">I've uploaded the packing photos</div></div>
+                  </div>
+                  <div class="listrow" style="align-items:flex-start">
+                    <span class="avatar md">AR</span>
+                    <div class="lead"><div class="between"><span class="t">archivepulls</span>
+                      <span class="meta muted">4d</span></div>
+                      <div class="s" style="margin-top:3px">Is the Charizard still available? Asking
+                        about the Base Set one</div>
+                      <span class="meta muted">about PSA 9 Charizard Shadowless</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;min-height:0">
+                <div class="chatbar" style="position:relative">
+                  <i class="pin abs" style="left:-4px;top:14px">2</i>
+                  <span class="avatar md">GR</span>
+                  <div class="stack" style="flex:1;min-width:0">
+                    <span class="h-lead" style="font-size:var(--t-body)">grandline</span>
+                    <span class="meta muted"><span class="dot-live"></span> ★ 4.8 · 31 purchases ·
+                      ID verified</span></div>
+                  <span class="btn btn-outline sm">Open the purchase →</span>
+                  <span class="btn btn-ghost icon">⋯</span>
+                </div>
+
+                <div class="card tint-mute" style="border-radius:0;border-width:0 0 1px;padding:var(--s-snug) var(--s-cozy);position:relative">
+                  <i class="pin abs" style="left:-4px;top:10px">3</i>
+                  <div class="row gap-c">
+                    <div class="thumb s ph-img"></div>
+                    <div class="stack" style="flex:1;min-width:0">
+                      <span class="meta strong">BGS 10 Mimikyu VMAX Alt Art</span>
+                      <span class="meta muted">Inspecting · buyer has 2d 6h · $1,942.50 held</span></div>
+                    <span class="badge b-held">● Inspecting</span>
+                  </div>
+                </div>
+
+                <div class="chatlog">
+                  <span class="daydiv">Mon 5 Sep</span>
+                  <span class="bub me">Posted this morning, tracking is on the contract 👍</span>
+                  <span class="bub them">Perfect, thank you!</span>
+                  <span class="daydiv">Tue 9 Sep</span>
+                  <span class="bub me">Tracking says delivered — hope it arrived safely.</span>
+                  <span class="bub them">Just got in, opening it tonight</span>
+                </div>
+                <div class="composer">
+                  <span class="btn btn-ghost icon">📎</span>
+                  <span class="input ph" style="flex:1;min-height:34px">Message grandline…</span>
+                  <span class="btn btn-primary icon">↑</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">Inbox</span><span class="btn btn-ghost icon">⌕</span></div>
+        <div class="mbody" style="padding:0">
+          <div class="row gap-s" style="padding:var(--s-cozy) var(--s-cozy) 0;overflow:hidden">
+            <span class="chip on count" data-n="7">All</span>
+            <span class="chip count" data-n="3">Unread</span>
+            <span class="chip count" data-n="4">On a contract</span>
+          </div>
+          <div class="mt-c">
+            <div class="listrow unread" style="align-items:flex-start">
+              <span class="avatar md">GR</span>
+              <div class="lead"><div class="between"><span class="t">grandline</span>
+                <span class="meta muted">2m</span></div>
+                <span class="badge b-held" style="margin:3px 0;font-size:10px">● Inspecting · $1,942.50</span>
+                <div class="s">Just got in, opening it tonight</div></div>
+              <span class="dot-live"></span>
+            </div>
+            <div class="listrow unread" style="align-items:flex-start">
+              <span class="avatar md">FR</span>
+              <div class="lead"><div class="between"><span class="t">frostbite</span>
+                <span class="meta muted">19h</span></div>
+                <span class="badge b-warn" style="margin:3px 0;font-size:10px">Offer $375 · needs you</span>
+                <div class="s">Would you take 375 for the Rayquaza?</div></div>
+              <span class="dot-live"></span>
+            </div>
+            <div class="listrow" style="align-items:flex-start">
+              <span class="avatar md">PM</span>
+              <div class="lead"><div class="between"><span class="t">pipmaster</span>
+                <span class="meta muted">1d</span></div>
+                <span class="badge b-live" style="margin:3px 0;font-size:10px">● Trade · negotiating</span>
+                <div class="s">Countered — $40 to even it up?</div></div>
+            </div>
+            <div class="listrow" style="align-items:flex-start">
+              <span class="avatar md">CS</span>
+              <div class="lead"><div class="between"><span class="t">cardsharp99</span>
+                <span class="meta muted">2d</span></div>
+                <span class="badge b-dang" style="margin:3px 0;font-size:10px">● Disputed · $920</span>
+                <div class="s">I've uploaded the packing photos</div></div>
+            </div>
+            <div class="listrow" style="align-items:flex-start">
+              <span class="avatar md">AR</span>
+              <div class="lead"><div class="between"><span class="t">archivepulls</span>
+                <span class="meta muted">4d</span></div>
+                <div class="s" style="margin-top:3px">Is the Charizard still available?</div>
+                <span class="meta muted">about PSA 9 Charizard Shadowless</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a class="on"><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>A contract badge on every conversation row that has one.</b> The inbox and the contract rooms
+        currently share a conversation but not its context, so a member scanning the inbox cannot tell an
+        idle "is this still available?" from the thread attached to $1,942.50 in escrow. With semantic
+        tones the money-bearing threads separate at a glance.
+        <span class="src">Refs: <a href="https://mobbin.com/screens/d4d6efaf-d387-4211-9bdf-1c207d1f2714">Intercom</a> (conversation list carries state), <a href="https://mobbin.com/screens/d049e43b-df67-4e2f-b2f7-0d1fabf03c3f">Copilot</a>. (S1)</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="chg">CHANGE</span>
+        <b>Two columns on desktop.</b> A separate <code>/messages/[id]</code> route per reply means a
+        navigation for each of five conversations. The list-plus-thread pattern is universal here for a
+        reason. The route stays for deep links and for mobile.
+        <span class="src">Refs: Intercom, <a href="https://mobbin.com/screens/6512d107-989f-45f7-9516-300b0ebe459b">Twist</a>, Copilot, <a href="https://mobbin.com/screens/454ad03a-c031-4217-abe0-c7e69a910d24">Cloaked</a>.</span>
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>A contract strip above the thread, with a route into the room.</b> The contract room already
+        embeds chat; the inbox is the same conversation seen from the other direction and currently
+        carries none of the contract. One strip, plus "Open the purchase", closes the loop.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Attachment-only messages</b>, <b>signed uploads with the path verified against the caller
+        prefix</b>, and <b>dedupe on the ordered participant pair plus item</b>.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="thread">
+  <header>
+    <h2>Message thread</h2>
+    <span class="route">/messages/[id] · components/messages/ChatThread.tsx</span>
+    <p class="intent">
+      <b>Today:</b> a full-bleed thread on mobile with a sticky bar carrying a thumbnail, title and a
+      <code>price · status · counterparty</code> subline. <b>Proposal:</b> keep the shape; add the two
+      things a marketplace thread needs — the item's live availability, and a route from talk to action.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — enquiry, no contract</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop" style="padding-bottom:var(--s-snug)">
+          <span class="btn btn-ghost icon">←</span>
+          <span class="avatar">AR</span>
+          <div class="stack" style="flex:1;min-width:0">
+            <span class="meta strong">archivepulls</span>
+            <span class="meta muted">★ 4.6 · ID verified · replies in ~2 days</span></div>
+          <span class="btn btn-ghost icon">⋯</span>
+        </div>
+
+        <div class="card tint-mute" style="border-radius:0;border-width:0 0 1px;padding:var(--s-snug) var(--s-cozy);position:relative">
+          <i class="pin abs" style="right:6px;top:6px">1</i>
+          <div class="row gap-c">
+            <div class="thumb s ph-img"></div>
+            <div class="stack" style="flex:1;min-width:0">
+              <span class="meta strong">PSA 9 Charizard Base Set Shadowless</span>
+              <span class="meta muted num">$6,400.00 · <span class="dang-ink strong">sold 3 Sep</span></span></div>
+            <span class="btn btn-outline sm">View</span>
+          </div>
+        </div>
+
+        <div class="chatlog" style="flex:1">
+          <span class="daydiv">Fri 5 Sep</span>
+          <span class="bub them">Is the Charizard still available? Asking about the Base Set one</span>
+          <span class="bub me">Sorry — that one went on the 3rd. I've got a PSA 8 coming though</span>
+          <span class="bub them">Ah damn. Yes please, keen to see it</span>
+        </div>
+
+        <div class="dock" style="position:relative">
+          <i class="pin abs" style="left:auto;right:2px;top:6px">2</i>
+          <div class="row gap-s" style="flex:1;overflow:hidden">
+            <span class="chip">＋ Offer them a card</span>
+            <span class="chip">🔗 Send a private deal</span>
+            <span class="chip">⚑ Report</span>
+          </div>
+        </div>
+        <div class="composer">
+          <span class="btn btn-ghost icon">📎</span>
+          <span class="input ph" style="flex:1;min-height:34px">Message…</span>
+          <span class="btn btn-primary icon">↑</span>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a class="on"><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — realtime failure</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop" style="padding-bottom:var(--s-snug)">
+          <span class="btn btn-ghost icon">←</span><span class="avatar">GR</span>
+          <div class="stack" style="flex:1;min-width:0"><span class="meta strong">grandline</span>
+            <span class="meta dang-ink">Offline — reconnecting…</span></div>
+          <span class="btn btn-ghost icon">⋯</span></div>
+
+        <div class="notice dang" style="border-radius:0;border-width:0 0 1px;position:relative">
+          <i class="pin abs" style="right:6px;top:6px">3</i>
+          <span class="ico">⚠</span>
+          <div><b class="meta">You may not be seeing new messages</b>
+            <span class="meta muted">The live connection dropped. Your sent messages are safe.</span>
+            <span class="btn btn-outline sm mt-s">Reconnect</span></div>
+        </div>
+
+        <div class="chatlog" style="flex:1">
+          <span class="daydiv">Tue 9 Sep</span>
+          <span class="bub them">Tracking says delivered</span>
+          <span class="bub me" style="opacity:.6">Just got in, opening it tonight
+            <span class="meta" style="opacity:.8;display:block">Sending…</span></span>
+        </div>
+        <div class="composer"><span class="btn btn-ghost icon">📎</span>
+          <span class="input ph" style="flex:1;min-height:34px">Message…</span>
+          <span class="btn btn-primary icon">↑</span></div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a class="on"><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>Live availability on the item strip.</b> Enquiry threads outlive listings — the most common
+        marketplace message is "is this still available?" and the answer is already in the row. Showing
+        "sold 3 Sep" saves the exchange entirely.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>A route from conversation to transaction.</b> Two people who have agreed something in chat
+        currently have to leave, find the listing, and start a contract. A private-deal invite is exactly
+        the mechanism for this and is unreachable from the place the agreement happens.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">CHANGE</span>
+        <b>Make the realtime failure legible and recoverable.</b> A dropped subscription currently
+        surfaces as a small destructive "Offline" in the bar. In a thread where a member is coordinating
+        a handover, silence looks like the other person not replying. Say what it means, say what is
+        safe, offer a retry.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Full-bleed thread on mobile</b>, the <b>sticky subject bar</b>, and <b>absolute day dividers</b>.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="notifications">
+  <header>
+    <h2>Notifications</h2>
+    <span class="route">/notifications · NotificationBell / NotificationCenter</span>
+    <p class="intent">
+      <b>Today:</b> a flat list of five types — <code>OFFER</code>, <code>MESSAGE</code>,
+      <code>TRADE</code>, <code>SALE</code>, <code>SYSTEM</code>. <b>Proposal:</b> separate the ones
+      with a deadline from the ones that are merely news, because on this platform some notifications
+      are the only warning before money moves automatically.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a><a>Deals</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="ic">✉</span><span class="ic">🔔<span class="dot"></span></span>
+            <span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Notifications</h1>
+            <div class="navlist mt-g"><a class="on">All <span class="n">14</span></a>
+              <a>⏱ Needs action <span class="n">2</span></a><a>Money <span class="n">4</span></a>
+              <a>⇄ Trades</a><a>Offers</a><a>Messages</a></div>
+            <div class="group"><span class="eyebrow">Delivery</span>
+              <p class="help">Email is on for deadlines, disputes and payouts.</p>
+              <span class="btn btn-outline sm w mt-s">Notification settings</span></div>
+          </aside>
+          <section class="content">
+            <div class="between"><div><h2 class="h-head">Notifications</h2>
+              <p class="meta muted mt-s">Anything with a clock is listed first.</p></div>
+              <span class="btn btn-ghost sm">Mark all as read</span></div>
+
+            <div class="card tint-warn mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <span class="eyebrow">Needs you before a deadline</span>
+              <div class="stack gap-c mt-s">
+                <div class="row gap-c" style="align-items:flex-start">
+                  <span style="font-size:16px">⏱</span>
+                  <div class="stack gap-t" style="flex:1">
+                    <span class="strong">Your inspection window closes in 2 days 6 hours</span>
+                    <span class="meta muted">BGS 10 Mimikyu VMAX from kitsunearia. If you do nothing the
+                      sale completes on 16 Sep and $1,757.50 is paid to them.</span></div>
+                  <span class="btn btn-action sm">Accept or report</span>
+                </div>
+                <div class="hr" style="margin:0"></div>
+                <div class="row gap-c" style="align-items:flex-start">
+                  <span style="font-size:16px">📦</span>
+                  <div class="stack gap-t" style="flex:1">
+                    <span class="strong">Post your trade card by 14 Sep</span>
+                    <span class="meta muted">Trade with grandline. Both collateral holds expire 17 Sep —
+                      after that the guarantee lapses.</span></div>
+                  <span class="btn btn-action sm">Record shipment</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="eyebrow mt-x" style="position:relative">Today
+              <i class="pin abs" style="left:-24px;top:-2px">2</i></p>
+            <div class="card flat mt-s">
+              <div class="listrow unread"><span class="avatar" style="background:hsl(var(--action)/.4)">💬</span>
+                <div class="lead"><div class="t">frostbite countered your offer at $375</div>
+                  <div class="s">Rayquaza VMAX CSR · you'd receive $356.25</div></div>
+                <span class="meta muted">19h</span><span class="arrow">›</span></div>
+              <div class="listrow unread"><span class="avatar" style="background:hsl(var(--iris)/.2)">✉</span>
+                <div class="lead"><div class="t">grandline replied about your sale</div>
+                  <div class="s">"Just got in, opening it tonight"</div></div>
+                <span class="meta muted">2m</span><span class="arrow">›</span></div>
+              <div class="listrow"><span class="avatar" style="background:hsl(var(--trust)/.15)">✓</span>
+                <div class="lead"><div class="t">$228.00 is on its way to your bank</div>
+                  <div class="s">Luffy OP01-003 · arrives in 1–2 business days</div></div>
+                <span class="meta muted">6h</span><span class="arrow">›</span></div>
+            </div>
+
+            <p class="eyebrow mt-x">Earlier this week</p>
+            <div class="card flat mt-s">
+              <div class="listrow"><span class="avatar" style="background:hsl(var(--destructive)/.12)">⚠</span>
+                <div class="lead"><div class="t">cardsharp99 raised a dispute</div>
+                  <div class="s">Umbreon VMAX Alt Art · $920 held until it's decided</div></div>
+                <span class="meta muted">2d</span><span class="arrow">›</span></div>
+              <div class="listrow"><span class="avatar" style="background:hsl(var(--muted))">🏷</span>
+                <div class="lead"><div class="t">Someone saved your Rayquaza listing</div>
+                  <div class="s">12 people are now watching it</div></div>
+                <span class="meta muted">3d</span><span class="arrow">›</span></div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — bell popover</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">Notifications</span>
+          <span class="btn btn-ghost sm">Mark read</span></div>
+        <div class="mbody" style="padding:0">
+          <div class="row gap-s" style="padding:var(--s-cozy) var(--s-cozy) 0;overflow:hidden">
+            <span class="chip on count" data-n="14">All</span>
+            <span class="chip count" data-n="2">Needs action</span>
+            <span class="chip count" data-n="4">Money</span></div>
+
+          <div style="padding:var(--s-cozy)">
+            <div class="card tint-warn" style="padding:var(--s-cozy);position:relative">
+              <i class="pin abs" style="right:6px;top:6px">3</i>
+              <span class="badge b-warn">⏱ 2 need you</span>
+              <div class="stack gap-c mt-s">
+                <div>
+                  <span class="meta strong">Inspection closes in 2d 6h</span>
+                  <p class="help">Do nothing and the sale completes 16 Sep, paying kitsunearia
+                    $1,757.50.</p>
+                  <span class="btn btn-action sm w mt-s">Accept or report</span>
+                </div>
+                <div class="hr" style="margin:0"></div>
+                <div>
+                  <span class="meta strong">Post your trade card by 14 Sep</span>
+                  <p class="help">Both holds expire 17 Sep.</p>
+                  <span class="btn btn-action sm w mt-s">Record shipment</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="eyebrow" style="padding:0 var(--s-cozy)">Today</p>
+          <div class="mt-s">
+            <div class="listrow unread"><span class="avatar" style="background:hsl(var(--action)/.4)">💬</span>
+              <div class="lead"><div class="t">frostbite countered at $375</div>
+                <div class="s">Rayquaza VMAX CSR</div></div><span class="meta muted">19h</span></div>
+            <div class="listrow unread"><span class="avatar" style="background:hsl(var(--iris)/.2)">✉</span>
+              <div class="lead"><div class="t">grandline replied</div>
+                <div class="s">"Just got in, opening it tonight"</div></div><span class="meta muted">2m</span></div>
+            <div class="listrow"><span class="avatar" style="background:hsl(var(--trust)/.15)">✓</span>
+              <div class="lead"><div class="t">$228.00 on its way to your bank</div>
+                <div class="s">Luffy OP01-003</div></div><span class="meta muted">6h</span></div>
+          </div>
+          <p class="eyebrow mt-c" style="padding:0 var(--s-cozy)">Earlier</p>
+          <div class="mt-s">
+            <div class="listrow"><span class="avatar" style="background:hsl(var(--destructive)/.12)">⚠</span>
+              <div class="lead"><div class="t">cardsharp99 raised a dispute</div>
+                <div class="s">$920 held until decided</div></div><span class="meta muted">2d</span></div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a class="on"><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>A "needs you before a deadline" block, pinned above everything.</b> The five current types
+        classify notifications by <em>subject</em> — offer, message, trade, sale, system — not by whether
+        anything happens if they are ignored. On a platform where inspection windows auto-complete, hold
+        authorisations lapse and return deadlines expire, that is the wrong axis. The consequence
+        sentence is the point: "do nothing and $1,757.50 is paid to them" is information a member cannot
+        currently get from a notification.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Date grouping.</b> Today / Earlier this week is how every reference inbox reads, and it is
+        cheap.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/454ad03a-c031-4217-abe0-c7e69a910d24">Cloaked</a> groups by "Today".</span>
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">CHANGE</span>
+        <b>Deadline items keep their action on mobile.</b> A notification that says a deadline is passing
+        and offers only a link to go and find it is a notification that gets dismissed.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Fire-and-forget email threaded per contract</b> for the deadline, dispute and payout events —
+        that pairing is already right, and this proposal makes the in-app view match the email's urgency.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="profile">
+  <header>
+    <h2>Profile &amp; settings</h2>
+    <span class="route">/profile?tab=profile|verification|payouts · components/account/SettingsPrimitives.tsx</span>
+    <p class="intent">
+      <b>Today:</b> three tabs — profile, verification, payouts — with the profile tab holding avatar,
+      display name, bio, social links and the saved card. <b>Proposal:</b> label every field with who can
+      see it. On a marketplace holding a verified legal name alongside a public alias, "who sees this" is
+      the question every field raises and none of them answer.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a><a>Deals</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Settings</h1>
+            <div class="navlist mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:6px">1</i>
+              <a class="on">Public profile</a><a>Verification &amp; payouts</a><a>Saved card</a>
+            </div>
+            <div class="group"><span class="eyebrow">Account</span>
+              <div class="navlist mt-s"><a>Password</a><a>Notifications</a><a>⬇ Your data</a>
+                <a>Close account</a></div></div>
+          </aside>
+          <section class="content">
+            <div><h2 class="h-head">Public profile</h2>
+              <p class="meta muted mt-s">How you appear to other members. None of this is your verified
+                legal name — that is separate and only ever shown on a live contract.</p></div>
+
+            <div class="card mt-g" style="padding:0">
+              <div class="listrow" style="align-items:flex-start;padding:var(--s-group);position:relative">
+                <i class="pin abs" style="left:-9px;top:20px">2</i>
+                <div class="lead" style="max-width:38ch"><div class="t">Profile photo</div>
+                  <div class="s">Square, at least 240×240px, JPEG or PNG up to 5&nbsp;MB.
+                    <b>Everyone can see this</b>, including people who aren't signed in.</div></div>
+                <div class="row gap-s"><span class="avatar lg">KA</span>
+                  <div class="stack gap-s"><span class="btn btn-outline sm">Upload</span>
+                    <span class="btn btn-ghost sm">Remove</span></div></div>
+              </div>
+              <div class="listrow" style="align-items:flex-start;padding:var(--s-group)">
+                <div class="lead" style="max-width:38ch"><div class="t">Display name</div>
+                  <div class="s">The name on your listings, offers and messages.
+                    <b>Everyone can see this.</b> Changing it does not affect your verified legal
+                    name.</div></div>
+                <div style="width:300px"><span class="input">kitsunearia</span></div>
+              </div>
+              <div class="listrow" style="align-items:flex-start;padding:var(--s-group);background:hsl(var(--trust)/.05)">
+                <div class="lead" style="max-width:38ch"><div class="t">Verified legal name</div>
+                  <div class="s">From your photo ID, reported by Stripe. <b>Only shown to people you
+                    have a live contract with</b> — never on your public profile, never in search.
+                    You can't edit it.</div></div>
+                <div style="width:300px"><span class="input" style="background:hsl(var(--muted));color:hsl(var(--muted-foreground))">Aria K. Fujimoto</span>
+                  <p class="help">Verified 14 Aug 2026 · <b class="trust-ink">✓ photo ID + selfie</b></p></div>
+              </div>
+              <div class="listrow" style="align-items:flex-start;padding:var(--s-group)">
+                <div class="lead" style="max-width:38ch"><div class="t">Bio</div>
+                  <div class="s">What you collect and how you ship. <b>Everyone can see this.</b>
+                    It sits outside your verified details on purpose — nothing you write here is
+                    presented as checked.</div></div>
+                <div style="width:300px"><div class="textarea">Vintage and modern Pokémon, mostly graded…</div>
+                  <p class="help">148 / 500</p></div>
+              </div>
+              <div class="listrow" style="align-items:flex-start;padding:var(--s-group)">
+                <div class="lead" style="max-width:38ch"><div class="t">Links</div>
+                  <div class="s">Instagram, TCGplayer, YouTube. <b>Everyone can see these.</b>
+                    We don't verify them.</div></div>
+                <div style="width:300px" class="stack gap-s">
+                  <span class="input">instagram.com/kitsunearia</span>
+                  <span class="btn btn-outline sm" style="width:fit-content">＋ Add a link</span></div>
+              </div>
+            </div>
+
+            <div class="between mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:10px">3</i>
+              <span class="meta muted">Changes are saved when you press Save.</span>
+              <div class="row gap-s"><span class="btn btn-ghost">Discard</span>
+                <span class="btn btn-primary">Save changes</span></div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — settings index</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">More</span></div>
+        <div class="mbody" style="padding:0">
+          <div style="padding:var(--s-group);border-bottom:1px solid hsl(var(--border))">
+            <div class="row gap-c"><span class="avatar lg">KA</span>
+              <div class="stack gap-t" style="flex:1;min-width:0">
+                <div class="row gap-s"><span class="h-lead">kitsunearia</span>
+                  <span class="badge b-trust" style="padding:1px 6px">✓ </span></div>
+                <span class="meta muted">★ 4.9 · 62 sales · 11 trades</span>
+                <span class="meta iris-ink strong">View your public profile →</span></div></div>
+          </div>
+
+          <div class="card tint-warn" style="border-radius:0;border-width:0 0 1px;padding:var(--s-cozy);position:relative">
+            <i class="pin abs" style="right:6px;top:6px">4</i>
+            <span class="meta"><b>Payout setup unfinished.</b>
+              <span class="muted">$228.00 is waiting to be sent to you.</span></span>
+            <span class="btn btn-primary sm w mt-s">Finish payout setup</span>
+          </div>
+
+          <p class="eyebrow" style="padding:var(--s-cozy) var(--s-cozy) 0">You and your account</p>
+          <div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Public profile</div>
+                <div class="s">Name, photo, bio, links</div></div><span class="arrow">›</span></div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Identity</div>
+                <div class="s">Verified 14 Aug 2026</div></div>
+              <span class="badge b-trust">✓</span><span class="arrow">›</span></div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Payouts</div>
+                <div class="s">Not set up</div></div>
+              <span class="badge b-warn">!</span><span class="arrow">›</span></div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Saved card</div>
+                <div class="s">Visa ···· 4242</div></div><span class="arrow">›</span></div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Trading region</div>
+                <div class="s">Australia · fixed</div></div><span class="arrow">›</span></div>
+          </div>
+
+          <p class="eyebrow" style="padding:var(--s-cozy) var(--s-cozy) 0">Preferences</p>
+          <div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Notifications</div></div><span class="arrow">›</span></div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Password</div></div><span class="arrow">›</span></div>
+            <div class="listrow">
+              <div class="lead"><div class="t">Help &amp; policies</div></div><span class="arrow">›</span></div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a class="on"><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>Five sections instead of three tabs.</b> The current verification tab holds two independent
+        gates and the profile tab holds a saved card, which is neither a profile nor a verification.
+        Splitting them makes each page answer one question.
+        <span class="src">Refs: <a href="https://mobbin.com/screens/72c9cfb4-253a-4499-87ec-8919a2755818">Plain</a>, <a href="https://mobbin.com/screens/ac45719a-952f-44c6-9bcc-ce8ce1580b36">Melio</a> — grouped settings navs.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Every field states who can see it.</b> This is the most valuable change on the sheet. The
+        platform holds a public alias <em>and</em> a provider-verified legal name, and the whole privacy
+        model rests on members understanding which is which — but the form currently presents them as
+        two text fields. Naming the audience per field also makes the "bio sits outside the verified
+        block" decision visible rather than merely true.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/72c9cfb4-253a-4499-87ec-8919a2755818">Plain</a> — "Full name. Visible to your team members." / "Public name. Visible to customers."</span>
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>Explicit Save and Discard.</b> A form where some fields save on blur and some on submit is a
+        form members do not trust.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/ac45719a-952f-44c6-9bcc-ce8ce1580b36">Melio</a> — Cancel / Save at the foot of the form.</span>
+      </div></li>
+      <li><i class="pin">4</i><div><span class="add">ADD</span>
+        <b>Surface a blocked payout at the top of the mobile account page.</b> Money that cannot reach a
+        member should be visible from the page they land on, not only from the payouts sub-page they have
+        no reason to open.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>The verified name as read-only and provider-sourced</b>, and <b>never accepting card details
+        into any form on our side</b> — the saved-card row is a Stripe element and a brand/last4 read
+        back from Stripe, and nothing here changes that.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="payouts">
+  <header>
+    <h2>Payouts</h2>
+    <span class="route">/profile/payouts · domain/payouts/payoutReadModel.ts</span>
+    <p class="intent">
+      <b>Today:</b> a reporting page showing what is owed and what has landed.
+      <b>Proposal:</b> lead with the four states money can be in, name why anything is stuck, and say
+      plainly that a held payment is not yet the seller's — the platform is not a bank and the page
+      should not imply a balance.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a><a>Deals</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Payouts</h1>
+            <div class="navlist mt-g"><a>Public profile</a><a class="on">Verification &amp; payouts</a><a>Saved card</a></div>
+            <div class="group"><span class="eyebrow">Payout account</span>
+              <div class="stack gap-s mt-s">
+                <span class="meta"><span class="badge b-warn">Action needed</span></span>
+                <span class="meta muted">Stripe · ···· 8842 · Commonwealth Bank</span>
+                <span class="meta iris-ink strong">Manage with Stripe →</span></div></div>
+          </aside>
+          <section class="content">
+            <div class="between"><div><h2 class="h-head">Payouts</h2>
+              <p class="meta muted mt-s">Everything you have earned and where it is up to.</p></div>
+              <div class="row gap-s"><span class="select" style="width:150px;height:34px">Last 90 days</span>
+                <span class="btn btn-outline sm">Export CSV</span></div></div>
+
+            <div class="notice warn mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:12px">1</i>
+              <span class="ico">⚠</span>
+              <div><b>Stripe needs more information before it can pay you</b>
+                <p class="help">Your listings and sales are unaffected and nothing is lost — one payout
+                  of $228.00 is queued and will release automatically once you're approved. Reviews
+                  usually take under a day.</p></div>
+              <span class="btn btn-primary sm spread">Submit the missing details</span>
+            </div>
+
+            <div class="kpis g4 mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:12px">2</i>
+              <div class="kpi"><div class="k">Held in escrow ⓘ</div><div class="v">$1,757.50</div>
+                <p class="help">Not yours yet — buyers are inspecting</p></div>
+              <div class="kpi"><div class="k">Frozen by a dispute ⓘ</div><div class="v">$920.00</div>
+                <p class="help">1 case, being decided</p></div>
+              <div class="kpi lead-kpi"><div class="k">Queued for payout ⓘ</div><div class="v">$228.00</div>
+                <p class="help">Blocked — see above</p></div>
+              <div class="kpi"><div class="k">Paid out ⓘ</div><div class="v">$14,206.00</div>
+                <p class="help">Lifetime, 61 payouts</p></div>
+            </div>
+
+            <p class="eyebrow mt-x">Recent activity</p>
+            <div class="card flat mt-s" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">3</i>
+              <table class="tbl">
+                <thead><tr><th>Date</th><th>What</th><th>Contract</th><th>Status</th>
+                  <th class="r">Gross</th><th class="r">Fee</th><th class="r">Net</th></tr></thead>
+                <tbody>
+                  <tr><td class="num">8 Sep</td><td>Cash sale</td>
+                    <td><span class="meta">Luffy OP01-003 · grandline</span></td>
+                    <td><span class="badge b-warn">Queued</span></td>
+                    <td class="r num">$240.00</td><td class="r num muted">−$12.00</td>
+                    <td class="r num strong">$228.00</td></tr>
+                  <tr><td class="num">4 Sep</td><td>Cash sale</td>
+                    <td><span class="meta">BGS 10 Mimikyu · grandline</span></td>
+                    <td><span class="badge b-held">Inspecting</span></td>
+                    <td class="r num">$1,850.00</td><td class="r num muted">−$92.50</td>
+                    <td class="r num muted">$1,757.50</td></tr>
+                  <tr><td class="num">1 Sep</td><td>Cash sale</td>
+                    <td><span class="meta">Umbreon VMAX · cardsharp99</span></td>
+                    <td><span class="badge b-dang">Disputed</span></td>
+                    <td class="r num">$920.00</td><td class="r muted">—</td>
+                    <td class="r muted">on hold</td></tr>
+                  <tr><td class="num">28 Aug</td><td>Trade fee</td>
+                    <td><span class="meta">Gengar VMAX ⇄ Mewtwo V · pipmaster</span></td>
+                    <td><span class="badge b-trust">✓ Settled</span></td>
+                    <td class="r muted">—</td><td class="r num muted">−$31.00</td>
+                    <td class="r num muted">−$31.00</td></tr>
+                  <tr><td class="num">24 Aug</td><td>Payout</td>
+                    <td><span class="meta">to ···· 8842</span></td>
+                    <td><span class="badge b-trust">✓ Paid</span></td>
+                    <td class="r muted">—</td><td class="r muted">—</td>
+                    <td class="r num strong">$1,204.00</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p class="help mt-g" style="max-width:80ch;position:relative">
+              <i class="pin abs" style="left:-24px;top:0">4</i>
+              NoDitto is not a bank and holds no balance on your behalf. Money from a sale sits with our
+              payment provider until the buyer accepts the goods, and is then transferred to your own
+              Stripe account. Figures update hourly.
+            </p>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">←</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">Payouts</span>
+          <span class="btn btn-ghost icon">⋯</span></div>
+        <div class="mbody">
+          <div class="notice warn" style="position:relative">
+            <i class="pin abs" style="right:-4px;top:10px">5</i>
+            <span class="ico">⚠</span>
+            <div><b class="meta">$228.00 can't be sent yet</b>
+              <p class="help">Stripe needs a little more information. Nothing is lost and your sales
+                aren't affected.</p>
+              <span class="btn btn-primary sm w mt-s">Submit the details</span></div>
+          </div>
+
+          <div class="grid g2 tight mt-g">
+            <div class="kpi"><div class="k">Held in escrow</div><div class="v" style="font-size:var(--t-subhead)">$1,757</div>
+              <p class="help">Not yours yet</p></div>
+            <div class="kpi"><div class="k">Frozen</div><div class="v" style="font-size:var(--t-subhead)">$920</div>
+              <p class="help">1 dispute</p></div>
+            <div class="kpi lead-kpi"><div class="k">Queued</div><div class="v" style="font-size:var(--t-subhead)">$228</div>
+              <p class="help">Blocked</p></div>
+            <div class="kpi"><div class="k">Paid out</div><div class="v" style="font-size:var(--t-subhead)">$14.2k</div>
+              <p class="help">Lifetime</p></div>
+          </div>
+
+          <p class="eyebrow mt-x">Recent</p>
+          <div class="card flat mt-s">
+            <div class="listrow"><div class="lead"><div class="t">Luffy OP01-003</div>
+              <div class="s">8 Sep · $240 − $12 fee</div></div>
+              <div class="stack" style="text-align:right"><span class="strong num">$228.00</span>
+                <span class="badge b-warn" style="font-size:10px">Queued</span></div></div>
+            <div class="listrow"><div class="lead"><div class="t">BGS 10 Mimikyu VMAX</div>
+              <div class="s">4 Sep · buyer inspecting</div></div>
+              <div class="stack" style="text-align:right"><span class="muted num">$1,757.50</span>
+                <span class="badge b-held" style="font-size:10px">Inspecting</span></div></div>
+            <div class="listrow"><div class="lead"><div class="t">Umbreon VMAX Alt Art</div>
+              <div class="s">1 Sep · disputed</div></div>
+              <div class="stack" style="text-align:right"><span class="muted">on hold</span>
+                <span class="badge b-dang" style="font-size:10px">Disputed</span></div></div>
+            <div class="listrow"><div class="lead"><div class="t">Paid to ···· 8842</div>
+              <div class="s">24 Aug</div></div>
+              <div class="stack" style="text-align:right"><span class="strong num">$1,204.00</span>
+                <span class="badge b-trust" style="font-size:10px">✓ Paid</span></div></div>
+          </div>
+
+          <p class="help mt-g">NoDitto is not a bank and holds no balance for you. Figures update
+            hourly.</p>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a class="on"><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>A blocked payout gets a banner that separates the money from the problem.</b>
+        <code>SELLER_NOT_PAYABLE</code> has real money behind it, and a seller's first reading of any
+        payment warning is "my money is gone". Name the amount, say it is safe, say sales are unaffected,
+        give one action.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/db402b81-a03c-414f-b51a-ec6914cb35d3">Whop</a> — near-identical banner and wording pattern.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Four states, with the blocked one emphasised.</b> Held / frozen / queued / paid are the four
+        real places a seller's money can be, and the read model already computes them. "Held in escrow —
+        not yours yet" is the honest label and it is better for the platform too: it sets the expectation
+        that completion, not sale, is when money is earned.
+        <span class="src">Refs: <a href="https://mobbin.com/screens/87c3379b-2f64-40fd-b0d6-bbf30afd8985">Upwork</a> four-metric row; <a href="https://mobbin.com/screens/a001a984-b7b4-4e4e-bcff-407312bfffda">Stripe Balances</a> — each figure with a sentence explaining it.</span>
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>Gross, fee and net as columns.</b> The 5% fee is charged per contract and a seller currently
+        has no single place that reconciles what a card sold for against what arrived. This is also the
+        page an accountant asks for, hence the CSV export.
+        <span class="src">Refs: Upwork transactions table; <a href="https://mobbin.com/screens/3d1afabd-f39c-4996-87b1-93086f05af85">Dub</a>.</span>
+      </div></li>
+      <li><i class="pin">4</i><div><span class="add">ADD</span>
+        <b>Say we are not a bank.</b> Escrowed funds are commingled in the platform balance — that is
+        inherent to hold-then-release on Connect, not a shortcut — and a page showing four money figures
+        under a seller's name should not read as an account statement.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/db402b81-a03c-414f-b51a-ec6914cb35d3">Whop</a> carries the equivalent disclosure under its balance table.</span>
+      </div></li>
+      <li><i class="pin">5</i><div><span class="chg">CHANGE</span>
+        <b>Mobile leads with the blocker, then the four figures at half size.</b> Same information,
+        reordered by urgency.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Excluding trade collateral from these figures</b> — an uncaptured authorisation is not money
+        the platform holds, and counting it would invent a balance that does not exist.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<p class="crumbs" style="margin-top:28px"><a href="index.html">← Board index</a> ·
+  <a href="05-admin-system.html">Next: Staff &amp; system →</a></p>
+
+</div>
+</body>
+</html>

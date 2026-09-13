@@ -59,7 +59,11 @@ export function FulfilmentMethodSummary({
             className={cn(
               'flex min-w-0 items-center gap-snug rounded-lg border p-cozy',
               chosen
-                ? 'border-iris bg-iris/[0.07]'
+                ? // The accent pair, which is the app's documented selected look
+                  // (globals.css) and what ChoiceTile already uses. A full-strength
+                  // iris EDGE was doing the same job twice: the pair of tiles is
+                  // already 100% against 60% opacity, so the frame only added weight.
+                  'border-border bg-accent text-accent-foreground'
                 : // The option NOT taken stays visible and stays quiet. Dropping
                   // it entirely would leave a lone card that reads as a heading;
                   // showing it at equal weight would read as a live choice.

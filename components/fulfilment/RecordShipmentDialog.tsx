@@ -129,7 +129,7 @@ export function RecordShipmentDialog({
         {!recipientAddressKnown ? (
           <p
             role="alert"
-            className="rounded-md border border-dashed border-iris/40 bg-iris/10 px-cozy py-snug text-body"
+            className="rounded-md border border-border bg-iris/[0.07] px-cozy py-snug text-body"
           >
             You do not have a delivery address for this contract yet. Ask the other
             party to add theirs before you post anything.

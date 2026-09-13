@@ -56,7 +56,12 @@ export function ChoiceTile({
         // The whole tile takes the focus edge: at this size the native control's
         // own border is easy to miss.
         'has-[:focus-visible]:border-iris',
-        checked ? 'bg-accent text-accent-foreground' : 'hover:border-iris/50 hover:bg-muted/40',
+        // Hover darkens the hairline rather than tinting it violet: the tile's
+        // SELECTED look is already the accent wash, so a violet hover edge on an
+        // unselected tile reads as a second, weaker kind of selection.
+        checked
+          ? 'bg-accent text-accent-foreground'
+          : 'hover:border-foreground/20 hover:bg-muted/40',
         invalid && 'border-destructive',
         align === 'center' && 'justify-center text-center',
       )}

@@ -87,7 +87,7 @@ export function ItemPeekDialog({
             frameClassName="h-[min(45dvh,22rem)] w-full"
           />
         ) : (
-          <p className="flex items-center gap-snug rounded-lg border border-dashed p-6 text-body text-muted-foreground">
+          <p className="flex items-center gap-snug rounded-lg border border-border bg-muted p-6 text-body text-muted-foreground">
             <HugeiconsIcon icon={ImageOffIcon} className="size-4 shrink-0" aria-hidden />
             No photos were attached to this item.
           </p>

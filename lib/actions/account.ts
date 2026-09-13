@@ -12,12 +12,92 @@
 // Money is integer AUD cents end-to-end; the UI formats via `formatAud`.
 // Results follow the discriminated `AccountActionResult` shape used elsewhere.
 
+import {
+  currentStep,
+  deriveCashSaleSteps,
+  deriveTradeSteps,
+  isCashSaleStatus,
+  isTradeState,
+  type ContractStep,
+  type ContractStepOwner,
+} from '@/domain/contract';
+import { deriveHoldLegs, type HoldRowLike } from '@/domain/state-machine/holdLegs';
+import { factsFromTrade, type TradeRow } from '@/lib/actions/tradeLifecycleStore';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { Tables, Enums } from '@/lib/supabase/database.types';
 
 /** A persisted item row (owner-scoped in this module). */
 export type ItemRow = Tables<'items'>;
+
+/** A cookie-bound Supabase client, as the reads in this module hold one. */
+type CallerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * The live step of a contract, resolved for one viewer.
+ *
+ * WHY A LIST CARRIES THIS AT ALL. Every contract list on the site showed a status
+ * badge and nothing else, so a member with six open contracts could see that one was
+ * `ESCROW_HELD` and still not know whether that meant "post it" or "wait". The badge
+ * names the STATE; this names the MOVE.
+ *
+ * `label` is the step's own sentence, lifted verbatim from `domain/contract`. It is
+ * NOT rephrased here and no second status-to-copy table exists: the alternative was a
+ * lookup over thirteen statuses times two roles that would drift from the contract
+ * room the first time either was touched.
+ */
+export interface ContractNextMove {
+  /** `you`, `them`, `both` or `platform` — see {@link ContractStepOwner}. */
+  owner: ContractStepOwner;
+  /** What the step is, in the derivation's own words. */
+  label: string;
+}
+
+/** Stand-in when a counterparty's profile cannot be read. Matches the API adapter. */
+const UNKNOWN_COUNTERPARTY = 'the other party';
+
+/**
+ * Display names for a batch of counterparties, keyed by profile id.
+ *
+ * ONE QUERY FOR THE WHOLE LIST rather than one per row. `public_profiles` is the only
+ * place a counterparty name may be read from — deliberately not `discoverable_profiles`,
+ * which omits closed accounts: a contract does not stop having two sides because one of
+ * them left, and a list that hid a closed counterparty would leave a live contract
+ * describing itself as waiting on nobody.
+ */
+async function counterpartyNames(
+  supabase: CallerClient,
+  ids: string[],
+): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return new Map();
+
+  const { data } = await supabase
+    .from('public_profiles')
+    .select('id, display_name')
+    .in('id', unique);
+
+  return new Map(
+    (data ?? []).map((row) => {
+      const name = (row.display_name as string | null)?.trim();
+      return [
+        row.id as string,
+        name && name.length > 0 ? name : UNKNOWN_COUNTERPARTY,
+      ] as const;
+    }),
+  );
+}
+
+/**
+ * The step a plan is waiting on, or null when there is nothing outstanding.
+ *
+ * Null covers three cases that all mean the same thing to a list: the contract is
+ * finished, it is halted, or its status is one this build does not recognise.
+ */
+function nextMoveFrom(steps: ContractStep[]): ContractNextMove | null {
+  const step = currentStep(steps);
+  return step ? { owner: step.owner, label: step.label } : null;
+}
 
 /** Discriminated result returned by every account read. */
 export type AccountActionResult<T> =
@@ -39,6 +119,12 @@ export interface CashSaleSummary {
   amountCents: number;
   status: Enums<'cash_sale_status'>;
   createdAt: string;
+  /** Which side of this contract the caller is on. */
+  viewerRole: 'BUYER' | 'SELLER';
+  /** The other party, as the step copy names them. */
+  counterpartyName: string;
+  /** What the contract is waiting on, or null once it is over. */
+  nextMove: ContractNextMove | null;
 }
 
 /** A trade summarized for the Trades list. */
@@ -55,6 +141,10 @@ export interface TradeSummary {
   /** Whether the caller initiated the trade or is the counterpart. */
   role: 'initiator' | 'counterpart';
   createdAt: string;
+  /** The other trader, as the step copy names them. */
+  counterpartyName: string;
+  /** What the trade is waiting on, or null once it is over. */
+  nextMove: ContractNextMove | null;
 }
 
 /**
@@ -97,9 +187,34 @@ export async function getMyListings(): Promise<AccountActionResult<ItemRow[]>> {
  * CONTRACT SNAPSHOT rather than the live `items` row: item RLS only exposes
  * AVAILABLE items or your own, so a buyer cannot read the item once it is SOLD,
  * and a snapshot is also what the parties actually agreed on.
+ *
+ * WIDER THAN WHAT A ROW DISPLAYS, DELIBERATELY. The second group is what
+ * `deriveCashSaleSteps` reads, so a list row can say whose move the contract is
+ * waiting on. They cost nothing — the same query, more columns — and the alternative
+ * was a status-to-copy table beside the derivation the contract room already uses.
  */
-const CASH_SALE_SUMMARY_COLUMNS =
-  'id, item_id, amount_cents, status, created_at, item_title, item_image_paths';
+const CASH_SALE_SUMMARY_COLUMNS = [
+  'id',
+  'item_id',
+  'amount_cents',
+  'status',
+  'created_at',
+  'item_title',
+  'item_image_paths',
+  // Identifies the counterparty, whose display name the step copy interpolates.
+  'buyer_id',
+  'seller_id',
+  // The step facts. Column for column, `lib/api/contractStepPlan.ts`'s mapping —
+  // which is itself `CashSaleView`'s.
+  'fulfillment_method',
+  'terms_version',
+  'tracking_number',
+  'buyer_handover_confirmed_at',
+  'seller_handover_confirmed_at',
+  'disputed_by',
+  'return_tracking_number',
+  'return_disputed_at',
+].join(', ');
 
 /** Shape of the selected cash-sale summary row. */
 interface CashSaleSummaryRow {
@@ -110,10 +225,63 @@ interface CashSaleSummaryRow {
   created_at: string;
   item_title: string | null;
   item_image_paths: string[] | null;
+  buyer_id: string;
+  seller_id: string;
+  fulfillment_method: string | null;
+  terms_version: number;
+  tracking_number: string | null;
+  buyer_handover_confirmed_at: string | null;
+  seller_handover_confirmed_at: string | null;
+  disputed_by: string | null;
+  return_tracking_number: string | null;
+  return_disputed_at: string | null;
 }
 
 /** Map a snapshot row to the account list summary. */
-function toCashSaleSummary(row: CashSaleSummaryRow): CashSaleSummary {
+function toCashSaleSummary(
+  row: CashSaleSummaryRow,
+  userId: string,
+  viewerRole: 'BUYER' | 'SELLER',
+  names: Map<string, string>,
+): CashSaleSummary {
+  const iAmBuyer = viewerRole === 'BUYER';
+  const counterpartyName =
+    names.get(iAmBuyer ? row.seller_id : row.buyer_id) ?? UNKNOWN_COUNTERPARTY;
+
+  // `haltedAt` IS DELIBERATELY NOT SUPPLIED. Reading it means one `cash_sale_events`
+  // query per contract, and all it refines is WHICH step a closed contract marks as
+  // halted. A closed contract has no live step either way, so `currentStep` is null and
+  // this surface shows no next move for one — the refinement would change nothing here.
+  // The contract room, where the halt point IS the point, still reads it.
+  //
+  // The guard rather than a cast: a status this build has never seen (a migration
+  // adding one) must produce no next move rather than a plan that looks derived and is
+  // not. Same reasoning as `cashSaleStepPlan`, which refuses outright.
+  const steps: ContractStep[] = isCashSaleStatus(row.status)
+    ? deriveCashSaleSteps({
+        status: row.status,
+        viewerRole,
+        counterpartyName,
+        termsSet: row.fulfillment_method !== null,
+        termsVersion: row.terms_version,
+        isDelivery: row.fulfillment_method === 'DELIVERY',
+        hasTracking: Boolean(row.tracking_number),
+        myHandoverConfirmed: Boolean(
+          iAmBuyer
+            ? row.buyer_handover_confirmed_at
+            : row.seller_handover_confirmed_at,
+        ),
+        theirHandoverConfirmed: Boolean(
+          iAmBuyer
+            ? row.seller_handover_confirmed_at
+            : row.buyer_handover_confirmed_at,
+        ),
+        disputeRaisedByMe: row.disputed_by === userId,
+        hasReturnTracking: Boolean(row.return_tracking_number),
+        returnDisputed: Boolean(row.return_disputed_at),
+      })
+    : [];
+
   return {
     id: row.id,
     itemId: row.item_id,
@@ -122,6 +290,50 @@ function toCashSaleSummary(row: CashSaleSummaryRow): CashSaleSummary {
     amountCents: row.amount_cents,
     status: row.status,
     createdAt: row.created_at,
+    viewerRole,
+    counterpartyName,
+    nextMove: nextMoveFrom(steps),
+  };
+}
+
+/**
+ * Cash sales where the caller is on `side`, newest first.
+ *
+ * ONE BODY FOR BOTH LISTS. Purchases and Sales differ by which column carries the
+ * caller's id and which role the step plan is derived for, and nothing else — two
+ * copies of this would be two places to widen the next time the derivation grows a
+ * fact.
+ */
+async function loadCashSaleSummaries(
+  side: 'BUYER' | 'SELLER',
+): Promise<AccountActionResult<CashSaleSummary[]>> {
+  const supabase = await createClient();
+
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+
+  const { data, error } = await supabase
+    .from('cash_sales')
+    .select(CASH_SALE_SUMMARY_COLUMNS)
+    .eq(side === 'BUYER' ? 'buyer_id' : 'seller_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return { ok: false, error: 'persistence-error', message: error.message };
+  }
+
+  // `CASH_SALE_SUMMARY_COLUMNS` is a joined string, so supabase-js cannot infer the
+  // projected shape from it — the same cast the sale page makes.
+  const rows = (data ?? []) as unknown as CashSaleSummaryRow[];
+
+  const names = await counterpartyNames(
+    supabase,
+    rows.map((row) => (side === 'BUYER' ? row.seller_id : row.buyer_id)),
+  );
+
+  return {
+    ok: true,
+    data: rows.map((row) => toCashSaleSummary(row, userId, side, names)),
   };
 }
 
@@ -129,44 +341,14 @@ function toCashSaleSummary(row: CashSaleSummaryRow): CashSaleSummary {
 export async function getMyPurchases(): Promise<
   AccountActionResult<CashSaleSummary[]>
 > {
-  const supabase = await createClient();
-
-  const userId = await getUserId();
-  if (!userId) return { ok: false, error: 'not-authenticated' };
-
-  const { data, error } = await supabase
-    .from('cash_sales')
-    .select(CASH_SALE_SUMMARY_COLUMNS)
-    .eq('buyer_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return { ok: false, error: 'persistence-error', message: error.message };
-  }
-
-  return { ok: true, data: (data ?? []).map(toCashSaleSummary) };
+  return loadCashSaleSummaries('BUYER');
 }
 
 /** Cash sales where the caller is the seller, newest first. */
 export async function getMySales(): Promise<
   AccountActionResult<CashSaleSummary[]>
 > {
-  const supabase = await createClient();
-
-  const userId = await getUserId();
-  if (!userId) return { ok: false, error: 'not-authenticated' };
-
-  const { data, error } = await supabase
-    .from('cash_sales')
-    .select(CASH_SALE_SUMMARY_COLUMNS)
-    .eq('seller_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return { ok: false, error: 'persistence-error', message: error.message };
-  }
-
-  return { ok: true, data: (data ?? []).map(toCashSaleSummary) };
+  return loadCashSaleSummaries('SELLER');
 }
 
 /**
@@ -181,11 +363,13 @@ export async function getMyTrades(): Promise<
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
 
+  // `*` RATHER THAN A COLUMN LIST. `factsFromTrade` maps the whole row onto the fact
+  // interface the step derivation reads, so naming columns here would mean maintaining
+  // a second, partial view of what that mapping needs — and a missing one is a silently
+  // wrong plan, not a type error.
   const { data, error } = await supabase
     .from('trades')
-    .select(
-      'id, state, initiator_id, counterpart_id, initiator_item_id, counterpart_item_id, created_at, cash_amount_cents, trade_items(trader_id, item_id)',
-    )
+    .select('*, trade_items(trader_id, item_id)')
     .or(`initiator_id.eq.${userId},counterpart_id.eq.${userId}`)
     .order('created_at', { ascending: false });
 
@@ -206,15 +390,55 @@ export async function getMyTrades(): Promise<
       ]),
     ),
   );
-  const { data: itemRows } = itemIds.length
-    ? await supabase.from('items').select('id, title').in('id', itemIds)
-    : { data: [] as { id: string; title: string }[] };
+
+  // THREE FOLLOW-UP READS IN ONE ROUND TRIP. Each needs only the ids above, so running
+  // them in sequence would spend two round trips of pure latency on a page that has
+  // already made one. The holds are read for the whole list at once rather than per
+  // trade: `deriveHoldLegs` wants one trade's holds, but the query does not have to.
+  const [itemsResult, holdsResult, names] = await Promise.all([
+    itemIds.length
+      ? supabase.from('items').select('id, title').in('id', itemIds)
+      : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    rows.length
+      ? supabase
+          .from('pre_auth_holds')
+          .select('trade_id, trader_id, status, created_at')
+          .in(
+            'trade_id',
+            rows.map((r) => r.id as string),
+          )
+      : Promise.resolve({
+          data: [] as (HoldRowLike & { trade_id: string })[],
+        }),
+    counterpartyNames(
+      supabase,
+      rows.map((r) =>
+        r.initiator_id === userId
+          ? (r.counterpart_id as string)
+          : (r.initiator_id as string),
+      ),
+    ),
+  ]);
+
   const titleById = new Map(
-    (itemRows ?? []).map((row) => [row.id as string, (row.title as string) ?? 'Item']),
+    (itemsResult.data ?? []).map((row) => [
+      row.id as string,
+      (row.title as string) ?? 'Item',
+    ]),
   );
 
+  const holdsByTrade = new Map<string, HoldRowLike[]>();
+  for (const hold of (holdsResult.data ?? []) as (HoldRowLike & {
+    trade_id: string;
+  })[]) {
+    const existing = holdsByTrade.get(hold.trade_id);
+    if (existing) existing.push(hold);
+    else holdsByTrade.set(hold.trade_id, [hold]);
+  }
+
   const summaries: TradeSummary[] = rows.map((r) => {
-    const role = r.initiator_id === userId ? 'initiator' : 'counterpart';
+    const isInitiator = r.initiator_id === userId;
+    const role = isInitiator ? 'initiator' : 'counterpart';
     const bundle = ((r.trade_items as { trader_id: string; item_id: string }[] | null) ?? []);
     // Fall back to the primary Item columns for trades created before bundles.
     const sides = bundle.length
@@ -228,6 +452,44 @@ export async function getMyTrades(): Promise<
         .filter((entry) => (entry.trader_id === userId) === mine)
         .map((entry) => titleById.get(entry.item_id) ?? 'Item');
 
+    const counterpartyName =
+      names.get(isInitiator ? (r.counterpart_id as string) : (r.initiator_id as string)) ??
+      UNKNOWN_COUNTERPARTY;
+
+    // The mapping `tradeStepPlan` performs, verbatim: the row's own facts with the two
+    // hold-derived legs overlaid, because `factsFromTrade` defaults those to false and
+    // the release step depends on them. Addresses come from the row's
+    // `*_delivery_address_configured` flags rather than the address rows — whether one
+    // EXISTS is what gates posting, and a trader may not read the other's until
+    // collateral locks.
+    const state: unknown = r.state;
+    const steps: ContractStep[] = isTradeState(state)
+      ? deriveTradeSteps({
+          state,
+          viewerRole: isInitiator ? 'INITIATOR' : 'COUNTERPART',
+          facts: {
+            ...factsFromTrade(r as unknown as TradeRow),
+            ...deriveHoldLegs(
+              holdsByTrade.get(r.id as string) ?? [],
+              r.initiator_id as string,
+              r.counterpart_id as string,
+            ),
+          },
+          counterpartyName,
+          addresses:
+            r.handover_method === 'DELIVERY'
+              ? {
+                  mine: isInitiator
+                    ? r.initiator_delivery_address_configured
+                    : r.counterpart_delivery_address_configured,
+                  theirs: isInitiator
+                    ? r.counterpart_delivery_address_configured
+                    : r.initiator_delivery_address_configured,
+                }
+              : undefined,
+        })
+      : [];
+
     return {
       id: r.id,
       state: r.state,
@@ -238,6 +500,8 @@ export async function getMyTrades(): Promise<
       cashAmountCents: (r.cash_amount_cents as number) ?? 0,
       role,
       createdAt: r.created_at,
+      counterpartyName,
+      nextMove: nextMoveFrom(steps),
     };
   });
 

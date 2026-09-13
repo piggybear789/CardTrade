@@ -134,9 +134,19 @@ export function ListingDetailChrome({
   );
 }
 
+/** `/listings/<id>/edit`. Anchored so it cannot also match `/listings/new`. */
+const EDIT_LISTING = /^\/listings\/[^/]+\/edit$/;
+
 export function HierarchicalChrome({ pathname }: { pathname: string }) {
   if (pathname === '/listings/new') {
-    return <NewListingChrome />;
+    return <ItemFormChrome title="New Listing" backHref="/" backLabel="Back to marketplace" />;
+  }
+
+  // EDIT GETS THE SAME TREATMENT AS CREATE. It used to fall through to the bare
+  // back-chevron bar, so the only way to save was a button at the bottom of a long
+  // scrolling form.
+  if (EDIT_LISTING.test(pathname)) {
+    return <ItemFormChrome title="Edit listing" backHref={hierarchicalBackHref(pathname)} />;
   }
 
   return (
@@ -147,10 +157,25 @@ export function HierarchicalChrome({ pathname }: { pathname: string }) {
 }
 
 /**
- * Compose chrome: title in the bar, Sell on the right. Cancel stays in the
- * form — a header dismiss next to the primary action is the wrong pair.
+ * Item-form chrome: back, title, and the form's submit on the right.
+ *
+ * THE ONLY SUBMIT BELOW `md`. The form's footer is `max-md:hidden`, so this is not a
+ * duplicate of it — and there is no Cancel to pair with, because the back chevron on
+ * the left already is the way out.
+ *
+ * The label comes from the form through `publishItemFormChrome` rather than being
+ * derived from the route, so "Create listing" / "Save changes" is decided in one
+ * place.
  */
-function NewListingChrome() {
+function ItemFormChrome({
+  title,
+  backHref,
+  backLabel,
+}: {
+  title: string;
+  backHref: string;
+  backLabel?: string;
+}) {
   const chrome = useSyncExternalStore(
     subscribeItemFormChrome,
     getItemFormChrome,
@@ -159,12 +184,12 @@ function NewListingChrome() {
 
   return (
     <MobileChromeFrame>
-      <MobileChromeBack href="/" label="Back to marketplace" />
+      <MobileChromeBack href={backHref} label={backLabel} />
       <p
         aria-hidden="true"
         className="min-w-0 flex-1 truncate font-display text-body font-semibold tracking-[-0.025em]"
       >
-        New Listing
+        {title}
       </p>
       {chrome ? (
         <Button
@@ -175,7 +200,7 @@ function NewListingChrome() {
           aria-busy={chrome.submitting}
           className="shrink-0"
         >
-          {chrome.submitting ? 'Saving…' : 'Sell'}
+          {chrome.submitting ? 'Saving…' : chrome.label}
         </Button>
       ) : null}
     </MobileChromeFrame>

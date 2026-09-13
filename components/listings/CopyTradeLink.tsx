@@ -11,14 +11,20 @@ import { useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CheckIcon, LinkIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 
 interface CopyTradeLinkProps {
+  /**
+   * Forwarded to `Button`. Callers used to reach for `className="h-10"` instead,
+   * which pinned a pixel height next to siblings that were naming a size token —
+   * so the owner row and the owner bar drifted to different heights.
+   */
+  size?: ButtonProps['size'];
   itemId: string;
   className?: string;
 }
 
-export function CopyTradeLink({ itemId, className }: CopyTradeLinkProps) {
+export function CopyTradeLink({ itemId, className, size }: CopyTradeLinkProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -36,6 +42,7 @@ export function CopyTradeLink({ itemId, className }: CopyTradeLinkProps) {
   return (
     <Button
       variant="outline"
+      size={size}
       className={className ?? 'w-full sm:w-auto'}
       onClick={handleCopy}
       aria-label={copied ? 'Trade link copied' : 'Copy trade link'}

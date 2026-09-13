@@ -44,8 +44,12 @@ export function ReviewList({
   }
 
   return (
-    // `bg-card`, not `bg-white`: the palette's surface is a warm off-white
-    // (`40 30% 99%`), so pure white read colder than every card around it.
+    // `bg-card`, not `bg-white`. The two happen to be the same value today, so this
+    // reads as pedantry — it is not. The page is a faintly tinted lilac and the card
+    // is the pure white ON it, which is the whole surface hierarchy; hardcoding white
+    // here would pin this list to one side of that relationship and silently break it
+    // the next time either surface moves. The original note cited `40 30% 99%`, a warm
+    // off-white from two palettes ago, which is exactly how that goes wrong.
     <ul className="divide-y rounded-lg border bg-card">
       {reviews.map((review) => (
         <li key={review.id} className="space-y-tight p-group">

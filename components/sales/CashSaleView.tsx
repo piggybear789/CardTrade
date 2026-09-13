@@ -627,9 +627,48 @@ function CashSaleRoom({
               showDetails={false}
             />
           }
+          // THE STATUS BADGE, WHICH THIS ROOM WAS THE ONLY ONE MISSING.
+          //
+          // `ContractHeader` has always taken a `status` slot and `TradeContract` has
+          // always filled it with a `StateBadge`; this call omitted it, so a cash
+          // contract's own state — the thing thirteen statuses exist to express — was
+          // absent from the strip that exists to say what the contract is. A reader had
+          // to infer it from whichever tab or action card happened to be on screen.
+          //
+          // Same map as the Sales list and the inbox: `CASH_SALE_STATUS_MAP` through
+          // `CashSaleStatusBadge`, so a sale cannot read one way in the room and
+          // another in the list that links to it.
+          status={<CashSaleStatusBadge status={sale.status} />}
           connectionStatus={connectionStatus}
         />
       </DesktopOnly>
+
+      {/* THE INSPECTION CLOCK, AT THE TOP OF THE ROOM RATHER THAN INSIDE A TAB.
+          
+          This is the same component with the same strings — it moved, it was not
+          rewritten. It used to render inside the Protection tab, which is the fourth
+          tab of the inspector, and below `lg` that whole inspector sits behind a
+          docked sheet. So the one deadline on a Cash_Sale that resolves ITSELF —
+          completing the sale and paying the Seller with no further action from anyone
+          — was two taps from being seen, and a Buyer who never opened the tab had no
+          warning it was running.
+          
+          Deliberately OUTSIDE `DesktopOnly`: the phone is the case this exists for.
+          
+          The trade room has always rendered it here (`TradeContract`), so this also
+          removes a divergence rather than adding one — two rooms were using one
+          component in two places, and only one of them was visible. */}
+      {sale.status === 'INSPECTION' ? (
+        <InspectionCountdown
+          deadlineAt={sale.inspection_deadline_at}
+          viewerMustAct={iAmBuyer && !sale.inspection_accepted_at}
+          expiryConsequence={
+            iAmBuyer
+              ? 'If you do nothing, the sale completes on its own and the seller is paid.'
+              : 'If the buyer does nothing, the sale completes on its own and you are paid.'
+          }
+        />
+      ) : null}
 
       <ContractLiveRow
         detailsTitle={sale.item_title}
@@ -1030,7 +1069,7 @@ function CashSaleRoom({
                             onClick={() => chooseMethod(option.value)}
                             className={cn(
                               'flex size-24 shrink-0 touch-manipulation flex-col items-center justify-center gap-snug rounded-lg border border-input bg-card p-snug text-center text-meta font-semibold transition-colors sm:size-28',
-                              'hover:border-iris/50 hover:bg-accent focus-visible:border-iris focus-visible:outline-none',
+                              'hover:border-foreground/30 hover:bg-accent focus-visible:border-iris focus-visible:outline-none',
                               'disabled:pointer-events-none disabled:bg-muted disabled:text-muted-foreground',
                             )}
                           >
@@ -1183,18 +1222,12 @@ function CashSaleRoom({
               policy could ever produce required an UNVERIFIED Seller, which
               publishing a listing makes impossible. See
               `CashSaleProtectionExplainer`. */}
+            {/* The countdown used to be the first thing in this tab. It is now a banner
+                at the top of the room — see the note at its new call site. This tab
+                keeps the explanation of HOW the money is protected, which is what a
+                reader opens it for; the deadline is not something they should have had
+                to come looking for. */}
             <div className="space-y-cozy">
-              {sale.status === 'INSPECTION' ? (
-                <InspectionCountdown
-                  deadlineAt={sale.inspection_deadline_at}
-                  viewerMustAct={iAmBuyer && !sale.inspection_accepted_at}
-                  expiryConsequence={
-                    iAmBuyer
-                      ? 'If you do nothing, the sale completes on its own and the seller is paid.'
-                      : 'If the buyer does nothing, the sale completes on its own and you are paid.'
-                  }
-                />
-              ) : null}
               {/* A TRIGGER, NOT A FORM. This tab is where a buyer comes to read how
                 their money is protected, and it ended with a permanently open
                 dispute textarea — a contract going perfectly well still showed a

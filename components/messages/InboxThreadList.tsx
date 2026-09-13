@@ -4,6 +4,18 @@
 // avatar with unread on the shoulder, title + status pill, preview, timestamp
 // under the preview, listing thumb on the far right. Desktop keeps the existing
 // grouped card (thumb leading, time on the title row, unread badge).
+//
+// A CONTRACT THREAD NOW SAYS SO, AND SAYS WHAT STATE IT IS IN. A live $400 purchase and
+// someone asking whether a card is still available were the same row: a name, a preview
+// and a thumbnail. The badge comes from `CASH_SALE_STATUS_MAP` through the same
+// `CashSaleStatusBadge` the contract room and the Sales list render, so a thread cannot
+// describe a contract differently from the contract itself.
+//
+// TWO DIFFERENT LINKS, AND THEY ARE EASY TO CONFLATE. `entry.dispute` is the ARBITRATION
+// chat — `conversations.cash_sale_id`, set only when a dispute is opened. `entry.sale` is
+// the ordinary contract thread, found from `cash_sales.conversation_id`. A row can be one
+// or the other, never both, and the dispute reading wins because it is the more serious
+// fact about the same money.
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -12,12 +24,18 @@ import { HandshakeIcon, MessageSquareIcon, TriangleAlertIcon } from '@hugeicons/
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MobileList } from '@/components/ui/mobile-list';
+import { CashSaleStatusBadge } from '@/components/sales/CashSaleStatusBadge';
 import { formatRelativeTime, itemImageUrl } from '@/lib/format';
 import type { ConversationListEntry } from '@/lib/actions/messages';
 import { cn } from '@/lib/utils';
 
+/** True when this thread is the arbitration chat for a disputed sale. */
+function isDisputeThread(c: ConversationListEntry): boolean {
+  return c.dispute !== null;
+}
+
 function statusPill(c: ConversationListEntry) {
-  if (c.dispute) {
+  if (isDisputeThread(c)) {
     return (
       // "Disputed", matching `CASH_SALE_STATUS_MAP` — the state of the contract,
       // not the name of a noun. The room, the badge and the thread now agree.
@@ -26,7 +44,15 @@ function statusPill(c: ConversationListEntry) {
       </span>
     );
   }
+  if (c.sale) {
+    // THE SHARED BADGE, not a hand-rolled pill. Thirteen statuses each with a chosen
+    // label and tone already exist in one place; restating any of them here is how the
+    // inbox and the contract room end up disagreeing about the same sale.
+    return <CashSaleStatusBadge status={c.sale.status} className="shrink-0" />;
+  }
   if (c.trade) {
+    // No state: a list entry carries the trade's id and nothing else. "Trade" is
+    // honest about what is known, and the contract room is one tap away.
     return (
       <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-muted-foreground">
         Trade
@@ -51,20 +77,45 @@ function UnreadMark({ count }: { count: number }) {
   );
 }
 
-function MobileThreadRow({ c }: { c: ConversationListEntry }) {
+function MobileThreadRow({
+  c,
+  className,
+  active = false,
+}: {
+  c: ConversationListEntry;
+  /** Inset for the rail pane, which has no padding of its own to lend. */
+  className?: string;
+  /** This is the conversation currently open in the pane beside the list. */
+  active?: boolean;
+}) {
   const name = c.other.displayName?.trim() || 'NoDitto member';
   const thumb = c.item ? itemImageUrl(c.item.imagePath) : null;
   const preview = c.lastMessage?.body ?? 'No messages yet';
   const time = formatRelativeTime(c.lastMessage?.createdAt ?? c.lastMessageAt);
   const unread = c.unreadCount > 0;
+  const disputed = isDisputeThread(c);
 
   return (
+    // `items-center`, NOT `items-start`. The text column is three lines — name,
+    // preview, timestamp — so at roughly 60px it is taller than either the 48px avatar
+    // or the 44px thumbnail beside it. Top-aligning all three left both squares riding
+    // high with a dozen pixels of dead space underneath, which is what read as
+    // uncentred. Centring them also removes the `mt-0.5` nudges that were compensating
+    // for it in two places and would have had to be retuned every time a line was
+    // added to the middle column.
     <Link
       href={`/messages/${c.id}`}
       transitionTypes={['nav-forward']}
-      className="flex min-h-11 items-start gap-3 py-3.5 border border-transparent focus:outline-none focus-visible:border-iris"
+      // `aria-current` rather than a colour alone: in the rail the highlight is the
+      // only thing saying which thread the pane on the right is showing.
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex min-h-11 items-center gap-3 py-3.5 border border-transparent focus:outline-none focus-visible:border-iris',
+        active ? 'bg-muted' : 'transition-colors hover:bg-muted/60',
+        className,
+      )}
     >
-      <span className="relative mt-0.5 shrink-0">
+      <span className="relative shrink-0">
         <Avatar
           avatarPath={c.other.avatarPath}
           displayName={name}
@@ -104,17 +155,17 @@ function MobileThreadRow({ c }: { c: ConversationListEntry }) {
           alt={c.item?.title ?? ''}
           width={88}
           height={88}
-          className="mt-0.5 size-11 shrink-0 rounded-md object-cover"
+          className="size-11 shrink-0 rounded-md object-cover"
         />
-      ) : c.dispute || c.trade ? (
+      ) : disputed || c.trade ? (
         <span
           className={cn(
-            'mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-md bg-muted',
-            c.dispute ? 'text-destructive' : 'text-muted-foreground',
+            'flex size-11 shrink-0 items-center justify-center rounded-md bg-muted',
+            disputed ? 'text-destructive' : 'text-muted-foreground',
           )}
           aria-hidden
         >
-          {c.dispute ? (
+          {disputed ? (
             <HugeiconsIcon icon={TriangleAlertIcon} className="size-5" />
           ) : (
             <HugeiconsIcon icon={HandshakeIcon} className="size-5" />
@@ -151,10 +202,15 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
         />
       ) : (
         <span
-          className={`flex size-12 shrink-0 items-center justify-center rounded-md ${c.dispute ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}
+          className={cn(
+            'flex size-12 shrink-0 items-center justify-center rounded-md',
+            isDisputeThread(c)
+              ? 'bg-destructive/10 text-destructive'
+              : 'bg-muted text-muted-foreground',
+          )}
           aria-hidden="true"
         >
-          {c.dispute ? (
+          {isDisputeThread(c) ? (
             <HugeiconsIcon icon={TriangleAlertIcon} className="size-5" />
           ) : c.trade ? (
             <HugeiconsIcon icon={HandshakeIcon} className="size-5" />
@@ -204,9 +260,36 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
 
 export function InboxThreadList({
   conversations,
+  variant = 'page',
+  activeId = null,
 }: {
   conversations: ConversationListEntry[];
+  /**
+   * `page` — the full-width `/messages` route: compact rows on a phone, the wide row
+   * from `md`, wrapped in the grouped market card.
+   *
+   * `rail` — the 21rem list pane beside an open thread (`InboxTwoPane`). Draws the
+   * COMPACT row at every width, because the wide row puts a 48px thumbnail, an avatar,
+   * a name, a status pill, a clock and an unread badge on one line and none of that
+   * survives the narrower column. No card chrome either: the pane is already a bordered
+   * surface, and a card inside it would be a second border a few pixels in.
+   */
+  variant?: 'page' | 'rail';
+  /** In the rail, which conversation the pane on the right is showing. */
+  activeId?: string | null;
 }) {
+  if (variant === 'rail') {
+    return (
+      <ul role="list" aria-label="Conversations" className="divide-y divide-border">
+        {conversations.map((c) => (
+          <li key={c.id}>
+            <MobileThreadRow c={c} className="px-cozy" active={c.id === activeId} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <MobileList label="Conversations" variant="sheet">
       {conversations.map((c) => (

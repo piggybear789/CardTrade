@@ -20,6 +20,11 @@
 // so presenting it as a balance would be a forecast), CANCELLED / FAILED /
 // REFUNDED (nothing owed), and anything already SETTLED (paid, not owed).
 //
+// Settled_Cents SITS OUTSIDE THAT PARTITION and does not disturb it. It reports
+// money that has LEFT, so it can never be owed at the same time as any of the
+// three; it exists because a summary of three owed balances shows a seller whose
+// only sale settled last week three zeroes and no evidence anything happened.
+//
 // MONEY IS INTEGER AUD CENTS THROUGHOUT. No floats, no formatting; the caller
 // formats via `lib/format.ts`.
 //
@@ -263,21 +268,58 @@ export interface ArbitrationRecord {
     | 'AWAITING_OUTCOME';
 }
 
+/** One Cash_Sale contributing to Releasing_Now. */
+export interface ReleasingSale {
+  cashSaleId: string;
+  itemTitle: string;
+  /**
+   * Collected from the Buyer, including shipping — the number on the contract.
+   *
+   * Reported alongside `netCents` so a Seller can see the arithmetic rather than
+   * being handed a figure smaller than the price they agreed and left to work out
+   * why. Shipping is a pass-through, so gross minus fee is NOT always what lands:
+   * a refund awarded against the sale reduces the net too, which is exactly the
+   * discrepancy the three figures together explain.
+   */
+  grossCents: Cents;
+  /** The Platform_Fee taken from the gross. */
+  feeCents: Cents;
+  netCents: Cents;
+  blocked: boolean;
+  failureCause: ReleaseFailureCause | null;
+}
+
 /** The full dashboard payload. */
 export interface PayoutReadModel {
   releasingNowCents: Cents;
   upcomingProceedsCents: Cents;
   atRiskProceedsCents: Cents;
+  /**
+   * Money already sent to the Member's payout account.
+   *
+   * NOT one of the three owed buckets and not part of their partition — this is
+   * money that has left, so it can never be owed at the same time. It exists so the
+   * summary can account for all four things money does here rather than only the
+   * three that are still coming: without it a Seller whose only sale settled last
+   * week sees three zeroes and no sign that anything ever happened.
+   *
+   * Derived from `releaseStatus === 'SETTLED'` rather than by summing SENT history
+   * entries, so a duplicated event cannot inflate it. Fraud restitution paid to the
+   * Member is included: it landed in the same account by the same mechanism.
+   */
+  settledCents: Cents;
   /** True when part of Releasing_Now is blocked by a failed release. */
   hasBlockedRelease: boolean;
+  /**
+   * The part of Releasing_Now that has failed, in cents.
+   *
+   * A subset of `releasingNowCents`, never an addition to it. `hasBlockedRelease`
+   * answers whether to warn; this answers how much to name in the warning, which is
+   * the difference between "something is held up" and "$240.00 is held up".
+   */
+  blockedReleaseCents: Cents;
   /** Sales contributing to Releasing_Now, with their member-safe cause. */
-  releasing: readonly {
-    cashSaleId: string;
-    itemTitle: string;
-    netCents: Cents;
-    blocked: boolean;
-    failureCause: ReleaseFailureCause | null;
-  }[];
+  releasing: readonly ReleasingSale[];
   history: readonly TransferHistoryEntry[];
   arbitrations: readonly ArbitrationRecord[];
   /** True when the Member has never sold anything. */
@@ -343,23 +385,28 @@ export function derivePayoutReadModel(input: PayoutReadModelInput): PayoutReadMo
   let releasingNowCents = 0;
   let upcomingProceedsCents = 0;
   let atRiskProceedsCents = 0;
-  const releasing: {
-    cashSaleId: string;
-    itemTitle: string;
-    netCents: Cents;
-    blocked: boolean;
-    failureCause: ReleaseFailureCause | null;
-  }[] = [];
+  let settledCents = 0;
+  let blockedReleaseCents = 0;
+  const releasing: ReleasingSale[] = [];
 
   for (const sale of input.sales) {
     const net = sellerNetCents(sale);
+
+    // OUTSIDE THE SWITCH, because a settled sale is `NONE` by design — the bucket
+    // enum answers "what is owed" and this money is not owed, it is gone. Reading it
+    // off `releaseStatus` rather than off the bucket keeps that separation intact.
+    if (sale.releaseStatus === 'SETTLED') settledCents += net;
+
     switch (bucketFor(sale)) {
       case 'RELEASING': {
         releasingNowCents += net;
         const blocked = sale.releaseStatus === 'FAILED';
+        if (blocked) blockedReleaseCents += net;
         releasing.push({
           cashSaleId: sale.id,
           itemTitle: sale.itemTitle,
+          grossCents: Math.max(Math.trunc(sale.amountCents), 0),
+          feeCents: Math.max(Math.trunc(sale.platformFeeCents), 0),
           netCents: net,
           blocked,
           // Retries exhausted outranks the recorded cause: it changes what the
@@ -414,11 +461,13 @@ export function derivePayoutReadModel(input: PayoutReadModelInput): PayoutReadMo
   // release (Req 5.8).
   for (const trade of input.trades) {
     if (trade.state === 'FRAUD_RESOLVED' && trade.iAmFraudVictim) {
+      const restitution = Math.max(Math.trunc(trade.counterpartBondCents), 0);
+      settledCents += restitution;
       history.push({
         id: `trade-restitution:${trade.id}`,
         cashSaleId: null,
         kind: 'FRAUD_RESTITUTION',
-        amountCents: Math.max(Math.trunc(trade.counterpartBondCents), 0),
+        amountCents: restitution,
         itemTitle: null,
         occurredAt: trade.createdAt,
         failureCause: null,
@@ -501,6 +550,8 @@ export function derivePayoutReadModel(input: PayoutReadModelInput): PayoutReadMo
     releasingNowCents,
     upcomingProceedsCents,
     atRiskProceedsCents,
+    settledCents,
+    blockedReleaseCents,
     hasBlockedRelease: releasing.some((r) => r.blocked),
     releasing: releasing.sort((a, b) =>
       a.cashSaleId < b.cashSaleId ? -1 : a.cashSaleId > b.cashSaleId ? 1 : 0,

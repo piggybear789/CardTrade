@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>App vs board — NoDitto</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../mockups/board.css">
+<style>
+  /* The board's tokens, its own layout ignored: this page is a comparison sheet, not
+     another mockup, so it borrows the palette and nothing else. */
+  body { margin:0; padding:2rem clamp(1rem,3vw,3rem) 6rem; background:hsl(var(--background));
+         color:hsl(var(--foreground)); font-family:var(--font-sans,system-ui,sans-serif); }
+  h1 { font-size:1.6rem; margin:0 0 .35rem; letter-spacing:-.02em; }
+  .lede { max-width:70ch; color:hsl(var(--muted-foreground)); line-height:1.55; margin:0 0 1.5rem; }
+  .lede + .lede { margin-top:-1rem; }
+  .summary { display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 2rem; }
+  .summary div { border:1px solid hsl(var(--border)); background:hsl(var(--card));
+                 border-radius:.5rem; padding:.5rem .75rem; min-width:7.5rem; }
+  .summary dt { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em;
+                color:hsl(var(--muted-foreground)); }
+  .summary dd { margin:.15rem 0 0; font-size:1.25rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  nav { display:flex; flex-wrap:wrap; gap:.3rem; margin:0 0 2.5rem; }
+  nav a { font-size:.75rem; padding:.25rem .5rem; border:1px solid hsl(var(--border));
+          border-radius:999px; text-decoration:none; color:hsl(var(--muted-foreground));
+          background:hsl(var(--card)); }
+  nav a:hover { color:hsl(var(--foreground)); border-color:hsl(var(--iris)); }
+  .pair { border-top:1px solid hsl(var(--border)); padding:1.75rem 0 0; margin:0 0 2.25rem; }
+  .pair h2 { font-size:1.05rem; margin:0 0 .3rem; letter-spacing:-.01em; }
+  .vp { font-weight:400; font-size:.8rem; color:hsl(var(--muted-foreground)); }
+  .meta { margin:0 0 1rem; font-size:.75rem; display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
+  .meta code { background:hsl(var(--muted)); padding:.1rem .35rem; border-radius:.25rem; }
+  .as { color:hsl(var(--muted-foreground)); }
+  .flag { padding:.1rem .4rem; border-radius:999px; font-size:.7rem; font-weight:600; }
+  .flag.ok { background:hsl(var(--trust)/.12); color:hsl(var(--trust)); }
+  .flag.warn { background:hsl(var(--action)); color:hsl(var(--action-foreground)); }
+  .flag.bad { background:hsl(var(--destructive)/.12); color:hsl(var(--destructive)); }
+  .flag.miss { background:hsl(var(--muted)); color:hsl(var(--muted-foreground)); }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; }
+  @media (max-width:900px){ .cols { grid-template-columns:1fr; } }
+  figure { margin:0; }
+  figcaption { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em;
+               color:hsl(var(--muted-foreground)); margin:0 0 .4rem; }
+  figure img { width:100%; height:auto; display:block; border:1px solid hsl(var(--border));
+               border-radius:.5rem; background:hsl(var(--card)); }
+  .none { border:1px dashed hsl(var(--border)); border-radius:.5rem; padding:2rem 1rem;
+          text-align:center; font-size:.8rem; color:hsl(var(--muted-foreground)); }
+  .errs { margin:1rem 0 0; padding:.75rem; border-radius:.5rem; overflow-x:auto;
+          background:hsl(var(--destructive)/.07); border:1px solid hsl(var(--destructive)/.3);
+          color:hsl(var(--destructive)); font-size:.72rem; line-height:1.5; white-space:pre-wrap; }
+  .notes { margin:1rem 0 0; padding:.75rem .9rem; border-radius:.5rem; font-size:.82rem; line-height:1.55;
+           border:1px solid hsl(var(--border)); background:hsl(var(--card)); }
+  .notes b { display:block; font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.35rem; }
+  .notes ul { margin:0; padding-left:1.1rem; }
+  .notes li + li { margin-top:.35rem; }
+  .notes code { background:hsl(var(--muted)); padding:.05rem .3rem; border-radius:.25rem; font-size:.95em; }
+  .notes.fixed { border-left:3px solid hsl(var(--trust)); }
+  .notes.fixed b { color:hsl(var(--trust)); }
+  .notes.open { border-left:3px solid hsl(var(--action-border)); }
+  .notes.open b { color:hsl(var(--action-border)); }
+  .notes.intent { border-left:3px solid hsl(var(--iris)); }
+  .notes.intent b { color:hsl(var(--iris-ink)); }
+</style>
+
+<h1>App vs board</h1>
+<p class="lede">The left column is the running app, screenshotted through Playwright against a
+seeded demo world — real components, real palette, real data, at 1440px and 390px. The right
+column is the hand-drawn board, which is the <em>proposal</em> and nothing more: it re-states
+what the components do in separate markup, so it drifts the moment either side changes.
+Where they disagree, the note under the pair says which one is wrong.</p>
+<p class="lede">Every seeded row is tagged <code>[E2E]</code>. <code>npm run test:e2e:clean</code>
+removes the whole demo world.</p>
+
+<div class="summary">
+  <div><dt>App shots</dt><dd>58</dd></div>
+  <div><dt>Load failures</dt><dd>0</dd></div>
+  <div><dt>Page errors</dt><dd>0</dd></div>
+  <div><dt>Gate redirects</dt><dd>0</dd></div>
+  <div><dt>Defects fixed</dt><dd>18</dd></div>
+  <div><dt>Still open</dt><dd>4</dd></div>
+  <div><dt>Not on the board</dt><dd>3</dd></div>
+</div>
+
+<nav><a href="#catalog-desktop">Catalog / homepage</a><a href="#listing-desktop">Listing detail — single</a><a href="#listing-binder-desktop">Listing detail — binder</a><a href="#create-desktop">Create listing</a><a href="#mine-desktop">My listings</a><a href="#saved-desktop">Saved</a><a href="#seller-desktop">Seller profile</a><a href="#signin-desktop">Sign in</a><a href="#signup-desktop">Sign up</a><a href="#recover-desktop">Password recovery</a><a href="#verification-desktop">Identity / verification tab</a><a href="#sales-desktop">Sales list</a><a href="#purchases-desktop">Purchases list</a><a href="#trades-desktop">Trades list</a><a href="#sales-needs-you-desktop">Sales — Needs you filter</a><a href="#offers-desktop">Offers</a><a href="#cashroom-desktop">Cash sale room — INSPECTION</a><a href="#dispute-desktop">Cash sale room — DISPUTED</a><a href="#traderoom-desktop">Trade room — COLLATERAL_LOCKED</a><a href="#tradenegotiating-desktop">Trade room — NEGOTIATING</a><a href="#inbox-desktop">Messages inbox</a><a href="#thread-desktop">Message thread</a><a href="#notifications-desktop">Notifications</a><a href="#profile-desktop">Profile &amp; settings</a><a href="#payouts-desktop">Payouts</a><a href="#admin-desktop">Admin operations</a><a href="#queue-desktop">Arbitration queue</a><a href="#help-desktop">Help</a><a href="#terms-desktop">Terms</a></nav>
+
+
+  <section class="pair" id="catalog-desktop">
+    <header>
+      <h2>Catalog / homepage <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/catalog-desktop.png" target="_blank"><img src="_shots/app/catalog-desktop.png" alt="Catalog / homepage in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/catalog-desktop.png" target="_blank"><img src="_shots/board/catalog-desktop.png" alt="Catalog / homepage on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>Prices rendered in violet (<code>text-iris-ink</code>). The pastel retune moved money to ink and the change reached the board but never <code>ItemCard.tsx</code>, so the app and the board disagreed about the most repeated element in the product.</li><li>The price histogram overhung the slider by 8px at each end. Radix positions a thumb by its CENTRE, so the value range is inset half a thumb from the control edge; the histogram was inset 4px against a 24px thumb. Measured on the live page, now inset to match.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>Every seeded tile shares one photo, so the grid reads more uniform than a real catalog would. That is the demo data, not the app.</li></ul></div>
+  </section>
+
+  <section class="pair" id="catalog-phone">
+    <header>
+      <h2>Catalog / homepage <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/catalog-phone.png" target="_blank"><img src="_shots/app/catalog-phone.png" alt="Catalog / homepage in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — current build, unchanged</figcaption><a href="_shots/board/catalog-phone.png" target="_blank"><img src="_shots/board/catalog-phone.png" alt="Catalog / homepage on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>Prices rendered in violet (<code>text-iris-ink</code>). The pastel retune moved money to ink and the change reached the board but never <code>ItemCard.tsx</code>, so the app and the board disagreed about the most repeated element in the product.</li><li>The price histogram overhung the slider by 8px at each end. Radix positions a thumb by its CENTRE, so the value range is inset half a thumb from the control edge; the histogram was inset 4px against a 24px thumb. Measured on the live page, now inset to match.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>Every seeded tile shares one photo, so the grid reads more uniform than a real catalog would. That is the demo data, not the app.</li></ul></div>
+  </section>
+
+  <section class="pair" id="listing-desktop">
+    <header>
+      <h2>Listing detail — single <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/listings/e2e00001-0000-0000-0000-000000000001</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/listing-desktop.png" target="_blank"><img src="_shots/app/listing-desktop.png" alt="Listing detail — single in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/listing-desktop.png" target="_blank"><img src="_shots/board/listing-desktop.png" alt="Listing detail — single on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Filmstrip under the desktop frame and a scroll-snap carousel on the phone, replacing the stacked cards. The inline map is gone in favour of the meta line, and the fee line sits under the price.</li></ul></div>
+  </section>
+
+  <section class="pair" id="listing-phone">
+    <header>
+      <h2>Listing detail — single <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/listings/e2e00001-0000-0000-0000-000000000001</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/listing-phone.png" target="_blank"><img src="_shots/app/listing-phone.png" alt="Listing detail — single in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — current stack, carousel swapped in</figcaption><a href="_shots/board/listing-phone.png" target="_blank"><img src="_shots/board/listing-phone.png" alt="Listing detail — single on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Filmstrip under the desktop frame and a scroll-snap carousel on the phone, replacing the stacked cards. The inline map is gone in favour of the meta line, and the fee line sits under the price.</li></ul></div>
+  </section>
+
+  <section class="pair" id="listing-binder-desktop">
+    <header>
+      <h2>Listing detail — binder <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/listings/e2e00001-0000-0000-0000-000000000004</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/listing-binder-desktop.png" target="_blank"><img src="_shots/app/listing-binder-desktop.png" alt="Listing detail — binder in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this</div></figure>
+    </div>
+    
+    
+  </section>
+
+  <section class="pair" id="listing-binder-phone">
+    <header>
+      <h2>Listing detail — binder <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/listings/e2e00001-0000-0000-0000-000000000004</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/listing-binder-phone.png" target="_blank"><img src="_shots/app/listing-binder-phone.png" alt="Listing detail — binder in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this</div></figure>
+    </div>
+    
+    
+  </section>
+
+  <section class="pair" id="create-desktop">
+    <header>
+      <h2>Create listing <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/listings/new</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/create-desktop.png" target="_blank"><img src="_shots/app/create-desktop.png" alt="Create listing in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/create-desktop.png" target="_blank"><img src="_shots/board/create-desktop.png" alt="Create listing on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="create-phone">
+    <header>
+      <h2>Create listing <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/listings/new</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/create-phone.png" target="_blank"><img src="_shots/app/create-phone.png" alt="Create listing in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390</figcaption><a href="_shots/board/create-phone.png" target="_blank"><img src="_shots/board/create-phone.png" alt="Create listing on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="mine-desktop">
+    <header>
+      <h2>My listings <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/listings/mine</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/mine-desktop.png" target="_blank"><img src="_shots/app/mine-desktop.png" alt="My listings in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — My listings</figcaption><a href="_shots/board/mine-desktop.png" target="_blank"><img src="_shots/board/mine-desktop.png" alt="My listings on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>HYDRATION FAILURE. <code>Badge</code> renders a <code>&lt;div&gt;</code> and it was inside a <code>&lt;p&gt;</code>, which is invalid HTML — the parser closed the paragraph early, the server and client trees disagreed and React re-rendered the whole table on the client. Invisible in a screenshot; only the console said so.</li><li>Columns did not line up across rows, which is the one thing this table exists to do. The actions track was <code>auto</code>, and since every row is its own grid it sized to that row's own content — &quot;Edit&quot; on a live listing, &quot;View&quot; on a sold one — so price, watching and status each landed at a different x depending on which button the row carried. The header, whose actions cell is empty, aligned with neither. Now a fixed 4.5rem.</li></ul></div>
+  </section>
+
+  <section class="pair" id="mine-phone">
+    <header>
+      <h2>My listings <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/listings/mine</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/mine-phone.png" target="_blank"><img src="_shots/app/mine-phone.png" alt="My listings in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — Saved</figcaption><a href="_shots/board/mine-phone.png" target="_blank"><img src="_shots/board/mine-phone.png" alt="My listings on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>HYDRATION FAILURE. <code>Badge</code> renders a <code>&lt;div&gt;</code> and it was inside a <code>&lt;p&gt;</code>, which is invalid HTML — the parser closed the paragraph early, the server and client trees disagreed and React re-rendered the whole table on the client. Invisible in a screenshot; only the console said so.</li><li>Columns did not line up across rows, which is the one thing this table exists to do. The actions track was <code>auto</code>, and since every row is its own grid it sized to that row's own content — &quot;Edit&quot; on a live listing, &quot;View&quot; on a sold one — so price, watching and status each landed at a different x depending on which button the row carried. The header, whose actions cell is empty, aligned with neither. Now a fixed 4.5rem.</li></ul></div>
+  </section>
+
+  <section class="pair" id="saved-desktop">
+    <header>
+      <h2>Saved <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/saved</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/saved-desktop.png" target="_blank"><img src="_shots/app/saved-desktop.png" alt="Saved in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this frame</div></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="saved-phone">
+    <header>
+      <h2>Saved <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/saved</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/saved-phone.png" target="_blank"><img src="_shots/app/saved-phone.png" alt="Saved in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — Saved</figcaption><a href="_shots/board/saved-phone.png" target="_blank"><img src="_shots/board/saved-phone.png" alt="Saved on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="seller-desktop">
+    <header>
+      <h2>Seller profile <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/sellers/11111111-1111-1111-1111-111111111111</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/seller-desktop.png" target="_blank"><img src="_shots/app/seller-desktop.png" alt="Seller profile in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/seller-desktop.png" target="_blank"><img src="_shots/board/seller-desktop.png" alt="Seller profile on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The trust band's two groups used <code>auto-fit</code>, so the provider group became three columns and the record group two: &quot;Completed sales&quot; sat under &quot;Verified name&quot; and &quot;Trades in&quot; aligned with nothing. Both groups now declare the same three tracks.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>Watch hearts are absent here because Alice is viewing her OWN profile, which is correct. The catalog shot confirms they appear on other members' items.</li></ul></div>
+  </section>
+
+  <section class="pair" id="seller-phone">
+    <header>
+      <h2>Seller profile <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/sellers/11111111-1111-1111-1111-111111111111</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/seller-phone.png" target="_blank"><img src="_shots/app/seller-phone.png" alt="Seller profile in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390</figcaption><a href="_shots/board/seller-phone.png" target="_blank"><img src="_shots/board/seller-phone.png" alt="Seller profile on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The trust band's two groups used <code>auto-fit</code>, so the provider group became three columns and the record group two: &quot;Completed sales&quot; sat under &quot;Verified name&quot; and &quot;Trades in&quot; aligned with nothing. Both groups now declare the same three tracks.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>Watch hearts are absent here because Alice is viewing her OWN profile, which is correct. The catalog shot confirms they appear on other members' items.</li></ul></div>
+  </section>
+
+  <section class="pair" id="signin-desktop">
+    <header>
+      <h2>Sign in <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/sign-in</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/signin-desktop.png" target="_blank"><img src="_shots/app/signin-desktop.png" alt="Sign in in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/signin-desktop.png" target="_blank"><img src="_shots/board/signin-desktop.png" alt="Sign in on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="signin-phone">
+    <header>
+      <h2>Sign in <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/sign-in</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/signin-phone.png" target="_blank"><img src="_shots/app/signin-phone.png" alt="Sign in in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390</figcaption><a href="_shots/board/signin-phone.png" target="_blank"><img src="_shots/board/signin-phone.png" alt="Sign in on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="signup-desktop">
+    <header>
+      <h2>Sign up <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/sign-up</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/signup-desktop.png" target="_blank"><img src="_shots/app/signup-desktop.png" alt="Sign up in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/signup-desktop.png" target="_blank"><img src="_shots/board/signup-desktop.png" alt="Sign up on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="signup-phone">
+    <header>
+      <h2>Sign up <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/sign-up</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/signup-phone.png" target="_blank"><img src="_shots/app/signup-phone.png" alt="Sign up in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — duplicate account</figcaption><a href="_shots/board/signup-phone.png" target="_blank"><img src="_shots/board/signup-phone.png" alt="Sign up on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="recover-desktop">
+    <header>
+      <h2>Password recovery <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/forgot-password</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/recover-desktop.png" target="_blank"><img src="_shots/app/recover-desktop.png" alt="Password recovery in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — request sent</figcaption><a href="_shots/board/recover-desktop.png" target="_blank"><img src="_shots/board/recover-desktop.png" alt="Password recovery on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="recover-phone">
+    <header>
+      <h2>Password recovery <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/forgot-password</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/recover-phone.png" target="_blank"><img src="_shots/app/recover-phone.png" alt="Password recovery in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — set a new password</figcaption><a href="_shots/board/recover-phone.png" target="_blank"><img src="_shots/board/recover-phone.png" alt="Password recovery on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="verification-desktop">
+    <header>
+      <h2>Identity / verification tab <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/profile?tab=verification</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/verification-desktop.png" target="_blank"><img src="_shots/app/verification-desktop.png" alt="Identity / verification tab in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this frame</div></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The completed state put the bare string &quot;Alice Nguyen&quot; in the slot where a STATUS belongs, and &quot;Active&quot; beside Payouts — so the two facts worth having, what was checked and when, appeared nowhere. Each row now carries a <code>Verified</code> / <code>Active</code> badge and the evidence underneath: &quot;Alice Nguyen · photo ID and selfie checked 10 Sept 2026&quot;. <code>getIdentitySummary</code> had been returning <code>verifiedAt</code> all along and this page was discarding it.</li><li>The payout row said &quot;Active&quot;, which answers a question nobody asks. It now states the thing members actually hesitate over — &quot;Stripe collects your bank details directly. NoDitto never sees them.&quot;</li><li>The intro read &quot;Both checks are complete. There is nothing else to do here&quot;, leaving someone who had just passed two different checks with no idea why there were two. It now names the split and the provider.</li><li>MAPPING BUG IN THIS CANVAS, not in the app: this route was paired against the board's <code>#identity</code> DESKTOP frame, which draws the onboarding wizard's seller step rather than the settings tab. Two different surfaces were being compared as if they should match. Now pinned to the phone frame, which is the one labelled &quot;verification tab, as built&quot;.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>The INCOMPLETE state is <code>UnifiedOnboardingSurface</code>, the spine shared with the signup wizard, and it is not shot here because every seeded member is already verified and payable. Its copy still states a rationale (&quot;We verify your identity to block known fraudsters&quot;) where the board states evidence, and an instruction (&quot;Add your payout details to receive your funds&quot;) where the board states the privacy fact. Left alone deliberately: it is a shared spine and changing it blind — with no way to see the state it renders — is how the stylesheet got broken earlier in this session.</li></ul></div>
+  </section>
+
+  <section class="pair" id="verification-phone">
+    <header>
+      <h2>Identity / verification tab <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/profile?tab=verification</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/verification-phone.png" target="_blank"><img src="_shots/app/verification-phone.png" alt="Identity / verification tab in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — verification tab, as built</figcaption><a href="_shots/board/verification-phone.png" target="_blank"><img src="_shots/board/verification-phone.png" alt="Identity / verification tab on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The completed state put the bare string &quot;Alice Nguyen&quot; in the slot where a STATUS belongs, and &quot;Active&quot; beside Payouts — so the two facts worth having, what was checked and when, appeared nowhere. Each row now carries a <code>Verified</code> / <code>Active</code> badge and the evidence underneath: &quot;Alice Nguyen · photo ID and selfie checked 10 Sept 2026&quot;. <code>getIdentitySummary</code> had been returning <code>verifiedAt</code> all along and this page was discarding it.</li><li>The payout row said &quot;Active&quot;, which answers a question nobody asks. It now states the thing members actually hesitate over — &quot;Stripe collects your bank details directly. NoDitto never sees them.&quot;</li><li>The intro read &quot;Both checks are complete. There is nothing else to do here&quot;, leaving someone who had just passed two different checks with no idea why there were two. It now names the split and the provider.</li><li>MAPPING BUG IN THIS CANVAS, not in the app: this route was paired against the board's <code>#identity</code> DESKTOP frame, which draws the onboarding wizard's seller step rather than the settings tab. Two different surfaces were being compared as if they should match. Now pinned to the phone frame, which is the one labelled &quot;verification tab, as built&quot;.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>The INCOMPLETE state is <code>UnifiedOnboardingSurface</code>, the spine shared with the signup wizard, and it is not shot here because every seeded member is already verified and payable. Its copy still states a rationale (&quot;We verify your identity to block known fraudsters&quot;) where the board states evidence, and an instruction (&quot;Add your payout details to receive your funds&quot;) where the board states the privacy fact. Left alone deliberately: it is a shared spine and changing it blind — with no way to see the state it renders — is how the stylesheet got broken earlier in this session.</li></ul></div>
+  </section>
+
+  <section class="pair" id="sales-desktop">
+    <header>
+      <h2>Sales list <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/sales</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/sales-desktop.png" target="_blank"><img src="_shots/app/sales-desktop.png" alt="Sales list in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — sales</figcaption><a href="_shots/board/sales-desktop.png" target="_blank"><img src="_shots/board/sales-desktop.png" alt="Sales list on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>On the phone the status badge sat in an <code>auto</code> track on the title row, so a long label (&quot;Funds confirmed&quot;) stole more width than a short one (&quot;Inspection&quot;) and titles truncated at different points down the list. The badge now sits in the content block below <code>md</code> and the title gets the full width.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>The next-step column states the move, not the state, in the derivation's own words from <code>domain/contract</code>. No second status-to-copy table exists. Whose move it is survives as tone only — an amber marker and full contrast when it is yours — because the sentences already name their actor.</li><li>Four filter chips with counts. Active stays the default: landing on &quot;Needs you&quot; would show an empty page to someone whose contracts are all with the other party.</li></ul></div>
+  </section>
+
+  <section class="pair" id="sales-phone">
+    <header>
+      <h2>Sales list <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/sales</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/sales-phone.png" target="_blank"><img src="_shots/app/sales-phone.png" alt="Sales list in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — one tabbed surface</figcaption><a href="_shots/board/sales-phone.png" target="_blank"><img src="_shots/board/sales-phone.png" alt="Sales list on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>On the phone the status badge sat in an <code>auto</code> track on the title row, so a long label (&quot;Funds confirmed&quot;) stole more width than a short one (&quot;Inspection&quot;) and titles truncated at different points down the list. The badge now sits in the content block below <code>md</code> and the title gets the full width.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>The next-step column states the move, not the state, in the derivation's own words from <code>domain/contract</code>. No second status-to-copy table exists. Whose move it is survives as tone only — an amber marker and full contrast when it is yours — because the sentences already name their actor.</li><li>Four filter chips with counts. Active stays the default: landing on &quot;Needs you&quot; would show an empty page to someone whose contracts are all with the other party.</li></ul></div>
+  </section>
+
+  <section class="pair" id="purchases-desktop">
+    <header>
+      <h2>Purchases list <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/purchases</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/purchases-desktop.png" target="_blank"><img src="_shots/app/purchases-desktop.png" alt="Purchases list in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — sales</figcaption><a href="_shots/board/purchases-desktop.png" target="_blank"><img src="_shots/board/purchases-desktop.png" alt="Purchases list on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Same component as Sales, viewed from the buyer's side, so the step sentences change voice and the counterparty reads &quot;from&quot; rather than &quot;to&quot;.</li></ul></div>
+  </section>
+
+  <section class="pair" id="purchases-phone">
+    <header>
+      <h2>Purchases list <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/purchases</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/purchases-phone.png" target="_blank"><img src="_shots/app/purchases-phone.png" alt="Purchases list in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — one tabbed surface</figcaption><a href="_shots/board/purchases-phone.png" target="_blank"><img src="_shots/board/purchases-phone.png" alt="Purchases list on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Same component as Sales, viewed from the buyer's side, so the step sentences change voice and the counterparty reads &quot;from&quot; rather than &quot;to&quot;.</li></ul></div>
+  </section>
+
+  <section class="pair" id="trades-desktop">
+    <header>
+      <h2>Trades list <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/trades</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/trades-desktop.png" target="_blank"><img src="_shots/app/trades-desktop.png" alt="Trades list in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — sales</figcaption><a href="_shots/board/trades-desktop.png" target="_blank"><img src="_shots/board/trades-desktop.png" alt="Trades list on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Trade rows carry the two sides, the counterparty and the cash-to-even, on the same grid as the cash lists so the three surfaces align with each other as well as with themselves.</li></ul></div>
+  </section>
+
+  <section class="pair" id="trades-phone">
+    <header>
+      <h2>Trades list <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/trades</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/trades-phone.png" target="_blank"><img src="_shots/app/trades-phone.png" alt="Trades list in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — one tabbed surface</figcaption><a href="_shots/board/trades-phone.png" target="_blank"><img src="_shots/board/trades-phone.png" alt="Trades list on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Trade rows carry the two sides, the counterparty and the cash-to-even, on the same grid as the cash lists so the three surfaces align with each other as well as with themselves.</li></ul></div>
+  </section>
+
+  <section class="pair" id="sales-needs-you-desktop">
+    <header>
+      <h2>Sales — Needs you filter <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/sales?show=needs-you</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/sales-needs-you-desktop.png" target="_blank"><img src="_shots/app/sales-needs-you-desktop.png" alt="Sales — Needs you filter in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this</div></figure>
+    </div>
+    
+    
+  </section>
+
+  <section class="pair" id="sales-needs-you-phone">
+    <header>
+      <h2>Sales — Needs you filter <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/sales?show=needs-you</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/sales-needs-you-phone.png" target="_blank"><img src="_shots/app/sales-needs-you-phone.png" alt="Sales — Needs you filter in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this</div></figure>
+    </div>
+    
+    
+  </section>
+
+  <section class="pair" id="offers-desktop">
+    <header>
+      <h2>Offers <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/offers</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/offers-desktop.png" target="_blank"><img src="_shots/app/offers-desktop.png" alt="Offers in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/offers-desktop.png" target="_blank"><img src="_shots/board/offers-desktop.png" alt="Offers on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>&quot;Accepting this declines the other 2 offers&quot; printed on every acceptable row, so one listing with three live offers said the same sentence three times about the same three offers. It is a property of the group and is now stated once in the group header.</li><li>Rows within a listing were ordered by recency, so $760, $695 and $720 appeared in that order and a seller had to read all three to find the top bid. Live offers now sort highest-first, with decided ones below whatever the amount.</li><li>The counter chain put the actor after the amount — &quot;$700.00 them → $800.00 you&quot; — where each label sits between two numbers and belongs to neither. Actor first.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Grouped by listing, with the chain walked from <code>parent_offer_id</code> and superseded amounts struck through.</li></ul></div>
+  </section>
+
+  <section class="pair" id="offers-phone">
+    <header>
+      <h2>Offers <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/offers</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/offers-phone.png" target="_blank"><img src="_shots/app/offers-phone.png" alt="Offers in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390</figcaption><a href="_shots/board/offers-phone.png" target="_blank"><img src="_shots/board/offers-phone.png" alt="Offers on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>&quot;Accepting this declines the other 2 offers&quot; printed on every acceptable row, so one listing with three live offers said the same sentence three times about the same three offers. It is a property of the group and is now stated once in the group header.</li><li>Rows within a listing were ordered by recency, so $760, $695 and $720 appeared in that order and a seller had to read all three to find the top bid. Live offers now sort highest-first, with decided ones below whatever the amount.</li><li>The counter chain put the actor after the amount — &quot;$700.00 them → $800.00 you&quot; — where each label sits between two numbers and belongs to neither. Actor first.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Grouped by listing, with the chain walked from <code>parent_offer_id</code> and superseded amounts struck through.</li></ul></div>
+  </section>
+
+  <section class="pair" id="cashroom-desktop">
+    <header>
+      <h2>Cash sale room — INSPECTION <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/sales/e2e00002-0000-0000-0000-000000000003</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/cashroom-desktop.png" target="_blank"><img src="_shots/app/cashroom-desktop.png" alt="Cash sale room — INSPECTION in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — buyer, INSPECTION</figcaption><a href="_shots/board/cashroom-desktop.png" target="_blank"><img src="_shots/board/cashroom-desktop.png" alt="Cash sale room — INSPECTION on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The deadline banner named the actual deadline instant to the party who must ACT and withheld it from the one who is waiting — who got &quot;You have already acted.&quot; and no date at all. &quot;When does this resolve?&quot; is exactly the waiting party's question, and a heading reading &quot;4 days left&quot; rounds the answer rather than giving it. Both branches now name it: &quot;Nothing is needed from you until Fri, 18 Sept, 7:27 am.&quot;</li><li>&quot;You have already acted&quot; was also untrue for a cash-sale SELLER. Inspection is the buyer's step; the seller never had an action in it to have already taken.</li><li>The room passed no status badge to <code>ContractHeader</code>, even though the slot has always existed and <code>TradeContract</code> has always filled it. So a cash contract's own state — what thirteen statuses exist to express — was missing from the strip whose job is to say what the contract is, and the two rooms disagreed. Now <code>CashSaleStatusBadge</code>, the same map the Sales list and the inbox use.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>The board also puts a live countdown inside the action dock (&quot;You have 2 days 6 hours&quot;). Not copied: the banner directly above it now carries the deadline, and repeating it two inches lower is the duplication the dock was trimmed to remove.</li><li>The board shows an always-on &quot;Live&quot; chip. <code>ContractHeader</code> deliberately renders the connection indicator only when the socket is degraded — a healthy socket is not news — which is the better rule, so the board is what is wrong here.</li></ul></div>
+  </section>
+
+  <section class="pair" id="cashroom-phone">
+    <header>
+      <h2>Cash sale room — INSPECTION <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/sales/e2e00002-0000-0000-0000-000000000003</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/cashroom-phone.png" target="_blank"><img src="_shots/app/cashroom-phone.png" alt="Cash sale room — INSPECTION in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — chat is the room, as built</figcaption><a href="_shots/board/cashroom-phone.png" target="_blank"><img src="_shots/board/cashroom-phone.png" alt="Cash sale room — INSPECTION on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The deadline banner named the actual deadline instant to the party who must ACT and withheld it from the one who is waiting — who got &quot;You have already acted.&quot; and no date at all. &quot;When does this resolve?&quot; is exactly the waiting party's question, and a heading reading &quot;4 days left&quot; rounds the answer rather than giving it. Both branches now name it: &quot;Nothing is needed from you until Fri, 18 Sept, 7:27 am.&quot;</li><li>&quot;You have already acted&quot; was also untrue for a cash-sale SELLER. Inspection is the buyer's step; the seller never had an action in it to have already taken.</li><li>The room passed no status badge to <code>ContractHeader</code>, even though the slot has always existed and <code>TradeContract</code> has always filled it. So a cash contract's own state — what thirteen statuses exist to express — was missing from the strip whose job is to say what the contract is, and the two rooms disagreed. Now <code>CashSaleStatusBadge</code>, the same map the Sales list and the inbox use.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>The board also puts a live countdown inside the action dock (&quot;You have 2 days 6 hours&quot;). Not copied: the banner directly above it now carries the deadline, and repeating it two inches lower is the duplication the dock was trimmed to remove.</li><li>The board shows an always-on &quot;Live&quot; chip. <code>ContractHeader</code> deliberately renders the connection indicator only when the socket is degraded — a healthy socket is not news — which is the better rule, so the board is what is wrong here.</li></ul></div>
+  </section>
+
+  <section class="pair" id="dispute-desktop">
+    <header>
+      <h2>Cash sale room — DISPUTED <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/sales/e2e00002-0000-0000-0000-000000000008</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/dispute-desktop.png" target="_blank"><img src="_shots/app/dispute-desktop.png" alt="Cash sale room — DISPUTED in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — buyer, DISPUTED</figcaption><a href="_shots/board/dispute-desktop.png" target="_blank"><img src="_shots/board/dispute-desktop.png" alt="Cash sale room — DISPUTED on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Layout kept. Inherits the banner and header-badge fixes above.</li></ul></div>
+  </section>
+
+  <section class="pair" id="dispute-phone">
+    <header>
+      <h2>Cash sale room — DISPUTED <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/sales/e2e00002-0000-0000-0000-000000000008</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/dispute-phone.png" target="_blank"><img src="_shots/app/dispute-phone.png" alt="Cash sale room — DISPUTED in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — return required</figcaption><a href="_shots/board/dispute-phone.png" target="_blank"><img src="_shots/board/dispute-phone.png" alt="Cash sale room — DISPUTED on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Layout kept. Inherits the banner and header-badge fixes above.</li></ul></div>
+  </section>
+
+  <section class="pair" id="traderoom-desktop">
+    <header>
+      <h2>Trade room — COLLATERAL_LOCKED <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/trades/e2e00004-0000-0000-0000-000000000002</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/traderoom-desktop.png" target="_blank"><img src="_shots/app/traderoom-desktop.png" alt="Trade room — COLLATERAL_LOCKED in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280 — COLLATERAL_LOCKED, delivery</figcaption><a href="_shots/board/traderoom-desktop.png" target="_blank"><img src="_shots/board/traderoom-desktop.png" alt="Trade room — COLLATERAL_LOCKED on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Layout kept. Already passed both a <code>StateBadge</code> and the connection status — it was the cash room that was missing them.</li></ul></div>
+  </section>
+
+  <section class="pair" id="traderoom-phone">
+    <header>
+      <h2>Trade room — COLLATERAL_LOCKED <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/trades/e2e00004-0000-0000-0000-000000000002</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/traderoom-phone.png" target="_blank"><img src="_shots/app/traderoom-phone.png" alt="Trade room — COLLATERAL_LOCKED in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — details sheet open, Collateral tab</figcaption><a href="_shots/board/traderoom-phone.png" target="_blank"><img src="_shots/board/traderoom-phone.png" alt="Trade room — COLLATERAL_LOCKED on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Layout kept. Already passed both a <code>StateBadge</code> and the connection status — it was the cash room that was missing them.</li></ul></div>
+  </section>
+
+  <section class="pair" id="tradenegotiating-desktop">
+    <header>
+      <h2>Trade room — NEGOTIATING <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/trades/e2e00004-0000-0000-0000-000000000001</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/tradenegotiating-desktop.png" target="_blank"><img src="_shots/app/tradenegotiating-desktop.png" alt="Trade room — NEGOTIATING in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this</div></figure>
+    </div>
+    
+    
+  </section>
+
+  <section class="pair" id="tradenegotiating-phone">
+    <header>
+      <h2>Trade room — NEGOTIATING <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/trades/e2e00004-0000-0000-0000-000000000001</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/tradenegotiating-phone.png" target="_blank"><img src="_shots/app/tradenegotiating-phone.png" alt="Trade room — NEGOTIATING in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this</div></figure>
+    </div>
+    
+    
+  </section>
+
+  <section class="pair" id="inbox-desktop">
+    <header>
+      <h2>Messages inbox <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/messages</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/inbox-desktop.png" target="_blank"><img src="_shots/app/inbox-desktop.png" alt="Messages inbox in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/inbox-desktop.png" target="_blank"><img src="_shots/board/inbox-desktop.png" alt="Messages inbox on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>A contract badge per row, rendered through the shared <code>CashSaleStatusBadge</code> so a thread cannot describe a sale differently from the contract room. Mobile rows are centred: the three-line text column is taller than the avatar and thumbnail beside it, and top-aligning left both squares riding high.</li></ul></div>
+  </section>
+
+  <section class="pair" id="inbox-phone">
+    <header>
+      <h2>Messages inbox <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/messages</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/inbox-phone.png" target="_blank"><img src="_shots/app/inbox-phone.png" alt="Messages inbox in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390</figcaption><a href="_shots/board/inbox-phone.png" target="_blank"><img src="_shots/board/inbox-phone.png" alt="Messages inbox on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>A contract badge per row, rendered through the shared <code>CashSaleStatusBadge</code> so a thread cannot describe a sale differently from the contract room. Mobile rows are centred: the three-line text column is taller than the avatar and thumbnail beside it, and top-aligning left both squares riding high.</li></ul></div>
+  </section>
+
+  <section class="pair" id="thread-desktop">
+    <header>
+      <h2>Message thread <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/messages/e2e00005-0000-0000-0000-000000000001</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/thread-desktop.png" target="_blank"><img src="_shots/app/thread-desktop.png" alt="Message thread in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this frame</div></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Layout kept.</li></ul></div>
+  </section>
+
+  <section class="pair" id="thread-phone">
+    <header>
+      <h2>Message thread <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/messages/e2e00005-0000-0000-0000-000000000001</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/thread-phone.png" target="_blank"><img src="_shots/app/thread-phone.png" alt="Message thread in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — enquiry, no contract</figcaption><a href="_shots/board/thread-phone.png" target="_blank"><img src="_shots/board/thread-phone.png" alt="Message thread on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Layout kept.</li></ul></div>
+  </section>
+
+  <section class="pair" id="notifications-desktop">
+    <header>
+      <h2>Notifications <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/notifications</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/notifications-desktop.png" target="_blank"><img src="_shots/app/notifications-desktop.png" alt="Notifications in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/notifications-desktop.png" target="_blank"><img src="_shots/board/notifications-desktop.png" alt="Notifications on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Grouped by AGE, not calendar day: a calendar boundary needs a timezone the server does not have, so &quot;Today&quot; would be struck in UTC and wrong for a third of every day in Australia.</li><li>No needs-action block. A notification row carries <code>{type,title,body,link}</code> — no actionable flag, no deadline — so the block could only be built by guessing from title text. The question is answered where it is derived: the contract action card and the next-step column.</li></ul></div>
+  </section>
+
+  <section class="pair" id="notifications-phone">
+    <header>
+      <h2>Notifications <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/notifications</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/notifications-phone.png" target="_blank"><img src="_shots/app/notifications-phone.png" alt="Notifications in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — bell popover</figcaption><a href="_shots/board/notifications-phone.png" target="_blank"><img src="_shots/board/notifications-phone.png" alt="Notifications on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Grouped by AGE, not calendar day: a calendar boundary needs a timezone the server does not have, so &quot;Today&quot; would be struck in UTC and wrong for a third of every day in Australia.</li><li>No needs-action block. A notification row carries <code>{type,title,body,link}</code> — no actionable flag, no deadline — so the block could only be built by guessing from title text. The question is answered where it is derived: the contract action card and the next-step column.</li></ul></div>
+  </section>
+
+  <section class="pair" id="profile-desktop">
+    <header>
+      <h2>Profile &amp; settings <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/profile</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/profile-desktop.png" target="_blank"><img src="_shots/app/profile-desktop.png" alt="Profile &amp; settings in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/profile-desktop.png" target="_blank"><img src="_shots/board/profile-desktop.png" alt="Profile &amp; settings on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged apart from the tab strip, which now comes from the shared <code>TabbedPanels</code>.</li></ul></div>
+  </section>
+
+  <section class="pair" id="profile-phone">
+    <header>
+      <h2>Profile &amp; settings <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/profile</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/profile-phone.png" target="_blank"><img src="_shots/app/profile-phone.png" alt="Profile &amp; settings in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — settings index</figcaption><a href="_shots/board/profile-phone.png" target="_blank"><img src="_shots/board/profile-phone.png" alt="Profile &amp; settings on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged apart from the tab strip, which now comes from the shared <code>TabbedPanels</code>.</li></ul></div>
+  </section>
+
+  <section class="pair" id="payouts-desktop">
+    <header>
+      <h2>Payouts <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/profile?tab=payouts</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/payouts-desktop.png" target="_blank"><img src="_shots/app/payouts-desktop.png" alt="Payouts in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/payouts-desktop.png" target="_blank"><img src="_shots/board/payouts-desktop.png" alt="Payouts on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The gross/fee/net table labelled its first column &quot;PRICE&quot; while showing <code>amount_cents</code> — the agreed price plus fee plus shipping. A $56.00 card read as a $58.80 price and the seller's own agreed figure appeared nowhere. Now &quot;Buyer paid&quot;.</li><li>The &quot;Owed to you&quot; figure turned violet when a release was blocked, putting a third colour on one fact: violet figure, grey caption saying part of it is held up, red banner below saying the same thing with the amount. The banner carries it; the figure is ink.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>A <code>SELLER_PAYOUT_QUEUED</code> entry stays under Active even after the matching <code>SELLER_PAYOUT_SETTLED</code> exists, so a payout sent 19 days ago still reads &quot;is queued for release&quot;. Pre-existing in <code>payoutReadModel</code>; not changed here because it is money logic covered by property tests this environment cannot run.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Four balances rather than the board's KPI tile row — the existing file records why tiles were rejected (three cards were ~700px on a phone and pushed the dashboard below the fold). The fourth state, &quot;Paid out&quot;, was the genuinely missing one.</li></ul></div>
+  </section>
+
+  <section class="pair" id="payouts-phone">
+    <header>
+      <h2>Payouts <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/profile?tab=payouts</code>
+        <span class="as">as alice</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/payouts-phone.png" target="_blank"><img src="_shots/app/payouts-phone.png" alt="Payouts in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390</figcaption><a href="_shots/board/payouts-phone.png" target="_blank"><img src="_shots/board/payouts-phone.png" alt="Payouts on the board"></a></figure>
+    </div>
+    
+    <div class="notes fixed"><b>Found and fixed in this pass</b><ul><li>The gross/fee/net table labelled its first column &quot;PRICE&quot; while showing <code>amount_cents</code> — the agreed price plus fee plus shipping. A $56.00 card read as a $58.80 price and the seller's own agreed figure appeared nowhere. Now &quot;Buyer paid&quot;.</li><li>The &quot;Owed to you&quot; figure turned violet when a release was blocked, putting a third colour on one fact: violet figure, grey caption saying part of it is held up, red banner below saying the same thing with the amount. The banner carries it; the figure is ink.</li></ul></div><div class="notes open"><b>Still open</b><ul><li>A <code>SELLER_PAYOUT_QUEUED</code> entry stays under Active even after the matching <code>SELLER_PAYOUT_SETTLED</code> exists, so a payout sent 19 days ago still reads &quot;is queued for release&quot;. Pre-existing in <code>payoutReadModel</code>; not changed here because it is money logic covered by property tests this environment cannot run.</li></ul></div><div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Four balances rather than the board's KPI tile row — the existing file records why tiles were rejected (three cards were ~700px on a phone and pushed the dashboard below the fold). The fourth state, &quot;Paid out&quot;, was the genuinely missing one.</li></ul></div>
+  </section>
+
+  <section class="pair" id="admin-desktop">
+    <header>
+      <h2>Admin operations <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/admin</code>
+        <span class="as">as frank</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/admin-desktop.png" target="_blank"><img src="_shots/app/admin-desktop.png" alt="Admin operations in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/admin-desktop.png" target="_blank"><img src="_shots/board/admin-desktop.png" alt="Admin operations on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Custody reconciliation already led the payouts tab and the resolution actions already stated per-outcome consequences, so both board asks were verified rather than redone.</li></ul></div>
+  </section>
+
+  <section class="pair" id="admin-phone">
+    <header>
+      <h2>Admin operations <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/admin</code>
+        <span class="as">as frank</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/admin-phone.png" target="_blank"><img src="_shots/app/admin-phone.png" alt="Admin operations in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — triage only</figcaption><a href="_shots/board/admin-phone.png" target="_blank"><img src="_shots/board/admin-phone.png" alt="Admin operations on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Custody reconciliation already led the payouts tab and the resolution actions already stated per-outcome consequences, so both board asks were verified rather than redone.</li></ul></div>
+  </section>
+
+  <section class="pair" id="queue-desktop">
+    <header>
+      <h2>Arbitration queue <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/admin/arbitration</code>
+        <span class="as">as grace</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/queue-desktop.png" target="_blank"><img src="_shots/app/queue-desktop.png" alt="Arbitration queue in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/queue-desktop.png" target="_blank"><img src="_shots/board/queue-desktop.png" alt="Arbitration queue on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>The ordering rule is published on the queue itself, and each row says which of the four escalations put it there. <code>priorityOf</code> now derives from that reason, so a CRITICAL badge beside &quot;waiting its turn&quot; is impossible.</li></ul></div>
+  </section>
+
+  <section class="pair" id="queue-phone">
+    <header>
+      <h2>Arbitration queue <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/admin/arbitration</code>
+        <span class="as">as grace</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/queue-phone.png" target="_blank"><img src="_shots/app/queue-phone.png" alt="Arbitration queue in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this frame</div></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>The ordering rule is published on the queue itself, and each row says which of the four escalations put it there. <code>priorityOf</code> now derives from that reason, so a CRITICAL badge beside &quot;waiting its turn&quot; is impossible.</li></ul></div>
+  </section>
+
+  <section class="pair" id="help-desktop">
+    <header>
+      <h2>Help <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/help</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/help-desktop.png" target="_blank"><img src="_shots/app/help-desktop.png" alt="Help in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Desktop · 1280</figcaption><a href="_shots/board/help-desktop.png" target="_blank"><img src="_shots/board/help-desktop.png" alt="Help on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="help-phone">
+    <header>
+      <h2>Help <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/help</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/help-phone.png" target="_blank"><img src="_shots/app/help-phone.png" alt="Help in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — terms</figcaption><a href="_shots/board/help-phone.png" target="_blank"><img src="_shots/board/help-phone.png" alt="Help on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="terms-desktop">
+    <header>
+      <h2>Terms <span class="vp">desktop · 1440px</span></h2>
+      <p class="meta">
+        <code>/terms</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/terms-desktop.png" target="_blank"><img src="_shots/app/terms-desktop.png" alt="Terms in the app"></a></figure>
+      <figure><figcaption>Board — the proposal</figcaption><div class="none">the board never drew this frame</div></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+
+  <section class="pair" id="terms-phone">
+    <header>
+      <h2>Terms <span class="vp">phone · 390px</span></h2>
+      <p class="meta">
+        <code>/terms</code>
+        <span class="as">as signed out</span>
+        <span class="flag ok">clean</span>
+      </p>
+    </header>
+    <div class="cols">
+      <figure><figcaption>App — real components, real data</figcaption><a href="_shots/app/terms-phone.png" target="_blank"><img src="_shots/app/terms-phone.png" alt="Terms in the app"></a></figure>
+      <figure><figcaption>Board — the proposal · Mobile · 390 — terms</figcaption><a href="_shots/board/terms-phone.png" target="_blank"><img src="_shots/board/terms-phone.png" alt="Terms on the board"></a></figure>
+    </div>
+    
+    <div class="notes intent"><b>Deliberate divergence from the board</b><ul><li>Unchanged.</li></ul></div>
+  </section>
+</html>

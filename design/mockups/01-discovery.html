@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoDitto board — 01 Discovery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+<div class="board">
+
+<p class="crumbs"><a href="index.html">← Board index</a> · <a href="index.html#palette">Palette</a> ·
+  <a href="index.html#bugs">Bugs</a></p>
+<div class="board-top">
+  <div>
+    <p class="board-kicker">Sheet 01 · round 2</p>
+    <h1>Discovery</h1>
+    <p>Catalog, listing detail, the sell form, inventory, watchlist, seller profile. The catalog and
+      listing frames now render the current build with only the accepted changes applied.</p>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="catalog">
+  <header>
+    <h2>Catalog / homepage</h2>
+    <span class="route">/ · app/(workspace)/page.tsx</span>
+    <p class="intent">
+      Current build, with <b>two</b> changes: the price filter gains a histogram and typed min/max, and
+      the result count moves onto the heading line. Everything else stays — the unlabelled rail panel,
+      Condition behind its closed accordion, no applied-filter chips, no facet counts, the bottom-sheet
+      filters on mobile, desktop-only pagination.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop">
+          <span class="logo">NoDitto</span>
+          <nav><a class="on">Marketplace</a><a>Sell</a><a>Start a deal</a></nav>
+          <div class="dsearch">⌕ Search cards, sets and binders</div>
+          <div class="dicons">
+            <span class="ic">AU</span><span class="ic">♡</span>
+            <span class="ic">✉<span class="dot"></span></span><span class="ic">🔔<span class="dot"></span></span>
+            <span class="me"><span class="avatar xs">KA</span> kitsune</span>
+            <span class="ic">☰</span>
+          </div>
+        </div>
+
+        <div class="shell">
+          <aside class="rail">
+            <h1>Marketplace</h1>
+            <a class="btn btn-primary lg w mt-g">＋ Create New Listing</a>
+            <div class="navlist mt-g">
+              <a class="on">◉ Browse</a><a>Saved <span class="n">12</span></a>
+              <a>My listings <span class="n">8</span></a><a>⇄ Trades <span class="n">2</span></a>
+              <a>Purchases</a><a>Sales <span class="n">1</span></a>
+            </div>
+
+            <!-- current: no heading, no card chrome, own search field -->
+            <div class="group">
+              <span class="input ph" style="height:34px">⌕ Filter…</span>
+
+              <div class="mt-g" style="padding-top:var(--s-snug);border-top:1px solid hsl(var(--border))">
+                <div class="between" style="padding:2px 0">
+                  <div class="row gap-s"><span class="eyebrow">Condition</span>
+                    <span class="badge b-secondary" style="background:hsl(var(--foreground));color:#fff;border-color:hsl(var(--foreground));padding:0 6px">1</span></div>
+                  <span class="muted">⌄</span>
+                </div>
+              </div>
+
+              <div class="mt-g" style="padding-top:var(--s-group);border-top:1px solid hsl(var(--border));position:relative">
+                <i class="pin abs" style="left:-9px;top:10px">1</i>
+                <div class="between"><span class="eyebrow">Price</span>
+                  <span class="body strong num">$50 – $2,000</span></div>
+                <div class="histogram mt-s">
+                  <i style="height:18%"></i><i style="height:44%"></i><i class="in" style="height:92%"></i>
+                  <i class="in" style="height:70%"></i><i class="in" style="height:44%"></i>
+                  <i class="in" style="height:56%"></i><i class="in" style="height:26%"></i>
+                  <i style="height:14%"></i><i style="height:8%"></i>
+                </div>
+                <div class="slider"><div class="track"><div class="fill"></div>
+                  <div class="th" style="left:16%"></div><div class="th" style="left:64%"></div></div></div>
+                <div class="row gap-s mt-s">
+                  <span class="input num" style="height:32px;font-size:var(--t-meta)">$50</span>
+                  <span class="muted meta">to</span>
+                  <span class="input num" style="height:32px;font-size:var(--t-meta)">$2,000</span>
+                </div>
+                <div class="row between mt-s" aria-hidden="true">
+                  <span class="meta muted num">$0</span><span class="meta muted num">$5,000+</span></div>
+              </div>
+
+              <div class="mt-g" style="padding-top:var(--s-group);border-top:1px solid hsl(var(--border))">
+                <span class="eyebrow">Availability</span>
+                <div class="stack gap-t mt-s">
+                  <div class="row"><span class="tick"></span><span>Include reserved items</span></div>
+                  <div class="row"><span class="tick on">✓</span><span class="strong">Include sold items</span></div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <section class="content">
+            <div class="between" style="border-bottom:1px solid hsl(var(--border));padding-bottom:var(--s-group)">
+              <div class="row gap-c" style="align-items:baseline;position:relative">
+                <i class="pin abs" style="right:-22px;top:-2px">2</i>
+                <h2 class="h-head">All Listings</h2>
+                <span class="muted num">1,284 items</span>
+              </div>
+              <span class="select" style="width:190px;height:36px">Recently Listed</span>
+            </div>
+
+            <div class="row wrap gap-s mt-g">
+              <span class="chip on">All</span><span class="chip">Pokémon</span><span class="chip">One Piece</span>
+              <span class="chip">Yu-Gi-Oh!</span><span class="chip">Magic</span><span class="chip">Lorcana</span>
+              <span class="chip">Riftbound</span><span class="chip">Sports Cards</span>
+              <span class="chip">More games ⌄</span>
+            </div>
+
+            <div class="grid g4 mt-g">
+              <div class="tile">
+                <div class="cover ph-img"><span class="heart">♡</span></div>
+                <div class="body">
+                  <span class="name">BGS 10 Black Label Mimikyu VMAX Alt Art</span>
+                  <span class="meta muted">Pokémon</span>
+                  <div class="row gap-s" style="align-items:baseline">
+                    <span class="price"><span class="sym">$</span><span class="maj">1,850</span></span>
+                    <span class="meta muted num">31 saved</span></div>
+                  <div class="row gap-t"><span class="avatar xs">KA</span>
+                    <span class="meta muted">kitsunearia</span>
+                    <span class="meta iris-ink spread">★ 4.9</span></div>
+                </div>
+              </div>
+              <div class="tile">
+                <div class="cover ph-img"><span class="flag">📚 Binder</span><span class="heart">♡</span></div>
+                <div class="body">
+                  <span class="name">Modern Pokémon singles — bulk binder, 400+ cards</span>
+                  <span class="meta muted">Pokémon</span>
+                  <div class="row gap-s" style="align-items:baseline">
+                    <span class="price"><span class="sym">From $</span><span class="maj">4</span></span>
+                    <span class="meta muted num">8 saved</span></div>
+                  <div class="row gap-t"><span class="avatar xs">MB</span>
+                    <span class="meta muted">midnightbulk</span>
+                    <span class="meta iris-ink spread">★ 4.7</span></div>
+                </div>
+              </div>
+              <div class="tile">
+                <div class="cover ph-img"><span class="heart">♥</span></div>
+                <div class="body">
+                  <span class="name">Luffy OP01-003 Leader Parallel</span>
+                  <span class="meta muted">One Piece</span>
+                  <div class="row gap-s" style="align-items:baseline">
+                    <span class="price"><span class="sym">$</span><span class="maj">240</span><span class="min">.00</span></span></div>
+                  <div class="row gap-t"><span class="avatar xs">GR</span>
+                    <span class="meta muted">grandline</span>
+                    <span class="meta iris-ink spread">★ 5.0</span></div>
+                </div>
+              </div>
+              <div class="tile" style="opacity:.7">
+                <div class="cover ph-img"><span class="scrim">SOLD</span></div>
+                <div class="body">
+                  <span class="name">PSA 9 Charizard Base Set Shadowless</span>
+                  <span class="meta muted">Pokémon</span>
+                  <div class="row gap-s" style="align-items:baseline">
+                    <span class="price" style="color:hsl(var(--muted-foreground))"><span class="sym">$</span><span class="maj">6,400</span></span></div>
+                  <div class="row gap-t"><span class="avatar xs">AR</span>
+                    <span class="meta muted">archivepulls</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="between mt-x" style="padding-top:var(--s-group);border-top:1px solid hsl(var(--border))">
+              <span class="btn btn-outline sm">← Previous</span>
+              <span class="meta muted num">Page 1 of 27</span>
+              <span class="btn btn-outline sm">Next →</span>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m tall">
+      <p class="frame-label">Mobile · 390 <span>— current build, unchanged</span></p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop">
+          <span class="t">NoDitto</span>
+          <div class="msearch">⌕ Search cards</div>
+          <span class="btn btn-ghost icon">⚟</span>
+        </div>
+        <div class="mbody">
+          <div class="row gap-c" style="overflow:hidden;height:56px">
+            <div class="stack gap-t" style="align-items:center;border-bottom:2px solid hsl(var(--iris));padding-bottom:5px">
+              <span style="font-size:18px">◉</span><span class="meta strong">All</span></div>
+            <div class="stack gap-t" style="align-items:center"><span style="font-size:18px">⚡</span><span class="meta muted">Poké</span></div>
+            <div class="stack gap-t" style="align-items:center"><span style="font-size:18px">🏴‍☠️</span><span class="meta muted">One P.</span></div>
+            <div class="stack gap-t" style="align-items:center"><span style="font-size:18px">🎴</span><span class="meta muted">YGO</span></div>
+            <div class="stack gap-t" style="align-items:center"><span style="font-size:18px">✦</span><span class="meta muted">MTG</span></div>
+            <span class="btn btn-ghost icon" style="margin-left:auto">⌄</span>
+          </div>
+
+          <div class="grid g2 tight mt-c">
+            <div class="tile">
+              <div class="cover tall ph-img"><span class="heart">♡</span></div>
+              <div class="body">
+                <span class="name" style="font-size:var(--t-meta)">BGS 10 Mimikyu VMAX Alt Art</span>
+                <span class="meta muted">Pokémon</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">1,850</span></span></div>
+            </div>
+            <div class="tile">
+              <div class="cover ph-img"><span class="flag">📚</span><span class="heart">♡</span></div>
+              <div class="body">
+                <span class="name" style="font-size:var(--t-meta)">Bulk binder — 400+ modern singles</span>
+                <span class="meta muted">Pokémon</span>
+                <span class="price"><span class="sym">From $</span><span class="maj" style="font-size:var(--t-subhead)">4</span></span></div>
+            </div>
+            <div class="tile">
+              <div class="cover ph-img"></div>
+              <div class="body">
+                <span class="name" style="font-size:var(--t-meta)">Luffy OP01-003 Leader Parallel</span>
+                <span class="meta muted">One Piece</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">240</span></span></div>
+            </div>
+            <div class="tile">
+              <div class="cover tall ph-img"><span class="heart">♥</span></div>
+              <div class="body">
+                <span class="name" style="font-size:var(--t-meta)">Rayquaza VMAX CSR Japanese</span>
+                <span class="meta muted">Pokémon</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">410</span></span></div>
+            </div>
+          </div>
+          <p class="meta muted" style="text-align:center;margin-top:var(--s-group)">Loading more…</p>
+        </div>
+        <div class="mhub">
+          <a class="on"><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>The price ladder gains a histogram and two typed fields.</b> The non-linear ladder is the
+        right mechanic — each drag stays proportionate to the price it lands on — but it hides two
+        things. A member cannot see where the inventory actually sits, and cannot enter $500 if the
+        nearest stop is $400. The histogram answers the first, the fields answer the second, and the
+        ladder still owns the drag and still owns the URL.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/ab04c0f2-28f4-4b54-9a72-76cdd148428a">Klarna</a> — histogram over a dual slider with min/max fields.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="chg">CHANGE</span>
+        <b>The result count moves onto the heading line.</b> Below the h2 it reads as a subtitle; beside
+        it, it reads as the size of what you are looking at.
+        <span class="src">Refs: Urban Outfitters, lululemon — count inline with the category title.</span>
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Everything else, as built.</b> The unlabelled rail panel, Condition behind a closed accordion
+        with its count badge, no applied-filter chips, no facet counts, both search fields, the
+        near-black selected chip, two separate availability toggles, the mosaic on mobile, the
+        bottom-sheet filters, infinite scroll on mobile against pagination on desktop, and no create CTA
+        in the phone chrome.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="cut">NOTE</span>
+        <b>Prices are ink here, not violet.</b> That is the P2 palette change, and the catalog is where
+        it does most of its work — a four-column grid was previously showing violet as the loudest
+        colour on the page. <span class="src">See <a href="index.html#palette">P2</a>.</span>
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="listing">
+  <header>
+    <h2>Listing detail</h2>
+    <span class="route">/listings/[id] · ListingDetailStack + ListingDesktopPane + ImageGallery</span>
+    <p class="intent">
+      Current page, kept. Three changes: a thumbnail filmstrip on desktop, the inline map replaced by
+      a one-line meta statement, and the mobile photo stack replaced by a left-to-right carousel. The
+      action stack is untouched — desktop <code>ItemActions</code>, phone
+      <code>ListingBuyerBar</code>, as built.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span>
+          <nav><a class="on">Marketplace</a><a>Sell</a><a>Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="ic">♡</span><span class="ic">✉</span><span class="ic">🔔</span>
+            <span class="me"><span class="avatar xs">GR</span> grandline</span></div></div>
+
+        <div class="shell">
+          <aside class="rail"><h1>Marketplace</h1>
+            <div class="navlist mt-g"><a class="on">◉ Browse</a><a>Saved <span class="n">12</span></a>
+              <a>My listings</a><a>⇄ Trades</a><a>Purchases</a><a>Sales</a></div></aside>
+
+          <section class="content">
+            <div class="between">
+              <span class="btn btn-outline sm">← Back to marketplace</span>
+              <div class="row gap-s">
+                <span class="badge b-trust">Available</span>
+                <span class="badge b-secondary">Pokémon</span>
+                <span class="badge b-outline">Graded</span>
+                <span class="meta muted num">31 saves</span>
+              </div>
+            </div>
+
+            <div class="cols c-1-1 mt-c" style="gap:var(--s-section)">
+              <!-- gallery: filmstrip added -->
+              <div class="row gap-c" style="align-items:flex-start;position:relative">
+                <i class="pin abs" style="left:-9px;top:2px">1</i>
+                <div class="stack gap-s" style="flex:0 0 56px">
+                  <div class="thumb ph-img" style="width:56px;height:56px;border-color:hsl(var(--iris));border-width:2px"></div>
+                  <div class="thumb ph-img" style="width:56px;height:56px"></div>
+                  <div class="thumb ph-img" style="width:56px;height:56px"></div>
+                  <div class="thumb ph-img" style="width:56px;height:56px"></div>
+                  <div class="thumb" style="width:56px;height:56px;display:grid;place-items:center;font-size:var(--t-meta);color:hsl(var(--muted-foreground))">+5</div>
+                </div>
+                <div class="ph-img dark" style="flex:1;height:352px;border-radius:var(--radius);border:1px solid hsl(var(--border));position:relative;display:grid;place-items:center">
+                  <div class="ph-img" style="width:60%;height:86%;border-radius:4px"></div>
+                  <span class="badge" style="position:absolute;right:10px;top:10px;background:hsl(var(--obsidian)/.65);color:#fff">« 1 / 9 »</span>
+                  <span class="badge" style="position:absolute;left:10px;bottom:10px;background:hsl(var(--obsidian)/.65);color:#fff">⛶ Click to enlarge</span>
+                </div>
+              </div>
+
+              <!-- desktop pane: current order -->
+              <div class="stack gap-g" style="min-height:352px">
+                <div>
+                  <div class="between" style="align-items:flex-start">
+                    <h2 class="h-head" style="max-width:26ch">BGS 10 Black Label Mimikyu VMAX Alternate Art</h2>
+                    <div class="row gap-s"><span class="btn btn-outline icon">♡</span>
+                      <span class="btn btn-ghost icon">⚑</span></div>
+                  </div>
+                  <div class="row gap-c mt-s" style="align-items:baseline;position:relative">
+                    <i class="pin abs" style="right:-9px;top:2px">2</i>
+                    <span class="price big"><span class="sym">$</span><span class="maj">1,850</span><span class="min">.00</span></span>
+                    <span class="meta muted">+ 5% fee · <b class="strong" style="color:hsl(var(--foreground))">$1,942.50</b> total, held until you accept</span>
+                  </div>
+                  <p class="meta muted mt-s" style="position:relative">Single item · Listed 4 hours ago ·
+                    Based in Newtown NSW
+                    <i class="pin abs" style="right:-22px;top:0">3</i></p>
+                </div>
+
+                <div class="card">
+                  <div class="row gap-c">
+                    <span class="avatar md">KA</span>
+                    <div class="stack gap-t" style="min-width:0;flex:1">
+                      <div class="row gap-s"><span class="h-lead">kitsunearia</span>
+                        <span class="badge b-trust">✓ Identity verified</span></div>
+                      <span class="meta iris-ink">★★★★★ 4.9 <span class="muted">· 47 reviews</span></span>
+                    </div>
+                  </div>
+                  <div class="mtable mt-c" style="gap:var(--s-snug)">
+                    <div class="mr"><span class="k meta">Real name</span><span class="v meta">Aria K. Fujimoto</span></div>
+                    <div class="mr"><span class="k meta">Trading as</span><span class="v meta">kitsunearia</span></div>
+                  </div>
+                </div>
+
+                <div>
+                  <span class="eyebrow">Description</span>
+                  <p class="meta muted mt-s">Mint slab, straight from a personal collection. Never
+                    resubmitted. Evolving Skies, 2021, cert 0012947381. Shipped in a team bag inside a
+                    bubble mailer with tracking.</p>
+                </div>
+
+                <!-- action stack: current ItemActions, untouched -->
+                <div class="stack gap-s" style="margin-top:auto;position:relative">
+                  <i class="pin abs" style="left:-9px;top:2px">4</i>
+                  <span class="btn btn-outline w">⇄ Offer a trade</span>
+                  <span class="btn btn-action w lg">Buy now</span>
+                  <span class="btn btn-outline w">Make an offer</span>
+                  <span class="btn btn-ghost w">✉ Message the seller</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 <span>— current stack, carousel swapped in</span></p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">←</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">Listing</span>
+          <span class="btn btn-ghost icon">⚑</span><span class="btn btn-ghost icon">⋯</span></div>
+
+        <div class="mbody">
+          <!-- current order: seller, identity, rating, price, meta, title, description, photos -->
+          <div class="row gap-s">
+            <span class="avatar xs" style="width:28px;height:28px">KA</span>
+            <span class="meta strong">kitsunearia</span>
+            <span class="badge b-trust" style="padding:1px 6px">✓ </span>
+          </div>
+          <p class="meta muted mt-s">Real name <b>Aria K. Fujimoto</b></p>
+          <div class="row gap-t mt-s"><span class="meta iris-ink">★★★★★</span>
+            <span class="meta muted">4.9 · 47 reviews</span></div>
+
+          <div class="row gap-c mt-c" style="align-items:baseline">
+            <span class="price big"><span class="sym">$</span><span class="maj">1,850</span></span>
+            <span class="chip sq" style="height:22px;border-radius:999px;background:hsl(var(--mist));border-color:transparent">Graded</span>
+          </div>
+          <p class="meta muted mt-s">+ 5% fee · <b style="color:hsl(var(--foreground))">$1,942.50</b>
+            total, held until you accept</p>
+          <p class="meta muted mt-s">Single item · Listed 4 hours ago · Based in Newtown NSW</p>
+
+          <p class="meta mt-c">Mint slab, straight from a personal collection. Never resubmitted.
+            Evolving Skies, 2021… <b class="iris-ink">more</b></p>
+
+          <!-- CAROUSEL replaces the vertical stack -->
+          <div class="carousel mt-c" style="position:relative">
+            <i class="pin abs" style="left:6px;top:6px;z-index:3">5</i>
+            <div class="track">
+              <div class="slide ph-img dark" style="height:270px;border-radius:var(--radius);display:grid;place-items:center">
+                <div class="ph-img" style="width:56%;height:88%;border-radius:4px"></div>
+              </div>
+              <div class="peek ph-img" style="height:270px;border-radius:var(--radius);margin-left:6px"></div>
+            </div>
+            <span class="count">1 / 9</span>
+            <span class="arrow r">›</span>
+            <div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <p class="meta muted mt-s" style="text-align:center">Swipe for 8 more · tap to enlarge</p>
+        </div>
+
+        <!-- current ListingBuyerBar, untouched -->
+        <div class="mbar" style="position:relative">
+          <i class="pin abs" style="left:2px;top:-8px">6</i>
+          <span class="btn btn-ghost icon lg" style="border-radius:50%">✉</span>
+          <span class="btn btn-ghost icon lg" style="border-radius:50%">♡</span>
+          <span class="btn btn-outline icon lg">🪙</span>
+          <span class="btn btn-outline icon lg">⇄</span>
+          <span class="btn btn-action lg" style="flex:1">Buy</span>
+        </div>
+        <div class="mhub"><a class="on"><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>A vertical thumbnail filmstrip on the stage gallery.</b> Nine photos are currently reachable
+        only through a small « 1/9 » pill or a drag. For a graded card the photo set is the evidence,
+        and a buyer wants to jump straight to the back or the slab label rather than page through eight
+        images to reach it.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/8167aa5d-f110-4501-9d0d-546889a9d7c2">Etsy</a>.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>One line for the fee, beside the price.</b> The full "what you'll pay" card is dropped — this
+        is the smallest thing that stops the 5% first appearing in the contract room's Payment tab,
+        which on a phone is behind a bottom sheet. A buyer can currently reach the pay confirmation
+        having only ever seen $1,850 when the charge is $1,942.50. The dialog does restate it, and that
+        is a real mitigation, but one clause here costs nothing.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">CHANGE</span>
+        <b>The inline map becomes a meta line.</b> "Single item · Listed 4 hours ago · Based in Newtown
+        NSW" carries the three facts the map was standing in for, in one line instead of a 224px static
+        image — and listing age, which the map never showed and which every resale reference puts on the
+        page. <span class="src">Refs: Depop "LISTED 2 DAYS AGO"; Nextdoor "15h · 1.4 mi · Cambridge".</span>
+      </div></li>
+      <li><i class="pin">4</i><div><span class="keep">KEEP</span>
+        <b>The action stack exactly as built.</b> <code>ProposeTradeDialog</code>, <code>BuyButton</code>,
+        <code>MakeOfferDialog</code>, <code>MessageSellerButton</code>, in that order, pinned to the
+        bottom of the pane. Round 1 proposed reordering and relabelling these; withdrawn.
+      </div></li>
+      <li><i class="pin">5</i><div><span class="chg">CHANGE</span>
+        <b>The photo stack becomes a left-to-right carousel.</b> <code>appearance="stack"</code> renders
+        one full-width frame per photo at natural aspect down the page, so a nine-photo listing puts a
+        very long scroll between the description and anything after it. One frame, swiped, with a
+        counter, dots and a peek at the next image so the gesture is discoverable. Heights still come
+        from stored <code>image_dims</code>, so nothing jumps.
+        <span class="src">Ref: eBay's item gallery — single frame, horizontal swipe, counter.</span>
+      </div></li>
+      <li><i class="pin">6</i><div><span class="keep">KEEP</span>
+        <b><code>ListingBuyerBar</code> as built</b> — message, heart, icon-only Offer and Trade squares,
+        then Buy as the only filled control. Round 1 argued the icon-only money buttons ask a lot of a
+        first-time member; withdrawn.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="cut">CUT</span>
+        <b>The trust strip and the condition-report card are gone.</b> Both were round-1 additions and
+        both are over-explaining on a page whose job is to show a card and a price.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="create">
+  <header>
+    <h2>Create &amp; edit listing</h2>
+    <span class="route">/listings/new · /listings/[id]/edit · components/listings/ItemForm.tsx</span>
+    <p class="intent">
+      <b>Not covered by the review</b> — left as round 1 proposed, reduced to the two changes with the
+      clearest value. Current build: one long form, one dashed drop target plus an unlabelled
+      filmstrip, a silently derived title, and a single submit with no cancel, draft or preview.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span>
+          <nav><a>Marketplace</a><a class="on">Sell</a><a>Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>New Listing</h1>
+            <div class="navlist mt-g"><a class="on">＋ Create</a>
+              <a>My listings <span class="n">8</span></a><a>Drafts <span class="n">2</span></a></div>
+            <div class="group"><span class="eyebrow">Before you publish</span>
+              <div class="stack gap-s mt-s">
+                <span class="meta trust-ink">✓ Identity verified</span>
+                <span class="meta trust-ink">✓ Trading region · AU</span>
+                <span class="meta muted">○ Payout setup — needed before you're paid, not before you list</span></div></div>
+          </aside>
+          <section class="content">
+            <div class="between">
+              <div><h2 class="h-head">List a card</h2>
+                <p class="meta muted mt-s">Photos and condition do the selling.</p></div>
+              <div class="row gap-s" style="position:relative">
+                <i class="pin abs" style="right:-9px;top:-20px">1</i>
+                <span class="btn btn-ghost">Cancel</span><span class="btn btn-outline">Preview</span>
+                <span class="btn btn-outline">Save draft</span><span class="btn btn-primary">Publish</span>
+              </div>
+            </div>
+
+            <div class="cols c-1-1 mt-g" style="gap:var(--s-section)">
+              <div>
+                <div class="between"><span class="label" style="margin:0">Photos</span>
+                  <span class="meta muted num">4 of 10 · drag to reorder</span></div>
+                <div class="ph-img mt-s" style="height:206px;border-radius:var(--radius);border:1px solid hsl(var(--border))"></div>
+                <div class="grid g6 tight mt-s" style="position:relative">
+                  <i class="pin abs" style="left:-9px;top:-4px">2</i>
+                  <div class="slot filled ph-img"></div><div class="slot filled ph-img"></div>
+                  <div class="slot filled ph-img"></div><div class="slot req">Back ＋</div>
+                  <div class="slot">Corners</div><div class="slot">Slab label</div>
+                </div>
+                <p class="help">Front, back, corners and the grading label are what buyers zoom into.
+                  Add flaws too — disclosed damage almost never becomes a dispute.</p>
+              </div>
+
+              <div class="stack gap-g">
+                <div><span class="label">What are you listing?</span>
+                  <div class="grid g2 tight">
+                    <div class="card" style="border-color:hsl(var(--iris));background:hsl(var(--iris)/.07);padding:var(--s-cozy)">
+                      <span class="strong meta">🃏 A single card</span>
+                      <p class="help">Reserved while a contract runs.</p></div>
+                    <div class="card" style="padding:var(--s-cozy)">
+                      <span class="strong meta">📚 A binder or bulk lot</span>
+                      <p class="help">Stays browsable. Nothing is held.</p></div>
+                  </div></div>
+
+                <div class="field" style="margin:0;position:relative">
+                  <i class="pin abs" style="right:-9px;top:0">3</i>
+                  <span class="label">Describe the card</span>
+                  <div class="textarea">BGS 10 Black Label Mimikyu VMAX Alternate Art
+                    <br><span class="muted">Evolving Skies, 2021. Cert 0012947381…</span></div>
+                  <div class="between mt-s">
+                    <span class="meta muted">Title: <b class="iris-ink">BGS 10 Black Label Mimikyu VMAX
+                      Alternate Art</b></span>
+                    <span class="meta muted num">248 / 2000</span></div>
+                </div>
+
+                <div class="grid g2 tight">
+                  <div><span class="label">Game</span><span class="select">Pokémon</span></div>
+                  <div><span class="label">Condition</span><span class="select">Graded</span></div></div>
+
+                <div class="grid g2 tight">
+                  <div><span class="label">Price</span><span class="input num">$ 1,850.00</span>
+                    <p class="help">You receive <b>$1,757.50</b> after the 5% fee.</p></div>
+                  <div><span class="label">Based near</span><span class="input">Newtown NSW 2042</span>
+                    <p class="help">Suburb only — never your street.</p></div></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">✕</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">List a card</span>
+          <span class="btn btn-ghost sm">Save draft</span></div>
+        <div class="mbody">
+          <div class="between"><span class="label" style="margin:0">Photos</span>
+            <span class="meta muted num">4 of 10</span></div>
+          <div class="grid g4 tight mt-s">
+            <div class="slot filled ph-img"></div><div class="slot filled ph-img"></div>
+            <div class="slot filled ph-img"></div><div class="slot req">Back ＋</div></div>
+          <div class="grid g4 tight mt-s">
+            <div class="slot">Corners</div><div class="slot">Label</div>
+            <div class="slot">Flaw</div><div class="slot">＋</div></div>
+          <p class="help">Front, back, corners and label sell the card.</p>
+
+          <div class="hr"></div>
+          <span class="label">What are you listing?</span>
+          <div class="grid g2 tight">
+            <div class="card" style="border-color:hsl(var(--iris));background:hsl(var(--iris)/.07);padding:var(--s-snug)">
+              <span class="strong meta">🃏 Single card</span></div>
+            <div class="card" style="padding:var(--s-snug)"><span class="strong meta">📚 Binder / bulk</span></div></div>
+
+          <div class="field mt-g" style="margin:0"><span class="label">Describe the card</span>
+            <div class="textarea" style="min-height:58px">BGS 10 Black Label Mimikyu VMAX Alt Art…</div>
+            <p class="help">Title: <b class="iris-ink">BGS 10 Black Label Mimikyu VMAX Alt Art</b></p></div>
+
+          <div class="grid g2 tight mt-g">
+            <div><span class="label">Game</span><span class="select">Pokémon</span></div>
+            <div><span class="label">Condition</span><span class="select">Graded</span></div></div>
+          <div class="mt-g"><span class="label">Price</span><span class="input num">$ 1,850.00</span>
+            <p class="help">You receive <b>$1,757.50</b> after the 5% fee.</p></div>
+        </div>
+        <div class="mbar"><span class="btn btn-outline">Preview</span>
+          <span class="btn btn-primary" style="flex:1">Publish listing</span></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>Four exits instead of one.</b> There is currently a single submit, no cancel and no draft, so
+        a seller part-way through an $1,850 listing has nowhere to put it and dismissal is the browser
+        back button with unsaved work.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/36a57c76-aa4c-49da-b8a3-666e277e96e9">Etsy Shop Manager</a> — Cancel / Preview / Save as draft / Publish.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Named photo slots in a deliberate order.</b> For a graded or near-mint card the back, corners
+        and grading label <em>are</em> the valuation, and their absence is what a "not as described"
+        dispute turns on. Naming them also gives arbitration something to check against.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/3c846921-2efa-478f-a50f-db60e989a2e3">Depop</a>.</span>
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>Echo the derived title.</b> <code>deriveItemTitle()</code> takes the first line of the
+        description and this is deliberately not narrated. But that title is what appears in every grid,
+        contract and notification, so a seller who opens with a paragraph gets a title they never chose
+        and cannot see. One line, no new field.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="mine">
+  <header>
+    <h2>My listings — and <span id="saved">Saved</span></h2>
+    <span class="route">/listings/mine · /saved</span>
+    <p class="intent">
+      Accepted from round 1, with the alignment fixed. Every cell now sits on the same x across rows:
+      the columns are declared once on the container rather than by each row's own flex, which is the
+      only way they can line up down the page.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — My listings</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span>
+          <nav><a>Marketplace</a><a class="on">Sell</a><a>Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>My Listings</h1>
+            <a class="btn btn-primary lg w mt-g">＋ Create New Listing</a>
+            <div class="navlist mt-g"><a class="on">All <span class="n">8</span></a>
+              <a>◉ Live <span class="n">5</span></a><a>Under contract <span class="n">2</span></a>
+              <a>Drafts <span class="n">2</span></a><a>Sold <span class="n">14</span></a>
+              <a>Closed binders <span class="n">1</span></a></div>
+          </aside>
+          <section class="content">
+            <div class="between">
+              <div><h2 class="h-head">My Listings</h2>
+                <p class="meta muted mt-s">Everything you have listed, including reserved and sold.</p></div>
+              <span class="select" style="width:150px;height:36px">Newest</span>
+            </div>
+
+            <div class="kpis g4 mt-g">
+              <div class="kpi"><div class="k">Live listings</div><div class="v">5</div></div>
+              <div class="kpi"><div class="k">People watching</div><div class="v">63</div></div>
+              <div class="kpi"><div class="k">Open offers</div><div class="v">3</div></div>
+              <div class="kpi lead-kpi"><div class="k">Waiting on you</div><div class="v">2</div></div>
+            </div>
+
+            <!-- columns declared once: everything aligns -->
+            <div class="card flat rowgrid mt-g"
+                 style="--cols:56px minmax(0,1fr) 110px 92px 130px 150px;position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <div class="head"><span></span><span>Listing</span><span class="cell r-align">Price</span>
+                <span class="cell c-align">Watching</span><span class="cell c-align">Status</span><span></span></div>
+
+              <div class="r">
+                <div class="thumb m ph-img"></div>
+                <div class="cell"><div class="t">BGS 10 Black Label Mimikyu VMAX Alternate Art</div>
+                  <div class="s">Pokémon · Graded · listed 4h ago · Newtown NSW</div></div>
+                <div class="cell r-align"><span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-lead)">1,850</span></span></div>
+                <div class="cell c-align num muted">31</div>
+                <div class="cell c-align"><span class="badge b-live">● Live</span></div>
+                <div class="cell end"><span class="btn btn-outline sm">Edit</span>
+                  <span class="btn btn-ghost icon">⋯</span></div>
+              </div>
+
+              <div class="r" style="background:hsl(var(--action)/.1)">
+                <div class="thumb m ph-img"></div>
+                <div class="cell"><div class="t">Rayquaza VMAX CSR — Japanese</div>
+                  <div class="s"><b style="color:hsl(var(--foreground))">2 offers waiting</b> · oldest 19 hours ago</div></div>
+                <div class="cell r-align"><span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-lead)">410</span></span></div>
+                <div class="cell c-align num muted">12</div>
+                <div class="cell c-align"><span class="badge b-warn">Your move</span></div>
+                <div class="cell end"><span class="btn btn-action sm">Review</span>
+                  <span class="btn btn-ghost icon">⋯</span></div>
+              </div>
+
+              <div class="r">
+                <div class="thumb m ph-img"></div>
+                <div class="cell"><div class="t">Modern Pokémon singles — bulk binder, 400+ cards</div>
+                  <div class="s">Binder · 3 live contracts · nothing is held</div></div>
+                <div class="cell r-align"><span class="price"><span class="sym">From $</span><span class="maj" style="font-size:var(--t-lead)">4</span></span></div>
+                <div class="cell c-align num muted">8</div>
+                <div class="cell c-align"><span class="badge b-live">● Open</span></div>
+                <div class="cell end"><span class="btn btn-outline sm">Edit</span>
+                  <span class="btn btn-ghost icon">⋯</span></div>
+              </div>
+
+              <div class="r">
+                <div class="thumb m ph-img"></div>
+                <div class="cell"><div class="t">Luffy OP01-003 Leader Parallel</div>
+                  <div class="s">Sale with grandline · buyer inspecting · 2 days left</div></div>
+                <div class="cell r-align"><span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-lead)">240</span></span>
+                  <div class="s">you get $228</div></div>
+                <div class="cell c-align num muted">—</div>
+                <div class="cell c-align"><span class="badge b-held">● Inspecting</span></div>
+                <div class="cell end"><span class="btn btn-outline sm">Open sale</span>
+                  <span class="btn btn-ghost icon">⋯</span></div>
+              </div>
+
+              <div class="r" style="opacity:.72">
+                <div class="thumb m" style="display:grid;place-items:center;font-size:15px;color:hsl(var(--muted-foreground))">📄</div>
+                <div class="cell"><div class="t">Untitled draft — 2 photos</div>
+                  <div class="s">Saved 2 days ago · not visible to anyone</div></div>
+                <div class="cell r-align muted meta">no price</div>
+                <div class="cell c-align muted">—</div>
+                <div class="cell c-align"><span class="badge b-secondary">Draft</span></div>
+                <div class="cell end"><span class="btn btn-outline sm">Continue</span>
+                  <span class="btn btn-ghost icon">⋯</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m tall">
+      <p class="frame-label">Mobile · 390 — Saved</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">Saved</span>
+          <span class="btn btn-ghost icon">⌕</span></div>
+        <div class="mbody">
+          <p class="meta muted">Listings you are watching. Saving does not reserve an item.</p>
+          <div class="row gap-s mt-c" style="overflow:hidden;position:relative">
+            <i class="pin abs" style="left:auto;right:2px;top:-9px">2</i>
+            <span class="chip on count" data-n="12">All</span>
+            <span class="chip count" data-n="2">Price dropped</span>
+            <span class="chip count" data-n="3">Sold</span>
+          </div>
+
+          <div class="grid g2 tight mt-c">
+            <div class="tile"><div class="cover tall ph-img"><span class="heart">♥</span>
+              <span class="flag" style="background:hsl(var(--trust))">↓ $60</span></div>
+              <div class="body"><span class="name" style="font-size:var(--t-meta)">Rayquaza VMAX CSR Japanese</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">410</span></span>
+                <span class="meta muted">Mint · Ashfield</span></div></div>
+            <div class="tile"><div class="cover ph-img"><span class="heart">♥</span></div>
+              <div class="body"><span class="name" style="font-size:var(--t-meta)">Luffy OP01-003 Leader Parallel</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">240</span></span>
+                <span class="meta muted">Near Mint · Glebe</span></div></div>
+            <div class="tile" style="opacity:.72"><div class="cover tall ph-img"><span class="scrim">SOLD</span></div>
+              <div class="body"><span class="name" style="font-size:var(--t-meta)">PSA 9 Charizard Shadowless</span>
+                <span class="price" style="color:hsl(var(--muted-foreground))"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">6,400</span></span>
+                <span class="meta muted">sold 3 Sep · for reference</span></div></div>
+            <div class="tile"><div class="cover ph-img"><span class="flag">📚</span><span class="heart">♥</span></div>
+              <div class="body"><span class="name" style="font-size:var(--t-meta)">Bulk binder — 400+ singles</span>
+                <span class="price"><span class="sym">From $</span><span class="maj" style="font-size:var(--t-subhead)">4</span></span>
+                <span class="meta muted">Nothing held</span></div></div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a class="on"><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>Columns are declared on the container, so every cell aligns down the page.</b> This was the
+        review note, and it is a real structural point rather than a tweak: <code>listrow</code> is
+        flex, so each row sizes its own cells from its own content and the price in row 1 lands at a
+        different x than the price in row 2. Declaring
+        <code>grid-template-columns</code> once — thumbnail, listing, price, watching, status, actions —
+        makes the alignment a property of the table rather than a coincidence. Status also gets its own
+        centred column, so badges of different widths still stack.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Watchlist filter chips and change markers.</b> Twelve saved cards with no way to see which
+        changed is a list you stop opening. Price history and <code>watch_count</code> are already on
+        the row, so nothing new is needed server-side. Sold saves stay, greyed and labelled "for
+        reference" — that is the comparable-sales use the "include sold" filter exists for.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Saved stays a browse grid.</b> It is a browse surface, so a shopper's grid is right there —
+        only My listings becomes a management table.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="seller">
+  <header>
+    <h2>Seller profile</h2>
+    <span class="route">/sellers/[id]</span>
+    <p class="intent">
+      Round 1 put trust facts in a right rail beside the listings grid. The review was right that it
+      looked arbitrary — and the reason is structural, not cosmetic: two columns of unrelated cards have
+      independent content lengths, so their heights <em>cannot</em> align. The fix is to stop having two
+      columns. One band, full width, one row of facts, equal by construction.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span>
+          <nav><a class="on">Marketplace</a><a>Sell</a><a>Start a deal</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">GR</span> grandline</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Seller</h1>
+            <div class="navlist mt-g"><a class="on">◉ Browse</a><a>Saved <span class="n">12</span></a>
+              <a>My listings</a><a>⇄ Trades</a><a>Purchases</a><a>Sales</a></div></aside>
+          <section class="content">
+            <span class="meta muted">← Back to marketplace</span>
+
+            <!-- header -->
+            <div class="between mt-c" style="align-items:flex-start;border-bottom:1px solid hsl(var(--border));padding-bottom:var(--s-group)">
+              <div class="row gap-g" style="align-items:center">
+                <span class="avatar lg">KA</span>
+                <div class="stack gap-s" style="min-width:0">
+                  <div class="row gap-c"><h2 class="h-head">kitsunearia</h2>
+                    <span class="badge b-trust">✓ Identity verified</span></div>
+                  <div class="row gap-c"><span class="iris-ink strong">★★★★★ 4.9</span>
+                    <span class="meta muted">47 reviews · member since Feb 2026</span></div>
+                  <div class="row gap-s"><span class="chip">instagram</span><span class="chip">tcgplayer</span></div>
+                </div>
+              </div>
+              <div class="row gap-s"><span class="btn btn-outline sm">✉ Message</span>
+                <span class="btn btn-ghost sm" style="color:hsl(var(--destructive))">⚑ Report</span></div>
+            </div>
+
+            <!-- ONE full-width band: heights equal by construction -->
+            <div class="trustband mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <div class="row gap-s"><span>✓ </span>
+                <span class="strong trust-ink meta">Identity verified via Stripe · photo ID and selfie</span></div>
+              <div class="facts">
+                <div class="fact"><span class="k">Verified name</span><span class="v">Aria K. Fujimoto</span></div>
+                <div class="fact"><span class="k">Checked</span><span class="v">14 Aug 2026</span></div>
+                <div class="fact"><span class="k">Trades in</span><span class="v">Australia</span></div>
+                <div class="fact"><span class="k">Sales completed</span><span class="v num">62</span></div>
+                <div class="fact"><span class="k">Trades completed</span><span class="v num">11</span></div>
+                <div class="fact"><span class="k">Disputes upheld</span><span class="v num trust-ink">0</span></div>
+              </div>
+              <p class="help">Their legal name appears on any contract you open with them, and nowhere
+                else.</p>
+            </div>
+
+            <p class="meta muted mt-g" style="max-width:70ch">Vintage and modern Pokémon, mostly graded.
+              Everything shipped in a team bag and toploader with tracking. Happy to do local handovers
+              in the inner west.</p>
+
+            <div class="tabs big mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:10px">2</i>
+              <span class="tab on">Available listings <span class="n">14</span></span>
+              <span class="tab">Reviews <span class="n">47</span></span>
+              <span class="tab">Recently sold <span class="n">62</span></span>
+            </div>
+
+            <div class="grid g4 mt-g">
+              <div class="tile"><div class="cover ph-img"><span class="heart">♡</span></div>
+                <div class="body"><span class="name">BGS 10 Mimikyu VMAX Alt Art</span>
+                  <span class="meta muted">Pokémon</span>
+                  <span class="price"><span class="sym">$</span><span class="maj">1,850</span></span></div></div>
+              <div class="tile"><div class="cover ph-img"><span class="heart">♡</span></div>
+                <div class="body"><span class="name">Rayquaza VMAX CSR Japanese</span>
+                  <span class="meta muted">Pokémon</span>
+                  <span class="price"><span class="sym">$</span><span class="maj">410</span></span></div></div>
+              <div class="tile"><div class="cover ph-img"><span class="heart">♡</span></div>
+                <div class="body"><span class="name">Umbreon VMAX Alt Art</span>
+                  <span class="meta muted">Pokémon</span>
+                  <span class="price"><span class="sym">$</span><span class="maj">920</span></span></div></div>
+              <div class="tile"><div class="cover ph-img"><span class="flag">📚 Binder</span><span class="heart">♡</span></div>
+                <div class="body"><span class="name">Bulk binder — 400+ singles</span>
+                  <span class="meta muted">Pokémon</span>
+                  <span class="price"><span class="sym">From $</span><span class="maj">4</span></span></div></div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">←</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">kitsunearia</span>
+          <span class="btn btn-ghost icon">⋯</span></div>
+        <div class="mbody">
+          <div class="row gap-c"><span class="avatar md">KA</span>
+            <div class="stack gap-t" style="flex:1;min-width:0">
+              <div class="row gap-t"><span class="h-lead">kitsunearia</span>
+                <span class="badge b-trust" style="padding:1px 6px">✓ </span></div>
+              <span class="meta"><span class="iris-ink">★ 4.9</span>
+                <span class="muted">· 47 reviews · 62 sales</span></span></div>
+            <span class="btn btn-outline sm">✉</span></div>
+
+          <div class="trustband mt-c" style="padding:var(--s-cozy);position:relative">
+            <i class="pin abs" style="right:6px;top:6px">3</i>
+            <span class="meta"><b class="trust-ink">Aria K. Fujimoto</b>
+              <span class="muted">— verified against photo ID on 14 Aug 2026. Trades in Australia.
+              62 sales, 0 disputes upheld.</span></span>
+          </div>
+
+          <p class="meta muted mt-c">Vintage and modern Pokémon, mostly graded. Team bag and toploader
+            with tracking.</p>
+
+          <div class="tabs mt-c"><span class="tab on">Listings 14</span>
+            <span class="tab">Reviews 47</span><span class="tab">Sold 62</span></div>
+
+          <div class="grid g2 tight mt-c">
+            <div class="tile"><div class="cover tall ph-img"><span class="heart">♡</span></div>
+              <div class="body"><span class="name" style="font-size:var(--t-meta)">BGS 10 Mimikyu VMAX Alt Art</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">1,850</span></span></div></div>
+            <div class="tile"><div class="cover ph-img"><span class="heart">♡</span></div>
+              <div class="body"><span class="name" style="font-size:var(--t-meta)">Rayquaza VMAX CSR</span>
+                <span class="price"><span class="sym">$</span><span class="maj" style="font-size:var(--t-subhead)">410</span></span></div></div>
+          </div>
+        </div>
+        <div class="mhub"><a class="on"><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>One full-width trust band instead of two rails.</b> The band is a single grid of
+        <code>auto-fit</code> facts, so it is one object with one height and it reflows to three columns
+        at tablet and two on a phone without ever leaving a ragged edge beside something else. It also
+        merges what were two separate cards — the identity disclosure and the track record — because
+        they answer one question. "Disputes upheld: 0" is the most decision-relevant number we hold and
+        is currently shown nowhere.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="chg">CHANGE</span>
+        <b>Listings / Reviews / Recently sold become tabs.</b> Reviews are currently a second section
+        below the grid, reached by scrolling past however many listings the seller has, and sold history
+        is not on the page at all — despite being the best evidence that a seller actually ships.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="chg">CHANGE</span>
+        <b>On a phone the band collapses to one sentence.</b> Six facts as a grid at 390px is six lines
+        a buyer skims; one sentence carrying name, method, date, region, volume and dispute count gets
+        read.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>The bio outside the verified block</b> — member-authored text must never sit inside a
+        provider-verified frame — and <b>labelled rather than icon-only verification</b>.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="add">ADD</span>
+        <b>Watch hearts on this grid.</b> These tiles render without <code>initialWatching</code>, so a
+        buyer looking at a seller's whole stock — the highest-intent browse there is — cannot save any
+        of it without opening each listing.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<p class="crumbs" style="margin-top:28px"><a href="index.html">← Board index</a> ·
+  <a href="02-entry.html">Next: Getting in →</a></p>
+
+</div>
+</body>
+</html>

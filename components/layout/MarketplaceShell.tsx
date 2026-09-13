@@ -35,6 +35,7 @@ export async function MarketplaceShell({
   primaryAction,
   filters,
   center = false,
+  fill = false,
   flush = false,
   children,
 }: {
@@ -73,6 +74,21 @@ export async function MarketplaceShell({
    * message thread where only one internal region scrolls and a second scrollbar on
    * the document body is incorrect.
    */
+  /**
+   * Let the content span the whole section instead of being capped at `max-w-workspace`.
+   *
+   * THE CAP EXISTS SO ULTRAWIDE VIEWPORTS DO NOT STRETCH LISTS, GRIDS AND 50/50 SPLITS,
+   * and for almost every section that is exactly right. A surface may opt out only when it
+   * caps its own content internally, so the extra width becomes gutter rather than longer
+   * lines — the two-pane inbox is the case it was added for: its list pane is a fixed
+   * 21rem and its reading column is capped at 44rem, so nothing in it can stretch. Capped
+   * at 90rem, that inbox instead sat centred with 88px of dead space either side at 1920
+   * and several hundred at 2560, which reads as the page failing to fill the window.
+   *
+   * Do NOT reach for this to make a list or a grid wider. That is the thing the cap is
+   * for, and the reason it is opt-in rather than a width passed per route.
+   */
+  fill?: boolean;
   flush?: boolean;
   children: ReactNode;
 }) {
@@ -236,7 +252,8 @@ export async function MarketplaceShell({
         >
           <div
             className={cn(
-              'mx-auto flex min-h-0 w-full max-w-workspace flex-col',
+              'mx-auto flex min-h-0 w-full flex-col',
+              fill ? 'max-w-none' : 'max-w-workspace',
               // `my-auto` rather than `flex-1` so a centred interstitial keeps
               // its natural height instead of stretching to fill the section.
               center ? 'my-auto' : 'flex-1',

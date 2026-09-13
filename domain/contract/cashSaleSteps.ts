@@ -249,7 +249,15 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   drafts.push({
     id: 'payment',
     short: 'Payment',
-    label: 'Payment collected and held',
+    // SECOND PERSON, LIKE THE DETAIL BELOW IT. `label` is the action card's `<h3>` and
+    // the string the rail reveals when a tick is tapped, so it is read as "what now" —
+    // but it was written as a passive description of the step ("Payment collected and
+    // held") while `detail` addressed the viewer directly. On a phone the detail is
+    // hidden, so the only copy shown was the one in the wrong voice.
+    label:
+      viewerRole === 'BUYER'
+        ? 'Pay to start the escrow'
+        : `Waiting for ${counterpartyName} to pay`,
     detail: !termsSet
       ? 'Available once handover terms have been proposed.'
       : viewerRole === 'BUYER'
@@ -299,7 +307,10 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     drafts.push({
       id: 'ship',
       short: 'Delivery',
-      label: 'Seller ships with tracking',
+      label:
+        viewerRole === 'SELLER'
+          ? 'Post it and add the tracking number'
+          : `Waiting for ${counterpartyName} to post it`,
       detail: hasTracking
         ? 'Tracking recorded.'
         : viewerRole === 'SELLER'
@@ -319,7 +330,11 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       id: 'receive',
       // Six ticks in the delivery branch: keep short for mobile.
       short: 'Received',
-      label: 'Buyer confirms the item arrived',
+      label:
+        viewerRole === 'BUYER'
+          ? 'Confirm it arrived'
+          : `Waiting for ${counterpartyName} to confirm it arrived`,
+      compactLabel: viewerRole === 'BUYER' ? 'Confirm arrival' : 'Awaiting arrival',
       detail:
         viewerRole === 'BUYER'
           ? 'Confirm receipt, or report it as not received.'
@@ -376,8 +391,12 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     drafts.push({
       id: 'inspect',
       short: '',
-      label: 'Buyer accepts delivery',
-      compactLabel: 'Accept Delivery',
+      label:
+        viewerRole === 'BUYER'
+          ? 'Accept the item, or report a problem'
+          : `Waiting for ${counterpartyName} to accept it`,
+      // Sentence case, matching every other string here. This was `Accept Delivery`.
+      compactLabel: viewerRole === 'BUYER' ? 'Accept or report' : 'Awaiting acceptance',
       detail:
         viewerRole === 'BUYER'
           ? 'Complete to release the funds, or dispute. Completes on its own at the deadline.'
@@ -400,7 +419,10 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     drafts.push({
       id: 'return-ship',
       short: 'Return',
-      label: 'Buyer posts the item back',
+      label:
+        viewerRole === 'BUYER'
+          ? 'Post the item back'
+          : `Waiting for ${counterpartyName} to post it back`,
       detail: returnDisputedNow
         ? 'The seller contested this return. The case is back with support.'
         : facts.hasReturnTracking

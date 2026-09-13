@@ -53,6 +53,13 @@ import { normalizeRegionCode } from '@/domain/region';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { CARD_GAME_NAMES, isCardGameName } from '@/lib/catalog/cardGames';
 import { catalogSearchAttempts } from '@/lib/catalog/searchQuery';
+import {
+  buildPriceLadderCents,
+  niceCeilingCents,
+  // Aliased: the field it populates on `CatalogFacets` has the same name, and
+  // `priceHistogram: priceHistogram(...)` is legal but reads like a mistake.
+  priceHistogram as buildPriceHistogram,
+} from '@/lib/catalog/priceLadder';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { ListingKind } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -1463,6 +1470,19 @@ export interface CatalogFacets {
    * nothing is listed.
    */
   maxPriceCents: number;
+  /**
+   * Relative listing density per price-ladder segment, 0..1, for the histogram above
+   * the range slider.
+   *
+   * FREE, which is why it is here rather than behind a flag: the query below already
+   * reads every `fmv_cents` in the catalog to find the maximum, so bucketing them costs
+   * one more pass over data already in memory and no additional round trip.
+   *
+   * Bucketed against `buildPriceLadderCents` so bar N sits over the gap between thumb
+   * stop N and N+1. Length is therefore `ladder.length - 1`, and the consumer must not
+   * assume it matches the stop count.
+   */
+  priceHistogram: number[];
 }
 
 /**
@@ -1509,16 +1529,27 @@ export async function getCatalogFacets(
   const { data, error } = await query;
 
   if (error || !data) {
-    return { maxPriceCents: 0 };
+    return { maxPriceCents: 0, priceHistogram: [] };
   }
 
   let maxPriceCents = 0;
+  const pricesCents: number[] = [];
   for (const row of data) {
     const cents = row.fmv_cents as number | null;
-    if (cents != null && cents > maxPriceCents) maxPriceCents = cents;
+    if (cents == null) continue;
+    pricesCents.push(cents);
+    if (cents > maxPriceCents) maxPriceCents = cents;
   }
 
-  return { maxPriceCents };
+  // The ceiling is rounded up to a round number BEFORE the ladder is built, exactly as
+  // the client does it — otherwise the buckets would be laid out against a different
+  // ladder than the thumbs snap to, and the bars would sit slightly off their stops.
+  const ladder = buildPriceLadderCents(niceCeilingCents(maxPriceCents));
+
+  return {
+    maxPriceCents,
+    priceHistogram: buildPriceHistogram(ladder, pricesCents),
+  };
 }
 
 /** A compact catalog hit for the header search typeahead. */

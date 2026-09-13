@@ -87,7 +87,7 @@ export interface ContractExchangeSide {
 function MoneyGlyph() {
   return (
     <span
-      className="grid size-10 shrink-0 place-items-center rounded-md border border-dashed text-body text-muted-foreground"
+      className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-muted text-body text-muted-foreground"
       aria-hidden
     >
       $

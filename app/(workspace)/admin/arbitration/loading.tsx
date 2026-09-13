@@ -39,7 +39,7 @@ export default function ArbitrationLoading() {
           ))}
         </div>
 
-        <SectionFilterSkeleton tabs={3} />
+        <SectionFilterSkeleton labels={['All open', 'Mine', 'Unassigned']} />
 
         {/* `Card`, not `rounded-xl border p-4`: the real rows are
             `rounded-lg border bg-card shadow-market` with the padding split between

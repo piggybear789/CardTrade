@@ -211,7 +211,12 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               because this is the material the decision is meant to rest on — before it
               existed an arbitrator had one sentence from one side and nothing from the
               other. */}
-          <Card className={evidence.length > 0 ? 'border-iris/40' : undefined}>
+          {/* A WASH RATHER THAN A VIOLET FRAME when evidence exists. This is a
+              triage screen — a column of eight or nine cards — and two of them
+              framed in violet made the whole stack read as urgent. The tint says
+              "there is material in here" just as well and does not compete with
+              the focus edge. See the border rule in globals.css. */}
+          <Card className={evidence.length > 0 ? 'bg-iris/[0.05]' : undefined}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-snug">
                 <div className="flex items-center gap-snug">
@@ -272,7 +277,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   </div>
                 ) : null}
                 {shipment.returnLapsedAt ? (
-                  <div className="rounded-md border border-iris/40 bg-iris/10 p-cozy">
+                  <div className="rounded-md border border-border bg-iris/[0.07] p-cozy">
                     <p className="text-meta font-medium uppercase tracking-wide text-iris-ink">
                       Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
                     </p>
@@ -433,8 +438,10 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             </CardContent>
           </Card>
 
-          {/* Decision */}
-          <Card className="border-iris/40">
+          {/* Decision. The one card on the page the arbitrator ACTS in, so it keeps
+              its emphasis — as a tint, with the neutral hairline every other card
+              wears. The heading and the iris-ink scales icon already name it. */}
+          <Card className="bg-iris/[0.05]">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-snug">
                 <HugeiconsIcon icon={ScaleIcon} className="size-4 text-iris-ink" aria-hidden />

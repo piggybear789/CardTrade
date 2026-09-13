@@ -165,7 +165,21 @@ export function MessageSellerButton({
   if (variant === 'inline') {
     return (
       <div className="space-y-2">
-        <div className="rounded-lg border bg-muted p-cozy">
+        {/* `bg-card`, NOT `bg-muted`, and it fixes two things that looked separate.
+            
+            `--muted` is `275 20% 95%` — hue 275 is violet, so the panel read as a
+            lilac slab for no reason: nothing here is selected, active or grouped in a
+            way the tint was signalling.
+            
+            It also made the Send button look broken. `Button`'s base sets
+            `disabled:bg-muted`, and Send is disabled until the field has text, so the
+            disabled fill was the SAME colour as the panel behind it — the control
+            appeared to lose its background rather than to be unavailable. On `card`
+            the disabled fill is a visible step again.
+            
+            The border still separates the panel; on a white page that is the only
+            thing that needs to. */}
+        <div className="rounded-lg border bg-card p-cozy">
           {/* UNIQUE PER INSTANCE, and the listing page mounts two of these — one
               in the `lg:hidden` phone stack, one in the desktop pane. Both used
               a hardcoded `message-seller-input`, so the document carried the id

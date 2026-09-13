@@ -25,9 +25,11 @@ import {
   ARBITRATION_SLA_HOURS,
   DEADLINE_WARNING_HOURS,
   SITUATION_LABEL,
+  TRIAGE_RULE_SUMMARY,
   filterQueue,
   resolveQueueScope,
   summariseQueue,
+  type PriorityReason,
 } from '@/domain/arbitration/arbitrationCase';
 import {
   CASE_KIND_LABEL,
@@ -49,6 +51,24 @@ import { cn } from '@/lib/utils';
 
 export const metadata = {
   title: 'Cases · NoDitto',
+};
+
+/**
+ * The "why is this here" line per row.
+ *
+ * Keyed off `priorityReason`, which is derived from the same branch chain as the
+ * priority badge beside it, so the badge and the sentence cannot disagree. The wording
+ * names the CONSEQUENCE rather than the rule — an arbitrator does not need to be told
+ * a case is CRITICAL, they need to be told that letting the deadline pass forfeits the
+ * money automatically.
+ */
+const PRIORITY_REASON_LABEL: Record<PriorityReason, string> = {
+  EVIDENCE_DEADLINE:
+    'Top of the queue: the evidence deadline is close, and once it passes the money is forfeited automatically.',
+  FRAUD_ALLEGED:
+    'Raised: fraud is alleged, and the collateral behind the remedy expires in about a week.',
+  PAST_SLA: `Raised: nobody has answered this in ${ARBITRATION_SLA_HOURS} hours.`,
+  IN_ORDER: 'Waiting its turn. Nothing has escalated it.',
 };
 
 // Priority badges and kind labels are shared with the case page rather than declared
@@ -122,6 +142,16 @@ export default async function ArbitrationQueuePage({
           </div>
         ))}
       </dl>
+
+      {/* THE ORDERING RULE IS PUBLISHED, not left in a code comment. A queue that sorts
+          itself by an invisible rule gets argued with — and worse, worked around: a
+          worker who cannot see why a $40 case outranks a $4,000 one starts picking by
+          amount, which is the exact behaviour the rule exists to prevent. The string
+          lives beside the derivation in `arbitrationCase.ts`, so publishing it and
+          changing it are one edit. */}
+      <p className="mb-5 rounded-md border border-border bg-muted px-cozy py-snug text-meta text-muted-foreground">
+        {TRIAGE_RULE_SUMMARY}
+      </p>
 
       {/* The workspace tab strip, shared with every Active/Past section rather than
           restyled here. Three tabs instead of two is the only difference. */}
@@ -210,7 +240,21 @@ export default async function ArbitrationQueuePage({
                       ) : null}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                  <CardContent className="space-y-cozy">
+                    {/* WHY THIS ROW IS WHERE IT IS. The badges above say what the case
+                        IS and how urgent it looks; this says which of the four rules put
+                        it there, in the same words for every case with that reason. */}
+                    <p
+                      className={cn(
+                        'text-meta',
+                        c.priorityReason === 'EVIDENCE_DEADLINE'
+                          ? 'font-medium text-destructive'
+                          : 'text-muted-foreground',
+                      )}
+                    >
+                      {PRIORITY_REASON_LABEL[c.priorityReason]}
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="min-w-0 text-body text-muted-foreground">
                       {c.parties.map((p) => `${p.role}: ${p.name}`).join(' · ')}
                     </p>
@@ -227,6 +271,7 @@ export default async function ArbitrationQueuePage({
                         assigneeName={c.assigneeName}
                         viewerId={viewerId}
                       />
+                    </div>
                     </div>
                   </CardContent>
                 </Card>

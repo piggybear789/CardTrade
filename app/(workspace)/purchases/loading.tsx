@@ -20,11 +20,10 @@ export default function PurchasesLoading() {
         </RailPrimaryAction>
       }
     >
-      <div className="min-w-0">
-        <SectionHeaderSkeleton hasMobileAction />
-        <SectionFilterSkeleton />
-        <ContractCardListSkeleton count={4} />
-      </div>
+      {/* No wrapper div — see the note in `sales/loading.tsx`. */}
+      <SectionHeaderSkeleton hasMobileAction />
+      <SectionFilterSkeleton labels={['Active', 'Needs you', 'Waiting', 'Past']} />
+      <ContractCardListSkeleton count={4} />
     </MarketplaceShellSkeleton>
   );
 }

@@ -26,11 +26,13 @@ export default function OffersLoading() {
         </RailPrimaryAction>
       }
     >
-      <div className="min-w-0">
-        <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
-        <SectionFilterSkeleton />
-        <OfferCardListSkeleton count={4} />
-      </div>
+      {/* No wrapper div — see the note in `sales/loading.tsx`. `OffersSection`'s empty
+          state is `SharedEmptyState … compact fill` and wants the same column height. */}
+      <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
+      {/* Two, not four: this route uses the `SectionFilter` Active/Past preset rather
+          than `ContractFilter`. */}
+      <SectionFilterSkeleton labels={['Active', 'Past']} />
+      <OfferCardListSkeleton count={4} />
     </MarketplaceShellSkeleton>
   );
 }

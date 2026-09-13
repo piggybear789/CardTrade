@@ -21,7 +21,12 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import {
+  AlertCircleIcon,
+  ArrowUpRight01Icon,
+  ScaleIcon,
+  ShieldCheckIcon,
+} from '@hugeicons/core-free-icons';
 
 import type {
   ArbitrationRecord,
@@ -31,6 +36,7 @@ import type {
 } from '@/domain/payouts/payoutReadModel';
 import type { DestinationAccount } from '@/lib/actions/payouts';
 import { formatAud, formatRelativeTime } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import {
   SectionFilter,
   partitionByScope,
@@ -207,6 +213,7 @@ export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboard
 
   return (
     <div className="space-y-section font-sans">
+      <BlockedReleaseBanner model={model} />
       <ActiveSalesSummary model={model} />
       {/* ONE payout destination card, not two.
 
@@ -222,6 +229,88 @@ export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboard
         <ArbitrationSummary model={model} />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The one thing on this page that may need the Member to act.
+ *
+ * IT NAMES THE AMOUNT, and that is the whole point of adding it. A blocked release was
+ * reported in two places, neither of which said how much: the summary caption read
+ * "Part of this is held up", and the failure sentence sat on individual entries part-way
+ * down the transfer list, where a seller had to open Active and read four rows to
+ * discover that $240 of their money was stuck behind an unfinished Connect setup.
+ *
+ * ONE BANNER FOR ALL BLOCKED RELEASES, not one per sale. The causes are few and the
+ * remedy is per-cause rather than per-sale — finishing payout setup unblocks every
+ * NOT_PAYABLE release at once — so the banner leads with the total and states the
+ * remedy for the cause that is actually holding the largest share.
+ *
+ * `destructive` tone rather than a neutral note: money the platform has collected and
+ * cannot pass on is the most serious thing this page can report.
+ */
+function BlockedReleaseBanner({ model }: { model: PayoutReadModel }) {
+  if (!model.hasBlockedRelease) return null;
+
+  // The cause behind the most money, so a member with two blocked sales for different
+  // reasons is told to do the thing that frees the larger amount first.
+  const byCause = new Map<ReleaseFailureCause, number>();
+  for (const sale of model.releasing) {
+    if (!sale.blocked || !sale.failureCause) continue;
+    byCause.set(
+      sale.failureCause,
+      (byCause.get(sale.failureCause) ?? 0) + sale.netCents,
+    );
+  }
+  const leading = [...byCause.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const copy = leading ? FAILURE_COPY[leading] : null;
+  const otherCauses = byCause.size - 1;
+
+  return (
+    <section
+      aria-labelledby="blocked-release-heading"
+      className="rounded-lg border border-destructive/40 bg-destructive/[0.05] p-group"
+    >
+      <div className="flex items-start gap-cozy">
+        <HugeiconsIcon
+          icon={AlertCircleIcon}
+          className="mt-0.5 size-5 shrink-0 text-destructive"
+          aria-hidden
+        />
+        <div className="min-w-0 space-y-tight">
+          <h3
+            id="blocked-release-heading"
+            className="text-body font-semibold text-destructive"
+          >
+            {formatAud(model.blockedReleaseCents)} could not be sent yet
+          </h3>
+          {copy ? (
+            <p className="text-body">
+              {copy.summary} {copy.action}
+            </p>
+          ) : null}
+          {otherCauses > 0 ? (
+            // Named rather than folded in silently: fixing the leading cause will not
+            // clear the banner, and a member who does the thing it asked and sees the
+            // warning persist has been told something untrue by omission.
+            <p className="text-meta text-muted-foreground">
+              {otherCauses === 1
+                ? 'One other release is held up for a different reason. See the transfer history below.'
+                : `${otherCauses} other releases are held up for different reasons. See the transfer history below.`}
+            </p>
+          ) : null}
+          <p className="text-meta text-muted-foreground">
+            Nothing is lost. Blocked releases are retried automatically once the cause
+            clears.
+          </p>
+          {copy?.href && copy.actionLabel ? (
+            <Button asChild size="sm" className="mt-snug">
+              <Link href={copy.href}>{copy.actionLabel}</Link>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -298,6 +387,18 @@ function DestinationAccountSummary({
   );
 }
 
+/**
+ * THE ONE COLUMN DEFINITION for the releasing list. Header and rows both apply it.
+ *
+ * Two columns below `sm` — the sale and what lands — because price and fee will not fit
+ * beside a title at 320px without truncating it. They fold into a sub-line at that
+ * width, and the two middle cells are `hidden`, which removes them from grid flow so
+ * the template matches the number of visible cells.
+ */
+const RELEASE_ROW_GRID =
+  'grid grid-cols-[minmax(0,1fr)_auto] gap-cozy ' +
+  'sm:grid-cols-[minmax(0,1fr)_6rem_5rem_6rem]';
+
 function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
   const hasActivity = model.releasing.length > 0 || model.upcomingProceedsCents > 0;
 
@@ -325,22 +426,67 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
               </p>
             </div>
             {model.releasing.length > 0 ? (
-              <ul className="divide-y rounded-md border">
-                {model.releasing.map((sale) => (
-                  <li key={sale.cashSaleId} className="flex items-center justify-between gap-cozy px-cozy py-snug">
-                    <Link
-                      href={`/sales/${sale.cashSaleId}`}
-                      transitionTypes={['nav-forward']}
-                      className="min-w-0 truncate text-body font-medium underline-offset-4 hover:underline"
+              // SHOWS THE ARITHMETIC, not just the answer. This listed net alone, so a
+              // seller who agreed $120 saw $114 with no account of the difference and
+              // no way to tell a fee from a partial refund — and those two have very
+              // different implications. Three columns on one grid, declared once, so
+              // the figures line up down the list rather than per row.
+              <div className="overflow-hidden rounded-md border">
+                <div
+                  className={cn(
+                    RELEASE_ROW_GRID,
+                    'hidden border-b bg-muted px-cozy py-tight sm:grid',
+                  )}
+                  aria-hidden="true"
+                >
+                  <span className="market-label text-muted-foreground">Sale</span>
+                  {/* "BUYER PAID", NOT "PRICE". `grossCents` is `amount_cents`, which is
+                      the agreed price PLUS the platform fee PLUS shipping — what the
+                      buyer was charged. Labelling it Price stated the wrong number
+                      under the right word: a $56.00 card read as a $58.80 price, and
+                      the seller's own agreed figure appeared nowhere in the row. */}
+                  <span className="market-label text-right text-muted-foreground">Buyer paid</span>
+                  <span className="market-label text-right text-muted-foreground">Fee</span>
+                  <span className="market-label text-right text-muted-foreground">You get</span>
+                </div>
+                <ul className="divide-y">
+                  {model.releasing.map((sale) => (
+                    <li
+                      key={sale.cashSaleId}
+                      className={cn(RELEASE_ROW_GRID, 'items-baseline px-cozy py-snug')}
                     >
-                      {sale.itemTitle}
-                    </Link>
-                    <span className="shrink-0 text-body font-semibold tabular-nums">
-                      {formatAud(sale.netCents)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/sales/${sale.cashSaleId}`}
+                          transitionTypes={['nav-forward']}
+                          className="block truncate text-body font-medium underline-offset-4 hover:underline"
+                        >
+                          {sale.itemTitle}
+                        </Link>
+                        {/* Below `sm` the two middle columns are gone, so the gross and
+                            fee fold into one line here — the seller still gets the
+                            arithmetic, just as a sentence rather than a table. */}
+                        <p className="text-meta tabular-nums text-muted-foreground sm:hidden">
+                          Buyer paid {formatAud(sale.grossCents)}, less{' '}
+                          {formatAud(sale.feeCents)} fee
+                        </p>
+                        {sale.blocked ? (
+                          <p className="text-meta text-destructive">Held up</p>
+                        ) : null}
+                      </div>
+                      <span className="hidden text-right text-body tabular-nums text-muted-foreground sm:block">
+                        {formatAud(sale.grossCents)}
+                      </span>
+                      <span className="hidden text-right text-body tabular-nums text-muted-foreground sm:block">
+                        −{formatAud(sale.feeCents)}
+                      </span>
+                      <span className="text-right text-body font-semibold tabular-nums">
+                        {formatAud(sale.netCents)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : (
               <p className="text-body text-muted-foreground">
                 Buyer payment is pending while delivery and inspection are underway.

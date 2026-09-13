@@ -28,8 +28,8 @@
     "ux-review:capture": "playwright test --config=playwright.ux-review.config.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-rekognition": "3.682.0",
-    "@aws-sdk/client-sesv2": "3.682.0",
+    "@aws-sdk/client-rekognition": "^3.1129.0",
+    "@aws-sdk/client-sesv2": "^3.1129.0",
     "@hookform/resolvers": "^5.4.0",
     "@hugeicons/core-free-icons": "^4.3.0",
     "@hugeicons/react": "^1.1.10",
@@ -52,14 +52,14 @@
     "date-fns": "^4.4.0",
     "geist": "^1.7.2",
     "motion": "^13.1.0",
-    "next": "16.3.0",
+    "next": "^16.3.4",
     "next-themes": "^0.4.6",
     "react": "19.2.8",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.82.0",
     "server-only": "^0.0.1",
-    "sharp": "0.34.4",
+    "sharp": "^0.35.4",
     "sonner": "^2.0.7",
     "stripe": "^22.4.0",
     "tailwind-merge": "^3.6.0",
@@ -87,8 +87,8 @@
     "tailwindcss": "^3.4.19",
     "tsx": "^4.23.10",
     "typescript": "^5.7.3",
-    "vercel": "^58.5.1",
-    "vitest": "^3.2.7"
+    "vercel": "^54.17.3",
+    "vitest": "^5.0.0"
   },
   "overrides": {
     "@types/react": "19.2.18",

@@ -29,8 +29,12 @@ export default function GlobalError({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          // Literal `--obsidian` and `--mist`. Hardcoded because a global error
+          // boundary replaces the root layout and cannot count on the stylesheet
+          // having loaded, so these two must be kept in step with globals.css by
+          // hand — as must `viewport.themeColor` in `app/layout.tsx`.
           background: '#120f15',
-          color: '#eeeaf1',
+          color: '#efe7f3',
           fontFamily:
             'Inter, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
           padding: '1.5rem',
@@ -43,7 +47,7 @@ export default function GlobalError({
               fontWeight: 600,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: '#9a6fb8',
+              color: '#9e67c1',
             }}
           >
             NoDitto
@@ -78,7 +82,7 @@ export default function GlobalError({
               border: 'none',
               // The deeper `--primary`, not `--iris`: the lighter lilac cannot
               // carry white at this 15px label size.
-              background: '#77469b',
+              background: '#804fa1',
               color: '#ffffff',
               fontWeight: 600,
               fontSize: '0.95rem',

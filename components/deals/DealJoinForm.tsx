@@ -51,6 +51,30 @@ const AddPaymentMethodForm = dynamic(
   },
 );
 
+/**
+ * Where a blocked viewer goes to fix it, or `null` when there is nothing they can do.
+ *
+ * A refusal with no route out is the shape this surface had: the Join button went
+ * permanently `disabled` beneath one line of red text, which reads as broken rather
+ * than as a step the member has not taken. Only the reasons the VIEWER owns get a
+ * link — nobody can verify on their counterparty's behalf.
+ */
+type ViewerBlock = NonNullable<DealInvitePreview['viewerBlock']>;
+
+function blockRemedy(reason: ViewerBlock['reason']): { href: string; label: string } | null {
+  switch (reason) {
+    case 'own-identity-unverified':
+    case 'seller-disclosure-incomplete':
+      return { href: '/profile?tab=verification', label: 'Verify my identity' };
+    case 'no-region':
+      return { href: '/profile?tab=verification', label: 'Set my region' };
+    case 'no-payment-method':
+      return { href: '/profile', label: 'Add a payment method' };
+    default:
+      return null;
+  }
+}
+
 function statusCopy(status: DealInvitePreview['status']): {
   title: string;
   description: string;
@@ -140,6 +164,32 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
 
   if (preview.isHost) {
     return <DealInviteShare preview={preview} />;
+  }
+
+  // BEFORE the form, not after submitting it. `claimDealInvite` refuses for exactly
+  // these reasons; showing them here means the member is not asked to describe a
+  // card and upload photos for a claim that cannot succeed. Same `message`, so the
+  // two never say different things.
+  if (preview.viewerBlock) {
+    const remedy = blockRemedy(preview.viewerBlock.reason);
+    return (
+      <Card className="mx-auto w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>You cannot join this deal yet</CardTitle>
+          <CardDescription>{preview.viewerBlock.message}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DealInviteSummary preview={preview} />
+        </CardContent>
+        {remedy ? (
+          <CardFooter>
+            <Button asChild className="w-full sm:w-auto">
+              <Link href={remedy.href}>{remedy.label}</Link>
+            </Button>
+          </CardFooter>
+        ) : null}
+      </Card>
+    );
   }
 
   function join() {
@@ -263,6 +313,11 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
           </div>
         ) : needsCheckout && showCheckout ? (
           <>
+            {/* No `else` branch. A missing disclosure is a `viewerBlock` and returned
+                above, so this component never reaches here without one — the second,
+                hardcoded copy of "The seller has not verified their identity yet."
+                that used to sit here could contradict the server's own wording, and
+                on a host-BUYER invite it was about the reader rather than the host. */}
             {preview.sellerIdentity ? (
               <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
                 <p className="font-medium">Verified seller</p>
@@ -273,11 +328,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
                   {preview.sellerIdentity.legalEntityName}
                 </p>
               </div>
-            ) : (
-              <p className="text-body text-destructive">
-                The seller has not verified their identity yet.
-              </p>
-            )}
+            ) : null}
             <div className="flex items-center gap-3 rounded-lg border p-3">
               <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0 flex-1">

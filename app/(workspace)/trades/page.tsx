@@ -17,14 +17,18 @@ import { listMyDealInvites } from '@/lib/actions/dealInvites';
 import { DealInviteList } from '@/components/deals/DealInviteList';
 import { StartDealEmptyState, StartDealRailAction } from '@/components/deals/StartDealButton';
 import { TradesSection } from '@/components/account/TradesSection';
-import { EmptyState } from '@/components/ui/empty-state';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHeader';
 import {
-  SectionFilter,
-  partitionByScope,
-  resolveScope,
+  ContractFilter,
+  contractsForScope,
+  groupContracts,
+  resolveContractScope,
 } from '@/components/layout/SectionFilter';
+import {
+  ContractScopeEmptyState,
+  needsViewer,
+} from '@/components/account/ContractRow';
 import { isTradePast } from '@/lib/lifecycle';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -41,7 +45,7 @@ export default async function TradesPage({
   searchParams: Promise<{ show?: string | string[] }>;
 }) {
   const { show } = await searchParams;
-  const scope = resolveScope(show);
+  const scope = resolveContractScope(show);
   const supabase = await createClient();
   const {
     data: { user },
@@ -56,13 +60,15 @@ export default async function TradesPage({
   ]);
 
   // Finished trades are history: they should not sit among the ones still moving.
-  // A CANCELLED negotiation counts as finished (see `isTradePast`).
-  const { active: activeTrades, past: pastTrades } = partitionByScope(
+  // A CANCELLED negotiation counts as finished (see `isTradePast`). Live trades split
+  // again by whose move they are, which is the question a trader actually has.
+  const groups = groupContracts(
     result.ok ? result.data : [],
     (trade) => isTradePast(trade.state),
+    (trade) => needsViewer(trade.nextMove),
   );
-  const visibleTrades = scope === 'past' ? pastTrades : activeTrades;
-  const negotiatingCount = activeTrades.filter(
+  const visibleTrades = contractsForScope(groups, scope);
+  const negotiatingCount = groups.active.filter(
     (trade) => trade.state === 'NEGOTIATING',
   ).length;
 
@@ -70,10 +76,26 @@ export default async function TradesPage({
   // Declared once so the two can never drift apart.
   const startDeal = () => <StartDealRailAction />;
 
+  // Invites belong with what is still live, and only there: a pending invite is not a
+  // contract, so it has no step plan and cannot be filed under whose move it is.
   const pendingInvites =
-    scope === 'past' || !invitesResult.ok ? [] : invitesResult.data;
+    scope === 'active' && invitesResult.ok ? invitesResult.data : [];
   const hasInvites = pendingInvites.length > 0;
   const hasTrades = visibleTrades.length > 0;
+
+  // The group heading names the SLICE being shown, because the strip above it only
+  // marks which tab is current and a heading reading "Open" over a list of trades
+  // waiting on someone else would contradict it.
+  const tradesHeading =
+    scope === 'past'
+      ? 'Finished'
+      : scope === 'needs-you'
+        ? 'Waiting on you'
+        : scope === 'waiting'
+          ? 'Waiting on the other trader'
+          : negotiatingCount > 0
+            ? 'Open'
+            : 'Agreed';
 
   return (
     <MarketplaceShell title="Trades" primaryAction={startDeal()}>
@@ -83,11 +105,11 @@ export default async function TradesPage({
         mobileAction={hasInvites || hasTrades ? startDeal() : undefined}
       />
 
-      <SectionFilter
+      <ContractFilter
         scope={scope}
         basePath="/trades"
-        activeCount={activeTrades.length + (scope === 'past' ? 0 : pendingInvites.length)}
-        pastCount={pastTrades.length}
+        groups={groups}
+        extraActive={invitesResult.ok ? invitesResult.data.length : 0}
       />
 
       {!result.ok ? (
@@ -105,25 +127,13 @@ export default async function TradesPage({
           {hasTrades ? (
             <section aria-labelledby="trades-heading">
               <h3 id="trades-heading" className="mb-3 text-subhead font-semibold">
-                {scope === 'past'
-                  ? 'Finished'
-                  : negotiatingCount > 0
-                    ? 'Open'
-                    : 'Agreed'}
+                {tradesHeading}
               </h3>
               <TradesSection trades={visibleTrades} />
             </section>
           ) : null}
         </>
-      ) : scope === 'past' ? (
-        <EmptyState
-          icon={<HugeiconsIcon icon={HourglassIcon} className="size-6" aria-hidden="true" />}
-          title="No Finished Trades"
-          description="Completed trades, resolved disputes and closed offers will be kept here."
-          compact
-          fill
-        />
-      ) : (
+      ) : scope === 'active' ? (
         <StartDealEmptyState
           isAuthenticated
           icon={<HugeiconsIcon icon={HourglassIcon} className="size-6" aria-hidden="true" />}
@@ -133,6 +143,8 @@ export default async function TradesPage({
           compact
           fill
         />
+      ) : (
+        <ContractScopeEmptyState scope={scope} noun="trades" />
       )}
     </MarketplaceShell>
   );

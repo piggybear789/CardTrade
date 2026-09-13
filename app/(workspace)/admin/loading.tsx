@@ -28,7 +28,11 @@ export default function AdminLoading() {
           descriptionClassName="w-96"
         />
 
-        <SectionFilterSkeleton tabs={3} />
+        {/* The console's own strip: Payouts / Reports / Reconciliation. The last one
+            shortens to "Reconcile" below `md`, so the desktop label is the width
+            reserved — the strip scrolls on a phone, where an over-wide tab costs scroll
+            extent rather than layout. */}
+        <SectionFilterSkeleton labels={['Payouts', 'Reports', 'Reconciliation']} />
 
         {/* THE CUSTODY PANEL, which this file used to omit entirely. `?tab=` defaults
             to Payouts, and Payouts leads with one `CustodyPanel` per Stripe platform

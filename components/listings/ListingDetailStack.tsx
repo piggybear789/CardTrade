@@ -7,8 +7,13 @@ import { ExpandableDescription } from '@/components/listings/ExpandableDescripti
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
-import { formatAud } from '@/lib/format';
+import { formatAud, formatRelativeTime } from '@/lib/format';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
+import {
+  buyerPaysCents,
+  PLATFORM_FEE_LABEL,
+  splitMoney,
+} from '@/lib/listings/buyerPrice';
 
 export function ListingDetailStack({
   title,
@@ -18,6 +23,7 @@ export function ListingDetailStack({
   category,
   isShopfront,
   locationLabel,
+  createdAt,
   watchCount,
   isOwner,
   sellerId,
@@ -37,6 +43,8 @@ export function ListingDetailStack({
   category: string | null;
   isShopfront: boolean;
   locationLabel: string | null;
+  /** `items.created_at`, for the listing-age clause of the meta line. */
+  createdAt: string | null;
   watchCount: number;
   isOwner: boolean;
   sellerId: string;
@@ -52,11 +60,23 @@ export function ListingDetailStack({
 }) {
   const kindLabel = isShopfront ? 'Binder listing' : 'Single item';
   const savesLabel = watchCount === 1 ? '1 save' : `${watchCount} saves`;
+  // Relative, and hydration-suppressed where it renders — see the same note in
+  // `ListingDesktopPane`. Listing age is what the meta line gained when the inline map
+  // went: every resale reference carries it, and a card listed four hours ago is a
+  // different proposition from one listed four months ago at the same price.
+  const listedAgo = formatRelativeTime(createdAt);
+  // A binder shows its own indicative "from" figure; a single listing shows what the
+  // buyer is actually charged. See `buyerPaysCents`.
+  const headline = splitMoney(
+    formatAud(isShopfront ? priceCents : buyerPaysCents(priceCents)),
+  );
   const desktopMeta = [savesLabel, category, kindLabel].filter(Boolean).join(' · ');
   const mobileMeta = [
     watchCount > 0 ? savesLabel : null,
     category,
     kindLabel,
+    listedAgo ? `Listed ${listedAgo}` : null,
+    locationLabel ? `Based in ${locationLabel}` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -131,26 +151,60 @@ export function ListingDetailStack({
       ) : null}
 
       <div className="mt-3 flex items-center gap-3 md:mt-4">
-        <p className="min-w-0 flex-1 truncate font-display text-display font-bold leading-none tracking-[-0.03em] text-iris-ink">
-          {isShopfront ? (
-            <span className="mr-1 text-lead font-medium">from </span>
+        {/* Price and its fee note share the flexible cell, so the condition pill keeps
+            its own place at the end of the row rather than being pushed by the note.
+            `items-baseline` inside, so the note annotates the figure. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+          {/* INK AND FEE-INCLUSIVE, matching the desktop pane. This was `text-iris-ink`,
+              which the pastel retune moved money away from, and it showed the asking
+              price while the real charge sat in muted 12px below. Symbol and cents
+              recede so the dollars carry the weight at this size. */}
+          <p className="min-w-0 font-display font-bold leading-none tracking-[-0.03em] text-foreground">
+            {isShopfront ? (
+              <span className="mr-1 text-lead font-medium text-muted-foreground">from </span>
+            ) : null}
+            <span className="text-lead font-bold text-muted-foreground">
+              {headline.symbol}
+            </span>
+            <span className="text-display">{headline.major}</span>
+            {headline.minor ? (
+              <span className="text-lead font-bold text-muted-foreground">
+                {headline.minor}
+              </span>
+            ) : null}
+          </p>
+          {/* Four words, same as desktop. The escrow promise it used to carry is made at
+              the buy bar, which is where it is the actual reassurance. */}
+          {!isShopfront ? (
+            <p className="text-meta text-muted-foreground">
+              Including {PLATFORM_FEE_LABEL} NoDitto fee
+            </p>
           ) : null}
-          {formatAud(priceCents)}
-        </p>
+        </div>
         <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-meta font-semibold text-muted-foreground">
           {condition}
         </span>
       </div>
 
+      {/* The fee note moved onto the price row above. It matters most on a phone: the
+          contract room's Payment tab is behind a bottom sheet, so without it the only
+          figure a buyer sees before committing would be one that is 5% under the
+          charge. Suppressed for a binder, whose price is an indicative "from". */}
+
       {mobileMeta ? (
-        <p className="mt-2 text-meta text-muted-foreground md:hidden">{mobileMeta}</p>
+        <p
+          className="mt-2 text-meta text-muted-foreground md:hidden"
+          suppressHydrationWarning
+        >
+          {mobileMeta}
+        </p>
       ) : null}
       {desktopMeta ? (
         <p className="mt-2 hidden text-meta text-muted-foreground md:block">{desktopMeta}</p>
       ) : null}
 
       {isShopfront ? (
-        <p className="mt-4 flex gap-2 rounded-md border border-iris/30 bg-iris/10 p-2 text-body text-foreground">
+        <p className="mt-4 flex gap-2 rounded-md border border-border bg-iris/[0.07] p-2 text-body text-foreground">
           <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
           <span>
             This is a binder listing. Browse the collection and request specific

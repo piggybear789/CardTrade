@@ -143,6 +143,12 @@ export interface ArbitrationCase {
 /** A case with its derived triage fields. */
 export interface TriagedCase extends ArbitrationCase {
   priority: ArbitrationPriority;
+  /**
+   * Which escalation produced `priority` — the queue's "why is this here" column.
+   *
+   * Always consistent with `priority` by construction: see `PRIORITY_FOR_REASON`.
+   */
+  priorityReason: PriorityReason;
   /** Whole hours since the dispute was raised. Zero when `openedAt` is unknown. */
   ageHours: number;
   /** Hours until a hard deadline; negative once passed. Null when there is none. */
@@ -186,14 +192,73 @@ export function priorityOf(
   input: Pick<ArbitrationCase, 'hasHardDeadline' | 'deadlineAt' | 'fraudAlleged' | 'openedAt'>,
   now: Date,
 ): ArbitrationPriority {
+  return PRIORITY_FOR_REASON[priorityReasonOf(input, now)];
+}
+
+/**
+ * WHY a case sits where it sits in the queue.
+ *
+ * The same four branches as the priority above, reported rather than collapsed. A
+ * queue that orders itself by a rule nobody can see is a queue whose order gets
+ * argued with: an arbitrator looking at a NORMAL case above a HIGH one wants to know
+ * whether that is judgement or a bug, and "over the 48-hour target" answers it where
+ * an amber badge does not.
+ *
+ * `IN_ORDER` is not a non-answer. It means nothing has escalated this case and it is
+ * simply the oldest thing left, which is the correct reason for most of a healthy
+ * queue.
+ */
+export type PriorityReason =
+  /** A hard evidence deadline is inside the warning window, or has passed. */
+  | 'EVIDENCE_DEADLINE'
+  /** Someone has alleged fraud, and the collateral behind the remedy expires. */
+  | 'FRAUD_ALLEGED'
+  /** Nothing has escalated it, but it has been waiting past the SLA. */
+  | 'PAST_SLA'
+  /** Waiting its turn. */
+  | 'IN_ORDER';
+
+/**
+ * The priority each reason produces.
+ *
+ * DERIVED THIS WAY ROUND, deliberately: `priorityOf` reads the reason and maps it,
+ * rather than the two running separate branch chains over the same inputs. A row whose
+ * badge said CRITICAL while its explanation said "waiting its turn" is the exact
+ * failure a second copy of this logic would eventually produce.
+ */
+const PRIORITY_FOR_REASON: Record<PriorityReason, ArbitrationPriority> = {
+  EVIDENCE_DEADLINE: 'CRITICAL',
+  FRAUD_ALLEGED: 'HIGH',
+  PAST_SLA: 'HIGH',
+  IN_ORDER: 'NORMAL',
+};
+
+/** Which of the four escalations, if any, put this case where it is. */
+export function priorityReasonOf(
+  input: Pick<ArbitrationCase, 'hasHardDeadline' | 'deadlineAt' | 'fraudAlleged' | 'openedAt'>,
+  now: Date,
+): PriorityReason {
   if (input.hasHardDeadline && input.deadlineAt) {
     const hoursLeft = (Date.parse(input.deadlineAt) - now.getTime()) / 3_600_000;
-    if (!Number.isNaN(hoursLeft) && hoursLeft < DEADLINE_WARNING_HOURS) return 'CRITICAL';
+    if (!Number.isNaN(hoursLeft) && hoursLeft < DEADLINE_WARNING_HOURS) {
+      return 'EVIDENCE_DEADLINE';
+    }
   }
-  if (input.fraudAlleged) return 'HIGH';
-  if (hoursBetween(input.openedAt, now) >= ARBITRATION_SLA_HOURS) return 'HIGH';
-  return 'NORMAL';
+  if (input.fraudAlleged) return 'FRAUD_ALLEGED';
+  if (hoursBetween(input.openedAt, now) >= ARBITRATION_SLA_HOURS) return 'PAST_SLA';
+  return 'IN_ORDER';
 }
+
+/**
+ * The ordering rule, in words, for staff to read on the queue itself.
+ *
+ * Lives beside the derivation rather than in the page so the published rule and the
+ * applied rule are the same edit. Includes the exclusion, because "amount is not an
+ * input" is the part of this policy someone will otherwise assume is a bug.
+ */
+export const TRIAGE_RULE_SUMMARY =
+  `Ordered by evidence deadline first, then alleged fraud, then time waiting past ${ARBITRATION_SLA_HOURS}h. ` +
+  'Amount is shown but never affects the order: weighting by money would park small disputes forever.';
 
 const PRIORITY_RANK: Record<ArbitrationPriority, number> = {
   CRITICAL: 0,
@@ -210,9 +275,12 @@ export function triage(input: ArbitrationCase, now: Date = new Date()): TriagedC
       ? Math.floor((Date.parse(input.deadlineAt) - now.getTime()) / 3_600_000)
       : null;
 
+  const priorityReason = priorityReasonOf(input, now);
+
   return {
     ...input,
-    priority: priorityOf(input, now),
+    priorityReason,
+    priority: PRIORITY_FOR_REASON[priorityReason],
     ageHours: hoursBetween(input.openedAt, now),
     hoursToDeadline,
   };

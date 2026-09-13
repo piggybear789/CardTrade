@@ -119,7 +119,7 @@ export function PlacePicker({
           ) : null}
           <input
             id={id}
-            className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-body text-muted-foreground md:h-7"
+            className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-body text-muted-foreground md:h-8"
             value=""
             disabled
             readOnly
@@ -147,7 +147,7 @@ export function PlacePicker({
           // Bare field rather than an `Input`, so it restates the same box. `text-body`
           // unconditionally, tracking `Input` — see the note there on why the 16px
           // touch floor was dropped.
-          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-body md:h-7"
+          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-body md:h-8"
           value={textOnly}
           disabled={disabled}
           placeholder={textFallbackPlaceholder ?? 'Suburb or meeting place'}

@@ -16,6 +16,11 @@ import { CheckIcon, Search01Icon, XIcon } from '@hugeicons/core-free-icons';
 
 import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
 import { subscribeCatalogFilters } from '@/lib/catalog/browseEvents';
+import {
+  buildPriceLadderCents,
+  nearestPriceStop,
+  niceCeilingCents,
+} from '@/lib/catalog/priceLadder';
 
 import { useCatalogView } from '@/components/listings/CatalogView';
 import {
@@ -61,17 +66,10 @@ const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
   maximumFractionDigits: 0,
 });
 
-/** Price ceiling used when nothing is listed yet, so the slider still spans. */
-const FALLBACK_CEILING_CENTS = 100_000;
-
-/** Price slider stops below $10, where the bulk of listings sit. */
-const LOW_PRICE_STOPS_CENTS = [0, 200, 500];
-
-/**
- * Repeated for every decade from $10 up to the ceiling. Every multiplier lands
- * on a whole number of dollars at each decade, so no stop needs cents.
- */
-const PRICE_DECADE_MULTIPLIERS = [1, 1.5, 2, 3, 4, 5, 7.5];
+/* The ladder constants — the decade multipliers, the fallback ceiling and the low-price
+   stops — moved to `lib/catalog/priceLadder.ts` with the functions that used them, so
+   the histogram buckets against the same stops the slider thumbs snap to. See the note
+   there. */
 
 /** Condition filter options — matches ItemForm + adds "Graded" as a bucket. */
 const CONDITION_OPTIONS = [
@@ -299,6 +297,7 @@ export function CatalogFilters() {
                 priceLadder={priceLadder}
                 topStop={topStop}
                 ceilingCents={ceilingCents}
+                histogram={facets.priceHistogram}
                 choiceStyle="squares"
               />
             </div>
@@ -355,6 +354,7 @@ export function CatalogFilters() {
             priceLadder={priceLadder}
             topStop={topStop}
             ceilingCents={ceilingCents}
+            histogram={facets.priceHistogram}
             choiceStyle="list"
             collapsibleCondition
           />
@@ -376,6 +376,7 @@ function CatalogRefineFields({
   priceLadder,
   topStop,
   ceilingCents,
+  histogram,
   choiceStyle,
   collapsibleCondition = false,
 }: {
@@ -393,6 +394,12 @@ function CatalogRefineFields({
   priceLadder: number[];
   topStop: number;
   ceilingCents: number;
+  /**
+   * Relative listing density per ladder segment, from `CatalogFacets.priceHistogram`.
+   * Length is `priceLadder.length - 1`; empty renders no histogram at all rather than a
+   * flat bar, so a catalog with no prices does not imply a uniform spread.
+   */
+  histogram: number[];
   choiceStyle: 'squares' | 'list';
   /**
    * Put Condition behind a disclosure, closed unless it is already filtering.
@@ -446,6 +453,16 @@ function CatalogRefineFields({
             {priceRangeLabel(priceLadder, priceStops, topStop)}
           </p>
         </div>
+        {/* WHERE THE STOCK ACTUALLY IS, above the control that filters it. A range
+            slider tells a member what they CAN ask for and nothing about what asking
+            would return — so the common failure is dragging into an empty band and
+            reading the empty grid as a broken filter. `aria-hidden` because it is a
+            summary of the result count, which the results header states in words. */}
+        <PriceHistogram
+          buckets={histogram}
+          stops={priceStops}
+          segments={Math.max(priceLadder.length - 1, 0)}
+        />
         <Slider
           value={priceStops}
           onValueChange={(next) => onPriceStopsChange([next[0], next[1]])}
@@ -465,6 +482,21 @@ function CatalogRefineFields({
           <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
           <span>{AUD_WHOLE_FORMATTER.format(ceilingCents / 100)}+</span>
         </div>
+
+        {/* TYPED BOUNDS, BESIDE THE LADDER RATHER THAN INSTEAD OF IT.
+            
+            The ladder is the right mechanic — each drag stays proportionate to the price
+            it lands on — but it has exactly the stops it has, so a member who wants $500
+            when the nearest stop is $400 has no way to say so. These commit to the same
+            URL params the thumbs write, and `nearestPriceStop` snaps the thumbs to
+            follow, so the two controls stay one filter rather than becoming two. */}
+        <PriceBoundsFields
+          ladder={priceLadder}
+          stops={priceStops}
+          topStop={topStop}
+          disabled={isPending}
+          onCommit={onPriceCommit}
+        />
       </div>
 
       {/* The "ID-verified sellers only" toggle used to sit here. Removed because
@@ -710,56 +742,164 @@ function dollarsParam(cents: number): string {
   return String(Math.round(cents) / 100);
 }
 
+/* `niceCeilingCents`, `buildPriceLadderCents` and `nearestPriceStop` moved to
+   `lib/catalog/priceLadder.ts` so the facets query can bucket the histogram against the
+   same stops the thumbs snap to. See the note at the top of that file. */
+
 /**
- * Round a cents figure up to the next 1, 2, or 5 × 10ⁿ. Used for the slider's
- * top end so the track reads in round numbers and only moves when inventory
- * crosses an order of magnitude, rather than on every new high-value listing.
+ * Listing density per ladder segment, drawn above the range slider.
+ *
+ * DELIBERATELY NOT INTERACTIVE. It would be easy to make a bar click-to-select, and the
+ * reason not to is that a bar spans a SEGMENT while a thumb sits on a STOP — so a click
+ * has to guess whether the member meant the segment's lower or upper bound. The slider
+ * already expresses that unambiguously. This is a read.
+ *
+ * Bars inside the selected range are drawn at full strength and the rest recede, so the
+ * control shows both where the stock is and how much of it the current range covers.
  */
-function niceCeilingCents(cents: number): number {
-  if (!Number.isFinite(cents) || cents <= 0) return FALLBACK_CEILING_CENTS;
-  const magnitude = 10 ** Math.floor(Math.log10(cents));
-  for (const multiple of [1, 2, 5]) {
-    const candidate = multiple * magnitude;
-    if (candidate >= cents) return candidate;
-  }
-  return 10 * magnitude;
+function PriceHistogram({
+  buckets,
+  stops,
+  segments,
+}: {
+  buckets: number[];
+  stops: [number, number];
+  segments: number;
+}) {
+  // No data means no histogram. A flat row of minimum-height bars would read as "the
+  // stock is evenly spread", which is a claim we cannot make from an empty catalog.
+  if (buckets.length === 0 || segments === 0) return null;
+
+  const [minStop, maxStop] = stops;
+
+  return (
+    // INSET BY HALF A THUMB, so a bar boundary lands on the value the thumb would snap
+    // to. Radix positions a thumb by its CENTRE, so the slider's 0% is half a thumb in
+    // from the left edge of the control and 100% is half a thumb in from the right —
+    // the thumbs overhang the value range they describe. The histogram was `px-tight`
+    // (4px) against a `size-6` (24px) thumb, so measured against the live page every
+    // bar sat 8px left of the range it was drawing and the whole row was 16px wider
+    // than the scale underneath it. The first bar claimed to cover prices below the
+    // minimum the slider can express.
+    //
+    // The two values track the thumb: `size-5` on a phone, `size-6` from `md`.
+    <div
+      className="flex h-8 items-end gap-px px-2.5 md:px-3"
+      aria-hidden="true"
+    >
+      {buckets.map((share, segment) => {
+        // A segment is in range when the selection covers any part of it. The upper
+        // thumb sits ON a stop, so segment `maxStop - 1` is the last one included.
+        const inRange = segment >= minStop && segment < Math.max(maxStop, minStop + 1);
+        return (
+          <span
+            key={segment}
+            // A floor of 8%, so a segment holding one listing is still visibly
+            // different from one holding none. Without it the long tail of expensive
+            // cards reads as empty inventory.
+            style={{ height: `${Math.max(share * 100, share > 0 ? 8 : 2)}%` }}
+            className={cn(
+              'min-w-0 flex-1 rounded-t-[2px] transition-colors',
+              inRange ? 'bg-iris/70' : 'bg-iris/20',
+            )}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 /**
- * The prices the range slider can land on, a handful per order of magnitude
- * rather than one uniform step. A catalog spanning a few dollars to a few
- * thousand leaves a linear track no good option: a step fine enough for cheap
- * cards takes hundreds of key presses to cross, and one coarse enough to cross
- * is wider than most listings are worth. Stepping by magnitude keeps the low
- * end precise and the top end reachable.
+ * Typed minimum and maximum, committing to the same URL params as the thumbs.
+ *
+ * Local state while focused, committed on blur or Enter — not on every keystroke, which
+ * would fire a catalog fetch per digit and fight the member as they type "1500".
  */
-function buildPriceLadderCents(ceilingCents: number): number[] {
-  const stops = LOW_PRICE_STOPS_CENTS.filter((cents) => cents < ceilingCents);
-  for (let decadeCents = 1000; decadeCents < ceilingCents; decadeCents *= 10) {
-    for (const multiplier of PRICE_DECADE_MULTIPLIERS) {
-      const cents = multiplier * decadeCents;
-      if (cents < ceilingCents) stops.push(cents);
-    }
-  }
-  stops.push(ceilingCents);
-  return stops;
-}
+function PriceBoundsFields({
+  ladder,
+  stops,
+  topStop,
+  disabled,
+  onCommit,
+}: {
+  ladder: number[];
+  stops: [number, number];
+  topStop: number;
+  disabled: boolean;
+  onCommit: (next: [number, number]) => void;
+}) {
+  const [minStop, maxStop] = stops;
+  const openEnded = maxStop >= topStop;
 
-/**
- * Ladder position closest to a price, for seeding the thumbs from the URL.
- * Hand-written URLs can name any amount; the thumb takes the nearest stop.
- */
-function nearestPriceStop(ladder: number[], cents: number): number {
-  let nearest = 0;
-  let smallestGap = Infinity;
-  for (let stop = 0; stop < ladder.length; stop += 1) {
-    const gap = Math.abs(ladder[stop] - cents);
-    if (gap < smallestGap) {
-      nearest = stop;
-      smallestGap = gap;
-    }
+  // Mirrors the committed stops whenever they change from outside — a drag, a reset, a
+  // shared URL — so the fields never disagree with the thumbs.
+  const [draft, setDraft] = useState<{ min: string; max: string }>({ min: '', max: '' });
+  useEffect(() => {
+    setDraft({
+      min: minStop > 0 ? String(Math.round(ladder[minStop] / 100)) : '',
+      max: openEnded ? '' : String(Math.round(ladder[maxStop] / 100)),
+    });
+  }, [ladder, minStop, maxStop, openEnded]);
+
+  /** Snap a typed dollar amount onto the ladder and commit both thumbs. */
+  function commit(next: { min: string; max: string }) {
+    const minDollars = Number(next.min);
+    const maxDollars = Number(next.max);
+
+    const nextMin =
+      next.min.trim() === '' || !Number.isFinite(minDollars) || minDollars <= 0
+        ? 0
+        : nearestPriceStop(ladder, minDollars * 100);
+    const nextMax =
+      next.max.trim() === '' || !Number.isFinite(maxDollars) || maxDollars <= 0
+        ? topStop
+        : nearestPriceStop(ladder, maxDollars * 100);
+
+    // A member who types a minimum above their maximum means to move the bound they
+    // just touched, not to produce an empty range — so the pair is ordered rather than
+    // rejected. Rejecting would leave the field showing a value that is not filtering.
+    onCommit(nextMin <= nextMax ? [nextMin, nextMax] : [nextMax, nextMin]);
   }
-  return nearest;
+
+  return (
+    <div className="mt-cozy flex items-center gap-snug">
+      <Input
+        type="text"
+        inputMode="numeric"
+        value={draft.min}
+        disabled={disabled}
+        aria-label="Minimum price in dollars"
+        placeholder="Min"
+        onChange={(event) => setDraft((d) => ({ ...d, min: event.target.value }))}
+        onBlur={() => commit(draft)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit(draft);
+          }
+        }}
+        className="h-8 min-w-0 flex-1 px-2 text-meta tabular-nums"
+      />
+      <span className="text-meta text-muted-foreground">to</span>
+      <Input
+        type="text"
+        inputMode="numeric"
+        value={draft.max}
+        disabled={disabled}
+        aria-label="Maximum price in dollars"
+        placeholder="Any"
+        onChange={(event) => setDraft((d) => ({ ...d, max: event.target.value }))}
+        onBlur={() => commit(draft)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit(draft);
+          }
+        }}
+        className="h-8 min-w-0 flex-1 px-2 text-meta tabular-nums"
+      />
+    </div>
+  );
 }
 
 /** The price a single thumb stands for, spoken form included. */

@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoDitto board — 05 Staff &amp; system</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+<div class="board">
+
+<p class="crumbs"><a href="index.html">← Board index</a> · <a href="04-comms-account.html">← Comms &amp; account</a></p>
+<div class="board-top">
+  <div>
+    <p class="board-kicker">Sheet 05</p>
+    <h1>Staff &amp; system</h1>
+    <p>Admin operations, arbitration, help and policy, and the states nobody designs until they happen.
+      Staff surfaces get a different standard: density over comfort, because these are read all day.</p>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="admin">
+  <header>
+    <h2>Admin operations</h2>
+    <span class="route">/admin · requireAdmin() · lib/actions/admin.ts</span>
+    <p class="intent">
+      <b>Today:</b> an operations console covering stuck payouts, reports, reconciliation flags and the
+      custody position. <b>Proposal:</b> put custody reconciliation first. It is the only figure on the
+      console the payment provider owns rather than we do, which makes it the only one that can detect a
+      chargeback, a provider fee, or an automatic sweep draining the balance — none of which write a row.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span>
+          <nav><a>Marketplace</a><a class="on">Admin</a></nav>
+          <div class="dsearch">⌕ Find a member, contract or ref</div>
+          <div class="dicons"><span class="badge b-dang">STAFF</span>
+            <span class="me"><span class="avatar xs">OP</span> ops</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Admin</h1>
+            <div class="navlist mt-g"><a class="on">Operations</a>
+              <a>Arbitration <span class="n">7</span></a><a>Reports <span class="n">4</span></a>
+              <a>Payouts <span class="n">2</span></a><a>Members</a></div>
+            <div class="group"><span class="eyebrow">Your capability</span>
+              <div class="stack gap-s mt-s"><span class="meta trust-ink">✓ Arbitrate (support)</span>
+                <span class="meta trust-ink">✓ Moderate (admin)</span></div>
+              <p class="help">Two capabilities, not a hierarchy.</p></div>
+          </aside>
+          <section class="content">
+            <div class="between"><div><h2 class="h-head">Operations</h2>
+              <p class="meta muted mt-s">Saturday 12 September, 9:41 · figures from the provider are
+                hourly</p></div>
+              <span class="btn btn-outline sm">Refresh from Stripe</span></div>
+
+            <!-- custody first -->
+            <div class="card mt-g" style="border-color:hsl(var(--trust)/.45);background:hsl(var(--trust)/.04);position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <div class="between">
+                <div><span class="eyebrow">Custody reconciliation</span>
+                  <p class="h-sub mt-s">Platform balance matches what we owe</p></div>
+                <span class="badge b-trust">✓ Reconciled 9:07</span>
+              </div>
+              <div class="grid g4 mt-g">
+                <div><span class="meta muted">Stripe platform balance</span>
+                  <div class="strong num" style="font-size:var(--t-head)">$41,882.50</div>
+                  <p class="help">Provider-reported</p></div>
+                <div><span class="meta muted">Owed to sellers</span>
+                  <div class="strong num" style="font-size:var(--t-head)">$38,104.00</div>
+                  <p class="help">Escrowed + queued + frozen</p></div>
+                <div><span class="meta muted">Platform fee revenue</span>
+                  <div class="strong num" style="font-size:var(--t-head)">$3,778.50</div>
+                  <p class="help">Commingled by design</p></div>
+                <div><span class="meta muted">Unexplained difference</span>
+                  <div class="strong num trust-ink" style="font-size:var(--t-head)">$0.00</div>
+                  <p class="help">Anything here is a chargeback, a provider fee, or a sweep</p></div>
+              </div>
+              <div class="notice mt-g" style="background:hsl(var(--card))">
+                <span class="ico">🔒</span>
+                <span class="meta muted">Automatic payouts must stay <b>off</b> in the Stripe Dashboard.
+                  The balance is commingled, so a scheduled sweep to the platform's own bank account
+                  takes members' money with it. This figure is how we would find out.</span>
+              </div>
+            </div>
+
+            <div class="cols c-1-1 mt-g" style="gap:var(--s-group)">
+              <div class="card flat" style="position:relative">
+                <i class="pin abs" style="left:-9px;top:14px">2</i>
+                <div class="between" style="padding:var(--s-cozy) var(--s-group);border-bottom:1px solid hsl(var(--border))">
+                  <span class="eyebrow">Money that hasn't moved</span>
+                  <span class="badge b-warn">2 stuck</span></div>
+                <div class="listrow"><div class="lead"><div class="t">$228.00 · kitsunearia</div>
+                  <div class="s dang-ink">SELLER_NOT_PAYABLE · Stripe restricted · queued 4 days</div></div>
+                  <span class="btn btn-outline sm">Retry</span></div>
+                <div class="listrow"><div class="lead"><div class="t">$74.00 · bulkbins</div>
+                  <div class="s dang-ink">No merchant_ref · never onboarded · queued 11 days</div></div>
+                  <span class="btn btn-outline sm">Notify</span></div>
+                <div class="listrow"><div class="lead"><div class="t">3 trades in COLLATERAL_PENDING &gt; 24h</div>
+                  <div class="s">Holds may have failed silently</div></div>
+                  <span class="btn btn-outline sm">Inspect</span></div>
+                <div class="listrow"><div class="lead"><div class="t">1 hold expiring in &lt; 24h</div>
+                  <div class="s">Trade TR-4417 · authorisation lapses 13 Sep</div></div>
+                  <span class="btn btn-dang-o sm">Open</span></div>
+              </div>
+
+              <div class="card flat">
+                <div class="between" style="padding:var(--s-cozy) var(--s-group);border-bottom:1px solid hsl(var(--border))">
+                  <span class="eyebrow">Moderation queue</span><span class="badge b-secondary">4 open</span></div>
+                <div class="listrow"><div class="lead"><div class="t">Listing reported · counterfeit</div>
+                  <div class="s">"Charizard Base Set 1st Ed" · reported ×3 · 2h ago</div></div>
+                  <span class="btn btn-dang-o sm">Hide</span></div>
+                <div class="listrow"><div class="lead"><div class="t">User reported · abusive messages</div>
+                  <div class="s">cardsharp99 · reported by 2 members</div></div>
+                  <span class="btn btn-outline sm">Review</span></div>
+                <div class="listrow"><div class="lead"><div class="t">Avatar reported</div>
+                  <div class="s">bulkbins · 1 report</div></div>
+                  <span class="btn btn-outline sm">Clear</span></div>
+                <div class="listrow"><div class="lead"><div class="t">Listing reported · wrong category</div>
+                  <div class="s">low priority · 3d ago</div></div>
+                  <span class="btn btn-ghost sm">Dismiss</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — triage only</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">Admin</span>
+          <span class="badge b-dang">STAFF</span></div>
+        <div class="mbody">
+          <div class="card tint-mute" style="padding:var(--s-cozy);position:relative">
+            <i class="pin abs" style="right:6px;top:6px">3</i>
+            <span class="meta"><b>Read-only on mobile.</b>
+              <span class="muted">Money-moving actions and dispute decisions need a desktop — they're
+              irreversible and shouldn't be one mis-tap away.</span></span>
+          </div>
+
+          <div class="card mt-c" style="border-color:hsl(var(--trust)/.45);background:hsl(var(--trust)/.04);padding:var(--s-cozy)">
+            <div class="between"><span class="eyebrow">Custody</span>
+              <span class="badge b-trust">✓ $0.00 out</span></div>
+            <p class="help">Balance $41,882.50 · owed $38,104.00 · fees $3,778.50</p>
+          </div>
+
+          <p class="eyebrow mt-x">Needs a human today</p>
+          <div class="card flat mt-s">
+            <div class="listrow"><div class="lead"><div class="t">1 hold expires in &lt;24h</div>
+              <div class="s">Trade TR-4417</div></div><span class="badge b-dang">!</span></div>
+            <div class="listrow"><div class="lead"><div class="t">2 payouts stuck</div>
+              <div class="s">$302.00 total</div></div><span class="badge b-warn">2</span></div>
+            <div class="listrow"><div class="lead"><div class="t">7 arbitration cases</div>
+              <div class="s">2 breach SLA today</div></div><span class="badge b-dang">7</span></div>
+            <div class="listrow"><div class="lead"><div class="t">4 reports open</div>
+              <div class="s">1 counterfeit claim ×3</div></div><span class="badge b-secondary">4</span></div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>⚖</i>Cases</a><a class="on"><i>📊</i>Ops</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>Custody reconciliation goes to the top and gets a named "unexplained difference".</b>
+        Every other figure on this console is derived from our own rows, so it can only ever agree with
+        itself. This one compares the provider's balance against what we believe we owe, which makes it
+        the single control that can catch a chargeback, a provider fee, or an automatic sweep — and none
+        of those write a row anywhere. Naming the delta and stating what a non-zero value means turns a
+        reporting panel into an alarm.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="chg">CHANGE</span>
+        <b>Group by "money that hasn't moved" rather than by feature.</b> Stuck payouts, stale
+        <code>COLLATERAL_PENDING</code> trades and holds about to lapse are four different tables today
+        and one question operationally: what is at risk right now? The expiring hold in particular has a
+        hard clock — an authorisation that lapses removes a trader's protection silently.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>Mobile admin is read-only, and says so.</b> Retrying a payout, resolving a fraud finding and
+        capturing collateral are irreversible and move real money. A phone-sized target for any of them
+        is a liability, and a staff member who knows the constraint up front stops looking for the button.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b><code>requireStaff()</code> and <code>requireAdmin()</code> as two capabilities rather than a
+        hierarchy</b> — and showing the viewer which they hold, since nothing derives one from the other.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="queue">
+  <header>
+    <h2>Arbitration queue</h2>
+    <span class="route">/admin/arbitration · domain/arbitration/arbitrationCase.ts</span>
+    <p class="intent">
+      <b>Today:</b> a triage list over disputed sales, trades and chargebacks, with priority derived
+      from deadlines, fraud allegations and SLA — deliberately <em>not</em> from amount, because
+      weighting by money parks small disputes forever. <b>Proposal:</b> make that priority model visible,
+      so a case's position in the queue is explicable to the staff member working it.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d tall">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a class="on">Admin</a></nav>
+          <div class="dsearch">⌕ Find a member, contract or ref</div>
+          <div class="dicons"><span class="badge b-dang">STAFF</span>
+            <span class="me"><span class="avatar xs">OP</span> ops</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Arbitration</h1>
+            <div class="navlist mt-g"><a>Operations</a><a class="on">All cases <span class="n">7</span></a>
+              <a>Breaching SLA <span class="n">2</span></a><a>Mine <span class="n">3</span></a>
+              <a>Fraud alleged <span class="n">1</span></a><a>Chargebacks <span class="n">1</span></a>
+              <a>Decided</a></div>
+            <div class="group" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:8px">1</i>
+              <span class="eyebrow">How priority is set</span>
+              <ol class="help" style="padding-left:16px;margin-top:6px;line-height:1.8">
+                <li>Nearest hard deadline</li><li>Fraud alleged</li>
+                <li>Time already waiting vs SLA</li><li>Then by age</li></ol>
+              <p class="help"><b>Never by amount.</b> Weighting by money parks small disputes forever.</p>
+            </div>
+          </aside>
+          <section class="content">
+            <div class="between"><div><h2 class="h-head">Cases</h2>
+              <p class="meta muted mt-s">7 open · 2 breaching SLA · $3,182 frozen across all cases</p></div>
+              <div class="row gap-s"><span class="select" style="width:170px;height:34px">Priority order</span>
+                <span class="btn btn-outline sm">Export</span></div></div>
+
+            <div class="card flat mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">2</i>
+              <table class="tbl">
+                <thead><tr><th style="width:26px"></th><th>Case</th><th>Why it's here</th>
+                  <th>Waiting</th><th>Evidence</th><th class="r">Frozen</th><th>Assigned</th><th></th></tr></thead>
+                <tbody>
+                  <tr style="background:hsl(var(--destructive)/.06)">
+                    <td><span class="badge b-dang" style="padding:1px 5px">1</span></td>
+                    <td><div class="stack"><span class="strong">TR-4417 · trade</span>
+                      <span class="meta muted">pipmaster vs frostbite</span></div></td>
+                    <td><div class="stack"><span class="meta dang-ink strong">Hold lapses in 19h</span>
+                      <span class="meta muted">capture becomes impossible after that</span></div></td>
+                    <td><span class="meta">3d 4h</span><br><span class="meta dang-ink">SLA +1d</span></td>
+                    <td><span class="meta">4 / 2</span></td>
+                    <td class="r num">$1,340</td>
+                    <td><span class="meta muted">—</span></td>
+                    <td class="r"><span class="btn btn-dang sm">Take</span></td>
+                  </tr>
+                  <tr style="background:hsl(var(--destructive)/.04)">
+                    <td><span class="badge b-dang" style="padding:1px 5px">2</span></td>
+                    <td><div class="stack"><span class="strong">CS-8102 · sale</span>
+                      <span class="meta muted">buyer alleges fraud</span></div></td>
+                    <td><div class="stack"><span class="meta dang-ink strong">🚩 Fraud alleged</span>
+                      <span class="meta muted">a finding bans an account</span></div></td>
+                    <td><span class="meta">2d 1h</span><br><span class="meta dang-ink">SLA today</span></td>
+                    <td><span class="meta">6 / 1</span></td>
+                    <td class="r num">$920</td>
+                    <td><span class="row gap-t"><span class="avatar xs">OP</span><span class="meta">you</span></span></td>
+                    <td class="r"><span class="btn btn-action sm">Open</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge b-warn" style="padding:1px 5px">3</span></td>
+                    <td><div class="stack"><span class="strong">CS-8241 · sale</span>
+                      <span class="meta muted">condition dispute</span></div></td>
+                    <td><div class="stack"><span class="meta">Both sides submitted</span>
+                      <span class="meta muted">ready to decide</span></div></td>
+                    <td><span class="meta">1d 6h</span><br><span class="meta muted">SLA 2d left</span></td>
+                    <td><span class="meta">3 / 2</span></td>
+                    <td class="r num">$1,942</td>
+                    <td><span class="row gap-t"><span class="avatar xs">OP</span><span class="meta">you</span></span></td>
+                    <td class="r"><span class="btn btn-outline sm">Open</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge b-secondary" style="padding:1px 5px">4</span></td>
+                    <td><div class="stack"><span class="strong">CS-7994 · return</span>
+                      <span class="meta muted">buyer disputes the return</span></div></td>
+                    <td><div class="stack"><span class="meta">Return deadline 19 Sep</span></div></td>
+                    <td><span class="meta">18h</span></td>
+                    <td><span class="meta">1 / 0</span></td>
+                    <td class="r num">$86</td>
+                    <td><span class="meta muted">—</span></td>
+                    <td class="r"><span class="btn btn-outline sm">Take</span></td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge b-secondary" style="padding:1px 5px">5</span></td>
+                    <td><div class="stack"><span class="strong">CB-0031 · chargeback</span>
+                      <span class="meta muted">Stripe · not as described</span></div></td>
+                    <td><div class="stack"><span class="meta">Respond to Stripe by 18 Sep</span></div></td>
+                    <td><span class="meta">6h</span></td>
+                    <td><span class="meta">2 / —</span></td>
+                    <td class="r num">$240</td>
+                    <td><span class="meta muted">—</span></td>
+                    <td class="r"><span class="btn btn-outline sm">Take</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-d tall">
+      <p class="frame-label">Desktop · 1280 — <span>case view (<code id="case">/admin/arbitration/[kind]/[ref]</code>)</span></p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a class="on">Admin</a></nav>
+          <div class="dsearch">⌕ Find a member, contract or ref</div>
+          <div class="dicons"><span class="badge b-dang">STAFF</span>
+            <span class="me"><span class="avatar xs">OP</span> ops</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Case CS-8102</h1>
+            <div class="navlist mt-g"><a class="on">This case</a><a>← Back to queue</a></div>
+            <div class="group"><span class="eyebrow">Frozen</span>
+              <div class="strong num mt-s" style="font-size:var(--t-head)">$920.00</div>
+              <p class="help">Neither party can be paid until this is decided.</p>
+              <div class="stack gap-s mt-c"><span class="meta dang-ink strong">SLA breaches today</span>
+                <span class="meta muted">Opened 10 Sep, 6:02pm</span></div></div>
+          </aside>
+          <section class="content">
+            <div class="between">
+              <div><div class="row gap-s"><span class="badge b-dang">🚩 Fraud alleged</span>
+                <span class="badge b-secondary">Cash sale</span></div>
+                <h2 class="h-head mt-s">Umbreon VMAX Alt Art · $920.00</h2>
+                <p class="meta muted mt-s">cardsharp99 (buyer) vs kitsunearia (seller) · opened 10 Sep</p></div>
+              <span class="btn btn-outline sm">Open the contract room →</span>
+            </div>
+
+            <div class="cols c-3-2 mt-g" style="gap:var(--s-group)">
+              <div class="stack gap-g">
+                <div class="card" style="position:relative">
+                  <i class="pin abs" style="left:-9px;top:14px">3</i>
+                  <span class="eyebrow">The contract, as agreed</span>
+                  <div class="mtable mt-s">
+                    <div class="mr"><span class="k">Goods on the contract</span>
+                      <span class="v">Umbreon VMAX Alt Art · Near Mint</span></div>
+                    <div class="mr"><span class="k">Agreed price</span><span class="v num">$920.00</span></div>
+                    <div class="mr"><span class="k">Handover</span><span class="v">Posted · AusPost 33ABC…</span></div>
+                    <div class="mr"><span class="k">Carrier delivered</span><span class="v">6 Sep, 11:20am</span></div>
+                    <div class="mr"><span class="k">Dispute raised</span><span class="v">10 Sep, 6:02pm · by the buyer</span></div>
+                  </div>
+                  <p class="help">Read from the contract, never from the listing — the listing may have
+                    been edited since.</p>
+                </div>
+
+                <div class="card">
+                  <div class="between"><span class="eyebrow">Evidence</span>
+                    <span class="meta muted">6 from the buyer · 1 from the seller</span></div>
+                  <div class="row gap-c mt-c" style="align-items:flex-start">
+                    <span class="avatar">CS</span>
+                    <div style="flex:1"><span class="meta strong">cardsharp99 · 10 Sep, 6:04pm</span>
+                      <p class="meta muted mt-s">Card arrived with a crease through the holo and a
+                        soft corner. Not near mint. Photos as unpacked plus the mailer.</p>
+                      <div class="row gap-s mt-c"><div class="thumb s ph-img"></div><div class="thumb s ph-img"></div>
+                        <div class="thumb s ph-img"></div><div class="thumb s ph-img"></div></div></div>
+                  </div>
+                  <div class="hr"></div>
+                  <div class="row gap-c" style="align-items:flex-start">
+                    <span class="avatar">KA</span>
+                    <div style="flex:1"><span class="meta strong">kitsunearia · 11 Sep, 8:40am</span>
+                      <p class="meta muted mt-s">Photographed before packing, no crease. Sent in a
+                        sleeve, toploader and team bag.</p>
+                      <div class="row gap-s mt-c"><div class="thumb s ph-img"></div></div></div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <span class="eyebrow">Both parties' record</span>
+                  <div class="grid g2 mt-s" style="gap:var(--s-group)">
+                    <div class="mtable">
+                      <div class="mr"><span class="k">cardsharp99</span><span class="v">buyer</span></div>
+                      <div class="mr"><span class="k meta">Purchases</span><span class="v meta num">4</span></div>
+                      <div class="mr"><span class="k meta">Disputes raised</span><span class="v meta num dang-ink">3</span></div>
+                      <div class="mr"><span class="k meta">Upheld</span><span class="v meta num">1</span></div>
+                    </div>
+                    <div class="mtable">
+                      <div class="mr"><span class="k">kitsunearia</span><span class="v">seller</span></div>
+                      <div class="mr"><span class="k meta">Sales</span><span class="v meta num">62</span></div>
+                      <div class="mr"><span class="k meta">Disputes against</span><span class="v meta num">1</span></div>
+                      <div class="mr"><span class="k meta">Upheld</span><span class="v meta num trust-ink">0</span></div>
+                    </div>
+                  </div>
+                  <p class="help">Behavioural history only. There is deliberately no identity dossier —
+                    the platform has no basis to hand a person's identity documents to a private
+                    individual on the strength of an in-app finding.</p>
+                </div>
+              </div>
+
+              <div class="stack gap-g">
+                <div class="card tint-warn" style="position:relative">
+                  <i class="pin abs" style="left:-9px;top:14px">4</i>
+                  <span class="eyebrow">Decide</span>
+                  <p class="help">Every option below moves real money and is not reversible from here.</p>
+                  <div class="stack gap-s mt-c">
+                    <div class="card" style="padding:var(--s-cozy);background:hsl(var(--card))">
+                      <div class="between"><span class="meta strong">Refund the buyer in full</span>
+                        <span class="meta num">$920.00</span></div>
+                      <p class="help">Goods are with the buyer → opens a return. Refund releases on
+                        carrier-confirmed delivery back to the seller.</p></div>
+                    <div class="card" style="padding:var(--s-cozy);background:hsl(var(--card))">
+                      <div class="between"><span class="meta strong">Complete the sale</span>
+                        <span class="meta num">$874.00 to seller</span></div>
+                      <p class="help">Buyer keeps the card, seller is paid net of the 5% fee.</p></div>
+                    <div class="card" style="padding:var(--s-cozy);background:hsl(var(--card))">
+                      <div class="between"><span class="meta strong dang-ink">Confirm objective fraud</span>
+                        <span class="meta num">$920.00 to victim</span></div>
+                      <p class="help"><b>Permanently bans the responsible account</b>, removes their
+                        listings from the catalog, and blocklists their identity key so a new account
+                        verifying as the same person is refused.</p></div>
+                  </div>
+                  <div class="field mt-g" style="margin:0"><span class="label">Reasoning (recorded)</span>
+                    <div class="textarea" style="min-height:64px"><span class="muted">Visible to both
+                      parties…</span></div></div>
+                  <span class="btn btn-primary w mt-c">Record the decision</span>
+                </div>
+
+                <div class="card">
+                  <span class="eyebrow">Case notes</span>
+                  <p class="help">Internal. Not shown to either party.</p>
+                  <div class="listrow" style="padding:var(--s-snug) 0"><div class="lead">
+                    <div class="s"><b>ops</b> · 11 Sep — buyer's third dispute in four purchases; asked
+                      for the mailer photo.</div></div></div>
+                  <span class="btn btn-outline sm w mt-s">Add a note</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>Publish the priority model in the rail.</b> The ordering rule is a genuinely considered piece
+        of design — deadline, then fraud, then SLA, and explicitly never amount — and a staff member who
+        cannot see it will assume the queue is wrong when a $86 case outranks a $1,942 one.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>A "why it's here" column.</b> Each row states the fact that put it at its position, with the
+        hard deadline first. "Hold lapses in 19h — capture becomes impossible after that" is the most
+        operationally important sentence the queue can carry: after that moment a fraud finding cannot be
+        paid, whatever the decision.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="keep">KEEP</span> <span class="add">ADD</span>
+        <b>Read the contract, not the listing — and say so.</b> Contract line items and the trade's goods
+        description exist precisely so arbitration has something to adjudicate. Labelling the panel
+        "as agreed" makes the guarantee explicit for the person relying on it.
+      </div></li>
+      <li><i class="pin">4</i><div><span class="add">ADD</span>
+        <b>Each outcome states its consequence, in money and in effect.</b> A fraud finding is the most
+        severe action in the product — a permanent ban plus an identity blocklist — and it currently
+        looks like the third button in a list. Showing the amount and the effect per option is the
+        difference between a decision and a click.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>No identity dossier.</b> The behavioural record is the right evidence surface, and the reason
+        the Police Evidence Pack was withdrawn should stay visible on this page so nobody proposes it
+        again.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="help">
+  <header>
+    <h2>Help &amp; policy</h2>
+    <span class="route">/help · /terms · /privacy · app/(marketing)</span>
+    <p class="intent">
+      <b>Today:</b> three static pages. <b>Proposal:</b> help is not marketing — it is the page linked
+      from every "how does this work?" in the product, so it should be organised by the questions the
+      contract rooms raise, and it should be honest that the policies are not counsel-reviewed.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d tall">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a><a>Deals</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Help</h1>
+            <div class="navlist mt-g" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:6px">1</i>
+              <a class="on">How escrow works</a><a>Verification</a><a>Postage &amp; handover</a>
+              <a>⇄ Trades &amp; collateral</a><a>Disputes &amp; returns</a><a>Getting paid</a>
+              <a>Fees</a><a>Regions</a></div>
+            <div class="group"><span class="eyebrow">Policies</span>
+              <div class="navlist mt-s"><a>Terms</a><a>Privacy</a></div></div>
+          </aside>
+          <section class="content">
+            <div style="max-width:70ch">
+              <p class="eyebrow">Help</p>
+              <h1 class="h-display mt-s">How escrow works</h1>
+              <p class="muted mt-c">The short version: you pay NoDitto, not the seller. We hold the
+                money until you've had the card in your hands and said it's right.</p>
+
+              <div class="card mt-x" id="holds" style="position:relative">
+                <i class="pin abs" style="left:-9px;top:14px">2</i>
+                <span class="eyebrow">A cash purchase, step by step</span>
+                <div class="vtl mt-c">
+                  <div class="vstep done"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+                    <div class="panel"><div class="t">You and the seller agree terms</div>
+                      <div class="w">Price, and whether it's posted or handed over. Nothing is charged.</div></div></div>
+                  <div class="vstep done"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+                    <div class="panel"><div class="t">You pay — we hold it</div>
+                      <div class="w">Your card is charged the price plus our 5% fee. The seller is not
+                        paid and cannot be.</div></div></div>
+                  <div class="vstep done"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+                    <div class="panel"><div class="t">The seller posts or meets you</div>
+                      <div class="w">Posted sales carry tracking. The clock only starts on carrier-confirmed
+                        delivery — not on anyone's word.</div></div></div>
+                  <div class="vstep now"><div class="gut"><span class="pipdot"></span><span class="bar"></span></div>
+                    <div class="panel"><div class="t">You have 7 days to inspect it</div>
+                      <div class="w">Accept it, or report a problem. If you do nothing the sale completes
+                        on its own and the seller is paid.</div></div></div>
+                  <div class="vstep"><div class="gut"><span class="pipdot"></span></div>
+                    <div class="panel"><div class="t">The seller is paid</div>
+                      <div class="w">The price, less our 5% fee. Postage is passed straight through.</div></div></div>
+                </div>
+              </div>
+
+              <h2 class="h-sub mt-x">What our fee pays for</h2>
+              <div class="card mt-s"><div class="mtable">
+                <div class="mr"><span class="k">Our fee</span><span class="v">5% of the card price</span></div>
+                <div class="mr"><span class="k">Charged to</span><span class="v">the buyer, at payment</span></div>
+                <div class="mr"><span class="k">Postage</span><span class="v">passed through — we take none of it</span></div>
+                <div class="mr"><span class="k">Refunded?</span><span class="v">Yes, in full, if the sale is refunded in full</span></div>
+              </div></div>
+
+              <div class="notice mt-x"><span class="ico">✉</span>
+                <div><b class="meta">Still stuck?</b>
+                  <span class="meta muted">Message the other party first — most things resolve there.
+                    If they haven't replied in 48 hours, we'll step in.</span></div>
+                <span class="btn btn-outline sm spread">Contact support</span></div>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — terms</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">←</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">Terms</span>
+          <span class="btn btn-ghost icon">⌕</span></div>
+        <div class="mbody">
+          <div class="notice warn" style="position:relative">
+            <i class="pin abs" style="right:-4px;top:10px">3</i>
+            <span class="ico">ℹ</span>
+            <span class="meta muted">These terms are written by us and have not been reviewed by a
+              lawyer. They describe how NoDitto actually behaves. They are not legal advice.</span>
+          </div>
+
+          <p class="meta muted mt-c">Last updated 2 September 2026 · <b class="iris-ink">what
+            changed</b></p>
+
+          <div class="card mt-c" style="padding:var(--s-cozy)">
+            <span class="eyebrow">In plain terms</span>
+            <ul class="meta muted" style="margin:6px 0 0;padding-left:18px;line-height:1.75">
+              <li>We hold buyers' money; we don't lend it or invest it.</li>
+              <li>We are not a bank and hold no balance for you.</li>
+              <li>Sellers are individuals, not us. We don't own the cards.</li>
+              <li>Confirmed fraud means a permanent ban.</li>
+              <li>Trading is Australia only for now.</li>
+            </ul>
+          </div>
+
+          <p class="eyebrow mt-x">Sections</p>
+          <div class="card flat mt-s">
+            <div class="listrow"><div class="lead"><div class="t">1. Who we are</div></div><span class="arrow">›</span></div>
+            <div class="listrow"><div class="lead"><div class="t">2. Your account</div></div><span class="arrow">›</span></div>
+            <div class="listrow"><div class="lead"><div class="t">3. Buying and escrow</div></div><span class="arrow">›</span></div>
+            <div class="listrow"><div class="lead"><div class="t">4. Selling and payouts</div></div><span class="arrow">›</span></div>
+            <div class="listrow"><div class="lead"><div class="t">5. Trades and collateral</div></div><span class="arrow">›</span></div>
+            <div class="listrow"><div class="lead"><div class="t">6. Disputes and fraud</div></div><span class="arrow">›</span></div>
+            <div class="listrow"><div class="lead"><div class="t">7. Fees</div></div><span class="arrow">›</span></div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a class="on"><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>Organise help by the questions the product raises, with stable anchors.</b> The contract room's
+        pay dialog already deep-links to <code>/help#holds</code>, which is the right instinct — the help
+        page should be built around those destinations rather than as prose that happens to contain them.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Reuse the step timeline to explain escrow.</b> The same component that shows a member where
+        their own purchase is up to, used with no live data, is the clearest possible explanation — and it
+        means the help page and the room teach the same shape.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>Say the policies are not counsel-reviewed, and lead with a plain-terms summary.</b> The product
+        documentation already records that terms and privacy are product policy rather than legal advice.
+        Members deserve the same disclosure, and the five bullets that matter — we hold money, we are not
+        a bank, sellers are individuals, fraud means a ban, Australia only — are worth more than the
+        seven sections beneath them.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="states">
+  <header>
+    <h2>System states</h2>
+    <span class="route">not-found.tsx · error.tsx · /account-suspended · loading.tsx</span>
+    <p class="intent">
+      <b>Today:</b> an <code>EmptyState</code> primitive with page/compact/fill variants, a
+      <code>SectionLoadError</code>, skeletons that redraw the real chrome so the rail doesn't flash, and
+      a deliberate rule that a failed <em>read</em> throws to <code>error.tsx</code> rather than claiming
+      a listing was removed. That last decision is better than most products manage.
+      <b>Proposal:</b> keep all of it, and give the suspension page the one thing it lacks — a route out.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — four states</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a class="on">Marketplace</a><a>Sell</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">KA</span> kitsune</span></div></div>
+        <div style="flex:1;padding:var(--s-group);overflow:hidden;background:hsl(var(--sidebar))">
+          <div class="grid g2" style="gap:var(--s-group)">
+
+            <div class="card" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">1</i>
+              <span class="eyebrow">Listing not found · 404</span>
+              <div class="empty" style="padding:var(--s-group) 0">
+                <div class="ico">🔍</div>
+                <h2 class="h-sub">This listing isn't here any more</h2>
+                <p class="help" style="max-width:44ch;margin:6px auto 0">It may have sold, or the seller
+                  may have taken it down. Nothing has gone wrong with your account.</p>
+                <div class="row gap-s mt-g" style="justify-content:center">
+                  <span class="btn btn-primary sm">Browse similar cards</span>
+                  <span class="btn btn-outline sm">Your saved listings</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">2</i>
+              <span class="eyebrow">Something failed · error.tsx</span>
+              <div class="empty" style="padding:var(--s-group) 0">
+                <div class="ico" style="background:hsl(var(--destructive)/.1);color:hsl(var(--destructive))">⚠</div>
+                <h2 class="h-sub">We couldn't load this</h2>
+                <p class="help" style="max-width:46ch;margin:6px auto 0">Something on our side went
+                  wrong — this doesn't mean the listing or contract is gone. Your money and your
+                  contracts are unaffected.</p>
+                <div class="row gap-s mt-g" style="justify-content:center">
+                  <span class="btn btn-primary sm">Try again</span>
+                  <span class="btn btn-outline sm">Go to the marketplace</span></div>
+                <p class="help mt-c num">Reference 8f2c-41ab · 12 Sep 9:41</p>
+              </div>
+            </div>
+
+            <div class="card" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">3</i>
+              <span class="eyebrow">Account suspended · fraud only</span>
+              <div style="padding:var(--s-cozy) 0">
+                <div class="row gap-c" style="align-items:flex-start">
+                  <div class="ico" style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:hsl(var(--destructive)/.1);color:hsl(var(--destructive));font-size:17px">🚫</div>
+                  <div><h2 class="h-sub">Your account is closed</h2>
+                    <p class="help">A NoDitto staff member found objective fraud on a contract you were
+                      part of, on 4 September 2026. This is permanent.</p></div>
+                </div>
+                <div class="card tint-mute mt-c" style="padding:var(--s-cozy)">
+                  <span class="meta strong">What happens to your money and your cards</span>
+                  <div class="mtable mt-s" style="gap:var(--s-snug)">
+                    <div class="mr"><span class="k meta">Contracts you were owed on</span>
+                      <span class="v meta">settled or refunded to the other party</span></div>
+                    <div class="mr"><span class="k meta">Your listings</span>
+                      <span class="v meta">removed from the catalog</span></div>
+                    <div class="mr"><span class="k meta">Anything still in transit</span>
+                      <span class="v meta">contact support below</span></div>
+                  </div>
+                </div>
+                <div class="row gap-s mt-c">
+                  <span class="btn btn-outline sm">Ask us to review this</span>
+                  <span class="btn btn-ghost sm">Download your data</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="position:relative">
+              <i class="pin abs" style="left:-9px;top:14px">4</i>
+              <span class="eyebrow">Loading · skeletons</span>
+              <div class="mt-c">
+                <div class="row gap-c"><div class="skel" style="width:120px;height:20px"></div>
+                  <div class="skel spread" style="width:90px;height:20px"></div></div>
+                <div class="row gap-s mt-c"><div class="skel" style="width:52px;height:30px;border-radius:999px"></div>
+                  <div class="skel" style="width:70px;height:30px;border-radius:999px"></div>
+                  <div class="skel" style="width:60px;height:30px;border-radius:999px"></div>
+                  <div class="skel" style="width:76px;height:30px;border-radius:999px"></div></div>
+                <div class="grid g3 mt-c" style="gap:var(--s-snug)">
+                  <div><div class="skel" style="height:96px;border-radius:8px"></div>
+                    <div class="skel mt-s" style="height:12px"></div>
+                    <div class="skel mt-s" style="height:12px;width:60%"></div></div>
+                  <div><div class="skel" style="height:96px;border-radius:8px"></div>
+                    <div class="skel mt-s" style="height:12px"></div>
+                    <div class="skel mt-s" style="height:12px;width:60%"></div></div>
+                  <div><div class="skel" style="height:96px;border-radius:8px"></div>
+                    <div class="skel mt-s" style="height:12px"></div>
+                    <div class="skel mt-s" style="height:12px;width:60%"></div></div>
+                </div>
+                <p class="help mt-c">Same geometry as the real grid, so nothing shifts when it lands.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — empty states</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="t" style="flex:1">Saved</span></div>
+        <div class="mbody">
+          <div class="card" style="padding:var(--s-cozy);position:relative">
+            <i class="pin abs" style="right:6px;top:6px">5</i>
+            <div class="empty" style="padding:var(--s-group) 0">
+              <div class="ico">♡</div>
+              <h2 class="h-sub">Nothing saved yet</h2>
+              <p class="help" style="margin-top:6px">Tap the heart on any listing to keep an eye on it.
+                We'll tell you if the price drops or it sells.</p>
+              <span class="btn btn-primary sm mt-g">Browse the marketplace</span>
+            </div>
+          </div>
+
+          <div class="card mt-c" style="padding:var(--s-cozy)">
+            <div class="empty" style="padding:var(--s-group) 0">
+              <div class="ico">📍</div>
+              <h2 class="h-sub">Nothing listed in New Zealand yet</h2>
+              <p class="help" style="margin-top:6px">Trading is Australia-only for now, so you can look
+                but not buy. We'll open more regions as we can settle payments in them.</p>
+              <span class="btn btn-outline sm mt-g">Browse Australian listings</span>
+            </div>
+          </div>
+
+          <div class="card mt-c" style="padding:var(--s-cozy)">
+            <div class="empty" style="padding:var(--s-group) 0">
+              <div class="ico" style="background:hsl(var(--destructive)/.1);color:hsl(var(--destructive))">⚠</div>
+              <h2 class="h-sub">Couldn't load your saved listings</h2>
+              <p class="help" style="margin-top:6px">A problem on our side. Your saved listings are
+                safe.</p>
+              <span class="btn btn-primary sm mt-g">Try again</span>
+            </div>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a class="on"><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>A 404 on a listing should offer the two things the member wanted.</b> "Sold or removed, and
+        your account is fine" plus routes to similar cards and their watchlist. The distinction between
+        "gone" and "broken" is already enforced server-side; the copy should carry it too.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>An error reference, and a sentence about money.</b> On a platform holding escrowed funds, the
+        first fear behind any error page is financial. Say contracts and money are unaffected, and give
+        support something to search for.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>The suspension page needs an appeal route and a data export.</b> This is the most consequential
+        page in the product — a permanent ban following a staff fraud finding, with an identity blocklist
+        behind it — and a dead end with no review path is both a fairness problem and a support problem,
+        since the member will simply email from a new address. Saying what happened to their in-flight
+        contracts closes the other obvious question.
+      </div></li>
+      <li><i class="pin">4</i><div><span class="keep">KEEP</span>
+        <b>Skeletons that redraw the real chrome.</b> Drawing the actual nav so the rail doesn't flash,
+        and reserving heights from the type scale, is careful work and it should be the standard for any
+        new loading state.
+      </div></li>
+      <li><i class="pin">5</i><div><span class="chg">CHANGE</span>
+        <b>Every empty state says what would fill it.</b> Most already do. The region-empty case is worth
+        singling out: "trading is Australia-only for now" is a real, explicable limit, and a member who
+        is told why does not conclude the app is broken.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<p class="crumbs" style="margin-top:28px"><a href="index.html">← Board index</a> ·
+  <a href="01-discovery.html">Back to Discovery →</a></p>
+
+</div>
+</body>
+</html>

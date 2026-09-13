@@ -439,8 +439,16 @@ export function OnboardingWizard({
                     aria-pressed={regionCode === region.code}
                     className={cn(
                       'flex items-center gap-4 rounded-lg border p-4 text-left transition-colors',
+                      // The accent pair, which is what `ChoiceTile` uses and what
+                      // globals.css names as THE selected look. What was here —
+                      // `border-primary bg-primary/5 ring-1 ring-primary` — is the exact
+                      // anti-pattern that comment calls out: a 5%-alpha primary wash
+                      // measures about 1.1:1 and is invisible, so the state was being
+                      // carried entirely by a violet border plus a violet ring drawn
+                      // 1px outside it. Two violet lines around a tile, for a choice
+                      // the accent surface states on its own.
                       regionCode === region.code
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        ? 'border-border bg-accent text-accent-foreground'
                         : 'hover:border-foreground/20 hover:bg-muted/50',
                     )}
                   >
@@ -463,7 +471,7 @@ export function OnboardingWizard({
                   button, which reads as a broken page.
                 */}
                 {regionChoices.length === 0 ? (
-                  <p className="rounded-lg border border-dashed p-4 text-body text-muted-foreground">
+                  <p className="rounded-lg border border-border bg-muted p-4 text-body text-muted-foreground">
                     No regions are open for deals right now. Please try again shortly —
                     you can still browse listings in the meantime.
                   </p>
@@ -505,7 +513,7 @@ export function OnboardingWizard({
                   className={cn(
                     'flex items-center gap-4 rounded-lg border p-4 text-left transition-colors',
                     intent === 'buyer'
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      ? 'border-border bg-accent text-accent-foreground'
                       : 'hover:border-foreground/20 hover:bg-muted/50',
                   )}
                 >
@@ -526,7 +534,7 @@ export function OnboardingWizard({
                   className={cn(
                     'flex items-center gap-4 rounded-lg border p-4 text-left transition-colors',
                     intent === 'seller'
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      ? 'border-border bg-accent text-accent-foreground'
                       : 'hover:border-foreground/20 hover:bg-muted/50',
                   )}
                 >

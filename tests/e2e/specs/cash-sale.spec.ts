@@ -20,8 +20,11 @@
 //   * There is NO progress rail in this room any more, and nothing replaced it —
 //     see `currentStep` below and F73. The live step survives only as the action
 //     card's `sr-only` <h3>, which is what `currentStep` reads.
-//     Steps: "Set handover terms" → "Payment collected and held" →
-//     fulfilment (ship or handover) → complete the purchase.
+//     Steps: "Set handover terms" → pay → fulfilment (ship or handover) → accept.
+//     STEP LABELS ARE ROLE-DEPENDENT: the party who owes the action reads an
+//     imperative ("Post it and add the tracking number"), the other reads
+//     "Waiting for <name> to …". Assertions below match either voice unless the
+//     test is standing on a known side of the contract.
 //   * The buyer pays as soon as terms exist. There is no seller confirm.
 
 import { test, expect } from '../support/fixtures';
@@ -67,7 +70,11 @@ const PRICE_DOLLARS = '150.00';
  * unrendered, an `.or(button)` arm can only ever match something that is not the step
  * label, which would make a passing assertion prove the wrong thing.
  */
-function currentStep(page: Page, name: string) {
+// `RegExp` as well as `string`, because a step's label is now ROLE-DEPENDENT: the
+// party who owes the action reads an imperative ("Post it and add the tracking
+// number") and the other reads a wait ("Waiting for Alice to post it"). A single
+// literal would pin each assertion to one side of the contract.
+function currentStep(page: Page, name: string | RegExp) {
   return page.getByRole('heading', { name, level: 3 });
 }
 
@@ -261,7 +268,9 @@ test.describe.serial('Cash sale lifecycle', () => {
     await expect(dialog).toBeHidden({ timeout: 25_000 });
 
     // Terms proposed, so the buyer can pay.
-    await expect(currentStep(page, 'Payment collected and held')).toBeAttached({
+    await expect(
+      currentStep(page, /(Pay to start the escrow|Waiting for .+ to pay)/i),
+    ).toBeAttached({
       timeout: 25_000,
     });
 
@@ -327,7 +336,9 @@ test.describe.serial('Cash sale lifecycle', () => {
     // available is the same fact stated in a way that does not depend on which
     // fulfilment method the contract took.
     await expect(
-      page.getByRole('heading', { name: /Seller ships with tracking/i }),
+      page.getByRole('heading', {
+        name: /(Post it and add the tracking number|Waiting for .+ to post it)/i,
+      }),
     ).toBeVisible({ timeout: 40_000 });
 
     await ctx.close();
@@ -346,7 +357,9 @@ test.describe.serial('Cash sale lifecycle', () => {
     //
     // Matched by placeholder because these inputs carry no visible <label>.
     await expect(
-      sellerPage.getByRole('heading', { name: /Seller ships with tracking/i }),
+      sellerPage.getByRole('heading', {
+        name: /Post it and add the tracking number/i,
+      }),
     ).toBeVisible({ timeout: 30_000 });
 
     // FILLED VIA `fillAndConfirm`, which verifies the value reached React state.

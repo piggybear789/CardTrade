@@ -53,7 +53,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
 
   return (
     <section
-      className="cardtrade-demo rounded-lg border border-dashed"
+      className="cardtrade-demo rounded-lg border"
       aria-label="Hackathon test mode controls"
     >
       <button

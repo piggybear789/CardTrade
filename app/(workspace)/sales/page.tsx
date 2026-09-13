@@ -16,10 +16,15 @@ import {
 } from '@/components/layout/MarketplaceShell';
 import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHeader';
 import {
-  SectionFilter,
-  partitionByScope,
-  resolveScope,
+  ContractFilter,
+  contractsForScope,
+  groupContracts,
+  resolveContractScope,
 } from '@/components/layout/SectionFilter';
+import {
+  ContractScopeEmptyState,
+  needsViewer,
+} from '@/components/account/ContractRow';
 import { isCashSalePast } from '@/lib/lifecycle';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -36,7 +41,7 @@ export default async function SalesPage({
   searchParams: Promise<{ show?: string | string[] }>;
 }) {
   const { show } = await searchParams;
-  const scope = resolveScope(show);
+  const scope = resolveContractScope(show);
   const [user, result, invitesResult] = await Promise.all([
     getCachedAuthUser(),
     getMySales(),
@@ -46,12 +51,16 @@ export default async function SalesPage({
     redirect('/sign-in?redirectTo=/sales');
   }
 
-  const { active, past } = partitionByScope(result.ok ? result.data : [], (sale) =>
-    isCashSalePast(sale.status),
+  const groups = groupContracts(
+    result.ok ? result.data : [],
+    (sale) => isCashSalePast(sale.status),
+    (sale) => needsViewer(sale.nextMove),
   );
+  // Invites belong with what is still live, and only there: a pending invite is not a
+  // contract, so it has no step plan and cannot be filed under whose move it is.
   const pendingInvites =
-    scope === 'past' || !invitesResult.ok ? [] : invitesResult.data;
-  const visibleSales = scope === 'past' ? past : active;
+    scope === 'active' && invitesResult.ok ? invitesResult.data : [];
+  const visibleSales = contractsForScope(groups, scope);
   const hasInvites = pendingInvites.length > 0;
   const hasRows = hasInvites || visibleSales.length > 0;
 
@@ -67,11 +76,11 @@ export default async function SalesPage({
         description="Items you are selling. Open a contract to set terms, ship, and get paid."
         mobileAction={hasRows ? createListing() : undefined}
       />
-      <SectionFilter
+      <ContractFilter
         scope={scope}
         basePath="/sales"
-        activeCount={active.length + (scope === 'past' ? 0 : pendingInvites.length)}
-        pastCount={past.length}
+        groups={groups}
+        extraActive={invitesResult.ok ? invitesResult.data.length : 0}
       />
       {hasInvites ? (
         <section aria-labelledby="deal-invites-heading" className="mb-8">
@@ -83,7 +92,11 @@ export default async function SalesPage({
       ) : null}
       {result.ok ? (
         visibleSales.length > 0 || !hasInvites ? (
-          <CashSalesSection sales={visibleSales} variant="sales" />
+          <CashSalesSection
+            sales={visibleSales}
+            variant="sales"
+            empty={<ContractScopeEmptyState scope={scope} noun="sales" />}
+          />
         ) : null
       ) : (
         <SectionLoadError label="sales" />

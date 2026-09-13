@@ -8,6 +8,15 @@ export const ITEM_FORM_ID = 'listing-item-form';
 
 export type ItemFormChromeContext = {
   submitting: boolean;
+  /**
+   * The submit control's resting label — "Create listing" or "Save changes".
+   *
+   * Published by the form rather than derived in the header, because the form is
+   * the thing that knows which mode it is in. The header only knew about `/new`
+   * when this was create-only, and an edit chrome guessing the label would be a
+   * second place that mapping lives.
+   */
+  label: string;
 };
 
 let current: ItemFormChromeContext | null = null;
@@ -16,7 +25,7 @@ const listeners = new Set<() => void>();
 function same(a: ItemFormChromeContext | null, b: ItemFormChromeContext | null) {
   if (a === b) return true;
   if (!a || !b) return false;
-  return a.submitting === b.submitting;
+  return a.submitting === b.submitting && a.label === b.label;
 }
 
 export function publishItemFormChrome(next: ItemFormChromeContext | null) {

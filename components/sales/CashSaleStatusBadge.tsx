@@ -23,9 +23,17 @@ export const CASH_SALE_STATUS_MAP: ContractStatusMap<CashSaleStatus> = {
   IN_TRANSIT: { label: 'In transit', tone: 'default' },
   HANDOVER: { label: 'Handover', tone: 'default' },
   INSPECTION: { label: 'Inspection', tone: 'default' },
-  COMPLETED: { label: 'Completed', tone: 'default' },
+  // Teal, not the solid violet every live status uses. See the `trust` variant in
+  // `ui/badge` — a settled contract has to be distinguishable from a running one at a
+  // glance, and it was not.
+  COMPLETED: { label: 'Completed', tone: 'trust' },
   DISPUTED: { label: 'Disputed', tone: 'destructive' },
-  CANCELLED: { label: 'Cancelled', tone: 'outline' },
+  // `secondary`, matching `TRADE_STATUS_MAP`. These two maps disagreed on this one
+  // state for no stated reason — it was `outline` here and `secondary` there — so one
+  // state had two appearances depending on which room you were standing in. The trade
+  // map carries the reasoning worth keeping: walking away is a normal outcome, not a
+  // failure, so it reads neutral rather than as a ghost.
+  CANCELLED: { label: 'Cancelled', tone: 'secondary' },
   FAILED: { label: 'Stripe failed', tone: 'destructive' },
   REFUNDED: { label: 'Refunded', tone: 'outline' },
   // Return-conditional refund (0088). Labelled from the RETURN's point of view rather

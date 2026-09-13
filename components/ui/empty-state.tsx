@@ -128,7 +128,7 @@ export function EmptyState({
         isPage
           ? 'max-md:px-0'
           : cn(
-              'rounded-lg border border-dashed border-border bg-card max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:px-0',
+              'rounded-lg border border-border bg-card max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:px-0',
               // `flex-1` and nothing else: the root already centres both axes, so
               // taking the column's leftover height is the whole of the change.
               // `flex-basis: 0` means a short viewport still falls back to the

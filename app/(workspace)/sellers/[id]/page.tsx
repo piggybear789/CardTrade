@@ -1,18 +1,22 @@
-// app/sellers/[id]/page.tsx
 //
 // Public seller profile (Phase 5). A dynamic Server Component that shows a
 // seller's public identity (display name, aggregate rating, Verified badge),
-// their AVAILABLE listings, and the reviews other traders have left about them.
+// their listings, and the reviews other traders have left about them.
 //
 // All seller fields come from the catalog-safe `public_profiles` view (never
 // contact email / raw KYC status). Listings are read from `items` (RLS exposes
-// AVAILABLE rows publicly). Reviews come from `getReviewsFor` (public select).
+// AVAILABLE and SOLD rows publicly since 0108). Reviews come from `getReviewsFor`
+// (public select).
+//
+// THE PAGE IS THREE STACKED BANDS, NOT A SPLIT. Header, then the trust band, then a
+// tab strip over the panels. An earlier design put trust facts in a left rail beside
+// the listings grid; the rails could not agree on height, so the grid started at a
+// different y depending on whether the seller had a trading name. See the note in
+// `SellerTrustBand`.
 
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Building02Icon, ShieldCheckIcon, Store01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -31,6 +35,8 @@ import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
+import { SellerTrustBand } from '@/components/profile/SellerTrustBand';
+import { TabbedPanels, type TabDescriptor } from '@/components/ui/tabbed-panels';
 import type {
   CatalogItem,
   CatalogSeller,
@@ -39,6 +45,15 @@ import type {
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+
+/**
+ * A seller's sold history is shown for price reference, so it is capped rather than
+ * paginated: past this many rows the tab stops being a signal and starts being an
+ * archive, which is not what a buyer opened it for.
+ */
+const SOLD_LIMIT = 24;
+
+type SellerTabId = 'listings' | 'sold' | 'reviews';
 
 export async function generateMetadata({
   params,
@@ -58,17 +73,19 @@ export async function generateMetadata({
 
 export default async function SellerProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { tab: rawTab }] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
 
   // Public, catalog-safe seller identity.
   const { data: sellerRow } = await supabase
     .from('public_profiles')
     .select(
-      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links, bio',
+      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links, bio, region_code',
     )
     .eq('id', id)
     .maybeSingle();
@@ -77,32 +94,60 @@ export default async function SellerProfilePage({
     notFound();
   }
 
-  // THREE INDEPENDENT READS, ONE ROUND TRIP. Each of these needs only `id` (or
-  // nothing at all), so writing them as three statements cost two round trips of
+  // FIVE INDEPENDENT READS, ONE ROUND TRIP. Each of these needs only `id` (or
+  // nothing at all), so writing them as five statements would cost four round trips of
   // pure latency in front of a public, shareable page. Only the `notFound` guard
   // above genuinely has to happen first.
-  const [user, sellerIdentity, { data: itemsData, error: itemsError }] =
-    await Promise.all([
-      // Resolve the viewer so we can offer a report affordance when an
-      // authenticated user is viewing *someone else's* profile (never their own).
-      getCachedAuthUser(),
-      // Narrow, buyer-safe merchant identity — only populated once provider
-      // compliance has approved this seller (Req 4.8-4.12). Never exposes
-      // contact, bank, document, credential, or compliance-note fields.
-      loadSellerIdentityDisclosure(id),
-      // The seller's AVAILABLE listings (RLS allows AVAILABLE reads publicly).
-      supabase
-        .from('items')
-        .select('*')
-        .eq('owner_id', id)
-        .eq('status', 'AVAILABLE')
-        // A closed shopfront takes no new contracts, so it must not appear on the
-        // seller's public profile either (0064).
-        .is('closed_at', null)
-        .eq('hidden', false)
-        .in('category', CARD_GAME_NAMES)
-        .order('created_at', { ascending: false }),
-    ]);
+  const [
+    user,
+    sellerIdentity,
+    { data: itemsData, error: itemsError },
+    { data: soldData },
+    saleStats,
+  ] = await Promise.all([
+    // Resolve the viewer so we can offer a report affordance when an
+    // authenticated user is viewing *someone else's* profile (never their own),
+    // and so the tiles can carry a watch control.
+    getCachedAuthUser(),
+    // Narrow, buyer-safe merchant identity — only populated once provider
+    // compliance has approved this seller (Req 4.8-4.12). Never exposes
+    // contact, bank, document, credential, or compliance-note fields.
+    loadSellerIdentityDisclosure(id),
+    // The seller's AVAILABLE listings (RLS allows AVAILABLE reads publicly).
+    supabase
+      .from('items')
+      .select('*')
+      .eq('owner_id', id)
+      .eq('status', 'AVAILABLE')
+      // A closed shopfront takes no new contracts, so it must not appear on the
+      // seller's public profile either (0064).
+      .is('closed_at', null)
+      .eq('hidden', false)
+      .in('category', CARD_GAME_NAMES)
+      .order('created_at', { ascending: false }),
+    // Sell-through history. A SEPARATE query rather than `.in('status', [...])` on the
+    // one above: a single query would have to be capped in total, and a seller with a
+    // long back catalogue would then have their sold rows crowd out the listings
+    // anyone actually came to buy.
+    //
+    // `status = 'SOLD'` is publicly readable from 0108, which also records why: it is
+    // a price comparable, and it is the same sell-through history any marketplace
+    // carries. Note a SHOPFRONT never reaches SOLD (0064), so nothing here is a binder.
+    supabase
+      .from('items')
+      .select('*')
+      .eq('owner_id', id)
+      .eq('status', 'SOLD')
+      .is('closed_at', null)
+      .eq('hidden', false)
+      .in('category', CARD_GAME_NAMES)
+      .order('created_at', { ascending: false })
+      .limit(SOLD_LIMIT),
+    // Aggregate-only reputation counts (0010). EXECUTE is granted to `authenticated`
+    // alone, so this fails for a signed-out visitor by design — the error is read as
+    // "not disclosed to you" and the figure is omitted, never rendered as zero.
+    supabase.rpc('member_sale_stats', { p_profile_id: id }),
+  ]);
 
   const canReport = Boolean(user) && user!.id !== id;
 
@@ -117,12 +162,68 @@ export default async function SellerProfilePage({
   };
 
   const items = (itemsData ?? []) as ItemRow[];
-  const catalogItems: CatalogItem[] = items.map((item) => ({
-    ...item,
-    seller,
-  }));
+  const soldItems = (soldData ?? []) as ItemRow[];
+  const withSeller = (row: ItemRow): CatalogItem => ({ ...row, seller });
+  const catalogItems = items.map(withSeller);
+  const catalogSoldItems = soldItems.map(withSeller);
+
+  // NULL IS NOT ZERO. `member_sale_stats` is security-definer and member-executable,
+  // so an authenticated viewer gets a real count; a guest gets a permission error and
+  // no figure at all. Collapsing the two would tell a signed-out buyer that an
+  // established seller has never completed a sale.
+  const statsRow = Array.isArray(saleStats.data) ? saleStats.data[0] : saleStats.data;
+  const completedSales = saleStats.error
+    ? null
+    : ((statsRow as { completed_sales: number | null } | null | undefined)
+        ?.completed_sales ?? 0);
+
+  // WATCH STATE NEEDS THE VIEWER, so it cannot join the batch above. This mirrors
+  // `fetchCatalogPage`, which resolves its page and then asks one question about it.
+  // Only the available tiles get a control: a heart on a sold card would save
+  // something that can never come back.
+  let watchingIds = new Set<string>();
+  if (user && catalogItems.length > 0) {
+    const { data: watchRows } = await supabase
+      .from('watchlist')
+      .select('item_id')
+      .eq('user_id', user.id)
+      .in(
+        'item_id',
+        catalogItems.map((item) => item.id),
+      );
+    watchingIds = new Set((watchRows ?? []).map((row) => row.item_id as string));
+  }
 
   const displayName = seller.displayName ?? 'Unknown seller';
+
+  // A tab is only offered when it has something behind it. An empty "Sold" tab on a
+  // new seller's profile is not neutral — it reads as a record of having sold nothing.
+  const tabs: TabDescriptor<SellerTabId>[] = [
+    { id: 'listings', label: 'Listings', href: `/sellers/${id}`, count: items.length || undefined },
+    ...(soldItems.length > 0
+      ? [
+          {
+            id: 'sold' as const,
+            label: 'Sold',
+            href: `/sellers/${id}?tab=sold`,
+            count: soldItems.length,
+          },
+        ]
+      : []),
+    {
+      id: 'reviews',
+      label: 'Reviews',
+      href: `/sellers/${id}?tab=reviews`,
+      count: seller.ratingCount || undefined,
+    },
+  ];
+
+  // Resolved HERE rather than in the strip so the server's first paint already shows
+  // the right panel. A `?tab=` naming a tab this seller does not have falls back to
+  // the first, which is also what the strip does when answering Back.
+  const rawTabValue = Array.isArray(rawTab) ? rawTab[0] : rawTab;
+  const initialTab: SellerTabId =
+    tabs.find((entry) => entry.id === rawTabValue)?.id ?? 'listings';
 
   return (
     <MarketplaceShell title="Seller">
@@ -171,12 +272,16 @@ export default async function SellerProfilePage({
             </div>
             {/* `seller.ratingCount` rather than the fetched list: it is the same
                 aggregate, it arrives with the profile row, and reading it here
-                is what lets the reviews themselves stream in below. */}
+                is what lets the reviews themselves stream in below.
+
+                THE LINK IS A TAB, NOT AN ANCHOR. It used to be `#reviews`, which
+                worked while every section was on the page at once; the reviews now
+                live in a panel, and an in-page hash cannot open one. */}
             {seller.ratingCount > 0 ? (
               <Link
-                href="#reviews"
+                href={`/sellers/${id}?tab=reviews`}
                 className="w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
-                aria-label={`Jump to ${seller.ratingCount} reviews`}
+                aria-label={`Read ${seller.ratingCount} reviews`}
               >
                 <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
               </Link>
@@ -185,9 +290,9 @@ export default async function SellerProfilePage({
             )}
             <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
             {/* MEMBER-AUTHORED, so it is presented as their words and nothing more.
-                Deliberately NOT inside the identity disclosure block below, which
-                carries provider-verified facts — putting self-written copy there
-                would borrow that block's credibility for text anyone can type.
+                Deliberately NOT inside the trust band below, which carries
+                provider-verified facts — putting self-written copy there
+                would borrow that band's credibility for text anyone can type.
                 `whitespace-pre-line` keeps intentional line breaks; `break-words`
                 stops an unbroken 280-character string widening the layout. */}
             {sellerRow.bio ? (
@@ -208,97 +313,106 @@ export default async function SellerProfilePage({
           )}
         </div>
 
-        {sellerIdentity ? (
-          <div className="mt-2 rounded-lg border bg-muted p-3">
-            <div className="text-trust mb-3 flex items-center gap-2 text-body font-medium">
-              {/* Same glyph as IdentityBadge: one fact, one icon vocabulary. */}
-              <HugeiconsIcon icon={ShieldCheckIcon} className="h-4 w-4" aria-hidden />
-              Identity verified via Stripe
-            </div>
-            <dl className="grid gap-3 sm:grid-cols-2">
-              {sellerIdentity.tradingName ? (
-                <div className="min-w-0">
-                  <dt className="flex items-center gap-tight text-meta text-muted-foreground">
-                    <HugeiconsIcon icon={Store01Icon} className="h-3.5 w-3.5" aria-hidden />
-                    Store
-                  </dt>
-                  <dd className="break-words text-body font-medium">
-                    {sellerIdentity.tradingName}
-                  </dd>
-                </div>
-              ) : null}
-              <div className="min-w-0">
-                <dt className="flex items-center gap-tight text-meta text-muted-foreground">
-                  <HugeiconsIcon icon={Building02Icon} className="h-3.5 w-3.5" aria-hidden />
-                  Verified name
-                </dt>
-                <dd className="break-words text-body font-medium">
-                  {sellerIdentity.legalEntityName}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-meta text-muted-foreground">Verified</dt>
-                <dd className="text-body">
-                  {new Date(sellerIdentity.verifiedAt).toLocaleDateString('en-AU')}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        ) : null}
+        <SellerTrustBand
+          legalName={sellerIdentity?.legalEntityName ?? null}
+          tradingName={sellerIdentity?.tradingName ?? null}
+          verifiedAt={sellerIdentity?.verifiedAt ?? null}
+          regionCode={(sellerRow.region_code as string | null) ?? null}
+          completedSales={completedSales}
+        />
       </header>
 
-      {/* Listings */}
-      <section aria-labelledby="listings-heading" className="mb-8">
-        {/* `text-subhead`, the size every other panel heading in the app takes —
-            `CardTitle`, `DialogTitle` and `SheetTitle` are all `text-subhead
-            font-semibold`. This was `text-body md:text-subhead`, which on a phone
-            set a section heading at body size: the exact size of the body copy under
-            it, and two notches below the seller's name in the same outline. */}
-        <h2 id="listings-heading" className="mb-3 text-subhead font-semibold md:mb-4">
-          Available listings
-        </h2>
-        {itemsError ? (
-          <SectionLoadError label="listings" />
-        ) : catalogItems.length === 0 ? (
-          <EmptyState
-            title="No Available Listings"
-            titleAs="h3"
-            description="This seller has no available listings right now."
-            compact
-          />
-        ) : (
-          <div className={CATALOG_TILE_GRID}>
-            {catalogItems.map((item) => (
-              <CatalogItemCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ONLY THE LIST STREAMS. `getReviewsFor` is a two-stage fetch and awaiting
-          it inline made the seller's name, badge and entire listings grid wait on
-          the one section below the fold — the worst position-to-value ratio on
-          the route.
-
-          THE SECTION AND ITS HEADING STAY OUT HERE, and that is not cosmetic: a
-          first cut put them inside both the fallback and the resolved child, so
-          `id="reviews"` and `id="reviews-heading"` each existed twice while the
-          stream was in flight. Duplicate ids are invalid, they make
-          `aria-labelledby` ambiguous, and the anchor from the rating link could
-          resolve to a placeholder. Rendering the frame once and suspending only
-          its contents avoids all three. The count comes from the profile row's
-          aggregate, so it needs no await. */}
-      <section id="reviews" aria-labelledby="reviews-heading" className="scroll-mt-24">
-        <h2
-          id="reviews-heading"
-          className="mb-3 text-subhead font-semibold md:mb-4"
-        >
-          Reviews {seller.ratingCount > 0 ? `(${seller.ratingCount})` : ''}
-        </h2>
-        <Suspense fallback={<SellerReviewsFallback />}>
-          <SellerReviewsList sellerId={id} displayName={displayName} />
-        </Suspense>
-      </section>
+      {/* ONE STRIP, THREE PANELS, ALL SERVER-RENDERED ONCE. Switching is local state,
+          so a buyer comparing a seller's stock against their reviews does not pay a
+          round trip each way. The panels were stacked sections before, which meant
+          the reviews sat under however many tiles the seller happened to have. */}
+      <TabbedPanels
+        tabs={tabs}
+        initialTab={initialTab}
+        label="Seller sections"
+        layoutId="seller-tabs"
+        panels={{
+          listings: (
+            <section aria-labelledby="listings-heading">
+              {/* The strip names this panel visually, so the heading is for the
+                  document outline and for anyone navigating by heading — these are
+                  URL tabs rather than an ARIA tabs widget, so there is no
+                  `tabpanel`/`aria-labelledby` pairing doing the job instead. */}
+              <h3 id="listings-heading" className="sr-only">
+                Available listings
+              </h3>
+              {itemsError ? (
+                <SectionLoadError label="listings" />
+              ) : catalogItems.length === 0 ? (
+                <EmptyState
+                  title="No Available Listings"
+                  titleAs="h4"
+                  description="This seller has no available listings right now."
+                  compact
+                />
+              ) : (
+                <div className={CATALOG_TILE_GRID}>
+                  {catalogItems.map((item) => (
+                    <CatalogItemCard
+                      key={item.id}
+                      item={item}
+                      // `undefined` hides the control entirely, which is what a guest
+                      // and the seller themselves should both get: one cannot save,
+                      // the other would be saving their own card.
+                      initialWatching={
+                        user && item.owner_id !== user.id
+                          ? watchingIds.has(item.id)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          ),
+          sold: (
+            <section aria-labelledby="sold-heading">
+              <h3 id="sold-heading" className="sr-only">
+                Recently sold
+              </h3>
+              {/* ONE line of context, because a sold card in a grid otherwise reads as
+                  something to buy. The tiles badge themselves too, but the reason the
+                  tab exists — a price the seller actually achieved — is worth saying
+                  once. No watch control: nothing here can come back. */}
+              <p className="mb-group text-meta text-muted-foreground">
+                What this seller has already sold, newest first. Prices shown are what
+                each card was listed at.
+              </p>
+              <div className={CATALOG_TILE_GRID}>
+                {catalogSoldItems.map((item) => (
+                  <CatalogItemCard key={item.id} item={item} />
+                ))}
+              </div>
+            </section>
+          ),
+          reviews: (
+            // ONLY THE LIST STREAMS. `getReviewsFor` is a two-stage fetch and awaiting
+            // it inline made the seller's name, badge and entire listings grid wait on
+            // one panel.
+            //
+            // THE SECTION AND ITS HEADING STAY OUTSIDE THE BOUNDARY, and that is not
+            // cosmetic: a first cut put them inside both the fallback and the resolved
+            // child, so `id="reviews-heading"` existed twice while the stream was in
+            // flight. Duplicate ids are invalid and they make `aria-labelledby`
+            // ambiguous. Rendering the frame once and suspending only its contents
+            // avoids both. The count comes from the profile row's aggregate, so the
+            // tab's own label needs no await.
+            <section id="reviews" aria-labelledby="reviews-heading">
+              <h3 id="reviews-heading" className="sr-only">
+                Reviews of {displayName}
+              </h3>
+              <Suspense fallback={<SellerReviewsFallback />}>
+                <SellerReviewsList sellerId={id} displayName={displayName} />
+              </Suspense>
+            </section>
+          ),
+        }}
+      />
     </MarketplaceShell>
   );
 }

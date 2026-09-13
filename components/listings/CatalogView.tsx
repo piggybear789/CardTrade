@@ -290,8 +290,18 @@ export function useCatalogView(): CatalogViewValue {
   return value;
 }
 
-/** Count under the catalog heading. Updates live while the filter is typed. */
-export function CatalogResultCount({ note }: { note?: string }) {
+/**
+ * Count BESIDE the catalog heading. Updates live while the filter is typed.
+ *
+ * It used to sit underneath, where it read as a subtitle to the title rather than as the
+ * size of the thing being looked at. Every browse reference puts it on the heading line —
+ * "All Listings · 1,284 items" — and the caller now composes it that way, which is why
+ * this no longer carries its own top margin.
+ *
+ * The "closer matches" note moved out to the caller for the same reason: appended here
+ * it lengthened the heading row, and it belongs on its own line under it.
+ */
+export function CatalogResultCount() {
   const { filter, matchCount, result } = useCatalogView();
   const filtering = filter.trim() !== '';
   const count = filtering ? (matchCount ?? 0) : result.total;
@@ -303,15 +313,12 @@ export function CatalogResultCount({ note }: { note?: string }) {
     // Visually hiding it keeps the region in the tree and keeps the count
     // available to a screen reader at every width.
     <p
-      className="sr-only text-pretty text-meta text-muted-foreground sm:not-sr-only sm:mt-0.5 sm:text-body"
+      className="sr-only shrink-0 text-pretty text-meta tabular-nums text-muted-foreground sm:not-sr-only sm:text-body"
       aria-live="polite"
     >
-      <span className="tabular-nums">
-        {filtering
-          ? `${COUNT_FORMATTER.format(count)} matching`
-          : `${COUNT_FORMATTER.format(count)} ${count === 1 ? 'listing' : 'listings'}`}
-      </span>
-      {note ? <span>{` · ${note}`}</span> : null}
+      {filtering
+        ? `${COUNT_FORMATTER.format(count)} matching`
+        : `${COUNT_FORMATTER.format(count)} ${count === 1 ? 'listing' : 'listings'}`}
     </p>
   );
 }

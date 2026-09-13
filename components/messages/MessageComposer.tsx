@@ -51,6 +51,14 @@ export interface MessageComposerProps {
   inputId: string;
   /** Tighter field for the contract pane. */
   compact?: boolean;
+  /**
+   * Applied to a wrapper INSIDE the form, around the field and its buttons.
+   *
+   * For capping the field to the same reading column as the message log above it — see
+   * `MESSAGE_COLUMN`. Deliberately not on the form: the form draws the rule that
+   * separates the composer from the log, and that has to span the full pane.
+   */
+  contentClassName?: string;
   /** Omit to fall back to waiting for the round trip. */
   optimistic?: ComposerOptimistic;
 }
@@ -59,6 +67,7 @@ export function MessageComposer({
   conversationId,
   placeholder = 'Write a message…',
   inputId,
+  contentClassName,
   compact = false,
   optimistic,
 }: MessageComposerProps) {
@@ -213,6 +222,11 @@ export function MessageComposer({
         compact ? 'max-md:px-0 max-md:pb-0' : 'max-md:px-cozy max-md:pb-0',
       )}
     >
+      {/* The RULE spans the pane, its CONTENTS do not. `contentClassName` caps the field
+          to the same column the message log uses, so the two agree; putting that cap on
+          the form itself would pull the border-t in with it and leave the composer
+          looking like a floating card rather than the bottom of the surface. */}
+      <div className={cn('min-w-0', contentClassName)}>
       <label htmlFor={inputId} className="sr-only">
         Write a message
       </label>
@@ -320,6 +334,7 @@ export function MessageComposer({
           {error}
         </p>
       ) : null}
+      </div>
     </form>
   );
 }

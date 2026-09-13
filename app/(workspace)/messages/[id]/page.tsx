@@ -12,9 +12,11 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
-import { getConversation } from '@/lib/actions/messages';
+import { getConversation, listMyConversations } from '@/lib/actions/messages';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { ChatThread } from '@/components/messages/ChatThread';
+import { InboxThreadList } from '@/components/messages/InboxThreadList';
+import { InboxTwoPane } from '@/components/messages/InboxTwoPane';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -48,17 +50,42 @@ export default async function ConversationPage({
 
   const { conversation, other, item, trade, sale, shipment } = result.data;
 
+  // The list beside the thread, from `lg` (see `InboxTwoPane`). Fetched here rather than
+  // in a shared segment layout: the list holds no realtime subscription and no client
+  // state — it is a server-rendered set of links — so a layout would buy only a saved
+  // refetch, at the cost of a route-aware pane that has to hide itself on `/messages`.
+  //
+  // A FAILED LIST MUST NOT COST THE READER THEIR THREAD. This is secondary navigation for
+  // a page whose actual subject already loaded, so an error degrades to no pane.
+  const inbox = await listMyConversations();
+  const conversations = inbox.ok ? inbox.conversations : [];
+  const unread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+
   return (
-    <MarketplaceShell title="Messages" flush>
-      <ChatThread
-        conversationId={conversation.id}
-        currentUserId={user.id}
-        otherName={other.displayName}
-        otherAvatarPath={other.avatarPath}
-        item={item}
-        trade={trade}
-        sale={sale}
-        shipment={shipment}
+    // `fill`: the two-pane inbox caps its own content — a fixed-width list pane and a
+    // 44rem reading column — so the shell's 90rem cap only left dead space beside it.
+    <MarketplaceShell title="Messages" flush fill>
+      <InboxTwoPane
+        countLabel={unread > 0 ? `${unread} unread` : null}
+        list={
+          <InboxThreadList
+            conversations={conversations}
+            variant="rail"
+            activeId={conversation.id}
+          />
+        }
+        detail={
+          <ChatThread
+            conversationId={conversation.id}
+            currentUserId={user.id}
+            otherName={other.displayName}
+            otherAvatarPath={other.avatarPath}
+            item={item}
+            trade={trade}
+            sale={sale}
+            shipment={shipment}
+          />
+        }
       />
     </MarketplaceShell>
   );

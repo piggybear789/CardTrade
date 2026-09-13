@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoDitto board — 02 Getting in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+<div class="board">
+
+<p class="crumbs"><a href="index.html">← Board index</a> · <a href="01-discovery.html">← Discovery</a></p>
+<div class="board-top">
+  <div>
+    <p class="board-kicker">Sheet 02 · round 2</p>
+    <h1>Getting in</h1>
+    <p>Auth is rebuilt. Onboarding, identity and payout setup keep the current UI — the review was
+      explicit, and the code shows the reasoning behind most of it holds up.</p>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="signin">
+  <header>
+    <h2>Sign in</h2>
+    <span class="route">/sign-in · app/(auth)/sign-in</span>
+    <p class="intent">
+      Split screen kept. The escrow explainer card is gone from both breakpoints — the editorial half
+      makes the point once and does not need repeating in the form column.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="shell" style="height:100%">
+          <div style="flex:1;background:hsl(var(--obsidian));color:hsl(var(--mist));padding:56px 60px;display:flex;flex-direction:column;position:relative">
+            <i class="pin abs" style="right:14px;top:14px">1</i>
+            <span class="logo" style="font-weight:800;font-size:19px;color:#fff">NoDitto</span>
+            <div style="margin-top:auto">
+              <h2 class="h-display" style="color:#fff;font-size:34px;max-width:22ch">Trade cards with
+                strangers. Keep the safety of a shop.</h2>
+              <p style="font-size:var(--t-lead);opacity:.72;margin:20px 0 0;max-width:38ch">
+                Money is held until the card is in your hands. Every seller passes a photo-ID check.</p>
+              <p class="meta" style="opacity:.5;margin-top:32px">12,480 cards listed in Australia</p>
+            </div>
+          </div>
+
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px">
+            <div style="width:360px">
+              <h1 class="h-head">Welcome back</h1>
+              <p class="meta muted mt-s">No account? <b class="iris-ink">Create one</b></p>
+
+              <div class="notice dang mt-g" style="position:relative">
+                <i class="pin abs" style="right:-9px;top:12px">2</i>
+                <span class="ico">✉</span>
+                <div><b class="meta">Confirm your email first</b>
+                  <span class="meta muted">We sent a link to a···@gmail.com when you signed up.</span>
+                  <div class="row gap-s mt-s"><span class="btn btn-outline sm">Resend the link</span>
+                    <span class="btn btn-ghost sm">Use another email</span></div></div>
+              </div>
+
+              <div class="field mt-g"><span class="label">Email</span>
+                <span class="input">aria@example.com</span></div>
+              <div class="field"><span class="label">Password</span>
+                <span class="input">••••••••••••</span>
+                <div class="between mt-s"><span class="meta muted">Show password</span>
+                  <span class="meta iris-ink strong">Forgot it?</span></div></div>
+
+              <span class="btn btn-primary w lg">Sign in</span>
+              <div class="row gap-c mt-g"><span class="hr" style="flex:1;margin:0"></span>
+                <span class="meta muted">or</span><span class="hr" style="flex:1;margin:0"></span></div>
+              <span class="btn btn-outline w lg mt-g">Continue with Google</span>
+              <p class="help mt-g" style="text-align:center">Just looking?
+                <b class="iris-ink">Browse without an account</b></p>
+            </div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mbody" style="padding:24px 20px 0;position:relative">
+          <i class="pin abs" style="right:8px;top:14px">3</i>
+          <span class="logo" style="font-weight:800;font-size:18px">NoDitto</span>
+          <h1 class="h-head mt-x">Welcome back</h1>
+          <p class="meta muted mt-s">No account? <b class="iris-ink">Create one</b></p>
+
+          <div class="field mt-x"><span class="label">Email</span><span class="input ph">you@example.com</span></div>
+          <div class="field"><span class="label">Password</span><span class="input">••••••••••••</span>
+            <div class="between mt-s"><span class="meta muted">Show</span>
+              <span class="meta iris-ink strong">Forgot it?</span></div></div>
+          <span class="btn btn-primary w lg">Sign in</span>
+          <span class="btn btn-outline w lg mt-c">Continue with Google</span>
+          <p class="help mt-g" style="text-align:center">Just looking?
+            <b class="iris-ink">Browse without an account</b></p>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>An editorial half — reduced to two lines.</b> Round 1 had a three-bullet feature list here;
+        that is the over-explaining the review flagged. Headline, one sentence, one stat. A centred
+        360px form on a 1280px screen otherwise spends 70% of the viewport on background.
+        <span class="src">Ref: <a href="https://mobbin.com/screens/391ba838-bdc6-4de3-b757-0440384c5d21">Etsy</a> split-screen.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="keep">KEEP</span> <span class="chg">CHANGE</span>
+        <b>Keep the distinct error codes; give the unconfirmed-email case two exits.</b> Separating
+        <code>EMAIL_NOT_CONFIRMED</code> from <code>INVALID_CREDENTIALS</code> is already better than
+        most products manage. What it lacks is resend and correct-the-address, so a member who mistyped
+        at sign-up currently gets an accurate diagnosis and no way out.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="cut">CUT</span>
+        <b>The escrow explainer card is gone.</b> "Escrow on every purchase. Sellers are ID-verified.
+        Money is held until you accept." — removed from the mobile form and not restated in the desktop
+        column. A returning member does not need the pitch twice on one screen.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="add">ADD</span>
+        <b>"Browse without an account" on both breakpoints.</b> Guests can browse and the middleware
+        allows it, but nothing on the auth screens says so, so the wall reads as mandatory.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="signup">
+  <header>
+    <h2>Sign up</h2>
+    <span class="route">/sign-up</span>
+    <p class="intent">
+      Kept from round 1. The three-step runway stays because it is the one place the two-gate model can
+      be explained before a member hits it as a refusal; the escrow card does not.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="shell" style="height:100%">
+          <div style="flex:1;background:hsl(var(--obsidian));color:hsl(var(--mist));padding:56px 60px;display:flex;flex-direction:column">
+            <span class="logo" style="font-weight:800;font-size:19px;color:#fff">NoDitto</span>
+            <div style="margin-top:auto">
+              <h2 class="h-display" style="color:#fff;font-size:32px;max-width:24ch">Three steps to your
+                first listing</h2>
+              <div class="stack gap-g mt-x" style="position:relative">
+                <i class="pin abs" style="right:-4px;top:-4px">1</i>
+                <div class="row gap-c"><span class="nd" style="background:#fff;border-color:#fff;color:hsl(var(--obsidian));width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:var(--t-meta);font-weight:700;flex:none">1</span>
+                  <div><b style="font-size:var(--t-body)">Create an account</b>
+                    <p class="meta" style="opacity:.6;margin:2px 0 0">You're doing this now.</p></div></div>
+                <div class="row gap-c"><span class="nd" style="border:1px solid rgba(255,255,255,.4);background:transparent;color:rgba(255,255,255,.7);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:var(--t-meta);font-weight:700;flex:none">2</span>
+                  <div><b style="font-size:var(--t-body)">Verify your identity</b>
+                    <p class="meta" style="opacity:.6;margin:2px 0 0">Needed to sell or trade. Not to
+                      browse or buy.</p></div></div>
+                <div class="row gap-c"><span class="nd" style="border:1px solid rgba(255,255,255,.4);background:transparent;color:rgba(255,255,255,.7);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:var(--t-meta);font-weight:700;flex:none">3</span>
+                  <div><b style="font-size:var(--t-body)">Add payout details</b>
+                    <p class="meta" style="opacity:.6;margin:2px 0 0">Only when you're ready to be paid.
+                      You can list before this.</p></div></div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px">
+            <div style="width:360px">
+              <h1 class="h-head">Create your account</h1>
+              <p class="meta muted mt-s">Already have one? <b class="iris-ink">Sign in</b></p>
+              <span class="btn btn-outline w lg mt-g">Continue with Google</span>
+              <div class="row gap-c mt-g"><span class="hr" style="flex:1;margin:0"></span>
+                <span class="meta muted">or use email</span><span class="hr" style="flex:1;margin:0"></span></div>
+              <div class="field mt-g" style="position:relative">
+                <i class="pin abs" style="right:-9px;top:0">2</i>
+                <span class="label">Email</span><span class="input ph">you@example.com</span>
+                <p class="help">Receipts, dispute notices and payout confirmations go here, and it
+                  becomes your payment-provider contact — so it can't be swapped once money is
+                  involved.</p></div>
+              <div class="field" style="position:relative">
+                <i class="pin abs" style="right:-9px;top:0">3</i>
+                <span class="label">Password</span><span class="input">••••••••••••</span>
+                <div class="stack gap-t mt-s">
+                  <span class="meta trust-ink">✓ At least 8 characters</span>
+                  <span class="meta trust-ink">✓ A number or symbol</span></div></div>
+              <span class="btn btn-primary w lg">Create account</span>
+              <p class="help mt-g" style="text-align:center">We'll email a confirmation link. No ID and
+                no card needed yet.</p>
+            </div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — duplicate account</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mbody" style="padding:24px 20px 0">
+          <span class="logo" style="font-weight:800;font-size:18px">NoDitto</span>
+          <h1 class="h-head mt-x">Create your account</h1>
+          <div class="notice warn mt-g" style="position:relative">
+            <i class="pin abs" style="right:-4px;top:10px">4</i>
+            <span class="ico">👤</span>
+            <div><b class="meta">You already have an account</b>
+              <span class="meta muted">aria@example.com is registered.</span>
+              <div class="row gap-s mt-s"><span class="btn btn-primary sm">Sign in instead</span>
+                <span class="btn btn-ghost sm">Reset password</span></div></div>
+          </div>
+          <div class="field mt-g"><span class="label">Email</span><span class="input">aria@example.com</span></div>
+          <div class="field"><span class="label">Password</span><span class="input">••••••••</span>
+            <div class="stack gap-t mt-s"><span class="meta trust-ink">✓ At least 8 characters</span>
+              <span class="meta muted">○ A number or symbol</span></div></div>
+          <span class="btn btn-primary w lg">Create account</span>
+          <p class="help mt-g" style="text-align:center">No ID and no card needed yet.</p>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="add">ADD</span>
+        <b>Show the runway and mark what each step unlocks.</b> The two-gate model is good design — verify
+        who you are quickly, collect bank details only when money has to move — but a member currently
+        discovers it one refusal at a time.
+        <span class="src">Refs: <a href="https://mobbin.com/screens/bf711ca4-dec7-4298-a88a-7a158afae212">Fiverr</a>; <a href="https://mobbin.com/screens/525b808d-3b02-4d51-a83a-6d75de765d87">Etsy</a>.</span>
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>Explain the stricter email rule.</b> Sign-up validates harder than sign-in <em>because</em>
+        this address becomes the payment-provider contact — a real reason the member cannot guess.
+        Without it a rejected address reads as a bug.
+      </div></li>
+      <li><i class="pin">3</i><div><span class="add">ADD</span>
+        <b>Live password requirements.</b> Rules revealed only by rejection are the most common avoidable
+        sign-up failure.
+      </div></li>
+      <li><i class="pin">4</i><div><span class="chg">CHANGE</span>
+        <b><code>DUPLICATE_ACCOUNT</code> gets its two exits.</b> The code exists; the state should offer
+        sign-in and reset rather than only naming the problem.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate" id="recover">
+  <header>
+    <h2>Password recovery</h2>
+    <span class="route">/forgot-password · /auth/update-password</span>
+    <p class="intent">Kept from round 1.</p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — request sent</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;background:hsl(var(--sidebar))">
+          <div class="card" style="width:460px;padding:32px">
+            <span class="logo" style="font-weight:800;font-size:18px">NoDitto</span>
+            <div class="row gap-c mt-x" style="align-items:flex-start;position:relative">
+              <i class="pin abs" style="right:-9px;top:0">1</i>
+              <span style="font-size:22px">✉</span>
+              <div><h1 class="h-sub">Check your email</h1>
+                <p class="meta muted mt-s">If <b>aria@example.com</b> has an account, a reset link is on
+                  its way. The link works once and expires in an hour.</p></div>
+            </div>
+            <div class="card tint-mute mt-g" style="padding:var(--s-cozy)">
+              <span class="meta strong">Nothing arrived?</span>
+              <ul class="meta muted" style="margin:6px 0 0;padding-left:18px;line-height:1.75">
+                <li>Check spam — it comes from no-reply@noditto.app</li>
+                <li>Give it two minutes before resending</li>
+                <li>Signed up with Google? You have no password to reset —
+                  <b class="iris-ink">use Continue with Google</b></li>
+              </ul>
+            </div>
+            <div class="row gap-s mt-g"><span class="btn btn-outline">Resend in 1:48</span>
+              <span class="btn btn-ghost">Back to sign in</span></div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — set a new password</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mbody" style="padding:24px 20px 0">
+          <span class="logo" style="font-weight:800;font-size:18px">NoDitto</span>
+          <h1 class="h-head mt-x">Set a new password</h1>
+          <p class="meta muted mt-s">You're signed in as <b>aria@example.com</b>.</p>
+          <div class="field mt-g"><span class="label">New password</span><span class="input">••••••••••</span>
+            <div class="stack gap-t mt-s"><span class="meta trust-ink">✓ At least 8 characters</span>
+              <span class="meta trust-ink">✓ A number or symbol</span></div></div>
+          <div class="field"><span class="label">Confirm it</span><span class="input">••••••••••</span></div>
+          <div class="notice mt-g" style="position:relative">
+            <i class="pin abs" style="right:-4px;top:10px">2</i>
+            <span class="ico">🔐</span>
+            <span class="meta muted">Changing your password signs you out everywhere else. Live contracts
+              and held payments are unaffected.</span>
+          </div>
+          <span class="btn btn-primary w lg mt-g">Save and continue</span>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What changes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="chg">CHANGE</span>
+        <b>Keep enumeration safety, add the troubleshooting it creates.</b> "If that address has an
+        account…" is the right security answer and a frustrating product answer, because the member
+        cannot tell success from failure. The OAuth line is the load-bearing one: a Google-signup member
+        has no password to reset and will otherwise request links indefinitely.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="add">ADD</span>
+        <b>State the session consequence, and the non-consequence.</b> On a platform holding escrowed
+        money, "will this affect my live sale?" is a real fear. Answer both halves in one line.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate kept" id="onboarding">
+  <header>
+    <h2>Onboarding wizard <span class="asis">CURRENT DESIGN KEPT</span></h2>
+    <span class="route">/onboarding · components/onboarding/OnboardingWizard.tsx</span>
+    <p class="intent">
+      Round 1's numbered stepper and two-gate checklist are <b>withdrawn</b>. Below is the current build,
+      drawn from the code: an always-open dialog (full page on a phone, a centred <code>max-w-2xl</code>
+      card from <code>md</code>), a pill-dot progress row, and four counted steps with the seller handoff
+      deliberately off the end. One small counting defect is noted.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — region step, as built</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop" style="height:64px"><span class="logo">NoDitto</span>
+          <div class="dicons"><span class="me"><span class="avatar xs">AR</span> aria</span></div></div>
+        <div style="flex:1;background:hsl(var(--muted)/.3);display:flex;align-items:center;justify-content:center;padding:32px">
+          <div class="card" style="width:672px;padding:24px;position:relative">
+            <i class="pin abs" style="left:-9px;top:22px">1</i>
+            <div class="row gap-t" style="justify-content:center">
+              <span style="height:6px;width:24px;border-radius:999px;background:hsl(var(--primary))"></span>
+              <span style="height:6px;width:24px;border-radius:999px;background:hsl(var(--primary))"></span>
+              <span style="height:6px;width:24px;border-radius:999px;background:hsl(var(--primary))"></span>
+              <span style="height:6px;width:12px;border-radius:999px;background:hsl(var(--border))"></span>
+            </div>
+
+            <div style="text-align:center;margin-top:var(--s-group)">
+              <h1 class="h-head">Where are you trading from?</h1>
+              <p class="meta muted mt-s" style="max-width:52ch;margin:6px auto 0">This is the
+                jurisdiction your payouts and postage are pinned to. It's tied to your payout account
+                once one exists, so it can't be changed later.</p>
+            </div>
+
+            <div class="stack gap-s mt-x" style="max-width:400px;margin:0 auto">
+              <div class="card" style="border-color:hsl(var(--iris));background:hsl(var(--iris)/.07);padding:var(--s-cozy);display:flex;align-items:center;gap:var(--s-cozy)">
+                <span style="font-size:19px"></span>
+                <div style="flex:1"><span class="strong">Australia</span>
+                  <p class="help">AUD · trading enabled</p></div>
+                <span class="tick on">✓</span>
+              </div>
+              <p class="help" style="text-align:center">More regions open as we can settle payments in
+                them.</p>
+            </div>
+
+            <div class="between mt-x" style="padding-top:var(--s-group);border-top:1px solid hsl(var(--border))">
+              <span class="btn btn-outline">Back</span>
+              <div class="row gap-s">
+                <span class="btn btn-ghost">Browse the marketplace</span>
+                <span class="btn btn-primary">Continue</span></div>
+            </div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — intent step, full-page dialog</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mbody" style="padding:16px 16px 0;background:hsl(var(--muted)/.3);position:relative">
+          <i class="pin abs" style="right:8px;top:10px">2</i>
+          <div class="row gap-t" style="justify-content:center">
+            <span style="height:6px;width:24px;border-radius:999px;background:hsl(var(--primary))"></span>
+            <span style="height:6px;width:24px;border-radius:999px;background:hsl(var(--primary))"></span>
+            <span style="height:6px;width:24px;border-radius:999px;background:hsl(var(--primary))"></span>
+            <span style="height:6px;width:24px;border-radius:999px;background:hsl(var(--primary))"></span>
+          </div>
+
+          <div style="text-align:center;margin-top:var(--s-group)">
+            <h1 class="h-sub">What brings you to NoDitto?</h1>
+            <p class="meta muted mt-s">This only decides what we set up next.</p>
+          </div>
+
+          <div class="stack gap-s mt-g">
+            <div class="card" style="border-color:hsl(var(--iris));background:hsl(var(--iris)/.07);padding:var(--s-cozy)">
+              <div class="row gap-c"><span style="font-size:19px">🛍</span>
+                <div style="flex:1"><span class="strong meta">I'm here to buy</span>
+                  <p class="help">No ID check needed.</p></div>
+                <span class="tick on">✓</span></div>
+            </div>
+            <div class="card" style="padding:var(--s-cozy)">
+              <div class="row gap-c"><span style="font-size:19px">💰</span>
+                <div style="flex:1"><span class="strong meta">I'm here to sell or trade</span>
+                  <p class="help">Needs a photo-ID check.</p></div>
+                <span class="tick"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="mbar" style="flex-direction:column;align-items:stretch;gap:var(--s-snug)">
+          <span class="btn btn-primary w lg">Continue</span>
+          <div class="row gap-s"><span class="btn btn-outline w">Back</span>
+            <span class="btn btn-ghost w">Just browse</span></div>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>Notes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="keep">KEEP</span>
+        <b>Everything on this screen, as built.</b> The pill dots, the always-open dialog, the region
+        step being <em>shown</em> even when only one region trades (silently assigning it would make the
+        later "your region is tied to your payout account" refusal come from nowhere), the catalog escape
+        on every step, and the seller handoff sitting off the end of the count.
+      </div></li>
+      <li><i class="pin">2</i><div><span class="chg">B3</span>
+        <b>The counter never says "1".</b> <code>PROGRESS_STEPS</code> includes
+        <code>welcome</code> — so the count is out of 4 — but the dot row is hidden on
+        <code>welcome</code>. The first number a member ever sees is "Step 2 of 4", and "4 of 4" lands on
+        a screen that is followed by more work for sellers. Dropping <code>welcome</code> from the count
+        makes it read 1–2–3 of 3.
+        <br>
+        Round 1 also called the seller step's missing progress a bug. <b>It isn't</b> — the array's own
+        comment gives the reason, and it is correct: counting a seller-only step would tell a buyer they
+        are on "step 4 of 5" of something they will never see. If that step needs progress it should
+        have its own, for identity and payouts.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate kept" id="identity">
+  <header>
+    <h2>Identity verification <span class="asis">CURRENT DESIGN KEPT</span></h2>
+    <span class="route">/onboarding (seller step) · /profile?tab=verification</span>
+    <p class="intent">
+      Round 1's pre-handoff explainer — the illustrated document tiles, the "what we keep / what we
+      don't" columns, "continue on my phone" — is <b>withdrawn</b>. Current build: the unified surface
+      hosts Stripe Identity embedded on a NoDitto page, with a hosted fallback for other providers, and
+      status is re-read from the provider on return rather than trusted from the query string.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — seller step, as built</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop" style="height:64px"><span class="logo">NoDitto</span>
+          <div class="dicons"><span class="me"><span class="avatar xs">AR</span> aria</span></div></div>
+        <div style="flex:1;background:hsl(var(--muted)/.3);display:flex;align-items:center;justify-content:center;padding:32px">
+          <div class="card" style="width:672px;padding:24px">
+            <div style="text-align:center">
+              <h1 class="h-head">Set up selling</h1>
+              <p class="meta muted mt-s" style="max-width:54ch;margin:6px auto 0">Two things, and they
+                unlock different parts of NoDitto. Both are handled by Stripe.</p>
+            </div>
+
+            <div class="stack gap-c mt-x">
+              <div class="card" style="padding:var(--s-group)">
+                <div class="between">
+                  <div class="row gap-c">
+                    <span class="trust-ink" style="font-size:17px">✓ </span>
+                    <div><span class="h-lead">Identity</span>
+                      <p class="help">Aria K. Fujimoto · photo ID and selfie checked 14 Aug 2026</p></div>
+                  </div>
+                  <span class="badge b-trust">Verified</span>
+                </div>
+              </div>
+
+              <div class="card" style="padding:var(--s-group)">
+                <div class="between">
+                  <div class="row gap-c">
+                    <span class="muted" style="font-size:17px">🏦</span>
+                    <div><span class="h-lead">Payout destination</span>
+                      <p class="help">Stripe collects your bank details directly. We never see them.</p></div>
+                  </div>
+                  <span class="badge b-secondary">Setup incomplete</span>
+                </div>
+                <span class="btn btn-primary sm mt-c">Continue setup with Stripe</span>
+              </div>
+            </div>
+
+            <div class="between mt-x" style="padding-top:var(--s-group);border-top:1px solid hsl(var(--border))">
+              <span class="btn btn-outline">Back</span>
+              <span class="btn btn-primary">Go to the marketplace</span>
+            </div>
+          </div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — verification tab, as built</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">←</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">Verification</span></div>
+        <div class="mbody">
+          <div class="card">
+            <div class="between"><span class="meta muted">Identity</span>
+              <span class="badge b-trust">Verified</span></div>
+            <div class="row gap-s mt-s"><span class="trust-ink">✓ </span>
+              <span class="h-lead">Aria K. Fujimoto</span></div>
+            <p class="help">Photo ID and selfie, checked by Stripe on 14 Aug 2026. Shown only to people
+              you have a live contract with.</p>
+          </div>
+
+          <div class="card mt-c">
+            <div class="between"><span class="meta muted">Payout destination</span>
+              <span class="badge b-secondary">Setup incomplete</span></div>
+            <div class="row gap-s mt-s"><span class="muted">🏦</span>
+              <span class="h-lead">Not finished</span></div>
+            <p class="help">You can list and sell without this. A payout waits until it's done.</p>
+            <span class="btn btn-primary sm w mt-c">Continue setup with Stripe</span>
+          </div>
+
+          <div class="card mt-c">
+            <div class="between"><span class="meta muted">Trading region</span>
+              <span class="badge b-outline">Fixed</span></div>
+            <div class="row gap-s mt-s"><span></span><span class="h-lead">Australia</span></div>
+            <p class="help">Tied to your payout account and can't be moved.</p>
+          </div>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a class="on"><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>Notes</h3>
+    <ol>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>All of it.</b> Provider attribution, the read-back on return rather than trusting the
+        redirect, no document data anywhere in our UI, and the two gates stated as two rows with their
+        own badges. The one thing round 1 added that survives elsewhere is the "you can list without
+        this" line, which is already on the payout row.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="chg">B6</span>
+        <b>One naming inconsistency worth fixing.</b> The tab is "Payout setup"; the card inside it is
+        headed "Payout destination". The card's comment explains at length why it must never say
+        "Verified Account" — that reasoning is right, and the naming is still inconsistent with its own
+        container. Pick one.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<div class="plate kept" id="payouts-setup">
+  <header>
+    <h2>Payout setup <span class="asis">CURRENT DESIGN KEPT</span></h2>
+    <span class="route">/profile?tab=verification · components/profile/PayoutOnboarding.tsx</span>
+    <p class="intent">
+      Round 1's rebuild is <b>withdrawn</b> entirely. Current build below: a status badge derived from
+      the provider, a notice slot that distinguishes a member-blocking refusal from a
+      platform-blocking one, and a recheck action. The one round-1 idea that survives — the
+      restricted-account banner with the amount named — moves to the payouts dashboard, which the review
+      kept. See <a href="04-comms-account.html#payouts">sheet 04</a>.
+    </p>
+  </header>
+
+  <div class="frames">
+    <div class="vp-d">
+      <p class="frame-label">Desktop · 1280 — as built</p>
+      <div class="clip"><div class="stage"><div class="win">
+        <div class="dtop"><span class="logo">NoDitto</span><nav><a>Marketplace</a><a>Sell</a></nav>
+          <div class="dsearch">⌕ Search</div>
+          <div class="dicons"><span class="me"><span class="avatar xs">AR</span> aria</span></div></div>
+        <div class="shell">
+          <aside class="rail"><h1>Profile</h1>
+            <div class="navlist mt-g"><a>Profile</a><a class="on">Verification</a>
+              <a>Payouts</a></div></aside>
+          <section class="content">
+            <div style="max-width:640px">
+              <div class="card">
+                <div class="between">
+                  <div><p class="meta muted">Payout destination</p>
+                    <div class="row gap-s mt-s"><span class="muted">✓ </span>
+                      <span class="h-lead">Setup incomplete</span></div></div>
+                  <span class="badge b-secondary">Setup incomplete</span>
+                </div>
+                <p class="help mt-c">Stripe has your account but has not enabled transfers yet. That is
+                  the only signal that setup has finished, so this stays incomplete until it flips.</p>
+                <div class="row gap-s mt-g">
+                  <span class="btn btn-primary">Continue setup with Stripe</span>
+                  <span class="btn btn-outline">Check again</span>
+                </div>
+              </div>
+
+              <div class="notice warn mt-g">
+                <span class="ico">⚠</span>
+                <span class="meta muted">That setup link expired. Start it again to pick up where you
+                  left off.</span>
+              </div>
+
+              <p class="help mt-g">Pressing continue creates your payout account and opens Stripe's own
+                pages. Your verified legal name is disclosed to counterparties on contracts you are part
+                of.</p>
+            </div>
+          </section>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="vp-m">
+      <p class="frame-label">Mobile · 390 — provider-blocked variant</p>
+      <div class="clip"><div class="stage"><div class="phone">
+        <div class="mstatus"><span>9:41</span><span>▮▮▮ ᯤ ▰</span></div>
+        <div class="mtop"><span class="btn btn-ghost icon">←</span>
+          <span class="t" style="font-size:var(--t-body);flex:1">Payout setup</span></div>
+        <div class="mbody">
+          <div class="card">
+            <div class="between"><span class="meta muted">Payout destination</span>
+              <span class="badge b-secondary">Not set up</span></div>
+            <div class="row gap-s mt-s"><span class="muted">✓ </span>
+              <span class="h-lead">Not set up</span></div>
+            <span class="btn btn-primary sm w mt-c">Set up payouts with Stripe</span>
+          </div>
+
+          <div class="notice mt-c" style="position:relative">
+            <i class="pin abs" style="right:-4px;top:10px">1</i>
+            <span class="ico">ℹ</span>
+            <span class="meta muted">Payouts aren't available on NoDitto yet — this isn't something
+              you've done wrong and nothing you press will change it. We'll email you when it opens.</span>
+          </div>
+
+          <p class="help mt-g">You can keep listing and selling. A payout waits in a queue until this is
+            done.</p>
+        </div>
+        <div class="mhub"><a><i>◉</i>Browse</a><a><i>♡</i>Saved</a><a><i>⇄</i>Deals</a>
+          <a><i>✉</i>Inbox</a><a class="on"><i>☰</i>More</a></div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>Notes</h3>
+    <ol>
+      <li><i class="pin">1</i><div><span class="keep">KEEP</span>
+        <b>The member-blocked / platform-blocked split is the good part and should be protected.</b>
+        <code>provider-unavailable</code> changes both the tone and the button label, because when the
+        platform cannot create connected accounts the member is not the blocker and nothing they press
+        will help. Very few products distinguish those two cases at all, and telling someone to retry
+        something that cannot succeed is one of the more corrosive things an interface can do.
+      </div></li>
+      <li><i class="pin">—</i><div><span class="keep">KEEP</span>
+        <b>Never writing <code>merchant_status</code> directly, never latching it, and treating
+        <code>settlementsEnabled</code> as the only completion signal.</b> An account the provider later
+        restricts has to stop being payable.
+      </div></li>
+    </ol>
+  </div>
+</div>
+
+<p class="crumbs" style="margin-top:28px"><a href="index.html">← Board index</a> ·
+  <a href="03-contracts.html">Next: Contracts →</a></p>
+
+</div>
+</body>
+</html>

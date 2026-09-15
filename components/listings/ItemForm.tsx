@@ -417,12 +417,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // definite is what lets the middle row scroll and what keeps the left column the
   // same size no matter how much is in the form.
   //
-  // Clamped rather than a bare `calc`: `100svh` minus the 4rem app header and the
-  // page's own padding is the right target, but the exact padding is the shell's
-  // business, not this component's. `min-h`/`max-h` mean a short laptop still gets a
-  // usable form (and scrolls) and a very tall monitor does not stretch one column of
-  // fields over 1200px. `svh` for the same reason as the photo below: `dvh` would
-  // resize the whole card as a mobile URL bar hides.
+  // Definite against the dynamic viewport so the internal rail, rather than the
+  // document, owns scrolling. The shell budget is subtracted below; overlay
+  // keyboards subtract their published inset as well.
   //
   // A CONSEQUENCE FOR THE LAST FIELD IN THE RAIL. `Based near` is a combobox, and
   // `PlaceSearch` positions its suggestions absolutely against the input. Once the rail
@@ -447,7 +444,8 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     // acquire. The clipping the rounded corners and the footer border rely on is
     // unchanged, and so is `PlaceSearch`'s drop-up measurement — `clippingBounds`
     // looks for a non-`visible` overflow, which `clip` still is.
-    // NO `lg:max-h`. The card is `100svh-7rem` and that is all — it was also capped
+    // NO `lg:max-h`. The card uses the shell's full desktop budget and that is
+    // all — it was also capped
     // at `52rem` (832px), which on anything taller than about a 950px viewport left
     // the card short of the space it had while the details rail scrolled internally
     // anyway. Measured at 1920x1080: the card stopped at 832px with 155px of viewport
@@ -459,7 +457,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     // and it is what gives both columns a definite height to fill. Unpinning it was
     // tried and reverted: with a content-sized row the two columns compete to set the
     // height and the photo panel wins as soon as the filmstrip has a few rows in it.
-    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-clip lg:grid lg:h-[calc(100svh-7rem)] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}

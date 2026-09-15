@@ -67,18 +67,28 @@ const LIST_MAX_HEIGHT = 228;
  * positioned descendant, so that box — intersected with the viewport — is the real
  * budget. Falls back to the viewport when nothing on the way up clips.
  */
+function visualViewportBounds(): { top: number; bottom: number } {
+  const viewport = window.visualViewport;
+  if (!viewport) return { top: 0, bottom: window.innerHeight };
+  return {
+    top: viewport.offsetTop,
+    bottom: viewport.offsetTop + viewport.height,
+  };
+}
+
 function clippingBounds(el: HTMLElement): { top: number; bottom: number } {
+  const viewport = visualViewportBounds();
   for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
     const style = window.getComputedStyle(node);
     if (style.overflowY !== 'visible' || style.overflowX !== 'visible') {
       const rect = node.getBoundingClientRect();
       return {
-        top: Math.max(0, rect.top),
-        bottom: Math.min(window.innerHeight, rect.bottom),
+        top: Math.max(viewport.top, rect.top),
+        bottom: Math.min(viewport.bottom, rect.bottom),
       };
     }
   }
-  return { top: 0, bottom: window.innerHeight };
+  return viewport;
 }
 
 export function PlaceSearch({
@@ -129,6 +139,7 @@ export function PlaceSearch({
   // The field itself, measured to decide which way the list opens.
   const fieldRef = useRef<HTMLDivElement>(null);
   const [dropUp, setDropUp] = useState(false);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(LIST_MAX_HEIGHT - 4);
 
   // Clear it on unmount so a close cannot fire against a gone component.
   useEffect(
@@ -165,15 +176,23 @@ export function PlaceSearch({
       const bounds = clippingBounds(el);
       const below = bounds.bottom - rect.bottom;
       const above = rect.top - bounds.top;
-      setDropUp(below < LIST_MAX_HEIGHT && above > below);
+      const nextDropUp = below < LIST_MAX_HEIGHT && above > below;
+      const available = nextDropUp ? above : below;
+      setDropUp(nextDropUp);
+      setPanelMaxHeight(Math.max(48, Math.min(LIST_MAX_HEIGHT - 4, available - 4)));
     };
 
     update();
+    const viewport = window.visualViewport;
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
     };
   }, [open, results.length, outcome]);
 
@@ -370,8 +389,9 @@ export function PlaceSearch({
         <ul
           id={listId}
           role="listbox"
+          style={{ maxHeight: panelMaxHeight }}
           className={cn(
-            'absolute z-30 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-body shadow-md',
+            'absolute z-30 w-full overflow-auto rounded-md border bg-popover p-1 text-body shadow-md',
             panelPosition,
           )}
         >

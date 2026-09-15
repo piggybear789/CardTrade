@@ -262,11 +262,9 @@ export function SocialLinksEditor({
                   disabled={isPending}
                   aria-invalid={issue ? true : undefined}
                   aria-describedby={issue ? errorId : undefined}
-                  // `text-body`, matching `Input`. This is a bare field inside a
-                  // bordered row rather than an `Input`, so it has to restate the
-                  // type itself — see the note in `Input` on why the 16px touch
-                  // floor was dropped.
-                  className="min-w-0 flex-1 bg-transparent py-cozy text-body font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground"
+                  // Bare field inside a compound control: keep editable text at
+                  // 16px on phones to prevent iOS focus zoom.
+                  className="min-w-0 flex-1 bg-transparent py-cozy text-base font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground pointer-fine:text-body"
                 />
                 <button
                   type="button"

@@ -365,25 +365,29 @@ function MessageBubble({
       )}
     >
       {image ? (
-        url ? (
-          <button
-            type="button"
-            onClick={onOpenImage}
-            className="block w-full max-w-56 overflow-hidden border border-transparent focus:outline-none focus-visible:border-iris"
-          >
-            {/* Signed URLs are private and short-lived; next/image cannot cache them. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+        <button
+          type="button"
+          onClick={url ? onOpenImage : undefined}
+          disabled={!url}
+          className="relative block aspect-[4/3] w-56 max-w-full overflow-hidden border border-transparent focus:outline-none focus-visible:border-iris disabled:cursor-default"
+        >
+          {url ? (
+            // Signed URLs are private and short-lived; next/image cannot cache them.
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={url}
               alt={message.attachment_name ?? 'Photo'}
-              className="max-h-56 w-full object-cover"
+              width={224}
+              height={168}
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover"
             />
-          </button>
-        ) : (
-          <div className="grid h-32 w-40 place-items-center text-meta opacity-70">
-            Photo
-          </div>
-        )
+          ) : (
+            <span className="absolute inset-0 grid place-items-center text-meta opacity-70">
+              Photo
+            </span>
+          )}
+        </button>
       ) : null}
       {file ? (
         url ? (

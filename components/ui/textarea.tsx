@@ -8,12 +8,10 @@ const Textarea = React.forwardRef<
 >(({ className, ...props }, ref) => {
   return (
     <textarea
-      // `text-body` unconditionally, matching Input — the same size on touch as on
-      // desktop so it lines up with the surrounding UI. The old
-      // `text-lead pointer-fine:text-body` floored touch at 16px to avoid iOS
-      // focus-zoom; that floor has been removed and the zoom is an accepted tradeoff.
+      // Keep editable text at 16px on phones to prevent iOS focus zoom. The
+      // desktop body token remains 14px, matching surrounding copy.
       className={cn(
-        "flex min-h-[80px] w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-3 py-2 text-body placeholder:text-muted-foreground focus-visible:border-iris focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground",
+        "flex min-h-[80px] w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-3 py-2 text-base pointer-fine:text-body placeholder:text-muted-foreground focus-visible:border-iris focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground",
         className
       )}
       ref={ref}

@@ -72,7 +72,7 @@ export function OwnItemsPickerDialog({
       {/* `sm:gap-0 sm:p-0` repeat the bare overrides on purpose — the base
           DialogContent sets `sm:p-6`/`sm:gap-4`, which a bare `p-0`/`gap-0`
           does not beat at desktop widths (see ProposeTradeDialog). */}
-      <DialogContent className="flex max-h-[min(92dvh,100dvh-env(safe-area-inset-top))] flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(92dvh,100dvh-3rem)] sm:max-w-lg sm:gap-0 sm:p-0">
+      <DialogContent className="flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(92dvh,calc(100dvh-3rem))] sm:max-w-lg sm:gap-0 sm:p-0">
         <DialogHeader className="shrink-0 space-y-1 border-b border-border px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
           <DialogTitle>Your listings</DialogTitle>
           <DialogDescription>

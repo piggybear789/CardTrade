@@ -117,7 +117,7 @@ export function ProposeTradeDialog({
               // mobile classes — tailwind-merge keeps responsive variants separate,
               // so without these the desktop dialog double-pads (24px shell + 24px
               // header/body/footer).
-              'h-[min(92dvh,100dvh-env(safe-area-inset-top))] min-w-0 gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[min(92dvh,100dvh-3rem)] sm:max-w-lg sm:gap-0 sm:p-0'
+              'h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] min-w-0 gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[min(92dvh,calc(100dvh-3rem))] sm:max-w-lg sm:gap-0 sm:p-0'
         }
       >
         {needsVerification ? (

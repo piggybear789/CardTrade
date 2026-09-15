@@ -70,7 +70,6 @@ export function ProfileBioEditor({
         maxLength={BIO_MAX}
         disabled={isPending}
         aria-describedby="bio-counter"
-        autoFocus
         className="resize-none"
       />
       <div className="flex items-center justify-between gap-cozy">

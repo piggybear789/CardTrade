@@ -92,8 +92,9 @@ function ViewportHintWriter() {
     const write = () => {
       const value = `${desktop.matches ? 'd' : ''}${split.matches ? 's' : ''}` || 'm';
       // Session-scoped and same-site: a layout hint, not something to persist
-      // across visits or hand to another origin.
-      document.cookie = `${VIEWPORT_HINT_COOKIE}=${value}; path=/; max-age=31536000; samesite=lax`;
+      // across visits or hand to another origin. A long-lived value made a
+      // docked tablet or resized window hydrate from a stale structural branch.
+      document.cookie = `${VIEWPORT_HINT_COOKIE}=${value}; path=/; samesite=lax`;
     };
 
     write();

@@ -117,6 +117,7 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
     <>
       <nav
         aria-label="Marketplace hubs"
+        data-hide-for-keyboard
         style={{ viewTransitionName: 'persistent-mobile-nav' }}
         className={cn(
           'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] shadow-[0_-8px_28px_hsl(var(--foreground)/0.06)] md:hidden',

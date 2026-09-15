@@ -75,6 +75,7 @@ const DialogContent = React.forwardRef<
   mobile = "sheet",
   showClose = true,
   animation = "default",
+  onOpenAutoFocus,
   ...props
 }, ref) => (
   <DialogPortal>
@@ -84,7 +85,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-iris",
+        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-iris max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         mobile === "sheet" && [
           // Phone: bottom sheet. Children must not shrink — a pinned footer plus
@@ -125,6 +126,19 @@ const DialogContent = React.forwardRef<
         className,
       )}
       {...props}
+      onOpenAutoFocus={(event) => {
+        onOpenAutoFocus?.(event);
+        if (event.defaultPrevented) return;
+        // Radix normally focuses the first field, which immediately opens the
+        // software keyboard. On touch devices focus the dialog container first;
+        // the member can read the prompt and deliberately choose a field.
+        if (window.matchMedia('(pointer: coarse)').matches) {
+          event.preventDefault();
+          if (event.currentTarget instanceof HTMLElement) {
+            event.currentTarget.focus({ preventScroll: true });
+          }
+        }
+      }}
     >
       {children}
       {showClose ? (

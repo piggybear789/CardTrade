@@ -561,7 +561,6 @@ function CounterOfferDialog({
                 placeholder={placeholder}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                autoFocus
                 required
               />
             </div>

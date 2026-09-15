@@ -25,14 +25,11 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           //
           // Button moved with it, because these two must stay equal.
           //
-          // `text-body` unconditionally, on touch as well as desktop, so the field
-          // text matches the labels and body copy around it. We used to floor touch
-          // devices at `text-lead` (16px) via `pointer-fine:text-body`, purely to
-          // stop iOS Safari zooming the page on focus. That floor read as "the input
-          // font is too big" next to the surrounding UI, so it has been removed:
-          // fields are `body` everywhere, and the iOS focus-zoom is an accepted
-          // tradeoff. 14px does not avoid the zoom — the threshold is 16px.
-          "flex h-9 w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-3 py-1 text-body md:h-8 file:border-0 file:bg-transparent file:text-body file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-iris focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground",
+          // Editable controls stay at 16px on phone-sized viewports. iOS Safari
+          // zooms focused fields below 16px, which changes the visual viewport and
+          // makes fixed chrome, dialogs, and scroll anchoring jump. Desktop returns
+          // to the 14px body token where focus zoom is not a concern.
+          "flex h-9 w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-3 py-1 text-base pointer-fine:text-body md:h-8 file:border-0 file:bg-transparent file:text-body file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-iris focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground",
           className
         )}
         ref={ref}

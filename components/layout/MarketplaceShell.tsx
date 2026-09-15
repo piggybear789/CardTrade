@@ -197,7 +197,7 @@ export async function MarketplaceShell({
             //
             // Do not pair this with a later `px-0` override: competing
             // `md:px-7` / `xl:px-8` in one `cn()` is how the 28px columns come back.
-            flush ? 'px-0 pt-0' : 'px-4 pt-3 sm:px-6 md:px-7 md:py-7 xl:px-8',
+            flush ? 'px-0 pt-0' : 'pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-3 sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] md:pl-[max(1.75rem,env(safe-area-inset-left))] md:pr-[max(1.75rem,env(safe-area-inset-right))] md:py-7 xl:pl-[max(2rem,env(safe-area-inset-left))] xl:pr-[max(2rem,env(safe-area-inset-right))]',
             // `min-h-0` IS THE WHOLE FIX for a full-viewport page, and its absence here
             // was the single break in an otherwise complete shrink chain. `body`,
             // `#main-content`, the PageShell `<main>`, the row, the inner wrapper and the
@@ -228,7 +228,7 @@ export async function MarketplaceShell({
             // `h-16` (4rem) + 1px border + the top inset. The mobile hub bar is
             // `h-14` (3.5rem) + 1px top border + the bottom inset.
             flush &&
-              'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
+              'max-h-[calc(100dvh-env(safe-area-inset-top)-var(--mobile-hub-offset)-var(--keyboard-inset,0px))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-var(--keyboard-inset,0px))]',
             // Leave room for the fixed mobile hub bar.
             //
             // A flush page takes ORDINARY bottom padding, and this is a reversal worth

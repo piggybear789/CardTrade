@@ -67,7 +67,10 @@ export function ChatThread({
   const { messages, connectionStatus, addOptimistic, settleOptimistic } =
     useConversationRealtime(conversationId);
 
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const logRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const isNearBottomRef = useRef(true);
+  const didPositionRef = useRef(false);
   const displayName = otherName?.trim() || 'NoDitto member';
   const itemThumb = item ? itemImageUrl(item.imagePath) : null;
 
@@ -126,10 +129,30 @@ export function ChatThread({
           }
         : null;
 
-  // Auto-scroll to the newest message whenever the list grows/changes.
+  // Keep scrolling scoped to the log. `scrollIntoView` may pan every ancestor,
+  // which fights the browser's own focused-input reveal while the keyboard opens.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end' });
+    const log = logRef.current;
+    if (!log) return;
+    if (!didPositionRef.current || isNearBottomRef.current) {
+      log.scrollTop = log.scrollHeight;
+    }
+    didPositionRef.current = true;
   }, [messages.length]);
+
+  // Signed attachment URLs resolve after the message row mounts. Preserve the
+  // bottom pin through those intrinsic-content changes only when the member was
+  // already following the newest message.
+  useEffect(() => {
+    const log = logRef.current;
+    const content = contentRef.current;
+    if (!log || !content || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (isNearBottomRef.current) log.scrollTop = log.scrollHeight;
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
 
   // Mark the conversation read on mount and whenever a new inbound (other-sent)
   // message arrives, so the unread badge clears while the thread is open.
@@ -192,19 +215,17 @@ export function ChatThread({
           <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
             {title}
           </h2>
-          {price || meta || offline ? (
-            <p className="truncate text-body leading-tight text-muted-foreground">
-              {price ? (
-                <span className="display-value font-semibold text-foreground">{price}</span>
-              ) : null}
-              {meta ? `${price ? ' · ' : ''}${meta}` : null}
-              {offline ? (
-                <span className="text-destructive" role="status">
-                  {price || meta ? ' · ' : ''}Offline
-                </span>
-              ) : null}
-            </p>
-          ) : null}
+          <p className="min-h-[1.1rem] truncate text-body leading-tight text-muted-foreground">
+            {price ? (
+              <span className="display-value font-semibold text-foreground">{price}</span>
+            ) : null}
+            {meta ? `${price ? ' · ' : ''}${meta}` : null}
+            {offline ? (
+              <span className="text-destructive" role="status">
+                {price || meta ? ' · ' : ''}Offline
+              </span>
+            ) : null}
+          </p>
         </div>
 
         {/* The one destination, back in the bar. It had moved to the dock to
@@ -236,10 +257,16 @@ export function ChatThread({
           header hairline and wants room, while the bottom only has to keep the
           last line off the composer and reads as a gap if it matches. */}
       <div
+        ref={logRef}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-group pb-3 pt-5 max-md:px-cozy"
         role="log"
         aria-label={`Conversation with ${displayName}`}
         aria-live="polite"
+        onScroll={(event) => {
+          const log = event.currentTarget;
+          isNearBottomRef.current =
+            log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+        }}
       >
         {/* CAPPED, AND THE CAP IS THE POINT OF THE TWO-PANE LAYOUT'S OTHER HALF.
             Uncapped, this column inherited the whole content width — a bubble could
@@ -271,6 +298,7 @@ export function ChatThread({
             so the hint is a single line tall and `justify-end` would park it at the bottom
             whatever it asked for itself. The parent owns the axis, so the parent decides. */}
         <div
+          ref={contentRef}
           className={cn(
             MESSAGE_COLUMN,
             'flex min-h-full flex-col',
@@ -288,7 +316,6 @@ export function ChatThread({
             showAvatars
             showReadReceipt
           />
-          <div ref={bottomRef} />
         </div>
       </div>
 

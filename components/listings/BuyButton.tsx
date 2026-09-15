@@ -238,9 +238,8 @@ function PurchaseDialog({
               <DialogTitle>Checking payment method</DialogTitle>
               <DialogDescription>Please wait…</DialogDescription>
             </DialogHeader>
-            <div className="flex items-center justify-center py-8" role="status">
-              <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin text-muted-foreground" aria-hidden />
-              <span className="sr-only">Checking your payment details…</span>
+            <div role="status" aria-label="Checking your payment details">
+              <PaymentFormSkeleton />
             </div>
           </>
         ) : showCardForm ? (

@@ -284,9 +284,8 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
         ) : null}
 
         {loading ? (
-          <div className="flex items-center justify-center py-6" role="status">
-            <HugeiconsIcon icon={LoaderCircleIcon} className="size-6 animate-spin text-muted-foreground" aria-hidden />
-            <span className="sr-only">Loading payment details…</span>
+          <div role="status" aria-label="Loading payment details">
+            <PaymentFormSkeleton />
           </div>
         ) : showCardForm ? (
           <div className="space-y-cozy">

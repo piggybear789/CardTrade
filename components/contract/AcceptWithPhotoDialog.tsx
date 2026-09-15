@@ -150,20 +150,22 @@ export function AcceptWithPhotoDialog({
 
         <div>
           {preview ? (
-            <div className="relative mx-auto w-fit">
+            <div className="relative mx-auto h-48 w-full max-w-sm overflow-hidden rounded-lg border bg-muted">
               {isVideo ? (
                 <video
                   src={preview}
                   controls
                   playsInline
-                  className="max-h-48 rounded-lg border object-contain"
+                  className="size-full object-contain"
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={preview}
                   alt="Photo of received item"
-                  className="max-h-48 rounded-lg border object-contain"
+                  width={384}
+                  height={192}
+                  className="size-full object-contain"
                 />
               )}
               <button

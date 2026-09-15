@@ -91,7 +91,7 @@ export function ListingBuyerBar({
 }) {
   if (!isAuthenticated) {
     return (
-      <div className={barClass}>
+      <div data-hide-for-keyboard className={barClass}>
         <Button asChild className="h-11 w-full">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
             <HugeiconsIcon icon={LogInIcon} aria-hidden />
@@ -106,7 +106,7 @@ export function ListingBuyerBar({
   const showBuy = Boolean(sellerIdentity);
 
   return (
-    <div className={barClass}>
+    <div data-hide-for-keyboard className={barClass}>
       <MessageSellerButton itemId={itemId} sellerId={sellerId} variant="icon" />
       <WatchButton
         itemId={itemId}
@@ -197,4 +197,4 @@ export function ListingBuyerBar({
 // gets, on the route most organic traffic lands on. Docking both variants off
 // the same constant is what stops that pair drifting apart again.
 const barClass =
-  'fixed inset-x-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-30 flex items-center gap-1.5 border-t border-border bg-card px-3 pb-2 pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden';
+  'fixed inset-x-0 bottom-[var(--mobile-hub-offset)] z-30 flex items-center gap-1.5 border-t border-border bg-card pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-2 pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden';

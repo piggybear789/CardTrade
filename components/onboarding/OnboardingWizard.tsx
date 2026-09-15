@@ -362,7 +362,6 @@ export function OnboardingWizard({
                   }}
                   placeholder="e.g. PokeTrader99, Phil Y."
                   maxLength={255}
-                  autoFocus
                   autoComplete="off"
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') handleUsernameContinue();

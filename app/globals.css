@@ -336,13 +336,27 @@
        available, so every one of them carried a permanent few-pixel document
        scroll on a phone. Read the variable; do not re-derive the number. */
     --chrome-top: calc(3.375rem + env(safe-area-inset-top));
+    --mobile-hub-offset: calc(
+      3.5rem + 1px + env(safe-area-inset-bottom)
+    );
+    --keyboard-inset: 0px;
 
     scroll-padding-top: calc(var(--chrome-top) + 1px);
     scroll-padding-bottom: calc(
-      3.5rem + env(safe-area-inset-bottom) + var(--keyboard-inset, 0px)
+      var(--mobile-hub-offset) + var(--keyboard-inset, 0px)
     );
     /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
+  }
+
+  html[data-keyboard-open='true'] {
+    /* The software keyboard becomes the bottom chrome. Do not reserve the hub's
+       56px while it is hidden, or a chat composer loses that space twice. */
+    --mobile-hub-offset: 0px;
+  }
+
+  html[data-keyboard-open='true'] [data-hide-for-keyboard] {
+    display: none !important;
   }
 
   @media (min-width: 768px) {

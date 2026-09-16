@@ -67,6 +67,7 @@ import {
 import type { TablesUpdate } from '@/lib/supabase/database.types';
 import { revalidatePath } from 'next/cache';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 
 // ---------------------------------------------------------------------------
@@ -313,11 +314,12 @@ export async function proposeTrade(
     const orchestrator = createDefaultTradeOrchestrator({
       payments: getPaymentService(tradeRegion),
     });
-    await orchestrator.applyEvent({
+    const locked = await orchestrator.applyEvent({
       tradeId: result.trade.id,
       event: 'HOLDS_CONFIRMED',
       actorId: initiatorId,
     });
+    await notifyCollateralLockedIfEntered(locked);
   } else if (isLivePaymentsProvider()) {
     // Stripe realtime charges return synchronously. Advance the trade from the
     // hold rows instead of waiting for a webhook (or the mock DemoPanel).
@@ -344,12 +346,40 @@ async function syncTradeHoldsFromStripe(tradeId: string, actorId: string): Promi
     payments: getPaymentService(await regionForTrade(tradeId)),
   });
   if (currentHoldsAreActive(holds)) {
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    await notifyCollateralLockedIfEntered(locked);
     return;
   }
   if (currentHoldsSeekFailed(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
   }
+}
+
+/**
+ * Notify both traders when a HOLDS_CONFIRMED dispatch actually moved the trade
+ * INTO COLLATERAL_LOCKED (FEAT-002).
+ *
+ * Shared by every synchronous collateral-confirmation site so the "collateral
+ * locked" notification fires exactly once per trade regardless of which path
+ * (zero-bond, realtime Stripe sync) drove the confirmation. Guarded on the
+ * resulting state and on the transition succeeding, so a self-loop on an
+ * already-locked trade emits nothing — that, plus the webhook path only firing
+ * when it drove the transition itself, keeps a single lock to a single pair of
+ * notifications. Best-effort: `notifyTradeCollateralLocked` swallows failures and
+ * this is called after the transition has already committed.
+ */
+async function notifyCollateralLockedIfEntered(
+  result: Awaited<ReturnType<ReturnType<typeof createDefaultTradeOrchestrator>['applyEvent']>>,
+): Promise<void> {
+  if (!result.ok || result.trade.state !== 'COLLATERAL_LOCKED') return;
+  const initiatorId = (result.trade as { initiator_id?: string }).initiator_id;
+  const counterpartId = (result.trade as { counterpart_id?: string }).counterpart_id;
+  if (!initiatorId || !counterpartId) return;
+  await notifyTradeCollateralLocked({
+    initiatorId,
+    counterpartId,
+    tradeId: result.trade.id,
+  });
 }
 
 // ---------------------------------------------------------------------------

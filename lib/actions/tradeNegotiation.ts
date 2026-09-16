@@ -22,6 +22,7 @@ import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
 import { getPaymentService, operationalRegions } from '@/domain/services';
@@ -455,7 +456,16 @@ export async function retryTradeCollateral(
   // ACTIVE and just need confirming (process died between place and sync).
   if (currentHoldsAreActive(existing)) {
     const orchestrator = createDefaultTradeOrchestrator({ payments });
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
+    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
+    // Both traders learn the collateral is locked and the swap is on (FEAT-002),
+    // but only when this dispatch actually moved the trade into COLLATERAL_LOCKED.
+    if (locked.ok && locked.trade.state === 'COLLATERAL_LOCKED') {
+      const initiatorId = (locked.trade as { initiator_id?: string }).initiator_id;
+      const counterpartId = (locked.trade as { counterpart_id?: string }).counterpart_id;
+      if (initiatorId && counterpartId) {
+        await notifyTradeCollateralLocked({ initiatorId, counterpartId, tradeId });
+      }
+    }
     revalidatePath(`/trades/${tradeId}`);
     return { ok: true, trade, collateralStarted: true };
   }

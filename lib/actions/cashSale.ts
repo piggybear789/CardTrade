@@ -12,6 +12,7 @@ import { getPaymentService } from '@/domain/services';
 
 import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { notifyCashSaleSettled } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 
 import type {
@@ -364,13 +365,29 @@ export async function acceptCashSaleTerms(
     await orchestrator().acceptTerms({ actorId: userId, cashSaleId, termsVersion }),
   );
   if (result.ok) {
-    await createNotification({
-      userId: result.sale.sellerId,
-      type: 'SALE',
-      title: 'Payment started',
-      body: 'The buyer is paying. You will be told when the funds are held.',
-      link: `/sales/${cashSaleId}`,
-    });
+    // Stripe realtime (and the mock) settle INLINE inside acceptTerms, so the
+    // returned status tells us which event actually happened. ESCROW_HELD /
+    // HANDOVER means the payment already cleared this call: notify BOTH parties
+    // that the purchase completed. PAYMENT_PENDING means we are waiting on the
+    // CASH_SALE_SETTLE webhook, which notifies both parties itself once it lands
+    // (see lib/webhook/webhookPipeline.ts) so here we send only the seller's
+    // "payment started" heads-up and let the webhook fire the settlement pair,
+    // which avoids double-notifying a single purchase.
+    if (result.sale.status === 'ESCROW_HELD' || result.sale.status === 'HANDOVER') {
+      await notifyCashSaleSettled({
+        buyerId: result.sale.buyerId,
+        sellerId: result.sale.sellerId,
+        cashSaleId: result.sale.id,
+      });
+    } else {
+      await createNotification({
+        userId: result.sale.sellerId,
+        type: 'SALE',
+        title: 'Payment started',
+        body: 'The buyer is paying. You will be told when the funds are held.',
+        link: `/sales/${cashSaleId}`,
+      });
+    }
   }
   return result;
 }

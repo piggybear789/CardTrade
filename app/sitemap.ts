@@ -10,6 +10,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
 
+// The dynamic portion of the sitemap depends on the service-role Supabase
+// client, which is unavailable at build time in environments without the admin
+// env vars. Render this route on demand instead of prerendering it so the build
+// never depends on those secrets.
+export const dynamic = 'force-dynamic';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
@@ -25,14 +31,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
-  // Fetch published listings.
-  const admin = createAdminClient();
-  const { data: listings } = await admin
-    .from('items')
-    .select('id, updated_at, owner_id')
-    .eq('status', 'AVAILABLE')
-    .eq('hidden', false)
-    .in('category', CARD_GAME_NAMES);
+  // Fetch published listings. The admin client throws when its env vars are
+  // absent (e.g. during a build without Supabase secrets); degrade gracefully to
+  // the static routes rather than aborting sitemap generation.
+  let listings: Array<{ id: string; updated_at: string | null; owner_id: string }> | null = null;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('items')
+      .select('id, updated_at, owner_id')
+      .eq('status', 'AVAILABLE')
+      .eq('hidden', false)
+      .in('category', CARD_GAME_NAMES);
+    listings = data;
+  } catch {
+    return staticRoutes;
+  }
 
   const listingRoutes: MetadataRoute.Sitemap = (listings ?? []).map((item) => ({
     url: `${siteUrl}/listings/${item.id}`,

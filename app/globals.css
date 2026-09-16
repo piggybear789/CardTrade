@@ -400,7 +400,7 @@
      tabular figures keep money aligned without introducing a second family. */
   .cardtrade-eyebrow,
   .market-label {
-    @apply font-sans text-[0.6875rem] font-semibold uppercase tracking-[0.12em];
+    @apply font-sans text-meta font-semibold uppercase tracking-[0.12em];
   }
 
   .cardtrade-eyebrow {

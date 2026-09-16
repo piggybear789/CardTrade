@@ -1395,6 +1395,67 @@ export type Database = {
           },
         ];
       };
+      /**
+       * A member's PRIVATE saved-address book (0113).
+       *
+       * A convenience SOURCE a member copies from into a contract; never
+       * auto-disclosed to a counterparty and never exposed via public_profiles.
+       * Distinct from the per-contract delivery address
+       * (cash_sale_delivery_details / trade_delivery_details). RLS scopes every
+       * row to its `owner_id`; there is no counterparty read path here.
+       */
+      member_addresses: {
+        Row: {
+          id: string;
+          owner_id: string;
+          /** Optional member-given name (e.g. Home, Work). Not the address text. */
+          label: string | null;
+          address_label: string;
+          place_id: string;
+          country_code: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          /** At most one default per owner. */
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          label?: string | null;
+          address_label: string;
+          place_id: string;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          label?: string | null;
+          address_label?: string;
+          place_id?: string;
+          country_code?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'member_addresses_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       pre_auth_holds: {
         Row: {
           id: string;

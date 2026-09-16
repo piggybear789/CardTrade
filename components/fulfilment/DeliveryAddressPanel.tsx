@@ -31,9 +31,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PlacePicker } from '@/components/location';
 import { isResolvedPlace, type DeliveryAddress } from '@/domain/fulfilment';
 import type { PlaceValue } from '@/lib/location/types';
+import { SavedAddressField } from './SavedAddressField';
 
 /** A party at one end of a lane. The destination end is the emphasised one. */
 function Endpoint({
@@ -334,18 +334,20 @@ export function DeliveryAddressPanel({
             </DialogDescription>
           </DialogHeader>
 
-          <PlacePicker
+          {/* Sourced from the viewer's PRIVATE saved-address book: they pick a saved
+              address (prefilled to their default when this lane has none yet) or enter
+              and optionally save a new one. This edits only the VIEWER's own address;
+              the counterparty's remains gated by RLS until collateral locks, so the
+              disclosure invariant is untouched. */}
+          <SavedAddressField
             id="fulfilment-delivery-address"
             label="Delivery address"
-            precision="exact"
+            hint="Choose a suggestion so the address can be confirmed. Shared with the other party only once collateral is locked on both sides."
             value={place}
             onChange={setPlace}
-            required
-            showMap={false}
-            placeholder="Search your delivery address"
+            prefillDefault={!mine}
             error={error ?? undefined}
-            hint="Choose a suggestion so the address can be confirmed."
-            textFallbackPlaceholder="Search your delivery address"
+            disabled={isPending}
           />
 
           <DialogFooter className="gap-2">

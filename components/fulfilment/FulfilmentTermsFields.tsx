@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { PlacePicker } from '@/components/location';
 import type { PlaceValue } from '@/lib/location/types';
 import type { FulfilmentMethod } from '@/domain/fulfilment';
+import { SavedAddressField } from './SavedAddressField';
 
 /** Everything the fields render and report. */
 export interface FulfilmentTermsFieldsProps {
@@ -74,6 +75,15 @@ export interface FulfilmentTermsFieldsProps {
   onDeliveryAddressChange?: (place: PlaceValue | null) => void;
   /** Shown instead of the picker when the viewer may not edit the address. */
   deliveryAddressReadOnlyNote?: string;
+  /**
+   * Source the address from the viewer's PRIVATE saved-address book (0113): render
+   * {@link SavedAddressField} instead of a bare picker, so they can pick a saved
+   * address or enter+save a new one. The chosen place is still copied onto the
+   * contract exactly as before — the book is only a source.
+   */
+  deliveryAddressFromBook?: boolean;
+  /** Adopt the viewer's default saved address when nothing is selected yet. */
+  prefillDefaultAddress?: boolean;
 
   /** Field-level error, matched by the messages this component itself emits. */
   error?: string | null;
@@ -106,6 +116,8 @@ export function FulfilmentTermsFields({
   deliveryAddress = null,
   onDeliveryAddressChange,
   deliveryAddressReadOnlyNote,
+  deliveryAddressFromBook = false,
+  prefillDefaultAddress = false,
   error = null,
   disabled = false,
 }: FulfilmentTermsFieldsProps) {
@@ -154,23 +166,37 @@ export function FulfilmentTermsFields({
       <>
         {showDeliveryAddress ? (
           onDeliveryAddressChange ? (
-            <PlacePicker
-              id={`${idPrefix}-address`}
-              label="Your delivery address"
-              precision="exact"
-              value={deliveryAddress}
-              onChange={onDeliveryAddressChange}
-              required
-              // `domain/fulfilment/terms.ts` refuses a `text:` id here, so without
-              // this the no-key fallback offered a field whose every value was
-              // certain to be rejected on save.
-              requireResolved
-              showMap={false}
-              placeholder="Search your delivery address"
-              error={error === FULFILMENT_FIELD_ERRORS.address ? error : undefined}
-              hint="Shared with the seller only after payment."
-              textFallbackPlaceholder="Search your delivery address"
-            />
+            deliveryAddressFromBook ? (
+              // Sourced from the viewer's saved-address book: pick a saved address
+              // or enter+save a new one. The chosen place is still copied onto the
+              // contract by the room's own save, unchanged.
+              <SavedAddressField
+                id={`${idPrefix}-address`}
+                value={deliveryAddress}
+                onChange={onDeliveryAddressChange}
+                prefillDefault={prefillDefaultAddress}
+                error={error === FULFILMENT_FIELD_ERRORS.address ? error : undefined}
+                disabled={disabled}
+              />
+            ) : (
+              <PlacePicker
+                id={`${idPrefix}-address`}
+                label="Your delivery address"
+                precision="exact"
+                value={deliveryAddress}
+                onChange={onDeliveryAddressChange}
+                required
+                // `domain/fulfilment/terms.ts` refuses a `text:` id here, so without
+                // this the no-key fallback offered a field whose every value was
+                // certain to be rejected on save.
+                requireResolved
+                showMap={false}
+                placeholder="Search your delivery address"
+                error={error === FULFILMENT_FIELD_ERRORS.address ? error : undefined}
+                hint="Shared with the seller only after payment."
+                textFallbackPlaceholder="Search your delivery address"
+              />
+            )
           ) : (
             <p className="rounded-md border bg-muted px-cozy py-snug text-body text-muted-foreground">
               {deliveryAddressReadOnlyNote ??

@@ -369,7 +369,27 @@ export type CashSaleError =
   | 'TERMS_UPDATE_FAILED';
 
 export type CashSaleResult =
-  | { ok: true; sale: CashSaleRecord }
+  | {
+      ok: true;
+      sale: CashSaleRecord;
+      /**
+       * True only when THIS call drove the `PAYMENT_PENDING -> settled`
+       * (`ESCROW_HELD`/`HANDOVER`) transition, i.e. this is the call that made the
+       * purchase go through (0002/FEAT-002).
+       *
+       * Load-bearing for exactly-once settlement notifications: the action layer
+       * must key its "purchase settled" notification off this flag, NOT off the
+       * returned status. A concurrent/retried `acceptCashSaleTerms` that loses the
+       * claim race reloads an already-settled sale and returns it with the flag
+       * ABSENT (falsy), so it will not re-announce a purchase another call settled.
+       * This is the same "did I drive the transition" signal the webhook keys off
+       * when `settleCashSale` returns `INVALID_STATE`.
+       *
+       * Absent on every non-settling success (a still-`PAYMENT_PENDING` claim, a
+       * terms edit, a cancellation, and the claim-race fallback).
+       */
+      settledNow?: boolean;
+    }
   | { ok: false; error: CashSaleError; detail?: string };
 
 /**
@@ -1597,7 +1617,10 @@ export async function settleCashSale(
     fromStatus: sale.status,
     toStatus: settled.status,
   });
-  return { ok: true, sale: settled };
+  // `settledNow` marks THIS call as the one that transitioned PAYMENT_PENDING ->
+  // ESCROW_HELD/HANDOVER, so the action layer can announce the purchase exactly
+  // once without re-notifying on a reloaded already-settled sale (FEAT-002).
+  return { ok: true, sale: settled, settledNow: true };
 }
 
 /**

@@ -84,8 +84,11 @@ beforeEach(() => {
 });
 
 describe('acceptCashSaleTerms — settlement notifications', () => {
-  it('notifies both parties (and not the seller heads-up) when settled inline to ESCROW_HELD', async () => {
-    acceptResult = { ok: true, sale: { ...SALE, status: 'ESCROW_HELD' } };
+  it('notifies both parties (and not the seller heads-up) when THIS call settled inline to ESCROW_HELD', async () => {
+    // `settledNow` is the signal the orchestrator sets ONLY on the call that drove
+    // the PAYMENT_PENDING -> settled transition. The action keys off it, not the
+    // status, so this is the genuine "I settled it" case.
+    acceptResult = { ok: true, sale: { ...SALE, status: 'ESCROW_HELD' }, settledNow: true };
 
     const result = await acceptCashSaleTerms('sale-1', 1);
 
@@ -101,11 +104,37 @@ describe('acceptCashSaleTerms — settlement notifications', () => {
   });
 
   it('treats an inline HANDOVER settlement (in-person) the same way', async () => {
-    acceptResult = { ok: true, sale: { ...SALE, status: 'HANDOVER' } };
+    acceptResult = { ok: true, sale: { ...SALE, status: 'HANDOVER' }, settledNow: true };
 
     await acceptCashSaleTerms('sale-1', 1);
 
     expect(notifyCashSaleSettled).toHaveBeenCalledTimes(1);
+    expect(createNotification).not.toHaveBeenCalled();
+  });
+
+  it('does NOT re-notify on the claim-race fallback: a reloaded already-settled sale with no settledNow', async () => {
+    // The concurrent-double-submit / retry path: claimPayment lost the race, so the
+    // orchestrator reloaded a sale that is ALREADY ESCROW_HELD and returned it
+    // WITHOUT `settledNow`. The status alone looks identical to a fresh settle, so
+    // this asserts the action gates on `settledNow` (the "did I drive it" signal)
+    // rather than the status — otherwise a single purchase double-notifies.
+    acceptResult = { ok: true, sale: { ...SALE, status: 'ESCROW_HELD' } };
+
+    const result = await acceptCashSaleTerms('sale-1', 1);
+
+    expect(result.ok).toBe(true);
+    // Neither the settlement pair nor the seller heads-up: the call that actually
+    // settled already announced the purchase.
+    expect(notifyCashSaleSettled).not.toHaveBeenCalled();
+    expect(createNotification).not.toHaveBeenCalled();
+  });
+
+  it('does NOT re-notify on a claim-race fallback that reloaded a HANDOVER sale either', async () => {
+    acceptResult = { ok: true, sale: { ...SALE, status: 'HANDOVER' } };
+
+    await acceptCashSaleTerms('sale-1', 1);
+
+    expect(notifyCashSaleSettled).not.toHaveBeenCalled();
     expect(createNotification).not.toHaveBeenCalled();
   });
 

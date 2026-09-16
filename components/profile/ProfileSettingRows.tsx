@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { ProfileBioEditor } from './ProfileBioEditor';
 import { SocialLinksEditor } from './SocialLinksEditor';
+import { MemberAddressesEditor } from './MemberAddressesEditor';
 
 export function BioSettingRow({ bio }: { bio: string }) {
   const [open, setOpen] = useState(false);
@@ -86,6 +87,33 @@ export function LinksSettingRow({
             </DialogDescription>
           </DialogHeader>
           <SocialLinksEditor initialLinks={links} onSaved={() => setOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+export function AddressesSettingRow({ count }: { count: number }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <SettingsListRow
+        label="Addresses"
+        description="Saved delivery addresses to reuse when you buy or trade by post."
+        value={count === 0 ? 'None' : count === 1 ? '1 saved' : `${count} saved`}
+        onClick={() => setOpen(true)}
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Saved addresses</DialogTitle>
+            <DialogDescription>
+              Private to you. An address is shared with a seller only when you choose
+              it for a purchase or trade — never before.
+            </DialogDescription>
+          </DialogHeader>
+          <MemberAddressesEditor />
         </DialogContent>
       </Dialog>
     </>

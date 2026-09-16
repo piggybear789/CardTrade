@@ -45,6 +45,7 @@ import {
 } from '@/components/account/SettingsDialogRows';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import {
+  AddressesSettingRow,
   BioSettingRow,
   LinksSettingRow,
 } from '@/components/profile/ProfileSettingRows';
@@ -108,7 +109,7 @@ export default async function ProfilePage({
   // tab was a URL, so changing it re-ran this whole function — auth included — before
   // the new panel could render. All three panels are built once below and swapped on
   // the client instead.
-  const [profileResult, identity, payoutContext] = await Promise.all([
+  const [profileResult, identity, payoutContext, savedAddressCount] = await Promise.all([
     supabase
       .from('profiles')
       .select('display_name, contact_email, avatar_path, social_links, bio, is_admin, is_support')
@@ -116,6 +117,13 @@ export default async function ProfilePage({
       .single(),
     getIdentityCheckState(),
     getPayoutSetupContext(),
+    // The resting value on the Addresses row. A count, never the addresses
+    // themselves — the book is private and the editor loads it on open. `head`
+    // asks PostgREST for the count with no rows, so this is a cheap read.
+    supabase
+      .from('member_addresses')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', user.id),
   ]);
 
   const profile = profileResult.data;
@@ -214,6 +222,7 @@ export default async function ProfilePage({
                 contactEmail={profile.contact_email}
                 bio={(profile.bio as string | null) ?? ''}
                 socialLinks={socialLinks}
+                savedAddressCount={savedAddressCount.count ?? 0}
                 staffLinks={staffLinks}
               />
             ),
@@ -258,6 +267,7 @@ function ProfilePanel({
   contactEmail,
   bio,
   socialLinks,
+  savedAddressCount,
   staffLinks,
 }: {
   avatarPath: string | null;
@@ -265,6 +275,7 @@ function ProfilePanel({
   contactEmail: string;
   bio: string;
   socialLinks: Record<string, string> | null;
+  savedAddressCount: number;
   staffLinks: ReturnType<typeof staffNavLinksFor>;
 }) {
   return (
@@ -288,6 +299,10 @@ function ProfilePanel({
         />
         <BioSettingRow bio={bio} />
         <LinksSettingRow links={socialLinks} />
+        {/* The private saved-address book. Reused when a purchase or trade needs a
+            postal address; never disclosed to a counterparty except through the
+            existing per-contract rules. */}
+        <AddressesSettingRow count={savedAddressCount} />
       </SettingsGroup>
 
       <SettingsGroup>

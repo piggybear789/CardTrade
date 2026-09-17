@@ -53,6 +53,7 @@ import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabas
 import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrator/supabaseMerchantRepository';
 import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
+import { notifyCashSaleSettled, notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type WebhookOutcome = Database['cardtrade']['Enums']['webhook_outcome'];
@@ -183,6 +184,25 @@ async function dispatchEvent(
         event: action.tradeEvent,
         actorId,
       });
+
+      // Collateral locking is the trade equivalent of a purchase clearing, and it
+      // emitted nothing (FEAT-002). Notify BOTH traders when this event actually
+      // moved the trade INTO COLLATERAL_LOCKED. Guarded on the resulting state so
+      // an unrelated trade event never notifies, and on the transition itself so a
+      // trade already locked (the synchronous placement path having driven
+      // HOLDS_CONFIRMED inline) is not announced twice: that path reports the
+      // trade already in COLLATERAL_LOCKED, so applyEvent here is a self-loop that
+      // does not re-enter the state. The pipeline's alreadyProcessed guard also
+      // stops a redelivered webhook re-running this. Best-effort, after the
+      // outcome is decided, so a failed notification never makes Stripe retry.
+      if (result.ok && result.trade.state === 'COLLATERAL_LOCKED' && action.tradeEvent === 'HOLDS_CONFIRMED') {
+        const initiatorId = (result.trade as { initiator_id?: string }).initiator_id;
+        const counterpartId = (result.trade as { counterpart_id?: string }).counterpart_id;
+        if (initiatorId && counterpartId) {
+          await notifyTradeCollateralLocked({ initiatorId, counterpartId, tradeId });
+        }
+      }
+
       // A rejected transition records FAILURE and preserves the current state
       // (Req 10.8); a committed transition records SUCCESS (Req 10.4).
       return { outcome: result.ok ? 'SUCCESS' : 'FAILURE', tradeId };
@@ -200,6 +220,24 @@ async function dispatchEvent(
         action.kind === 'CASH_SALE_SETTLE'
           ? await cashSales.settleCashSale({ cashSaleId })
           : await cashSales.failCashSale({ cashSaleId });
+
+      // Settlement completing is the purchase going through, so notify both
+      // parties (FEAT-002). Only when the settle actually TRANSITIONED here:
+      // settleCashSale returns INVALID_STATE if the sale was already settled by
+      // the synchronous realtime path (submitClaimedPayment), so this branch does
+      // not re-notify a purchase the action layer already announced, and the
+      // pipeline's alreadyProcessed guard stops a redelivered webhook re-running
+      // this at all. Best-effort and AFTER the outcome is decided: a notification
+      // failure must never turn this SUCCESS into a FAILURE that makes Stripe
+      // retry, and `notifyCashSaleSettled` swallows its own errors regardless.
+      if (action.kind === 'CASH_SALE_SETTLE' && result.ok) {
+        await notifyCashSaleSettled({
+          buyerId: result.sale.buyerId,
+          sellerId: result.sale.sellerId,
+          cashSaleId,
+        });
+      }
+
       return { outcome: result.ok ? 'SUCCESS' : 'FAILURE', tradeId: null };
     }
 

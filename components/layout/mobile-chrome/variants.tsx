@@ -81,7 +81,7 @@ function FiltersButton({ refineCount }: { refineCount: number }) {
     >
       <HugeiconsIcon icon={SlidersHorizontalIcon} className="size-4" strokeWidth={1.75} aria-hidden />
       {refineCount > 0 ? (
-        <span className="absolute right-1 top-1 flex size-3.5 items-center justify-center rounded-full bg-iris text-[10px] font-semibold leading-none text-primary-foreground">
+        <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-iris text-meta font-semibold leading-none text-primary-foreground">
           {refineCount}
         </span>
       ) : null}

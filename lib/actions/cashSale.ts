@@ -12,6 +12,7 @@ import { getPaymentService } from '@/domain/services';
 
 import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { notifyCashSaleSettled } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 
 import type {
@@ -50,7 +51,18 @@ export type CashSaleActionError =
   | 'nothing-to-refund';
 
 export type CashSaleActionResult =
-  | { ok: true; sale: CashSaleRecord }
+  | {
+      ok: true;
+      sale: CashSaleRecord;
+      /**
+       * True only when the orchestrator call that produced this result actually
+       * drove the `PAYMENT_PENDING -> settled` transition (see
+       * {@link CashSaleResult.settledNow}). Gates the "purchase settled"
+       * notification so a claim-race fallback that merely reloads an
+       * already-settled sale does not double-notify (0002/FEAT-002).
+       */
+      settledNow?: boolean;
+    }
   | { ok: false; error: CashSaleActionError; message?: string };
 
 export interface InitiateCashSaleInput {
@@ -150,7 +162,7 @@ function actionResult(result: Awaited<ReturnType<ReturnType<typeof orchestrator>
     return { ok: false, error: mapError(result.error), message: result.detail };
   }
   revalidatePath(`/sales/${result.sale.id}`);
-  return { ok: true, sale: result.sale };
+  return { ok: true, sale: result.sale, settledNow: result.settledNow };
 }
 
 /** Create and reserve an agreement without collecting payment (Req 4.1). */
@@ -364,13 +376,36 @@ export async function acceptCashSaleTerms(
     await orchestrator().acceptTerms({ actorId: userId, cashSaleId, termsVersion }),
   );
   if (result.ok) {
-    await createNotification({
-      userId: result.sale.sellerId,
-      type: 'SALE',
-      title: 'Payment started',
-      body: 'The buyer is paying. You will be told when the funds are held.',
-      link: `/sales/${cashSaleId}`,
-    });
+    // Stripe realtime (and the mock) settle INLINE inside acceptTerms. We key the
+    // settlement notification off `settledNow`, the flag the orchestrator sets
+    // ONLY on the call that actually drove PAYMENT_PENDING -> ESCROW_HELD/HANDOVER,
+    // NOT off the returned status. A concurrent/retried accept that loses the
+    // claim race reloads an already-settled sale (status ESCROW_HELD/HANDOVER) but
+    // comes back with `settledNow` absent, so it must not re-announce a purchase
+    // this call did not settle. This mirrors the webhook path, which keys off
+    // settleCashSale returning INVALID_STATE (see lib/webhook/webhookPipeline.ts).
+    //
+    // `settledNow` true means the payment cleared this call: notify BOTH parties
+    // that the purchase completed. PAYMENT_PENDING (no `settledNow`) means we are
+    // waiting on the CASH_SALE_SETTLE webhook, which fires the settlement pair
+    // itself once it lands, so here we send only the seller's "payment started"
+    // heads-up. The claim-race fallback (settled sale, no `settledNow`) sends
+    // nothing extra: the call that DID settle already announced it.
+    if (result.settledNow) {
+      await notifyCashSaleSettled({
+        buyerId: result.sale.buyerId,
+        sellerId: result.sale.sellerId,
+        cashSaleId: result.sale.id,
+      });
+    } else if (result.sale.status === 'PAYMENT_PENDING') {
+      await createNotification({
+        userId: result.sale.sellerId,
+        type: 'SALE',
+        title: 'Payment started',
+        body: 'The buyer is paying. You will be told when the funds are held.',
+        link: `/sales/${cashSaleId}`,
+      });
+    }
   }
   return result;
 }

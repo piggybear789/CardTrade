@@ -288,6 +288,13 @@ export function CashSaleTermsDialog({
               onDeliveryAddressChange={
                 canEditDeliveryAddress ? setDeliveryPlace : undefined
               }
+              // The buyer picks from their saved-address book (or enters+saves a new
+              // one). Prefill their default only when this sale carries no address
+              // yet, so a saved default cannot overwrite a deliberate earlier choice.
+              deliveryAddressFromBook={canEditDeliveryAddress}
+              prefillDefaultAddress={
+                canEditDeliveryAddress && !deliveryFromSnapshot(deliveryAddress)
+              }
               deliveryAddressReadOnlyNote="Only the buyer can set the delivery address."
               error={error}
               disabled={pending}

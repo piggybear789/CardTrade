@@ -16,6 +16,9 @@ export type { FulfilmentMethodSummaryProps } from './FulfilmentMethodSummary';
 export { FULFILMENT_FIELD_ERRORS, FulfilmentTermsFields } from './FulfilmentTermsFields';
 export type { FulfilmentTermsFieldsProps } from './FulfilmentTermsFields';
 
+export { SavedAddressField } from './SavedAddressField';
+export type { SavedAddressFieldProps } from './SavedAddressField';
+
 export { RecordShipmentDialog } from './RecordShipmentDialog';
 export type { RecordShipmentDialogProps, ShipmentInput } from './RecordShipmentDialog';
 

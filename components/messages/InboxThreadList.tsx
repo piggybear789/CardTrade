@@ -76,7 +76,7 @@ function UnreadMark({ count }: { count: number }) {
     <span
       className={cn(
         'absolute -right-0.5 -top-0.5 grid place-items-center rounded-full bg-destructive text-destructive-foreground',
-        count === 1 ? 'size-2.5' : 'min-h-4 min-w-4 px-1 text-[10px] font-semibold leading-none',
+        count === 1 ? 'size-2.5' : 'min-h-4 min-w-4 px-1 text-meta font-semibold leading-none',
       )}
       aria-label={`${count} unread messages`}
     >

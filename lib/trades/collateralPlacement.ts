@@ -37,6 +37,7 @@ import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
 import { regionForTrade } from '@/lib/regionBinding';
+import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
 import type { Tables } from '@/lib/supabase/database.types';
 
 type TradeRow = Tables<'trades'>;
@@ -130,12 +131,34 @@ export async function syncHolds(tradeId: string, actorId: string): Promise<void>
   // Only the latest hold per trader counts. A retry leaves the declined row on
   // file, and treating it as current would confirm a successful retry as failed.
   if (currentHoldsAreActive(holds)) {
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    await notifyLockedIfEntered(locked);
     return;
   }
   if (currentHoldsSeekFailed(holds)) {
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
   }
+}
+
+/**
+ * Notify both traders when a HOLDS_CONFIRMED dispatch actually moved the trade
+ * INTO COLLATERAL_LOCKED (FEAT-002). Mirrors the action-layer helper of the same
+ * intent so collateral placed by a scheduled pass or retry announces the lock
+ * exactly like the single-click path. Best-effort and guarded on the transition
+ * so an already-locked trade emits nothing.
+ */
+async function notifyLockedIfEntered(
+  result: Awaited<ReturnType<ReturnType<typeof createDefaultTradeOrchestrator>['applyEvent']>>,
+): Promise<void> {
+  if (!result.ok || result.trade.state !== 'COLLATERAL_LOCKED') return;
+  const initiatorId = (result.trade as { initiator_id?: string }).initiator_id;
+  const counterpartId = (result.trade as { counterpart_id?: string }).counterpart_id;
+  if (!initiatorId || !counterpartId) return;
+  await notifyTradeCollateralLocked({
+    initiatorId,
+    counterpartId,
+    tradeId: result.trade.id,
+  });
 }
 
 /**
@@ -192,7 +215,8 @@ export async function placeTradeCollateral(params: {
   // Already authorised and just never confirmed — the process died between placing
   // and syncing. Confirm rather than authorise a second card hold.
   if (currentHoldsAreActive(existing)) {
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    await notifyLockedIfEntered(locked);
     return { ok: true, alreadyActive: true };
   }
 
@@ -254,7 +278,8 @@ export async function placeTradeCollateral(params: {
 
   if (bonds.bondsRequired === 0) {
     // Nobody owes a bond, so no provider event will ever arrive to confirm one.
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
+    await notifyLockedIfEntered(locked);
   } else if (isLivePaymentsProvider()) {
     await syncHolds(tradeId, actorId);
   }

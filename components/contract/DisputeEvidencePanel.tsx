@@ -343,9 +343,11 @@ export function DisputeEvidencePanel({
                   placeholder="What you sent or received, its condition, the dates that matter, and anything the tracking or photos show."
                   disabled={busy}
                   aria-describedby="evidence-statement-count"
-                  // Compound field: preserve the shared 16px mobile editable-text
-                  // floor so focusing evidence does not zoom the page on iOS.
-                  className="block w-full resize-y bg-transparent px-3.5 py-cozy text-base placeholder:text-muted-foreground focus:outline-none disabled:opacity-60 pointer-fine:text-body"
+                  // Compound field, but the same type as every other editable
+                  // control: `text-body`. The 16px floor it used to carry relied on
+                  // the `pointer-fine:` variant, which no longer exists — see the
+                  // note in `components/ui/input.tsx`.
+                  className="block w-full resize-y bg-transparent px-3.5 py-cozy text-body placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
                 />
                 <div className="flex items-center justify-end border-t px-3.5 py-snug">
                   <span

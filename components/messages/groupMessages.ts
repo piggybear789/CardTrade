@@ -1,25 +1,30 @@
 // components/messages/groupMessages.ts
 //
-// Collapse a chronological thread into day marks and sender clusters.
-// Consecutive messages from the same person within five minutes share a
-// timestamp; a system line or a new day always starts a new cluster.
+// Collapse a chronological thread into day marks, participant clusters, and
+// contract-event runs. Every row participates in the same calendar chronology:
+// a day marker appears once, then human and system activity share that day.
 
 import type { Tables } from '@/lib/supabase/database.types';
 
 export type ChatMessage = Tables<'messages'>;
 
 const CLUSTER_GAP_MS = 5 * 60 * 1000;
+const CONVERSATION_TIME_ZONE = 'Australia/Sydney';
+const DAY_KEY_FORMATTER = new Intl.DateTimeFormat('en-AU', {
+  timeZone: CONVERSATION_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 export type MessageCluster =
-  | { type: 'day'; key: string; label: string }
-  /**
-   * A RUN of consecutive contract events, not a single line. A contract
-   * advances in bursts — pay, then ship, then deliver — and rendering each as
-   * its own centred sentence turned the room's own record into six
-   * indistinguishable lines of grey. Grouped, the run reads as one block of
-   * "what the contract did" between two stretches of what people said.
-   */
-  | { type: 'system'; key: string; messages: ChatMessage[] }
+  | { type: 'day'; key: string; label: string; dateTime: string }
+  | {
+      type: 'system';
+      key: string;
+      cashSaleId: string | null;
+      messages: ChatMessage[];
+    }
   | {
       type: 'user';
       key: string;
@@ -29,57 +34,47 @@ export type MessageCluster =
     };
 
 function dayKey(iso: string): string {
-  const date = new Date(iso);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const parts = DAY_KEY_FORMATTER.formatToParts(new Date(iso));
+  const year = parts.find((part) => part.type === 'year')?.value ?? '0000';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '00';
+  const day = parts.find((part) => part.type === 'day')?.value ?? '00';
+  return `${year}-${month}-${day}`;
 }
 
 function localDayKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return dayKey(date.toISOString());
 }
 
 function dayLabel(iso: string): string {
   const date = new Date(iso);
   const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
+  const yesterday = new Date(today.getTime() - 86_400_000);
   if (dayKey(iso) === localDayKey(today)) return 'Today';
   if (dayKey(iso) === localDayKey(yesterday)) return 'Yesterday';
-  // Pin en-AU: `[]` follows the host locale, so SSR (often en-AU) and the
-  // browser (often en-US) disagree — "Tue, 25 Aug" vs "Tue, Aug 25" — and
-  // hydrate as a mismatch. Same locale as `messageDateTimeLabel`.
   return date.toLocaleDateString('en-AU', {
+    timeZone: CONVERSATION_TIME_ZONE,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   });
 }
 
-function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-}
-
+/** Local clock label for an entry beneath its shared day marker. */
 export function messageTimeLabel(iso: string): string {
-  return timeLabel(iso);
-}
-
-/**
- * Absolute date and time for one contract row, e.g. `16 Jul, 11:49 am`.
- *
- * A contract run spans days, so its rows cannot lean on a day marker the way a
- * chat bubble does — each one has to say when it happened on its own. The
- * weekday is dropped that `formatContractDateTime` includes: this sits inline
- * after the event sentence rather than in the room's audit column, and
- * "Thu, 16 Jul, 11:49 am" pushed most sentences onto a second line.
- */
-export function messageDateTimeLabel(iso: string): string {
-  return new Date(iso).toLocaleString('en-AU', {
-    day: 'numeric',
-    month: 'short',
+  return new Date(iso).toLocaleTimeString('en-AU', {
+    timeZone: CONVERSATION_TIME_ZONE,
     hour: 'numeric',
     minute: '2-digit',
   });
 }
 
+/**
+ * Group a chronological message collection without changing its order.
+ *
+ * System runs stop at a calendar boundary, a different Cash_Sale, or a new
+ * AGREEMENT_CREATED event. The last rule also segments legacy rows created
+ * before messages carried cash_sale_id.
+ */
 export function groupMessages(
   messages: ChatMessage[],
   currentUserId: string,
@@ -89,32 +84,34 @@ export function groupMessages(
   let lastStamp: number | null = null;
 
   for (const message of messages) {
-    const isSystem = message.kind === 'SYSTEM';
-
-    // DAY MARKERS SCOPE HUMAN CONVERSATION ONLY.
-    //
-    // They used to be pushed for every message, which meant a contract run could
-    // never span midnight: a five-event sale that paid on Thursday and completed
-    // on Sunday rendered as four separate records with a date label wedged
-    // between each. The calendar boundary is meaningful for chat — "did they
-    // reply today or last week" — and arbitrary inside a contract, which is one
-    // continuous thing. Contract rows carry their own absolute date instead
-    // (`messageDateTimeLabel`), so nothing is lost by not marking the day here.
-    if (!isSystem) {
-      const day = dayKey(message.created_at);
-      if (day !== lastDay) {
-        out.push({ type: 'day', key: `day-${day}`, label: dayLabel(message.created_at) });
-        lastDay = day;
-        lastStamp = null;
-      }
+    const day = dayKey(message.created_at);
+    if (day !== lastDay) {
+      out.push({
+        type: 'day',
+        key: `day-${day}`,
+        label: dayLabel(message.created_at),
+        dateTime: day,
+      });
+      lastDay = day;
+      lastStamp = null;
     }
 
-    if (isSystem) {
+    if (message.kind === 'SYSTEM') {
       const open = out[out.length - 1];
-      if (open?.type === 'system') {
+      const startsContract = message.system_event === 'AGREEMENT_CREATED';
+      if (
+        open?.type === 'system' &&
+        open.cashSaleId === message.cash_sale_id &&
+        !startsContract
+      ) {
         open.messages.push(message);
       } else {
-        out.push({ type: 'system', key: message.id, messages: [message] });
+        out.push({
+          type: 'system',
+          key: message.id,
+          cashSaleId: message.cash_sale_id,
+          messages: [message],
+        });
       }
       lastStamp = null;
       continue;

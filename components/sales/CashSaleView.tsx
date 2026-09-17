@@ -50,6 +50,7 @@ import {
   ContractLiveRow,
   ContractMoneyTable,
   ContractPartyLine,
+  ContractStatusPanel,
   ContractTimeline,
   DisputeEvidencePanel,
   useContractConversation,
@@ -62,6 +63,7 @@ import {
   CASH_SALE_SECTIONS,
   currentStep,
   deriveCashSaleSteps,
+  type ContractStep,
 } from '@/domain/contract';
 import { CASH_SALE_STATUS_MAP, CashSaleStatusBadge } from './CashSaleStatusBadge';
 import { CashSalePriceDialog } from './CashSalePriceDialog';
@@ -84,7 +86,13 @@ import {
   type CashSaleEventRow,
 } from '@/lib/realtime/useCashSaleRealtime';
 import type { Tables } from '@/lib/supabase/database.types';
-import { InspectionCountdown } from '@/components/fulfilment';
+import {
+  CarrierField,
+  InspectionCountdown,
+  resolveCarrier,
+  ShipmentSummary,
+} from '@/components/fulfilment';
+import { asFulfilmentTrackingState } from '@/domain/fulfilment';
 import type { CashSaleDeliveryAddress } from './types';
 import {
   acceptCashSaleInspection,
@@ -189,6 +197,43 @@ const STATUS_TONE: Partial<Record<CashSaleRow['status'], ContractActionTone>> = 
   FAILED: 'danger',
   DISPUTED: 'danger',
 };
+
+/**
+ * Statuses whose own tone outranks whose-move-it-is.
+ *
+ * A finished, cancelled, failed or disputed contract is reporting an OUTCOME, and the
+ * outcome is the loudest thing on it whatever the plan says. Everything else is a
+ * contract in flight, where the useful signal is not the status — it is whether the
+ * reader is the one holding it up.
+ */
+const OUTCOME_STATUSES = new Set<CashSaleRow['status']>([
+  'COMPLETED',
+  'CANCELLED',
+  'FAILED',
+  'REFUNDED',
+  'DISPUTED',
+]);
+
+/**
+ * The dock's tone: `default` (the iris "your move" wash) when the live step belongs to
+ * the reader, the status tone otherwise.
+ *
+ * WHY THIS IS NOT JUST `STATUS_TONE`. Tone tracked status alone, and `ESCROW_HELD` maps
+ * to `success` — true, the funds are confirmed — so the seller who has to post the item
+ * and the buyer who has nothing to do but wait were handed an identical, calm green
+ * band. The one thing a contract room has to answer is "is this mine?", and the surface
+ * that answers it had no way to say so.
+ *
+ * `step.owner` is already the answer (`domain/contract/steps.ts`); it was simply not
+ * being read here.
+ */
+function actionTone(
+  status: CashSaleRow['status'],
+  step: ContractStep | null,
+): ContractActionTone | undefined {
+  if (!OUTCOME_STATUSES.has(status) && step?.owner === 'you') return 'default';
+  return STATUS_TONE[status];
+}
 
 /**
  * Map a sale party into the shared contract party shape. A Cash_Sale is asymmetric —
@@ -410,7 +455,11 @@ function CashSaleRoom({
 
   const [isPending, startTransition] = useTransition();
   const [action, setAction] = useState<string | null>(null);
+  // `carrier` holds the PICKED option, which may be `Other`; `customCarrier` holds the
+  // typed name in that case. `resolveCarrier` turns the pair into the one string that
+  // gets stored — see `CarrierField`.
   const [carrier, setCarrier] = useState('');
+  const [customCarrier, setCustomCarrier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
   // Which irreversible action (if any) is awaiting explicit confirmation.
@@ -553,6 +602,9 @@ function CashSaleRoom({
     iAmBuyer ? sale.seller_handover_confirmed_at : sale.buyer_handover_confirmed_at,
   );
 
+  /** What would actually be persisted as the carrier, `Other` branch included. */
+  const shipmentCarrier = resolveCarrier(carrier, customCarrier);
+
   const steps = deriveCashSaleSteps({
     status: sale.status,
     viewerRole: iAmBuyer ? 'BUYER' : 'SELLER',
@@ -688,6 +740,12 @@ function CashSaleRoom({
             counterpartyAvatarPath={them.avatarPath}
             backHref={iAmBuyer ? '/purchases' : '/sales'}
             statusLabel={CASH_SALE_STATUS_MAP[sale.status]?.label ?? null}
+            saleContext={{
+              id: sale.id,
+              allowUnscopedLegacy: false,
+              fromShopfront: sale.from_shopfront,
+              fulfillmentMethod: sale.fulfillment_method,
+            }}
             shipment={
               sale.tracking_number
                 ? {
@@ -709,7 +767,7 @@ function CashSaleRoom({
                 <ContractActionCard
                   appearance="dock"
                   step={step}
-                  tone={isLegacy ? 'warning' : STATUS_TONE[sale.status]}
+                  tone={isLegacy ? 'warning' : actionTone(sale.status, step)}
                   title={isLegacy ? 'This contract cannot be continued' : undefined}
                   detail={
                     isLegacy
@@ -846,48 +904,27 @@ function CashSaleRoom({
                     </>
                   ) : null}
 
+                  {/* A BUTTON, NOT THE FORM. The dock is a strip pinned over the
+                      conversation, and this used to hold two text inputs and a submit
+                      beside the title — three controls squeezed into a chat-width column,
+                      where "Tracking number" clipped to "Tracking numbe" and the whole
+                      thing read as a form fragment rather than as the contract's next
+                      move.
+
+                      THE RULE THIS ESTABLISHES: the dock offers buttons, and anything
+                      that needs typing lives in the tab that owns the subject. Same
+                      mechanism the plan already declares — the `ship` step's action is
+                      `{ label: 'Add tracking', kind: 'focus', target: actions }` — and the
+                      same thing "Set delivery details" above does for Terms. */}
                   {sale.status === 'ESCROW_HELD' && isDelivery && iAmSeller ? (
-                    <div className="flex w-full flex-col items-stretch gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                      <Input
-                        value={carrier}
-                        onChange={(event) => setCarrier(event.target.value)}
-                        placeholder="Carrier"
-                        aria-label="Carrier"
-                        className="w-full sm:w-36"
-                      />
-                      <Input
-                        value={trackingNumber}
-                        onChange={(event) => setTrackingNumber(event.target.value)}
-                        placeholder="Tracking number"
-                        aria-label="Tracking number"
-                        className="w-full sm:w-36"
-                      />
-                      <Button
-                        type="button"
-                        variant="action"
-                        size="sm"
-                        disabled={
-                          !carrier.trim() ||
-                          trackingNumber.trim().length < 2 ||
-                          isPending
-                        }
-                        aria-busy={busy('ship')}
-                        onClick={() =>
-                          run('ship', () =>
-                            recordCashSaleShipment(
-                              sale.id,
-                              carrier,
-                              trackingNumber,
-                            ),
-                          )
-                        }
-                      >
-                        {busy('ship') ? (
-                          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                        ) : null}
-                        Record shipment
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="action"
+                      size="sm"
+                      onClick={() => focusSection(CASH_SALE_SECTIONS.actions)}
+                    >
+                      Add tracking
+                    </Button>
                   ) : null}
 
                   {sale.status === 'IN_TRANSIT' && iAmBuyer ? (
@@ -981,6 +1018,138 @@ function CashSaleRoom({
         }
       >
         <ContractDetailList>
+          {/* STATUS LEADS THE STRIP, AND IT IS THE ROOM'S ANSWER TO "WHERE IS THIS".
+              
+              `CASH_SALE_SECTIONS.actions` has always been documented as "the live
+              controls: ship, confirm receipt, confirm handover, accept, dispute" and the
+              plan's `focus` actions point at it — but nothing rendered it outside the
+              return flow, so the controls lived in the dock and the one that needs two
+              text fields did not fit there.
+              
+              ALWAYS PRESENT, not only when there is typing to do. It carries the progress
+              rail, which this room has never drawn (see the note in `ContractStatusPanel`
+              and the one in tests/e2e/specs/cash-sale.spec.ts) — so even with no control
+              in it, the tab answers how far along the sale is and who is holding it up,
+              which the other five tabs do not.
+              
+              `defaultOpen` ONLY WHEN THE MOVE IS THE READER'S. Opening every visit on
+              Status would take Item away from a buyer who came to look at what they
+              bought; opening on it when you are the one holding the contract up is the
+              whole point of the tab.
+              
+              The RETURN row below reuses this id and cannot collide: it renders only on
+              RETURN_PENDING / RETURN_IN_TRANSIT, where this row is not the live step. */}
+          <ContractDetailRow
+            id={CASH_SALE_SECTIONS.actions}
+            label="Status"
+            defaultOpen={step?.owner === 'you'}
+            summary={step?.label ?? 'This contract is finished'}
+          >
+            <ContractStatusPanel
+              steps={steps}
+              step={step}
+              counterpartyName={them.name}
+              fact={
+                sale.tracking_number ? (
+                  // THE PARCEL, NOT A STRING. This was `carrier · number` as plain
+                  // text, which is the one presentation of a tracking number that
+                  // cannot be used: both parties were copying it into a search engine
+                  // to reach a page the contract already stores the URL for.
+                  //
+                  // The refresh control is only handed over when the configured
+                  // provider can actually poll — the manual binding cannot, by design,
+                  // and a button that never changes anything is worse than none.
+                  <ShipmentSummary
+                    shipment={{
+                      carrier: sale.tracking_carrier,
+                      trackingNumber: sale.tracking_number,
+                      trackingUrl: sale.tracking_url,
+                      // `tracking_status` is a TEXT column, so it is narrowed rather
+                      // than cast — an unrecognised value reads as "no update yet"
+                      // instead of putting a raw database string in front of a member.
+                      status: asFulfilmentTrackingState(sale.tracking_status),
+                      carrierDeliveredAt: sale.carrier_delivered_at,
+                    }}
+                    shippedAt={sale.shipped_at}
+                    onRefresh={
+                      trackingRefreshAvailable && sale.status === 'IN_TRANSIT'
+                        ? () => run('track', () => syncCashSaleTracking(sale.id))
+                        : undefined
+                    }
+                    refreshing={busy('track')}
+                  />
+                ) : undefined
+              }
+              footnote={
+                sale.status === 'ESCROW_HELD' && isDelivery && iAmSeller
+                  ? 'Recording this moves the sale to In transit. The inspection clock starts when the carrier confirms delivery, not when you save the number.'
+                  : undefined
+              }
+            >
+              {/* THE ONLY CONTROL THAT LIVES HERE, and the rule is in the panel's own
+                  docs: fields here, single-tap moves in the chat dock. Two 9rem
+                  placeholders wedged into the dock beside a submit was what prompted
+                  this whole change. */}
+              {sale.status === 'ESCROW_HELD' && isDelivery && iAmSeller ? (
+                <div className="flex w-full max-w-xl flex-col gap-group">
+                  {/* THE SAME PICKER THE DIALOG USES, not a text input. A typed
+                      carrier costs the buyer their Track link and costs us the Ship24
+                      registration whose carrier-confirmed delivery is the only thing
+                      that starts the inspection clock — silently, in both cases. See
+                      the note in `CarrierField`. */}
+                  <CarrierField
+                    idPrefix="cash-sale"
+                    carrier={carrier}
+                    onCarrierChange={setCarrier}
+                    customCarrier={customCarrier}
+                    onCustomCarrierChange={setCustomCarrier}
+                    disabled={isPending}
+                  />
+                  <div className="space-y-snug">
+                    {/* LABELLED, not placeholder-only — a field whose only label is its
+                        placeholder loses that label the moment anything is typed. */}
+                    <Label htmlFor="cash-sale-tracking">Tracking number</Label>
+                    <Input
+                      id="cash-sale-tracking"
+                      value={trackingNumber}
+                      onChange={(event) => setTrackingNumber(event.target.value)}
+                      placeholder="As printed on the receipt"
+                      autoComplete="off"
+                      disabled={isPending}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="action"
+                    className="w-full sm:w-auto sm:self-start"
+                    disabled={
+                      !shipmentCarrier || trackingNumber.trim().length < 2 || isPending
+                    }
+                    aria-busy={busy('ship')}
+                    onClick={() =>
+                      run('ship', () =>
+                        recordCashSaleShipment(
+                          sale.id,
+                          shipmentCarrier,
+                          trackingNumber,
+                        ),
+                      )
+                    }
+                  >
+                    {busy('ship') ? (
+                      <HugeiconsIcon
+                        icon={LoaderCircleIcon}
+                        className="animate-spin"
+                        aria-hidden
+                      />
+                    ) : null}
+                    Record shipment
+                  </Button>
+                </div>
+              ) : null}
+            </ContractStatusPanel>
+          </ContractDetailRow>
+
           <ContractDetailRow
             id={CASH_SALE_SECTIONS.exchange}
             label={fromShopfront ? 'Items' : 'Item'}

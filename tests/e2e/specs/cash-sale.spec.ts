@@ -350,24 +350,40 @@ test.describe.serial('Cash sale lifecycle', () => {
     await sellerPage.goto(saleUrl);
     await sellerPage.waitForLoadState('domcontentloaded');
 
-    // INLINE IN THE ACTION CARD, not in a dialog, and `Record shipment` is DISABLED
-    // until both fields hold something. Clicking it first therefore waits forever on a
-    // control that will never become enabled — which reads as the app hanging rather
-    // than as the test skipping a step.
+    // IN THE STATUS TAB, not in the chat dock, and not in a dialog either.
     //
-    // Matched by placeholder because these inputs carry no visible <label>.
+    // The dock used to hold the carrier and tracking inputs inline; it now holds an
+    // `Add tracking` button that focuses the room's Status tab, where the fields live.
+    // The dock's step heading is still the thing that proves shipping is unlocked, so
+    // that assertion is unchanged — only where the form is has moved.
+    //
+    // `Record shipment` is DISABLED until both fields hold something. Clicking it first
+    // therefore waits forever on a control that will never become enabled — which reads
+    // as the app hanging rather than as the test skipping a step.
     await expect(
       sellerPage.getByRole('heading', {
         name: /Post it and add the tracking number/i,
       }),
     ).toBeVisible({ timeout: 30_000 });
 
-    // FILLED VIA `fillAndConfirm`, which verifies the value reached React state.
-    // These are controlled inputs, and on the mobile project the fill landed in the DOM
-    // before hydration attached — so state stayed empty, `Record shipment` never
-    // enabled, and the failure read as the button being broken.
-    await fillAndConfirm(sellerPage.getByPlaceholder(/Carrier/i), 'Australia Post');
-    await fillAndConfirm(sellerPage.getByPlaceholder(/Tracking/i), 'AP123456789AU');
+    await sellerPage
+      .getByRole('button', { name: 'Add tracking' })
+      .filter({ visible: true })
+      .first()
+      .click();
+
+    // CARRIER IS A SELECT NOW, sharing `CarrierField` with the trade room's dialog —
+    // free text was silently costing the tracking URL and the Ship24 registration
+    // whenever it did not match a known carrier. Radix renders the trigger and a hidden
+    // native select against one label, so the trigger is addressed by its id.
+    await sellerPage.locator('#cash-sale-carrier').click();
+    await sellerPage.getByRole('option', { name: 'Australia Post' }).click();
+
+    // FILLED VIA `fillAndConfirm`, which verifies the value reached React state. This is
+    // a controlled input, and on the mobile project the fill landed in the DOM before
+    // hydration attached — so state stayed empty, `Record shipment` never enabled, and
+    // the failure read as the button being broken.
+    await fillAndConfirm(sellerPage.locator('#cash-sale-tracking'), 'AP123456789AU');
 
     const record = sellerPage.getByRole('button', { name: 'Record shipment' });
     await expect(record).toBeEnabled({ timeout: RENDERED });

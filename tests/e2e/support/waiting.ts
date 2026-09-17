@@ -47,3 +47,86 @@ export const COLD_ROUTE = 30_000;
 
 /** Budget for content that is server-rendered on an already-compiled route. */
 export const RENDERED = 15_000;
+
+/**
+ * Click something that navigates, and try once more if nothing moved.
+ *
+ * THIS EXISTS FOR A REAL DEFECT, not to paper over a flaky locator, and the retry
+ * is deliberately visible rather than hidden inside a helper called `click`.
+ *
+ * `CatalogMosaic` renders TWO different trees — the phone mosaic on the server (it
+ * has no viewport) and a flat grid after hydration — and swaps between them when
+ * `useIsDesktop` resolves. The two lay out identically at `md` and up, so a desktop
+ * visitor sees a finished page during the swap, and every tile's anchor is destroyed
+ * and rebuilt underneath it. A click that lands in that window is dropped entirely:
+ * probed in tests/e2e/debug/catalog-card-click.spec.ts, the event log reads
+ * `pointerdown target=a connected=false`, then mousedown/mouseup on a `div`, and NO
+ * `click` event at all.
+ *
+ * It self-heals after one page view because `ViewportHintWriter` records the tier in
+ * the `nd_vw` cookie and the next server render starts in the right shape — so the
+ * exposure is a first visit, which is also the visit a new member makes.
+ *
+ * Recorded in ux-audit-findings.md. Until it is fixed, a journey that asserts on the
+ * PATHWAY should not fail on the race, and a journey that wants to assert on the race
+ * should say so.
+ */
+export async function clickThrough(
+  target: import('@playwright/test').Locator,
+  expectUrl: RegExp,
+): Promise<void> {
+  const { expect } = await import('@playwright/test');
+  const page = target.page();
+  await target.click();
+  try {
+    await page.waitForURL(expectUrl, { timeout: 5_000 });
+    return;
+  } catch {
+    // The hydration swap ate it. The element has been rebuilt by now, so the second
+    // click is against a stable tree.
+  }
+  await target.click();
+  await expect(page).toHaveURL(expectUrl, { timeout: COLD_ROUTE });
+}
+
+/**
+ * Click something whose effect is a WRITE, and wait for the write's own response.
+ *
+ * TWO REAL BEHAVIOURS ARE BEING WORKED AROUND HERE, and both are recorded as F43.
+ *
+ *  1. An optimistic control reports success before the row exists. Asserting on the
+ *     control and then navigating aborts the in-flight Server Action, and the next
+ *     page correctly shows the unchanged state — which reads as a broken feature.
+ *  2. A tap that lands before hydration does NOTHING AT ALL, silently: the button is
+ *     painted, sized and enabled, but React has not attached its handler yet. Observed
+ *     on mobile WebKit against the dev server, where the window is seconds long. The
+ *     retry is what distinguishes "the click was too early" from "the write failed",
+ *     because the first produces no request whatsoever.
+ *
+ * Server Actions POST to the URL of the page they were invoked from, which is why the
+ * matcher is a URL fragment rather than an endpoint.
+ */
+export async function clickForWrite(
+  target: import('@playwright/test').Locator,
+  urlContains: string,
+  attempts = 3,
+): Promise<void> {
+  const page = target.page();
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const settled = page
+      .waitForResponse(
+        (response) =>
+          response.request().method() === 'POST' && response.url().includes(urlContains),
+        { timeout: attempt === attempts ? RENDERED : 6_000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    await target.click();
+    if (await settled) return;
+  }
+  throw new Error(
+    `No write request to a URL containing "${urlContains}" after ${attempts} clicks. ` +
+      'No request at all means the handler was never attached (see F43); a failed ' +
+      'request would have resolved this wait and failed later.',
+  );
+}

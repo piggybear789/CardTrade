@@ -10,6 +10,9 @@ abstract class Message with _$Message {
   const factory Message({
     required String id,
     required String conversationId,
+    // Cash_Sale source for mirrored contract notices (migration 0113).
+    // Null for participant messages and Trade notices.
+    String? cashSaleId,
     String? senderId,
     required MessageKind kind,
     String? systemEvent,

@@ -17,6 +17,8 @@ export type {
   ShipmentSnapshot,
 } from './types';
 
+export { asFulfilmentTrackingState } from './types';
+
 export {
   DELIVERY_COST_MAX_CENTS,
   areFulfilmentTermsComplete,

@@ -21,7 +21,10 @@ import {
   ContractChatBar,
   type ContractChatSubject,
 } from '@/components/messages/ContractChat';
-import type { MessageLogShipment } from '@/components/messages/MessageLog';
+import type {
+  MessageLogSaleContext,
+  MessageLogShipment,
+} from '@/components/messages/MessageLog';
 
 export interface ContractConversationPanelProps {
   /** Resolved thread id, or `null` while it is still being opened. */
@@ -46,6 +49,8 @@ export interface ContractConversationPanelProps {
   statusLabel?: string | null;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
+  /** Cash_Sale provenance for event wording and shipment-link ownership. */
+  saleContext?: MessageLogSaleContext | null;
   /** True once opening the thread failed. */
   failed?: boolean;
   /** Re-run the self-heal; renders a "Try again" control when provided. */
@@ -66,6 +71,7 @@ export function ContractConversationPanel({
   backHref,
   statusLabel,
   shipment = null,
+  saleContext = null,
   failed = false,
   onRetry,
 }: ContractConversationPanelProps) {
@@ -84,6 +90,7 @@ export function ContractConversationPanel({
         backHref={backHref}
         statusLabel={statusLabel}
         shipment={shipment}
+        saleContext={saleContext}
       />
     );
   }

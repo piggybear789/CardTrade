@@ -21,6 +21,12 @@ import {
   CATALOG_MOSAIC_GAP,
   CATALOG_TILE_GRID,
 } from '@/components/listings/catalogGrid';
+// The thread's shared measurements — bar height and horizontal inset — for the same
+// reason: a placeholder that computes its own is a placeholder that shifts on swap.
+import {
+  MESSAGE_GUTTER,
+  PANE_BAR_MIN_H,
+} from '@/components/messages/threadGeometry';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
 import { cn } from '@/lib/utils';
 
@@ -575,22 +581,25 @@ export function ContractRoomSkeleton() {
 export function ChatThreadSkeleton() {
   return (
     <section
-      className="flex min-h-0 w-full flex-1 flex-col"
+      // `bg-card` at every width, matching the real thread. The column is ONE surface:
+      // when the log fell through to the tinted page background, this placeholder and
+      // the page it stood in for both showed three bands in one column.
+      className="flex min-h-0 w-full flex-1 flex-col bg-card"
       aria-label="Loading conversation"
     >
-      {/* Matches ChatThread band for band: the bar (phone-only back, thumb,
-          title + subline, contract button), the log, the standing note, the
-          composer.
+      {/* Matches the real thread's compact subject bar, scroll region, and
+          self-contained composer. Contract state determines whether a small
+          pre-contract note appears, so the loading shell reserves no note.
 
-          THE IRIS DOCK IS GONE FROM BOTH. This used to draw a three-element
-          tinted action strip above the composer, because that is where the
-          thread's contract control lived. It moved up into the bar — the room's
-          dock holds live actions on a contract and a thread has none, so all
-          that was left down there was navigation. The stale copy was ~100px of
-          tinted block that the real thread never renders: a jump AND a colour
-          flash on every thread open. What remains at the bottom is the one-line
-          "nothing is held while you are only talking" note. */}
-      <header className="flex shrink-0 items-center gap-cozy border-b px-group py-2.5 max-md:px-cozy">
+          Bar height comes from the shared constant, not a local guess — the real bar
+          has to line up with the inbox pane's, and so does this. */}
+      <header
+        className={cn(
+          'flex shrink-0 items-center gap-cozy border-b py-2.5',
+          PANE_BAR_MIN_H,
+          MESSAGE_GUTTER,
+        )}
+      >
         <Skeleton className="-ml-1.5 size-11 shrink-0 rounded-full md:hidden" />
         <Skeleton className="size-9 shrink-0 rounded-md" />
         {/* `text-lead leading-tight` over `text-body leading-tight`, and NO `space-y`.
@@ -603,13 +612,10 @@ export function ChatThreadSkeleton() {
           <TextLines className="text-lead leading-tight" widths={['w-2/5']} />
           <TextLines className="text-body leading-tight" widths={['w-28']} />
         </div>
-        {/* `h-8 md:h-7`, `Button`'s `sm` size — `ChatThread`'s header dock renders
-            `size="sm"`. `sm` went 24px -> 28px at `md` alongside the default's
-            28px -> 32px, so a flat `h-8` is right on touch and 4px proud on a
-            pointer. */}
-        <Skeleton className="h-8 w-24 shrink-0 rounded-md md:h-7" />
+        {/* The thread CTA is a 44px touch target and keeps its compact desktop size. */}
+        <Skeleton className="h-11 w-24 shrink-0 rounded-md md:h-7" />
       </header>
-      <div className="min-h-0 flex-1 space-y-3 px-group pt-5 max-md:px-cozy">
+      <div className={cn('min-h-0 flex-1 space-y-3 pt-5', MESSAGE_GUTTER)}>
         <Skeleton className="h-12 w-3/5 rounded-2xl" />
         <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
         <Skeleton className="h-10 w-2/5 rounded-2xl" />
@@ -622,13 +628,12 @@ export function ChatThreadSkeleton() {
           that vanished, and on a listing thread the copy wraps to two lines
           against the 16px that was reserved. `loading.tsx` cannot know which
           kind of thread it is about to show, so it reserves neither. */}
-      {/* The composer: a 44px row under a rule, not a 48px slab. `border-t` and
-          `pt-4 pb-0` are `MessageComposer`'s non-compact geometry. */}
-      <div className="shrink-0 border-t px-group pt-4 max-md:px-cozy">
+      {/* The composer owns the complete symmetric band, matching ChatThread. */}
+      <div className={cn('shrink-0 border-t py-4', MESSAGE_GUTTER)}>
         <div className="flex items-center gap-2">
-          <Skeleton className="size-11 shrink-0 rounded-md" />
+          <Skeleton className="size-11 shrink-0 rounded-full" />
           <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl" />
-          <Skeleton className="size-11 shrink-0 rounded-md" />
+          <Skeleton className="size-11 shrink-0 rounded-full" />
         </div>
       </div>
     </section>

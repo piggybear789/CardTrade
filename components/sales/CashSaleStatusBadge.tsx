@@ -12,6 +12,8 @@ import {
 } from '@/components/contract';
 import type { Enums } from '@/lib/supabase/database.types';
 
+export { CASH_SALE_TERMINAL_STATUSES } from '@/domain/contract/cashSaleStatus';
+
 /** The cash-sale lifecycle state enum. */
 export type CashSaleStatus = Enums<'cash_sale_status'>;
 
@@ -42,19 +44,6 @@ export const CASH_SALE_STATUS_MAP: ContractStatusMap<CashSaleStatus> = {
   RETURN_PENDING: { label: 'Return required', tone: 'destructive' },
   RETURN_IN_TRANSIT: { label: 'Return in transit', tone: 'default' },
 };
-
-/**
- * Statuses where the contract is closed and no action remains.
- *
- * The two return statuses are deliberately ABSENT: a return-conditional refund is
- * mid-flight, with a deadline and an action owed by the Buyer.
- */
-export const CASH_SALE_TERMINAL_STATUSES: ReadonlySet<CashSaleStatus> = new Set([
-  'COMPLETED',
-  'CANCELLED',
-  'FAILED',
-  'REFUNDED',
-]);
 
 export interface CashSaleStatusBadgeProps {
   status: CashSaleStatus;

@@ -19,6 +19,16 @@ export type { FulfilmentTermsFieldsProps } from './FulfilmentTermsFields';
 export { RecordShipmentDialog } from './RecordShipmentDialog';
 export type { RecordShipmentDialogProps, ShipmentInput } from './RecordShipmentDialog';
 
+// The carrier picker on its own, for a room that captures a shipment inline rather than
+// in the dialog — the cash-sale Status tab does. `resolveCarrier` comes with it so
+// nobody re-implements the `Other` branch.
+export { CarrierField, resolveCarrier } from './CarrierField';
+export type { CarrierFieldProps } from './CarrierField';
+
+// One posted parcel, with the carrier's own tracking page a click away.
+export { ShipmentSummary } from './ShipmentSummary';
+export type { ShipmentSummaryProps } from './ShipmentSummary';
+
 export { HandoverFailedDialog } from './HandoverFailedDialog';
 export type {
   HandoverFailedDialogProps,

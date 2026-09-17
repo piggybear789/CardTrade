@@ -39,8 +39,12 @@ List<List<Message>> _expectedGrouping(List<Message> messages) {
   final List<List<Message>> groups = <List<Message>>[];
   for (final Message message in messages) {
     final List<Message>? open = groups.isEmpty ? null : groups.last;
-    final bool bothNotices =
-        open != null && open.last.isSystem && message.isSystem;
+    final bool bothNotices = open != null &&
+        open.last.isSystem &&
+        message.isSystem &&
+        calendarDay(open.last.createdAt) == calendarDay(message.createdAt) &&
+        open.last.cashSaleId == message.cashSaleId &&
+        message.systemEvent != 'AGREEMENT_CREATED';
     final bool sameAuthoredRun = open != null &&
         !open.last.isSystem &&
         !message.isSystem &&
@@ -149,14 +153,14 @@ void main() {
           for (final MessageRun run in runs)
             if (run.kind == MessageRunKind.day) run.dayLabel!,
         ];
-        final Set<DateTime> humanDays = <DateTime>{
+        final Set<DateTime> messageDays = <DateTime>{
           for (final Message message in messages)
-            if (!message.isSystem) calendarDay(message.createdAt),
+            calendarDay(message.createdAt),
         };
         expect(
           dayLabels,
-          hasLength(humanDays.length),
-          reason: 'one day mark per calendar day of human conversation',
+          hasLength(messageDays.length),
+          reason: 'one day mark per calendar day in the shared thread',
         );
 
         // ─── keys are unique, so a list builder cannot collide ───────
@@ -246,37 +250,53 @@ void main() {
       );
     });
 
-    test('consecutive notices are one run and never mine', () {
+    test('consecutive notices from one Cash Sale are one run and never mine', () {
       final DateTime first = DateTime(2026, 1, 15, 12, 0);
       final List<MessageRun> runs = partitionMessageRuns(
         <Message>[
-          makeNotice(id: 'n1').copyWith(createdAt: first),
+          makeNotice(id: 'n1').copyWith(
+            cashSaleId: 'sale-a',
+            createdAt: first,
+          ),
           makeNotice(id: 'n2').copyWith(
+            cashSaleId: 'sale-a',
             createdAt: first.add(const Duration(hours: 9)),
           ),
         ],
         _viewer,
         now: kMessageNow,
       );
-      expect(runs, hasLength(1));
-      expect(runs.single.kind, MessageRunKind.notice);
-      expect(runs.single.messages, hasLength(2));
-      expect(runs.single.mine, isFalse);
+      final List<MessageRun> notices =
+          runs.where((run) => run.kind == MessageRunKind.notice).toList();
+      expect(notices, hasLength(1));
+      expect(notices.single.messages, hasLength(2));
+      expect(notices.single.mine, isFalse);
     });
 
-    test('a notice draws no day mark of its own', () {
-      // A contract run spans days as one continuous thing and each notice carries
-      // its own absolute date, so a day separator between two notices would be a
-      // second date for the same line.
+    test('one day marker does not merge notices from different Cash Sales', () {
+      final DateTime first = DateTime(2026, 1, 15, 9);
       final List<MessageRun> runs = partitionMessageRuns(
         <Message>[
-          makeNotice(id: 'n1').copyWith(createdAt: DateTime(2026, 1, 13, 9)),
-          makeNotice(id: 'n2').copyWith(createdAt: DateTime(2026, 1, 15, 9)),
+          makeNotice(id: 'n1').copyWith(
+            cashSaleId: 'sale-a',
+            createdAt: first,
+          ),
+          makeNotice(id: 'n2').copyWith(
+            cashSaleId: 'sale-b',
+            createdAt: first.add(const Duration(minutes: 1)),
+          ),
         ],
         _viewer,
         now: kMessageNow,
       );
-      expect(runs.where((r) => r.kind == MessageRunKind.day), isEmpty);
+      expect(
+        runs.where((run) => run.kind == MessageRunKind.day),
+        hasLength(1),
+      );
+      expect(
+        runs.where((run) => run.kind == MessageRunKind.notice),
+        hasLength(2),
+      );
     });
 
     test('midnight ends a run eleven minutes wide', () {

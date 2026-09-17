@@ -5,6 +5,7 @@ import { groupMessages, type ChatMessage } from '@/components/messages/groupMess
 function message(partial: Partial<ChatMessage> & Pick<ChatMessage, 'id' | 'created_at' | 'body'>): ChatMessage {
   return {
     conversation_id: 'c1',
+    cash_sale_id: null,
     sender_id: 'buyer',
     kind: 'USER',
     system_event: null,
@@ -87,11 +88,7 @@ describe('groupMessages', () => {
     expect(systems[0].messages.map((row) => row.id)).toEqual(['e1', 'e2']);
   });
 
-  // REVERSED DELIBERATELY. This used to assert a new cluster per calendar day,
-  // which split a sale that paid on Thursday and completed on Sunday into four
-  // records with a date label wedged between each. A contract is one continuous
-  // thing; its rows carry their own absolute date instead.
-  it('keeps one contract run when it spans days, and marks no day for it', () => {
+  it('uses one day marker per calendar day across contract activity', () => {
     const clusters = groupMessages(
       [
         message({
@@ -113,9 +110,15 @@ describe('groupMessages', () => {
     );
 
     const systems = clusters.filter((cluster) => cluster.type === 'system');
-    expect(systems).toHaveLength(1);
-    expect(systems[0].messages.map((row) => row.id)).toEqual(['e1', 'e2']);
-    expect(clusters.some((cluster) => cluster.type === 'day')).toBe(false);
+    const days = clusters.filter((cluster) => cluster.type === 'day');
+    expect(systems).toHaveLength(2);
+    expect(days).toHaveLength(2);
+    expect(clusters.map((cluster) => cluster.type)).toEqual([
+      'day',
+      'system',
+      'day',
+      'system',
+    ]);
   });
 
   it('still marks the day for human messages either side of a contract run', () => {

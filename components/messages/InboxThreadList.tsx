@@ -17,6 +17,7 @@
 // or the other, never both, and the dispute reading wins because it is the more serious
 // fact about the same money.
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { HandshakeIcon, MessageSquareIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
@@ -45,6 +46,13 @@ function statusPill(c: ConversationListEntry) {
     );
   }
   if (c.sale) {
+    if (c.sale.activeContractCount > 1) {
+      return (
+        <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-foreground">
+          {c.sale.activeContractCount} active
+        </span>
+      );
+    }
     // THE SHARED BADGE, not a hand-rolled pill. Thirteen statuses each with a chosen
     // label and tone already exist in one place; restating any of them here is how the
     // inbox and the contract room end up disagreeing about the same sale.
@@ -103,15 +111,30 @@ function MobileThreadRow({
     // uncentred. Centring them also removes the `mt-0.5` nudges that were compensating
     // for it in two places and would have had to be retuned every time a line was
     // added to the middle column.
-    <Link
+    // THE OPEN THREAD IS NOT A LINK. Clicking the row you are already reading used to
+    // navigate to the route you are already on, which Next answers by refetching the
+    // segment and remounting the thread — the history entry is identical, so it reads as
+    // the page reloading itself for no reason, and it drops you back to the bottom of the
+    // log. There is nothing to activate, so it is not a control.
+    //
+    // Still `aria-current="page"` and still focusable: in the rail the highlight is the
+    // only thing saying which thread the pane on the right is showing, and a keyboard
+    // user tabbing the list should not have the current row silently vanish from the
+    // order. `RowShell` is `div`/`Link` and nothing else changes between the two.
+    <RowShell
       href={`/messages/${c.id}`}
-      transitionTypes={['nav-forward']}
-      // `aria-current` rather than a colour alone: in the rail the highlight is the
-      // only thing saying which thread the pane on the right is showing.
-      aria-current={active ? 'page' : undefined}
+      active={active}
       className={cn(
-        'flex min-h-11 items-center gap-3 py-3.5 border border-transparent focus:outline-none focus-visible:border-iris',
-        active ? 'bg-muted' : 'transition-colors hover:bg-muted/60',
+        'relative flex min-h-11 items-center gap-3 py-3.5 border border-transparent focus:outline-none focus-visible:border-iris',
+        // CURRENT READS THE SAME WAY IT DOES IN THE WORKSPACE RAIL, and deliberately
+        // so — this row and the rail's own current item are the same statement. That
+        // means a NEUTRAL fill plus an iris bar, copied from `MarketplaceNav`, not
+        // `bg-muted`: muted is violet-tinted (`283 34% 96%`), so the open thread wore a
+        // lavender wash and was the one coloured thing in the list, which reads as
+        // decoration rather than as position.
+        active
+          ? 'bg-foreground/[0.06] before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-iris before:content-[""]'
+          : 'transition-colors hover:bg-muted/60',
         className,
       )}
     >
@@ -172,6 +195,40 @@ function MobileThreadRow({
           )}
         </span>
       ) : null}
+    </RowShell>
+  );
+}
+
+/**
+ * A row's outer element: a link to the thread, or — when that thread is the one already
+ * open beside the list — a plain focusable box that goes nowhere.
+ *
+ * Server-renderable on purpose. Intercepting the click on the client would need this
+ * module to become a client component, and the whole list is static markup; there is no
+ * state here worth shipping to the browser to answer a question the server already knows
+ * the answer to.
+ */
+function RowShell({
+  href,
+  active,
+  className,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  if (active) {
+    return (
+      <div aria-current="page" tabIndex={0} className={className}>
+        {children}
+      </div>
+    );
+  }
+  return (
+    <Link href={href} transitionTypes={['nav-forward']} className={className}>
+      {children}
     </Link>
   );
 }

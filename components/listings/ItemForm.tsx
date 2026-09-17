@@ -589,13 +589,23 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               // "drop a file here" on a button that says "Add photos" in words directly
               // beneath the icon, and at 2px they were the heaviest line on the page.
               className={`flex h-full w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:min-h-[10rem] lg:h-auto lg:flex-1 lg:p-group`}
+              // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
+              //
+              // With no photo the button's own words ("Add photos", below) are its
+              // accessible name. With one, the words are replaced by the image — so on
+              // `/listings/[id]/edit`, which always has a cover, this became a button
+              // announced as nothing at all. The photo's `alt` was the only text left,
+              // and "Cover photo" describes what is SHOWN rather than what pressing it
+              // does, which is why the label goes here and the image goes decorative
+              // rather than the other way round.
+              aria-label={coverUrl ? 'Add or replace photos' : undefined}
               aria-describedby={imagesError ? "images-error" : undefined}
             >
               {coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={coverUrl}
-                  alt="Cover photo"
+                  alt=""
                   width={640}
                   height={640}
                   className="h-full w-full object-contain"

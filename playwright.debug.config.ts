@@ -64,6 +64,16 @@ export default defineConfig({
       // THIS server (3100), not the 3000 that .env.local names for a normal dev run.
       WEBHOOK_URL: `http://localhost:${PORT}/api/webhooks/stripe`,
       NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
+      // The two settings this block had drifted away from, both of which the note
+      // above says must not drift.
+      //
+      // `NEXT_BUILD_DIR` is the one that stops the inspector from starting at all:
+      // without it this server compiles into `.next`, which a developer's own
+      // `npm run dev` on port 3000 already owns, and the second process exits 1.
+      // That reads as "the debug config cannot start a server" rather than as two
+      // servers fighting over one build directory.
+      AUTH_RATE_LIMIT_PER_MINUTE: '100',
+      NEXT_BUILD_DIR: '.next-e2e',
     },
   },
 });

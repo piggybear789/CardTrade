@@ -119,7 +119,8 @@ export function PlacePicker({
           ) : null}
           <input
             id={id}
-            className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-base text-muted-foreground pointer-fine:text-body md:h-8"
+            // `text-body`, matching `Input` — see the stale-variant note there.
+            className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-body text-muted-foreground md:h-8"
             value=""
             disabled
             readOnly
@@ -144,8 +145,8 @@ export function PlacePicker({
         ) : null}
         <input
           id={id}
-          // Keep the editable fallback at 16px on phones to avoid iOS focus zoom.
-          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-base pointer-fine:text-body md:h-8"
+          // `text-body`, matching `Input` — see the stale-variant note there.
+          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-body md:h-8"
           value={textOnly}
           disabled={disabled}
           placeholder={textFallbackPlaceholder ?? 'Suburb or meeting place'}

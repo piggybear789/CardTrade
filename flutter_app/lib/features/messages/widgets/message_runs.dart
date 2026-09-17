@@ -26,8 +26,7 @@ const Duration kMessageRunGap = Duration(minutes: 5);
 
 /// What a thread draws at one position in the list.
 enum MessageRunKind {
-  /// A calendar-day separator. Human conversation only: a contract run spans
-  /// days as one continuous thing, and the notices carry their own date.
+  /// A calendar-day separator shared by participant and contract activity.
   day,
 
   /// A run of contract notices — the room talking, not a person.
@@ -82,24 +81,6 @@ List<MessageRun> partitionMessageRuns(
   DateTime? lastDay;
 
   for (final Message message in messages) {
-    if (message.isSystem) {
-      // A notice run absorbs consecutive notices and never merges with the
-      // authored run before it, which is what "ends a run at a contract notice"
-      // means in both directions.
-      final MessageRun? open = runs.isEmpty ? null : runs.last;
-      if (open != null && open.kind == MessageRunKind.notice) {
-        open.messages.add(message);
-      } else {
-        runs.add(MessageRun._(
-          kind: MessageRunKind.notice,
-          messages: <Message>[message],
-          mine: false,
-          dayLabel: null,
-        ));
-      }
-      continue;
-    }
-
     final DateTime day = calendarDay(message.createdAt);
     final bool newDay = lastDay == null || day != lastDay;
     if (newDay) {
@@ -110,6 +91,28 @@ List<MessageRun> partitionMessageRuns(
         dayLabel: dayMarkerLabel(message.createdAt, now: now),
       ));
       lastDay = day;
+    }
+
+    if (message.isSystem) {
+      // Contract notices share the thread's calendar chronology. A run cannot
+      // cross a Cash_Sale boundary, and AGREEMENT_CREATED also splits legacy
+      // rows written before migration 0113 carried cash_sale_id.
+      final MessageRun? open = runs.isEmpty ? null : runs.last;
+      final bool startsContract = message.systemEvent == 'AGREEMENT_CREATED';
+      final bool sameCashSale = open != null &&
+          open.kind == MessageRunKind.notice &&
+          open.messages.last.cashSaleId == message.cashSaleId;
+      if (sameCashSale && !startsContract) {
+        open.messages.add(message);
+      } else {
+        runs.add(MessageRun._(
+          kind: MessageRunKind.notice,
+          messages: <Message>[message],
+          mine: false,
+          dayLabel: null,
+        ));
+      }
+      continue;
     }
 
     final MessageRun? open = runs.isEmpty ? null : runs.last;

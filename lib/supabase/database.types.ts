@@ -2018,6 +2018,8 @@ export type Database = {
         Row: {
           id: string;
           conversation_id: string;
+          /** Cash_Sale source for mirrored SYSTEM rows; null for user/trade messages. */
+          cash_sale_id: string | null;
           /** Null for a SYSTEM message mirrored from a contract event. */
           sender_id: string | null;
           kind: 'USER' | 'SYSTEM';
@@ -2033,6 +2035,7 @@ export type Database = {
         Insert: {
           id?: string;
           conversation_id: string;
+          cash_sale_id?: string | null;
           sender_id?: string | null;
           kind?: 'USER' | 'SYSTEM';
           system_event?: string | null;
@@ -2047,6 +2050,7 @@ export type Database = {
         Update: {
           id?: string;
           conversation_id?: string;
+          cash_sale_id?: string | null;
           sender_id?: string | null;
           kind?: 'USER' | 'SYSTEM';
           system_event?: string | null;

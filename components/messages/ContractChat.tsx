@@ -29,6 +29,7 @@ import { useConversationRealtime } from '@/lib/realtime/useConversationRealtime'
 import { MessageComposer } from '@/components/messages/MessageComposer';
 import {
   MessageLog,
+  type MessageLogSaleContext,
   type MessageLogShipment,
 } from '@/components/messages/MessageLog';
 import { cn } from '@/lib/utils';
@@ -82,6 +83,8 @@ export interface ContractChatProps {
   statusLabel?: string | null;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
+  /** Cash_Sale provenance for event wording and shipment-link ownership. */
+  saleContext?: MessageLogSaleContext | null;
   className?: string;
 }
 
@@ -122,7 +125,12 @@ export function ContractChatBar({
     // Identity and subject only. The controls used to ride this row and wrap to
     // a second line when they were wide ("Accept terms and pay"); they dock
     // below the log now, so the bar is a fixed single row again.
-    <header className="sticky top-0 z-10 flex shrink-0 items-center gap-cozy border-b bg-card px-group py-2.5 max-md:px-cozy">
+    <header
+      className={cn(
+        'sticky top-0 z-10 flex shrink-0 items-center gap-cozy border-b bg-card px-group py-2.5',
+        'max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]',
+      )}
+    >
       {backHref ? (
         <Link
           href={backHref}
@@ -227,10 +235,16 @@ export function ContractChat({
   backHref,
   statusLabel,
   shipment = null,
+  saleContext = null,
   className,
 }: ContractChatProps) {
-  const { messages, connectionStatus, addOptimistic, settleOptimistic } =
-    useConversationRealtime(conversationId);
+  const {
+    messages,
+    historyReady,
+    connectionStatus,
+    addOptimistic,
+    settleOptimistic,
+  } = useConversationRealtime(conversationId);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [unseenCount, setUnseenCount] = useState(0);
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -318,10 +332,14 @@ export function ContractChat({
           // containing here dead-ended the swipe at the end of the log. The
           // phone room is a thread: the log is the only scroller, the composer
           // is pinned under it, and there is nothing behind to scroll on to.
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-cozy"
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain p-cozy',
+            'max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]',
+          )}
           role="log"
           aria-label={`Chat with ${counterpartyName}`}
-          aria-live="polite"
+          aria-live={historyReady ? 'polite' : 'off'}
+          aria-busy={!historyReady}
         >
           <MessageLog
             conversationId={conversationId}
@@ -331,6 +349,7 @@ export function ContractChat({
             counterpartyAvatarPath={counterpartyAvatarPath}
             emptyHint={emptyHint}
             shipment={shipment}
+            saleContext={saleContext}
             showNames
           />
         </div>

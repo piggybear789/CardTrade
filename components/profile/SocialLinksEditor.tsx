@@ -262,9 +262,11 @@ export function SocialLinksEditor({
                   disabled={isPending}
                   aria-invalid={issue ? true : undefined}
                   aria-describedby={issue ? errorId : undefined}
-                  // Bare field inside a compound control: keep editable text at
-                  // 16px on phones to prevent iOS focus zoom.
-                  className="min-w-0 flex-1 bg-transparent py-cozy text-base font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground pointer-fine:text-body"
+                  // Bare field inside a compound control, sized like every other
+                  // editable control: `text-body`. The 16px floor it used to carry
+                  // depended on the retired `pointer-fine:` variant — see the note in
+                  // `components/ui/input.tsx`.
+                  className="min-w-0 flex-1 bg-transparent py-cozy text-body font-medium text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-none disabled:text-muted-foreground"
                 />
                 <button
                   type="button"

@@ -50,6 +50,7 @@ export {
 } from './ContractPartyLine';
 export { ContractProgressRail } from './ContractProgressRail';
 export { ContractStatusBadge } from './ContractStatusBadge';
+export { ContractStatusPanel } from './ContractStatusPanel';
 export { ContractTimeline } from './ContractTimeline';
 export { useContractConversation } from './useContractConversation';
 
@@ -72,6 +73,7 @@ export type {
   ContractPartyLineProps,
 } from './ContractPartyLine';
 export type { ContractProgressRailProps } from './ContractProgressRail';
+export type { ContractStatusPanelProps } from './ContractStatusPanel';
 export type { ContractStatusMap, ContractStatusMeta } from './ContractStatusBadge';
 export type { ContractTimelineProps } from './ContractTimeline';
 export type { ContractConversation } from './useContractConversation';

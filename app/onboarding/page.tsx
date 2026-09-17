@@ -23,12 +23,32 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { listSelectableRegions } from '@/lib/actions/regionOptions';
 import { getCachedProfile } from '@/lib/supabase/cachedAuth';
 
-/** Same-origin absolute paths only, so `redirectTo` cannot become an open redirect. */
+// Profile setup destinations that onboarding itself supersedes. A member sent to
+// `/onboarding` by the gate in `proxy.ts` was, more often than not, trying to reach the
+// Verification or Payouts tab to do the very thing the wizard now walks them through —
+// so returning them there on completion is a detour, not the task they were mid-way
+// through. A buyer in particular has no use for a seller verification tab and lands on
+// it confused. These fall back to the catalog; a genuine deep link (a listing they
+// clicked buy on, a trade) is preserved, because that IS the task onboarding interrupted.
+const SUPERSEDED_REDIRECT_PREFIXES = [
+  '/profile/payouts',
+  '/profile?tab=verification',
+  '/profile?tab=payouts',
+];
+
+/**
+ * Same-origin absolute paths only, so `redirectTo` cannot become an open redirect, and
+ * never a profile setup destination onboarding has just superseded (see
+ * {@link SUPERSEDED_REDIRECT_PREFIXES}). A rejected target falls back to the catalog.
+ */
 function safeRedirectPath(target: string | null): string | null {
-  if (target && target.startsWith('/') && !target.startsWith('//')) {
-    return target;
+  if (!target || !target.startsWith('/') || target.startsWith('//')) {
+    return null;
   }
-  return null;
+  if (SUPERSEDED_REDIRECT_PREFIXES.some((prefix) => target.startsWith(prefix))) {
+    return null;
+  }
+  return target;
 }
 
 export default async function OnboardingPage({

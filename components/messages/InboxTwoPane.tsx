@@ -25,20 +25,15 @@ import type { ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { MessageSquareIcon } from '@hugeicons/core-free-icons';
 
+import { PANE_BAR_MIN_H } from '@/components/messages/threadGeometry';
 import { cn } from '@/lib/utils';
 
 /**
- * Height of the bar at the top of each pane.
- *
- * Both panes carry one, and they have to match or the seam between them reads as two
- * components bolted together. The thread's own bar (`ChatThread`) is a 36px avatar plus
- * `py-2.5`, so this pane's bar is built from the same terms rather than a magic `h-14`
- * that would drift the first time that avatar changed size.
+ * Everything about the bar at the top of each pane EXCEPT its height, which is shared
+ * with the thread's bar in `paneBar.ts` — the two borders have to meet, and each pane
+ * computing its own height from its own contents is what made them miss.
  */
 const PANE_BAR = 'flex shrink-0 items-center border-b bg-card px-cozy py-2.5';
-
-/** Matches the 36px avatar in the thread's bar, so the two bars are the same height. */
-const PANE_BAR_MIN_H = 'min-h-[3.5rem]';
 
 export function InboxTwoPane({
   list,

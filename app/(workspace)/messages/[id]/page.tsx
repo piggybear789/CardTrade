@@ -48,7 +48,7 @@ export default async function ConversationPage({
     notFound();
   }
 
-  const { conversation, other, item, trade, sale, shipment } = result.data;
+  const { conversation, other, item, trade, sale, shipment, messages } = result.data;
 
   // The list beside the thread, from `lg` (see `InboxTwoPane`). Fetched here rather than
   // in a shared segment layout: the list holds no realtime subscription and no client
@@ -64,7 +64,12 @@ export default async function ConversationPage({
   return (
     // `fill`: the two-pane inbox caps its own content — a fixed-width list pane and a
     // 44rem reading column — so the shell's 90rem cap only left dead space beside it.
-    <MarketplaceShell title="Messages" flush fill>
+    <MarketplaceShell
+      title="Messages"
+      flush
+      fill
+      contentOwnsBottomPadding
+    >
       <InboxTwoPane
         countLabel={unread > 0 ? `${unread} unread` : null}
         list={
@@ -84,6 +89,7 @@ export default async function ConversationPage({
             trade={trade}
             sale={sale}
             shipment={shipment}
+            initialMessages={messages}
           />
         }
       />

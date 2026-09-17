@@ -2,17 +2,25 @@
 
 // components/messages/MessageComposer.tsx
 //
-// Shared composer for the inbox thread and the contract room. Paperclip attaches
-// one photo or PDF; Enter sends on a pointer device; the file can travel with
-// or without a caption.
+// Shared composer for the inbox thread and the contract room. The plus control
+// attaches one photo or PDF; Enter sends and Shift+Enter starts a new line; the
+// file can travel with or without a caption.
 
-import { useEffect, useRef, useState, useTransition, type FormEvent, type KeyboardEvent } from 'react';
-// `Plus` and `ArrowUp` rather than the paperclip-and-paper-plane pair every
-// scaffold ships with. Both are the current chat vocabulary — a plus opens the
-// attachment tray, an up arrow commits the line — and an arrow reads as "send"
-// at 16px where a paper plane turns to mush.
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUp01Icon, LoaderCircleIcon, PlusIcon, XIcon } from '@hugeicons/core-free-icons';
+import {
+  LoaderCircleIcon,
+  PlusIcon,
+  SendHorizontalIcon,
+  XIcon,
+} from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,6 +34,30 @@ import {
   isImageAttachmentMime,
 } from '@/lib/storage/messageAttachmentsShared';
 import { MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
+import { MESSAGE_GUTTER } from '@/components/messages/threadGeometry';
+
+/**
+ * What each `sendMessage` failure says to the person who typed the message.
+ *
+ * A MAP, AND IT NAMES `unauthenticated`, which is the whole reason this exists. The
+ * branch this replaced handled three codes and swept the rest into "Message could not be
+ * sent. Please try again." — so a member whose session had expired was told to retry an
+ * action that cannot succeed until they sign in, and the retry produced the same line
+ * again. `MessageSellerButton` has always named this case; the two are now consistent.
+ *
+ * The draft and any attachment are handed back to the composer on every failure, so the
+ * advice here is safe to follow: nothing typed is lost by signing in and returning.
+ */
+const SEND_ERROR_MESSAGES: Record<string, string> = {
+  unauthenticated: 'You have been signed out. Sign in again to send this message.',
+  'not-participant': 'You are no longer part of this conversation.',
+  'invalid-body': 'Message must be between 1 and 4000 characters.',
+  'invalid-attachment': 'That file could not be attached. Try again.',
+  'persistence-error': 'Message could not be sent. Please try again.',
+};
+
+/** For a code this build does not know about — genuinely "try again" territory. */
+const SEND_ERROR_FALLBACK = 'Message could not be sent. Please try again.';
 import {
   optimisticMessage,
   type MessageRow,
@@ -181,24 +213,13 @@ export function MessageComposer({
       if (placeholder && optimistic) optimistic.settle(placeholder.id, null);
       setDraft(body);
       setFile(pending);
-      setError(
-        result.error === 'invalid-body'
-          ? 'Message must be between 1 and 4000 characters.'
-          : result.error === 'invalid-attachment'
-            ? 'That file could not be attached. Try again.'
-            : result.error === 'not-participant'
-              ? 'You are no longer part of this conversation.'
-              : 'Message could not be sent. Please try again.',
-      );
+      setError(SEND_ERROR_MESSAGES[result.error] ?? SEND_ERROR_FALLBACK);
     });
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (
-      event.key === 'Enter' &&
-      !event.shiftKey &&
-      window.matchMedia('(hover: hover)').matches
-    ) {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleSubmit();
     }
@@ -207,19 +228,21 @@ export function MessageComposer({
   return (
     <form
       onSubmit={handleSubmit}
+      aria-busy={isPending}
       className={cn(
-        // `pb-0` is not a missing value. The shell gives a flush route 16px of
-        // bottom padding, so the field is centred in the band under its rule
-        // only when this supplies the matching 16px ABOVE and nothing below.
-        // Add padding here and the field rides high again.
-        // `px-group`, matching the thread's bar and log. It was `px-7` against a
-        // 16px header, so the field sat 12px inside the title above it.
-        compact ? 'border-t p-cozy' : 'border-t px-group pb-0 pt-4',
-        // No surface of its own. It used to paint `--background` on a phone,
-        // which is now a tint sitting on the white the thread and the room both
-        // give it; the field's own `bg-muted` pill is what separates it.
-        'max-md:border-border max-md:pt-4',
-        compact ? 'max-md:px-0 max-md:pb-0' : 'max-md:px-cozy max-md:pb-0',
+        // The standalone inbox thread owns its complete dock. Keeping the 1rem
+        // above and below in this one surface prevents the shell's tinted
+        // background from appearing as a separate strip under the controls.
+        //
+        // The horizontal inset comes from `MESSAGE_GUTTER`, shared with the log and the
+        // subject bar above it — a composer with its own idea of the inset steps away
+        // from the bubbles it belongs to. The contract room's `compact` dock keeps its
+        // own `p-cozy`: that pane is narrow and is not one of the bands this governs.
+        compact ? 'border-t p-cozy' : 'border-t py-4',
+        'max-md:border-border',
+        compact
+          ? 'max-md:pb-0 max-md:pl-[env(safe-area-inset-left)] max-md:pr-[env(safe-area-inset-right)]'
+          : MESSAGE_GUTTER,
       )}
     >
       {/* The RULE spans the pane, its CONTENTS do not. `contentClassName` caps the field
@@ -234,7 +257,13 @@ export function MessageComposer({
         <div className="mb-2 flex items-center gap-2 rounded-lg border bg-muted px-2 py-1.5">
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="" className="size-10 rounded-md object-cover" />
+            <img
+              src={previewUrl}
+              alt=""
+              width={40}
+              height={40}
+              className="size-10 rounded-md object-cover"
+            />
           ) : null}
           <div className="min-w-0 flex-1">
             <p className="truncate text-body font-medium">{file.name}</p>
@@ -261,6 +290,7 @@ export function MessageComposer({
         <input
           ref={fileRef}
           type="file"
+          aria-label="Attach a photo or PDF"
           accept={MESSAGE_ATTACHMENT_ACCEPT}
           className="sr-only"
           onChange={(event) => {
@@ -294,7 +324,10 @@ export function MessageComposer({
           onPaste={(event) => {
             const pasted = event.clipboardData.files[0];
             if (!pasted) return;
-            event.preventDefault();
+            // Preserve ordinary paste. Mixed clipboard payloads often include a
+            // fallback URL/text representation; attaching the file as well
+            // would silently turn that fallback into an unintended caption.
+            if (event.clipboardData.getData('text/plain').trim()) return;
             attach(pasted);
           }}
           ref={fieldRef}
@@ -309,7 +342,11 @@ export function MessageComposer({
             // there, and `max-h` hands over to scrolling on a long paste.
             'max-h-32 min-h-10 resize-none overflow-y-auto py-2 text-body leading-5',
             compact && 'max-h-24',
-            'max-md:min-h-11 max-md:rounded-2xl max-md:bg-muted',
+            // A 44px phone field with a 24px line leaves exactly 9px above and
+            // below after its border. Textareas do not distribute spare
+            // min-height like flex items, so explicit padding is what centres
+            // the resting line rather than parking the surplus underneath it.
+            'max-md:min-h-11 max-md:rounded-2xl max-md:bg-muted max-md:py-[9px] max-md:text-base max-md:leading-6',
           )}
           readOnly={isPending}
           aria-invalid={Boolean(error)}
@@ -318,17 +355,20 @@ export function MessageComposer({
         <Button
           type="submit"
           size="icon"
-          className="size-11 shrink-0 md:size-10"
+          className="size-11 shrink-0 max-md:rounded-full md:size-10"
           disabled={!canSend}
-          aria-label="Send message"
+          aria-label={isPending ? 'Sending message…' : 'Send message'}
         >
           {isPending ? (
             <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={ArrowUp01Icon} aria-hidden />
+            <HugeiconsIcon icon={SendHorizontalIcon} aria-hidden />
           )}
         </Button>
       </div>
+      <span className="sr-only" role="status" aria-live="polite">
+        {isPending ? 'Sending message…' : ''}
+      </span>
       {error ? (
         <p id={`${inputId}-error`} role="alert" className="mt-2 text-body text-destructive">
           {error}

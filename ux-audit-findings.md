@@ -27,12 +27,16 @@ F1–F18 implemented. Verified with `npx tsc --noEmit` (clean),
 `npx eslint app components lib domain` (clean), and `npm run test` (267 passed, 24 files).
 F6 is partial by design — see its entry. R1 is **not** built and track C is blocked; see R1.
 
-F19–F32 are the Round 4 mobile pass and are **open**.
+F19–F37 are the Round 4/5 mobile + contract-scroll passes; consult each entry for its state.
+F38–F39 are the Round 6 rendered pass and are **open**. The status table above counts F1–F18
+only and has not been reconciled with the later rounds — trust the per-entry checkboxes.
 
-Not yet verified by anyone: how any of this looks rendered, on a phone or otherwise. That was
-outstanding after Round 1 and Round 4 did not change it — Round 4 is a code audit too. Several
-of its findings (F19, F20, F24) are about behaviour that only a device exercises, so a handset
-pass is now the highest-value verification available.
+Rendered verification, outstanding since Round 1, is now PARTIALLY done: Round 6 captured every
+surface at desktop and phone widths through a repeatable harness
+(`tests/e2e/specs/screenshots.spec.ts` → `ux-review/captures/`). Two rendered defects came out
+of it (F38, F39). What it did NOT reach: the two contract rooms, for lack of a seeded live
+contract in the database it ran against — see the coverage-gap note under Round 6. Those rooms,
+which carry the F33–F37 fixes, are the highest-value surfaces still unphotographed.
 
 Sources so far:
 - Round 1 — code audit of app shell + buyer-facing discovery flow (F1–F11)
@@ -40,6 +44,7 @@ Sources so far:
 - Round 3 — user-reported (F18)
 - Round 4 — code audit scoped to mobile: touch, scroll, keyboard, visual weight (F19–F32)
 - Round 5 — user-reported, contract details scroll (F33–F37). F33/F34 fixed, F35 partial.
+- Round 6 — first RENDERED pass, desktop + phone screenshot sweep (F38–F39).
 
 ---
 
@@ -953,3 +958,341 @@ was never revisited when the design became a fixed-height tab inspector.
   engage. Verify on a device, and after **F20**: `dvh` currently ignores the keyboard, so any
   declared height here is measured against a viewport that is wrong whenever the composer has
   focus.
+
+
+---
+
+# Round 6 — first RENDERED pass (desktop + mobile screenshots)
+
+The pass every prior round deferred. Rounds 1 and 4 both closed on the same open item:
+"how any of this looks rendered, on a phone or otherwise" had never been checked. This
+round checks it. It is a screenshot sweep of every user-facing surface at two viewports —
+Desktop Chrome and iPhone 14 (real WebKit) — captured through the existing Playwright
+harness (seeded sessions, mock payments, intercepted Places, production server).
+
+**The harness is the durable artifact, not just these findings.** It lives at
+`tests/e2e/specs/screenshots.spec.ts` and writes to `ux-review/captures/` (gitignored),
+named `<surface>.<project>.png`. Re-run it any time with:
+
+```cmd
+:: server already built and warm (~1 min)
+E2E_PRODUCTION_SERVER=1 E2E_MOBILE=1 npx playwright test tests/e2e/specs/screenshots.spec.ts
+:: from cold, including the production build
+E2E_MOBILE=1 npm run test:e2e:prod -- tests/e2e/specs/screenshots.spec.ts
+```
+
+It makes one liveness assertion per surface (a visible heading, and NOT the 404 page) so a
+broken route fails loudly rather than saving a screenshot of a crash. Layout judgement is
+left to the person looking at the images — a sweep cannot know in advance what "correct"
+looks like, so there is deliberately no golden-image diff.
+
+**Coverage of this run:** 63 captures across the two viewports — every public, member, and
+staff surface. Four surfaces skipped for lack of data in the database this ran against, NOT
+because they are broken (see the coverage-gap note at the end). The findings below are what
+the images show; several corroborate Round 4's code-derived findings with a rendered symptom
+for the first time.
+
+## F38 — The fixed mobile bottom nav occludes the last ~56px of any long workspace page
+
+- [ ] Open
+- **Severity:** 3
+- **Principle:** Visibility of System Status, Structure, Error Prevention
+- **Source:** Round 6 (rendered — `ux-review/captures/listing-new.mobile.png`)
+- **Location:** `app/(workspace)/layout.tsx` (renders `{children}` and `MobileBottomNav` as
+  siblings with no bottom inset on the content); `components/layout/MobileBottomNav.tsx`
+  (the bar is `fixed inset-x-0 bottom-0 h-14 … pb-[env(safe-area-inset-bottom)] md:hidden`,
+  and its own comment notes it "sits outside the page's flex chain")
+- **Issue:** The bottom hub bar is fixed to the viewport and, by design, is outside the page
+  flow — but nothing reserves space for it. Below `md`, any page whose content is tall enough
+  to reach the bottom of the viewport renders its final band of content UNDERNEATH the bar.
+  The capture shows the New Listing form with the **Condition** field half-covered by the
+  bar — its label is hidden entirely and "Select a condition" peeks out below the bar. Short
+  pages (profile, the trade-new empty state) end above the bar and look fine, which is exactly
+  why this only bites long, scrollable workspace surfaces: listing create/edit, and any
+  contract room or list long enough to scroll.
+- **User impact:** On a phone, a required form field is visually obstructed by permanent
+  chrome. A member either does not see the field or cannot read the option they are choosing,
+  on the primary selling flow. This is the rendered counterpart to the Round 4 keyboard
+  findings (F19/F20): the bottom of the screen is where the app loses content, and this is a
+  case that needs no keyboard to reproduce.
+- **Fix:** Reserve the bar's height on the content container below `md`, in the one place the
+  bar is mounted. Wrap `{children}` in the workspace layout with
+  `pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0` (matching the bar's `h-14` +
+  safe-area and its `md:hidden` breakpoint), or add equivalent scroll padding to the shell's
+  scroll container. One change covers every workspace surface. Verify against F20 — a page
+  height declared in `dvh` is measured against a viewport that already ignores the keyboard,
+  so the reserved space and the keyboard inset are separate problems that must both hold.
+
+## F39 — Catalog card image and the sort control intermittently render empty
+
+- [ ] Open — **needs a root-cause pass; symptom captured, cause not confirmed**
+- **Severity:** 2
+- **Principle:** Visibility of System Status, Aesthetic and Minimalist Design
+- **Source:** Round 6 (rendered — two catalog captures of the SAME listing disagree:
+  `home-catalog.desktop.png` shows the card image and a populated "Recently Listed" sort
+  control; a second authenticated catalog capture shows the same card with a blank grey image
+  well and an empty sort combobox)
+- **Issue:** The same listing card renders its thumbnail in one capture and an empty grey box
+  in another taken moments later, and the catalog sort `<select>` similarly renders its label
+  in one and blank in the other. Because the two captures are the same route and data, this
+  reads as a load-timing / hydration race rather than bad data — the image and the sort
+  control's value both arrive after first paint and sometimes after the screenshot.
+- **User impact:** A buyer scanning the catalog sees a card with no picture — the single most
+  important element for a card marketplace — and a sort control that looks broken until it
+  settles. Intermittent, so easy to dismiss, but it lands on the first screen every visitor
+  sees.
+- **Fix:** Not yet diagnosed — do not guess. Check (1) whether catalog card images set an
+  explicit width/height or `sizes` so `next/image` reserves space and paints deterministically,
+  vs. lazy-loading below a threshold; (2) whether the sort `<select>` is a controlled value
+  hydrated on the client with no server-rendered selected option. This corroborates the
+  "cause not yet verified" note under **F13** (broken-image thumbnail in the contract room);
+  they may share a root cause in how item images resolve. Confirm against a listing whose
+  `image_paths` are known-good before concluding it is a UI race (see the data-quality note
+  below — this database's catalog rows are suspect).
+
+## Coverage gaps in this run (NOT findings)
+
+Recorded so a thin capture set is not mistaken for missing surfaces. All are properties of
+the DATABASE this run pointed at (a developer scratch DB seeded with ad-hoc "Tester" /
+"Pikachu" rows), not the app:
+
+- **`cash-sale-room`, `trade-room` (both viewports) — skipped.** No `cash_sales` or `trades`
+  rows exist for the seeded e2e members, so there was no contract to open. These are the
+  surfaces Round 5 (F33–F37) is about and the richest in the app; capturing them needs a
+  seeded live contract for a seed user (load `seed_demo_kitsunearia.sql`, or drive the create
+  flow first). Until then the F33–F37 fixes remain verified only in code.
+- **`listing-detail`, `message-thread` (both viewports) — skipped.** The newest AVAILABLE
+  catalog listing in this DB (`/listings/c0788783-…`, owner "Tester") renders the 404 page on
+  its detail route even for a guest, despite appearing in the catalog grid. Likely incomplete
+  scratch data (e.g. bad `image_paths` or a missing related row) rather than a routing bug,
+  but it REPRODUCES publicly and is worth a look — a catalog that links to a 404 is a real
+  defect if it survives against clean seed data. The sweep refuses to capture the 404 page as
+  a "pass", which is why these skipped rather than saving a not-found screenshot.
+
+The two skipped-room surfaces are the highest-value thing still unphotographed. Seeding one
+live cash sale and one live trade for a seed member would close the last gap in the rendered
+pass.
+
+---
+
+## Round 7 — first DRIVEN pass (journeys, not page loads)
+
+`tests/e2e/specs/journeys.spec.ts` walks the frequent pathways at both viewports rather
+than photographing routes: guest discovery → listing → gated action, buyer save and
+enquire, seller publish → inventory → edit, the phone hub bar, and the account tabs.
+Journeys catch what a screenshot cannot — a control that renders perfectly and does
+nothing when clicked.
+
+## F40 — A click on a catalog tile is silently dropped during the hydration swap
+
+- [ ] Open — **root cause confirmed and reproducible; fix is an architecture decision, not a patch**
+- **Severity:** 3
+- **Principle:** Visibility of System Status, User Control and Freedom
+- **Source:** Round 7 (driven — the guest discovery journey clicked a tile and the URL did
+  not change, with no Playwright error. Isolated in
+  `tests/e2e/debug/catalog-card-click.spec.ts`, which reproduced it on 2 of 3 first loads
+  and passed every time after a 3-second settle.)
+- **Issue:** `CatalogMosaic` renders two DIFFERENT trees — the phone mosaic (which is what
+  the server emits, because it has no viewport) and a flat grid once `useIsDesktop`
+  resolves — and swaps between them after hydration. The swap is deliberately invisible:
+  the mosaic markup lays out identically at `md` and up, so a desktop visitor sees a
+  finished page throughout. Every tile's anchor is nevertheless destroyed and rebuilt, and
+  a click that lands in that window is lost outright. The recorded event sequence is
+  `pointerdown target=a connected=false`, then `mousedown`/`mouseup` on a `div`, and **no
+  `click` event at all** — so it is not a `preventDefault`, it is a click that never
+  happened.
+- **User impact:** The first click of a session, on the first screen of the product, on the
+  one control the whole catalog exists to offer. It self-heals from the second page view
+  because `ViewportHintWriter` records the tier in the `nd_vw` session cookie and the next
+  server render starts in the right shape — so the exposure is bounded to a first visit,
+  which is also the visit a new member makes. Nothing tells them it was dropped; the page
+  simply sits there, and the natural reading is that the listing is broken.
+- **Fix:** Not a one-liner, and the existing design is deliberate (see the header comment in
+  `CatalogMosaic` — the two trees exist because each cover owns a `ViewTransition name` and
+  React rejects a duplicate, so the tiles cannot be rendered twice). Options, in the order
+  they should be considered:
+  1. Resolve the viewport tier BEFORE the first paint of a first visit, so the server emits
+    the tree that will survive. The `nd_vw` cookie already does this for every visit after
+    the first; the gap is only the first. `Accept-CH: Sec-CH-Viewport-Width` would close it
+    for Chromium, and leave WebKit on the current behaviour.
+  2. Keep one tree. If the mosaic markup is already correct at `md` and up — and the header
+    comment says it is, via `display: contents` and `--tile-order` — then the desktop branch
+    is buying DOM reading order alone, and column-major order could be fixed by balancing
+    into rows instead of columns.
+  3. Accept it and make it recoverable rather than silent.
+  Do NOT "fix" it by reserving judgement on which tree is right per request without also
+  removing the swap: a swap that happens later is a longer window, not a smaller one.
+- **Note for the suite:** `clickThrough` in `tests/e2e/support/waiting.ts` clicks, checks
+  whether anything moved, and clicks once more if not. It exists so a journey asserting on
+  a PATHWAY does not fail on this race, and it names this finding. Remove it when this is
+  fixed — it is the marker for the defect, not a general-purpose click.
+
+## F41 — `/listings/[id]/edit` has a button with no accessible name
+
+- [x] Addressed — `components/listings/ItemForm.tsx`
+- **Severity:** 2
+- **Principle:** Accessibility
+- **Source:** Round 6/7 (the screenshot matrix's per-surface audit reports exactly one
+  `button` with no accessible name on `listing-edit`, at both viewports)
+- **Issue:** Identified: it is the cover-photo drop target in `ItemForm`. With no photo the
+  button carries the words "Add photos", which are its accessible name. With one — which is
+  always the case on the EDIT route, since a listing cannot exist without a photo — the
+  words are replaced by the image, and the button's only remaining text was the photo's
+  `alt="Cover photo"`. So it was either anonymous or named after what it displays rather
+  than what it does. `/listings/new` was never affected, which is why this showed up on one
+  surface and not the form it shares.
+- **User impact:** A screen-reader user tabbing the edit form reaches a control with no
+  indication of what it does, on a form that mutates a live listing.
+- **Fix:** Applied. The button takes `aria-label="Add or replace photos"` in the cover state
+  only — so the visible words still name it when they are present — and the image became
+  decorative (`alt=""`), because the name belongs to the control and the photo is not it.
+
+## F42 — The desktop header reads "NoDittoMarketplace"
+
+- [x] Addressed — `components/layout/SiteHeader.tsx`
+- **Severity:** 1
+- **Principle:** Aesthetic and Minimalist Design
+- **Source:** Round 6/7 (rendered — visible in every desktop header capture; measured in
+  `tests/e2e/debug/header-and-edit.spec.ts`)
+- **Issue:** Not a missing gap — measured, the ink gap between "NoDitto" and "Marketplace"
+  was 13px, which is the SAME separation the nav's own items have from each other. That is
+  the defect: the brand is a different kind of thing from a section link, and at equal
+  spacing the wordmark reads as the first item in the nav.
+- **User impact:** Cosmetic, and on every page.
+- **Fix:** Applied. The brand cluster goes to `md:gap-6`, so the wordmark is separated from
+  the nav by more than the nav items are from each other. Both the real bar and its skeleton
+  carry it, so the header does not shift as it resolves.
+
+## Not defects — checked in Round 7 and cleared
+
+- **Controls under the fixed phone hub bar (F38's symptom).** Asserted directly:
+  `expectNothingUnderMobileNav` scrolls to the end of each surface and looks for any
+  interactive element overlapping the bar's rectangle. Clean on catalog, saved, the message
+  thread, the owner listing detail, profile and the payouts tab.
+- **Mobile catalog game pills overflowing the viewport.** The auditor flags "Riftbound" and
+  "Lorcana" as extending past the right edge while reporting `horizontalOverflow: 0`. That is
+  a horizontal scroll rail behaving correctly; the check, not the UI, was wrong.
+- **The seeded catalog being empty.** `supabase/seed.sql`'s item rows are absent from the
+  environment this ran against while its PROFILE rows are present, so any spec that browses
+  to a seeded item reports a working catalog as "0 listings". Journeys now publish their own
+  marked subject listing for this reason — a test must not assert on data it did not create.
+
+## F43 — An optimistic write is lost, silently, if the member navigates straight after it
+
+- [ ] Open — **reproduced three times on three different controls; fix is a shared policy, not three patches**
+- **Severity:** 3
+- **Principle:** Visibility of System Status, Error Prevention
+- **Source:** Round 7 (driven). Three independent instances:
+  - the heart on a listing — saved, then `/saved` said "No Saved Listings Yet"
+  - the same heart — saved, then a reload of the listing showed it unsaved
+  - the first message to a seller on a phone — the bubble appeared, then the inbox row
+    for that very conversation read "No messages yet"
+  Each was verified NOT to be a broken feature: left alone for three seconds, all three
+  persist (`tests/e2e/debug/watchlist-save.spec.ts`,
+  `tests/e2e/debug/phone-message-send.spec.ts`).
+- **Issue:** These controls flip their own state optimistically and call a Server Action
+  inside `startTransition`. Navigating away — a link, the bottom nav, a reload — tears the
+  transition down with the page, so the request is aborted before the row is written. The
+  UI has already said it worked, and the failure toast dies with the page that would have
+  shown it. Nothing is left behind: no row, no error, no trace.
+- **Also in this family, and worse in one way:** a tap that lands BEFORE hydration does
+  nothing at all. The control is painted, sized and enabled, but no handler is attached
+  yet, so there is not even an optimistic flip. Observed on mobile WebKit, where the
+  window is seconds long against a dev server.
+- **User impact:** A member saves a card and taps straight through to Saved — the most
+  natural thing to do after saving — and it is not there. Or sends a first message and
+  opens the inbox to check it sent, and it did not. Both are silent, both are
+  unreproducible on a slow second attempt, and both erode the thing this product is
+  selling: that what it tells you happened, happened.
+- **Fix:** One policy, applied to every optimistic control, rather than a wait per call
+  site. Candidates, in order:
+  1. Do not report success optimistically for a write that a navigation can cancel.
+     `useOptimistic` with the action awaited, or a pending state that survives the
+     navigation, are both better than a `useState` flip.
+  2. Keep the write alive across the navigation. A queued write (or one issued outside the
+     React transition) survives a route change; the transition does not.
+  3. At minimum, make the failure legible: a toast on an aborted write, and a control that
+     shows pending rather than done until the row exists.
+  Also disable, or visually mark as not-yet-ready, controls whose handler is not attached —
+  a button that does nothing when pressed is worse than one that is briefly disabled.
+- **Note for the suite:** `clickForWrite` in `tests/e2e/support/waiting.ts` clicks and waits
+  for the write's own response, retrying when no request was made at all. It exists for
+  this finding and names it. Remove it when this is fixed.
+
+## F44 — The phone header hydrates from a mismatched server render
+
+- [ ] Open — **captured, not yet root-caused**
+- **Severity:** 2
+- **Principle:** Visibility of System Status, Efficiency
+- **Source:** Round 7 (driven — `pageerror` collected on a first phone page load in
+  `tests/e2e/debug/phone-message-send.spec.ts`)
+- **Issue:** React reports "Hydration failed because the server rendered HTML didn't match
+  the client. As a result this tree will be regenerated on the client", and names two
+  differences:
+  - `nav[aria-label="Primary"]` → the Marketplace link is `aria-current="page"` on the
+    server and not on the client, on a route that is NOT the catalog. The server-rendered
+    header therefore believed the current path was `/`.
+  - `MobileChromeFrame`'s `header` → `pt-[env(safe-area-inset-top)]` on the server against
+    `pt-[calc(env(safe-area-inset-top)+0.5rem)]` on the client, i.e. `compact` resolved
+    differently on the two sides.
+- **User impact:** The whole tree under the mismatch is thrown away and re-rendered on the
+  client on every phone page load. That costs work on the slowest devices, and it is the
+  same mechanism as **F40** — a control that is rebuilt underneath a finger loses the tap.
+- **Fix:** Not yet diagnosed, and worth doing properly rather than by suppressing the
+  warning. Two threads to pull: why the server render of the header resolves a pathname
+  that is not the requested one (a cached or reused segment is the obvious suspect), and
+  where `compact` comes from on each side.
+
+## F45 — Captions and table headers are 11px, app-wide
+
+- [ ] Open — **deliberate-looking and one token wide; wants a design call, not a patch**
+- **Severity:** 1
+- **Principle:** Accessibility, Perceptibility
+- **Source:** Round 6/7 (rendered — every desktop surface reports 4–8 nodes under the 12px
+  floor this audit adopted; see the `tinyText` field in `ux-review/captures/*.desktop.json`)
+- **Issue:** The 11px text is entirely supporting micro-copy, and it is consistent: the
+  workspace rail's group captions ("Marketplace", "Contracts", "Selling", "You", "Staff"),
+  the filter rail's field captions ("Condition", "Price", "Availability"), the list table
+  headers ("Listing", "Price", "Watching", "Status", "Next step") and the trade room's
+  "Value" labels. No CONTENT is below 12px — that part of the earlier rounds still holds.
+- **User impact:** These are the labels that tell a member what a column of numbers means,
+  set in muted grey at 11px. Legible for most, borderline for the people most likely to be
+  reading a price column carefully.
+- **Fix:** One token, not 40 call sites — lift `text-meta` to 12px, or introduce a distinct
+  caption size and leave `text-meta` for genuinely incidental text. NOT applied here: it is a
+  1px shift in every rail, table header and caption in the product, which is a visual
+  decision rather than a defect repair.
+
+## F46 — `/listings/[id]` throws during SERVER render for the owner, and recovers on the client
+
+- [ ] Open — **reproducible, isolated to one surface, root cause not yet pinned**
+- **Severity:** 2
+- **Principle:** Robustness
+- **Source:** Round 6/7 (rendered — `listing-detail-owner` is the only surface in the
+  54-surface matrix with a `pageErrors` entry, at BOTH viewports)
+- **Issue:** `Slot failed to slot onto its children. Expected a single React element child
+  or 'Slottable'.`, thrown from Radix's `Slot` during SSR. Next reports "Switched to client
+  rendering because the server rendering errored", the route's `error.tsx` logs it, and the
+  client render then succeeds — which is why the page looks perfect in the capture and the
+  defect is invisible without the console.
+- **User impact:** The owner's own listing page is server-rendered, thrown away, and rendered
+  again in the browser. Nothing is broken on screen; what is lost is the SSR of the page a
+  seller lands on after publishing, plus the resilience that comes with it — with JS
+  disabled or a failed chunk, this page has no server render to fall back on.
+- **What has been ruled out,** so the next person does not repeat it:
+  - It is NOT every owner view. A freshly published listing viewed by its owner, hard-loaded,
+    does not reproduce it (`tests/e2e/debug/owner-slot-error.spec.ts`). The matrix's item is
+    one that ALSO carries a conversation and an open trade proposal, so the trigger is
+    data-dependent, not simply the owner branch.
+  - It is NOT the obvious `asChild` sites. The owner branch's own ones —
+    `app/(workspace)/listings/[id]/page.tsx:811` and `ListingOwnerBar:27`, both
+    `Button asChild → Link(icon + span)` — render in the non-reproducing case too.
+  - Only `components/ui/button.tsx` and `components/ui/form.tsx` import `Slot`, so the
+    surface area is small.
+  - The client stack is all framework frames; `monitorPage` now records `error.stack` as
+    well as the message, which is how that was established.
+- **Fix:** Bisect against the FIXTURE data rather than a fresh listing — the reproduction is
+  `npx playwright test tests/e2e/specs/screenshots.spec.ts --project=desktop -g "listing-detail-owner"`,
+  which provisions the conversation and the trade first. The thing to look for is an
+  `asChild` whose child resolves to two nodes or to text on the server and one element on
+  the client, since a difference between the two renders is what makes this SSR-only.

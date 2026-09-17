@@ -30,7 +30,10 @@ export async function ensureSavedCard(page: Page, itemId: string): Promise<void>
   await page.goto(`/listings/${itemId}`);
   await page.waitForLoadState('domcontentloaded');
 
-  await page.getByRole('button', { name: 'Buy now' }).click();
+  // THE LABEL DIFFERS BY VIEWPORT. Desktop renders "Buy now"; the phone buyer bar
+  // spends its width on a shorter "Buy". A helper pinned to one of them reports the
+  // other viewport as a hang.
+  await page.getByRole('button', { name: /^Buy( now)?$/ }).first().click();
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 15_000 });

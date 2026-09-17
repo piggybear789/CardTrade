@@ -63,10 +63,9 @@ export function classifyContractEvent(
 /**
  * The tone's glyph. Decorative — the event sentence carries the meaning.
  *
- * For the room's audit panel, where rows are left-aligned and the glyphs form a
- * marker column that can be scanned. The chat log deliberately does NOT use it:
- * its rows are centred, so the same glyphs land at a different x on every line
- * and read as debris rather than a column. There the hierarchy is ink weight.
+ * Both contract-room audits and conversation ledgers render these in a fixed
+ * marker column. The shared glyph keeps success, warning, and failure semantics
+ * consistent without turning each event into a separate card.
  */
 export function ContractEventIcon({
   tone,

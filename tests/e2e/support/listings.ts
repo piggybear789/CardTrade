@@ -204,9 +204,16 @@ export async function createListing(
   await fillPlace(page, /Based near/, STUB_PLACES.sydney);
 
   await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
-  // Wait for the upload to land before submitting: the action is given object paths,
-  // not bytes, so submitting early sends an incomplete image list.
-  await expect(page.getByText(/1 selected/i)).toBeVisible({ timeout: 20_000 });
+  // The current picker represents selection with a thumbnail + named remove
+  // control rather than the retired "1 selected" counter. The submit button
+  // stays disabled while an upload is in flight, so both signals together mean
+  // the object path is ready for the action.
+  await expect(
+    page.getByRole('button', { name: `Remove ${path.basename(TEST_IMAGE)}` }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('button', { name: 'Create listing' })).toBeEnabled({
+    timeout: 20_000,
+  });
 
   await page.getByRole('button', { name: 'Create listing' }).click();
 

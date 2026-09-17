@@ -25,6 +25,7 @@ import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { attachmentPreviewLabel } from '@/lib/storage/messageAttachmentsShared';
 import { verifyMessageAttachmentPath } from '@/lib/storage/messageAttachments';
+import { isTerminalCashSaleStatus } from '@/domain/contract/cashSaleStatus';
 
 /** A persisted conversation row. */
 export type ConversationRow = Tables<'conversations'>;
@@ -160,8 +161,10 @@ export interface ConversationItemSummary {
   id: string;
   title: string;
   imagePath: string | null;
-  /** Asking price in cents. Loaded for the thread view; absent in the inbox list. */
+  /** Asking price in the listing's own smallest currency unit. */
   priceCents?: number | null;
+  /** ISO 4217 currency for priceCents. Loaded for the thread view. */
+  currency?: string | null;
   /** Listing lifecycle status (e.g. AVAILABLE / SOLD). Loaded for the thread view. */
   status?: string | null;
 }
@@ -217,6 +220,70 @@ export type ListConversationsError = 'unauthenticated' | 'persistence-error';
 export type ListMyConversationsResult =
   | { ok: true; conversations: ConversationListEntry[] }
   | ActionFailure<ListConversationsError>;
+
+/** Columns required to choose and describe one contract in a reused thread. */
+type ConversationSaleRow = Pick<
+  Tables<'cash_sales'>,
+  | 'id'
+  | 'status'
+  | 'conversation_id'
+  | 'agreed_price_cents'
+  | 'currency'
+  | 'fulfillment_method'
+  | 'from_shopfront'
+  | 'buyer_id'
+  | 'seller_id'
+  | 'created_at'
+>;
+
+const CONVERSATION_SALE_SELECT =
+  'id, status, conversation_id, agreed_price_cents, currency, fulfillment_method, from_shopfront, buyer_id, seller_id, created_at' as const;
+
+/** Additional delivery fields needed by the open thread. */
+type ConversationSaleDetailRow = ConversationSaleRow &
+  Pick<
+    Tables<'cash_sales'>,
+    'tracking_carrier' | 'tracking_number' | 'tracking_url'
+  >;
+
+const CONVERSATION_SALE_DETAIL_SELECT =
+  'id, status, conversation_id, agreed_price_cents, currency, fulfillment_method, from_shopfront, buyer_id, seller_id, created_at, tracking_carrier, tracking_number, tracking_url' as const;
+
+/**
+ * Pick the contract a reused conversation should present.
+ *
+ * A binder can have several active contracts in one participant/item thread.
+ * Prefer the newest active contract, then the newest closed contract, and carry
+ * the counts so the UI can route multiple active contracts to the list instead
+ * of presenting one arbitrary row as the whole conversation.
+ */
+function summarizeConversationSales(
+  rows: readonly ConversationSaleRow[],
+  viewerId: string,
+): ConversationSaleSummary | null {
+  if (rows.length === 0) return null;
+
+  const newestFirst = [...rows].sort(
+    (a, b) =>
+      b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id),
+  );
+  const active = newestFirst.filter(
+    (row) => !isTerminalCashSaleStatus(row.status),
+  );
+  const selected = active[0] ?? newestFirst[0];
+
+  return {
+    id: selected.id,
+    status: selected.status,
+    agreedPriceCents: selected.agreed_price_cents,
+    currency: selected.currency,
+    fulfillmentMethod: selected.fulfillment_method,
+    fromShopfront: selected.from_shopfront,
+    activeContractCount: active.length,
+    contractCount: newestFirst.length,
+    viewerRole: selected.buyer_id === viewerId ? 'BUYER' : 'SELLER',
+  };
+}
 
 /**
  * List the caller's conversations, newest activity first, each enriched with the
@@ -288,8 +355,9 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       // participants of the thread, so this returns a row or nothing.
       supabase
         .from('cash_sales')
-        .select('id, status, conversation_id')
-        .in('conversation_id', conversationIds),
+        .select(CONVERSATION_SALE_SELECT)
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false }),
       supabase
         .from('messages')
         .select(
@@ -332,19 +400,21 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
     ]),
   );
 
-  /** Keyed by CONVERSATION id, not sale id — this map answers "is this thread a contract". */
-  const saleByConversation = new Map<string, ConversationSaleSummary>(
-    (saleThreadsRes.data ?? []).flatMap((s) => {
-      const row = s as {
-        id: string;
-        status: Enums<'cash_sale_status'>;
-        conversation_id: string | null;
-      };
-      return row.conversation_id
-        ? ([[row.conversation_id, { id: row.id, status: row.status }]] as const)
-        : [];
-    }),
-  );
+  // Group every sale attached from the cash-sale side. A listing conversation can be
+  // reused after a closed contract and binder listings can have several active rows,
+  // so a single Map assignment would make database return order decide the header.
+  const saleRowsByConversation = new Map<string, ConversationSaleRow[]>();
+  for (const row of (saleThreadsRes.data ?? []) as ConversationSaleRow[]) {
+    if (!row.conversation_id) continue;
+    const grouped = saleRowsByConversation.get(row.conversation_id) ?? [];
+    grouped.push(row);
+    saleRowsByConversation.set(row.conversation_id, grouped);
+  }
+  const saleByConversation = new Map<string, ConversationSaleSummary>();
+  for (const [conversationId, rows] of saleRowsByConversation) {
+    const summary = summarizeConversationSales(rows, me);
+    if (summary) saleByConversation.set(conversationId, summary);
+  }
 
   // Group messages by conversation (already sorted newest-first) so we can pick
   // the latest preview and count unread messages in a single pass.
@@ -431,6 +501,20 @@ export interface ConversationShipment {
 export interface ConversationSaleSummary {
   id: string;
   status: Enums<'cash_sale_status'>;
+  /** Agreed item price in the contract's own smallest currency unit. */
+  agreedPriceCents: number;
+  /** ISO 4217 currency code frozen on the contract. */
+  currency: string;
+  /** The agreed handover path, once terms exist. */
+  fulfillmentMethod: Enums<'handover_method'> | null;
+  /** True when the contract buys named goods from a binder or bulk listing. */
+  fromShopfront: boolean;
+  /** Number of non-terminal contracts sharing this conversation. */
+  activeContractCount: number;
+  /** Number of historical and active contracts sharing this conversation. */
+  contractCount: number;
+  /** The viewing member's side of the selected contract. */
+  viewerRole: 'BUYER' | 'SELLER';
 }
 
 /** A conversation with its participant, item context, and full message history. */
@@ -483,10 +567,30 @@ export async function getConversation(
   }
 
   const otherId = conv.participant_a === me ? conv.participant_b : conv.participant_a;
-  const cashSaleId = (conv as ConversationRow & { cash_sale_id?: string | null })
-    .cash_sale_id;
+  const disputeCashSaleId = (
+    conv as ConversationRow & { cash_sale_id?: string | null }
+  ).cash_sale_id;
 
-  const [profileRes, itemRes, saleRes, messagesRes] = await Promise.all([
+  // Ordinary sale threads are linked from cash_sales.conversation_id. The
+  // conversation-side cash_sale_id belongs only to a dispute thread (0019).
+  // Both branches return an ordered collection because a listing conversation
+  // can be reused by several sequential — or binder — contracts.
+  const salePromise = (disputeCashSaleId
+    ? supabase
+        .from('cash_sales')
+        .select(CONVERSATION_SALE_DETAIL_SELECT)
+        .eq('id', disputeCashSaleId)
+    : supabase
+        .from('cash_sales')
+        .select(CONVERSATION_SALE_DETAIL_SELECT)
+        .eq('conversation_id', conversationId)
+  ).order('created_at', { ascending: false });
+
+  // Read the message snapshot before contract context. If a transition commits
+  // between them, the later sale read is newer; the reverse order can render a
+  // new SYSTEM event with a stale amount, status, shipment, and CTA while also
+  // seeding that event as already seen by Realtime.
+  const [profileRes, itemRes, messagesRes] = await Promise.all([
     supabase
       .from('public_profiles')
       .select('id, display_name, avatar_path')
@@ -495,15 +599,8 @@ export async function getConversation(
     conv.item_id
       ? supabase
           .from('items')
-          .select('id, title, image_paths, fmv_cents, status')
+          .select('id, title, image_paths, fmv_cents, currency, status')
           .eq('id', conv.item_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    cashSaleId
-      ? supabase
-          .from('cash_sales')
-          .select('id, status, tracking_carrier, tracking_number, tracking_url')
-          .eq('id', cashSaleId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
@@ -512,6 +609,7 @@ export async function getConversation(
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true }),
   ]);
+  const saleRes = await salePromise;
 
   const item = itemRes.data
     ? {
@@ -519,26 +617,25 @@ export async function getConversation(
         title: itemRes.data.title as string,
         imagePath: ((itemRes.data.image_paths as string[] | null) ?? [])[0] ?? null,
         priceCents: (itemRes.data.fmv_cents as number | null) ?? null,
+        currency: (itemRes.data.currency as string | null) ?? null,
         status: (itemRes.data.status as string | null) ?? null,
       }
     : null;
 
-  // A number is what makes the shipment real: the carrier and URL are both
-  // nullable, and a manual provider records the number with neither.
-  const trackingNumber = (saleRes.data?.tracking_number as string | null) ?? null;
-  const shipment: ConversationShipment | null = trackingNumber
-    ? {
-        carrier: (saleRes.data?.tracking_carrier as string | null) ?? null,
-        trackingNumber,
-        trackingUrl: (saleRes.data?.tracking_url as string | null) ?? null,
-      }
+  const saleRows = (saleRes.data ?? []) as ConversationSaleDetailRow[];
+  const sale = summarizeConversationSales(saleRows, me);
+  const selectedSale = sale
+    ? (saleRows.find((row) => row.id === sale.id) ?? null)
     : null;
 
-  const saleId = (saleRes.data?.id as string | null) ?? null;
-  const sale: ConversationSaleSummary | null = saleId
+  // A number is what makes the shipment real: the carrier and URL are both
+  // nullable, and a manual provider records the number with neither.
+  const trackingNumber = selectedSale?.tracking_number ?? null;
+  const shipment: ConversationShipment | null = trackingNumber
     ? {
-        id: saleId,
-        status: saleRes.data?.status as Enums<'cash_sale_status'>,
+        carrier: selectedSale?.tracking_carrier ?? null,
+        trackingNumber,
+        trackingUrl: selectedSale?.tracking_url ?? null,
       }
     : null;
 

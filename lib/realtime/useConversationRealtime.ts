@@ -36,6 +36,8 @@ export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'error';
 export interface UseConversationRealtimeResult {
   /** The live, chronologically ordered messages for the conversation. */
   messages: MessageRow[];
+  /** False only while a client-only surface is still loading existing history. */
+  historyReady: boolean;
   /** Current Realtime connection status (drives the live indicator). */
   connectionStatus: ConnectionStatus;
   /** Show a locally-created message before the server has confirmed it. */
@@ -75,6 +77,7 @@ export function optimisticMessage(input: {
   return {
     id: `${OPTIMISTIC_PREFIX}${crypto.randomUUID()}`,
     conversation_id: input.conversationId,
+    cash_sale_id: null,
     sender_id: input.senderId,
     kind: 'USER',
     system_event: null,
@@ -106,6 +109,15 @@ function byCreatedAt(a: MessageRow, b: MessageRow): number {
   return a.created_at < b.created_at ? -1 : 1;
 }
 
+export interface UseConversationRealtimeOptions {
+  /** Server-rendered history used for the first paint; an empty array is valid. */
+  initialMessages?: readonly MessageRow[];
+  /** Called once for each newly inserted SYSTEM row after history is ready. */
+  onSystemMessage?: (message: MessageRow) => void;
+}
+
+const EMPTY_INITIAL_MESSAGES: readonly MessageRow[] = [];
+
 /**
  * Subscribe to a single conversation's messages in real time.
  *
@@ -121,10 +133,24 @@ function byCreatedAt(a: MessageRow, b: MessageRow): number {
  */
 export function useConversationRealtime(
   conversationId: string,
+  options: UseConversationRealtimeOptions = {},
 ): UseConversationRealtimeResult {
-  const [messages, setMessages] = useState<MessageRow[]>([]);
+  const initialMessages = options.initialMessages;
+  const hasServerHistory = initialMessages !== undefined;
+  const seed = initialMessages ?? EMPTY_INITIAL_MESSAGES;
+  const [messages, setMessages] = useState<MessageRow[]>(() =>
+    [...seed].sort(byCreatedAt),
+  );
+  const [historyReady, setHistoryReady] = useState(hasServerHistory);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>('connecting');
+  const historyReadyRef = useRef(hasServerHistory);
+  const activeConversationRef = useRef(conversationId);
+  const onSystemMessageRef = useRef(options.onSystemMessage);
+  const seenSystemIdsRef = useRef(
+    new Set(seed.filter((message) => message.kind === 'SYSTEM').map((message) => message.id)),
+  );
+  onSystemMessageRef.current = options.onSystemMessage;
 
   // Stable browser client for the lifetime of the hook instance.
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -132,33 +158,91 @@ export function useConversationRealtime(
     supabaseRef.current = createClient();
   }
 
-  // Merge a single message change (INSERT/UPDATE) into local state, keeping the
-  // list de-duplicated by id and sorted chronologically.
-  const applyMessageChange = useCallback(
+  const announceSystemMessage = useCallback((message: MessageRow) => {
+    if (message.kind !== 'SYSTEM' || seenSystemIdsRef.current.has(message.id)) {
+      return;
+    }
+    seenSystemIdsRef.current.add(message.id);
+    if (historyReadyRef.current) onSystemMessageRef.current?.(message);
+  }, []);
+
+  // Merge a single message change into local state, keeping the list
+  // de-duplicated by id and sorted chronologically.
+  const mergeMessage = useCallback((next: MessageRow) => {
+    if (!next?.id) return;
+    setMessages((prev) => {
+      // Drop the placeholder this row is the echo of. The realtime INSERT can
+      // land BEFORE the server action returns, so waiting for `settle` alone
+      // would show the sender their own message twice for a moment.
+      const withoutEcho = prev.filter(
+        (message) =>
+          !(
+            isOptimisticMessage(message) &&
+            message.sender_id === next.sender_id &&
+            message.body === next.body
+          ),
+      );
+      const index = withoutEcho.findIndex((message) => message.id === next.id);
+      if (index === -1) return [...withoutEcho, next].sort(byCreatedAt);
+      const copy = withoutEcho.slice();
+      copy[index] = next;
+      return copy.sort(byCreatedAt);
+    });
+  }, []);
+
+  const applyInsert = useCallback(
     (payload: RealtimePostgresChangesPayload<MessageRow>) => {
       const next = payload.new as MessageRow;
       if (!next?.id) return;
-      setMessages((prev) => {
-        // Drop the placeholder this row is the echo of. The realtime INSERT can
-        // land BEFORE the server action returns, so waiting for `settle` alone
-        // would show the sender their own message twice for a moment.
-        const withoutEcho = prev.filter(
-          (m) =>
-            !(
-              isOptimisticMessage(m) &&
-              m.sender_id === next.sender_id &&
-              m.body === next.body
-            ),
-        );
-        const index = withoutEcho.findIndex((m) => m.id === next.id);
-        if (index === -1) return [...withoutEcho, next].sort(byCreatedAt);
-        const copy = withoutEcho.slice();
-        copy[index] = next;
-        return copy.sort(byCreatedAt);
-      });
+      announceSystemMessage(next);
+      mergeMessage(next);
     },
-    [],
+    [announceSystemMessage, mergeMessage],
   );
+
+  const applyUpdate = useCallback(
+    (payload: RealtimePostgresChangesPayload<MessageRow>) => {
+      const next = payload.new as MessageRow;
+      if (next?.id) mergeMessage(next);
+    },
+    [mergeMessage],
+  );
+
+  // A router refresh supplies a new server snapshot without remounting this
+  // client component. Merge it into live/optimistic state and union its SYSTEM
+  // ids into the seen set. Replacing that set could make an older RSC response
+  // announce a row that Realtime already delivered.
+  useEffect(() => {
+    const changedConversation = activeConversationRef.current !== conversationId;
+    if (changedConversation) {
+      activeConversationRef.current = conversationId;
+      seenSystemIdsRef.current = new Set();
+      if (initialMessages === undefined) {
+        setMessages([]);
+        historyReadyRef.current = false;
+        setHistoryReady(false);
+        return;
+      }
+    }
+    if (initialMessages === undefined) return;
+
+    for (const message of initialMessages) {
+      if (message.kind === 'SYSTEM') seenSystemIdsRef.current.add(message.id);
+    }
+    setMessages((prev) => {
+      const map = new Map<string, MessageRow>();
+      for (const message of initialMessages) map.set(message.id, message);
+      if (!changedConversation) {
+        for (const message of prev) {
+          if (message.conversation_id !== conversationId) continue;
+          if (!map.has(message.id)) map.set(message.id, message);
+        }
+      }
+      return Array.from(map.values()).sort(byCreatedAt);
+    });
+    historyReadyRef.current = true;
+    setHistoryReady(true);
+  }, [conversationId, initialMessages]);
 
   const addOptimistic = useCallback((message: MessageRow) => {
     setMessages((prev) => [...prev, message].sort(byCreatedAt));
@@ -184,12 +268,15 @@ export function useConversationRealtime(
     let channel: RealtimeChannel | null = null;
     let reconnectAttempts = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let historyReadyTimer: ReturnType<typeof setTimeout> | null = null;
     // Bumps on every subscribe/cleanup so overlapping async teardowns cannot
     // attach listeners to a recycled channel or a superseded attempt.
     let subscribeEpoch = 0;
 
-    // Load the current message history before/while the channel connects so the
-    // thread has content even if the first realtime event has not yet arrived.
+    // Load the current history to close the race between the server snapshot and
+    // the Realtime subscription. Existing rows become history before live
+    // announcements are enabled, so assistive technology does not hear the
+    // entire thread as a burst of new messages.
     const loadInitial = async () => {
       const { data } = await supabase
         .from('messages')
@@ -197,25 +284,51 @@ export function useConversationRealtime(
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
       if (!isMounted) return;
-      if (data) {
-        setMessages((prev) => {
-          const rows = data as MessageRow[];
-          const map = new Map<string, MessageRow>();
-          for (const m of rows) map.set(m.id, m);
-          for (const m of prev) {
-            // A placeholder whose real row is already in this refetch has been
-            // superseded. Without this the two would sit side by side, because
-            // they have different ids and both survive the merge.
-            if (
-              isOptimisticMessage(m) &&
-              rows.some((row) => row.sender_id === m.sender_id && row.body === m.body)
-            ) {
-              continue;
-            }
-            map.set(m.id, m);
+      const rows = (data ?? []) as MessageRow[];
+      const historyWasReady = historyReadyRef.current;
+      for (const message of rows) {
+        if (message.kind !== 'SYSTEM') continue;
+        if (historyWasReady) {
+          // A row committed after the RSC snapshot may be discovered by this
+          // catch-up query before Realtime delivers it. Announce it now so the
+          // server-derived contract header refreshes exactly once.
+          announceSystemMessage(message);
+        } else {
+          seenSystemIdsRef.current.add(message.id);
+        }
+      }
+      setMessages((prev) => {
+        const map = new Map<string, MessageRow>();
+        for (const message of rows) map.set(message.id, message);
+        for (const message of prev) {
+          if (message.conversation_id !== conversationId) continue;
+          // A placeholder whose real row is already in this refetch has been
+          // superseded. Without this the two would sit side by side, because
+          // they have different ids and both survive the merge.
+          if (
+            isOptimisticMessage(message) &&
+            rows.some(
+              (row) =>
+                row.sender_id === message.sender_id && row.body === message.body,
+            )
+          ) {
+            continue;
           }
-          return Array.from(map.values()).sort(byCreatedAt);
-        });
+          map.set(message.id, message);
+        }
+        return Array.from(map.values()).sort(byCreatedAt);
+      });
+      if (!historyWasReady) {
+        // Render the fetched backlog once with aria-live off, then enable live
+        // announcements in a later task. This prevents a busy-region flush from
+        // reading the entire history as new activity.
+        if (historyReadyTimer) clearTimeout(historyReadyTimer);
+        historyReadyTimer = setTimeout(() => {
+          historyReadyTimer = null;
+          if (!isMounted) return;
+          historyReadyRef.current = true;
+          setHistoryReady(true);
+        }, 0);
       }
     };
 
@@ -262,7 +375,7 @@ export function useConversationRealtime(
             filter: `conversation_id=eq.${conversationId}`,
           },
           (payload) =>
-            applyMessageChange(
+            applyInsert(
               payload as RealtimePostgresChangesPayload<MessageRow>,
             ),
         )
@@ -275,7 +388,7 @@ export function useConversationRealtime(
             filter: `conversation_id=eq.${conversationId}`,
           },
           (payload) =>
-            applyMessageChange(
+            applyUpdate(
               payload as RealtimePostgresChangesPayload<MessageRow>,
             ),
         );
@@ -314,10 +427,17 @@ export function useConversationRealtime(
       isMounted = false;
       subscribeEpoch += 1;
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (historyReadyTimer) clearTimeout(historyReadyTimer);
       if (channel) void supabase.removeChannel(channel);
       channel = null;
     };
-  }, [conversationId, applyMessageChange]);
+  }, [conversationId, announceSystemMessage, applyInsert, applyUpdate]);
 
-  return { messages, connectionStatus, addOptimistic, settleOptimistic };
+  return {
+    messages,
+    historyReady,
+    connectionStatus,
+    addOptimistic,
+    settleOptimistic,
+  };
 }

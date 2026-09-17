@@ -13,6 +13,7 @@ import {
   ChatThreadSkeleton,
   InboxRowSkeleton,
 } from '@/components/layout/WorkspaceSkeletons';
+import { PANE_BAR_MIN_H } from '@/components/messages/threadGeometry';
 
 export default function ConversationLoading() {
   return (
@@ -22,8 +23,11 @@ export default function ConversationLoading() {
           className="hidden min-w-0 flex-col border-r border-border bg-card lg:flex lg:w-[21rem] lg:shrink-0 xl:w-[23rem]"
           aria-hidden
         >
-          {/* Same bar geometry as the pane it stands in for. */}
-          <div className="flex min-h-[3.5rem] shrink-0 items-center border-b bg-card px-cozy py-2.5" />
+          {/* Same bar geometry as the pane it stands in for — height from the one
+              constant both real bars use, so this cannot be the copy that drifts. */}
+          <div
+            className={`flex shrink-0 items-center border-b bg-card px-cozy py-2.5 ${PANE_BAR_MIN_H}`}
+          />
           <div className="min-h-0 flex-1 divide-y divide-border overflow-hidden">
             {Array.from({ length: 7 }, (_, index) => (
               <div key={index} className="px-cozy">

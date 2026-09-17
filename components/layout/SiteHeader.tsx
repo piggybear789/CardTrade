@@ -71,7 +71,13 @@ export async function SiteHeader() {
         className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
       >
         <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
-          <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1">
+          {/* THE WORDMARK NEEDS MORE ROOM THAN THE NAV ITEMS NEED FROM EACH OTHER.
+              At `gap-3` the measured ink gap between "NoDitto" and "Marketplace" was
+              13px — the nav's own items are separated by the same amount — so the two
+              read as one string, "NoDittoMarketplace", in every desktop capture. The
+              brand is a different kind of thing from a section link and the space is
+              what says so. */}
+          <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1 md:gap-6">
             <Link
               href="/"
               aria-label="NoDitto home"
@@ -194,7 +200,9 @@ export function SiteHeaderSkeleton({
         className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
       >
         <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
-          <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1">
+          {/* Same gap as the real bar above, so the skeleton does not shift when it
+              resolves. */}
+          <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1 md:gap-6">
             <Link
               href="/"
               aria-label="NoDitto home"

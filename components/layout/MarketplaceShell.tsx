@@ -37,6 +37,7 @@ export async function MarketplaceShell({
   center = false,
   fill = false,
   flush = false,
+  contentOwnsBottomPadding = false,
   children,
 }: {
   /**
@@ -90,6 +91,12 @@ export async function MarketplaceShell({
    */
   fill?: boolean;
   flush?: boolean;
+  /**
+   * The child paints and spaces its own bottom dock (for example, a message
+   * composer). Suppresses the shell's otherwise useful 1rem lower gutter so a
+   * differently coloured parent cannot appear as a second strip underneath it.
+   */
+  contentOwnsBottomPadding?: boolean;
   children: ReactNode;
 }) {
   // The auth read that used to live here is gone. It existed only to decide whether
@@ -246,7 +253,11 @@ export async function MarketplaceShell({
             // supplies the space above the field, this supplies the space below,
             // and the two have to match. At `md:pb-7` there was 28px under the
             // field against 12px over it, which read as the field riding high.
-            flush ? 'pb-4' : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',
+            flush
+              ? contentOwnsBottomPadding
+                ? 'pb-0'
+                : 'pb-4'
+              : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',
             center && 'justify-center',
           )}
         >

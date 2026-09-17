@@ -32,3 +32,64 @@ export function messageSellerComposer(page: Page): MessageSellerComposer {
     send: page.getByRole('button', { name: 'Send' }).filter({ visible: true }),
   };
 }
+
+/**
+ * Send a first message to a seller from a listing page, at EITHER viewport, and
+ * return the thread path it lands on.
+ *
+ * THE TWO VIEWPORTS DO THIS DIFFERENTLY, and that is the product's design rather
+ * than a bug: desktop renders an inline compose row on the listing, while the
+ * phone spends its bar width on Buy and offers a chat glyph that opens the thread
+ * first. A helper that only knew the desktop shape reported the phone as broken.
+ */
+export async function messageSellerFromListing(
+  page: Page,
+  itemId: string,
+  body: string,
+): Promise<string> {
+  const { expect } = await import('@playwright/test');
+  await page.goto(`/listings/${itemId}`);
+  await page.waitForLoadState('domcontentloaded');
+
+  const inline = messageSellerComposer(page);
+  if (await inline.input.count()) {
+    await expect(inline.input).toBeEnabled({ timeout: 15_000 });
+    await inline.input.fill(body);
+    await inline.send.click();
+    await expect(page).toHaveURL(/\/messages\/[0-9a-f-]{36}/, { timeout: 30_000 });
+    return new URL(page.url()).pathname;
+  }
+
+  // Phone: the glyph opens (or creates) the conversation, then the thread's own
+  // composer carries the message.
+  const open = page.getByRole('button', { name: 'Message seller' }).first();
+  await expect(open).toBeEnabled({ timeout: 15_000 });
+  await open.click();
+  await expect(page).toHaveURL(/\/messages\/[0-9a-f-]{36}/, { timeout: 30_000 });
+
+  const composer = page.getByPlaceholder(/Write a message/i);
+  await expect(composer).toBeEnabled({ timeout: 15_000 });
+  await composer.fill(body);
+
+  // THE SEND IS AWAITED, NOT JUST OBSERVED.
+  //
+  // The thread paints the bubble optimistically, so every assertion after the click
+  // passes before the row exists. A caller that then navigates — to the inbox, say —
+  // aborts the in-flight Server Action and lands on a page that correctly reports an
+  // empty conversation. That is a real defect in its own right (see F43), and it is
+  // also the reason this helper cannot hand back control on the strength of a bubble.
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' && response.url().includes('/messages/'),
+      { timeout: 20_000 },
+    ),
+    page.getByRole('button', { name: /^Send message$/ }).click(),
+  ]);
+  // Scoped to the thread: a viewport wide enough to show the inbox beside the
+  // conversation renders the body twice, once as the row's preview.
+  await expect(page.getByLabel(/^Conversation with/).getByText(body)).toBeVisible({
+    timeout: 15_000,
+  });
+  return new URL(page.url()).pathname;
+}

@@ -121,9 +121,8 @@ class _DayMarker extends StatelessWidget {
 
 /// A run of contract notices — the room talking, not a person.
 ///
-/// Centred, authorless and uniformly muted, as the web's are: these lines do not
-/// outrank each other as reading material. Each carries its own absolute date
-/// because a contract run spans days and cannot lean on a day mark.
+/// Each notice carries only its clock time because the shared day marker above
+/// the run owns the calendar date for both contract and participant activity.
 class _NoticeRun extends StatelessWidget {
   const _NoticeRun({required this.run});
 
@@ -140,7 +139,7 @@ class _NoticeRun extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  '${notice.createdAt.shortDate}, ${notice.createdAt.timeOnly}',
+                  notice.createdAt.toLocal().timeOnly,
                   textAlign: TextAlign.center,
                   style: AppText.metaText,
                 ),
@@ -179,7 +178,7 @@ class _AuthoredRun extends StatelessWidget {
         // bubble — not one per message.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.tight),
-          child: Text(run.stamp.timeOnly, style: AppText.metaText),
+          child: Text(run.stamp.toLocal().timeOnly, style: AppText.metaText),
         ),
       ],
     );

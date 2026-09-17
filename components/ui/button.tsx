@@ -46,7 +46,23 @@ import { cn } from "@/lib/utils";
 // border and a surface step were not already doing, and the palette pass gave
 // cards a real lift off the page that a button does not need to compete with.
 const buttonVariants = cva(
-  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:border-iris focus-visible:outline-none active:translate-y-px disabled:pointer-events-none disabled:border-muted disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-3.5 [&_svg]:shrink-0",
+  // DISABLED KEEPS ITS EDGE — `disabled:border-border`, not `disabled:border-muted`.
+  //
+  // The disabled fill is `--muted` (283 34% 96%), a violet-tinted near-white, and the
+  // border matched it. On a white card that reads as a flat slab, which is what it was
+  // designed against. On any TINTED surface it disappears completely: the contract
+  // room's status card is `bg-iris/[0.08]`, which lands at roughly the same lightness
+  // in the same hue family, so "Record shipment" had no fill and no edge — the label
+  // floated in the card with nothing around it and read as a caption rather than a
+  // control that was waiting on the two fields above it.
+  //
+  // `--border` (281 26% 88%) is the hairline every card and field already uses, so a
+  // disabled control now holds its shape on whatever surface it sits on. The fill stays
+  // as it was: with an edge, it no longer has to carry the shape by itself.
+  //
+  // Do NOT fix this by tinting the fill per surface. The fill is one token and the
+  // surfaces are many; the edge is what makes it surface-independent.
+  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:border-iris focus-visible:outline-none active:translate-y-px disabled:pointer-events-none disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

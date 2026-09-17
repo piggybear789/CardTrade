@@ -26,13 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { CarrierField, resolveCarrier } from './CarrierField';
 
 /** What the caller receives when the form is submitted. */
 export interface ShipmentInput {
@@ -67,20 +61,6 @@ export interface RecordShipmentDialogProps {
   submitLabel?: string;
 }
 
-/** Australian carriers most commonly used for collectibles postage. */
-const CARRIERS = [
-  { value: 'Australia Post', label: 'Australia Post' },
-  { value: 'StarTrack', label: 'StarTrack' },
-  { value: 'Sendle', label: 'Sendle' },
-  { value: 'Aramex', label: 'Aramex' },
-  { value: 'Couriers Please', label: 'Couriers Please' },
-  { value: 'DHL', label: 'DHL' },
-  { value: 'FedEx', label: 'FedEx' },
-  { value: 'TNT', label: 'TNT' },
-  { value: 'UPS', label: 'UPS' },
-  { value: 'Other', label: 'Other' },
-] as const;
-
 /** Tracking numbers vary wildly; two characters is the only safe floor. */
 const TRACKING_MIN = 2;
 
@@ -107,7 +87,7 @@ export function RecordShipmentDialog({
     setTrackingNumber('');
   }, [open]);
 
-  const resolvedCarrier = carrier === 'Other' ? customCarrier.trim() : carrier;
+  const resolvedCarrier = resolveCarrier(carrier, customCarrier);
   const canSubmit =
     resolvedCarrier !== '' && trackingNumber.trim().length >= TRACKING_MIN;
 
@@ -140,36 +120,18 @@ export function RecordShipmentDialog({
             number do not fit side by side, and choosing Other used to add a
             third field that broke the row and orphaned tracking below it. */}
         <div className="space-y-group">
-          <div className="space-y-snug">
-            <Label htmlFor="ship-carrier">Carrier</Label>
-            <Select value={carrier} onValueChange={setCarrier} disabled={pending}>
-              <SelectTrigger id="ship-carrier">
-                <SelectValue placeholder="Select carrier" />
-              </SelectTrigger>
-              <SelectContent>
-                {CARRIERS.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {carrier === 'Other' ? (
-            <div className="space-y-snug">
-              <Label htmlFor="ship-carrier-custom">Carrier name</Label>
-              <Input
-                id="ship-carrier-custom"
-                value={customCarrier}
-                onChange={(event) => setCustomCarrier(event.target.value)}
-                placeholder="Who is carrying it"
-                autoComplete="off"
-                disabled={pending}
-                required
-              />
-            </div>
-          ) : null}
+          {/* The picker moved to `CarrierField` when the cash-sale Status tab needed
+              the same control. The list itself is further out again, in
+              `domain/services/tracking/carriers.ts`, shared with the two tracking
+              bindings that have to recognise whatever is stored. */}
+          <CarrierField
+            idPrefix="ship"
+            carrier={carrier}
+            onCarrierChange={setCarrier}
+            customCarrier={customCarrier}
+            onCustomCarrierChange={setCustomCarrier}
+            disabled={pending}
+          />
 
           <div className="space-y-snug">
             <Label htmlFor="ship-tracking">Tracking number</Label>

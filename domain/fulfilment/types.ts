@@ -91,6 +91,31 @@ export type FulfilmentTrackingState =
   | 'EXCEPTION'
   | 'UNKNOWN';
 
+/** Every value of {@link FulfilmentTrackingState}, for narrowing persisted text. */
+const TRACKING_STATES: readonly FulfilmentTrackingState[] = [
+  'LABEL_CREATED',
+  'IN_TRANSIT',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+  'EXCEPTION',
+  'UNKNOWN',
+];
+
+/**
+ * Narrow a stored `tracking_status` to a state this build knows.
+ *
+ * The columns are TEXT, not a Postgres enum, so a row can hold a state written by an
+ * older build or by a provider mapping that has since changed. Returning `null` for
+ * anything unrecognised means the UI says "no update yet" rather than rendering a raw
+ * database string at a member.
+ */
+export function asFulfilmentTrackingState(
+  value: string | null | undefined,
+): FulfilmentTrackingState | null {
+  if (!value) return null;
+  return TRACKING_STATES.find((state) => state === value) ?? null;
+}
+
 /** One party's outbound shipment. */
 export interface ShipmentSnapshot {
   carrier: string | null;

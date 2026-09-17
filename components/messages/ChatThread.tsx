@@ -272,7 +272,10 @@ export function ChatThread({
       <div
         ref={logRef}
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 pt-5',
+          // `pb-6` for the same reason as the contract room's log: clusters are `gap-6`
+          // apart, and at `pb-3` the newest one sat closer to the composer than to its
+          // own neighbour above.
+          'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6 pt-5',
           MESSAGE_GUTTER,
         )}
         role="log"

@@ -332,8 +332,14 @@ export function ContractChat({
           // containing here dead-ended the swipe at the end of the log. The
           // phone room is a thread: the log is the only scroller, the composer
           // is pinned under it, and there is nothing behind to scroll on to.
+          // `pb-6`, NOT the `p-cozy` bottom. The log's clusters are `gap-6` apart, so
+          // 12px of bottom padding left the newest entry closer to the composer's rule
+          // than to the entry above it — and the newest entry is a contract update as
+          // often as it is a message, which is a line of grey text with nothing else to
+          // separate it from the dock below. Matching the cluster gap gives the last
+          // thing in the transcript the same air as everything between.
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto overscroll-contain p-cozy',
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain p-cozy pb-6',
             'max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]',
           )}
           role="log"

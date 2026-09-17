@@ -21,11 +21,7 @@
 'use client';
 
 import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowUpRightIcon,
-  LoaderCircleIcon,
-  RefreshIcon,
-} from '@hugeicons/core-free-icons';
+import { ArrowUpRightIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import { formatContractDateTime } from '@/lib/format';
@@ -53,21 +49,22 @@ export interface ShipmentSummaryProps {
   shipment: ShipmentSnapshot;
   /** When the sender said they posted it. Their word, not the carrier's. */
   shippedAt?: string | null;
-  /**
-   * Ask the carrier again. Omit when the configured provider cannot poll — the manual
-   * binding deliberately cannot, and a refresh button that never changes anything is
-   * worse than none.
-   */
-  onRefresh?: () => void;
-  refreshing?: boolean;
   className?: string;
 }
 
+/**
+ * NO REFRESH CONTROL, DELIBERATELY, AND DO NOT ADD ONE BACK.
+ *
+ * This briefly took `onRefresh` / `refreshing`. Both are gone: opening a contract room
+ * asks the carrier by itself (`lib/tracking/refreshOnRead.ts`) and the answer arrives over
+ * Realtime, so a button can only duplicate work the page has already done. The reason it
+ * matters is on the record — a manual refresh was, on the evidence, the only thing that
+ * had ever applied a delivery in production, which means the inspection clock was starting
+ * when a member happened to press something rather than when the parcel landed.
+ */
 export function ShipmentSummary({
   shipment,
   shippedAt,
-  onRefresh,
-  refreshing = false,
   className,
 }: ShipmentSummaryProps) {
   const { carrier, trackingNumber, trackingUrl, status, carrierDeliveredAt } = shipment;
@@ -105,23 +102,6 @@ export function ShipmentSummary({
           </Button>
         ) : null}
 
-        {onRefresh ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            disabled={refreshing}
-            aria-busy={refreshing}
-          >
-            <HugeiconsIcon
-              icon={refreshing ? LoaderCircleIcon : RefreshIcon}
-              className={refreshing ? 'animate-spin' : undefined}
-              aria-hidden
-            />
-            {refreshing ? 'Checking…' : 'Check for updates'}
-          </Button>
-        ) : null}
       </div>
 
       {/* ONE LINE, CARRIER FACT FIRST. A confirmed delivery outranks everything else

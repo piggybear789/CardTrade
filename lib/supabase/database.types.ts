@@ -487,6 +487,9 @@ export type Database = {
           counterpart_tracking_status: string | null;
           initiator_carrier_delivered_at: string | null;
           counterpart_carrier_delivered_at: string | null;
+          /** Throttle for the read-triggered carrier check (0114). Never a delivery record. */
+          initiator_tracking_checked_at: string | null;
+          counterpart_tracking_checked_at: string | null;
           initiator_received_at: string | null;
           counterpart_received_at: string | null;
           initiator_accepted_at: string | null;
@@ -621,6 +624,8 @@ export type Database = {
           counterpart_tracking_status?: string | null;
           initiator_carrier_delivered_at?: string | null;
           counterpart_carrier_delivered_at?: string | null;
+          initiator_tracking_checked_at?: string | null;
+          counterpart_tracking_checked_at?: string | null;
           initiator_received_at?: string | null;
           counterpart_received_at?: string | null;
           initiator_accepted_at?: string | null;
@@ -711,6 +716,8 @@ export type Database = {
           counterpart_tracking_status?: string | null;
           initiator_carrier_delivered_at?: string | null;
           counterpart_carrier_delivered_at?: string | null;
+          initiator_tracking_checked_at?: string | null;
+          counterpart_tracking_checked_at?: string | null;
           initiator_received_at?: string | null;
           counterpart_received_at?: string | null;
           initiator_accepted_at?: string | null;
@@ -835,6 +842,8 @@ export type Database = {
           tracking_number: string | null;
           tracking_url: string | null;
           tracking_status: string | null;
+          /** Throttle for the read-triggered carrier check (0114). Never a delivery record. */
+          tracking_checked_at: string | null;
           shipped_at: string | null;
           received_at: string | null;
           inspection_accepted_at: string | null;
@@ -949,6 +958,7 @@ export type Database = {
           tracking_number?: string | null;
           tracking_url?: string | null;
           tracking_status?: string | null;
+          tracking_checked_at?: string | null;
           shipped_at?: string | null;
           received_at?: string | null;
           inspection_accepted_at?: string | null;
@@ -1042,6 +1052,7 @@ export type Database = {
           tracking_number?: string | null;
           tracking_url?: string | null;
           tracking_status?: string | null;
+          tracking_checked_at?: string | null;
           shipped_at?: string | null;
           received_at?: string | null;
           inspection_accepted_at?: string | null;

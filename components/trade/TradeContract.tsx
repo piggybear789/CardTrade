@@ -33,7 +33,6 @@ import {
   getTradeDeliveryAddresses,
   retrySettleTradeCash,
   saveTradeDeliveryAddress,
-  syncTradeTracking,
   type TradeAddressView,
 } from '@/lib/actions/trades';
 import {
@@ -42,7 +41,6 @@ import {
   InspectionCountdown,
 } from '@/components/fulfilment';
 import { inspectionHoldRisk } from '@/domain/fulfilment';
-import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
 
 import { DesktopOnly } from '@/components/layout/Breakpoint';
 import { FadeSwap } from '@/components/motion/FadeSwap';
@@ -429,39 +427,12 @@ function areHandoverDetailsFilled(trade: TradeRow): boolean {
   return false;
 }
 
-/**
- * Ask the carrier where both parcels are.
- *
- * Only rendered when the configured tracking binding can actually poll. The manual
- * provider cannot, by design, so this is invisible today and lights up for both the
- * trade room and the cash sale room the moment a real carrier integration lands.
- */
-function TradeTrackingRefresh({ tradeId }: { tradeId: string }) {
-  const [isPending, startTransition] = useTransition();
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      disabled={isPending}
-      aria-busy={isPending}
-      onClick={() => {
-        startTransition(async () => {
-          const result = await syncTradeTracking(tradeId);
-          if (!result.ok) {
-            toast.error(
-              result.detail ?? 'Tracking could not be refreshed right now.',
-            );
-            return;
-          }
-          
-        });
-      }}
-    >
-      {isPending ? 'Checking…' : 'Refresh tracking'}
-    </Button>
-  );
-}
+// `TradeTrackingRefresh` WAS HERE. It asked the carrier about both parcels on a click,
+// and it was removed rather than hidden: the route now asks on every visit to the room
+// (`scheduleTradeTrackingCheck`) and Realtime delivers the answer, so a button could only
+// ever duplicate work the page had already done. `syncTradeTracking` survives as the
+// mobile API's entry point (`/api/mobile/trades/sync-tracking`); nothing on the web calls
+// it now.
 
 function trackingLabel(
   carrier: string | null | undefined,
@@ -719,14 +690,12 @@ function TradeTermsRow({
             }}
           />
 
-          {/* Refresh both parcels from the carrier. A carrier-confirmed delivery
-              is the only thing that starts the inspection clock — a trader's own
-              word records receipt but never starts a clock that can end in a
-              payout against them. Renders nothing until a carrier binding that
-              can poll is configured; the manual provider deliberately cannot. */}
-          {trade.state === 'IN_TRANSIT' && isTrackingStatusPollingAvailable() ? (
-            <TradeTrackingRefresh tradeId={trade.id} />
-          ) : null}
+          {/* NO REFRESH CONTROL. Opening this room asks both carriers by itself
+              (`scheduleTradeTrackingCheck`, wired in the route), and the answer arrives
+              over Realtime. A carrier-confirmed delivery is the only thing that can start
+              an inspection clock — a trader's own word records receipt but never starts a
+              clock that can end in a payout against them — and that is exactly why it
+              should not have depended on somebody remembering to press a button. */}
 
           {/* Only once something is actually in the post. Two rows both reading
               "Not shipped yet" is a table whose entire content is that it has

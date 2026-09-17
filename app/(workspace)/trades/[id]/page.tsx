@@ -18,6 +18,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { TradeContract } from '@/components/trade/TradeContract';
+import { scheduleTradeTrackingCheck } from '@/lib/tracking/refreshOnRead';
 import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { DemoPanel } from '@/components/trade/DemoPanel';
@@ -259,6 +260,12 @@ export default async function TradePage({
   }
 
   const paymentMethodResult = await paymentMethodPromise;
+
+  // Ask both carriers after this response is sent — see the matching note on the cash
+  // sale route. A trade posts in both directions, so each side carries its own throttle
+  // and `apply_trade_tracking` records what the carrier said without advancing the state:
+  // a trade needs BOTH parcels to land, and the orchestrator reads the columns back.
+  scheduleTradeTrackingCheck(trade.id);
 
   return (
     <MarketplaceShell

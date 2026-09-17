@@ -26,28 +26,11 @@ import { ContractProgressRail } from './ContractProgressRail';
 import { cn } from '@/lib/utils';
 import type { ContractStep } from '@/domain/contract';
 
-/** The eyebrow above the step heading: who is holding this up, in three words. */
-function ownerLabel(step: ContractStep | null, counterpartyName: string): string {
-  if (!step) return 'Finished';
-  switch (step.owner) {
-    case 'you':
-      return 'Your move';
-    case 'them':
-      return `Waiting on ${counterpartyName}`;
-    case 'both':
-      return 'Waiting on both of you';
-    case 'platform':
-      return 'In progress';
-  }
-}
-
 export interface ContractStatusPanelProps {
   /** The whole ordered plan, for the rail. */
   steps: ContractStep[];
   /** The live step. `null` once the contract is finished. */
   step: ContractStep | null;
-  /** For "Waiting on …" — the other party's display name. */
-  counterpartyName: string;
   /**
    * Controls for the live step, when this panel is where they belong.
    *
@@ -72,7 +55,6 @@ export interface ContractStatusPanelProps {
 export function ContractStatusPanel({
   steps,
   step,
-  counterpartyName,
   children,
   footnote,
   fact,
@@ -108,15 +90,20 @@ export function ContractStatusPanel({
           mine ? 'border-border bg-iris/[0.08]' : 'border-border bg-card',
         )}
       >
-        <p
-          className={cn(
-            'text-meta font-semibold uppercase tracking-wide',
-            mine ? 'text-iris-ink' : 'text-muted-foreground',
-          )}
-        >
-          {ownerLabel(step, counterpartyName)}
-        </p>
-        <h4 className="mt-tight text-subhead font-semibold leading-tight tracking-tight">
+        {/* THE EYEBROW ONLY EXISTS WHEN IT ADDS SOMETHING, which means only when the
+            step is yours.
+            
+            It used to name the owner in every state, and for a step you cannot act on the
+            plan's own label already says exactly that — "WAITING ON PIGGYBEAR" sat above
+            "Waiting for piggybear to accept it", the same sentence twice, one in caps. On
+            your own step the label is imperative ("Post it and add the tracking number")
+            and never says whose move it is, so the eyebrow is the only thing that does. */}
+        {mine ? (
+          <p className="text-meta font-semibold uppercase tracking-wide text-iris-ink">
+            Your move
+          </p>
+        ) : null}
+        <h4 className="text-subhead font-semibold leading-tight tracking-tight">
           {step?.label ?? 'This contract is finished'}
         </h4>
         {step?.detail ? (

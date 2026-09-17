@@ -104,7 +104,6 @@ import {
   ensureCashSaleConversation,
   recordCashSaleReceipt,
   recordCashSaleShipment,
-  syncCashSaleTracking,
   type CashSaleActionResult,
 } from '@/lib/actions/cashSale';
 
@@ -348,8 +347,6 @@ export interface CashSaleViewProps {
   conversationId: string | null;
   /** RLS-authorized address detail; null for an unfunded seller. */
   deliveryAddress?: CashSaleDeliveryAddress | null;
-  /** A real carrier provider is configured to poll status. */
-  trackingRefreshAvailable?: boolean;
   /**
    * What this contract covers, line by line (0064).
    *
@@ -438,7 +435,6 @@ function CashSaleRoom({
   seller,
   conversationId,
   deliveryAddress = null,
-  trackingRefreshAvailable = false,
   lineItems = [],
   disputeEvidence = [],
   returnAddress = null,
@@ -846,22 +842,11 @@ function CashSaleRoom({
                           Report a problem
                         </Button>
                       ) : null}
-                      {sale.tracking_number &&
-                      sale.status === 'IN_TRANSIT' &&
-                      trackingRefreshAvailable ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={isPending}
-                          aria-busy={busy('track')}
-                          onClick={() =>
-                            run('track', () => syncCashSaleTracking(sale.id))
-                          }
-                        >
-                          Refresh tracking
-                        </Button>
-                      ) : null}
+                      {/* NO "REFRESH TRACKING" HERE ANY MORE. Opening this room asks the
+                          carrier by itself (`scheduleCashSaleTrackingCheck`, wired in the
+                          route), and the answer arrives over Realtime — so a button was
+                          asking the member to do the system's job, and on the evidence it
+                          was the ONLY thing that had ever applied a delivery. */}
                       {sale.status === 'CANCELLED' || sale.status === 'FAILED' ? (
                         <Button asChild variant="ghost" size="sm">
                           <Link href="/">Browse listings</Link>
@@ -1048,7 +1033,6 @@ function CashSaleRoom({
             <ContractStatusPanel
               steps={steps}
               step={step}
-              counterpartyName={them.name}
               fact={
                 sale.tracking_number ? (
                   // THE PARCEL, NOT A STRING. This was `carrier · number` as plain
@@ -1071,12 +1055,6 @@ function CashSaleRoom({
                       carrierDeliveredAt: sale.carrier_delivered_at,
                     }}
                     shippedAt={sale.shipped_at}
-                    onRefresh={
-                      trackingRefreshAvailable && sale.status === 'IN_TRANSIT'
-                        ? () => run('track', () => syncCashSaleTracking(sale.id))
-                        : undefined
-                    }
-                    refreshing={busy('track')}
                   />
                 ) : undefined
               }

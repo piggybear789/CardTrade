@@ -12,6 +12,11 @@ export const CASH_SALE_PUBLIC_SELECT = [
   'buyer_terms_accepted_version', 'seller_terms_accepted_version',
   'buyer_terms_accepted_at', 'seller_terms_accepted_at', 'tracking_carrier',
   'tracking_number', 'tracking_url', 'tracking_status', 'shipped_at', 'received_at',
+  // 0114. The throttle behind the read-triggered carrier check. Not shown anywhere
+  // today, but listed because this projection is what the contract room reads through
+  // and a column missing from it is a column the room cannot see — the failure mode
+  // the tech steering doc calls out for exactly this list.
+  'tracking_checked_at',
   'inspection_accepted_at', 'carrier_delivered_at', 'inspection_deadline_at',
   'auto_completed', 'buyer_handover_confirmed_at', 'seller_handover_confirmed_at',
   'completed_at', 'cancelled_at', 'cancelled_by', 'cancel_reason', 'disputed_at',

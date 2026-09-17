@@ -11,7 +11,7 @@ import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
-import { isTrackingStatusPollingAvailable } from '@/domain/services/tracking';
+import { scheduleCashSaleTrackingCheck } from '@/lib/tracking/refreshOnRead';
 import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -175,6 +175,18 @@ export default async function CashSalePage({
   const existingReview =
     sale.status === 'COMPLETED' ? await myReviewFor('cash_sale', sale.id) : null;
 
+  // ASK THE CARRIER, AFTER THIS RESPONSE HAS BEEN SENT.
+  //
+  // Not awaited and not in the render path: `scheduleCashSaleTrackingCheck` wraps its work
+  // in `after()`, so the room paints from current state and the lookup happens behind it.
+  // If the carrier says DELIVERED, the write lands and the room — which subscribes to
+  // Realtime on this row — moves itself to Inspection. That is what replaced the refresh
+  // button: the member reads the page and the page catches up on its own.
+  //
+  // Throttled to one lookup per contract per ten minutes (0114), no-ops entirely unless a
+  // polling-capable carrier binding is configured, and safe to call in any status.
+  scheduleCashSaleTrackingCheck(sale.id);
+
   return (
     // Title matches the viewer's side of the contract: the buyer is making a
     // purchase, not a sale.
@@ -194,7 +206,6 @@ export default async function CashSalePage({
         seller={seller}
         conversationId={sale.conversation_id}
         deliveryAddress={deliveryAddress}
-        trackingRefreshAvailable={isTrackingStatusPollingAvailable()}
         lineItems={lineItems}
         disputeEvidence={disputeEvidence}
         returnAddress={returnDetails ?? null}

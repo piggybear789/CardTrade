@@ -90,19 +90,12 @@ export function ContractStatusPanel({
           mine ? 'border-border bg-iris/[0.08]' : 'border-border bg-card',
         )}
       >
-        {/* THE EYEBROW ONLY EXISTS WHEN IT ADDS SOMETHING, which means only when the
-            step is yours.
-            
-            It used to name the owner in every state, and for a step you cannot act on the
-            plan's own label already says exactly that — "WAITING ON PIGGYBEAR" sat above
-            "Waiting for piggybear to accept it", the same sentence twice, one in caps. On
-            your own step the label is imperative ("Post it and add the tracking number")
-            and never says whose move it is, so the eyebrow is the only thing that does. */}
-        {mine ? (
-          <p className="text-meta font-semibold uppercase tracking-wide text-iris-ink">
-            Your move
-          </p>
-        ) : null}
+        {/* NO EYEBROW. It named the step's owner above the step's own label, and the
+            label already carries that: "Waiting for piggybear to accept it" does not need
+            "WAITING ON PIGGYBEAR" over it, and an imperative like "Post it and add the
+            tracking number" is self-evidently the reader's to do. Whose move it is stays
+            visible without a caption — the card takes the iris wash when the step is
+            yours, and the dock above the composer does the same. */}
         <h4 className="text-subhead font-semibold leading-tight tracking-tight">
           {step?.label ?? 'This contract is finished'}
         </h4>

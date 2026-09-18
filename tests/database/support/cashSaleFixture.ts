@@ -127,6 +127,21 @@ export async function createCashSaleFixture(
   const { itemId } = await createItemFixture(itemOverrides);
   const saleId = await cloneRow('cash_sales', {
     item_id: `'${itemId}'`,
+    // NEVER COPY THE SOURCE'S IDEMPOTENCY KEYS. `payment_nonce` is unique (partial, where
+    // not null), and the source row is whichever sale the database returns first. On a
+    // dev project with one real sale, every fixture cloned that sale's nonce and the
+    // whole database suite failed on `cash_sales_payment_nonce_key` before a single
+    // assertion ran. The nonces and provider refs identify one real payment flow, so a
+    // fixture has no business carrying them; a test that needs one sets it explicitly.
+    payment_nonce: 'null',
+    seller_payout_nonce: 'null',
+    refund_nonce: 'null',
+    transfer_id: 'null',
+    seller_payout_ref: 'null',
+    refund_ref: 'null',
+    // A clone that shares the source's conversation would mirror its own SYSTEM events
+    // into a real member's chat (0113). Fixtures talk to nobody.
+    conversation_id: 'null',
     ...overrides,
   });
   return { saleId, itemId };

@@ -82,6 +82,7 @@ import {
   type ContractEvent,
   type ContractExchangeItem,
   type ContractParty,
+  type DisputeCaseOutcome,
 } from '@/components/contract';
 import {
   TRADE_SECTIONS,
@@ -1351,18 +1352,35 @@ function TradeContractRoom({
                   id={TRADE_SECTIONS.dispute}
                   label="Dispute"
                   variant="destructive"
-                  explainer="Your account of what happened, with photos or video. Both traders can see everything here, and so can the staff member deciding it."
+                  // See the matching note in CashSaleView: the tab orients, and the
+                  // visibility warning is stated once at the field.
+                  explainer="The case record: what was reported, what each trader has filed, and what happens to the card holds."
                   summary={
                     disputeEvidence.length > 0
-                      ? `${disputeEvidence.length} submission${disputeEvidence.length === 1 ? '' : 's'}`
-                      : 'Nothing submitted yet'
+                      ? `${disputeEvidence.length} statement${disputeEvidence.length === 1 ? '' : 's'} on the record`
+                      : 'Nothing filed yet'
                   }
                 >
                   <DisputeEvidencePanel
                     caseKind="TRADE"
                     caseRef={trade.id}
                     entries={disputeEvidence}
+                    // COLLATERAL, NOT ESCROW, AND NO FIGURE. A trade hold is an
+                    // uncaptured card authorisation: the platform holds a claim rather
+                    // than funds, nothing has left either trader's account, and custody
+                    // reconciliation deliberately excludes it. Naming an amount here
+                    // would read as money the platform is sitting on. The two sides can
+                    // also differ, and the Collateral tab is where each is stated.
+                    stake={{
+                      label: 'Collateral held',
+                      value: 'Both traders',
+                      note:
+                        trade.state === 'FRAUD_RESOLVED'
+                          ? 'The finding decided what happened to each hold.'
+                          : 'Both card holds stay in place while the case is open. No money has moved.',
+                    }}
                     disputeReason={trade.dispute_reason}
+                    raisedAt={trade.disputed_at}
                     raisedByName={
                       trade.dispute_raised_by
                         ? trade.dispute_raised_by === myUserId
@@ -1370,6 +1388,31 @@ function TradeContractRoom({
                           : theirName
                         : null
                     }
+                    againstName={
+                      trade.disputed_against
+                        ? trade.disputed_against === myUserId
+                          ? 'you'
+                          : theirName
+                        : null
+                    }
+                    // No `at`: the trade row records when a dispute was RAISED and not
+                    // when it was decided, and labelling the raise time as the decision
+                    // time would be a plain misstatement on a case record.
+                    outcome={
+                      trade.state === 'FRAUD_RESOLVED'
+                        ? ({
+                            label: 'Fraud finding recorded',
+                            detail:
+                              trade.fraud_victim_id === myUserId
+                                ? "Support found in your favour. The other trader's collateral was captured and paid to you."
+                                : trade.fraud_victim_id
+                                  ? 'Support found against you. Your collateral was captured and paid to the other trader.'
+                                  : 'Support has recorded a finding on this case.',
+                          } satisfies DisputeCaseOutcome)
+                        : null
+                    }
+                    // No `roles`: both sides of a 2-way trade are traders, so a role
+                    // column here would never vary.
                     canSubmit={trade.state === 'DISPUTED'}
                   />
                 </ContractDetailRow>

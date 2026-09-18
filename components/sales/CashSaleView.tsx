@@ -58,6 +58,7 @@ import {
   type ContractActionTone,
   type ContractParty,
   type ContractPartyStat,
+  type DisputeCaseOutcome,
 } from '@/components/contract';
 import {
   CASH_SALE_SECTIONS,
@@ -415,6 +416,54 @@ function SellerReleaseStatus({ sale }: { sale: CashSaleRow }) {
       </Link>
     </p>
   );
+}
+
+/**
+ * The decided outcome of a dispute, for the Dispute tab's cover sheet.
+ *
+ * Null while the case is open. STATED FROM THE VIEWER'S SIDE, because "the payment comes
+ * back to your card" and "the payment goes back to the buyer" are one fact and only one
+ * of the two phrasings is any use to each party. Before this, a member whose case had
+ * been decided had to open the History tab to find out what the decision was.
+ *
+ * RELEASE_SELLER names no figure on purpose: the Seller receives the amount less the
+ * Platform_Fee, and the Payment tab already breaks that down. One number stated twice is
+ * one number that can disagree with itself.
+ */
+function disputeOutcome(
+  sale: CashSaleRow,
+  iAmBuyer: boolean,
+  money: (cents: number) => string,
+): DisputeCaseOutcome | null {
+  const at = sale.dispute_resolved_at;
+  switch (sale.dispute_resolution) {
+    case 'REFUND_BUYER':
+      return {
+        label: 'Refunded in full',
+        detail: iAmBuyer
+          ? `${money(sale.amount_cents)} comes back to your card.`
+          : `${money(sale.amount_cents)} goes back to the buyer.`,
+        at,
+      };
+    case 'PARTIAL_REFUND':
+      return {
+        label: `${money(sale.refund_cents)} refunded`,
+        detail: iAmBuyer
+          ? 'The rest was released to the seller.'
+          : 'The rest was released to you.',
+        at,
+      };
+    case 'RELEASE_SELLER':
+      return {
+        label: 'Released to the seller',
+        detail: iAmBuyer
+          ? 'The payment went to the seller and nothing is refunded.'
+          : 'The payment was released to you, less the platform fee.',
+        at,
+      };
+    default:
+      return null;
+  }
 }
 
 /** The bilateral cash-sale contract room. */
@@ -1451,18 +1500,36 @@ function CashSaleRoom({
               id={CASH_SALE_SECTIONS.dispute}
               label="Dispute"
               variant="destructive"
-              explainer="Your account of what happened, with photos or video. Both of you can see everything here, and so can the staff member deciding it."
+              // ORIENTATION, NOT THE VISIBILITY WARNING. This used to repeat "both of
+              // you can see everything here", which the panel then said twice more in
+              // its opening four lines. It is now stated once, at the field where it
+              // changes what a person writes, and the tab says what the tab is.
+              explainer="The case record: what was reported, what each of you has filed, and where the payment stands."
               summary={
                 disputeEvidence.length > 0
-                  ? `${disputeEvidence.length} submission${disputeEvidence.length === 1 ? '' : 's'}`
-                  : 'Nothing submitted yet'
+                  ? `${disputeEvidence.length} statement${disputeEvidence.length === 1 ? '' : 's'} on the record`
+                  : 'Nothing filed yet'
               }
             >
               <DisputeEvidencePanel
                 caseKind="CASH_SALE"
                 caseRef={sale.id}
                 entries={disputeEvidence}
+                // WHAT IS FROZEN, in this flow's own words. A Cash_Sale's money has
+                // genuinely been collected into the platform balance, unlike trade
+                // collateral, so this is the one of the two rooms that may say a figure
+                // is being held. It still never says "escrow".
+                stake={{
+                  label: 'Payment held',
+                  value: money(sale.amount_cents),
+                  note: sale.dispute_resolution
+                    ? 'The recorded outcome decided where this went.'
+                    : iAmBuyer
+                      ? 'NoDitto is still holding your payment. Nothing reaches the seller until the case is decided.'
+                      : "NoDitto is still holding the buyer's payment. Nothing is released to you until the case is decided.",
+                }}
                 disputeReason={sale.dispute_reason}
+                raisedAt={sale.disputed_at}
                 raisedByName={
                   sale.disputed_by
                     ? sale.disputed_by === myUserId
@@ -1470,6 +1537,21 @@ function CashSaleRoom({
                       : them.name
                     : null
                 }
+                againstName={
+                  sale.disputed_by
+                    ? sale.disputed_by === myUserId
+                      ? them.name
+                      : 'you'
+                    : null
+                }
+                outcome={disputeOutcome(sale, iAmBuyer, money)}
+                // Buyer and Seller hold genuinely different roles here, so the record
+                // says which one filed each statement. A trade has two traders and
+                // passes nothing.
+                roles={{
+                  [sale.buyer_id]: 'Buyer',
+                  [sale.seller_id]: 'Seller',
+                }}
                 // The record stays readable after a decision; the form does not.
                 canSubmit={sale.status === 'DISPUTED'}
                 // Withdraw / concede (0084). Only while the case is genuinely open —
@@ -1482,6 +1564,7 @@ function CashSaleRoom({
                       iAmBuyer={iAmBuyer}
                       iRaisedIt={sale.disputed_by === myUserId}
                       amountCents={sale.amount_cents}
+                      currency={sale.currency}
                       counterpartyName={them.name}
                     />
                   ) : null

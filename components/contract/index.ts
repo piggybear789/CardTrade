@@ -34,6 +34,7 @@ export { ContractConnectionStatus } from './ContractConnectionStatus';
 export { ContractConversationPanel } from './ContractConversationPanel';
 export { CollateralExplainerDialog } from './CollateralExplainerDialog';
 export { ContractDetailList, ContractDetailRow } from './ContractDetailList';
+export { DisputeCaseHeader } from './DisputeCaseHeader';
 export { DisputeEvidencePanel } from './DisputeEvidencePanel';
 export { DittoBondExplainer, CashSaleProtectionExplainer } from './DittoBondExplainer';
 export { ContractExchangePanel } from './ContractExchangePanel';
@@ -57,6 +58,11 @@ export { useContractConversation } from './useContractConversation';
 export type { ContractActionCardProps, ContractActionTone } from './ContractActionCard';
 export type { ContractConversationPanelProps } from './ContractConversationPanel';
 export type { ContractDetailListProps, ContractDetailRowProps } from './ContractDetailList';
+export type {
+  DisputeCaseHeaderProps,
+  DisputeCaseOutcome,
+  DisputeCaseStake,
+} from './DisputeCaseHeader';
 export type { DisputeEvidencePanelProps } from './DisputeEvidencePanel';
 export type {
   ContractExchangeItem,

@@ -117,8 +117,8 @@ export default async function TradesPage({
       ) : hasInvites || hasTrades ? (
         <>
           {hasInvites ? (
-            <section aria-labelledby="deal-invites-heading" className="mb-8">
-              <h3 id="deal-invites-heading" className="mb-3 text-subhead font-semibold">
+            <section aria-labelledby="deal-invites-heading" className="mb-section">
+              <h3 id="deal-invites-heading" className="mb-cozy text-subhead font-semibold">
                 Waiting to join
               </h3>
               <DealInviteList invites={pendingInvites} />
@@ -126,7 +126,7 @@ export default async function TradesPage({
           ) : null}
           {hasTrades ? (
             <section aria-labelledby="trades-heading">
-              <h3 id="trades-heading" className="mb-3 text-subhead font-semibold">
+              <h3 id="trades-heading" className="mb-cozy text-subhead font-semibold">
                 {tradesHeading}
               </h3>
               <TradesSection trades={visibleTrades} />

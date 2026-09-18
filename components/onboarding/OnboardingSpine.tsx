@@ -137,7 +137,7 @@ export function OnboardingSpineStep({
             ) : null}
 
             {!done && description ? (
-              <p className="mt-tight text-pretty text-body leading-relaxed text-muted-foreground">
+              <p className="mt-tight text-pretty text-body text-muted-foreground">
                 {description}
               </p>
             ) : null}
@@ -145,7 +145,7 @@ export function OnboardingSpineStep({
             {active && problem ? (
               <div
                 role="status"
-                className="mt-cozy rounded-md border border-border bg-muted/40 px-cozy py-tight text-pretty text-body leading-relaxed text-foreground"
+                className="mt-cozy rounded-md border border-border bg-muted/40 px-cozy py-tight text-pretty text-body text-foreground"
               >
                 {problem}
               </div>
@@ -194,7 +194,7 @@ export function OnboardingSpine({ children }: { children: ReactNode }) {
  */
 export function CustodyNote({ children }: { children: ReactNode }) {
   return (
-    <p className="flex items-start gap-tight text-meta leading-relaxed text-muted-foreground">
+    <p className="flex items-start gap-tight text-meta text-muted-foreground">
       <svg
         viewBox="0 0 16 16"
         className="mt-0.5 size-3.5 shrink-0 text-trust"

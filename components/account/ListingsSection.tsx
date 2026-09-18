@@ -182,7 +182,7 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
                       match the client" and re-renders this whole subtree on the
                       client. It was invisible in a screenshot — the row looked right
                       — and only the console said so. */}
-                  <div className="mt-1 flex flex-wrap items-center gap-x-cozy gap-y-tight text-meta md:hidden">
+                  <div className="mt-tight flex flex-wrap items-center gap-x-cozy gap-y-tight text-meta md:hidden">
                     <span className="font-semibold tabular-nums">
                       {isShopfront ? 'from ' : ''}
                       {formatAud(item.fmv_cents)}
@@ -198,7 +198,7 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
                     ) : null}
                   </div>
                   {item.hidden ? (
-                    <p className="mt-1 text-meta text-destructive">
+                    <p className="mt-tight text-meta text-destructive">
                       Hidden by NoDitto staff, so buyers cannot see it.
                     </p>
                   ) : null}
@@ -275,7 +275,7 @@ function RowThumb({ item }: { item: ItemRow }) {
 function LiveDot() {
   return (
     <span
-      className="mr-1 inline-block size-1.5 shrink-0 rounded-full bg-iris"
+      className="mr-tight inline-block size-1.5 shrink-0 rounded-full bg-iris"
       aria-hidden="true"
     />
   );

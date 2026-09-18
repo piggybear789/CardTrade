@@ -28,7 +28,7 @@ export function ExpandableDescription({
     <div className={className}>
       <p
         className={cn(
-          'whitespace-pre-line break-words text-body leading-relaxed text-foreground',
+          'whitespace-pre-line break-words text-body text-foreground',
           needsExpand && !expanded && 'line-clamp-4',
         )}
       >
@@ -38,7 +38,7 @@ export function ExpandableDescription({
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="mt-1 inline-flex min-h-10 items-center gap-0.5 rounded-sm border border-transparent text-body font-medium text-iris-ink focus:outline-none focus-visible:border-iris"
+          className="mt-tight inline-flex min-h-10 items-center gap-0.5 rounded-sm border border-transparent text-body font-medium text-iris-ink focus:outline-none focus-visible:border-iris"
         >
           {expanded ? (
             <HugeiconsIcon icon={ChevronUpIcon} className="size-3.5" aria-hidden />

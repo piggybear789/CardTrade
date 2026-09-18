@@ -155,8 +155,8 @@ export function IdentityCheckCard({
     // `id` is the in-page anchor if a fragment still lands here. The hosted
     // return and onboarding fallback now go to `/profile?tab=verification`.
     <Card id="identity" className="h-full scroll-mt-24 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
-      <CardHeader className="pb-3">
-        <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
+      <CardHeader className="pb-cozy">
+        <div className="flex flex-col items-start gap-snug sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-snug text-lead">
               <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />

@@ -70,14 +70,14 @@ export async function SiteHeader() {
       <header
         className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
       >
-        <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
+        <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* THE WORDMARK NEEDS MORE ROOM THAN THE NAV ITEMS NEED FROM EACH OTHER.
-              At `gap-3` the measured ink gap between "NoDitto" and "Marketplace" was
+              At `gap-cozy` the measured ink gap between "NoDitto" and "Marketplace" was
               13px — the nav's own items are separated by the same amount — so the two
               read as one string, "NoDittoMarketplace", in every desktop capture. The
               brand is a different kind of thing from a section link and the space is
               what says so. */}
-          <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1 md:gap-6">
+          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6">
             <Link
               href="/"
               aria-label="NoDitto home"
@@ -88,11 +88,11 @@ export async function SiteHeader() {
             <PrimaryNav isAuthenticated={isAuthenticated} />
           </div>
 
-          <div className="hidden min-w-0 flex-1 justify-center px-2 md:flex">
+          <div className="hidden min-w-0 flex-1 justify-center px-snug md:flex">
             <HeaderSearch className="market-search" />
           </div>
 
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug">
             <RegionIndicator regionCode={region.code} source={region.source} />
             {isAuthenticated && user ? (
               <>
@@ -124,10 +124,10 @@ export async function SiteHeader() {
                     button's clip cropped it top and bottom into an ellipse.
                     Truncation of a long name is the inner span's `truncate`
                     job, so no `overflow-hidden` here to do the cropping. */}
-                <Button asChild variant="ghost" size="sm" className="hidden !h-10 min-w-0 max-w-[9rem] px-2 md:inline-flex md:max-w-[14rem]">
+                <Button asChild variant="ghost" size="sm" className="hidden !h-10 min-w-0 max-w-[9rem] px-snug md:inline-flex md:max-w-[14rem]">
                   <Link
                     href="/profile"
-                    className="flex min-w-0 items-center gap-2"
+                    className="flex min-w-0 items-center gap-snug"
                     aria-label={displayName ?? 'Your profile'}
                     title={displayName ?? 'Your profile'}
                   >
@@ -199,10 +199,10 @@ export function SiteHeaderSkeleton({
       <header
         className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
       >
-        <div className="flex h-16 w-full items-center gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-3 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
+        <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* Same gap as the real bar above, so the skeleton does not shift when it
               resolves. */}
-          <div className="flex min-w-0 shrink-0 items-center gap-3 md:min-w-0 md:flex-1 md:gap-6">
+          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6">
             <Link
               href="/"
               aria-label="NoDitto home"
@@ -212,10 +212,10 @@ export function SiteHeaderSkeleton({
             </Link>
             <div className="hidden h-8 w-24 animate-pulse rounded bg-white/10 md:block" />
           </div>
-          <div className="hidden min-w-0 flex-1 justify-center px-2 md:flex">
+          <div className="hidden min-w-0 flex-1 justify-center px-snug md:flex">
             <div className="h-9 w-full max-w-sm animate-pulse rounded-md bg-white/10" />
           </div>
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 md:flex-1 md:gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-tight md:flex-1 md:gap-snug">
             <div className="hidden h-8 w-16 animate-pulse rounded bg-white/10 md:block" />
             <div className="size-8 animate-pulse rounded-full bg-white/10" />
           </div>

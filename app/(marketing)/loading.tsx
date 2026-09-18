@@ -12,7 +12,7 @@ import { Skeleton, TextLines } from '@/components/ui/skeleton';
  *
  * `PolicyArticle` puts its children in ONE FLAT `space-y-group` stack: the h2s and ps
  * are siblings, so every gap in the body is 16px below `md`. This used to draw four
- * `space-y-3` groups inside a `space-y-6` stack, which is 12px where the real gap is
+ * `space-y-cozy` groups inside a `space-y-6` stack, which is 12px where the real gap is
  * 16 and 24px where it is also 16 — wrong in both directions at once.
  */
 const PROSE_BLOCKS = [3, 2, 4, 3, 2] as const;
@@ -20,9 +20,9 @@ const PROSE_BLOCKS = [3, 2, 4, 3, 2] as const;
 export default function MarketingLoading() {
   return (
     <article
-      // `py-8 md:py-12`, matching `policy-article.tsx`. A flat `py-12` put an extra
+      // `py-section md:py-12`, matching `policy-article.tsx`. A flat `py-12` put an extra
       // 16px above and below the column on every phone.
-      className="mx-auto max-w-3xl px-6 py-8 md:py-12 lg:px-8"
+      className="mx-auto max-w-3xl px-6 py-section md:py-12 lg:px-section"
       role="status"
       aria-busy="true"
       aria-label="Loading"
@@ -39,10 +39,10 @@ export default function MarketingLoading() {
       {/* `text-subhead` (23.8px) below `md`, `md:text-head`. An `h-8` bar was 32. */}
       <TextLines className="text-subhead md:text-head" widths={['w-40']} />
 
-      {/* `mt-snug` (8px) and `text-body` below `md`, not `mt-3 h-5`. Terms' and
+      {/* `mt-snug` (8px) and `text-body` below `md`, not `mt-cozy h-5`. Terms' and
           Privacy's ledes both run past 120 characters, so they wrap here and fit on
           one `md:text-lead` line once the column is wide. */}
-      <div className="mt-snug text-body md:mt-3 md:text-lead">
+      <div className="mt-snug text-body md:mt-cozy md:text-lead">
         <div>
           <Skeleton className="inline-block h-[0.9em] w-full align-middle" />
         </div>
@@ -59,11 +59,11 @@ export default function MarketingLoading() {
         {PROSE_BLOCKS.map((lines, index) => (
           <Fragment key={index}>
             {/* `[&_h2]:text-subhead` — 23.8px, and its own line-height beats the
-                container's inherited `leading-relaxed`. */}
+                container's inherited body line-height. */}
             <TextLines className="text-subhead" widths={['w-32']} />
-            {/* Body copy inherits `text-body leading-relaxed`, so 21.1px a line. */}
+            {/* Body copy inherits `text-body`, so 22.4px a line. */}
             <TextLines
-              className="text-body leading-relaxed"
+              className="text-body"
               widths={[
                 ...Array.from({ length: lines - 1 }, () => 'w-full'),
                 'w-4/5',

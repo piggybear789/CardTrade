@@ -1505,7 +1505,7 @@ export async function getCatalogFacets(
 
   let query = supabase
     .from('items')
-    .select('fmv_cents')
+    .select('fmv_cents, status')
     // Every status the grid can reach, so the ceiling is a property of the
     // catalog rather than of the current toggles. Ticking "Include reserved"
     // must not make the slider's top end jump, which is the same reason SOLD
@@ -1532,13 +1532,19 @@ export async function getCatalogFacets(
     return { maxPriceCents: 0, priceHistogram: [] };
   }
 
+  // TWO DIFFERENT SETS FROM ONE READ. The CEILING counts every reachable status so
+  // the slider's top end is a property of the catalog and does not jump when
+  // "Include sold" is toggled. The HISTOGRAM counts AVAILABLE only: it is drawn as
+  // "where the stock is", and a sold card is not stock — with SOLD in it the chart
+  // lit a segment the default grid showed nothing in, which is exactly the "the
+  // filter is broken" reading the chart exists to prevent.
   let maxPriceCents = 0;
   const pricesCents: number[] = [];
   for (const row of data) {
     const cents = row.fmv_cents as number | null;
     if (cents == null) continue;
-    pricesCents.push(cents);
     if (cents > maxPriceCents) maxPriceCents = cents;
+    if (row.status === 'AVAILABLE') pricesCents.push(cents);
   }
 
   // The ceiling is rounded up to a round number BEFORE the ladder is built, exactly as

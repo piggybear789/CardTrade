@@ -132,7 +132,7 @@ export async function MarketplaceShell({
           // The old 28px/4.5% shadow is gone — it was below the perceptual
           // floor, so the border and the surface step do the separating on
           // their own.
-          className="hidden w-full min-w-0 px-4 sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-sidebar md:px-5"
+          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-sidebar md:px-5"
         >
           {/* The rail background stretches the full column; its contents stay in
               view. The inset px-1/-mx-1 pair gives focus rings room to draw: setting
@@ -149,7 +149,7 @@ export async function MarketplaceShell({
               viewport minus the header — and its contents are a fixed height
               that does not respond to it, so every 8px of padding is 8px the
               nav does not get. See MarketplaceNav for the rest of that trim. */}
-          <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-1 md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-1 md:py-5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
+          <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-tight md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-tight md:py-5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
             <div className="hidden md:block">
               {/* SUBORDINATE TO THE CONTENT HEADING, ON PURPOSE. This and the
                   page's own heading were both `text-head` semibold, so two
@@ -158,7 +158,7 @@ export async function MarketplaceShell({
                   the VIEW ("All Listings"). That is a real hierarchy — it just
                   needed a size difference to read as one. Semantics are
                   unchanged: this is still the h1 for every shell route. */}
-              <h1 className="text-balance font-display text-subhead font-semibold tracking-[-0.02em] text-foreground/80">
+              <h1 className="text-balance font-display text-subhead font-semibold tracking-tight text-foreground/80">
                 {title}
               </h1>
               {/* The rail CTA is sized HERE, not on RailPrimaryAction: the same
@@ -167,7 +167,7 @@ export async function MarketplaceShell({
                   a phone header button nobody asked to grow. Scoping it to the
                   rail slot keeps every other button in the app untouched. */}
               {primaryAction ? (
-                <div className="mt-4 md:[&>a]:!h-11 md:[&>a]:text-nav md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-nav md:[&>button>svg]:size-4">
+                <div className="mt-group md:[&>a]:!h-11 md:[&>a]:text-body md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-body md:[&>button>svg]:size-4">
                   {primaryAction}
                 </div>
               ) : null}
@@ -181,7 +181,16 @@ export async function MarketplaceShell({
 
         <section
           className={cn(
-            'flex w-full min-w-0 flex-1 flex-col items-center bg-background md:w-auto md:bg-transparent',
+            'flex w-full min-w-0 flex-1 flex-col items-center md:w-auto md:bg-transparent',
+            // A FLUSH ROUTE'S SHELL IS `bg-card` ON A PHONE. Below `md` the thread and
+            // the contract room drop their border and radius and run edge to edge, so
+            // the only place this section's colour shows is the `pb-group` clearance
+            // band under the composer — and painted in the page tint that band was a
+            // stripe of a second colour between the composer and the hub bar. The
+            // panel's own note says header, log and composer are one white surface;
+            // the clearance under them is part of that surface too. Ordinary pages
+            // keep the tinted page, because there the cards genuinely sit ON it.
+            flush ? 'bg-card' : 'bg-background',
             // Flush routes (thread, live contract) take no inset of their own on
             // three sides, because the two consumers want different frames and
             // only one of them wants none. The thread's own chrome — the thread
@@ -190,12 +199,12 @@ export async function MarketplaceShell({
             // of page background between two bars, which reads as the room
             // hanging below the header rather than filling the viewport. A
             // contract room is bordered cards and needs a gutter, so it paints
-            // its own `md:px-4 md:pt-4` (see CashSaleView). Bottom is the
+            // its own `md:px-group md:pt-group` (see CashSaleView). Bottom is the
             // exception and is set below: the composer needs clearance from the
             // viewport edge, and a room that frames itself matches it.
             //
             // A flush room that declares a `100dvh - chrome` height must subtract
-            // THIS branch's padding — 4rem header + 1px + the `pb-4` below — not
+            // THIS branch's padding — 4rem header + 1px + the `pb-group` below — not
             // the non-flush figures on the next line.
             //
             // Below `lg` the non-flush column is the top of the page now that the
@@ -203,8 +212,8 @@ export async function MarketplaceShell({
             // block used to provide.
             //
             // Do not pair this with a later `px-0` override: competing
-            // `md:px-7` / `xl:px-8` in one `cn()` is how the 28px columns come back.
-            flush ? 'px-0 pt-0' : 'pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-3 sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] md:pl-[max(1.75rem,env(safe-area-inset-left))] md:pr-[max(1.75rem,env(safe-area-inset-right))] md:py-7 xl:pl-[max(2rem,env(safe-area-inset-left))] xl:pr-[max(2rem,env(safe-area-inset-right))]',
+            // `md:px-7` / `xl:px-section` in one `cn()` is how the 28px columns come back.
+            flush ? 'px-0 pt-0' : 'pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-cozy sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] md:pl-[max(1.75rem,env(safe-area-inset-left))] md:pr-[max(1.75rem,env(safe-area-inset-right))] md:py-7 xl:pl-[max(2rem,env(safe-area-inset-left))] xl:pr-[max(2rem,env(safe-area-inset-right))]',
             // `min-h-0` IS THE WHOLE FIX for a full-viewport page, and its absence here
             // was the single break in an otherwise complete shrink chain. `body`,
             // `#main-content`, the PageShell `<main>`, the row, the inner wrapper and the
@@ -256,7 +265,7 @@ export async function MarketplaceShell({
             flush
               ? contentOwnsBottomPadding
                 ? 'pb-0'
-                : 'pb-4'
+                : 'pb-group'
               : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',
             center && 'justify-center',
           )}

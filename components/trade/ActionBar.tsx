@@ -299,13 +299,13 @@ export function ActionBar({
           `flex-wrap` drops the second to its own line at its NATURAL width if a
           future label is longer. Nothing here can overflow: a button at its
           natural width is about half the container. */}
-      <div className="flex w-full flex-wrap gap-2 sm:gap-3" role="group" aria-label="Trade actions">
+      <div className="flex w-full flex-wrap gap-snug sm:gap-cozy" role="group" aria-label="Trade actions">
         {actions.map((action) => {
           const config = ACTION_CONFIG[action];
 
           if (action === 'RETRY_COLLATERAL') {
             return (
-              <div key={action} className="flex w-full min-w-0 flex-col gap-2">
+              <div key={action} className="flex w-full min-w-0 flex-col gap-snug">
                 <p className="text-body text-muted-foreground">
                   A card declined the hold, so the trade is paused. Nothing was
                   charged. Replace the card that failed, then retry.

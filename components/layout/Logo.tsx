@@ -41,12 +41,12 @@ export function LogoMark({ className }: { className?: string }) {
  */
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn('flex min-w-0 items-center gap-2', className)}>
+    <span className={cn('flex min-w-0 items-center gap-snug', className)}>
       <LogoMark />
       {/* Wordmark is desktop-only. Below `md` the mark is the home control so
           the bar can hold search / account without crushing the name. */}
       <span
-        className="hidden font-display text-subhead font-semibold tracking-[-0.025em] md:inline"
+        className="hidden font-display text-subhead font-semibold tracking-tight md:inline"
         translate="no"
       >
         NoDitto

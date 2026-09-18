@@ -120,7 +120,7 @@ export function TradeDisputeActions({
           {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
           Resolve as condition dispute
         </Button>
-        <p className="mt-1 text-body text-muted-foreground">
+        <p className="mt-tight text-body text-muted-foreground">
           Captures {formatAud(frictionTaxCents)} from the disputed-against trader and
           releases the rest. The trade completes.
         </p>

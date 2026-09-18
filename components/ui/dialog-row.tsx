@@ -47,7 +47,7 @@ export function DialogRow({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-left text-body font-medium transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:border-iris focus-visible:outline-none',
+        'flex w-full items-center gap-snug rounded-lg border border-border px-cozy py-2.5 text-left text-body font-medium transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:border-iris focus-visible:outline-none',
         invalid && 'border-destructive',
       )}
     >
@@ -63,7 +63,7 @@ export function DialogRow({
           </>
         ) : null}
       </span>
-      <span className="ml-auto min-w-0 truncate pl-2 text-body font-normal text-muted-foreground">
+      <span className="ml-auto min-w-0 truncate pl-snug text-body font-normal text-muted-foreground">
         {hint}
       </span>
     </button>

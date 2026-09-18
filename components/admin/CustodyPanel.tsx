@@ -153,7 +153,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
           <p className="font-semibold">
             Money members are owed is not all present. Check, in this order:
           </p>
-          <ol className="list-decimal space-y-1 pl-4">
+          <ol className="list-decimal space-y-tight pl-group">
             <li>
               <span className="font-medium">Automatic payouts.</span> If Stripe is
               sweeping the platform balance to your bank on a schedule, it is taking

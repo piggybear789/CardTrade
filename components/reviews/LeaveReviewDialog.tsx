@@ -138,7 +138,7 @@ export function LeaveReviewDialog({
           <div className="space-y-snug">
             <Label>Rating</Label>
             <div
-              className="flex items-center gap-1"
+              className="flex items-center gap-tight"
               role="radiogroup"
               aria-label="Star rating"
               tabIndex={0}

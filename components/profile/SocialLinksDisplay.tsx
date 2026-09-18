@@ -54,7 +54,7 @@ export function SocialLinksDisplay({
           <SocialPlatformIcon slug={link.slug} className={compact ? 'size-3.5' : 'size-4'} />
         );
         const shared = cn(
-          'inline-flex items-center gap-1 rounded-sm text-muted-foreground',
+          'inline-flex items-center gap-tight rounded-sm text-muted-foreground',
           compact ? 'text-meta' : 'text-body',
         );
 

@@ -56,7 +56,7 @@ export function ContractTimeline({
               <ContractEventIcon tone={tone} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-medium leading-5">
+              <p className="font-medium">
                 {humanise(event.event)}
                 {myUserId && event.actor_id === myUserId ? (
                   <span className="ml-1.5 text-meta font-normal text-muted-foreground">

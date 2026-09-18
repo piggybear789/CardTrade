@@ -100,7 +100,7 @@ const GALLERY_SHELL = 'flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-snug';
  * the rail deleted the need for that one, and no structural change removes the need for
  * this one short of making the whole hero a single grid.
  */
-export const GALLERY_RAIL_BAND_ML = 'lg:ml-16';
+export const GALLERY_RAIL_BAND_ML = 'lg:ml-region';
 
 /** Horizontal travel (px) that counts as a swipe, not a tap-to-enlarge. */
 const SWIPE_THRESHOLD_PX = 40;
@@ -308,7 +308,7 @@ export function ImageGallery({
         {!activeFailed && !isCover ? (
           <p
             aria-hidden="true"
-            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-full border border-white/15 bg-obsidian/65 px-snug py-1 text-meta font-medium text-white/90 shadow-sm backdrop-blur"
+            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-full border border-white/15 bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur"
           >
             <HugeiconsIcon icon={ZoomInIcon} className="size-3.5" />
             <span className="[@media(hover:none)]:hidden">Click to enlarge</span>
@@ -335,7 +335,7 @@ export function ImageGallery({
 
         {!isCover && images.length > 1 ? (
           <nav
-            className="absolute right-3 top-3 z-[2] flex items-center gap-1 rounded-full border border-white/15 bg-obsidian/65 px-1 py-tight shadow-sm backdrop-blur"
+            className="absolute right-3 top-3 z-[2] flex items-center gap-tight rounded-full border border-white/15 bg-obsidian/65 px-tight py-tight shadow-sm backdrop-blur"
             aria-label="Image navigation"
           >
             <button
@@ -644,7 +644,7 @@ function GalleryMissing({
       <div className="h-full w-full md:hidden">
         <ListingPhotoEmpty title={title} hint={hint} />
       </div>
-      <div className="hidden h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground md:flex">
+      <div className="hidden h-full w-full flex-col items-center justify-center gap-snug text-muted-foreground md:flex">
         <HugeiconsIcon icon={ImageOffIcon} className="size-12" aria-hidden />
         <span className="sr-only">No image available for {title}</span>
       </div>

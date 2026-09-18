@@ -43,7 +43,7 @@ export function CollateralExplainerDialog({
     <Dialog>
       <DialogTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto">
-          <HugeiconsIcon icon={HelpCircleIcon} className="mr-2 size-4" aria-hidden />
+          <HugeiconsIcon icon={HelpCircleIcon} className="mr-snug size-4" aria-hidden />
           {triggerLabel}
         </Button>
       </DialogTrigger>

@@ -119,13 +119,13 @@ export function ContractOverflowMenu({ children }: { children?: ReactNode }) {
           data-slot="menu"
           variant="ghost"
           size="icon"
-          className="size-11 shrink-0 text-muted-foreground md:size-7"
+          className="shrink-0 text-muted-foreground"
           aria-label="More actions"
         >
           <HugeiconsIcon icon={MoreVerticalIcon} className="size-4" aria-hidden />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-52 p-1">
+      <PopoverContent align="end" className="w-52 p-tight">
         <div
           className={cn(
             'flex flex-col',
@@ -216,9 +216,9 @@ export function ContractActionCard({
         {children ? (
           <div
             className={cn(
-              'flex min-w-0 flex-1 flex-wrap items-center justify-stretch gap-1 md:flex-none md:justify-end',
-              '[&>*]:w-auto [&>a]:min-h-10 [&>button]:min-h-10 [&>button]:px-3',
-              '[&_a]:min-h-10 [&_a]:px-3 [&_a]:text-body [&_button]:min-h-10 [&_button]:w-auto [&_button]:px-3 [&_button]:text-body',
+              'flex min-w-0 flex-1 flex-wrap items-center justify-stretch gap-tight md:flex-none md:justify-end',
+              '[&>*]:w-auto [&>a]:min-h-10 [&>button]:min-h-10 [&>button]:px-cozy',
+              '[&_a]:min-h-10 [&_a]:px-cozy [&_a]:text-body [&_button]:min-h-10 [&_button]:w-auto [&_button]:px-cozy [&_button]:text-body',
               'lg:[&>a]:h-7 lg:[&>a]:min-h-7 lg:[&>button]:h-7 lg:[&>button]:min-h-7 lg:[&>button]:px-2.5',
               'lg:[&_a]:h-7 lg:[&_a]:min-h-7 lg:[&_a]:px-2.5 lg:[&_button]:h-7 lg:[&_button]:min-h-7 lg:[&_button]:px-2.5',
               '[&_svg]:size-3.5',
@@ -252,16 +252,26 @@ export function ContractActionCard({
             against a 20px title line, so it was setting the row height. It is a
             transparent ghost icon at the far right, so letting it overflow its
             own row is invisible — the hit area is unchanged and there is
-            nothing beside it to collide with. */}
-        <div className="flex flex-wrap items-center gap-x-cozy gap-y-snug [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
-          {/* `basis-0` ON A PHONE, `basis-56` from `md`. A 14rem basis is the
-              right wrap threshold on a desktop dock, and on a 390px screen it
-              was wider than what remained beside the button — so the row wrapped
-              every time and the control dropped to a line of its own, which is
-              the stacked layout this card exists to avoid. At `basis-0` the text
-              takes whatever the button leaves and truncates, so title and
-              control stay on one row until the control genuinely cannot fit. */}
-          <div className="min-w-0 flex-1 basis-0 md:basis-56">
+            nothing beside it to collide with.
+
+            THE CONTROLS AND THE ⋯ ARE ONE FLEX ITEM. As three siblings — text,
+            button, menu — the menu was the one that failed to fit in a narrow
+            desktop column, so it alone wrapped to a second line and sat orphaned
+            at the far left under the title. Grouped, the pair wraps together and
+            `ml-auto` keeps it on the right when it does. */}
+        <div className="flex flex-wrap items-center gap-x-cozy gap-y-snug md:flex-nowrap">
+          {/* ONE ROW FROM `md`, ALWAYS. The text is `basis-0` so it takes whatever
+              the controls leave and truncates (the title is already `line-clamp-1`
+              there); `md:flex-nowrap` on the row means the controls can never drop
+              beneath it. The dock is a strip in the chat column, and a strip that
+              is sometimes one line and sometimes two shifts the conversation
+              above it every time the step changes. A 14rem text basis used to
+              force the wrap in a narrow desktop column; a truncated title is the
+              better failure, because the full label is one tab away in Status.
+
+              Phones keep `flex-wrap`: the controls are 40px touch targets and a
+              wide set genuinely may not fit beside any title. */}
+          <div className="min-w-0 flex-1 basis-0">
             {/* Two lines on a phone, one from `md`. The detail is hidden below
                 `md`, so the title can afford the second line there and still
                 keep the band inside its three-line budget; on desktop the
@@ -303,17 +313,19 @@ export function ContractActionCard({
             ) : null}
           </div>
 
-          {children ? (
-            // 40px on a phone, compacting from `md` — the Button default at
-            // both widths. These are the room's primary actions ("Record
-            // shipment", "Item never arrived") and must not drop to the desktop
-            // size on touch, which is what this override is guarding against.
-            <ActionControls className="[&_a]:h-10 [&_button]:h-10 [&_button]:px-3 md:[&_a]:h-8 md:[&_button]:h-8">
-              {children}
-            </ActionControls>
-          ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-x-cozy [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
+            {children ? (
+              // 40px on a phone, compacting from `md` — the Button default at
+              // both widths. These are the room's primary actions ("Record
+              // shipment", "Item never arrived") and must not drop to the desktop
+              // size on touch, which is what this override is guarding against.
+              <ActionControls className="[&_a]:h-10 [&_button]:h-10 [&_button]:px-cozy md:[&_a]:h-8 md:[&_button]:h-8">
+                {children}
+              </ActionControls>
+            ) : null}
 
-          <ContractOverflowMenu>{more}</ContractOverflowMenu>
+            <ContractOverflowMenu>{more}</ContractOverflowMenu>
+          </div>
         </div>
       </section>
     );
@@ -333,12 +345,12 @@ export function ContractActionCard({
             {title ?? step?.label ?? 'This contract is finished'}
           </h3>
           {detail ?? step?.detail ? (
-            <p className="mt-1 line-clamp-2 max-w-3xl text-body text-muted-foreground">
+            <p className="mt-tight line-clamp-2 max-w-3xl text-body text-muted-foreground">
               {detail ?? step?.detail}
             </p>
           ) : null}
           {note ? (
-            <p className="mt-1 line-clamp-1 text-meta text-muted-foreground">
+            <p className="mt-tight line-clamp-1 text-meta text-muted-foreground">
               {note}
             </p>
           ) : null}

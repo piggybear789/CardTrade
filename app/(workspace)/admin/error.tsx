@@ -24,24 +24,24 @@ export default function AdminError({
   }, [error]);
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-4 py-20 text-center sm:px-6">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-group py-20 text-center sm:px-6">
       <div className="flex size-14 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
         <HugeiconsIcon icon={ShieldAlertIcon} className="size-6" aria-hidden="true" />
       </div>
       <p className="cardtrade-eyebrow mt-6">Staff Console Error</p>
-      <h1 className="mt-4 text-balance font-display text-display font-semibold tracking-[-0.025em]">
+      <h1 className="mt-group text-balance font-display text-display font-semibold tracking-tight">
         Admin Console Error
       </h1>
-      <p className="mt-3 text-pretty text-body leading-relaxed text-muted-foreground">
+      <p className="mt-cozy text-pretty text-body text-muted-foreground">
         An error occurred while loading this administrative view. You can try refreshing
         or return to the main administration panel.
       </p>
       {error.digest ? (
-        <p className="mt-4 font-mono text-meta text-muted-foreground">
+        <p className="mt-group font-mono text-meta text-muted-foreground">
           Reference: {error.digest}
         </p>
       ) : null}
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-section flex flex-col gap-cozy sm:flex-row">
         <Button size="lg" onClick={reset}>
           <HugeiconsIcon icon={RotateCcwIcon} aria-hidden="true" />
           Retry

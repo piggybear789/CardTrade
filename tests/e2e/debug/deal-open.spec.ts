@@ -39,29 +39,29 @@ const STRATEGIES: Array<
 > = [
   [
     'radio.check()',
-    (p) => p.getByRole('radio', { name: /Cash for a card/i }).check({ timeout: 4000 }),
+    (p) => p.getByRole('radio', { name: /Sell a card/i }).check({ timeout: 4000 }),
   ],
   [
     'radio.check({force})',
     (p) =>
       p
-        .getByRole('radio', { name: /Cash for a card/i })
+        .getByRole('radio', { name: /Sell a card/i })
         .check({ force: true, timeout: 4000 }),
   ],
   [
     'label.click()',
-    (p) => p.locator('label', { hasText: 'Cash for a card' }).first().click({ timeout: 4000 }),
+    (p) => p.locator('label', { hasText: 'Sell a card' }).first().click({ timeout: 4000 }),
   ],
   [
     'getByText().click()',
-    (p) => p.getByText('Cash for a card', { exact: true }).click({ timeout: 4000 }),
+    (p) => p.getByText('Sell a card', { exact: true }).click({ timeout: 4000 }),
   ],
 ];
 
 for (const [name, act] of STRATEGIES) {
   test(`select the cash tile via ${name}`, async ({ page }) => {
     await page.goto('/deals/new');
-    const radio = page.getByRole('radio', { name: /Cash for a card/i });
+    const radio = page.getByRole('radio', { name: /Sell a card/i });
     await expect(radio).toHaveCount(1, { timeout: 20_000 });
 
     try {

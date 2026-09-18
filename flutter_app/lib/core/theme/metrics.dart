@@ -19,6 +19,9 @@ abstract final class AppRadius {
   static const double sm = _base - 4;
   static const double md = _base - 2;
   static const double lg = _base;
+  static const double xl = _base + 4;
+  /// Tailwind's `2xl`; Dart identifiers cannot start with a digit.
+  static const double xxl = _base + 8;
   static const double full = 999;
 }
 

@@ -72,7 +72,7 @@ export function RequestResetForm() {
             <HugeiconsIcon icon={MailCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
             Check your inbox
           </CardTitle>
-          <CardDescription className="text-pretty leading-relaxed">
+          <CardDescription className="text-pretty">
             {/* States what was sent and where — never whether an account matched. */}
             If an account uses <span className="font-medium text-foreground">{email}</span>,
             a{' '}
@@ -106,7 +106,7 @@ export function RequestResetForm() {
         <CardTitle className="text-subhead">
           {intent === 'reset' ? 'Reset your password' : 'Resend confirmation'}
         </CardTitle>
-        <CardDescription className="text-pretty leading-relaxed">
+        <CardDescription className="text-pretty">
           {intent === 'reset'
             ? 'Enter your email and we’ll send a link to set a new password.'
             : 'Enter your email and we’ll send another link to confirm your address.'}
@@ -117,7 +117,7 @@ export function RequestResetForm() {
         <CardContent className="space-y-group">
           {/* Why they landed here, when they arrived from a dead link. */}
           {linkError && !error ? (
-            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-cozy text-body leading-relaxed text-destructive">
+            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-cozy text-body text-destructive">
               {linkError}
             </p>
           ) : null}

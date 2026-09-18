@@ -113,7 +113,7 @@ export function ProposeTradeDialog({
           needsVerification
             ? 'min-w-0 sm:max-w-lg'
             : // `sm:gap-0 sm:p-0` must be stated explicitly: the base DialogContent
-              // sets `sm:p-6`/`sm:gap-4`, and a bare `p-0`/`gap-0` only overrides the
+              // sets `sm:p-6`/`sm:gap-group`, and a bare `p-0`/`gap-0` only overrides the
               // mobile classes — tailwind-merge keeps responsive variants separate,
               // so without these the desktop dialog double-pads (24px shell + 24px
               // header/body/footer).
@@ -126,7 +126,7 @@ export function ProposeTradeDialog({
               <div className="flex items-center gap-snug">
                 <div className="min-w-0 space-y-1.5">
                   <DialogTitle>Verify your identity to trade</DialogTitle>
-                  <DialogDescription className="text-pretty leading-relaxed">
+                  <DialogDescription className="text-pretty">
                     {identityGateDescription(viewerVerification!, 'trade')}
                   </DialogDescription>
                 </div>
@@ -140,10 +140,10 @@ export function ProposeTradeDialog({
           </>
         ) : (
           <>
-            {/* `pt-4`, not `pt-2`: the mobile close button is a 40px circle
+            {/* `pt-group`, not `pt-snug`: the mobile close button is a 40px circle
                 inset 12px from the top, so a title starting at 8px sat above
                 its centre and read as crowded against it. */}
-            <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pr-14 pt-4 sm:px-6 sm:py-4">
+            <DialogHeader className="shrink-0 border-b border-border px-group pb-cozy pr-14 pt-group sm:px-6 sm:py-group">
               <DialogTitle>Propose a trade</DialogTitle>
               {/* On a binder nothing is held even AFTER they accept — every other
                   listing reserves on acceptance, so saying "until they accept" here

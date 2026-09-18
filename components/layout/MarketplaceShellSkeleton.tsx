@@ -80,12 +80,12 @@ export function MarketplaceShellSkeleton({
             every workspace navigation, so the two must be edited together. */}
         <aside
           style={{ viewTransitionName: 'persistent-nav' }}
-          className="hidden w-full min-w-0 px-4 sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-sidebar md:px-5"
+          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-sidebar md:px-5"
         >
-          <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-1 md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-1 md:py-5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
+          <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-tight md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-tight md:py-5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
             <div className="hidden md:block">
               {title ? (
-                <h1 className="text-balance font-display text-subhead font-semibold tracking-[-0.02em] text-foreground/80">
+                <h1 className="text-balance font-display text-subhead font-semibold tracking-tight text-foreground/80">
                   {title}
                 </h1>
               ) : (
@@ -95,7 +95,7 @@ export function MarketplaceShellSkeleton({
                 </div>
               )}
               {primaryAction ? (
-                <div className="mt-4 md:[&>a]:!h-11 md:[&>a]:text-nav md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-nav md:[&>button>svg]:size-4">
+                <div className="mt-group md:[&>a]:!h-11 md:[&>a]:text-body md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-body md:[&>button>svg]:size-4">
                   {primaryAction}
                 </div>
               ) : null}
@@ -107,13 +107,15 @@ export function MarketplaceShellSkeleton({
 
         <section
           className={cn(
-            'flex w-full min-w-0 flex-1 flex-col items-center bg-background md:w-auto md:bg-transparent',
-            flush ? 'px-0 pt-0' : 'px-4 pt-3 sm:px-6 md:px-7 md:py-7 xl:px-8',
+            'flex w-full min-w-0 flex-1 flex-col items-center md:w-auto md:bg-transparent',
+            // Mirrors MarketplaceShell: a flush route is one white surface on a phone.
+            flush ? 'bg-card' : 'bg-background',
+            flush ? 'px-0 pt-0' : 'px-group pt-cozy sm:px-6 md:px-7 md:py-7 xl:px-section',
             flush && 'min-h-0 overflow-hidden',
             flush &&
               'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
             flush
-              ? 'pb-4'
+              ? 'pb-group'
               : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',
             center && 'justify-center',
           )}

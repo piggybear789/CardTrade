@@ -49,8 +49,8 @@ export function SectionHeaderSkeleton({
   descriptionClassName?: string;
 }) {
   return (
-    <header className="mb-snug flex flex-row items-center justify-between gap-cozy border-b border-border pb-snug md:mb-5 md:items-end md:gap-3 md:pb-5">
-      {/* REAL LINE BOXES, and no `space-y-2`. `SectionHeader` wraps these in a bare
+    <header className="mb-snug flex flex-row items-center justify-between gap-cozy border-b border-border pb-snug md:mb-5 md:items-end md:gap-cozy md:pb-5">
+      {/* REAL LINE BOXES, and no `space-y-snug`. `SectionHeader` wraps these in a bare
           `min-w-0` div and spaces the description with `mt-tight md:mt-1.5` (4/6px), so
           the 8px here was wrong at both widths. The bars were wrong in OPPOSITE
           directions, which is why the header visibly rearranged itself on swap rather
@@ -72,7 +72,7 @@ export function SectionHeaderSkeleton({
           right on touch and 4px proud on a pointer. Callers that render a `size="sm"`
           action override the height through `actionsClassName`. */}
       {hasActions ? (
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 gap-snug">
           <Skeleton className={cn('h-9 shrink-0 rounded-md md:h-8', actionsClassName)} />
         </div>
       ) : null}
@@ -149,7 +149,7 @@ export function CatalogTileSkeleton({
   const inMosaic = coverDim !== undefined;
   return (
     // Border, padding and gap are `CatalogItemCard`'s, term for term. The text
-    // block used to be three bars in `space-y-1.5 px-1.5 pb-2 pt-1.5` — 70px
+    // block used to be three bars in `space-y-1.5 px-1.5 pb-snug pt-1.5` — 70px
     // against the card's 108-132px, and inset half as far — so every tile in the
     // feed was ~40px short and the error compounded down both mosaic columns.
     // The border matters as much as the height: card and page are both white, so
@@ -170,11 +170,11 @@ export function CatalogTileSkeleton({
             : undefined
         }
       />
-      <div className="flex min-w-0 flex-col gap-1 px-3 pb-2.5 pt-2">
+      <div className="flex min-w-0 flex-col gap-tight px-cozy pb-2.5 pt-snug">
         {/* Title clamps to two lines and, at this column width, almost always
             uses both. */}
         <TextLines
-          className="text-body leading-normal"
+          className="text-body"
           widths={['w-full', 'w-3/5']}
         />
         {/* Category · condition. */}
@@ -183,9 +183,12 @@ export function CatalogTileSkeleton({
             in the block. */}
         <TextLines className="text-head" widths={['w-1/2']} />
         {hasSeller ? (
-          <div className="flex min-w-0 items-center gap-1.5">
+          // 20px row: a `size-5` avatar beside a `text-meta` name, as the card
+          // draws it. This was a `text-body` line (22.4px) and the tile ran 2px
+          // tall on every swap.
+          <div className="flex h-5 min-w-0 items-center gap-1.5">
             <Skeleton className="size-5 shrink-0 rounded-full" />
-            <TextLines className="min-w-0 flex-1 text-body" widths={['w-3/5']} />
+            <TextLines className="min-w-0 flex-1 text-meta" widths={['w-3/5']} />
           </div>
         ) : null}
       </div>
@@ -197,15 +200,21 @@ export function CatalogTileSkeleton({
  * A repeating run of plausible cover shapes for the phone skeleton.
  *
  * Fixed rather than random so the server and the browser draw the same
- * placeholder, and chosen to span the mosaic's clamp range — trading-card
- * portrait (63x88), square, and landscape — so the placeholder staggers the way
- * the arriving content will. A uniform square grid here would itself be the
- * layout shift the stored dimensions exist to prevent.
+ * placeholder, and chosen to stagger the way the arriving content will. A
+ * uniform square grid here would itself be the layout shift the stored
+ * dimensions exist to prevent.
+ *
+ * PORTRAIT AND SQUARE ONLY. A 4:3 landscape used to be in the run "to span the
+ * clamp range", but this is a card marketplace: photos are cards (63x88), phone
+ * shots of cards (3:4), and the occasional square. A landscape placeholder is the
+ * one shape that almost never arrives, so it was the one tile that visibly
+ * changed on every swap. Measured against a live tile: the text block matched to
+ * 2px and the cover was the whole of the mismatch.
  */
 const SKELETON_COVER_SHAPES: ImageDim[] = [
   { w: 63, h: 88 },
   { w: 1, h: 1 },
-  { w: 4, h: 3 },
+  { w: 3, h: 4 },
   { w: 4, h: 5 },
   { w: 1, h: 1 },
   { w: 63, h: 88 },
@@ -310,7 +319,7 @@ function ContractRowSkeleton({ titleLines }: { titleLines: 1 | 2 }) {
           <Skeleton className="h-6 w-20 shrink-0 rounded-md md:hidden" />
         </div>
         {/* The next-step line, which below `md` sits inside this cell. */}
-        <TextLines className="mt-1 text-meta md:hidden" widths={['w-4/5']} />
+        <TextLines className="mt-tight text-meta md:hidden" widths={['w-4/5']} />
       </div>
       {/* Its own column from `md`. Two lines, because the step sentences are clamped
           at two and most of them use both. */}
@@ -421,7 +430,7 @@ export function InboxRowSkeleton() {
           The trailing square is gone: the real row draws it only for a thread
           that carries a listing or a dispute, so an unconditional one guaranteed
           the wrong text width on every plain conversation. */}
-      <div className="flex min-h-11 items-start gap-3 py-3.5 md:hidden">
+      <div className="flex min-h-11 items-start gap-cozy py-3.5 md:hidden">
         <Skeleton className="mt-0.5 size-12 shrink-0 rounded-full" />
         <div className="min-w-0 flex-1">
           <TextLines className="text-lead" widths={['w-1/3']} />
@@ -433,14 +442,14 @@ export function InboxRowSkeleton() {
           missing. `InboxThreadList`'s wide row is ONE 24px line — a `size-6` avatar,
           the name at `text-lead`, a status pill, the time pushed right — over a
           `mt-0.5 text-body` preview. This drew neither the avatar nor the pill, spaced
-          the preview with `space-y-2` where the real gap is `mt-0.5`, and reserved
+          the preview with `space-y-snug` where the real gap is `mt-0.5`, and reserved
           `h-4`/`h-3` for a 24px and a 22.4px line. That is ~18px short PER ROW, so a
           seven-thread inbox stood about 125px short and the whole list slid up on
           swap. */}
-      <div className="hidden items-center gap-3 p-4 md:flex">
+      <div className="hidden items-center gap-cozy p-group md:flex">
         <Skeleton className="size-12 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-snug">
             <Skeleton className="size-6 shrink-0 rounded-full" />
             <TextLines className="min-w-0 flex-1 text-lead" widths={['w-1/3']} />
             <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
@@ -457,10 +466,10 @@ export function NotificationRowSkeleton() {
   return (
     // `border border-transparent` because the real row is a button that reserves
     // one for its focus ring; without it the placeholder is 2px short per row.
-    <div className="flex items-start gap-3 border border-transparent px-4 py-3.5">
+    <div className="flex items-start gap-cozy border border-transparent px-group py-3.5">
       <Skeleton className="mt-1.5 size-2 shrink-0 rounded-full" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline justify-between gap-snug">
           <TextLines className="min-w-0 flex-1 text-body" widths={['w-2/5']} />
           <TextLines className="shrink-0 text-meta" widths={['w-12']} />
         </div>
@@ -477,7 +486,7 @@ export function NotificationRowSkeleton() {
  */
 export function ContractRoomSkeleton() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-group md:px-4 md:pt-4 lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
+    <div className="flex min-h-0 flex-1 flex-col gap-group md:px-group md:pt-group lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
       {/* REAL LINE BOXES on the desktop half too. The phone thread below already used
           `TextLines`; this card was still on fixed bars, so the one part of the room a
           desktop viewer sees first was the least accurate. `ContractHeader`'s title is
@@ -486,9 +495,9 @@ export function ContractRoomSkeleton() {
           against `h-5`. */}
       <Card className="hidden border-border shadow-sm md:block">
         <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug px-group py-cozy">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-1">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-tight">
             <TextLines className="text-subhead" widths={['w-40']} />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-snug">
               <Skeleton className="size-6 rounded-full" />
               <TextLines className="text-body" widths={['w-24']} />
               <Skeleton className="size-6 rounded-full" />
@@ -511,7 +520,7 @@ export function ContractRoomSkeleton() {
             bar has: it is opaque, and the chevron is a touch target because it
             only exists at this width. A `size-10` here left the bar 4px short. */}
         <div className="flex shrink-0 items-center gap-cozy border-b bg-card px-cozy py-2.5">
-          <Skeleton className="-ml-1.5 size-11 shrink-0 rounded-full" />
+          <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-full" />
           <Skeleton className="size-9 shrink-0 rounded-md" />
           <div className="min-w-0 flex-1">
             <TextLines className="text-lead leading-tight" widths={['w-2/5']} />
@@ -520,7 +529,7 @@ export function ContractRoomSkeleton() {
         </div>
         {/* The log is `flex-1`; its height is whatever the fixed bands leave, so
             the bubbles are texture rather than geometry. */}
-        <div className="min-h-0 flex-1 space-y-3 p-cozy">
+        <div className="min-h-0 flex-1 space-y-cozy p-cozy">
           <Skeleton className="h-12 w-2/3 rounded-2xl" />
           <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
           <Skeleton className="h-10 w-1/2 rounded-2xl" />
@@ -535,10 +544,10 @@ export function ContractRoomSkeleton() {
             <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
           </div>
         </div>
-        {/* `pt-4` and nothing else: the compact composer resolves to
+        {/* `pt-group` and nothing else: the compact composer resolves to
             `max-md:px-0 max-md:pb-0`, so the old `p-cozy` inset the two round
             buttons 12px from the edges they actually sit on. */}
-        <div className="flex shrink-0 items-center gap-2 border-t pt-4">
+        <div className="flex shrink-0 items-center gap-snug border-t pt-group">
           <Skeleton className="size-11 shrink-0 rounded-md" />
           <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl" />
           <Skeleton className="size-11 shrink-0 rounded-md" />
@@ -546,32 +555,32 @@ export function ContractRoomSkeleton() {
       </div>
 
       <div className="hidden min-h-0 flex-1 gap-group md:block lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
-        <div className="space-y-3">
+        <div className="space-y-cozy">
           <Card className="p-5">
-            <Skeleton className="mb-3 h-5 w-56" />
-            <Skeleton className="mb-4 h-4 w-full max-w-md" />
+            <Skeleton className="mb-cozy h-5 w-56" />
+            <Skeleton className="mb-group h-4 w-full max-w-md" />
             <Skeleton className="h-10 w-36 rounded-md" />
           </Card>
           <Card className="p-5">
-            <Skeleton className="mb-3 h-4 w-24" />
+            <Skeleton className="mb-cozy h-4 w-24" />
             <Skeleton className="h-20 w-full" />
           </Card>
           <Card className="p-5">
-            <Skeleton className="mb-3 h-4 w-28" />
+            <Skeleton className="mb-cozy h-4 w-28" />
             <Skeleton className="h-16 w-full" />
           </Card>
         </div>
-        <Card className="mt-4 hidden min-h-[22rem] flex-col p-4 lg:mt-0 lg:flex">
-          <div className="mb-4 flex items-center gap-3 border-b pb-3">
+        <Card className="mt-group hidden min-h-[22rem] flex-col p-group lg:mt-0 lg:flex">
+          <div className="mb-group flex items-center gap-cozy border-b pb-cozy">
             <Skeleton className="size-8 rounded-full" />
             <Skeleton className="h-4 w-32" />
           </div>
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 space-y-cozy">
             <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
             <Skeleton className="h-12 w-2/3 rounded-2xl" />
             <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
           </div>
-          <Skeleton className="mt-4 h-11 w-full rounded-md" />
+          <Skeleton className="mt-group h-11 w-full rounded-md" />
         </Card>
       </div>
     </div>
@@ -600,7 +609,7 @@ export function ChatThreadSkeleton() {
           MESSAGE_GUTTER,
         )}
       >
-        <Skeleton className="-ml-1.5 size-11 shrink-0 rounded-full md:hidden" />
+        <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-full md:hidden" />
         <Skeleton className="size-9 shrink-0 rounded-md" />
         {/* `text-lead leading-tight` over `text-body leading-tight`, and NO `space-y`.
             `ChatThread`'s h2 and its meta line are adjacent blocks with no gap between
@@ -615,7 +624,7 @@ export function ChatThreadSkeleton() {
         {/* The thread CTA is a 44px touch target and keeps its compact desktop size. */}
         <Skeleton className="h-11 w-24 shrink-0 rounded-md md:h-7" />
       </header>
-      <div className={cn('min-h-0 flex-1 space-y-3 pt-5', MESSAGE_GUTTER)}>
+      <div className={cn('min-h-0 flex-1 space-y-cozy pt-5', MESSAGE_GUTTER)}>
         <Skeleton className="h-12 w-3/5 rounded-2xl" />
         <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
         <Skeleton className="h-10 w-2/5 rounded-2xl" />
@@ -629,8 +638,8 @@ export function ChatThreadSkeleton() {
           against the 16px that was reserved. `loading.tsx` cannot know which
           kind of thread it is about to show, so it reserves neither. */}
       {/* The composer owns the complete symmetric band, matching ChatThread. */}
-      <div className={cn('shrink-0 border-t py-4', MESSAGE_GUTTER)}>
-        <div className="flex items-center gap-2">
+      <div className={cn('shrink-0 border-t py-group', MESSAGE_GUTTER)}>
+        <div className="flex items-center gap-snug">
           <Skeleton className="size-11 shrink-0 rounded-full" />
           <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl" />
           <Skeleton className="size-11 shrink-0 rounded-full" />

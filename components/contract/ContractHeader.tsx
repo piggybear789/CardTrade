@@ -56,7 +56,7 @@ export function ContractHeader({
             vertical budget, so the strip packs title · parties on the left and
             status · money on the right, wrapping only when it must. */}
         <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-1">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-tight">
             {/* The page shell renders the route <h1>; this is the contract's own
                 title.
 
@@ -66,7 +66,7 @@ export function ContractHeader({
                 pointer across constantly, so it popped up all day for a string
                 that is almost never truncated in the first place. */}
             {title ? (
-              <h2 className="min-w-0 max-w-full truncate font-display text-subhead font-semibold tracking-[-0.02em]">
+              <h2 className="min-w-0 max-w-full truncate font-display text-subhead font-semibold tracking-tight">
                 {title}
               </h2>
             ) : null}

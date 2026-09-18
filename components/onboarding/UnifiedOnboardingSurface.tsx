@@ -542,7 +542,7 @@ export function UnifiedOnboardingSurface({
                   {/* Both step descriptions run past 75 characters, so they wrap
                       in the dialog's content column. */}
                   <TextLines
-                    className="mt-tight text-body leading-relaxed"
+                    className="mt-tight text-body"
                     widths={['w-full', 'w-2/3']}
                   />
                 </div>
@@ -572,7 +572,7 @@ export function UnifiedOnboardingSurface({
   if (loadError) {
     return (
       <div className="space-y-cozy">
-        <p role="alert" className="text-body leading-relaxed text-destructive">
+        <p role="alert" className="text-body text-destructive">
           We couldn&apos;t load your setup status. Check your connection and try again.
         </p>
         <button
@@ -591,7 +591,7 @@ export function UnifiedOnboardingSurface({
     completion === undefined ? (
       <Button type="button" onClick={finishPayout} className="w-full">
         Start listing
-        <HugeiconsIcon icon={ArrowRight01Icon} className="ml-2 size-4" aria-hidden />
+        <HugeiconsIcon icon={ArrowRight01Icon} className="ml-snug size-4" aria-hidden />
       </Button>
     ) : (
       completion
@@ -620,7 +620,7 @@ export function UnifiedOnboardingSurface({
             <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
               <p
                 role="status"
-                className="flex min-w-0 items-start gap-snug text-pretty text-body leading-relaxed text-muted-foreground sm:text-right"
+                className="flex min-w-0 items-start gap-snug text-pretty text-body text-muted-foreground sm:text-right"
               >
                 <HugeiconsIcon
                   icon={LoaderCircleIcon}

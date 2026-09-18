@@ -19,19 +19,19 @@ export default function NotFound() {
   // `size="lg"` buttons pushed both buttons under the fold on a 375x667 screen —
   // the two things the page exists to offer.
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-4 py-12 text-center sm:px-6 sm:py-20">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-group py-12 text-center sm:px-6 sm:py-20">
       <div className="flex size-14 items-center justify-center rounded-full border bg-muted text-muted-foreground">
         <HugeiconsIcon icon={CompassIcon} className="size-6" aria-hidden="true" />
       </div>
       <p className="mt-6 text-body font-medium text-muted-foreground">Error 404</p>
-      <h1 className="mt-4 text-balance font-display text-display font-semibold tracking-[-0.025em]">
+      <h1 className="mt-group text-balance font-display text-display font-semibold tracking-tight">
         We couldn&apos;t find that page
       </h1>
-      <p className="mt-3 text-pretty text-body leading-7 text-muted-foreground">
+      <p className="mt-cozy text-pretty text-body text-muted-foreground">
         The link may be broken, or the listing or contract may have been removed.
         Everything on NoDitto stays one click from the marketplace.
       </p>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-section flex flex-col gap-cozy sm:flex-row">
         <Button asChild size="lg">
           <Link href="/">Browse the marketplace</Link>
         </Button>
@@ -39,7 +39,7 @@ export default function NotFound() {
           <Link href="/">Back to home</Link>
         </Button>
       </div>
-      <p className="mt-10 inline-flex items-center gap-2 text-body text-muted-foreground">
+      <p className="mt-10 inline-flex items-center gap-snug text-body text-muted-foreground">
         <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden="true" />
         Every trade on NoDitto shows collateral terms and a Stripe Identity check.
       </p>

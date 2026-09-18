@@ -110,7 +110,7 @@ export function PlacePicker({
     // deployment that is not finished rather than a step that has silently vanished.
     if (requireResolved) {
       return (
-        <div className={cn('space-y-2', className)}>
+        <div className={cn('space-y-snug', className)}>
           {label ? (
             <Label htmlFor={id}>
               {label}
@@ -120,7 +120,7 @@ export function PlacePicker({
           <input
             id={id}
             // `text-body`, matching `Input` — see the stale-variant note there.
-            className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-body text-muted-foreground md:h-8"
+            className="flex h-9 w-full rounded-md border border-input bg-card px-cozy py-tight text-body text-muted-foreground md:h-8"
             value=""
             disabled
             readOnly
@@ -136,7 +136,7 @@ export function PlacePicker({
     }
 
     return (
-      <div className={cn('space-y-2', className)}>
+      <div className={cn('space-y-snug', className)}>
         {label ? (
           <Label htmlFor={id}>
             {label}
@@ -146,7 +146,7 @@ export function PlacePicker({
         <input
           id={id}
           // `text-body`, matching `Input` — see the stale-variant note there.
-          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-body md:h-8"
+          className="flex h-9 w-full rounded-md border border-input bg-background px-cozy py-tight text-body md:h-8"
           value={textOnly}
           disabled={disabled}
           placeholder={textFallbackPlaceholder ?? 'Suburb or meeting place'}
@@ -189,7 +189,7 @@ export function PlacePicker({
   const showMapPreview = showMap && value != null && !isUnresolved(value);
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-snug', className)}>
       {label ? (
         <Label htmlFor={id}>
           {label}

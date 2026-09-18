@@ -77,7 +77,9 @@ export function ContractEventIcon({
   const base = cn('size-4 shrink-0', className);
   switch (tone) {
     case 'success':
-      return <HugeiconsIcon icon={CheckIcon} className={cn(base, 'text-emerald-600')} aria-hidden />;
+      // `text-trust`, not a raw Tailwind green. The palette has exactly one "settled /
+      // confirmed" hue and this was the only place in the app reaching past it.
+      return <HugeiconsIcon icon={CheckIcon} className={cn(base, 'text-trust')} aria-hidden />;
     case 'destructive':
       return <HugeiconsIcon icon={CancelCircleIcon} className={cn(base, 'text-destructive')} aria-hidden />;
     case 'warning':

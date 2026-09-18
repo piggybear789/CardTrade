@@ -66,7 +66,7 @@ export function UpdatePasswordForm() {
       <Card>
         <CardHeader>
           <CardTitle className="text-subhead">That link has expired</CardTitle>
-          <CardDescription className="text-pretty leading-relaxed">
+          <CardDescription className="text-pretty">
             Reset links are single-use and short-lived. Request a new one and it will work.
           </CardDescription>
         </CardHeader>
@@ -83,7 +83,7 @@ export function UpdatePasswordForm() {
     <Card>
       <CardHeader>
         <CardTitle className="text-subhead">Choose a new password</CardTitle>
-        <CardDescription className="text-pretty leading-relaxed">
+        <CardDescription className="text-pretty">
           You confirmed control of your inbox, so this is the last step.
         </CardDescription>
       </CardHeader>

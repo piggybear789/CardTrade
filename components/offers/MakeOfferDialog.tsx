@@ -148,7 +148,7 @@ export function MakeOfferDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-group py-group">
             <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
               <p className="font-medium">Verified seller</p>
               {sellerIdentity.tradingName ? (
@@ -159,7 +159,7 @@ export function MakeOfferDialog({
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="offer-amount">Your offer</Label>
               <MoneyInput
                 id="offer-amount"
@@ -176,7 +176,7 @@ export function MakeOfferDialog({
               ) : null}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="offer-message">Message (optional)</Label>
               <Textarea
                 id="offer-message"

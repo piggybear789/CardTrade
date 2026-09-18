@@ -16,8 +16,8 @@ export default function DealInviteLoading() {
         aria-label="Loading private deal"
       >
         <Skeleton className="h-6 w-32" />
-        <Skeleton className="mt-2 h-4 w-64 max-w-full" />
-        <div className="mt-6 space-y-3">
+        <Skeleton className="mt-snug h-4 w-64 max-w-full" />
+        <div className="mt-6 space-y-cozy">
           <Skeleton className="h-16 w-full rounded-lg" />
           <Skeleton className="h-16 w-full rounded-lg" />
         </div>

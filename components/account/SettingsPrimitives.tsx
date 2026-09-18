@@ -100,7 +100,7 @@ export function SettingsGroup({
               type-scale note asks for. */}
           <h3 className="text-body font-medium text-muted-foreground">{label}</h3>
           {description ? (
-            <p className="text-body leading-relaxed text-muted-foreground">{description}</p>
+            <p className="text-body text-muted-foreground">{description}</p>
           ) : null}
         </div>
       ) : null}
@@ -455,7 +455,7 @@ export function SettingsSection({
       <div className="space-y-tight">
         <SectionLabel>{label}</SectionLabel>
         {description ? (
-          <p className="hidden text-body leading-relaxed text-muted-foreground md:block">{description}</p>
+          <p className="hidden text-body text-muted-foreground md:block">{description}</p>
         ) : null}
       </div>
       <div className="max-md:divide-y max-md:divide-border max-md:overflow-hidden max-md:rounded-xl max-md:border max-md:border-border max-md:bg-card md:contents">
@@ -490,7 +490,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-tight rounded-full border px-2 py-0.5',
+        'inline-flex shrink-0 items-center gap-tight rounded-full border px-snug py-0.5',
         'text-meta font-medium leading-tight',
         TONE_CLASS[tone],
       )}
@@ -653,7 +653,7 @@ export function StatTile({
       </div>
       {/* `display-value` is the existing ledger-figure class: sans, bold, with
           tabular figures so columns of money align. */}
-      <p className="display-value mt-snug text-lead md:mt-4">{value}</p>
+      <p className="display-value mt-snug text-lead md:mt-group">{value}</p>
       {sub ? <p className="mt-tight font-sans text-body text-muted-foreground">{sub}</p> : null}
     </div>
   );

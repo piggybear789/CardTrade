@@ -201,7 +201,7 @@ export function TradeNegotiationPanel({
           them again here made the action card a summary with buttons attached
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}
-      <div className="flex w-full min-w-0 flex-col items-stretch gap-2 sm:items-end">
+      <div className="flex w-full min-w-0 flex-col items-stretch gap-snug sm:items-end">
         <SavedCardRow
           initialStatus={paymentMethod}
           className="w-full sm:max-w-sm"
@@ -367,7 +367,7 @@ export function TradeNegotiationPanel({
               How holds and disputes work
             </Link>
           </p>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-snug">
             <Button
               type="button"
               variant="ghost"

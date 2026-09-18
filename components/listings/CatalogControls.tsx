@@ -141,7 +141,7 @@ export function CatalogFilterSearch() {
         enterKeyHint="search"
         className={cn(
           'h-9 w-full bg-card pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
-          filter ? 'pr-9' : 'pr-3',
+          filter ? 'pr-9' : 'pr-cozy',
         )}
       />
       {filter ? (
@@ -254,8 +254,8 @@ export function CatalogFilters() {
       <MobileOnly>
         <Sheet open={filtersOpen} onOpenChange={setFiltersOpenAndUrl}>
           <SheetContent side="bottom" className="gap-0 p-0">
-            <SheetHeader className="border-b border-border px-5 py-3">
-              <div className="flex items-start justify-between gap-3 pr-10">
+            <SheetHeader className="border-b border-border px-5 py-cozy">
+              <div className="flex items-start justify-between gap-cozy pr-10">
                 <div className="min-w-0">
                   <SheetTitle>Filters</SheetTitle>
                   <SheetDescription>
@@ -280,7 +280,7 @@ export function CatalogFilters() {
                   header, where the thing being ordered is on screen; the sheet
                   is the only place a phone can reach it, so it leads here. */}
               <div>
-                <p className="market-label mb-2 text-muted-foreground">Sort</p>
+                <p className="market-label mb-snug text-muted-foreground">Sort</p>
                 <CatalogSortControl fullWidth />
               </div>
               <CatalogRefineFields
@@ -326,7 +326,7 @@ export function CatalogFilters() {
             needs it — the empty state offers "Clear Filters" when a search
             returns nothing, which is the case where undoing filters one at a
             time is genuinely tedious. */}
-        <div id="catalog-filter-panel" className="mt-4 space-y-5 bg-transparent">
+        <div id="catalog-filter-panel" className="mt-group space-y-5 bg-transparent">
           {hasActiveFilters ? (
             <div className="flex items-center justify-between">
               <span className="text-meta text-muted-foreground">Active filters</span>
@@ -441,13 +441,13 @@ function CatalogRefineFields({
         </ConditionDisclosure>
       ) : (
         <fieldset className="border-t border-border pt-group">
-          <legend className="market-label mb-2 text-muted-foreground">Condition</legend>
+          <legend className="market-label mb-snug text-muted-foreground">Condition</legend>
           {conditionRows}
         </fieldset>
       )}
 
       <div className="border-t border-border pt-group">
-        <div className="mb-3 flex items-baseline justify-between gap-2">
+        <div className="mb-cozy flex items-baseline justify-between gap-snug">
           <p className="market-label text-muted-foreground">Price</p>
           <p className="text-body font-semibold tabular-nums">
             {priceRangeLabel(priceLadder, priceStops, topStop)}
@@ -473,10 +473,10 @@ function CatalogRefineFields({
           minStepsBetweenThumbs={1}
           thumbLabels={['Minimum price', 'Maximum price']}
           thumbValueText={(stop) => priceStopLabel(priceLadder, stop, topStop)}
-          className="px-tight py-2"
+          className="px-tight py-snug"
         />
         <div
-          className="mt-1 flex justify-between text-meta text-muted-foreground tabular-nums"
+          className="mt-tight flex justify-between text-meta text-muted-foreground tabular-nums"
           aria-hidden="true"
         >
           <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
@@ -519,7 +519,7 @@ function CatalogRefineFields({
           card against what comparable ones actually went for. Folding the two
           into a single control would imply the states mean the same thing. */}
       <div className="border-t border-border pt-group">
-        <p className="market-label mb-2 text-muted-foreground">Availability</p>
+        <p className="market-label mb-snug text-muted-foreground">Availability</p>
         {choiceStyle === 'squares' ? (
           <div className="flex flex-wrap gap-1.5">
             <FilterSquare
@@ -580,13 +580,13 @@ function ConditionDisclosure({
       collapsible
       value={open}
       onValueChange={setOpen}
-      className="border-t border-border pt-2"
+      className="border-t border-border pt-snug"
     >
       {/* `border-b-0`: the next block draws the rule below this one, the same
           way every other block in the panel separates itself with a top border. */}
       <AccordionItem value="condition" className="border-b-0">
         <AccordionTrigger headingAs="div" className="group py-1.5">
-          <span className="flex min-w-0 items-center gap-2">
+          <span className="flex min-w-0 items-center gap-snug">
             <span className="market-label text-muted-foreground transition-colors group-hover:text-foreground">
               Condition
             </span>
@@ -612,7 +612,7 @@ function ConditionDisclosure({
             the alternative and it was worse: it showed three of seven with no
             visible scrollbar, which is the same silent clip this change set
             exists to remove, just moved one container inwards. */}
-        <AccordionContent className="pb-cozy pt-1">{children}</AccordionContent>
+        <AccordionContent className="pb-cozy pt-tight">{children}</AccordionContent>
       </AccordionItem>
     </Accordion>
   );
@@ -784,7 +784,7 @@ function PriceHistogram({
     //
     // The two values track the thumb: `size-5` on a phone, `size-6` from `md`.
     <div
-      className="flex h-8 items-end gap-px px-2.5 md:px-3"
+      className="flex h-8 items-end gap-px px-2.5 md:px-cozy"
       aria-hidden="true"
     >
       {buckets.map((share, segment) => {
@@ -794,10 +794,11 @@ function PriceHistogram({
         return (
           <span
             key={segment}
-            // A floor of 8%, so a segment holding one listing is still visibly
-            // different from one holding none. Without it the long tail of expensive
-            // cards reads as empty inventory.
-            style={{ height: `${Math.max(share * 100, share > 0 ? 8 : 2)}%` }}
+            // A floor of 8% for an OCCUPIED segment, so one listing is still visibly
+            // different from none. An EMPTY segment draws nothing: the 2% floor it used
+            // to carry, with `gap-px` between bars, rendered as a dotted line along the
+            // track that read as a broken border rather than as "no stock here".
+            style={{ height: share > 0 ? `${Math.max(share * 100, 8)}%` : 0 }}
             className={cn(
               'min-w-0 flex-1 rounded-t-[2px] transition-colors',
               inRange ? 'bg-iris/70' : 'bg-iris/20',
@@ -878,7 +879,7 @@ function PriceBoundsFields({
             commit(draft);
           }
         }}
-        className="h-8 min-w-0 flex-1 px-2 text-meta tabular-nums"
+        className="h-8 min-w-0 flex-1 px-snug text-meta tabular-nums"
       />
       <span className="text-meta text-muted-foreground">to</span>
       <Input
@@ -896,7 +897,7 @@ function PriceBoundsFields({
             commit(draft);
           }
         }}
-        className="h-8 min-w-0 flex-1 px-2 text-meta tabular-nums"
+        className="h-8 min-w-0 flex-1 px-snug text-meta tabular-nums"
       />
     </div>
   );

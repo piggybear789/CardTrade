@@ -232,12 +232,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
         the window itself.
       */}
       <form onSubmit={handleSubmit} method="post" noValidate>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-group">
           {bannerError ? (
             <p
               id={formErrorId}
               role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-body text-destructive"
+              className="rounded-md bg-destructive/10 px-cozy py-snug text-body text-destructive"
             >
               {bannerError}
             </p>
@@ -245,13 +245,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
           <GoogleSignInButton mode={mode} disabled={isPending} />
 
-          <div className="flex items-center gap-3" aria-hidden="true">
+          <div className="flex items-center gap-cozy" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
             <span className="text-meta uppercase tracking-wide text-muted-foreground">or</span>
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <Label htmlFor={emailId}>Email</Label>
             <Input
               id={emailId}
@@ -274,7 +274,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             ) : null}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-snug">
             {/* The recovery route sits beside the field it rescues, which is where
                 someone looks when the password they typed did not work. Sign-up has no
                 password to recover yet, so it is offered on sign-in only. */}
@@ -340,7 +340,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           ) : null}
         </CardContent>
 
-        <CardFooter className="flex flex-col items-center gap-4">
+        <CardFooter className="flex flex-col items-center gap-group">
           <Button type="submit" className="min-h-11 w-full" disabled={isPending || !isReady} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>

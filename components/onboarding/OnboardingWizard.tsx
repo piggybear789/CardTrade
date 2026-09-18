@@ -115,7 +115,7 @@ const WIZARD_CENTER = 'max-md:my-auto max-md:shrink-0';
 /** Phone: pinned under the scroll region. md+: in-card, matching DialogFooter. */
 function WizardFooter({ children }: { children: ReactNode }) {
   return (
-    <DialogFooter className="max-md:mt-auto max-md:shrink-0 max-md:border-t max-md:pt-3">
+    <DialogFooter className="max-md:mt-auto max-md:shrink-0 max-md:border-t max-md:pt-cozy">
       {children}
     </DialogFooter>
   );
@@ -288,7 +288,7 @@ export function OnboardingWizard({
               an `aria-label` on a plain <div> has no role to attach to and is not
               reliably announced. */}
           {step !== 'welcome' && step !== 'seller-onboarding' ? (
-            <div className="mb-2 flex shrink-0 items-center justify-center gap-tight">
+            <div className="mb-snug flex shrink-0 items-center justify-center gap-tight">
               <span className="sr-only">
                 Step {progressIndex + 1} of {PROGRESS_STEPS.length}
               </span>
@@ -309,9 +309,9 @@ export function OnboardingWizard({
           <div className={WIZARD_CENTER}>
           {step === 'welcome' ? (
             <div className="space-y-group">
-              <DialogHeader className="space-y-2 pr-0 text-center">
+              <DialogHeader className="space-y-snug pr-0 text-center">
                 <DialogTitle className="text-head">Welcome to NoDitto</DialogTitle>
-                <DialogDescription className="text-pretty leading-relaxed">
+                <DialogDescription className="text-pretty">
                   Two ways to transact, both designed to protect both sides.
                 </DialogDescription>
               </DialogHeader>
@@ -332,7 +332,7 @@ export function OnboardingWizard({
                     </span>
                     <div className="min-w-0 space-y-tight">
                       <p className="text-body font-medium">{title}</p>
-                      <p className="text-pretty text-body leading-relaxed text-muted-foreground">
+                      <p className="text-pretty text-body text-muted-foreground">
                         {body}
                       </p>
                     </div>
@@ -344,14 +344,14 @@ export function OnboardingWizard({
 
           {step === 'username' ? (
             <div className="space-y-group">
-              <DialogHeader className="space-y-2 pr-0 text-center">
+              <DialogHeader className="space-y-snug pr-0 text-center">
                 <DialogTitle className="text-head">Choose your username</DialogTitle>
-                <DialogDescription className="text-pretty leading-relaxed">
+                <DialogDescription className="text-pretty">
                   This is how other members see you.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-2">
+              <div className="space-y-snug">
                 <Label htmlFor="displayName">Display name</Label>
                 <Input
                   id="displayName"
@@ -390,7 +390,7 @@ export function OnboardingWizard({
               <div
                 role="group"
                 aria-labelledby="onboarding-avatar-label"
-                className="flex items-center gap-group border-t pt-4"
+                className="flex items-center gap-group border-t pt-group"
               >
                 <AvatarUploadField
                   compact
@@ -407,7 +407,7 @@ export function OnboardingWizard({
                     Profile picture{' '}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </p>
-                  <p className="text-pretty text-meta leading-relaxed text-muted-foreground">
+                  <p className="text-pretty text-meta text-muted-foreground">
                     Helps members recognise you. Change it any time from your profile.
                   </p>
                 </div>
@@ -417,15 +417,15 @@ export function OnboardingWizard({
 
           {step === 'region' ? (
             <div className="space-y-group">
-              <DialogHeader className="space-y-2 pr-0 text-center">
+              <DialogHeader className="space-y-snug pr-0 text-center">
                 <DialogTitle className="text-head">Where are you trading from?</DialogTitle>
-                <DialogDescription className="text-pretty leading-relaxed">
+                <DialogDescription className="text-pretty">
                   Deals are completed within one region, so postage, currency and
                   payouts all stay local.
                 </DialogDescription>
               </DialogHeader>
 
-              <fieldset className="grid gap-2">
+              <fieldset className="grid gap-snug">
                 <legend className="sr-only">Your trading region</legend>
                 {regionChoices.map((region) => (
                   <button
@@ -437,7 +437,7 @@ export function OnboardingWizard({
                     }}
                     aria-pressed={regionCode === region.code}
                     className={cn(
-                      'flex items-center gap-4 rounded-lg border p-4 text-left transition-colors',
+                      'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
                       // The accent pair, which is what `ChoiceTile` uses and what
                       // globals.css names as THE selected look. What was here —
                       // `border-primary bg-primary/5 ring-1 ring-primary` — is the exact
@@ -470,7 +470,7 @@ export function OnboardingWizard({
                   button, which reads as a broken page.
                 */}
                 {regionChoices.length === 0 ? (
-                  <p className="rounded-lg border border-border bg-muted p-4 text-body text-muted-foreground">
+                  <p className="rounded-lg border border-border bg-muted p-group text-body text-muted-foreground">
                     No regions are open for deals right now. Please try again shortly —
                     you can still browse listings in the meantime.
                   </p>
@@ -483,7 +483,7 @@ export function OnboardingWizard({
                 and sends the member to support. Finding that out later would feel
                 like a bug.
               */}
-              <p className="text-pretty text-body leading-relaxed text-muted-foreground">
+              <p className="text-pretty text-body text-muted-foreground">
                 This is tied to your payout account, so it is not something you can
                 switch later on your own. You can still browse listings in any region.
               </p>
@@ -498,19 +498,19 @@ export function OnboardingWizard({
 
           {step === 'intent' ? (
             <div className="space-y-group">
-              <DialogHeader className="space-y-2 pr-0 text-center">
+              <DialogHeader className="space-y-snug pr-0 text-center">
                 <DialogTitle className="text-head">What brings you here?</DialogTitle>
-                <DialogDescription className="text-pretty leading-relaxed">
+                <DialogDescription className="text-pretty">
                   You can always do both later. This only gets your first path ready.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-2">
+              <div className="grid gap-snug">
                 <button
                   type="button"
                   onClick={() => setIntent('buyer')}
                   className={cn(
-                    'flex items-center gap-4 rounded-lg border p-4 text-left transition-colors',
+                    'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
                     intent === 'buyer'
                       ? 'border-border bg-accent text-accent-foreground'
                       : 'hover:border-foreground/20 hover:bg-muted/50',
@@ -531,7 +531,7 @@ export function OnboardingWizard({
                   type="button"
                   onClick={() => setIntent('seller')}
                   className={cn(
-                    'flex items-center gap-4 rounded-lg border p-4 text-left transition-colors',
+                    'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
                     intent === 'seller'
                       ? 'border-border bg-accent text-accent-foreground'
                       : 'hover:border-foreground/20 hover:bg-muted/50',
@@ -562,7 +562,7 @@ export function OnboardingWizard({
               {/* TITLE PLUS WHY. The spine states what each step is; this is only the
                   reason they exist at all, parked on an (i) so it isn't a third
                   paragraph competing with the steps. */}
-              <DialogHeader className="mx-auto max-w-2xl space-y-2 pr-0 text-center">
+              <DialogHeader className="mx-auto max-w-2xl space-y-snug pr-0 text-center">
                 <div className="flex items-center justify-center gap-tight">
                   <DialogTitle className="text-head">
                     Two steps to start selling

@@ -20,12 +20,6 @@
 // partial — is still staff-only, and the copy says so rather than leaving a member
 // hunting for a control that does not exist.
 //
-// EACH CONTROL STATES ITS COST AT REST. These were two outline buttons in a row with no
-// consequence attached until a dialog opened, which gave "refund the buyer in full" the
-// same weight as "attach files" and put the whole explanation one click away. The
-// consequence now sits beside the button, which is the pattern the Protection tab
-// already argues for: the control belongs inside the sentence that sets the expectation.
-//
 // THE ORCHESTRATOR RE-CHECKS ALL OF IT. Hiding a button is presentation; `disputed_by`
 // and the role/outcome pairing are enforced server-side, because these are Server
 // Actions and an exported one is reachable by id.
@@ -34,22 +28,81 @@
 // third abandons a claim, so each goes through `ConfirmDialog` rather than firing on a
 // single click.
 
-import { useState, useTransition, type ReactNode } from 'react';
+//
+// ACTION ROWS, NOT BUTTONS. The first version was a heading ("End this without
+// support"), a sentence explaining the rule, and two outline buttons — the reader had
+// to hold the sentence in mind to know what either button would cost them. Each option
+// is now one row that states its own consequence beneath its label, the shape
+// `components/ui/dialog-row` uses for "there is more here": label, hint, chevron. The
+// rule about partial outcomes is the section's one-line subtitle.
+
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, RotateCcwIcon, Undo02Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import {
+  ArrowRight01Icon,
+  LoaderCircleIcon,
+  RotateCcwIcon,
+  Undo02Icon,
+} from '@hugeicons/core-free-icons';
 
 import {
   settleCashSaleDispute,
   withdrawCashSaleDispute,
 } from '@/lib/actions/cashSale';
-import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { formatMoney } from '@/lib/format';
+import { formatAud } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
 /** Which confirmation is open. */
 type Pending = 'withdraw' | 'settle' | null;
+
+/** One way to end the dispute: what it is called, what it costs, and a way in. */
+function ResolutionRow({
+  icon,
+  label,
+  consequence,
+  busy,
+  disabled,
+  onClick,
+}: {
+  icon: IconSvgElement;
+  label: string;
+  consequence: string;
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-busy={busy}
+        className="flex w-full items-center gap-cozy px-cozy py-cozy text-left transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+          <HugeiconsIcon
+            icon={busy ? LoaderCircleIcon : icon}
+            className={cn('size-4', busy && 'animate-spin')}
+            aria-hidden
+          />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-body font-medium">{label}</span>
+          <span className="block text-meta text-muted-foreground">{consequence}</span>
+        </span>
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          className="size-4 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
+      </button>
+    </li>
+  );
+}
 
 export interface CashSaleDisputeResolutionProps {
   cashSaleId: string;
@@ -59,34 +112,8 @@ export interface CashSaleDisputeResolutionProps {
   iRaisedIt: boolean;
   /** Total collected from the Buyer, for the refund confirmation. */
   amountCents: number;
-  /**
-   * The contract's own currency.
-   *
-   * Not `formatAud`, which is the deprecated alias: the row records its denomination and
-   * a concession dialog naming the wrong symbol is the exact silent error the money
-   * rules in the steering docs exist to prevent.
-   */
-  currency: string;
   /** The other party's display name. */
   counterpartyName: string;
-}
-
-/** A concession and the sentence that says what it costs. */
-function Choice({
-  button,
-  children,
-}: {
-  button: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <li className="flex flex-wrap items-center gap-x-cozy gap-y-tight">
-      {button}
-      <p className="min-w-48 flex-1 text-pretty text-meta text-muted-foreground">
-        {children}
-      </p>
-    </li>
-  );
 }
 
 export function CashSaleDisputeResolution({
@@ -94,23 +121,18 @@ export function CashSaleDisputeResolution({
   iAmBuyer,
   iRaisedIt,
   amountCents,
-  currency,
   counterpartyName,
 }: CashSaleDisputeResolutionProps) {
   const router = useRouter();
   const [pending, setPending] = useState<Pending>(null);
   const [isPending, startTransition] = useTransition();
   const [running, setRunning] = useState<Exclude<Pending, null> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const money = (cents: number) => formatMoney(cents, currency);
 
   function run(
     which: Exclude<Pending, null>,
     call: () => Promise<{ ok: boolean; message?: string; error?: string }>,
   ) {
     setRunning(which);
-    setError(null);
     startTransition(async () => {
       const result = await call();
       setRunning(null);
@@ -118,14 +140,7 @@ export function CashSaleDisputeResolution({
       if (result.ok) {
         router.refresh();
       } else {
-        // INLINE AS WELL AS A TOAST. The orchestrator's refusals here are facts about
-        // the case rather than transient hiccups — "this dispute has already been
-        // decided", "only the person who raised the dispute can withdraw it", "a partial
-        // refund has to be agreed by both sides". A toast that vanishes after four
-        // seconds is the wrong surface for a state the member has to act on.
-        const message = result.message ?? 'That did not work. Try again.';
-        setError(message);
-        toast.error(message);
+        toast.error(result.message ?? 'That did not work. Try again.');
       }
     });
   }
@@ -134,77 +149,41 @@ export function CashSaleDisputeResolution({
 
   return (
     <section aria-labelledby="dispute-resolution-heading">
-      <h4 id="dispute-resolution-heading" className="text-body font-semibold">
-        Settle it yourself
-      </h4>
-      <p className="mt-1 text-pretty text-body text-muted-foreground">
-        Only if you want it over now. You can choose an outcome that costs you, and
-        nothing in between — a split is decided by support.
-      </p>
+      <h3 id="dispute-resolution-heading" className="text-body font-semibold">
+        Settle it yourselves
+      </h3>
 
-      <ul className="mt-group space-y-cozy">
+      <ul className="mt-cozy divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
         {iRaisedIt ? (
-          <Choice
-            button={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isPending}
-                aria-busy={busy('withdraw')}
-                onClick={() => setPending('withdraw')}
-              >
-                {busy('withdraw') ? (
-                  <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <HugeiconsIcon icon={Undo02Icon} className="size-4" aria-hidden />
-                )}
-                Withdraw my report
-              </Button>
-            }
-          >
-            Drops your claim and the contract carries on. No money moves, and you can
-            report a problem again if it is not resolved.
-          </Choice>
+          <ResolutionRow
+            icon={Undo02Icon}
+            label="Withdraw my dispute"
+            consequence="No money moves."
+            busy={busy('withdraw')}
+            disabled={isPending}
+            onClick={() => setPending('withdraw')}
+          />
         ) : null}
-
-        <Choice
-          button={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isPending}
-              aria-busy={busy('settle')}
-              onClick={() => setPending('settle')}
-            >
-              {busy('settle') ? (
-                <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <HugeiconsIcon icon={RotateCcwIcon} className="size-4" aria-hidden />
-              )}
-              {iAmBuyer ? 'Release the payment anyway' : 'Refund the buyer in full'}
-            </Button>
+        <ResolutionRow
+          icon={RotateCcwIcon}
+          label={iAmBuyer ? 'Release the payment anyway' : 'Refund the buyer in full'}
+          consequence={
+            iAmBuyer
+              ? `Pays ${counterpartyName}. Cannot be undone.`
+              : `Refunds ${counterpartyName} once the item is back. Cannot be undone.`
           }
-        >
-          {iAmBuyer
-            ? `Ends the case in ${counterpartyName}'s favour and pays them ${money(amountCents)}. You keep what you received. Cannot be undone.`
-            : `Ends the case in ${counterpartyName}'s favour for ${money(amountCents)}. If they hold the item they post it back first. Cannot be undone.`}
-        </Choice>
+          busy={busy('settle')}
+          disabled={isPending}
+          onClick={() => setPending('settle')}
+        />
       </ul>
-
-      {error ? (
-        <p role="alert" className="mt-cozy text-body text-destructive">
-          {error}
-        </p>
-      ) : null}
 
       <ConfirmDialog
         open={pending === 'withdraw'}
         onOpenChange={(open) => !open && setPending(null)}
-        title="Withdraw your report?"
-        description={`The contract goes back to where it was before you raised it, and ${counterpartyName} is told you withdrew. No money moves. Your report and anything you filed stay on the record, and you can report a problem again if it is not resolved.`}
-        confirmLabel="Withdraw report"
+        title="Withdraw your dispute?"
+        description={`The contract goes back to where it was before you raised it, and ${counterpartyName} is told you withdrew. No money moves. Your dispute and anything you submitted stay on the record, and you can raise a new dispute if the problem is not resolved.`}
+        confirmLabel="Withdraw dispute"
         pending={busy('withdraw')}
         onConfirm={() =>
           run('withdraw', () => withdrawCashSaleDispute(cashSaleId))
@@ -217,7 +196,7 @@ export function CashSaleDisputeResolution({
         title={
           iAmBuyer
             ? 'Release the payment to the seller?'
-            : `Refund ${money(amountCents)} to the buyer?`
+            : `Refund ${formatAud(amountCents)} to the buyer?`
         }
         description={
           iAmBuyer
@@ -228,7 +207,7 @@ export function CashSaleDisputeResolution({
               // the goods, the refund now WAITS for them to post it back, and the
               // refund releases automatically once a carrier confirms it arrived.
               `This ends the dispute in ${counterpartyName}'s favour. If they already have the item, ` +
-              `they must post it back to you first — the ${money(amountCents)} is refunded ` +
+              `they must post it back to you first — the ${formatAud(amountCents)} is refunded ` +
               `automatically once a carrier confirms it reached you, and your listing goes back on ` +
               `sale at that point. If the item never reached them, they are refunded straight away. ` +
               `This cannot be undone.`

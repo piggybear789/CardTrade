@@ -112,7 +112,7 @@ export function CashSalesSection({
               {/* The desktop next-step column, folded in below `md` — where it is the
                   first thing a member is looking for, so it sits directly under the
                   title rather than behind a tap. */}
-              <NextMoveCell move={sale.nextMove} className="mt-1 md:hidden" />
+              <NextMoveCell move={sale.nextMove} className="mt-tight md:hidden" />
             </div>
 
             <NextMoveCell move={sale.nextMove} className="hidden md:flex" />

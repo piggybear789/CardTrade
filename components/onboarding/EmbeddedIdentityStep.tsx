@@ -193,7 +193,7 @@ export function EmbeddedIdentityStep({
           <p className="text-body font-medium text-foreground">
             Stripe is reviewing your document
           </p>
-          <p className="mt-tight text-pretty text-meta leading-relaxed text-muted-foreground">
+          <p className="mt-tight text-pretty text-meta text-muted-foreground">
             Usually under a minute. You can leave this page — the result is kept.
           </p>
         </div>
@@ -214,7 +214,7 @@ export function EmbeddedIdentityStep({
   return (
     <div className="space-y-group">
       {error ? (
-        <p role="alert" className="text-body leading-relaxed text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}

@@ -74,7 +74,7 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
                       ? formatAud(invite.priceCents)
                       : 'Waiting for them to join'}
                   </p>
-                  <Badge variant="secondary" className="mt-2 max-w-full sm:hidden">
+                  <Badge variant="secondary" className="mt-snug max-w-full sm:hidden">
                     Waiting for them to join
                   </Badge>
                 </div>
@@ -82,7 +82,7 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
                   Waiting for them to join
                 </Badge>
               </Link>
-              <div className="flex shrink-0 items-center justify-end gap-1">
+              <div className="flex shrink-0 items-center justify-end gap-tight">
                 <CopyDealLink path={invite.path} appearance="icon" />
                 <Button
                   type="button"

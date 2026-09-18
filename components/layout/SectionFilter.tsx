@@ -220,7 +220,7 @@ export const SECTION_TABS_NAV_SHAPE = [
   // Scrolls horizontally rather than wrapping or clipping: three tabs with counts
   // overflow a 320px viewport, and a clipped tab is an unreachable one. Scrollbar
   // hidden to match the rail's treatment in MarketplaceShell.
-  'mb-3 flex gap-1 overflow-x-auto border-b border-border pb-px pr-4',
+  'mb-cozy flex gap-tight overflow-x-auto border-b border-border pb-px pr-group',
   '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
   '[mask-image:linear-gradient(to_right,black_calc(100%-0.75rem),transparent)]',
   'md:mb-5 md:[mask-image:none] md:pr-0',
@@ -230,8 +230,8 @@ export const SECTION_TABS_NAV_SHAPE = [
 // placeholder too: without it every tab is 2px short.
 export const SECTION_TABS_ITEM_SHAPE = [
   'relative -mb-px inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-t-md',
-  'border border-transparent px-3 py-2 text-body font-medium',
-  'md:min-h-11 md:gap-2 md:px-4 md:py-2.5',
+  'border border-transparent px-cozy py-snug text-body font-medium',
+  'md:min-h-11 md:gap-snug md:px-group md:py-2.5',
 ].join(' ');
 
 /** One tab in a {@link SectionTabs} strip. */

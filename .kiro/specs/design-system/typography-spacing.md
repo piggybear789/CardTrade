@@ -19,9 +19,20 @@ Two rules in the tokens matter:
    shipped at 13px. The values describe the current product rather than an
    aspirational scale.
 
-`cozy` supplies the 12px dense-spacing step, and `nav` supplies the sidebar rail's 15px
-scanning register. `nav` is not content copy — though at `body` = 14px it is only one
-pixel above it, so if 14px stays, `nav` needs revisiting.
+`cozy` supplies the 12px dense-spacing step. `nav` (15px, sidebar rail only) has been
+**retired**: at `body` = 14px it was one pixel above body copy, which is not a
+register. The rail is `text-body`; the active row carries `font-medium` for scan weight.
+
+**Line-height travels with the token.** Each level fixes its own leading and that is
+the register. Only three overrides are sanctioned: `leading-none` (single-line chips,
+badges, counts), `leading-tight` (headings at `head` / `display`), and `leading-snug`
+(a dense two-line row inside a card or list item). `leading-relaxed`, `leading-normal`
+and numeric `leading-N` are not — if a paragraph wants more air, that is a `space-y`
+decision.
+
+**Radius tiers derive from `--radius`** (8px): `sm` 4 (chips, thumbnails), `md` 6
+(controls), `lg` 8 (cards), `xl` 12 (sheets, dialogs, large media), `2xl` 16 (chat
+bubbles, pill fields). `rounded-full` is the only shape outside the ramp.
 
 **`lead` is no longer a field floor.** Fields used to be floored at 16px on touch
 because iOS Safari zooms a focused input whose text is under 16px and does not zoom
@@ -34,7 +45,7 @@ it ever has to be suppressed, scope it to iOS with
 
 This document's no-`flutter_app/**` rule applies to the original web presentation
 sweep only. `.kiro/specs/mobile-visual-parity/` is the deliberate Flutter port of this
-same seven-level scale: it reads the values from `tailwind.config.ts`, preserves their
+same scale: it reads the values from `tailwind.config.ts`, preserves their
 size/line-height pairings, and preserves the Subtext_Rule and Compact_Row_Rule below.
 It does not make this document a second source of token values.
 
@@ -44,15 +55,13 @@ It does not make this document a second source of token values.
 | --- | --- | --- | --- |
 | `text-meta` | 12px (`0.75rem`) | `1.4` | **Chrome only**: badges, timestamps, counts, dense table cells, key-value micro-labels |
 | `text-body` | 14px (`0.875rem`) | `1.6` | Body copy, helper text, descriptions, disclosure copy, form labels, and all field text |
-| `text-nav` | 15px (`0.9375rem`) | `1.4` | **Sidebar rail only**; never content copy |
 | `text-lead` | 16px (`1rem`) | `1.5` | Lead paragraphs, card titles, emphasised single values |
 | `text-subhead` | 17px (`1.0625rem`) | `1.4` | Panel and card headings |
 | `text-head` | 21px (`1.3125rem`) | `1.25` | Section headings, page titles inside a shell |
 | `text-display` | 28px (`1.75rem`) | `1.1` | Hero / landing headlines only |
 
 The table is a readable mirror, not a token source: `tailwind.config.ts` owns every
-size and line-height value. `text-nav` exists for the desktop sidebar rail and must not
-be used to create a seventh content register at mobile width.
+size and line-height value.
 
 ### The subtext rule — this is the one the user asked for
 

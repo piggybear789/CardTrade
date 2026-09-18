@@ -172,7 +172,7 @@ export function AcceptWithPhotoDialog({
                 type="button"
                 onClick={clearPhoto}
                 disabled={isPending}
-                className="absolute -right-2 -top-2 rounded-full bg-background p-1 shadow-sm border hover:bg-muted"
+                className="absolute -right-2 -top-2 rounded-full bg-background p-tight shadow-sm border hover:bg-muted"
                 aria-label={isVideo ? 'Remove video' : 'Remove photo'}
               >
                 <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />

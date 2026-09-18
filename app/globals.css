@@ -220,8 +220,24 @@
        the same problem `--obsidian` had: it was the darkest, hardest colour on a page
        otherwise made of tints. The binding constraint is `text-trust` on `--muted`,
        not the button: at 30% that measures 4.89:1, and white on the trust button
-       clears at 5.43:1. Going lighter fails the muted case first. */
-    --trust: 172 54% 30%;
+       clears at 5.43:1. Going lighter fails the muted case first.
+
+       172° → 156°: ONTO THE TRIAD. The three semantic hues were each chosen on their
+       own merits — this one by "teal reads as trust" and a contrast sweep — and never
+       checked against one another. Run through a colour-wheel scheme generator seeded
+       on `--primary` (276°), the triad nodes land at 36° and 156°. `--action` was
+       already within 6° of the first; this teal was 16° off the second, drifting
+       toward cyan, and it was the one colour in the palette on no harmonic node at
+       all. 156° is jade: still unmistakably the green family, still reads as
+       verified/settled, and now sits exactly a third of the wheel from the violet.
+       The gap to the violet grows 104° → 120°, and the gap to `--destructive` at
+       352° is 164°, so it moves AWAY from the red rather than toward it.
+
+       Saturation came down with it (54 → 44) so its chroma sits nearer the primary's
+       34% than the old teal's; matched chroma is as much of harmony as matched hue.
+       Lightness 30 → 31. Measured: 5.19:1 as text on `--muted` (was 4.89), 5.46 on
+       the page, 5.77 white-on-fill — more headroom on every pairing than before. */
+    --trust: 156 44% 31%;
     /* "This is your move" — the buy bar, the cash-sale room, accept-with-photo.
        
        PASTEL AMBER, NOT SAFETY ORANGE. This was `32 96% 52%`, a saturated
@@ -245,8 +261,12 @@
        it, it only needed 40° → 42° and 68% → 78%, the latter because the page is no
        longer white and a 68% fill against a 98% page had less separation than it did
        against 100%. The label is now a warm dark brown rather than `--obsidian`: on a
-       pastel amber, plum-black ink read as a borrowed colour. 9.32:1. */
-    --action: 42 92% 78%;
+       pastel amber, plum-black ink read as a borrowed colour. 9.32:1.
+
+       42° → 38°: onto the triad node (36°, see `--trust`) and onto the same hue as
+       `--action-border`, so the fill and its edge are one colour at two depths
+       rather than two hues four degrees apart. Label contrast 8.90:1. */
+    --action: 38 92% 78%;
     --action-foreground: 30 60% 18%;
     /* The action control's EDGE, and the reason the pastel is allowed to be
        pastel. Same hue, dark enough to clear the 3:1 in SC 1.4.11 against the

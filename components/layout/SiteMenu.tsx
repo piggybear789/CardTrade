@@ -219,7 +219,7 @@ export function SiteMenu({
           <nav aria-label="Menu" className="grid gap-0.5">
             {!isAuthenticated ? (
               <>
-                <p className="market-label px-2.5 pb-0 pt-1 text-muted-foreground">
+                <p className="market-label px-2.5 pb-0 pt-tight text-muted-foreground">
                   Browse
                 </p>
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
@@ -261,7 +261,7 @@ export function SiteMenu({
                     // holding a 32px avatar over two lines of text — both spilled
                     // out of it, so the hover fill painted a band across the middle
                     // of the row instead of behind it. Same trap as the `!h-9` rows.
-                    '!h-auto justify-start gap-2.5 px-2.5 py-2',
+                    '!h-auto justify-start gap-2.5 px-2.5 py-snug',
                     accountActive && 'bg-accent text-accent-foreground',
                   )}
                 >
@@ -305,7 +305,7 @@ export function SiteMenu({
                       ) : null}
                       <p
                         className={cn(
-                          'market-label px-2.5 pb-0 pt-1 text-muted-foreground',
+                          'market-label px-2.5 pb-0 pt-tight text-muted-foreground',
                           fullyPromoted && 'md:hidden',
                         )}
                       >
@@ -319,7 +319,7 @@ export function SiteMenu({
                 {MENU_ONLY_GROUPS.map((group) => (
                   <Fragment key={group.label}>
                     <div className="my-0.5 border-t" />
-                    <p className="market-label px-2.5 pb-0 pt-1 text-muted-foreground">
+                    <p className="market-label px-2.5 pb-0 pt-tight text-muted-foreground">
                       {group.label}
                     </p>
                     {group.label === 'Create' ? (
@@ -345,7 +345,7 @@ export function SiteMenu({
                 {staffLinks.length > 0 ? (
                   <>
                     <div className="my-0.5 border-t" />
-                    <p className="market-label px-2.5 pb-0 pt-1 text-muted-foreground">
+                    <p className="market-label px-2.5 pb-0 pt-tight text-muted-foreground">
                       {STAFF_NAV_GROUP.label}
                     </p>
                     {staffLinks.map((link) => renderLink(link))}

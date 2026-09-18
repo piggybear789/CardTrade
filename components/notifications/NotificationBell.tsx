@@ -104,7 +104,7 @@ export function NotificationBell({
         <HugeiconsIcon icon={BellIcon} className="size-5" aria-hidden />
         {unreadCount > 0 ? (
           <span
-            className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-meta font-semibold leading-4 text-destructive-foreground"
+            className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-tight text-meta font-semibold leading-none text-destructive-foreground"
             aria-hidden
           >
             {badgeLabel}
@@ -122,13 +122,13 @@ export function NotificationBell({
         // instead of running past the bottom of a short viewport.
         className="flex max-h-[min(28rem,var(--radix-popover-content-available-height,28rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg p-0 shadow-lg"
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-snug border-b px-group py-2.5">
           <p className="text-body font-semibold">Notifications</p>
           <button
             type="button"
             onClick={handleMarkAll}
             disabled={isPending || unreadCount === 0}
-            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-transparent px-2 text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex min-h-9 items-center gap-tight rounded-md border border-transparent px-snug text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris disabled:pointer-events-none disabled:opacity-50"
           >
             {isPending ? (
               <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" aria-hidden />
@@ -141,7 +141,7 @@ export function NotificationBell({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {visible.length === 0 ? (
-            <div className="px-4 py-10 text-center text-body text-muted-foreground">
+            <div className="px-group py-10 text-center text-body text-muted-foreground">
               You&apos;re all caught up.
             </div>
           ) : (
@@ -154,7 +154,7 @@ export function NotificationBell({
                       href={n.link || '/notifications'}
                       onClick={() => handleSelect(n)}
                       className={cn(
-                        'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
+                        'flex w-full items-start gap-snug px-group py-cozy text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
                         unread && 'bg-accent/40',
                       )}
                     >

@@ -349,8 +349,8 @@ export default async function AdminPage({
             <CustodyPanel key={position.region} position={position} />
           ))}
 
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="mb-group flex flex-wrap items-center justify-between gap-cozy">
+            <div className="flex flex-wrap items-center gap-snug">
               <h3 id="payouts-heading" className="text-subhead font-semibold">
                 Seller releases owed
               </h3>
@@ -363,7 +363,7 @@ export default async function AdminPage({
             {owedPayouts.length > 0 && <DrainPayoutsButton />}
           </div>
 
-          <p className="mb-4 text-body text-muted-foreground">
+          <p className="mb-group text-body text-muted-foreground">
             Money the platform is holding that already belongs to a seller — the owner is
             settled and only the transfer is outstanding. An hourly job drains this on its
             own; anything sitting here is stuck.
@@ -377,7 +377,7 @@ export default async function AdminPage({
               compact
             />
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-group">
               {owedPayouts.map((sale) => {
                 const net = Math.max(sale.amount_cents - sale.platform_fee_cents, 0);
                 const failed = sale.seller_payout_status === 'FAILED';
@@ -385,8 +385,8 @@ export default async function AdminPage({
                   <li key={sale.id}>
                     <Card>
                       <CardHeader>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-snug">
+                          <div className="flex flex-wrap items-center gap-snug">
                             <Badge variant={failed ? 'destructive' : 'secondary'}>
                               {sale.seller_payout_status}
                             </Badge>
@@ -409,8 +409,8 @@ export default async function AdminPage({
                           </Link>
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        <dl className="grid grid-cols-1 gap-1 text-meta text-muted-foreground sm:grid-cols-2">
+                      <CardContent className="space-y-cozy">
+                        <dl className="grid grid-cols-1 gap-tight text-meta text-muted-foreground sm:grid-cols-2">
                           <div>
                             <dt className="inline font-medium text-foreground">Attempts: </dt>
                             <dd className="inline">{sale.seller_payout_attempts}</dd>
@@ -445,14 +445,14 @@ export default async function AdminPage({
 
       {tab === 'reports' ? (
         <section aria-labelledby="reports-heading">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-group flex items-center gap-snug">
             <h3 id="reports-heading" className="text-subhead font-semibold">
               Community reports
             </h3>
             {openReports > 0 && <Badge>{openReports} open</Badge>}
           </div>
 
-          <p className="mb-4 text-body text-muted-foreground">
+          <p className="mb-group text-body text-muted-foreground">
             Members reporting a listing or another member. Actioning one hides content or
             flags an account; it never moves money.
           </p>
@@ -465,7 +465,7 @@ export default async function AdminPage({
               compact
             />
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-group">
               {reports.map((report) => {
                 const targetHref =
                   report.target_type === 'item'
@@ -480,8 +480,8 @@ export default async function AdminPage({
                   <li key={report.id}>
                     <Card>
                       <CardHeader>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-snug">
+                          <div className="flex flex-wrap items-center gap-snug">
                             <Badge variant="secondary" className="capitalize">
                               {report.target_type}
                             </Badge>
@@ -504,7 +504,7 @@ export default async function AdminPage({
                           </Link>
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-group">
                         {report.details ? (
                           <p className="whitespace-pre-line break-words text-body text-foreground">
                             {report.details}
@@ -538,14 +538,14 @@ export default async function AdminPage({
 
       {tab === 'reconciliation' ? (
         <section aria-labelledby="trades-heading">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-group flex items-center gap-snug">
             <h3 id="trades-heading" className="text-subhead font-semibold">
               Flagged trades
             </h3>
             {flaggedTrades > 0 && <Badge variant="secondary">{flaggedTrades}</Badge>}
           </div>
 
-          <p className="mb-4 text-body text-muted-foreground">
+          <p className="mb-group text-body text-muted-foreground">
             Trades where a capture or release exhausted its automatic retries, so the
             provider and our records may disagree. Reconcile in the Stripe dashboard, then
             clear the flag.
@@ -559,13 +559,13 @@ export default async function AdminPage({
               compact
             />
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-group">
               {trades.map((trade) => (
                 <li key={trade.id}>
                   <Card>
                     <CardHeader>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-snug">
+                        <div className="flex flex-wrap items-center gap-snug">
                           <Badge variant="destructive">Manual reconciliation</Badge>
                           <Badge variant="outline">{trade.state}</Badge>
                         </div>
@@ -583,8 +583,8 @@ export default async function AdminPage({
                         </Link>
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <dl className="grid grid-cols-1 gap-1 text-meta text-muted-foreground sm:grid-cols-2">
+                    <CardContent className="space-y-cozy">
+                      <dl className="grid grid-cols-1 gap-tight text-meta text-muted-foreground sm:grid-cols-2">
                         <div>
                           <dt className="inline font-medium text-foreground">Initiator: </dt>
                           <dd className="inline">{nameFor(trade.initiator_id)}</dd>

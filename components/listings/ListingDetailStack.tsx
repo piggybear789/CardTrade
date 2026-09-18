@@ -87,7 +87,7 @@ export function ListingDetailStack({
       <Link
         href={isOwner ? '/profile' : `/sellers/${sellerId}`}
         transitionTypes={['nav-forward']}
-        className="flex min-h-11 items-center gap-2 rounded-md border border-transparent py-1 focus:outline-none focus-visible:border-iris"
+        className="flex min-h-11 items-center gap-snug rounded-md border border-transparent py-tight focus:outline-none focus-visible:border-iris"
       >
         <Avatar
           avatarPath={sellerAvatarPath}
@@ -105,14 +105,14 @@ export function ListingDetailStack({
           className="shrink-0"
         />
         {locationLabel ? (
-          <span className="ml-auto hidden truncate pl-2 text-meta text-muted-foreground lg:inline">
+          <span className="ml-auto hidden truncate pl-snug text-meta text-muted-foreground lg:inline">
             {locationLabel}
           </span>
         ) : null}
       </Link>
 
       {sellerIdentity && !isOwner ? (
-        <p className="mt-1 text-meta text-muted-foreground">
+        <p className="mt-tight text-meta text-muted-foreground">
           {sellerIdentity.nameIsDocumentVerified ? 'Real name' : 'Stated name'}{' '}
           <span className="font-medium text-foreground">
             {sellerIdentity.legalEntityName}
@@ -132,12 +132,12 @@ export function ListingDetailStack({
             rating={sellerRating}
             count={sellerRatingCount}
             size={12}
-            className="mt-1 text-meta"
+            className="mt-tight text-meta"
           />
         ) : (
           <Link
             href={`/sellers/${sellerId}#reviews`}
-            className="mt-1 inline-flex w-fit rounded-sm border border-transparent focus:outline-none focus-visible:border-iris"
+            className="mt-tight inline-flex w-fit rounded-sm border border-transparent focus:outline-none focus-visible:border-iris"
             aria-label="Read seller reviews"
           >
             <StarRating
@@ -150,18 +150,18 @@ export function ListingDetailStack({
         )
       ) : null}
 
-      <div className="mt-3 flex items-center gap-3 md:mt-4">
+      <div className="mt-cozy flex items-center gap-cozy md:mt-group">
         {/* Price and its fee note share the flexible cell, so the condition pill keeps
             its own place at the end of the row rather than being pushed by the note.
             `items-baseline` inside, so the note annotates the figure. */}
-        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-snug">
           {/* INK AND FEE-INCLUSIVE, matching the desktop pane. This was `text-iris-ink`,
               which the pastel retune moved money away from, and it showed the asking
               price while the real charge sat in muted 12px below. Symbol and cents
               recede so the dollars carry the weight at this size. */}
-          <p className="min-w-0 font-display font-bold leading-none tracking-[-0.03em] text-foreground">
+          <p className="min-w-0 font-display font-bold leading-none tracking-tight text-foreground">
             {isShopfront ? (
-              <span className="mr-1 text-lead font-medium text-muted-foreground">from </span>
+              <span className="mr-tight text-lead font-medium text-muted-foreground">from </span>
             ) : null}
             <span className="text-lead font-bold text-muted-foreground">
               {headline.symbol}
@@ -181,7 +181,7 @@ export function ListingDetailStack({
             </p>
           ) : null}
         </div>
-        <span className="shrink-0 rounded-full bg-mist px-2 py-0.5 text-meta font-semibold text-muted-foreground">
+        <span className="shrink-0 rounded-full bg-mist px-snug py-0.5 text-meta font-semibold text-muted-foreground">
           {condition}
         </span>
       </div>
@@ -193,18 +193,18 @@ export function ListingDetailStack({
 
       {mobileMeta ? (
         <p
-          className="mt-2 text-meta text-muted-foreground md:hidden"
+          className="mt-snug text-meta text-muted-foreground md:hidden"
           suppressHydrationWarning
         >
           {mobileMeta}
         </p>
       ) : null}
       {desktopMeta ? (
-        <p className="mt-2 hidden text-meta text-muted-foreground md:block">{desktopMeta}</p>
+        <p className="mt-snug hidden text-meta text-muted-foreground md:block">{desktopMeta}</p>
       ) : null}
 
       {isShopfront ? (
-        <p className="mt-4 flex gap-2 rounded-md border border-border bg-iris/[0.07] p-2 text-body text-foreground">
+        <p className="mt-group flex gap-snug rounded-md border border-border bg-iris/[0.07] p-snug text-body text-foreground">
           <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
           <span>
             This is a binder listing. Browse the collection and request specific
@@ -214,18 +214,18 @@ export function ListingDetailStack({
       ) : null}
 
       <h2 className="sr-only md:hidden">{title}</h2>
-      <h2 className="mt-4 hidden line-clamp-2 text-balance text-subhead font-semibold tracking-tight md:block">
+      <h2 className="mt-group hidden line-clamp-2 text-balance text-subhead font-semibold tracking-tight md:block">
         {title}
       </h2>
-      <ExpandableDescription text={description} className="mt-3 md:hidden" />
+      <ExpandableDescription text={description} className="mt-cozy md:hidden" />
       <ExpandableDescription
         text={descriptionBodyAfterTitle(title, description)}
-        className="mt-2 hidden md:block"
+        className="mt-snug hidden md:block"
       />
 
       {afterDescription}
 
-      <dl className="mt-4 hidden space-y-1 lg:block">
+      <dl className="mt-group hidden space-y-tight lg:block">
         <DetailRow label="Condition" value={condition} />
         {category ? <DetailRow label="Game" value={category} /> : null}
         <DetailRow label="Listing type" value={kindLabel} />
@@ -245,7 +245,7 @@ function descriptionBodyAfterTitle(title: string, description: string): string {
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-3 text-meta">
+    <div className="flex gap-cozy text-meta">
       <dt className="w-20 shrink-0 text-muted-foreground">{label}</dt>
       <dd className="min-w-0 font-medium text-foreground">{value}</dd>
     </div>

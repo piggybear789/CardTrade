@@ -90,7 +90,6 @@ void main() {
       const Map<String, TextStyle> levels = {
         'meta': AppType.meta,
         'body': AppType.body,
-        'nav': AppType.nav,
         'lead': AppType.lead,
         'subhead': AppType.subhead,
         'head': AppType.head,

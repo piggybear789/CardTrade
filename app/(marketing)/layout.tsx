@@ -17,7 +17,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
       <footer className="mt-auto border-t border-border">
         <nav
           aria-label="Legal and help"
-          className="mx-auto flex max-w-3xl flex-wrap gap-x-6 gap-y-3 px-6 py-8 text-body lg:px-8"
+          className="mx-auto flex max-w-3xl flex-wrap gap-x-6 gap-y-cozy px-6 py-section text-body lg:px-section"
         >
           {FOOTER_LINKS.map((link) => (
             <Link

@@ -215,7 +215,7 @@ export function DisputeActions({
             id={`partial-${cashSaleId}`}
             value={partialDollars}
             onChange={(event) => setPartialDollars(event.target.value)}
-            className="mt-1 h-9 w-32"
+            className="mt-tight h-9 w-32"
             aria-describedby={`partial-help-${cashSaleId}`}
           />
         </div>

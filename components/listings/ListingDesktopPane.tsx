@@ -80,8 +80,8 @@ export function ListingDesktopPane({
   );
 
   return (
-    <div className="hidden h-full flex-col gap-4 lg:flex">
-      <header className="flex items-center justify-between gap-3">
+    <div className="hidden h-full flex-col gap-group lg:flex">
+      <header className="flex items-center justify-between gap-cozy">
         <div className="min-w-0 flex-1">
           <h2 className="text-balance text-head font-semibold tracking-tight">
             {title}
@@ -108,10 +108,10 @@ export function ListingDesktopPane({
               baseline lines up with the dollars, so the eye takes the two as one thing.
               `flex-wrap` so a narrow column drops it below instead of squeezing the
               price. */}
-          <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
+          <div className="mt-tight flex flex-wrap items-baseline gap-x-snug">
             <p className="font-semibold tabular-nums tracking-tight">
               {isShopfront ? (
-                <span className="mr-1 text-body font-medium text-muted-foreground">
+                <span className="mr-tight text-body font-medium text-muted-foreground">
                   from{' '}
                 </span>
               ) : null}
@@ -191,14 +191,14 @@ export function ListingDesktopPane({
           Seller
         </h2>
         <Card className="p-group">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-cozy">
             <Avatar
               avatarPath={sellerAvatarPath}
               displayName={name}
               size="md"
             />
             <div className="min-w-0 space-y-tight">
-              <div className="flex min-w-0 items-center gap-1">
+              <div className="flex min-w-0 items-center gap-tight">
                 {isOwner ? (
                   <p className="truncate text-lead font-semibold">{name}</p>
                 ) : (
@@ -242,7 +242,7 @@ export function ListingDesktopPane({
                 )
               ) : null}
               {sellerIdentity && !isOwner ? (
-                <dl className="flex min-w-0 flex-wrap gap-x-3 gap-y-0 text-meta leading-snug">
+                <dl className="flex min-w-0 flex-wrap gap-x-cozy gap-y-0 text-meta leading-snug">
                   <div className="flex min-w-0 gap-tight">
                     <dt className="shrink-0 text-muted-foreground">
                       {sellerIdentity.nameIsDocumentVerified
@@ -271,7 +271,7 @@ export function ListingDesktopPane({
       </section>
 
       {isShopfront ? (
-        <p className="flex gap-2 rounded-md border border-border bg-iris/[0.07] p-2 text-body text-foreground">
+        <p className="flex gap-snug rounded-md border border-border bg-iris/[0.07] p-snug text-body text-foreground">
           <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
           <span>
             This is a binder listing. Browse the collection and request specific
@@ -288,7 +288,7 @@ export function ListingDesktopPane({
           >
             Description
           </h2>
-          <p className="whitespace-pre-line break-words text-body leading-relaxed text-foreground">
+          <p className="whitespace-pre-line break-words text-body text-foreground">
             {description}
           </p>
         </section>
@@ -307,7 +307,7 @@ export function ListingDesktopPane({
           NO BOTTOM PADDING, and that is the point rather than an oversight. The column
           holding this pane used to carry `lg:pb-7`, which lifted the stack 28px above
           the image's bottom edge on every listing to protect the one case where a long
-          description makes the column scroll. A `pb-4` here would be the same mistake at
+          description makes the column scroll. A `pb-group` here would be the same mistake at
           16px: padding inside this box still sits between the buttons and the edge they
           are supposed to line up with.
           
@@ -315,7 +315,7 @@ export function ListingDesktopPane({
           scroll, the buttons end flush with the cut. That is cosmetic and rare, and it
           only shows once someone has scrolled to the very bottom — whereas the
           misalignment it was guarding against was visible on every listing at rest. */}
-      <div className="mt-auto space-y-4 pt-4">{children}</div>
+      <div className="mt-auto space-y-group pt-group">{children}</div>
     </div>
   );
 }

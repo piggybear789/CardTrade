@@ -185,7 +185,7 @@ function IdentityCheckSteps() {
         </span>
         <div className="min-w-0 space-y-tight">
           <p className="text-body font-medium text-foreground">Photo ID</p>
-          <p className="text-body leading-relaxed text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             A government document. Stripe may ask for the front and back.
           </p>
         </div>
@@ -199,7 +199,7 @@ function IdentityCheckSteps() {
         </span>
         <div className="min-w-0 space-y-tight">
           <p className="text-body font-medium text-foreground">Matching selfie</p>
-          <p className="text-body leading-relaxed text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Taken in the same flow, so the face matches the ID.
           </p>
         </div>

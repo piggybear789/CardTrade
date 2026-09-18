@@ -238,7 +238,7 @@ export function MessageComposer({
         // subject bar above it — a composer with its own idea of the inset steps away
         // from the bubbles it belongs to. The contract room's `compact` dock keeps its
         // own `p-cozy`: that pane is narrow and is not one of the bands this governs.
-        compact ? 'border-t p-cozy' : 'border-t py-4',
+        compact ? 'border-t p-cozy' : 'border-t py-group',
         'max-md:border-border',
         compact
           ? 'max-md:pb-0 max-md:pl-[env(safe-area-inset-left)] max-md:pr-[env(safe-area-inset-right)]'
@@ -254,7 +254,7 @@ export function MessageComposer({
         Write a message
       </label>
       {file ? (
-        <div className="mb-2 flex items-center gap-2 rounded-lg border bg-muted px-2 py-1.5">
+        <div className="mb-snug flex items-center gap-snug rounded-lg border bg-muted px-snug py-1.5">
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -274,7 +274,7 @@ export function MessageComposer({
           <button
             type="button"
             onClick={() => attach(null)}
-            className="grid size-11 place-items-center rounded-full border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris md:size-8"
+            className="grid size-11 place-items-center rounded-full border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris md:size-9"
             aria-label="Remove attachment"
           >
             <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
@@ -286,7 +286,7 @@ export function MessageComposer({
           against a box that was already too tall. Once the field grows past a
           couple of lines the buttons stay on its vertical centre, which is what
           every chat client does. */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-snug">
         <input
           ref={fileRef}
           type="file"
@@ -300,13 +300,13 @@ export function MessageComposer({
         />
         <Button
           type="button"
-          size="icon"
+          size="icon-lg"
           variant="ghost"
           // The send button fills its box with ink; a bare glyph in an invisible
           // ghost box does not. On a phone that reads as ~28px of extra air on
           // the left and the field looks pushed off centre, so the plus takes
           // the same muted surface the field already wears there.
-          className="size-11 shrink-0 max-md:rounded-full max-md:bg-muted md:size-10"
+          className="shrink-0 max-md:rounded-full max-md:bg-muted"
           aria-label="Attach a file"
           disabled={isPending}
           onClick={() => fileRef.current?.click()}
@@ -335,18 +335,22 @@ export function MessageComposer({
           maxLength={MESSAGE_BODY_MAX}
           rows={1}
           className={cn(
-            // ONE LINE AT REST. `rows={2}` plus a 44px floor made the resting
-            // field about 60px of empty box for a chat that is mostly short
-            // replies. `py-2` against `leading-5` puts a single line at exactly
-            // the 40px of the buttons beside it; the effect above grows it from
-            // there, and `max-h` hands over to scrolling on a long paste.
-            'max-h-32 min-h-10 resize-none overflow-y-auto py-2 text-body leading-5',
+            // THE SAME TYPE AS THE BUBBLES. `text-body` with the token's own
+            // line-height (1.6 → 22.4px), and nothing else. This field used to be
+            // `leading-5` on desktop and `text-base leading-6` on a phone, so what
+            // you typed was set in a different size and rhythm from what it
+            // became once sent — 16/24 in the field, 14/22.4 in the bubble. The
+            // 16px was the iOS focus-zoom floor that `tailwind.config.ts` says was
+            // removed everywhere and must not come back per component.
+            //
+            // ONE LINE AT REST, level with the `icon-lg` buttons beside it: 44px on
+            // touch, 36px from `md`. Textareas do not distribute spare min-height
+            // like flex items, so the padding is what centres the resting line —
+            // 22.4 + 2×10 + 2px border ≈ 44; 22.4 + 2×6 + 2 ≈ 36. The effect above
+            // grows it from there, and `max-h` hands over to scrolling.
+            'max-h-32 min-h-11 resize-none overflow-y-auto py-2.5 text-body md:min-h-9 md:py-1.5',
             compact && 'max-h-24',
-            // A 44px phone field with a 24px line leaves exactly 9px above and
-            // below after its border. Textareas do not distribute spare
-            // min-height like flex items, so explicit padding is what centres
-            // the resting line rather than parking the surplus underneath it.
-            'max-md:min-h-11 max-md:rounded-2xl max-md:bg-muted max-md:py-[9px] max-md:text-base max-md:leading-6',
+            'max-md:rounded-2xl max-md:bg-muted',
           )}
           readOnly={isPending}
           aria-invalid={Boolean(error)}
@@ -354,8 +358,8 @@ export function MessageComposer({
         />
         <Button
           type="submit"
-          size="icon"
-          className="size-11 shrink-0 max-md:rounded-full md:size-10"
+          size="icon-lg"
+          className="shrink-0 max-md:rounded-full"
           disabled={!canSend}
           aria-label={isPending ? 'Sending message…' : 'Send message'}
         >
@@ -370,7 +374,7 @@ export function MessageComposer({
         {isPending ? 'Sending message…' : ''}
       </span>
       {error ? (
-        <p id={`${inputId}-error`} role="alert" className="mt-2 text-body text-destructive">
+        <p id={`${inputId}-error`} role="alert" className="mt-snug text-body text-destructive">
           {error}
         </p>
       ) : null}

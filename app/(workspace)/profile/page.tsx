@@ -31,6 +31,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { getPayoutSetupContext } from '@/lib/actions/merchant';
 import { getPayoutsDashboard } from '@/lib/actions/payouts';
+import { getAccountStatement } from '@/lib/actions/statement';
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { isPaymentDemoEnabled } from '@/domain/services';
 import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
@@ -198,7 +199,7 @@ export default async function ProfilePage({
             compact
           />
           <div className="min-w-0 flex-1 space-y-0.5">
-            <h2 className="truncate text-subhead font-semibold tracking-[-0.02em] md:text-head">
+            <h2 className="truncate text-subhead font-semibold tracking-tight md:text-head">
               {profile.display_name}
             </h2>
             <TrustLine
@@ -505,7 +506,12 @@ async function PaymentMethodRow() {
 
 /** Reporting only — this tab never hosts onboarding. */
 async function PayoutsPanel({ scope }: { scope: SectionScope }) {
-  const payoutDashboard = await getPayoutsDashboard();
+  // Two independent reads, one round trip. The statement is the member's full
+  // ledger (both directions); the dashboard is the seller-side summary above it.
+  const [payoutDashboard, statement] = await Promise.all([
+    getPayoutsDashboard(),
+    getAccountStatement(),
+  ]);
 
   if (!payoutDashboard.ok) {
     return (
@@ -525,6 +531,7 @@ async function PayoutsPanel({ scope }: { scope: SectionScope }) {
       <PayoutsDashboard
         model={payoutDashboard.data.model}
         destination={payoutDashboard.data.destination}
+        statement={statement.ok ? statement.data : null}
         scope={scope}
       />
     </div>

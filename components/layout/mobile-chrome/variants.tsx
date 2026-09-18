@@ -187,7 +187,7 @@ function ItemFormChrome({
       <MobileChromeBack href={backHref} label={backLabel} />
       <p
         aria-hidden="true"
-        className="min-w-0 flex-1 truncate font-display text-body font-semibold tracking-[-0.025em]"
+        className="min-w-0 flex-1 truncate font-display text-body font-semibold tracking-tight"
       >
         {title}
       </p>
@@ -217,11 +217,11 @@ export function AuthChrome() {
       <Link
         href="/"
         aria-label="NoDitto home"
-        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-transparent px-1 focus:outline-none focus-visible:border-iris"
+        className="inline-flex min-h-10 items-center gap-snug rounded-md border border-transparent px-tight focus:outline-none focus-visible:border-iris"
       >
         <LogoMark className="size-7" />
         <span
-          className="font-display text-body font-semibold tracking-[-0.025em]"
+          className="font-display text-body font-semibold tracking-tight"
           translate="no"
         >
           NoDitto
@@ -247,11 +247,11 @@ export function MarketingChrome({
       <Link
         href="/"
         aria-label="NoDitto home"
-        className="inline-flex min-h-10 min-w-0 items-center gap-2 rounded-md border border-transparent px-1 focus:outline-none focus-visible:border-iris"
+        className="inline-flex min-h-10 min-w-0 items-center gap-snug rounded-md border border-transparent px-tight focus:outline-none focus-visible:border-iris"
       >
         <LogoMark className="size-7" />
         <span
-          className="font-display text-body font-semibold tracking-[-0.025em]"
+          className="font-display text-body font-semibold tracking-tight"
           translate="no"
         >
           NoDitto
@@ -259,7 +259,7 @@ export function MarketingChrome({
       </Link>
       {isAuthenticated ? null : (
         <div className="ml-auto">
-          <SignInLink className="inline-flex h-10 items-center rounded-md border border-transparent px-3 text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-iris">
+          <SignInLink className="inline-flex h-10 items-center rounded-md border border-transparent px-cozy text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-iris">
             Sign in
           </SignInLink>
         </div>

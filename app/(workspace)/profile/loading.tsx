@@ -7,7 +7,7 @@
 // containers here ARE `SettingsGroup`. The previous version hand-drew everything with
 // its own values and had fallen a whole redesign behind: it still painted a "Settings"
 // title that no longer exists, an underlined tab row that is now a segmented control,
-// and `space-y-8` between blocks the page spaces at `space-y-group`. Every one of
+// and `space-y-section` between blocks the page spaces at `space-y-group`. Every one of
 // those was a visible jump on arrival.
 //
 // PROFILE'S SHAPE, because `loading.tsx` cannot read the query string and `/profile`

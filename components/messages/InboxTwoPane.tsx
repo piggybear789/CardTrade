@@ -57,7 +57,7 @@ export function InboxTwoPane({
           'lg:flex lg:w-[21rem] lg:shrink-0 xl:w-[23rem]',
         )}
       >
-        <div className={cn(PANE_BAR, PANE_BAR_MIN_H, 'justify-between gap-2')}>
+        <div className={cn(PANE_BAR, PANE_BAR_MIN_H, 'justify-between gap-snug')}>
           <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
             Inbox
           </h2>
@@ -87,7 +87,7 @@ export function InboxNoSelection() {
     <div className="grid min-h-0 flex-1 place-items-center p-cozy text-center">
       <div className="max-w-72">
         <span
-          className="mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"
+          className="mx-auto mb-cozy flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"
           aria-hidden
         >
           <HugeiconsIcon icon={MessageSquareIcon} className="size-5" />

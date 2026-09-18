@@ -70,17 +70,17 @@ export function OwnItemsPickerDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* `sm:gap-0 sm:p-0` repeat the bare overrides on purpose — the base
-          DialogContent sets `sm:p-6`/`sm:gap-4`, which a bare `p-0`/`gap-0`
+          DialogContent sets `sm:p-6`/`sm:gap-group`, which a bare `p-0`/`gap-0`
           does not beat at desktop widths (see ProposeTradeDialog). */}
       <DialogContent className="flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(92dvh,calc(100dvh-3rem))] sm:max-w-lg sm:gap-0 sm:p-0">
-        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-4 pb-3 pt-2 pr-14 sm:px-6 sm:py-4">
+        <DialogHeader className="shrink-0 space-y-tight border-b border-border px-group pb-cozy pt-snug pr-14 sm:px-6 sm:py-group">
           <DialogTitle>Your listings</DialogTitle>
           <DialogDescription>
             Tick what you are putting up. The first selected is the primary item.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="shrink-0 space-y-2 px-4 py-3 sm:px-6">
+        <div className="shrink-0 space-y-snug px-group py-cozy sm:px-6">
           <Label htmlFor="own-items-search" className="sr-only">
             Search your listings
           </Label>
@@ -99,13 +99,13 @@ export function OwnItemsPickerDialog({
           ) : null}
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3 [scrollbar-gutter:stable] sm:px-6">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-group pb-cozy [scrollbar-gutter:stable] sm:px-6">
           {filtered.length === 0 ? (
             <p className="py-6 text-center text-body text-muted-foreground">
               No listings match.
             </p>
           ) : (
-            <ul className="min-w-0 space-y-1">
+            <ul className="min-w-0 space-y-tight">
               {filtered.map((item) => {
                 const checked = draftIds.includes(item.id);
                 return (
@@ -135,7 +135,7 @@ export function OwnItemsPickerDialog({
           )}
         </div>
 
-        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:border-t sm:bg-card/95 sm:px-6 sm:pb-4 sm:pt-3">
+        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border bg-card/95 px-group pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-cozy sm:border-t sm:bg-card/95 sm:px-6 sm:pb-group sm:pt-cozy">
           <Button
             type="button"
             variant="ghost"

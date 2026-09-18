@@ -53,7 +53,7 @@ export function SegmentedControl<Value extends string>({
         // `auto-cols-fr grid-flow-col` rather than `grid-cols-N`: the option count
         // varies by caller, and implicit columns give equal halves or thirds without
         // a lookup table keyed on length. `minmax(0, 1fr)` keeps `truncate` working.
-        'grid auto-cols-fr grid-flow-col gap-tight rounded-lg bg-muted p-1',
+        'grid auto-cols-fr grid-flow-col gap-tight rounded-lg bg-muted p-tight',
         className,
       )}
     >

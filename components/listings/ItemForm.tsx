@@ -506,7 +506,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               yield space to the filmstrip instead of overflowing the fixed panel: a
               grid item defaults to `min-height:auto`, which refuses to shrink below
               its content. */}
-          {/* `flex flex-col` WITH `gap`, not `space-y`. The column was `space-y-3`
+          {/* `flex flex-col` WITH `gap`, not `space-y`. The column was `space-y-cozy`
               with an `lg:space-y-group` override, and stacking two `space-y` values
               through a breakpoint is hard to reason about — `gap` is one declaration
               that the flex container owns.
@@ -515,7 +515,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               on the cover and the filmstrip almost on that, so three separate things
               read as one crowded block. `group` is the scale's "between related
               components" step, which the form's own field blocks already use. */}
-          <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-8">
+          <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
             {/* NO COUNT LINE UNDER THE LABEL. "Add 1–10 photos. N selected." spent a
                 whole row restating what the panel already shows: the tiles are the
                 count, and the add target disappearing at ten is the ceiling. The
@@ -588,7 +588,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               // this form wears, at the 3:1 SC 1.4.11 wants. The dashes were carrying
               // "drop a file here" on a button that says "Add photos" in words directly
               // beneath the icon, and at 2px they were the heaviest line on the page.
-              className={`flex h-full w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:min-h-[10rem] lg:h-auto lg:flex-1 lg:p-group`}
+              className={`flex h-full w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:min-h-[10rem] lg:h-auto lg:flex-1 lg:p-group`}
               // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
               //
               // With no photo the button's own words ("Add photos", below) are its
@@ -678,7 +678,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 grid. It was four columns when it ran full width under the cover, which
                 in a ~115px cell would be ~25px thumbnails. */}
             {totalImages > 0 ? (
-              <ul className="grid h-full min-h-0 grid-cols-1 content-start gap-2 overflow-y-auto lg:h-auto lg:content-normal lg:grid-cols-8 lg:overflow-visible lg:shrink-0">
+              <ul className="grid h-full min-h-0 grid-cols-1 content-start gap-snug overflow-y-auto lg:h-auto lg:content-normal lg:grid-cols-8 lg:overflow-visible lg:shrink-0">
                 {keptPaths.map((path) => {
                   const url = itemImageUrl(path);
                   return (
@@ -773,11 +773,11 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             {/* Listing kind (0064). First, because it changes what the rest of
                 this form means: for a shopfront the price below is only a guide
                 and the condition covers a mixed pile. Locked in edit mode. */}
-            <fieldset className="space-y-2" disabled={mode === "edit"}>
-              <legend className="mb-2 text-body font-medium leading-none">
+            <fieldset className="space-y-snug" disabled={mode === "edit"}>
+              <legend className="mb-snug text-body font-medium leading-none">
                 What are you listing?
               </legend>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-snug">
                 {LISTING_KINDS.map((kind) => (
                   <ChoiceTile
                     key={kind.value}
@@ -810,7 +810,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : null}
             </fieldset>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
@@ -844,8 +844,8 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 bare grid's implicit `auto` column sizes to the Select triggers'
                 min-content and overflows the clipped card on a phone. `minmax(0,
                 1fr)` lets the single column shrink to the row's width. */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
+              <div className="space-y-snug">
                 <Label htmlFor="game">Category</Label>
                 <Select
                   value={game}
@@ -872,7 +872,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 ) : null}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-snug">
                 <Label htmlFor="condition">
                   {isShopfront ? "Typical condition" : "Condition"}
                 </Label>
@@ -907,7 +907,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             {/* Fair Market Value (dollars). For a shopfront this is INDICATIVE
                 only: each contract's real total is the sum of the cards that
                 buyer asks for, so the label must not promise a purchase price. */}
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <Label htmlFor="fmv">
                 {isShopfront ? "Typical price" : "Price"}
               </Label>
@@ -927,7 +927,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               <FieldError id="fmv-error" message={fmvError} />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <PlacePicker
                 label="Based near"
                 precision="suburb"
@@ -955,7 +955,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             the back chevron in the header on a phone and browser-back elsewhere, and
             a destructive-adjacent "Cancel" next to "Save changes" invited the misread
             that it discards rather than navigates. */}
-        <CardFooter className="max-md:hidden flex-col items-stretch gap-2 border-t bg-card px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
+        <CardFooter className="max-md:hidden flex-col items-stretch gap-snug border-t bg-card px-6 pb-group pt-group sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
           <Button
             type="submit"
             disabled={isSubmitting}

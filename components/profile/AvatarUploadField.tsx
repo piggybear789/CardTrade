@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ALLOWED_AVATAR_TYPES } from '@/lib/storage/profileImagesShared';
 import { clearAvatar, uploadAvatar } from '@/lib/storage/uploadAvatar';
 
@@ -65,6 +66,7 @@ export function AvatarUploadField({
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [path, setPath] = React.useState<string | null>(avatarPath);
   const [busy, setBusy] = React.useState<'upload' | 'clear' | null>(null);
+  const [menuOpen, setMenuOpen] = React.useState(false);
 
   // The server is the source of truth: a parent that re-renders after its own save
   // should not be overwritten by stale local state.
@@ -123,51 +125,76 @@ export function AvatarUploadField({
   );
 
   if (compact) {
-    return (
-      <div className="flex flex-col items-center gap-tight">
-        {/* The whole circle is the picker — members tap the initials, not a 28px
-            camera badge. The badge stays as the visual cue; `aria-label` is what
-            a screen reader hears because the glyph is not labelled text. */}
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={controlsDisabled}
-          aria-busy={busy === 'upload'}
-          aria-label={path ? 'Change picture' : 'Add a picture'}
-          className="group relative cursor-pointer rounded-full border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:border-iris focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65"
+    // The whole circle is the control — members tap the initials, not a 24px camera
+    // badge. The badge is the visual cue; `aria-label` is what a screen reader hears.
+    const circle = (
+      <button
+        type="button"
+        disabled={controlsDisabled}
+        aria-busy={isBusy}
+        aria-label={path ? 'Picture options' : 'Add a picture'}
+        className="group relative cursor-pointer rounded-full border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:border-iris focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65"
+      >
+        <Avatar avatarPath={path} displayName={displayName} size="md" />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full bg-transparent transition-colors group-hover:bg-foreground/10 group-disabled:bg-transparent"
+        />
+        <span
+          aria-hidden
+          className="absolute -bottom-0.5 -right-0.5 grid size-6 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors group-hover:bg-primary/85"
         >
-          <Avatar avatarPath={path} displayName={displayName} size="md" />
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-0 rounded-full bg-transparent transition-colors group-hover:bg-foreground/10 group-disabled:bg-transparent"
-          />
-          <span
-            aria-hidden
-            className="absolute -bottom-0.5 -right-0.5 grid size-6 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors group-hover:bg-primary/85"
-          >
-            {busy === 'upload' ? (
-              <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" />
-            ) : (
-              <HugeiconsIcon icon={Camera01Icon} className="size-3" />
-            )}
-          </span>
-        </button>
+          {isBusy ? (
+            <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" />
+          ) : (
+            <HugeiconsIcon icon={Camera01Icon} className="size-3" />
+          )}
+        </span>
+      </button>
+    );
 
-        {/* Kept, even though the reference has no equivalent: dropping it would
-            remove the only way to delete a picture already uploaded. Rendered as a
-            quiet text link so it does not reintroduce the button this variant
-            exists to remove. */}
+    // ONE CONTROL. With no picture yet there is one thing to do, so the circle opens
+    // the file picker directly. With a picture there are two — change or remove —
+    // and they live in a small menu off the same circle. A "Remove" text link used
+    // to hang under the avatar for this; stacked in flow it made the column taller
+    // than the circle and mis-centred the avatar against the name beside it, and
+    // pulled out of flow it was a dangling word under a picture. The menu is the
+    // same pattern as the contract room's ⋯: secondary actions behind the primary.
+    return (
+      <div className="flex items-center">
         {path ? (
-          <button
-            type="button"
-            onClick={handleClear}
-            disabled={controlsDisabled}
-            aria-busy={busy === 'clear'}
-            className="rounded-sm text-meta text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-65"
-          >
-            {busy === 'clear' ? 'Removing…' : 'Remove'}
-          </button>
-        ) : null}
+          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+            <PopoverTrigger asChild>{circle}</PopoverTrigger>
+            <PopoverContent align="start" className="w-44 p-tight">
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    inputRef.current?.click();
+                  }}
+                  className="flex h-9 w-full items-center gap-snug rounded-sm px-2.5 text-left text-body font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:bg-accent"
+                >
+                  <HugeiconsIcon icon={Camera01Icon} className="size-4 text-muted-foreground" aria-hidden />
+                  Change picture
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void handleClear();
+                  }}
+                  className="flex h-9 w-full items-center gap-snug rounded-sm px-2.5 text-left text-body font-medium text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus-visible:bg-destructive/10"
+                >
+                  <HugeiconsIcon icon={Delete02Icon} className="size-4" aria-hidden />
+                  Remove picture
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          React.cloneElement(circle, { onClick: () => inputRef.current?.click() })
+        )}
 
         {fileInput}
       </div>

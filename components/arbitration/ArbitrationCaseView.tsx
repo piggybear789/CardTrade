@@ -65,7 +65,7 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
           {formatContractDateTime(entry.createdAt) ?? entry.createdAt}
         </span>
       </div>
-      <p className="mt-1.5 whitespace-pre-line break-words text-body leading-relaxed">
+      <p className="mt-1.5 whitespace-pre-line break-words text-body">
         {entry.statement}
       </p>
       {entry.media.length > 0 ? <ArbitrationEvidenceGrid media={entry.media} /> : null}
@@ -87,7 +87,7 @@ function ShipmentLeg({ label, leg }: { label: string; leg: ArbitrationShipmentLe
         {label}
       </p>
       {hasData ? (
-        <dl className="mt-1.5 grid grid-cols-2 gap-x-group gap-y-1 text-body">
+        <dl className="mt-1.5 grid grid-cols-2 gap-x-group gap-y-tight text-body">
           {leg.carrier ? (
             <div>
               <dt className="text-meta text-muted-foreground">Carrier</dt>
@@ -143,10 +143,10 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         <Badge variant={priority.variant}>{priority.label}</Badge>
         <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
-        <span className="mx-1 hidden text-border sm:inline">|</span>
+        <span className="mx-tight hidden text-border sm:inline">|</span>
         <span
           className={cn(
-            'inline-flex items-center gap-1 text-meta',
+            'inline-flex items-center gap-tight text-meta',
             overdue ? 'text-destructive' : 'text-muted-foreground',
           )}
         >
@@ -157,7 +157,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         {c.hasHardDeadline && c.hoursToDeadline !== null ? (
           <span
             className={cn(
-              'inline-flex items-center gap-1 text-meta',
+              'inline-flex items-center gap-tight text-meta',
               c.hoursToDeadline < DEADLINE_WARNING_HOURS
                 ? 'text-destructive'
                 : 'text-muted-foreground',
@@ -171,7 +171,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         ) : null}
         <span className="ml-auto text-body font-semibold tabular-nums">
           {formatAud(c.amountAtRiskCents)}
-          <span className="ml-1 font-normal text-muted-foreground">at stake</span>
+          <span className="ml-tight font-normal text-muted-foreground">at stake</span>
         </span>
       </div>
 
@@ -183,7 +183,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         <div className="space-y-section">
           {/* The Claim */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-cozy">
               <div className="flex items-center gap-snug">
                 <HugeiconsIcon icon={FileTextIcon} className="size-4 text-muted-foreground" aria-hidden />
                 <CardTitle className="text-lead">The dispute</CardTitle>
@@ -191,7 +191,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             </CardHeader>
             <CardContent>
               {c.claim ? (
-                <blockquote className="whitespace-pre-line break-words rounded-md bg-muted p-cozy text-body leading-relaxed">
+                <blockquote className="whitespace-pre-line break-words rounded-md bg-muted p-cozy text-body">
                   &ldquo;{c.claim}&rdquo;
                 </blockquote>
               ) : (
@@ -217,7 +217,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               "there is material in here" just as well and does not compete with
               the focus edge. See the border rule in globals.css. */}
           <Card className={evidence.length > 0 ? 'bg-iris/[0.05]' : undefined}>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-cozy">
               <div className="flex items-center justify-between gap-snug">
                 <div className="flex items-center gap-snug">
                   <HugeiconsIcon icon={GavelIcon} className="size-4 text-muted-foreground" aria-hidden />
@@ -251,7 +251,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               the outbound arrived and whether the return was posted/delivered. */}
           {shipment ? (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-cozy">
                 <div className="flex items-center gap-snug">
                   <HugeiconsIcon icon={PackageIcon} className="size-4 text-muted-foreground" aria-hidden />
                   <CardTitle className="text-lead">Shipment evidence</CardTitle>
@@ -266,7 +266,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       Seller contested return · {formatContractDateTime(shipment.returnDisputedAt) ?? shipment.returnDisputedAt}
                     </p>
                     {shipment.returnDisputeReason ? (
-                      <blockquote className="mt-snug whitespace-pre-line break-words text-body leading-relaxed">
+                      <blockquote className="mt-snug whitespace-pre-line break-words text-body">
                         &ldquo;{shipment.returnDisputeReason}&rdquo;
                       </blockquote>
                     ) : (
@@ -281,7 +281,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                     <p className="text-meta font-medium uppercase tracking-wide text-iris-ink">
                       Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
                     </p>
-                    <p className="mt-1 text-body text-muted-foreground">
+                    <p className="mt-tight text-body text-muted-foreground">
                       The buyer did not post the return within the deadline. This is a triage
                       signal only — it must never auto-release money to the seller.
                     </p>
@@ -294,7 +294,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           {/* What was bought */}
           {c.goods.length > 0 ? (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-cozy">
                 <CardTitle className="text-lead">What the contract covered</CardTitle>
               </CardHeader>
               <CardContent>
@@ -324,7 +324,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
 
           {/* Parties */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-cozy">
               <div className="flex items-center gap-snug">
                 <HugeiconsIcon icon={UsersIcon} className="size-4 text-muted-foreground" aria-hidden />
                 <CardTitle className="text-lead">Parties</CardTitle>
@@ -350,7 +350,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                           {party.name}
                         </Link>
                       </p>
-                      <p className="mt-1 text-body tabular-nums text-muted-foreground">
+                      <p className="mt-tight text-body tabular-nums text-muted-foreground">
                         {formatAud(party.stakeCents)} at risk
                       </p>
                     </div>
@@ -362,7 +362,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
 
           {/* Timeline */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-cozy">
               <CardTitle className="text-lead">Timeline</CardTitle>
             </CardHeader>
             <CardContent>
@@ -405,11 +405,11 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
         <div className="order-first space-y-section lg:order-none">
           {/* Staff notes */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-cozy">
               <CardTitle className="text-lead">
                 Staff notes
                 {notes.length > 0 ? (
-                  <Badge variant="secondary" className="ml-2 text-meta">
+                  <Badge variant="secondary" className="ml-snug text-meta">
                     {notes.length}
                   </Badge>
                 ) : null}
@@ -425,7 +425,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 <ul className="max-h-64 space-y-snug overflow-y-auto">
                   {notes.map((note) => (
                     <li key={note.id} className="rounded-md border bg-muted p-snug">
-                      <p className="whitespace-pre-line break-words text-body leading-relaxed">
+                      <p className="whitespace-pre-line break-words text-body">
                         {note.body}
                       </p>
                       <p className="mt-1.5 text-meta text-muted-foreground">
@@ -442,7 +442,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               its emphasis — as a tint, with the neutral hairline every other card
               wears. The heading and the iris-ink scales icon already name it. */}
           <Card className="bg-iris/[0.05]">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-cozy">
               <div className="flex items-center gap-snug">
                 <HugeiconsIcon icon={ScaleIcon} className="size-4 text-iris-ink" aria-hidden />
                 <CardTitle className="text-lead">Decision</CardTitle>
@@ -495,7 +495,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       <p className="text-meta font-medium uppercase tracking-wide text-muted-foreground">
                         Agreed goods
                       </p>
-                      <p className="mt-1 whitespace-pre-line break-words text-body">
+                      <p className="mt-tight whitespace-pre-line break-words text-body">
                         {resolution.counterpartGoodsDescription}
                       </p>
                     </div>
@@ -515,7 +515,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                     The cardholder&apos;s bank decides chargebacks. Submit evidence in
                     Stripe, then note what was sent.
                   </p>
-                  <dl className="grid gap-1 text-meta text-muted-foreground">
+                  <dl className="grid gap-tight text-meta text-muted-foreground">
                     <div>
                       <dt className="inline font-medium text-foreground">Status: </dt>
                       <dd className="inline">{resolution.providerStatus ?? 'unreported'}</dd>

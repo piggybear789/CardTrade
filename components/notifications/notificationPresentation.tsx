@@ -119,7 +119,7 @@ export function NotificationRowBody({
     <>
       <UnreadDot unread={unread} />
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-2">
+        <span className="flex items-baseline justify-between gap-snug">
           <span
             className={cn(
               'flex min-w-0 items-baseline gap-tight',

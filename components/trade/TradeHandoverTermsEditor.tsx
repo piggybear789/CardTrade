@@ -198,7 +198,7 @@ export function TradeHandoverTermsEditor({
           type="button"
           variant="outline"
           size="sm"
-          className="gap-tight px-3 text-meta font-medium [&_svg]:size-3"
+          className="gap-tight px-cozy text-meta font-medium [&_svg]:size-3"
         >
 
           {triggerLabel}
@@ -213,7 +213,7 @@ export function TradeHandoverTermsEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-group">
           <FulfilmentMethodChoice
             name="trade-room-handover"
             value={method}
@@ -248,7 +248,7 @@ export function TradeHandoverTermsEditor({
           ) : null}
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-snug">
           <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>

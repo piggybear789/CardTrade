@@ -345,10 +345,10 @@ export function TradeOfferForm({
       {/* What is coming out of the binder. The trade has to say, because the listing
           cannot — and this is what an arbitrator reads if it goes wrong. */}
       {isShopfront ? (
-        <fieldset className="min-w-0 space-y-2">
+        <fieldset className="min-w-0 space-y-snug">
           <legend className="text-body font-medium">
             What you want
-            <span className="ml-1 text-destructive" aria-hidden>
+            <span className="ml-tight text-destructive" aria-hidden>
               *
             </span>
           </legend>
@@ -374,7 +374,7 @@ export function TradeOfferForm({
         <legend className="text-body font-medium">
           You offer
           {offeredCount > 0 ? (
-            <span className="ml-1 font-normal text-muted-foreground">
+            <span className="ml-tight font-normal text-muted-foreground">
               ({offeredCount} selected)
             </span>
           ) : null}
@@ -415,7 +415,7 @@ export function TradeOfferForm({
 
         {/* Selected listings only — full inventory is searched in the picker. */}
         {selectedItemIds.length > 0 ? (
-          <ul className="min-w-0 space-y-1">
+          <ul className="min-w-0 space-y-tight">
             {selectedItemIds.map((id) => {
               const item = ownItems.find((row) => row.id === id);
               if (!item) return null;
@@ -486,13 +486,13 @@ export function TradeOfferForm({
         role="status"
         aria-live="polite"
       >
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline justify-between gap-cozy">
           <span className="text-muted-foreground">You give</span>
           <span className="font-semibold tabular-nums">
             {formatAud(youGiveTotalCents)}
           </span>
         </div>
-        <div className="mt-1 flex items-baseline justify-between gap-3">
+        <div className="mt-tight flex items-baseline justify-between gap-cozy">
           <span className="text-muted-foreground">They give</span>
           <span className="font-semibold tabular-nums">
             {formatAud(theyGiveTotalCents)}
@@ -585,10 +585,10 @@ export function TradeOfferForm({
   if (isDialog) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 min-w-0 flex-1 space-y-group overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-gutter:stable] sm:px-6">
+        <div className="min-h-0 min-w-0 flex-1 space-y-group overflow-y-auto overscroll-contain px-group py-group [scrollbar-gutter:stable] sm:px-6">
           {body}
         </div>
-        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:border-t sm:bg-card/95 sm:px-6 sm:pb-4 sm:pt-3">
+        <DialogFooter className="static z-auto mt-0 shrink-0 border-t border-border bg-card/95 px-group pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-cozy sm:border-t sm:bg-card/95 sm:px-6 sm:pb-group sm:pt-cozy">
           {actions}
         </DialogFooter>
         {nestedDialogs}
@@ -598,7 +598,7 @@ export function TradeOfferForm({
 
   return (
     <Card className="mx-auto w-full max-w-lg">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-group">
         <CardTitle className="text-subhead">{title}</CardTitle>
         <CardDescription>
           Nothing is reserved until {requested.ownerName} accepts.
@@ -607,7 +607,7 @@ export function TradeOfferForm({
 
       <CardContent className="space-y-group">{body}</CardContent>
 
-        <CardFooter className="flex-col-reverse items-stretch gap-2 border-t bg-muted px-6 pb-4 pt-4 sm:flex-row sm:justify-end">
+        <CardFooter className="flex-col-reverse items-stretch gap-snug border-t bg-muted px-6 pb-group pt-group sm:flex-row sm:justify-end">
         {actions}
       </CardFooter>
 

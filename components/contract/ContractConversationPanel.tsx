@@ -45,8 +45,8 @@ export interface ContractConversationPanelProps {
   menu?: ReactNode;
   /** Phone back target. The bar is the top of the room below `md`. */
   backHref?: string;
-  /** The flow's status in words, e.g. "In transit". */
-  statusLabel?: string | null;
+  /** The flow's status as its badge. See ContractChatProps.status. */
+  status?: ReactNode;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
   /** Cash_Sale provenance for event wording and shipment-link ownership. */
@@ -69,7 +69,7 @@ export function ContractConversationPanel({
   actions,
   menu,
   backHref,
-  statusLabel,
+  status,
   shipment = null,
   saleContext = null,
   failed = false,
@@ -88,7 +88,7 @@ export function ContractConversationPanel({
         actions={actions}
         menu={menu}
         backHref={backHref}
-        statusLabel={statusLabel}
+        status={status}
         shipment={shipment}
         saleContext={saleContext}
       />
@@ -102,7 +102,7 @@ export function ContractConversationPanel({
         counterpartyAvatarPath={counterpartyAvatarPath}
         subject={subject}
         backHref={backHref}
-        statusLabel={statusLabel}
+        status={status}
         menu={menu}
       />
       <div className="grid min-h-0 flex-1 place-items-center p-cozy text-center text-body text-muted-foreground">

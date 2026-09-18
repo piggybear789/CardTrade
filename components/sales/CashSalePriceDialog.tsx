@@ -74,7 +74,7 @@ export function CashSalePriceDialog({
           type="button"
           variant="outline"
           size="sm"
-          className="gap-tight px-3 text-meta font-medium leading-none [&_svg]:size-3"
+          className="gap-tight px-cozy text-meta font-medium leading-none [&_svg]:size-3"
         >
           <HugeiconsIcon icon={TicketPercentIcon} aria-hidden />
           Edit
@@ -84,7 +84,7 @@ export function CashSalePriceDialog({
         {/* The form is DialogContent's only child, so its flex gap cannot reach
             header, body and footer. Repeating it here replaces the one-off
             `py-5` that was doing the same job by hand. */}
-        <form onSubmit={submit} className="flex flex-col gap-3 sm:gap-4">
+        <form onSubmit={submit} className="flex flex-col gap-cozy sm:gap-group">
           <DialogHeader>
             <DialogTitle>Request a price change</DialogTitle>
             <DialogDescription>

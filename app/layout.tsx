@@ -142,7 +142,7 @@ export default async function RootLayout({
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main-content"
-          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-iris px-4 py-2 text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-iris/90 border border-transparent focus:outline-none focus-visible:translate-y-0 focus-visible:border-mist"
+          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-iris px-group py-snug text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-iris/90 border border-transparent focus:outline-none focus-visible:translate-y-0 focus-visible:border-mist"
         >
           Skip to Main Content
         </a>

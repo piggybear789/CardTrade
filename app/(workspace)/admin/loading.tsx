@@ -5,7 +5,7 @@
 //
 // USES THE SHARED HEADER AND FILTER SKELETONS rather than redrawing them. The
 // hand-drawn versions applied the header's DESKTOP spacing at every width — `mb-5`,
-// `pb-5`, `gap-3` where `SectionHeader` uses `mb-snug`, `pb-snug`, `gap-tight` below
+// `pb-5`, `gap-cozy` where `SectionHeader` uses `mb-snug`, `pb-snug`, `gap-tight` below
 // `md` — so the console header was roughly 24px too tall on a phone, and it drew a
 // description line that the real header hides below `md`.
 
@@ -66,8 +66,8 @@ export default function AdminLoading() {
           </div>
         </section>
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="mb-group flex flex-wrap items-center justify-between gap-cozy">
+          <div className="flex min-w-0 flex-wrap items-center gap-snug">
             {/* `text-subhead` (23.8px), not `h-7`. */}
             <TextLines className="text-subhead" widths={['w-48']} />
             <Skeleton className="h-6 w-32 shrink-0 rounded-md" />
@@ -80,7 +80,7 @@ export default function AdminLoading() {
             is four lines in the 343px the shell leaves on a 375px phone. It was one
             16px bar. */}
         <TextLines
-          className="mb-4 text-body"
+          className="mb-group text-body"
           widths={['w-full', 'w-full', 'w-full', 'w-3/5']}
         />
 
@@ -89,18 +89,18 @@ export default function AdminLoading() {
             one button, Reports free text and a `ReportActions` group, Reconciliation
             neither — so the badge/title/timestamp/two-buttons arrangement that was
             here could only ever be right for one of them. What all three DO share is
-            a `<Card>` in a `space-y-4` list, opening with a wrapping badge row and a
+            a `<Card>` in a `space-y-group` list, opening with a wrapping badge row and a
             `CardDescription`; below that this reserves one block and guesses nothing.
 
-            `Card` also gets the container right: these were `rounded-xl border p-4`
+            `Card` also gets the container right: these were `rounded-xl border p-group`
             against `rounded-lg border bg-card shadow-market` with the padding split
             between `CardHeader` and `CardContent`. */}
-        <div className="space-y-4">
+        <div className="space-y-group">
           {Array.from({ length: 3 }, (_, index) => (
             <Card key={index}>
               <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-snug">
+                  <div className="flex min-w-0 flex-wrap items-center gap-snug">
                     <Skeleton className="h-6 w-24 shrink-0 rounded-md" />
                     <TextLines className="text-lead" widths={['w-40']} />
                   </div>

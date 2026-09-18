@@ -10,11 +10,11 @@ export function PolicyArticle({
   lede?: string;
   children: ReactNode;
 }) {
-  // `px-4` on a phone, matching every other page gutter in the app. At `px-6`
+  // `px-group` on a phone, matching every other page gutter in the app. At `px-6`
   // this article measured 327px inside a 375px screen while the catalog beside it
   // measured 343px, so the legal pages read as inset from the rest.
   return (
-    <article className="mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
+    <article className="mx-auto max-w-3xl px-group py-section sm:px-6 md:py-12 lg:px-section">
       <p className="mb-group">
         <Link
           href="/"
@@ -25,9 +25,9 @@ export function PolicyArticle({
       </p>
       <h1 className="text-subhead font-semibold tracking-tight text-foreground md:text-head">{title}</h1>
       {lede ? (
-        <p className="mt-snug text-body text-muted-foreground md:mt-3 md:text-lead">{lede}</p>
+        <p className="mt-snug text-body text-muted-foreground md:mt-cozy md:text-lead">{lede}</p>
       ) : null}
-      <div className="mt-section space-y-group text-body leading-relaxed text-foreground/90 md:space-y-6 [&_h2]:scroll-mt-24 [&_h2]:text-subhead [&_h2]:font-semibold [&_h2]:text-foreground [&_p]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_ul]:text-muted-foreground">
+      <div className="mt-section space-y-group text-body text-foreground/90 md:space-y-6 [&_h2]:scroll-mt-24 [&_h2]:text-subhead [&_h2]:font-semibold [&_h2]:text-foreground [&_p]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-snug [&_ul]:pl-5 [&_ul]:text-muted-foreground">
         {children}
       </div>
     </article>

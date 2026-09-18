@@ -46,7 +46,7 @@ const BAR_SECONDARY =
 // Safe to state a width here — `Button` composes through `cn()`, so
 // tailwind-merge resolves this against the cva base rather than shipping both.
 const BAR_PRIMARY =
-  'h-11 min-h-11 min-w-0 flex-1 rounded-md px-3 text-body font-semibold';
+  'h-11 min-h-11 min-w-0 flex-1 rounded-md px-cozy text-body font-semibold';
 
 // The two quiet glyphs. `[&_svg]:size-5` is load-bearing: `MessageSellerButton`
 // draws its chat icon at `size-5` (20px) and `WatchButton`'s `icon` variant
@@ -197,4 +197,4 @@ export function ListingBuyerBar({
 // gets, on the route most organic traffic lands on. Docking both variants off
 // the same constant is what stops that pair drifting apart again.
 const barClass =
-  'fixed inset-x-0 bottom-[var(--mobile-hub-offset)] z-30 flex items-center gap-1.5 border-t border-border bg-card pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-2 pt-2 shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden';
+  'fixed inset-x-0 bottom-[var(--mobile-hub-offset)] z-30 flex items-center gap-1.5 border-t border-border bg-card pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-snug pt-snug shadow-[0_-8px_24px_hsl(var(--obsidian)/0.06)] md:hidden';

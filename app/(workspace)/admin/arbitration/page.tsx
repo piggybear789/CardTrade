@@ -127,14 +127,14 @@ export default async function ArbitrationQueuePage({
 
       {/* The headline numbers an arbitrator triages on. Money is shown but is
           deliberately not what drives the ordering. */}
-      <dl className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="mb-6 grid grid-cols-2 gap-cozy sm:grid-cols-4">
         {[
           { label: 'Open cases', value: String(summary.total) },
           { label: 'Critical', value: String(summary.critical) },
           { label: `Over ${ARBITRATION_SLA_HOURS}h`, value: String(summary.overdue) },
           { label: 'Money at stake', value: formatAud(summary.amountAtRiskCents) },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-lg border bg-muted p-3">
+          <div key={stat.label} className="rounded-lg border bg-muted p-cozy">
             <dt className="text-meta uppercase tracking-wide text-muted-foreground">
               {stat.label}
             </dt>
@@ -188,16 +188,16 @@ export default async function ArbitrationQueuePage({
           compact
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-cozy">
           {shown.map((c) => {
             const priority = PRIORITY_STYLE[c.priority];
             const overdue = c.ageHours >= ARBITRATION_SLA_HOURS;
             return (
               <li key={`${c.kind}:${c.ref}`}>
                 <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
+                  <CardHeader className="pb-cozy">
+                    <div className="flex flex-wrap items-center justify-between gap-snug">
+                      <div className="flex flex-wrap items-center gap-snug">
                         <Badge variant={priority.variant}>{priority.label}</Badge>
                         <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
                         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
@@ -214,8 +214,8 @@ export default async function ArbitrationQueuePage({
                         {formatAud(c.amountAtRiskCents)}
                       </span>
                     </div>
-                    <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className={cn('flex items-center gap-1', overdue && 'text-destructive')}>
+                    <CardDescription className="flex flex-wrap items-center gap-x-cozy gap-y-tight">
+                      <span className={cn('flex items-center gap-tight', overdue && 'text-destructive')}>
                         <HugeiconsIcon icon={Clock01Icon} className="size-3.5 shrink-0" aria-hidden />
                         {c.openedAt ? formatRelativeTime(c.openedAt) : 'age unknown'}
                         {overdue ? ` · over ${ARBITRATION_SLA_HOURS}h` : ''}
@@ -223,7 +223,7 @@ export default async function ArbitrationQueuePage({
                       {c.hasHardDeadline && c.hoursToDeadline !== null ? (
                         <span
                           className={cn(
-                            'flex items-center gap-1',
+                            'flex items-center gap-tight',
                             c.hoursToDeadline < DEADLINE_WARNING_HOURS && 'text-destructive',
                           )}
                         >
@@ -254,11 +254,11 @@ export default async function ArbitrationQueuePage({
                     >
                       {PRIORITY_REASON_LABEL[c.priorityReason]}
                     </p>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-cozy">
                     <p className="min-w-0 text-body text-muted-foreground">
                       {c.parties.map((p) => `${p.role}: ${p.name}`).join(' · ')}
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-snug">
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/admin/arbitration/${c.kind}/${c.ref}`} transitionTypes={['nav-forward']}>
                           Open case

@@ -278,7 +278,7 @@ export function PlaceSearch({
 
   // Shared by the suggestion list and the "why is this empty" panel so the two can
   // never disagree about which side of the field they sit on.
-  const panelPosition = dropUp ? 'bottom-full mb-1' : 'top-full mt-1';
+  const panelPosition = dropUp ? 'bottom-full mb-tight' : 'top-full mt-tight';
 
   return (
     <div ref={fieldRef} className={cn('relative', className)}>
@@ -299,7 +299,7 @@ export function PlaceSearch({
           aria-autocomplete="list"
           aria-invalid={ariaInvalid}
           aria-describedby={ariaDescribedBy}
-          className="pl-9 pr-16"
+          className="pl-9 pr-region"
           onChange={(event) => {
             const next = event.target.value;
             editingRef.current = true;
@@ -373,7 +373,7 @@ export function PlaceSearch({
         <div
           role="status"
           className={cn(
-            'absolute z-30 w-full rounded-md border bg-popover px-2 py-2 text-body text-muted-foreground shadow-md',
+            'absolute z-30 w-full rounded-md border bg-popover px-snug py-snug text-body text-muted-foreground shadow-md',
             panelPosition,
           )}
         >
@@ -391,7 +391,7 @@ export function PlaceSearch({
           role="listbox"
           style={{ maxHeight: panelMaxHeight }}
           className={cn(
-            'absolute z-30 w-full overflow-auto rounded-md border bg-popover p-1 text-body shadow-md',
+            'absolute z-30 w-full overflow-auto rounded-md border bg-popover p-tight text-body shadow-md',
             panelPosition,
           )}
         >
@@ -399,7 +399,7 @@ export function PlaceSearch({
             <li key={place.placeId} role="option" aria-selected={value?.placeId === place.placeId}>
               <button
                 type="button"
-                className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left hover:bg-accent"
+                className="flex w-full items-start gap-snug rounded-sm px-snug py-snug text-left hover:bg-accent"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   editingRef.current = false;

@@ -206,11 +206,11 @@ export function CatalogItemCard({
           with `mt-px` and `mt-0.5` — one and two pixels — against 6px of side
           padding, so the whole block read as one crushed paragraph rather than
           four distinct facts. */}
-      <div className="pointer-events-none relative flex min-w-0 flex-col gap-1 px-3 pb-2.5 pt-2">
+      <div className="pointer-events-none relative flex min-w-0 flex-col gap-tight px-cozy pb-2.5 pt-snug">
         {/* TWO LINES AT EVERY WIDTH. This used to add `md:truncate`, so the
             WIDER screen showed less of the string — and for a graded card the
             set, year and grade all live in the tail that got cut. */}
-        <h3 className="line-clamp-2 text-body font-medium leading-normal text-foreground">
+        <h3 className="line-clamp-2 text-body font-medium text-foreground">
           {item.title}
         </h3>
         {/* THE GAME ONLY. Condition used to follow it behind a hairline — the
@@ -425,7 +425,7 @@ function ItemCardStage({
           <Badge
             variant="secondary"
             className={cn(
-              'gap-1 border-white/15 bg-obsidian/75 text-mist shadow-sm backdrop-blur hover:bg-obsidian/75',
+              'gap-tight border-white/15 bg-obsidian/75 text-mist shadow-sm backdrop-blur hover:bg-obsidian/75',
               badgeClassName,
             )}
           >
@@ -460,7 +460,7 @@ function ItemCardPriceRow({
     <div className="mt-tight flex min-w-0 items-center gap-snug">
       <p className="min-w-0 truncate text-lead font-semibold leading-tight text-foreground md:text-subhead">
         {isShopfront ? (
-          <span className="mr-1 text-meta font-normal text-muted-foreground">
+          <span className="mr-tight text-meta font-normal text-muted-foreground">
             from
           </span>
         ) : null}

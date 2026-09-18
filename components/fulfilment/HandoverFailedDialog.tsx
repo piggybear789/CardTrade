@@ -190,8 +190,8 @@ export function HandoverFailedDialog({
       <DialogContent className="sm:max-w-lg">
         {/* The form is DialogContent's only child, so its flex gap cannot reach
             header, body and footer. Repeating it here spaces them the same way
-            every other dialog does, instead of a one-off `py-4` on the body. */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
+            every other dialog does, instead of a one-off `py-group` on the body. */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-cozy sm:gap-group">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{outcomeDescription}</DialogDescription>
@@ -253,7 +253,7 @@ export function HandoverFailedDialog({
                 disabled={isPending}
               />
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-snug">
                 {proofFiles.map((file, index) => (
                   <div
                     key={`${file.name}-${index}`}

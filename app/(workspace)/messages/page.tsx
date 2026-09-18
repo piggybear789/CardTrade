@@ -64,7 +64,7 @@ export default async function MessagesPage() {
         </div>
       ) : conversations.length === 0 ? (
         <>
-          <p className="mt-3 text-body text-muted-foreground md:hidden">
+          <p className="mt-cozy text-body text-muted-foreground md:hidden">
             Messages with buyers and sellers will appear here.
           </p>
           <EmptyState

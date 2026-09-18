@@ -118,7 +118,7 @@ export function ProfileForm({
     // The form is the dialog's only child, so DialogContent's flex gap cannot
     // reach the fields and the footer. Repeating it here spaces them the way
     // every other dialog does.
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3 sm:gap-4">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-cozy sm:gap-group">
       <div className="space-y-tight">
         <FieldLabel htmlFor="displayName">Display name</FieldLabel>
         <Input
@@ -188,7 +188,7 @@ export function ProfileForm({
             Profile picture{' '}
             <span className="font-normal text-muted-foreground">(optional)</span>
           </p>
-          <p className="text-body leading-relaxed text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             PNG, JPEG or WebP, up to 2 MB. Saves as soon as you pick it.
           </p>
         </div>

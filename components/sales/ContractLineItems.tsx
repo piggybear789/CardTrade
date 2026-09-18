@@ -259,7 +259,7 @@ export function ContractLineItemsList({
                 {line.description}
               </p>
               {line.quantity > 1 || line.condition ? (
-                <p className="mt-1 text-body text-muted-foreground">
+                <p className="mt-tight text-body text-muted-foreground">
                   {line.quantity > 1 ? `${line.quantity} × ${money(line.unitPriceCents)}` : ''}
                   {line.quantity > 1 && line.condition ? ' · ' : ''}
                   {line.condition ?? ''}

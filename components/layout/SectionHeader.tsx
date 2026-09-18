@@ -26,9 +26,9 @@ export function SectionHeader({
   mobileAction?: ReactNode;
 }) {
   return (
-    <header className="mb-snug flex flex-row items-center justify-between gap-cozy border-b border-border pb-snug md:mb-5 md:items-end md:gap-3 md:pb-5">
+    <header className="mb-snug flex flex-row items-center justify-between gap-cozy border-b border-border pb-snug md:mb-5 md:items-end md:gap-cozy md:pb-5">
       <div className="min-w-0">
-        <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
+        <h2 className="text-balance text-subhead font-semibold tracking-tight md:text-head">
           {title}
         </h2>
         {description ? (
@@ -37,7 +37,7 @@ export function SectionHeader({
           </p>
         ) : null}
       </div>
-      {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 gap-snug">{actions}</div> : null}
       {/* Sits beside the heading, never under it. RailPrimaryAction is `w-full`
           for the rail that normally holds it, so the width is unset here. */}
       {mobileAction ? (
@@ -54,7 +54,7 @@ export function SectionLoadError({ label }: { label: string }) {
   return (
     <p
       role="alert"
-      className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-body text-destructive"
+      className="rounded-xl border border-destructive/40 bg-destructive/10 px-group py-cozy text-body text-destructive"
     >
       We couldn&apos;t load your {label} right now. Reload the page to try again.
     </p>

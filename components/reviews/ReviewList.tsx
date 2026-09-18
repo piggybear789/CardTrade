@@ -66,7 +66,7 @@ export function ReviewList({
             <StarRating rating={review.rating} hideLabel />
           </div>
           {review.comment ? (
-            <p className="whitespace-pre-line break-words text-body leading-relaxed text-foreground">
+            <p className="whitespace-pre-line break-words text-body text-foreground">
               {review.comment}
             </p>
           ) : null}

@@ -29,7 +29,7 @@ export function PaymentFormSkeleton() {
       <Skeleton className="h-9 w-full rounded-md md:h-8" />
       {/* `ProcessorNote`, which wraps to two lines at phone width. */}
       <TextLines
-        className="text-center text-body leading-relaxed"
+        className="text-center text-body"
         widths={['w-full', 'w-2/3']}
       />
     </div>

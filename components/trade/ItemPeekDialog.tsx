@@ -106,7 +106,7 @@ export function ItemPeekDialog({
         </div>
 
         {item.description ? (
-          <p className="whitespace-pre-line break-words text-body leading-relaxed">
+          <p className="whitespace-pre-line break-words text-body">
             {item.description}
           </p>
         ) : null}

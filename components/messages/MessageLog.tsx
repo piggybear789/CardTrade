@@ -154,7 +154,7 @@ export function MessageLog({
   if (messages.length === 0) {
     return (
       <div className="grid h-full place-items-center text-center">
-        <p className="max-w-56 text-body leading-5 text-muted-foreground">{emptyHint}</p>
+        <p className="max-w-56 text-body text-muted-foreground">{emptyHint}</p>
       </div>
     );
   }
@@ -201,7 +201,7 @@ export function MessageLog({
               className={cn('flex flex-col gap-0.5', cluster.mine ? 'items-end' : 'items-start')}
             >
               {showNames ? (
-                <span className="mb-0.5 px-1 text-meta font-medium text-muted-foreground">
+                <span className="mb-0.5 px-tight text-meta font-medium text-muted-foreground">
                   {cluster.mine ? 'You' : counterpartyName}
                 </span>
               ) : null}
@@ -253,7 +253,7 @@ export function MessageLog({
               <time
                 dateTime={last.created_at}
                 suppressHydrationWarning
-                className="px-1 text-meta text-muted-foreground"
+                className="px-tight text-meta text-muted-foreground"
               >
                 {stamp}
                 {read}
@@ -361,10 +361,10 @@ function ContractMilestones({
     // `ol` for the reading order and `aria-label` so the run announces as what it is;
     // the heading it replaces was doing that job visually and only visually.
     //
-    // `gap-3` between notices, against `gap-0.5` inside one. Each notice is now two
+    // `gap-cozy` between notices, against `gap-0.5` inside one. Each notice is now two
     // centred lines, so the gap between them has to be clearly larger than the gap
     // between a notice's own time and body or the run reads as one block of text.
-    <ol className="flex flex-col gap-3" aria-label="Contract activity">
+    <ol className="flex flex-col gap-cozy" aria-label="Contract activity">
       {messages.map((message) => {
         const tone = classifyContractEvent(message.system_event);
         const alarming = tone === 'destructive' || tone === 'warning';
@@ -395,7 +395,7 @@ function ContractMilestones({
                 paragraph — and the wrap point is what makes the difference. */}
             <p
               className={cn(
-                'max-w-[85%] text-balance text-center text-meta leading-relaxed',
+                'max-w-[85%] text-balance text-center text-meta',
                 alarming ? 'font-medium text-destructive' : 'text-muted-foreground',
               )}
             >
@@ -493,7 +493,7 @@ function MessageBubble({
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              'flex items-center gap-2 px-3 py-2',
+              'flex items-center gap-snug px-cozy py-snug',
               mine ? 'text-primary-foreground' : 'text-foreground',
             )}
           >
@@ -510,11 +510,11 @@ function MessageBubble({
             </span>
           </a>
         ) : (
-          <p className="px-3 py-2 opacity-70">Attachment unavailable</p>
+          <p className="px-cozy py-snug opacity-70">Attachment unavailable</p>
         )
       ) : null}
       {text ? (
-        <p className={cn('whitespace-pre-wrap break-words px-3', image || file ? 'pb-2 pt-1.5' : 'py-2')}>
+        <p className={cn('whitespace-pre-wrap break-words px-cozy', image || file ? 'pb-snug pt-1.5' : 'py-snug')}>
           {text}
         </p>
       ) : null}

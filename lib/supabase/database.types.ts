@@ -873,7 +873,6 @@ export type Database = {
           disputed_at: string | null;
           disputed_by: string | null;
           dispute_reason: string | null;
-          dispute_conversation_id: string | null;
           conversation_id: string | null;
           seller_identity_version: string | null;
           seller_legal_entity_name: string | null;
@@ -985,7 +984,6 @@ export type Database = {
           disputed_at?: string | null;
           disputed_by?: string | null;
           dispute_reason?: string | null;
-          dispute_conversation_id?: string | null;
           conversation_id?: string | null;
           seller_identity_version?: string | null;
           seller_legal_entity_name?: string | null;
@@ -1079,7 +1077,6 @@ export type Database = {
           disputed_at?: string | null;
           disputed_by?: string | null;
           dispute_reason?: string | null;
-          dispute_conversation_id?: string | null;
           conversation_id?: string | null;
           seller_identity_version?: string | null;
           seller_legal_entity_name?: string | null;
@@ -2057,8 +2054,6 @@ export type Database = {
           /** Set when this thread belongs to a private deal (0013). */
           /** Set when this thread belongs to a 2-way trade (0016). */
           trade_id: string | null;
-          /** Set when this thread is the arbitration chat for a dispute (0019). */
-          cash_sale_id: string | null;
           participant_a: string;
           participant_b: string;
           last_message_at: string;
@@ -2068,7 +2063,6 @@ export type Database = {
           id?: string;
           item_id?: string | null;
           trade_id?: string | null;
-          cash_sale_id?: string | null;
           participant_a: string;
           participant_b: string;
           last_message_at?: string;
@@ -2078,7 +2072,6 @@ export type Database = {
           id?: string;
           item_id?: string | null;
           trade_id?: string | null;
-          cash_sale_id?: string | null;
           participant_a?: string;
           participant_b?: string;
           last_message_at?: string;
@@ -2396,13 +2389,6 @@ export type Database = {
           p_actor_id: string;
         };
         Returns: string | null;
-      };
-      attach_dispute_conversation: {
-        Args: {
-          p_cash_sale_id: string;
-          p_actor_id: string;
-        };
-        Returns: undefined;
       };
       ensure_deal_conversation: {
         Args: {

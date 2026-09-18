@@ -79,8 +79,13 @@ export interface ContractChatProps {
    * of the room, so it carries navigation; above `md` the workspace rail does.
    */
   backHref?: string;
-  /** The flow's status in words, e.g. "In transit". Joins the subline. */
-  statusLabel?: string | null;
+  /**
+   * The flow's status, as the room's own badge (`CashSaleStatusBadge`,
+   * `StateBadge`). A NODE, NOT A STRING: the badge is the one place a status has a
+   * label and a tone, and the inbox row already uses it — a word in a muted
+   * sentence here was the same status at a third of the visibility.
+   */
+  status?: ReactNode;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
   /** Cash_Sale provenance for event wording and shipment-link ownership. */
@@ -94,7 +99,7 @@ export function ContractChatBar({
   subject,
   connectionStatus,
   backHref,
-  statusLabel,
+  status,
   menu,
 }: {
   counterpartyName: string;
@@ -102,7 +107,7 @@ export function ContractChatBar({
   subject?: ContractChatSubject | null;
   connectionStatus?: 'ok' | 'error' | string;
   backHref?: string;
-  statusLabel?: string | null;
+  status?: ReactNode;
   /** Secondary actions about the PERSON, e.g. reporting them. */
   menu?: ReactNode;
 }) {
@@ -114,12 +119,8 @@ export function ContractChatBar({
   // In the split they are a pane already on screen and this stays inert text.
   const opensDetails = !split;
 
-  // Everything after the price, in order. Joined with the same separator so an
-  // absent status or a bare person both read correctly.
-  const meta = [statusLabel, subject ? counterpartyName : null].filter(
-    (part): part is string => Boolean(part),
-  );
-  const showSubline = Boolean(subject?.price) || meta.length > 0 || offline;
+  const person = subject ? counterpartyName : null;
+  const showSubline = Boolean(subject?.price) || Boolean(status) || Boolean(person) || offline;
 
   return (
     // Identity and subject only. The controls used to ride this row and wrap to
@@ -136,11 +137,11 @@ export function ContractChatBar({
           href={backHref}
           transitionTypes={['nav-back']}
           aria-label="Back"
-          // `size-11`: this control only exists below `md`, so it is a touch
-          // target in every case it renders and has no business being 40px.
-          className="-ml-1.5 inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
+          // `size-9 -ml-2.5`, matching `ChatThread`'s bar — see the note there. 36px is
+          // the phone control height everywhere else; 44 was a fifth of the row.
+          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
         >
-          <HugeiconsIcon icon={ChevronLeftIcon} className="size-6" strokeWidth={1.75} aria-hidden />
+          <HugeiconsIcon icon={ChevronLeftIcon} className="size-5" strokeWidth={1.75} aria-hidden />
         </Link>
       ) : null}
 
@@ -166,21 +167,19 @@ export function ContractChatBar({
             {subject?.title ?? counterpartyName}
           </h2>
           {showSubline ? (
-            <p className="truncate text-body leading-tight text-muted-foreground">
+            // A ROW, NOT A SENTENCE — mirrors `ChatThread`. Price as a figure, the
+            // status badge, then the person; the badge cannot live inside a
+            // truncating `<p>`, so the text parts truncate on their own.
+            <div className="mt-0.5 flex min-w-0 items-center gap-snug text-body text-muted-foreground">
               {subject?.price ? (
-                <span className="display-value font-semibold text-foreground">
+                <span className="display-value shrink-0 font-semibold text-foreground">
                   {subject.price}
                 </span>
               ) : null}
-              {meta.length > 0
-                ? `${subject?.price ? ' · ' : ''}${meta.join(' · ')}`
-                : null}
-              {offline ? (
-                <span className="text-destructive">
-                  {subject?.price || meta.length > 0 ? ' · ' : ''}Offline
-                </span>
-              ) : null}
-            </p>
+              {status ? <span className="flex shrink-0">{status}</span> : null}
+              {person ? <span className="min-w-0 truncate">{person}</span> : null}
+              {offline ? <span className="shrink-0 text-destructive">Offline</span> : null}
+            </div>
           ) : null}
         </div>
         {opensDetails ? (
@@ -233,7 +232,7 @@ export function ContractChat({
   actions,
   menu,
   backHref,
-  statusLabel,
+  status,
   shipment = null,
   saleContext = null,
   className,
@@ -305,7 +304,7 @@ export function ContractChat({
         subject={subject}
         connectionStatus={connectionStatus}
         backHref={backHref}
-        statusLabel={statusLabel}
+        status={status}
         menu={menu}
       />
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -363,7 +362,7 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full border border-transparent bg-primary px-cozy py-2 text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-iris"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full border border-transparent bg-primary px-cozy py-snug text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-iris"
           >
             <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}

@@ -43,15 +43,14 @@ test.describe.serial('Private cash deal → sale room', () => {
 
     await page.goto('/deals/new');
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('heading', { name: 'Start a Private Deal' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Private deal' })).toBeVisible({
       timeout: COLD_ROUTE,
     });
 
-    await chooseTile(page, /Cash for a card/i);
-    await chooseTile(page, /I'm selling/i);
+    await chooseTile(page, /Sell a card/i);
     await fillUnlistedCard(page, description);
     await page.getByLabel('Price', { exact: true }).fill('150.00');
-    await page.getByRole('button', { name: 'Create deal link' }).click();
+    await page.getByRole('button', { name: 'Create link' }).click();
 
     await expect(page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
     invitePath = new URL(page.url()).pathname;
@@ -157,9 +156,9 @@ test.describe.serial('Private trade deal → trade room', () => {
     await page.waitForLoadState('domcontentloaded');
     await chooseTile(page, /Trade cards/i);
     await fillUnlistedCard(page, hostDescription);
-    await page.getByLabel('What your card is worth').fill('200.00');
+    await page.getByLabel("Your card's value").fill('200.00');
     await page.getByLabel('What you want from them').fill(joinDescription);
-    await page.getByRole('button', { name: 'Create deal link' }).click();
+    await page.getByRole('button', { name: 'Create link' }).click();
 
     await expect(page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
     invitePath = new URL(page.url()).pathname;
@@ -174,7 +173,7 @@ test.describe.serial('Private trade deal → trade room', () => {
       timeout: COLD_ROUTE,
     });
     await fillUnlistedCard(page, joinDescription);
-    await page.getByLabel('What your card is worth').fill('200.00');
+    await page.getByLabel("Your card's value").fill('200.00');
     await page.getByRole('button', { name: 'Join this deal' }).click();
     await expect(page).toHaveURL(/\/trades\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
     await expect(page.getByRole('heading', { name: 'Trade' }).first()).toBeVisible({
@@ -192,10 +191,10 @@ test.describe.serial('Revoke unused invite', () => {
     const alice = await asUser(browser, ALICE);
     await alice.page.goto('/deals/new');
     await alice.page.waitForLoadState('domcontentloaded');
-    await chooseTile(alice.page, /Cash for a card/i);
+    await chooseTile(alice.page, /Sell a card/i);
     await fillUnlistedCard(alice.page, description);
     await alice.page.getByLabel('Price', { exact: true }).fill('50.00');
-    await alice.page.getByRole('button', { name: 'Create deal link' }).click();
+    await alice.page.getByRole('button', { name: 'Create link' }).click();
     await expect(alice.page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
     const invitePath = new URL(alice.page.url()).pathname;
     await alice.page.getByRole('button', { name: 'Cancel invite' }).click();

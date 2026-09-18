@@ -134,10 +134,10 @@ export function NextMoveCell({
       {mine ? (
         // `action-edge` rather than `action`: the amber fill is a background colour and
         // reads as a pale smudge at 6px. The border token is the same hue dark enough
-        // to be a mark. `mt-1` optically centres it on the first line of a clamped
+        // to be a mark. `mt-tight` optically centres it on the first line of a clamped
         // label rather than on the box.
         <span
-          className="mt-1 inline-block size-1.5 shrink-0 rounded-full bg-action-edge"
+          className="mt-tight inline-block size-1.5 shrink-0 rounded-full bg-action-edge"
           aria-hidden="true"
         />
       ) : null}

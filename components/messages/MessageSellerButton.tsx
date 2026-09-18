@@ -164,7 +164,7 @@ export function MessageSellerButton({
 
   if (variant === 'inline') {
     return (
-      <div className="space-y-2">
+      <div className="space-y-snug">
         {/* `bg-card`, NOT `bg-muted`, and it fixes two things that looked separate.
             
             `--muted` is `275 20% 95%` — hue 275 is violet, so the panel read as a
@@ -189,12 +189,12 @@ export function MessageSellerButton({
               by anything addressing it by name — assistive tech included. */}
           <label
             htmlFor={inlineInputId}
-            className="mb-2 flex items-center gap-tight text-body font-medium text-foreground"
+            className="mb-snug flex items-center gap-tight text-body font-medium text-foreground"
           >
             <HugeiconsIcon icon={MessageCircleIcon} className="size-4 text-muted-foreground" aria-hidden />
             Send seller a message
           </label>
-          <form onSubmit={handleInlineSend} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <form onSubmit={handleInlineSend} className="flex flex-col gap-snug sm:flex-row sm:items-center">
             <Input
               id={inlineInputId}
               type="text"
@@ -230,7 +230,7 @@ export function MessageSellerButton({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-snug">
       <Button
         type="button"
         variant="secondary"

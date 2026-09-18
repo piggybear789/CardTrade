@@ -37,21 +37,21 @@ export default function SellerProfileLoading() {
       {/* No wrapper div: the live page hangs the nav, the header and the strip straight
           off `MarketplaceShell`.
 
-          Spacing below is copied from it term for term — `mb-3` here, `mb-5 space-y-2
-          pb-4` on the header, and a 40px avatar (`Avatar size="md"`). */}
-      <nav className="mb-3">
+          Spacing below is copied from it term for term — `mb-cozy` here, `mb-5 space-y-snug
+          pb-group` on the header, and a 40px avatar (`Avatar size="md"`). */}
+      <nav className="mb-cozy">
         <TextLines className="text-body" widths={['w-36']} />
       </nav>
 
-      <header className="mb-5 space-y-2 border-b pb-4">
+      <header className="mb-5 space-y-snug border-b pb-group">
         {/* A column below `sm`, because the Report control stacks under the identity
             block there rather than sitting beside it. */}
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
+        <div className="flex flex-col items-stretch gap-cozy sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-cozy">
             <Skeleton className="size-10 shrink-0 rounded-full" />
             {/* `space-y-1.5`, the column's real rhythm. */}
             <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-snug">
                 {/* `text-subhead` below `md`, not the 32px an `h-8` reserved. */}
                 <TextLines className="text-subhead md:text-head" widths={['w-44']} />
                 <Skeleton className="h-5 w-20 rounded-full" />

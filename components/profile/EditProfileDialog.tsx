@@ -57,7 +57,7 @@ export function EditProfileDialog({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1 text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
+          className="inline-flex items-center gap-tight text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
         >
           <HugeiconsIcon icon={PencilIcon} className="size-3" aria-hidden />
           Edit

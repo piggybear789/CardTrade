@@ -49,12 +49,12 @@ export function MarketplaceNav({
   const onCatalogBrowse = pathname === '/';
 
   return (
-    // `gap-3`, not `gap-5`. Eleven links across four labelled groups is 613px of
+    // `gap-cozy`, not `gap-5`. Eleven links across four labelled groups is 613px of
     // rail on its own — before the title, the CTA, or any filters — which
     // overflowed a 1366x768 laptop by itself. Each group already announces
     // itself with an uppercase label, so the extra 8px per boundary was
     // separating things that were not in danger of running together.
-    <nav aria-label="Marketplace sections" className="flex flex-col gap-3">
+    <nav aria-label="Marketplace sections" className="flex flex-col gap-cozy">
       {groups.map((group) => {
         const isMarketplace = group.label === 'Marketplace';
         if (onCatalogBrowse && (group.label === 'Contracts' || group.label === 'Selling' || group.label === 'You')) {
@@ -68,7 +68,7 @@ export function MarketplaceNav({
             className={cn(!isMarketplace && 'hidden md:block')}
           >
             <div className="hidden md:block">
-              <p className="market-label px-3 pb-1 text-muted-foreground">
+              <p className="market-label px-cozy pb-tight text-muted-foreground">
                 {group.label}
               </p>
               <ul className="flex flex-col gap-0.5">
@@ -84,15 +84,17 @@ export function MarketplaceNav({
                         href={link.href}
                         aria-current={active ? 'page' : undefined}
                         className={cn(
-                          // `py-2` gives a 40px row. The rail is desktop-only
+                          // `py-snug` gives a 40px row. The rail is desktop-only
                           // (`hidden md:block`), where WCAG 2.2 asks 24px of a
                           // pointer target, so this clears the floor comfortably
                           // and the rows stay easy to hit while scanning.
-                          // `text-nav`, not `text-body`: the rail holds 15px while
-                          // the body scale sits below it. See the token's note —
-                          // at `body` = 14px that gap is one pixel and `nav` is
-                          // arguably no longer earning its keep.
-                          'relative flex items-center gap-3 rounded-lg px-3 py-2 text-nav transition-colors border border-transparent focus:outline-none focus-visible:border-iris',
+                          // `text-body`. The rail used to hold its own 15px `nav`
+                          // token, justified as "a step above body" when body was
+                          // 13px. At 14px that step was one pixel — not a register,
+                          // just a paragraph that did not match — so the token was
+                          // retired. `font-medium` on the active row carries scan
+                          // weight instead.
+                          'relative flex items-center gap-cozy rounded-lg px-cozy py-snug text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris',
                           // A NEUTRAL SURFACE AND A 2px VIOLET MARKER, not a
                           // violet slab. The accent pair reads the state in
                           // lilac text on a lilac wash, which was legible

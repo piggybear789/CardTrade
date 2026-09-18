@@ -211,7 +211,7 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
           />
           <div className="min-w-0 space-y-tight">
             <p className="text-body font-medium text-foreground">Waiting on Stripe</p>
-            <p className="text-body leading-relaxed text-muted-foreground">{error}</p>
+            <p className="text-body text-muted-foreground">{error}</p>
           </div>
         </div>
 
@@ -235,7 +235,7 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
       <div className="space-y-group">
         {error ? (
           <div className="space-y-snug rounded-lg border border-destructive/40 bg-destructive/5 p-group">
-            <p role="alert" className="text-body leading-relaxed text-destructive">
+            <p role="alert" className="text-body text-destructive">
               {error}
             </p>
             {/* A stored-data failure needs the screen that can change it, not a retry
@@ -270,7 +270,7 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
   return (
     <div className="space-y-group">
       {error ? (
-        <p role="alert" className="text-body leading-relaxed text-destructive">
+        <p role="alert" className="text-body text-destructive">
           {error}
         </p>
       ) : null}
@@ -291,7 +291,7 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
            edge of its own, so unframed it bled into the dialog and its headings read as
            ours. The border makes the boundary between our page and Stripe's form
            visible, which is also the honest reading: everything inside it is theirs. */
-        <div className="min-h-[22rem] rounded-xl border bg-muted/25 p-4">
+        <div className="min-h-[22rem] rounded-xl border bg-muted/25 p-group">
           <ConnectComponentsProvider connectInstance={connectInstance}>
             <ConnectAccountOnboarding onExit={handleExit} onLoadError={handleLoadError} />
           </ConnectComponentsProvider>

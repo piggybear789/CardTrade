@@ -350,7 +350,7 @@ export function DeliveryAddressPanel({
             disabled={isPending}
           />
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-snug">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isPending}>
               Cancel
             </Button>

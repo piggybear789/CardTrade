@@ -63,7 +63,7 @@ import { coverAspectRatio, type ImageDim } from '@/lib/images/dimensions';
 // Adding a column necessarily shrinks the tile at that boundary. That is the
 // trade for filling the row, and it is only visible while dragging a window.
 export const CATALOG_TILE_GRID =
-  'grid grid-cols-2 gap-1.5 sm:gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4 2xl:grid-cols-5';
+  'grid grid-cols-2 gap-1.5 sm:gap-cozy md:grid-cols-3 md:gap-group xl:grid-cols-4 2xl:grid-cols-5';
 
 /**
  * The md-and-up half of {@link CATALOG_TILE_GRID}, with the phone rules left
@@ -75,10 +75,10 @@ export const CATALOG_TILE_GRID =
  * their tiles straight to it.
  */
 export const CATALOG_TILE_GRID_FROM_MD =
-  'md:grid md:grid-cols-3 md:gap-4 xl:grid-cols-4 2xl:grid-cols-5';
+  'md:grid md:grid-cols-3 md:gap-group xl:grid-cols-4 2xl:grid-cols-5';
 
 /** Gap between mosaic tiles. Matches the phone gap in the uniform grid. */
-export const CATALOG_MOSAIC_GAP = 'gap-1.5 sm:gap-3';
+export const CATALOG_MOSAIC_GAP = 'gap-1.5 sm:gap-cozy';
 
 /** Columns in the phone mosaic. Two, as on every phone-width marketplace feed. */
 export const CATALOG_MOSAIC_COLUMNS = 2;

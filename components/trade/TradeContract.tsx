@@ -58,7 +58,7 @@ import {
   tradeAgreedValueCents,
 } from '@/domain/trade/tradeSideValues';
 import { ShippingDeadline } from '@/components/trade/ShippingDeadline';
-import { StateBadge, TRADE_STATUS_MAP } from '@/components/trade/StateBadge';
+import { StateBadge } from '@/components/trade/StateBadge';
 import { TradeHandoverTermsEditor } from '@/components/trade/TradeHandoverTermsEditor';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { PlaceMap } from '@/components/location';
@@ -82,7 +82,6 @@ import {
   type ContractEvent,
   type ContractExchangeItem,
   type ContractParty,
-  type DisputeCaseOutcome,
 } from '@/components/contract';
 import {
   TRADE_SECTIONS,
@@ -344,7 +343,7 @@ function TradeCashSettlementNotice({
               ? `${amount} cash is waiting on your payout setup`
               : `${amount} cash is waiting on their payout setup`}
           </p>
-          <p className="mt-1 text-muted-foreground">
+          <p className="mt-tight text-muted-foreground">
             {iReceive
               ? // Says PAYOUT SETUP, not "DittoShield". That brand names the identity
                 // check, which since 0069 is a different step — and one this member
@@ -352,7 +351,7 @@ function TradeCashSettlementNotice({
                 'Finish payout setup so Stripe can pay the cash into your account, then retry.'
               : 'They need to finish payout setup before Stripe can move the cash. You can retry once they have.'}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-cozy flex flex-wrap gap-snug">
             {iReceive ? (
               <Button asChild size="sm" variant="outline">
                 <Link href="/profile?tab=payouts">Set up payouts</Link>
@@ -391,12 +390,12 @@ function TradeCashSettlementNotice({
               ? `Cash of ${amount} settles after you finish payout setup`
               : `Cash of ${amount} settles after they finish payout setup`}
           </p>
-          <p className="mt-1 text-muted-foreground">
+          <p className="mt-tight text-muted-foreground">
             You can keep trading — collateral covers the goods. Stripe
             moves the cash once the receiver can take payouts.
           </p>
           {iReceive ? (
-            <Button asChild size="sm" variant="outline" className="mt-3">
+            <Button asChild size="sm" variant="outline" className="mt-cozy">
               <Link href="/profile?tab=payouts">Set up payouts</Link>
             </Button>
           ) : null}
@@ -596,7 +595,7 @@ function TradeTermsRow({
           />
         ) : null
       }
-      contentClassName="space-y-3"
+      contentClassName="space-y-cozy"
     >
       {/* THE AGREED METHOD LEADS. It was stated only in the collapsed tab
           summary, so an open Terms tab showed postage costs and address lanes
@@ -936,7 +935,7 @@ function TradeContractRoom({
           rather than by the shell. At `lg` this is exactly the shell content
           box, so the header, action card and details/chat row divide it and the
           panes scroll internally instead of growing the page (F37). */}
-      <div className="flex min-h-0 flex-1 flex-col gap-group md:px-4 md:pt-4 lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
+      <div className="flex min-h-0 flex-1 flex-col gap-group md:px-group md:pt-group lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
         {/* Desktop only. Below `md` the room is a thread, and the chat bar
             already carries this title, value and counterparty — a second copy
             of them was the first 76px of every phone contract. */}
@@ -1024,7 +1023,7 @@ function TradeContractRoom({
                   counterpartyName={theirName}
                   counterpartyAvatarPath={them?.avatarPath}
                   backHref="/trades"
-                  statusLabel={TRADE_STATUS_MAP[trade.state]?.label ?? null}
+                  status={<StateBadge state={trade.state} />}
                   subject={{
                     title: (goods?.yours[0] ?? goods?.theirs[0])?.title ?? 'Trade',
                     thumb: itemImageUrl(
@@ -1327,7 +1326,7 @@ function TradeContractRoom({
                         holds.length === 1 ? '' : 's'
                       }`
                 }
-                contentClassName="gap-3"
+                contentClassName="gap-cozy"
               >
                 {/* THE FACTS BEFORE THE EXPLANATION. This was the other way
                     round, so opening "Collateral" — to find out what is on the
@@ -1352,35 +1351,18 @@ function TradeContractRoom({
                   id={TRADE_SECTIONS.dispute}
                   label="Dispute"
                   variant="destructive"
-                  // See the matching note in CashSaleView: the tab orients, and the
-                  // visibility warning is stated once at the field.
-                  explainer="The case record: what was reported, what each trader has filed, and what happens to the card holds."
                   summary={
                     disputeEvidence.length > 0
-                      ? `${disputeEvidence.length} statement${disputeEvidence.length === 1 ? '' : 's'} on the record`
-                      : 'Nothing filed yet'
+                      ? `${disputeEvidence.length} submission${disputeEvidence.length === 1 ? '' : 's'}`
+                      : 'Nothing submitted yet'
                   }
                 >
                   <DisputeEvidencePanel
                     caseKind="TRADE"
                     caseRef={trade.id}
                     entries={disputeEvidence}
-                    // COLLATERAL, NOT ESCROW, AND NO FIGURE. A trade hold is an
-                    // uncaptured card authorisation: the platform holds a claim rather
-                    // than funds, nothing has left either trader's account, and custody
-                    // reconciliation deliberately excludes it. Naming an amount here
-                    // would read as money the platform is sitting on. The two sides can
-                    // also differ, and the Collateral tab is where each is stated.
-                    stake={{
-                      label: 'Collateral held',
-                      value: 'Both traders',
-                      note:
-                        trade.state === 'FRAUD_RESOLVED'
-                          ? 'The finding decided what happened to each hold.'
-                          : 'Both card holds stay in place while the case is open. No money has moved.',
-                    }}
                     disputeReason={trade.dispute_reason}
-                    raisedAt={trade.disputed_at}
+                    disputedAt={trade.disputed_at}
                     raisedByName={
                       trade.dispute_raised_by
                         ? trade.dispute_raised_by === myUserId
@@ -1388,31 +1370,6 @@ function TradeContractRoom({
                           : theirName
                         : null
                     }
-                    againstName={
-                      trade.disputed_against
-                        ? trade.disputed_against === myUserId
-                          ? 'you'
-                          : theirName
-                        : null
-                    }
-                    // No `at`: the trade row records when a dispute was RAISED and not
-                    // when it was decided, and labelling the raise time as the decision
-                    // time would be a plain misstatement on a case record.
-                    outcome={
-                      trade.state === 'FRAUD_RESOLVED'
-                        ? ({
-                            label: 'Fraud finding recorded',
-                            detail:
-                              trade.fraud_victim_id === myUserId
-                                ? "Support found in your favour. The other trader's collateral was captured and paid to you."
-                                : trade.fraud_victim_id
-                                  ? 'Support found against you. Your collateral was captured and paid to the other trader.'
-                                  : 'Support has recorded a finding on this case.',
-                          } satisfies DisputeCaseOutcome)
-                        : null
-                    }
-                    // No `roles`: both sides of a 2-way trade are traders, so a role
-                    // column here would never vary.
                     canSubmit={trade.state === 'DISPUTED'}
                   />
                 </ContractDetailRow>

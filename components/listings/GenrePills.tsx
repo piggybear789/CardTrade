@@ -8,7 +8,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
 
-import { GameIcon, GameMark } from '@/components/listings/GameIcon';
+import { GameIcon } from '@/components/listings/GameIcon';
 import {
   Popover,
   PopoverContent,
@@ -24,7 +24,7 @@ export interface GenrePillLink {
 // Cells size to their label — a fixed column made "One Piece" and "Yu-Gi-Oh"
 // spill past their own width and collide with the next game.
 const STRIP_CELL =
-  'grid h-14 min-w-14 shrink-0 place-content-center place-items-center gap-0.5 px-2';
+  'grid h-14 min-w-14 shrink-0 place-content-center place-items-center gap-0.5 px-snug';
 
 const SHORT_LABEL: Record<string, string> = {
   pokemon: 'Pokémon',
@@ -158,7 +158,7 @@ function MobileGenreStrip({
             <div
               className={cn(
                 // One page gutter left so equal columns don't park "All" mid-tile.
-                '-ml-2 flex h-14 w-[calc(100%+0.5rem)] min-w-0 overflow-x-auto pr-12 [overflow-anchor:none] [overscroll-behavior-x:contain]',
+                '-ml-snug flex h-14 w-[calc(100%+0.5rem)] min-w-0 overflow-x-auto pr-12 [overflow-anchor:none] [overscroll-behavior-x:contain]',
                 '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
                 // Fully transparent by the chevron's left edge, so the gradient
                 // itself is visible instead of hiding under the opaque button.
@@ -195,9 +195,12 @@ function MobileGenreStrip({
         {allOpen ? (
           <div
             id={panelId}
-            className="absolute left-1/2 top-14 z-10 max-h-[60dvh] w-screen -translate-x-1/2 overflow-y-auto overscroll-contain rounded-b-2xl bg-background px-4 pb-4 shadow-[0_18px_32px_-20px_hsl(var(--obsidian)/0.35)]"
+            // `pt-snug` because the panel scrolls: with no top inset the first row
+            // sat at y=0 of the scroll container and the selected tile's top edge —
+            // and any focus edge — was clipped by `overflow-y-auto`.
+            className="absolute left-1/2 top-14 z-10 max-h-[60dvh] w-screen -translate-x-1/2 overflow-y-auto overscroll-contain rounded-b-2xl bg-background px-group pb-group pt-snug shadow-[0_18px_32px_-20px_hsl(var(--obsidian)/0.35)]"
           >
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-snug">
               <CategoryChip
                 active={allActive}
                 slug="all"
@@ -258,12 +261,12 @@ function CategoryChip({
       onClick={onSelect}
       aria-pressed={active}
       className={cn(
-        // `min-h-16`, not `h-16`. Four columns inside a `px-4` gutter leaves each
+        // `min-h-16`, not `h-16`. Four columns inside a `px-group` gutter leaves each
         // cell about 79px at 375px, and the two-word labels that survive
         // `SHORT_LABEL` — "Dragon Ball", "Star Wars" — wrap to a second line
         // under the icon. At a fixed height that second line was clipped; the
         // grid row can just grow instead, and every cell in the row grows with it.
-        'flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:border-iris',
+        'flex min-h-16 flex-col items-center justify-center gap-tight rounded-lg px-1.5 py-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:border-iris',
         active
           ? 'bg-accent font-semibold text-accent-foreground ring-1 ring-iris'
           : 'bg-card font-medium text-foreground hover:bg-accent',
@@ -311,7 +314,7 @@ function CategoryCell({
       <span
         aria-hidden
         className={cn(
-          'mt-1 h-0.5 w-4 rounded-full',
+          'mt-tight h-0.5 w-4 rounded-full',
           active ? 'bg-iris' : 'bg-transparent',
         )}
       />
@@ -418,7 +421,7 @@ function DesktopGenrePills({
           <PopoverTrigger asChild>
             <button
               type="button"
-              aria-label="More games"
+              aria-label="More categories"
               className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-foreground/20 bg-background text-foreground shadow-sm transition-colors hover:border-foreground/40 hover:bg-accent focus:outline-none focus-visible:border-iris"
             >
               {open ? (
@@ -428,8 +431,8 @@ function DesktopGenrePills({
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-96 p-2">
-            <p className="px-2 pb-1.5 text-meta font-semibold text-muted-foreground">
+          <PopoverContent align="end" className="w-96 p-snug">
+            <p className="px-snug pb-1.5 text-meta font-semibold text-muted-foreground">
               More games
             </p>
             <div className="grid grid-cols-2 gap-1.5">
@@ -513,7 +516,7 @@ function GenrePill({
       aria-pressed={active}
       title={label}
       className={cn(
-        'flex h-9 min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-left text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-3',
+        'flex h-9 min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-left text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-cozy',
         'border border-transparent focus:outline-none focus-visible:border-iris',
         stretched ? 'min-w-0 w-full' : 'shrink-0',
         active
@@ -521,15 +524,20 @@ function GenrePill({
           : 'border-foreground/20 bg-card text-foreground shadow-sm hover:border-foreground/40 hover:bg-accent',
       )}
     >
-      {/* Drawn mark, not the brand logo: the active pill inverts to a near-black
-          fill, and a full-colour logo cannot follow the foreground. */}
-      <GameMark
-        slug={slug}
+      {/* THE SAME ICON AS THE PHONE GRID — the real mark via `GameIcon`. This used to
+          be the monochrome drawn mark because the active pill inverts to a near-black
+          fill and a full-colour logo cannot follow the foreground; several of the
+          real marks are themselves black (Magic, Gundam, One Piece) and would vanish.
+          The answer is a surface, not a different icon: when active the logo sits in
+          a small white disc, so the pill inverts and the mark stays legible. */}
+      <span
         className={cn(
-          'shrink-0',
-          active ? 'text-iris-ink' : 'text-muted-foreground',
+          'grid shrink-0 place-items-center rounded-full',
+          active && 'size-6 bg-card',
         )}
-      />
+      >
+        <GameIcon slug={slug} active={active} className={cn(active && 'scale-[0.8]')} />
+      </span>
       <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
     </button>
   );

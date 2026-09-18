@@ -35,6 +35,8 @@ import type {
   TransferHistoryEntry,
 } from '@/domain/payouts/payoutReadModel';
 import type { DestinationAccount } from '@/lib/actions/payouts';
+import type { AccountStatement as AccountStatementModel } from '@/domain/statement/accountStatement';
+import { AccountStatement } from '@/components/payouts/AccountStatement';
 import { formatAud, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -153,7 +155,14 @@ const DESTINATION_COPY: Record<
 export interface PayoutsDashboardProps {
   model: PayoutReadModel;
   destination: DestinationAccount;
-  /** Which slice of the Transfer_History to show. URL-driven via `?show=`. */
+  /**
+   * The full Account_Statement — both directions — rendered as the table at the
+   * foot of the tab. Null when it could not be read; the seller-side sections
+   * above still render from `model`, and the table falls back to the old
+   * seller-only transfer history so the tab never loses its ledger entirely.
+   */
+  statement: AccountStatementModel | null;
+  /** Which slice of the statement / history to show. URL-driven via `?show=`. */
   scope: SectionScope;
 }
 
@@ -173,7 +182,7 @@ function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboardProps) {
+export function PayoutsDashboard({ model, destination, statement, scope }: PayoutsDashboardProps) {
   // NOTHING HAS EVER HAPPENED HERE, so say it once.
   //
   // Each section owned its own empty state, so a seller who had not sold anything yet
@@ -182,13 +191,17 @@ export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboard
   // listings…", then the same shape again for history, then again for disputes. Six
   // blocks of prose to report that nothing has happened is the reason this tab read as
   // dense and confusing. One state, one sentence, one thing to do.
+  //
+  // "Nothing" now means nothing in EITHER direction: a member who has only ever
+  // bought has a statement, so the empty state must not claim otherwise.
   const nothingYet =
     model.releasing.length === 0 &&
     model.history.length === 0 &&
     model.arbitrations.length === 0 &&
     model.upcomingProceedsCents === 0 &&
     model.releasingNowCents === 0 &&
-    model.atRiskProceedsCents === 0;
+    model.atRiskProceedsCents === 0 &&
+    (statement == null || statement.entries.length === 0);
 
   if (nothingYet) {
     return (
@@ -197,10 +210,10 @@ export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboard
           <DestinationAccountSummary destination={destination} />
         ) : null}
         <EmptyState
-          title="No payouts yet"
+          title="Nothing has moved yet"
           titleAs="h3"
-          description="When a buyer accepts an item, your proceeds are queued here and sent automatically."
-          action={{ label: 'Create a listing', href: '/listings/new' }}
+          description="Purchases, sales, trade fees and collateral will appear here as they happen."
+          action={{ label: 'Browse listings', href: '/' }}
           // Matches the other section empty states here. `EmptyState` deliberately
           // drops its card chrome below `md` so a section state sits where the first
           // row would; only the desktop dashed border is overridden to solid.
@@ -224,10 +237,21 @@ export function PayoutsDashboard({ model, destination, scope }: PayoutsDashboard
       {destination.state === 'VERIFIED' ? (
         <DestinationAccountSummary destination={destination} />
       ) : null}
-      <TransferHistory model={model} scope={scope} />
-      {model.arbitrations.length > 0 || model.atRiskProceedsCents > 0 ? (
-        <ArbitrationSummary model={model} />
-      ) : null}
+      {/* THE STATEMENT REPLACES TRANSFER HISTORY AND ARBITRATION. Both were slices
+          of the same ledger — money sent to you, money captured from you — shown as
+          two prose lists three sections apart. One table, both directions, with
+          purchases and trade fees that had never appeared anywhere. The old sections
+          remain only as the fallback for a statement read failure. */}
+      {statement ? (
+        <AccountStatement statement={statement} scope={scope} />
+      ) : (
+        <>
+          <TransferHistory model={model} scope={scope} />
+          {model.arbitrations.length > 0 || model.atRiskProceedsCents > 0 ? (
+            <ArbitrationSummary model={model} />
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -530,7 +554,7 @@ function TransferHistory({
           title="Nothing has moved yet"
           titleAs="h4"
           description="The first entry appears when a buyer accepts an item."
-          className="border-solid bg-card py-8"
+          className="border-solid bg-card py-section"
           compact
         />
       ) : shown.length === 0 ? (
@@ -625,7 +649,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
             return (
               <li key={record.id}>
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-cozy">
                     <div className="flex flex-wrap items-center justify-between gap-snug">
                       <div className="flex flex-wrap items-center gap-snug">
                         <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />

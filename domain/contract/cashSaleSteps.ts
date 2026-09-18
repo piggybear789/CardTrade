@@ -49,6 +49,13 @@ export interface CashSaleStepFacts {
   theirHandoverConfirmed: boolean;
   /** Set while the sale is DISPUTED, for the dispute step's detail line. */
   disputeRaisedByMe?: boolean;
+  /**
+   * When the dispute was raised, ALREADY FORMATTED for display (the caller owns the
+   * locale and the formatter; this module writes copy, not dates). Set alongside
+   * `disputeRaisedByMe`; the detail line names the moment because "under review"
+   * on its own gives a reader no sense of how long the case has been open.
+   */
+  disputeRaisedAt?: string | null;
   /** True once the buyer has recorded a return carrier and tracking number (0088). */
   hasReturnTracking?: boolean;
   /** True when the seller has contested the return (0088). */
@@ -293,11 +300,15 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       // 'Review' matches the deal and trade rails for the same state.
       short: 'Review',
       label: 'Dispute under review',
-      detail: facts.disputeRaisedByMe
-        ? 'You raised a dispute. Funds are held while the case is reviewed.'
-        : `${counterpartyName} raised a dispute. Funds are held while it is reviewed.`,
+      // Under ~85 characters with a name and a "Fri, 18 Sept, 1:05 am" stamp: the
+      // dock clamps this to one line. "Funds are held" is the fact a reader needs;
+      // "while the case is reviewed" restated the label and has gone.
+      detail: `${facts.disputeRaisedByMe ? 'You' : counterpartyName} raised a dispute${
+        facts.disputeRaisedAt ? ` on ${facts.disputeRaisedAt}` : ''
+      }. Funds are held.`,
       owner: 'platform',
       done: false,
+      tone: 'destructive',
     });
     return sequenceSteps(drafts);
   }

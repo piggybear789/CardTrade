@@ -851,11 +851,15 @@ function toLogicalPixels(raw: string, vars: Map<string, string>, file: string, l
     if (!base) visualError(file, line, `length references unknown variable ${variable[1]}`);
     return { px: toLogicalPixels(base, vars, file, line).px, derivedFrom: variable[1] };
   }
-  const calc = raw.trim().match(/^calc\(var\((--[a-z][a-z0-9-]*)\)\s*-\s*(\d+(?:\.\d+)?)px\)$/);
+  // `calc(var(--x) ± Npx)`: both directions, because the radius ramp now steps up from
+  // `--radius` (xl, 2xl) as well as down (md, sm). Only a single px offset is
+  // supported; anything richer is a design token that should be named, not derived.
+  const calc = raw.trim().match(/^calc\(var\((--[a-z][a-z0-9-]*)\)\s*([+-])\s*(\d+(?:\.\d+)?)px\)$/);
   if (calc) {
     const base = vars.get(calc[1]);
     if (!base) visualError(file, line, `calc() references unknown variable ${calc[1]}`);
-    return { px: toLogicalPixels(base, vars, file, line).px - Number(calc[2]), derivedFrom: calc[1] };
+    const offset = Number(calc[3]) * (calc[2] === '-' ? -1 : 1);
+    return { px: toLogicalPixels(base, vars, file, line).px + offset, derivedFrom: calc[1] };
   }
   visualError(file, line, `unsupported length ${raw}`);
 }
@@ -871,10 +875,11 @@ function importedTailwind(): Record<string, unknown> {
     sourcefile: TAILWIND_CONFIG,
     target: 'es2022',
   }).code;
-  const module = { exports: {} as unknown };
-  // eslint-disable-next-line no-new-func
-  new Function('module', 'exports', 'require', compiled)(module, module.exports, require);
-  const loaded = module.exports as { default?: unknown } | unknown;
+  // Named `sandbox` rather than `module`: the Next.js lint rule forbids shadowing the
+  // CommonJS `module` binding, and the compiled config only sees it by parameter name.
+  const sandbox = { exports: {} as unknown };
+  new Function('module', 'exports', 'require', compiled)(sandbox, sandbox.exports, require);
+  const loaded = sandbox.exports as { default?: unknown } | unknown;
   const config = (loaded as { default?: unknown }).default ?? loaded;
   if (!config || typeof config !== 'object') throw new Error('tailwind.config.ts did not export an object');
   return config as Record<string, unknown>;
@@ -1603,13 +1608,29 @@ export function compareSpacing(web: WebLength[], dart: DartNumeric[]): TokenFind
   return compareNamed(webComparable, dart, (entry) => entry.identifier, (entry) => `${'px' in entry ? entry.px : entry.value}`, 'Req 3.2');
 }
 
-/** Compare sm/md/lg to values derived from the actual CSS --radius root declaration. */
+/**
+ * Compare the radius ramp to values derived from the actual CSS --radius root declaration.
+ *
+ * The ramp steps both ways from `--radius`: sm/md below it, xl/2xl above it. Tailwind
+ * spells the top step `2xl`, which is not a legal Dart identifier, so the Dart side
+ * spells it `xxl` and the comparison maps one to the other rather than reporting a
+ * surplus on each side for the same token.
+ */
 export function compareRadius(web: WebLength[], radiusBase: WebLength, dart: DartNumeric[]): TokenFinding[] {
-  const expected = new Map([['sm', radiusBase.px - 4], ['md', radiusBase.px - 2], ['lg', radiusBase.px]]);
-  const derived = web.filter((entry) => expected.has(entry.token));
+  const expected = new Map([
+    ['sm', radiusBase.px - 4],
+    ['md', radiusBase.px - 2],
+    ['lg', radiusBase.px],
+    ['xl', radiusBase.px + 4],
+    ['2xl', radiusBase.px + 8],
+  ]);
+  const dartNameOf = (token: string) => (token === '2xl' ? 'xxl' : token);
+  const derived = web
+    .filter((entry) => expected.has(entry.token))
+    .map((entry) => ({ ...entry, token: dartNameOf(entry.token) }));
   const findings = compareSpacing(derived, dart.filter((entry) => entry.identifier !== 'full'));
   for (const [token, value] of expected) {
-    const entry = derived.find((candidate) => candidate.token === token);
+    const entry = derived.find((candidate) => candidate.token === dartNameOf(token));
     if (!entry || entry.px !== value) findings.push(finding('value-differs', token, String(value), entry ? String(entry.px) : null, radiusBase, entry ?? null, 'Req 3.6', 'Tailwind radius does not derive from --radius'));
   }
   for (const entry of dart.filter((candidate) => candidate.identifier === 'full')) if (entry.value < 999) findings.push(finding('value-differs', 'full', '>=999', String(entry.value), null, entry, 'Req 3.7', 'full radius must be at least 999'));

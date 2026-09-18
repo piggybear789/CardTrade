@@ -39,7 +39,7 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
       <span className="sr-only">Loading…</span>
 
       {/* `items-center text-center` and the header's own `space-y-snug` — not the
-          `space-y-3` that was here. */}
+          `space-y-cozy` that was here. */}
       <CardHeader className="items-center text-center">
         {/* The h1 is `text-head leading-none`, a 21px line box. An `h-8` bar was 32. */}
         <TextLines className="w-full text-head leading-none" widths={['w-40']} />
@@ -48,25 +48,25 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         <TextLines className="w-full text-body" widths={['w-full', 'w-2/3']} />
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-group">
         {/* `min-h-11` on `GoogleSignInButton`, so 44px rather than a Button's 36. The
             two inputs and the submit below carry it too. */}
         <Skeleton className="h-11 w-full rounded-md" />
 
         {/* The "or" rule, which was missing entirely: two hairlines around a
             `text-meta` line box, 16.8px, plus its share of the 16px stack gap. */}
-        <div className="flex items-center gap-3" aria-hidden="true">
+        <div className="flex items-center gap-cozy" aria-hidden="true">
           <span className="h-px flex-1 bg-border" />
           <TextLines className="text-meta" widths={['w-4']} />
           <span className="h-px flex-1 bg-border" />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-snug">
           <TextLines className="text-body leading-none" widths={['w-14']} />
           <Skeleton className="h-11 w-full rounded-md" />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-snug">
           {/* Sign-in only. The recovery link sits beside the password label as
               `inline-flex min-h-11 items-center`, which makes the row 44px rather
               than the label's own 14px — sign-up has no password to recover, so
@@ -96,7 +96,7 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           the footer got a single 16px line — 32px of placeholder against 120px of real
           footer: a `min-h-11` submit, a 16px gap, and a switch-mode line whose link is
           also `inline-flex min-h-11 items-center`. */}
-      <CardFooter className="flex flex-col items-center gap-4">
+      <CardFooter className="flex flex-col items-center gap-group">
         <Skeleton className="h-11 w-full rounded-md" />
         <div className="flex min-h-11 w-full items-center justify-center text-body">
           <Skeleton className="inline-block h-[0.9em] w-52 max-w-full align-middle" />
@@ -116,14 +116,14 @@ export function RequestResetFormSkeleton() {
       <CardHeader>
         {/* `CardTitle` is `text-subhead` — 23.8px. */}
         <TextLines className="text-subhead" widths={['w-52']} />
-        {/* `leading-relaxed` over `text-body` is 21.1px a line, and both intents run
+        {/* `text-body` is 22.4px a line, and both intents run
             past 60 characters, so the description wraps. */}
-        <TextLines className="text-body leading-relaxed" widths={['w-full', 'w-3/4']} />
+        <TextLines className="text-body" widths={['w-full', 'w-3/4']} />
       </CardHeader>
 
       {/* No `CardFooter`: the submit and both switch links sit inside `CardContent`. */}
       <CardContent className="space-y-group">
-        {/* ONE field, in `space-y-tight` (4px) — not two groups in `space-y-2`. */}
+        {/* ONE field, in `space-y-tight` (4px) — not two groups in `space-y-snug`. */}
         <div className="space-y-tight">
           <TextLines className="text-body leading-none" widths={['w-14']} />
           {/* `h-9 md:h-8`: this Input carries no `min-h-11`, so it sits at the

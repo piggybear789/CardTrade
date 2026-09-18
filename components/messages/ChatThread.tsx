@@ -24,7 +24,7 @@ import {
 } from '@/lib/actions/messages';
 import { CURRENCY_CODE, formatMoney, itemImageUrl } from '@/lib/format';
 import { Avatar } from '@/components/ui/avatar';
-import { CASH_SALE_STATUS_MAP } from '@/components/sales/CashSaleStatusBadge';
+import { CashSaleStatusBadge } from '@/components/sales/CashSaleStatusBadge';
 import { MessageComposer } from '@/components/messages/MessageComposer';
 import {
   MESSAGE_COLUMN,
@@ -119,15 +119,21 @@ export function ChatThread({
         ? formatMoney(item.priceCents, item.currency ?? CURRENCY_CODE)
         : null;
 
-  const status = sale
+  // THE CONTRACT'S STATUS IS A BADGE, not a word in a muted sentence. A single live
+  // sale renders `CashSaleStatusBadge` — the same one the inbox rows and the room
+  // use, so the three cannot disagree about the same sale. Several active contracts
+  // and a listing's own state (Reserved, Sold) stay as text: neither is a contract
+  // status the badge knows.
+  const saleBadge = sale && sale.activeContractCount === 1 ? sale.status : null;
+  const statusText = sale
     ? sale.activeContractCount > 1
       ? `${sale.activeContractCount} active contracts`
-      : (CASH_SALE_STATUS_MAP[sale.status]?.label ?? null)
+      : null
     : item?.status && item.status !== 'AVAILABLE'
       ? item.status.toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
       : null;
   const offline = connectionStatus === 'error';
-  const meta = [status, subject ? displayName : null].filter(Boolean).join(' · ');
+  const meta = [statusText, subject ? displayName : null].filter(Boolean).join(' · ');
 
   const dock: {
     href: string;
@@ -214,12 +220,18 @@ export function ChatThread({
         <Link
           href="/messages"
           transitionTypes={['nav-back']}
-          className="-ml-1.5 inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
+          // `size-9 -ml-2.5`, down from `size-11 -ml-1.5`. On a 414px phone the bar
+          // holds this, a thumbnail, a title block and an "Open contract" button;
+          // a 44px chevron with 12px of gap after it was a fifth of the row for a
+          // glyph 20px wide. 36px is the phone control height everywhere else in the
+          // app and the negative margin pulls the hit area into the gutter, so the
+          // title gains 14px and the chevron stays a comfortable target.
+          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
           aria-label="Back to messages"
         >
           <HugeiconsIcon
             icon={ChevronLeftIcon}
-            className="size-6"
+            className="size-5"
             strokeWidth={1.75}
             aria-hidden
           />
@@ -239,29 +251,36 @@ export function ChatThread({
         )}
 
         <div className="min-w-0 flex-1">
+          {/* ONE LINE AT EVERY WIDTH. A two-line title on a phone made the bar a
+              stack of three lines in which the third — price, status, counterparty —
+              was the smallest and the most useful. Truncated, the title is still
+              identifiable (the thumbnail beside it does half the work) and the
+              status line gets read. The full title is one tap away in the room. */}
           <h2
             title={title}
-            className="line-clamp-2 text-lead font-semibold leading-tight tracking-tight md:truncate"
+            className="truncate text-lead font-semibold leading-tight tracking-tight"
           >
             {title}
           </h2>
-          <p className="min-h-[1.1rem] truncate text-body leading-tight text-muted-foreground">
+          {/* A ROW, NOT A SENTENCE. Price as a figure, status as a badge, then the
+              counterparty; the badge cannot live inside a truncating `<p>`, so this is
+              flex with the text parts each truncating on their own. */}
+          <div className="mt-0.5 flex min-w-0 items-center gap-snug text-body text-muted-foreground">
             {price ? (
-              <span className="display-value font-semibold text-foreground">
-                {price}
-              </span>
+              <span className="display-value shrink-0 font-semibold text-foreground">{price}</span>
             ) : null}
-            {meta ? `${price ? ' · ' : ''}${meta}` : null}
+            {saleBadge ? <CashSaleStatusBadge status={saleBadge} className="shrink-0" /> : null}
+            {meta ? <span className="min-w-0 truncate">{meta}</span> : null}
             {offline ? (
-              <span className="text-destructive" role="status">
-                {price || meta ? ' · ' : ''}Offline
+              <span className="shrink-0 text-destructive" role="status">
+                Offline
               </span>
             ) : null}
-          </p>
+          </div>
         </div>
 
         {dock ? (
-          <Button asChild size="sm" className="h-11 shrink-0 px-3 md:h-7 md:px-2">
+          <Button asChild size="sm" className="shrink-0">
             <Link href={dock.href} transitionTypes={['nav-forward']}>
               {dock.label}
             </Link>
@@ -273,7 +292,7 @@ export function ChatThread({
         ref={logRef}
         className={cn(
           // `pb-6` for the same reason as the contract room's log: clusters are `gap-6`
-          // apart, and at `pb-3` the newest one sat closer to the composer than to its
+          // apart, and at `pb-cozy` the newest one sat closer to the composer than to its
           // own neighbour above.
           'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6 pt-5',
           MESSAGE_GUTTER,
@@ -326,7 +345,7 @@ export function ChatThread({
 
       {dock && !dock.underContract ? (
         <div
-          className={cn('shrink-0 py-2', MESSAGE_GUTTER)}
+          className={cn('shrink-0 py-snug', MESSAGE_GUTTER)}
         >
           {/* Prose, so it keeps a measure even though the column no longer has one. */}
           <p className={cn(MESSAGE_COLUMN, MESSAGE_PROSE, 'text-meta text-muted-foreground')}>

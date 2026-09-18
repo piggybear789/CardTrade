@@ -20,7 +20,7 @@ export const CASH_SALE_PUBLIC_SELECT = [
   'inspection_accepted_at', 'carrier_delivered_at', 'inspection_deadline_at',
   'auto_completed', 'buyer_handover_confirmed_at', 'seller_handover_confirmed_at',
   'completed_at', 'cancelled_at', 'cancelled_by', 'cancel_reason', 'disputed_at',
-  'disputed_by', 'dispute_reason', 'dispute_conversation_id', 'conversation_id',
+  'disputed_by', 'dispute_reason', 'conversation_id',
   'seller_identity_version', 'seller_legal_entity_name', 'seller_trading_name',
   'seller_registration_number', 'seller_organisation_type',
   'seller_identity_verified_at', 'buyer_seller_identity_confirmed_at',

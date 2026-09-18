@@ -196,7 +196,7 @@ export function ContractDetailList({
             is the affordance instead. */}
         <div className="flex min-h-11 shrink-0 items-stretch border-b">
           <div
-            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-1 pr-4 sm:px-2 md:pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-0.75rem),transparent)] md:[mask-image:none]"
+            className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-tight pr-group sm:px-snug md:pr-snug [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-0.75rem),transparent)] md:[mask-image:none]"
             role="tablist"
             aria-label="Contract details"
           >
@@ -226,7 +226,7 @@ export function ContractDetailList({
                   onClick={() => selectTab(index)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
-                    'min-h-11 min-w-0 whitespace-nowrap touch-manipulation px-3 py-2.5 text-meta font-medium transition-colors',
+                    'min-h-11 min-w-0 whitespace-nowrap touch-manipulation px-cozy py-2.5 text-meta font-medium transition-colors',
                     'hover:text-foreground focus:outline-none focus-visible:border-iris',
                     isDestructive
                       ? 'text-destructive'
@@ -302,11 +302,11 @@ export function ContractDetailList({
                   between two labels and read as ragged rather than as a
                   pattern. A tab that needs a sentence of orientation should
                   just open with it. */}
-              {/* `md:mt-1`: below `md` the heading above is `sr-only` and out of
+              {/* `md:mt-tight`: below `md` the heading above is `sr-only` and out of
                   flow, so this is the first thing in the box and has nothing to
                   be spaced from. */}
               {activeRow.props.explainer?.trim() ? (
-                <p className="text-pretty text-body text-muted-foreground md:mt-1">
+                <p className="text-pretty text-body text-muted-foreground md:mt-tight">
                   {activeRow.props.explainer}
                 </p>
               ) : null}

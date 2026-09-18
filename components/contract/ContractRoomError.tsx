@@ -29,7 +29,7 @@ export function ContractRoomError({
   }, [error]);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-4 py-16 sm:px-6">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-group py-region sm:px-6">
       <EmptyState
         variant="page"
         icon={<HugeiconsIcon icon={TriangleAlertIcon} className="size-6" aria-hidden />}

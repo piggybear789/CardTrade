@@ -98,7 +98,7 @@ export function NotificationCenter({
   const groups = groupNotificationsByAge(notifications, now);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-group">
       {/* THE COUNT IS STATED, not left to be inferred from a disabled button. This row
           held nothing but "Mark all read", so the one figure a member opens this page
           for — how much is new — was reachable only by counting dots. */}
@@ -145,7 +145,7 @@ export function NotificationCenter({
                     type="button"
                     onClick={() => handleSelect(n)}
                     className={cn(
-                      'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
+                      'flex w-full items-start gap-cozy px-group py-3.5 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
                       unread && 'bg-accent/40',
                     )}
                   >

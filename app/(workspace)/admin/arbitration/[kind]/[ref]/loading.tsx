@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 function CasePanelSkeleton({ bodyClassName }: { bodyClassName: string }) {
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-cozy">
         <TextLines className="text-lead" widths={['w-40']} />
       </CardHeader>
       <CardContent>
@@ -67,7 +67,7 @@ export default function ArbitrationCaseLoading() {
             <TextLines className="ml-auto text-body" widths={['w-24']} />
           </div>
 
-          {/* `gap-section` and `space-y-section` (32px), not `gap-6` / `space-y-4`. */}
+          {/* `gap-section` and `space-y-section` (32px), not `gap-6` / `space-y-group`. */}
           <div className="grid gap-section lg:grid-cols-[1fr_380px]">
             {/* LEFT in the DOM: the claim, filed evidence, shipment, timeline. */}
             <div className="space-y-section">

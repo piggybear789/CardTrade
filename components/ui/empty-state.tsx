@@ -137,7 +137,7 @@ export function EmptyState({
             ),
         // A filled state has no natural height to pad, so these are floors for the
         // short-viewport case rather than the spacing anyone sees.
-        compact ? 'py-4 md:py-10' : 'py-5 md:py-14',
+        compact ? 'py-group md:py-10' : 'py-5 md:py-14',
         className,
       )}
     >
@@ -153,7 +153,7 @@ export function EmptyState({
                   // the circle alone would leave a 24px mark in a 56px disc. The
                   // descendant selector outranks that single class, and only at `md`.
                   'flex size-12 md:size-14 md:[&_svg]:size-7'
-                : 'mb-1 hidden size-8 md:mb-0',
+                : 'mb-tight hidden size-8 md:mb-0',
           )}
         >
           {icon}
@@ -215,7 +215,7 @@ export function EmptyState({
       {help ? (
         <Link
           href={help.href}
-          className="mt-3 text-body font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          className="mt-cozy text-body font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           {help.label}
         </Link>

@@ -85,24 +85,24 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 flex w-full flex-col gap-4 border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-iris max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]",
+        "fixed z-50 flex w-full flex-col gap-group border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-iris max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         mobile === "sheet" && [
           // Phone: bottom sheet. Children must not shrink — a pinned footer plus
           // flex-shrink was compressing titles/fields instead of letting this
           // scrollport move. `[&>*]:shrink-0` keeps each block its natural height.
-          "inset-x-0 bottom-[var(--keyboard-inset,0px)] top-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] translate-x-0 translate-y-0 gap-3 overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:shrink-0",
+          "inset-x-0 bottom-[var(--keyboard-inset,0px)] top-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] translate-x-0 translate-y-0 gap-cozy overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-group pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:shrink-0",
           animation === "default"
             ? "max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=open]:duration-[240ms] max-md:data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)] max-md:data-[state=closed]:slide-out-to-bottom max-md:data-[state=closed]:duration-150 max-md:data-[state=closed]:ease-in"
             : "max-md:data-[state=open]:animate-dialog-fade-in max-md:data-[state=closed]:animate-dialog-fade-out",
           // md+: centred on the viewport (not the content column beside the rail)
-          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:gap-4 md:rounded-lg md:border md:border-border md:p-6 md:pb-6",
+          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:gap-group md:rounded-lg md:border md:border-border md:p-6 md:pb-6",
           animation === "default"
             ? CENTRED_MOTION_MD
             : "md:data-[state=open]:animate-dialog-fade-in md:data-[state=closed]:animate-dialog-fade-out",
         ],
         mobile === "center" && [
-          "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-xl p-4",
+          "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-xl p-group",
           // CENTRED_MOTION, not a bare zoom: see its doc comment. The `slide-*` halves
           // seed the resting `-translate-*-1/2`, without which the panel flies in from
           // the bottom right.
@@ -115,7 +115,7 @@ const DialogContent = React.forwardRef<
           // Phone: the wizard IS the page. Full viewport, no sheet chrome.
           // `bottom` tracks `--keyboard-inset` so the footer sits above the
           // software keyboard and the flex scroll region shrinks with it.
-          "inset-x-0 top-0 bottom-[var(--keyboard-inset,0px)] h-auto max-h-none translate-x-0 translate-y-0 overflow-hidden rounded-none border-0 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none",
+          "inset-x-0 top-0 bottom-[var(--keyboard-inset,0px)] h-auto max-h-none translate-x-0 translate-y-0 overflow-hidden rounded-none border-0 p-group pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none",
           "max-md:data-[state=open]:animate-dialog-fade-in max-md:data-[state=closed]:animate-dialog-fade-out",
           // md+: same centred card as the sheet variant
           "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-lg md:border md:border-border md:p-6 md:pb-6 md:pt-6 md:shadow-lg",
@@ -177,7 +177,7 @@ const DialogFooter = ({
       // and fields into the leftover sliver — especially once the keyboard
       // inset shrinks max-height. Actions sit after the content; the sheet
       // scrolls if needed. Phone: one row so two actions share a line.
-      "flex flex-row gap-2 [&>a]:min-w-0 [&>a]:flex-1 [&>button]:min-w-0 [&>button]:flex-1",
+      "flex flex-row gap-snug [&>a]:min-w-0 [&>a]:flex-1 [&>button]:min-w-0 [&>button]:flex-1",
       "md:justify-end md:[&>a]:flex-none md:[&>button]:flex-none",
       className,
     )}

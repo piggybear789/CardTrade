@@ -83,8 +83,8 @@ export default async function SalesPage({
         extraActive={invitesResult.ok ? invitesResult.data.length : 0}
       />
       {hasInvites ? (
-        <section aria-labelledby="deal-invites-heading" className="mb-8">
-          <h3 id="deal-invites-heading" className="mb-3 text-subhead font-semibold">
+        <section aria-labelledby="deal-invites-heading" className="mb-section">
+          <h3 id="deal-invites-heading" className="mb-cozy text-subhead font-semibold">
             Waiting to join
           </h3>
           <DealInviteList invites={pendingInvites} />

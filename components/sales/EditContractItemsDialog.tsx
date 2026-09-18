@@ -121,7 +121,7 @@ export function EditContractItemsDialog({
           type="button"
           variant="outline"
           size="sm"
-          className="gap-tight px-3 text-meta font-medium leading-none [&_svg]:size-3"
+          className="gap-tight px-cozy text-meta font-medium leading-none [&_svg]:size-3"
         >
           <HugeiconsIcon icon={PencilLineIcon} aria-hidden />
           Edit

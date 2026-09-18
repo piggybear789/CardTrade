@@ -84,7 +84,7 @@ export function InspectionCountdown({
     >
       <p
         suppressHydrationWarning
-        className="text-balance text-subhead font-semibold tracking-[-0.025em]"
+        className="text-balance text-subhead font-semibold tracking-tight"
       >
         Inspection window · {remainingLabel(hours)}
       </p>
@@ -100,13 +100,13 @@ export function InspectionCountdown({
           "You have already acted" was also untrue for a Cash_Sale seller. Inspection is
           the BUYER's step; the seller never had an action in it to have already taken.
           The copy now says who it is waiting on and until when. */}
-      <p className="mt-1 text-muted-foreground" suppressHydrationWarning>
+      <p className="mt-tight text-muted-foreground" suppressHydrationWarning>
         {viewerMustAct
           ? `Check what you received, then accept it or raise a dispute by ${formatContractDateTime(deadlineAt)}. ${expiryConsequence}`
           : `Nothing is needed from you until ${formatContractDateTime(deadlineAt)}. ${expiryConsequence}`}
       </p>
       {collateralLapsesFirst ? (
-        <p className="mt-2 text-body text-destructive">
+        <p className="mt-snug text-body text-destructive">
           The collateral authorisation on this trade expires before the inspection
           window closes. Raise a dispute now rather than later: after the
           authorisation lapses there is nothing left to capture.

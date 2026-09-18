@@ -114,10 +114,24 @@ const buttonVariants = cva(
         //
         // Still a density split (32px pointer / 36px touch), just an honest one. If
         // the type scale moves again, this is the first thing to re-derive.
-        default: "h-9 px-3 py-1.5 md:h-8 md:px-2.5",
-        sm: "h-8 rounded-md px-2.5 md:h-7 md:px-2",
+        default: "h-9 px-cozy py-1.5 md:h-8 md:px-2.5",
+        sm: "h-8 rounded-md px-2.5 md:h-7 md:px-snug",
+        // `sm`'s heights with `meta` type. For a control that sits INSIDE dense
+        // chrome — a composer footer, a card corner, a toolbar — where every
+        // neighbour is 12px and a 14px label is the loudest thing in the box. Not
+        // for a form's primary action on a page, where `body` matches the copy
+        // around it. `meta` is normally chrome-only; this is the one control
+        // register allowed to wear it, because here the button IS chrome.
+        xs: "h-8 rounded-md px-snug text-meta md:h-7 [&_svg]:size-3",
         lg: "h-10 rounded-md px-5 md:h-9",
         icon: "size-8 md:size-7",
+        // The `lg` heights as a square: 44px on touch, 36px from `md`. For the
+        // one place an icon control is the primary action on a screen — a chat
+        // composer's send/attach pair — and must sit level with a `lg`-height
+        // field beside it. Before this existed the composer overrode `icon` to
+        // 44/40 by hand, which put the chat pane on a control scale no other
+        // screen used. Do not reach for it in toolbars or card corners.
+        "icon-lg": "size-11 md:size-9",
       },
     },
     defaultVariants: {

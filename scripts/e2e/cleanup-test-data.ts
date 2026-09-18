@@ -56,17 +56,14 @@
 //   cash_sale_items.cash_sale_id               -> cash_sales               (0064_shopfront_listings_and_contract_line_items.sql, ON DELETE CASCADE)
 //   cash_sale_events.cash_sale_id / .actor_id   -> cash_sales / profiles    (0008_bilateral_cash_sales.sql, cash_sale_id ON DELETE CASCADE)
 //   cash_sale_delivery_details.cash_sale_id / .buyer_id -> cash_sales / profiles (0050_protect_cash_sale_delivery_details.sql, cash_sale_id ON DELETE CASCADE, is the PK)
-//   conversations.item_id / .trade_id / .cash_sale_id / .participant_a / .participant_b
-//                                               -> items / trades / cash_sales / profiles
+//   conversations.item_id / .trade_id / .participant_a / .participant_b
+//                                               -> items / trades / profiles
 //                                               (trade_id: 0016_trade_conversation.sql ON DELETE CASCADE;
-//                                                cash_sale_id: 0019_dispute_conversation.sql ON DELETE CASCADE;
 //                                                item_id/participants: no migration, live schema, assumed NO ACTION — delete first to be safe)
+//                                               conversations.cash_sale_id (0019) was dropped in 0115.
 //
-//   THE CYCLE, and the one edge in it that actually blocks. `conversations` and
-//   `cash_sales` reference EACH OTHER:
-//     conversations.cash_sale_id         -> cash_sales    ON DELETE CASCADE       (harmless)
+//   THE ONE EDGE THAT BLOCKS. `cash_sales` points at `conversations`:
 //     cash_sales.conversation_id         -> conversations ON DELETE **NO ACTION**  <-- blocks
-//     cash_sales.dispute_conversation_id -> conversations ON DELETE SET NULL       (harmless)
 //     trades.conversation_id             -> conversations ON DELETE SET NULL       (harmless)
 //   Deleting a conversation a cash_sale points at fails with 23503 ("still
 //   referenced from table cash_sales") — and no delete ORDER fixes a cycle.
@@ -349,8 +346,7 @@ async function fetchConversationIds(
  * column first is the only way out. Safe because these cash sales are about to be
  * deleted anyway, and the column is nullable (a contract exists before its room).
  *
- * `dispute_conversation_id` and `trades.conversation_id` are ON DELETE SET NULL and
- * so need nothing.
+ * `trades.conversation_id` is ON DELETE SET NULL and so needs nothing.
  */
 async function nullifyConversationLinks(cashSaleIds: readonly string[]): Promise<void> {
   if (cashSaleIds.length === 0) return;

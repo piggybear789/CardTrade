@@ -72,20 +72,20 @@ export function CatalogResults() {
       // header and grid stack the same either way.
       className="flex min-h-0 min-w-0 flex-1 flex-col max-md:bg-background"
     >
-      <header className="mb-group bg-background pb-0 sm:mb-4 sm:border-b sm:border-border md:bg-transparent sm:pb-4">
-        <div className="flex flex-col gap-group sm:gap-3">
+      <header className="mb-group bg-background pb-0 sm:mb-group sm:border-b sm:border-border md:bg-transparent sm:pb-group">
+        <div className="flex flex-col gap-group sm:gap-cozy">
           {/* `sm:flex-wrap` is kept as a floor even though sort is the only
               control left here: a long single-category title plus a 180px
               select can still outgrow a narrow desktop column, and without wrap
               the only give is the title's `min-w-0`, which breaks the heading
               across lines to keep the select beside it. */}
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-group">
             <div className="min-w-0">
               {/* Title and count on ONE BASELINE. `items-baseline` rather than
                   `items-center`, because the two are different sizes and centring them
                   leaves the count floating above the title's baseline. */}
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-cozy gap-y-0.5">
-                <h2 className="text-balance text-subhead font-semibold tracking-[-0.025em] md:text-head">
+                <h2 className="text-balance text-subhead font-semibold tracking-tight md:text-head">
                   {resultTitle}
                 </h2>
                 <CatalogResultCount />
@@ -101,7 +101,7 @@ export function CatalogResults() {
                 the other filters and now lives in the rail. Below `md` the rail
                 is gone and sort lives in the filter sheet, which is why this
                 group is desktop-only. */}
-            <div className="hidden min-w-0 md:flex md:flex-wrap md:items-center md:justify-end md:gap-2">
+            <div className="hidden min-w-0 md:flex md:flex-wrap md:items-center md:justify-end md:gap-snug">
               {result.total > 0 ? <CatalogSortControl /> : null}
             </div>
           </div>
@@ -118,7 +118,7 @@ export function CatalogResults() {
       {error ? (
         <div
           role="alert"
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-group py-cozy"
+          className="mb-group flex flex-wrap items-center justify-between gap-cozy rounded-lg border border-destructive/40 bg-destructive/10 px-group py-cozy"
         >
           <p className="text-body text-foreground">
             {error} Showing your previous results.
@@ -177,7 +177,7 @@ export function CatalogResults() {
 
       {result.total > 0 && totalPages > 1 ? (
         <nav
-          className="mt-10 hidden flex-wrap items-center justify-between gap-3 border-t border-border pt-6 sm:justify-center sm:gap-4 md:flex"
+          className="mt-10 hidden flex-wrap items-center justify-between gap-cozy border-t border-border pt-6 sm:justify-center sm:gap-group md:flex"
           aria-label="Marketplace pages"
         >
           {result.page > 1 ? (

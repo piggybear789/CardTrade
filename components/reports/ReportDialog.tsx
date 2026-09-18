@@ -179,8 +179,8 @@ export function ReportDialog({
       <DialogContent>
         {/* The form is DialogContent's only child, so its flex gap cannot reach
             header, body and footer. Repeating the gap here spaces them the same
-            way every other dialog does, instead of a one-off `py-4` on the body. */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
+            way every other dialog does, instead of a one-off `py-group` on the body. */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-cozy sm:gap-group">
           <DialogHeader>
             <DialogTitle>Report {targetNoun}</DialogTitle>
             <DialogDescription>

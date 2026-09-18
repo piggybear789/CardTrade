@@ -174,12 +174,6 @@ export interface ConversationTradeSummary {
   id: string;
 }
 
-/** A compact summary of the dispute a conversation belongs to (if any). */
-export interface ConversationDisputeSummary {
-  id: string;
-  itemTitle: string;
-}
-
 /** A conversation enriched for the inbox list. */
 export interface ConversationListEntry {
   id: string;
@@ -189,19 +183,18 @@ export interface ConversationListEntry {
   item: ConversationItemSummary | null;
   /** Set when this thread is a 2-way trade's chat. */
   trade: ConversationTradeSummary | null;
-  /** Set when this thread is a dispute arbitration chat. */
-  dispute: ConversationDisputeSummary | null;
   /**
    * Set when this thread IS a cash sale's contract thread, with the contract's live
-   * status.
+   * status — including `DISPUTED`, which is how the inbox badges a dispute.
    *
-   * A DIFFERENT LINK FROM `dispute`, and the distinction is easy to get wrong.
-   * `conversations.cash_sale_id` is set only by `attach_dispute_conversation` (0019) —
-   * it means "this is the arbitration chat", enforced one-per-sale by a unique partial
-   * index. The ordinary sale thread is pointed at from the other side, by
-   * `cash_sales.conversation_id`, and carries `item_id` like any listing enquiry.
+   * The sale thread is pointed at from the sale's side, by `cash_sales.conversation_id`,
+   * and carries `item_id` like any listing enquiry. There is no conversation-side
+   * marker: the separate "arbitration chat" that 0019 used to open (and flag with
+   * `conversations.cash_sale_id`) was retired in 0115, because the dispute already
+   * appears in this thread as a `DISPUTE_RAISED` notice and produced a duplicate
+   * inbox row for the same two people.
    *
-   * So without this the inbox could not tell a live $400 contract from someone asking
+   * Without this the inbox could not tell a live $400 contract from someone asking
    * whether a card was still available: both were a name, a preview and a thumbnail.
    */
   sale: ConversationSaleSummary | null;
@@ -326,17 +319,10 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
         .filter((id): id is string => Boolean(id)),
     ),
   );
-  const cashSaleIds = Array.from(
-    new Set(
-      conversations
-        .map((c) => (c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
   const conversationIds = conversations.map((c) => c.id);
 
   // Batch the enrichment lookups. Each tolerates missing rows (null).
-  const [profilesRes, itemsRes, cashSalesRes, saleThreadsRes, messagesRes] =
+  const [profilesRes, itemsRes, saleThreadsRes, messagesRes] =
     await Promise.all([
       supabase
         .from('public_profiles')
@@ -345,9 +331,6 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       itemIds.length > 0
         ? supabase.from('items').select('id, title, image_paths').in('id', itemIds)
         : Promise.resolve({ data: [] as { id: string; title: string; image_paths: string[] }[] }),
-      cashSaleIds.length > 0
-        ? supabase.from('cash_sales').select('id, item_title').in('id', cashSaleIds)
-        : Promise.resolve({ data: [] as { id: string; item_title: string }[] }),
       // WHICH THREADS ARE CONTRACTS. Looked up from the sale's own
       // `conversation_id` rather than from the conversation row, because a sale thread
       // is not marked on the conversation at all — see `ConversationListEntry.sale`.
@@ -389,14 +372,6 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
         title: it.title as string,
         imagePath: ((it.image_paths as string[] | null) ?? [])[0] ?? null,
       },
-    ]),
-  );
-
-
-  const disputeById = new Map<string, ConversationDisputeSummary>(
-    (cashSalesRes.data ?? []).map((s) => [
-      s.id as string,
-      { id: s.id as string, itemTitle: (s as { item_title: string }).item_title },
     ]),
   );
 
@@ -453,9 +428,6 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
       },
       item: c.item_id ? (itemById.get(c.item_id) ?? null) : null,
       trade: c.trade_id ? { id: c.trade_id } : null,
-      dispute: (c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id
-        ? (disputeById.get((c as ConversationRow & { cash_sale_id?: string | null }).cash_sale_id!) ?? null)
-        : null,
       sale: saleByConversation.get(c.id) ?? null,
       lastMessage: latestByConversation.get(c.id) ?? null,
       unreadCount: unreadByConversation.get(c.id) ?? 0,
@@ -567,24 +539,15 @@ export async function getConversation(
   }
 
   const otherId = conv.participant_a === me ? conv.participant_b : conv.participant_a;
-  const disputeCashSaleId = (
-    conv as ConversationRow & { cash_sale_id?: string | null }
-  ).cash_sale_id;
 
-  // Ordinary sale threads are linked from cash_sales.conversation_id. The
-  // conversation-side cash_sale_id belongs only to a dispute thread (0019).
-  // Both branches return an ordered collection because a listing conversation
-  // can be reused by several sequential — or binder — contracts.
-  const salePromise = (disputeCashSaleId
-    ? supabase
-        .from('cash_sales')
-        .select(CONVERSATION_SALE_DETAIL_SELECT)
-        .eq('id', disputeCashSaleId)
-    : supabase
-        .from('cash_sales')
-        .select(CONVERSATION_SALE_DETAIL_SELECT)
-        .eq('conversation_id', conversationId)
-  ).order('created_at', { ascending: false });
+  // Sale threads are linked from cash_sales.conversation_id. An ordered collection,
+  // because a listing conversation can be reused by several sequential — or
+  // binder — contracts.
+  const salePromise = supabase
+    .from('cash_sales')
+    .select(CONVERSATION_SALE_DETAIL_SELECT)
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: false });
 
   // Read the message snapshot before contract context. If a transition commits
   // between them, the later sale read is newer; the reverse order can render a

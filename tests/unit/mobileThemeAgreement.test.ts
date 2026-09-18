@@ -329,7 +329,7 @@ describe('the palette agrees', () => {
 
 describe('the type scale agrees', () => {
   /** Validates: Requirements 2.3 */
-  it('P4: the seven Tailwind levels are the seven Dart levels, size and line height', () => {
+  it('P4: the six Tailwind levels are the six Dart levels, size and line height', () => {
     const web = webFontSizeLevels();
     const dart = dartTypeLevels();
     expect(describeFindings(compareTypeScale(web, dart))).toEqual([]);

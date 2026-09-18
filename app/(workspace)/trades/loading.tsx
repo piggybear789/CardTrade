@@ -26,9 +26,9 @@ export default function TradesLoading() {
       <SectionFilterSkeleton labels={['Active', 'Needs you', 'Waiting', 'Past']} />
       {/* The group heading — "Open", "Waiting on you", "Finished" — which this
           placeholder used to skip. The list is always inside a labelled section, so
-          35.8px of `text-subhead` plus `mb-3` appeared between the tabs and the first
+          35.8px of `text-subhead` plus `mb-cozy` appeared between the tabs and the first
           row on every load. */}
-      <TextLines className="mb-3 text-subhead" widths={['w-24']} />
+      <TextLines className="mb-cozy text-subhead" widths={['w-24']} />
       {/* The swap label ("X ↔ Y") clamps to two lines. */}
       <ContractCardListSkeleton count={5} titleLines={2} />
     </MarketplaceShellSkeleton>

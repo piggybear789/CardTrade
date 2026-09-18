@@ -384,11 +384,11 @@ export default async function ItemDetailPage({
         className={
           showBuyerBar
             ? 'flex min-h-0 flex-col pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:pb-0'
-            : 'flex min-h-0 flex-col pb-8 lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:pb-0'
+            : 'flex min-h-0 flex-col pb-section lg:h-[calc(100dvh-8.25rem-1px-env(safe-area-inset-top))] lg:pb-0'
         }
       >
         <nav
-          className="mb-2 hidden flex-wrap items-center justify-between gap-2 lg:flex"
+          className="mb-snug hidden flex-wrap items-center justify-between gap-snug lg:flex"
           aria-label="Listing"
         >
           {/* INSET TO SIT OVER THE PHOTO, NOT OVER THE THUMBNAIL RAIL.
@@ -413,7 +413,7 @@ export default async function ItemDetailPage({
             </Link>
           </Button>
 
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-snug">
             <Badge
               variant={statusBadge.variant}
               aria-label={`Availability: ${statusBadge.label}`}
@@ -477,7 +477,7 @@ export default async function ItemDetailPage({
               could see. It existed for the scrolling case — a long description otherwise
               ends flush against the cut — and that belongs on the action stack itself,
               where it does not shift the resting layout. */}
-          <div className="flex min-w-0 flex-col pt-3 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-0 flex-col pt-cozy lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="lg:hidden">
               <ListingDetailStack
                 title={listingTitle}
@@ -506,7 +506,7 @@ export default async function ItemDetailPage({
                 sellerIdentity={sellerIdentity}
                 afterDescription={
                   images.length > 0 ? (
-                    <div className="mt-4">
+                    <div className="mt-group">
                       <ImageGallery
                         images={images}
                         title={listingTitle}
@@ -518,13 +518,13 @@ export default async function ItemDetailPage({
               />
 
               {showBuyerBar && regionNotice ? (
-                <div className="mt-4">
+                <div className="mt-group">
                   <StatusNotice description={regionNotice} />
                 </div>
               ) : null}
 
               {showBuyerBar && user && !sellerIdentity ? (
-                <div className="mt-4">
+                <div className="mt-group">
                   <StatusNotice
                     title="Payout setup needed"
                     description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
@@ -555,8 +555,8 @@ export default async function ItemDetailPage({
               <div
                 className={
                   showBuyerBar
-                    ? 'mt-4 hidden space-y-4 pt-2 md:block'
-                    : 'mt-4 space-y-4 pt-2'
+                    ? 'mt-group hidden space-y-group pt-snug md:block'
+                    : 'mt-group space-y-group pt-snug'
                 }
               >
                 {renderListingActions('message-seller-heading')}
@@ -728,7 +728,7 @@ function ItemActions({
     // the rest — including a second buyer asking for a card already promised.
     if (isShopfront) {
       return (
-        <div className="space-y-4">
+        <div className="space-y-group">
           {openContracts.length > 0 ? (
             <StatusNotice
               title={`${openContracts.length} open ${
@@ -742,7 +742,7 @@ function ItemActions({
                     <Link
                       href={`/sales/${contract.id}`}
                       transitionTypes={['nav-forward']}
-                      className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-body transition-colors hover:bg-muted/50"
+                      className="flex items-center justify-between gap-cozy rounded-md border bg-background px-cozy py-snug text-body transition-colors hover:bg-muted/50"
                     >
                       <span className="min-w-0 truncate">{contract.buyerName}</span>
                       <span className="shrink-0 font-medium">
@@ -759,8 +759,8 @@ function ItemActions({
               description="Buyers will ask for the cards they want, then you agree a price with each of them."
             />
           )}
-          <div className="grid grid-cols-2 gap-2">
-            <Button asChild variant="outline" className="min-w-0 w-full px-2">
+          <div className="grid grid-cols-2 gap-snug">
+            <Button asChild variant="outline" className="min-w-0 w-full px-snug">
               <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
                 <HugeiconsIcon icon={PencilIcon} aria-hidden />
                 <span className="truncate">Edit</span>
@@ -807,19 +807,19 @@ function ItemActions({
       // label — so an equal third made it a wide red slab with one small glyph in
       // the middle. An `auto` track sizes it to its content, which is the same
       // shape `ListingOwnerBar` uses and for the same reason.
-      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-        <Button asChild variant="outline" size="lg" className="min-w-0 w-full px-2">
+      <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
+        <Button asChild variant="outline" size="lg" className="min-w-0 w-full px-snug">
           <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
             <HugeiconsIcon icon={PencilIcon} aria-hidden />
             <span className="truncate">Edit</span>
           </Link>
         </Button>
-        <CopyTradeLink itemId={itemId} size="lg" className="min-w-0 w-full px-2" />
+        <CopyTradeLink itemId={itemId} size="lg" className="min-w-0 w-full px-snug" />
         <DeleteListingDialog
           itemId={itemId}
           itemTitle={itemTitle}
           size="lg"
-          className="min-w-0 px-3"
+          className="min-w-0 px-cozy"
           compact
         />
       </div>
@@ -891,7 +891,7 @@ function ItemActions({
   const showOffer = Boolean(sellerIdentity) && !isShopfront;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-group">
       {!sellerIdentity ? (
         <StatusNotice
           title="Payout setup needed"
@@ -899,7 +899,7 @@ function ItemActions({
         />
       ) : (
         <div
-          className="flex flex-col items-stretch gap-2 md:flex-row md:items-start"
+          className="flex flex-col items-stretch gap-snug md:flex-row md:items-start"
           role="group"
           aria-label="Start a contract"
         >

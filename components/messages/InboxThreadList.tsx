@@ -11,16 +11,16 @@
 // `CashSaleStatusBadge` the contract room and the Sales list render, so a thread cannot
 // describe a contract differently from the contract itself.
 //
-// TWO DIFFERENT LINKS, AND THEY ARE EASY TO CONFLATE. `entry.dispute` is the ARBITRATION
-// chat — `conversations.cash_sale_id`, set only when a dispute is opened. `entry.sale` is
-// the ordinary contract thread, found from `cash_sales.conversation_id`. A row can be one
-// or the other, never both, and the dispute reading wins because it is the more serious
-// fact about the same money.
+// A DISPUTE IS A STATE OF THE CONTRACT THREAD, NOT A THREAD OF ITS OWN. `entry.sale`
+// is the contract thread, found from `cash_sales.conversation_id`, and its status
+// (`DISPUTED` included) is what the pill shows. The separate "arbitration chat" row
+// that 0019 used to add — same two people, an alert triangle for a thumbnail — was
+// retired in 0115.
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { HandshakeIcon, MessageSquareIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
+import { HandshakeIcon, MessageSquareIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -30,21 +30,7 @@ import { formatRelativeTime, itemImageUrl } from '@/lib/format';
 import type { ConversationListEntry } from '@/lib/actions/messages';
 import { cn } from '@/lib/utils';
 
-/** True when this thread is the arbitration chat for a disputed sale. */
-function isDisputeThread(c: ConversationListEntry): boolean {
-  return c.dispute !== null;
-}
-
 function statusPill(c: ConversationListEntry) {
-  if (isDisputeThread(c)) {
-    return (
-      // "Disputed", matching `CASH_SALE_STATUS_MAP` — the state of the contract,
-      // not the name of a noun. The room, the badge and the thread now agree.
-      <span className="shrink-0 rounded-full border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-meta font-medium text-destructive">
-        Disputed
-      </span>
-    );
-  }
   if (c.sale) {
     if (c.sale.activeContractCount > 1) {
       return (
@@ -76,7 +62,7 @@ function UnreadMark({ count }: { count: number }) {
     <span
       className={cn(
         'absolute -right-0.5 -top-0.5 grid place-items-center rounded-full bg-destructive text-destructive-foreground',
-        count === 1 ? 'size-2.5' : 'min-h-4 min-w-4 px-1 text-meta font-semibold leading-none',
+        count === 1 ? 'size-2.5' : 'min-h-4 min-w-4 px-tight text-meta font-semibold leading-none',
       )}
       aria-label={`${count} unread messages`}
     >
@@ -101,7 +87,6 @@ function MobileThreadRow({
   const preview = c.lastMessage?.body ?? 'No messages yet';
   const time = formatRelativeTime(c.lastMessage?.createdAt ?? c.lastMessageAt);
   const unread = c.unreadCount > 0;
-  const disputed = isDisputeThread(c);
 
   return (
     // `items-center`, NOT `items-start`. The text column is three lines — name,
@@ -125,7 +110,7 @@ function MobileThreadRow({
       href={`/messages/${c.id}`}
       active={active}
       className={cn(
-        'relative flex min-h-11 items-center gap-3 py-3.5 border border-transparent focus:outline-none focus-visible:border-iris',
+        'relative flex min-h-11 items-center gap-cozy py-3.5 border border-transparent focus:outline-none focus-visible:border-iris',
         // CURRENT READS THE SAME WAY IT DOES IN THE WORKSPACE RAIL, and deliberately
         // so — this row and the rail's own current item are the same statement. That
         // means a NEUTRAL fill plus an iris bar, copied from `MarketplaceNav`, not
@@ -180,19 +165,12 @@ function MobileThreadRow({
           height={88}
           className="size-11 shrink-0 rounded-md object-cover"
         />
-      ) : disputed || c.trade ? (
+      ) : c.trade ? (
         <span
-          className={cn(
-            'flex size-11 shrink-0 items-center justify-center rounded-md bg-muted',
-            disputed ? 'text-destructive' : 'text-muted-foreground',
-          )}
+          className="flex size-11 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
           aria-hidden
         >
-          {disputed ? (
-            <HugeiconsIcon icon={TriangleAlertIcon} className="size-5" />
-          ) : (
-            <HugeiconsIcon icon={HandshakeIcon} className="size-5" />
-          )}
+          <HugeiconsIcon icon={HandshakeIcon} className="size-5" />
         </span>
       ) : null}
     </RowShell>
@@ -243,7 +221,7 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
     <Link
       href={`/messages/${c.id}`}
       transitionTypes={['nav-forward']}
-      className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-iris"
+      className="flex items-center gap-cozy p-group transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-iris"
     >
       {thumb ? (
         // NOT decorative any more. With the item title dropped from the row, the
@@ -259,17 +237,10 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
         />
       ) : (
         <span
-          className={cn(
-            'flex size-12 shrink-0 items-center justify-center rounded-md',
-            isDisputeThread(c)
-              ? 'bg-destructive/10 text-destructive'
-              : 'bg-muted text-muted-foreground',
-          )}
+          className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
           aria-hidden="true"
         >
-          {isDisputeThread(c) ? (
-            <HugeiconsIcon icon={TriangleAlertIcon} className="size-5" />
-          ) : c.trade ? (
+          {c.trade ? (
             <HugeiconsIcon icon={HandshakeIcon} className="size-5" />
           ) : (
             <HugeiconsIcon icon={MessageSquareIcon} className="size-5" />
@@ -287,7 +258,7 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
             The item title is gone on purpose: the thumbnail to the left already
             says which card this is, and spelling it out cost the row its whole
             width and forced the wrap. State is a pill now, not a sentence. */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-snug">
           <Avatar avatarPath={c.other.avatarPath} displayName={name} size="xs" />
           <span className="truncate text-lead font-medium">{name}</span>
           {statusPill(c)}

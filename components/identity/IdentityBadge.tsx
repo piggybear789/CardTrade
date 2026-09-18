@@ -87,7 +87,7 @@ export function IdentityBadge({
 
   return (
     <span
-      className={cn('text-trust inline-flex items-center gap-1 font-medium', className)}
+      className={cn('text-trust inline-flex items-center gap-tight font-medium', className)}
       title="Identity verified by Stripe with a photo ID and a selfie"
       // `role="img"` so the label is actually exposed. In `iconOnly` mode the
       // ShieldCheck is `aria-hidden` and there is no visible text, so without a

@@ -52,7 +52,7 @@ function LocationRow({
   className?: string;
 }) {
   return (
-    <div className={cn('flex min-w-0 items-center gap-3', className)}>
+    <div className={cn('flex min-w-0 items-center gap-cozy', className)}>
       <HugeiconsIcon icon={MapPinIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <span className="min-w-0 flex-1 truncate text-body">{label}</span>
       {href ? (
@@ -67,7 +67,7 @@ function LocationRow({
           // merely sitting near it. 44px on touch is the pattern the recovery link
           // in `AuthFormSkeleton` already uses; `md:min-h-6` clears the floor on a
           // precise pointer without turning a fact row into a button.
-          className="inline-flex min-h-11 shrink-0 items-center gap-1 text-body font-semibold underline-offset-4 hover:underline md:min-h-6"
+          className="inline-flex min-h-11 shrink-0 items-center gap-tight text-body font-semibold underline-offset-4 hover:underline md:min-h-6"
         >
           Open in Maps
           <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
@@ -118,7 +118,7 @@ export function PlaceMap({
           className,
         )}
       >
-        <span className="inline-flex items-center gap-2">
+        <span className="inline-flex items-center gap-snug">
           <HugeiconsIcon icon={MapPinIcon} className="size-4" aria-hidden />
           No map location yet
         </span>
@@ -159,13 +159,13 @@ export function PlaceMap({
           />
         </a>
         {label ? (
-          <div className="flex items-center justify-between gap-3 border-t px-cozy py-snug text-body">
+          <div className="flex items-center justify-between gap-cozy border-t px-cozy py-snug text-body">
             <span className="min-w-0 truncate text-muted-foreground">{label}</span>
             <a
               href={externalUrl!}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1 font-semibold underline-offset-4 hover:underline"
+              className="inline-flex shrink-0 items-center gap-tight font-semibold underline-offset-4 hover:underline"
             >
               Open
               <HugeiconsIcon icon={ExternalLinkIcon} className="h-3.5 w-3.5" aria-hidden />
@@ -183,7 +183,7 @@ export function PlaceMap({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center gap-2 rounded-lg border bg-muted p-4 text-center text-body',
+          'flex flex-col items-center justify-center gap-snug rounded-lg border bg-muted p-group text-center text-body',
           'h-32',
           className,
         )}
@@ -217,13 +217,13 @@ export function PlaceMap({
         />
       </div>
       {label ? (
-        <div className="flex items-center justify-between gap-3 border-t px-cozy py-snug text-body">
+        <div className="flex items-center justify-between gap-cozy border-t px-cozy py-snug text-body">
           <span className="min-w-0 truncate text-muted-foreground">{label}</span>
           <a
             href={externalUrl!}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1 font-semibold underline-offset-4 hover:underline"
+            className="inline-flex shrink-0 items-center gap-tight font-semibold underline-offset-4 hover:underline"
           >
             Open
             <HugeiconsIcon icon={ExternalLinkIcon} className="h-3.5 w-3.5" aria-hidden />

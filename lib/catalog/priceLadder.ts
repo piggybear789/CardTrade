@@ -89,12 +89,21 @@ export function nearestPriceStop(ladder: number[], cents: number): number {
  * not "there are 41 listings between $20 and $30". Counts stay available via
  * `CatalogFacets.total` if a tooltip ever wants them.
  *
- * An empty catalog returns all zeroes, which renders as a flat baseline rather than as
- * a misleading uniform distribution.
+ * TOO FEW POINTS IS NO SHAPE. Below {@link HISTOGRAM_MIN_SAMPLE} listings the function
+ * returns `[]` and the control draws nothing. Normalising to the busiest segment means
+ * that with one listing per segment EVERY occupied bar is 100%, so a two-card catalog
+ * drew two full-height towers at the ends of the track with a dotted floor between
+ * them — which read as a rendering fault, not as "there are two cards". A histogram
+ * is a summary; with a handful of items the grid itself is the better summary.
+ *
+ * An empty catalog returns `[]` for the same reason.
  */
+export const HISTOGRAM_MIN_SAMPLE = 8;
+
 export function priceHistogram(ladder: number[], pricesCents: number[]): number[] {
   const segments = Math.max(ladder.length - 1, 0);
   if (segments === 0) return [];
+  if (pricesCents.length < HISTOGRAM_MIN_SAMPLE) return [];
 
   const counts = new Array<number>(segments).fill(0);
   for (const cents of pricesCents) {

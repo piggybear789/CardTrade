@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// The seven web-owned type levels, ported without implicit colour or weight.
+/// The six web-owned type levels, ported without implicit colour or weight.
+///
+/// There is no `nav` level: the web retired `text-nav` (15px) because a size that
+/// existed for one component was a step off the scale, and nav copy is `body`.
 /// Requirements 2.1–2.4 and 2.16.
 abstract final class AppType {
   AppType._();
@@ -26,7 +29,6 @@ abstract final class AppType {
   // `tests/unit/mobileThemeAgreement.test.ts` compares every level's size and line
   // height against `tailwind.config.ts`, so this moves with it or the harness fails.
   static const TextStyle body = TextStyle(fontSize: 14, height: 1.6, letterSpacing: -0.14);
-  static const TextStyle nav = TextStyle(fontSize: 15, height: 1.4, letterSpacing: -0.15);
   static const TextStyle lead = TextStyle(fontSize: 16, height: 1.5, letterSpacing: -0.16);
   static const TextStyle subhead = TextStyle(fontSize: 17, height: 1.4, letterSpacing: -0.17);
   static const TextStyle head = TextStyle(fontSize: 21, height: 1.25, letterSpacing: -0.21);

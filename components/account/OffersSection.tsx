@@ -376,7 +376,7 @@ function OfferNegotiation({
 
       {/* Inline actions when it's the caller's turn. */}
       {(offer.isMyTurn || offer.canWithdraw) && (
-        <div className="mt-3 flex flex-wrap gap-snug">
+        <div className="mt-cozy flex flex-wrap gap-snug">
           {offer.isMyTurn && (
             <>
               <Button
@@ -552,7 +552,7 @@ function CounterOfferDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-group py-4">
+          <div className="space-y-group py-group">
             <div className="space-y-snug">
               <Label htmlFor={`counter-amount-${offerId}`}>Your counter</Label>
               <MoneyInput

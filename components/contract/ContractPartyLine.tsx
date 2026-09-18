@@ -75,7 +75,7 @@ export function ContractPartyStats({
   const bits: ReactNode[] = [
     <span
       className={cn(
-        'inline-flex items-center gap-1 font-medium',
+        'inline-flex items-center gap-tight font-medium',
         party.verified ? 'text-trust' : 'text-iris-ink',
       )}
     >
@@ -85,7 +85,7 @@ export function ContractPartyStats({
     party.rating === null ? (
       <span className="text-muted-foreground">New to NoDitto</span>
     ) : (
-      <span className="inline-flex items-center gap-1">
+      <span className="inline-flex items-center gap-tight">
         <HugeiconsIcon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden />
         <span className="font-medium tabular-nums">
           {Number(party.rating).toFixed(1)}
@@ -99,7 +99,7 @@ export function ContractPartyStats({
     if (stat.muted) continue;
     const noun = shortStatNoun(stat.label);
     bits.push(
-      <span className="inline-flex min-w-0 items-baseline gap-1 text-muted-foreground">
+      <span className="inline-flex min-w-0 items-baseline gap-tight text-muted-foreground">
         <span className="truncate font-medium tabular-nums text-foreground">
           {stat.value}
         </span>
@@ -111,18 +111,18 @@ export function ContractPartyStats({
   return (
     <div
       className={cn(
-        'space-y-1',
+        'space-y-tight',
         className,
       )}
     >
       <p
         aria-label="Reputation summary"
         className={cn(
-          'flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body leading-snug',
+          'flex flex-wrap items-center gap-x-snug gap-y-0.5 text-body leading-snug',
         )}
       >
         {bits.map((bit, idx) => (
-          <span key={idx} className="inline-flex items-center gap-x-2">
+          <span key={idx} className="inline-flex items-center gap-x-snug">
             {/* Separator, not spacing. Two trust claims set apart by whitespace
                 alone read as two columns of a table that isn't there; a middot
                 says they are one sentence. */}
@@ -158,7 +158,7 @@ function PartyDetail({ party, isMe }: { party: ContractParty; isMe: boolean }) {
           <p className="truncate text-body font-semibold leading-none">
             {isMe ? 'You' : party.name}
           </p>
-          <p className="mt-1 truncate text-body text-muted-foreground">
+          <p className="mt-tight truncate text-body text-muted-foreground">
             {isMe ? party.name : (party.roleLabel ?? 'Counterparty')}
           </p>
         </div>
@@ -216,7 +216,7 @@ export function ContractPartyLine({
 
   return (
     <div className={cn('min-w-0', className)}>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-snug gap-y-tight">
         <PartyChip party={me} isMe />
         <span className="shrink-0 text-muted-foreground" aria-hidden>
           {separator}
@@ -234,7 +234,7 @@ export function ContractPartyLine({
             type="button"
             onClick={() => setExpanded((current) => !current)}
             aria-expanded={expanded}
-            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
+            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-tight py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
           >
             Details
             <HugeiconsIcon icon={ChevronDownIcon}

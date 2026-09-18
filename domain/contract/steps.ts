@@ -111,6 +111,13 @@ export interface ContractStep {
   owner: ContractStepOwner;
   status: ContractStepStatus;
   action?: ContractStepAction;
+  /**
+   * `destructive` for a step that is a problem rather than progress — a dispute under
+   * review. The status card takes the red wash instead of the plain or "your move"
+   * surface, so the room's state is legible from colour before the label is read.
+   * Omit for every ordinary step.
+   */
+  tone?: 'destructive';
 }
 
 /**
@@ -138,6 +145,8 @@ export interface ContractStepDraft {
    */
   blocked?: boolean;
   action?: ContractStepAction;
+  /** See {@link ContractStep.tone}. */
+  tone?: 'destructive';
 }
 
 /**
@@ -167,6 +176,7 @@ export function sequenceSteps(drafts: ContractStepDraft[]): ContractStep[] {
         owner: draft.owner,
         status: 'done' as const,
         action: draft.action,
+        tone: draft.tone,
       };
     }
 
@@ -188,6 +198,7 @@ export function sequenceSteps(drafts: ContractStepDraft[]): ContractStep[] {
       owner: draft.owner,
       status,
       action: draft.action,
+      tone: draft.tone,
     };
   });
 }
@@ -228,6 +239,7 @@ export function sequenceHaltedSteps(
       owner: draft.owner,
       // A closed contract offers no controls, whatever the draft suggested.
       action: undefined,
+      tone: draft.tone,
     };
 
     if (draft.done) return { ...base, status: 'done' as const };

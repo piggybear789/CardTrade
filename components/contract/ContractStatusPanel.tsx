@@ -49,6 +49,18 @@ export interface ContractStatusPanelProps {
    * is not much of a fact — but it is not what the step is waiting on.
    */
   fact?: ReactNode;
+  /**
+   * The live step's single-tap controls, for PHONES ONLY.
+   *
+   * The rule on {@link children} — a lone button belongs in the chat dock, not here —
+   * assumes the dock is visible while this panel is. From `md` it is: the tabs sit
+   * beside the conversation. Below `md` this panel opens as a modal sheet OVER the
+   * conversation, the dock is underneath it, and a card reading "Accept the item, or
+   * report a problem" had nothing to press. Pass the same controls the dock renders;
+   * the panel shows them under the step and hides them again from `md`, where the
+   * dock is back on screen and a second copy would be a duplicate primary.
+   */
+  dockActions?: ReactNode;
   className?: string;
 }
 
@@ -58,6 +70,7 @@ export function ContractStatusPanel({
   children,
   footnote,
   fact,
+  dockActions,
   className,
 }: ContractStatusPanelProps) {
   const mine = step?.owner === 'you';
@@ -84,10 +97,17 @@ export function ContractStatusPanel({
         aria-label="Next step"
         className={cn(
           'rounded-xl border p-group',
-          // The tint is the same "your move" wash the dock uses, so the two surfaces
-          // agree; a step you cannot act on stays on the plain card surface rather than
-          // borrowing an urgency it does not have.
-          mine ? 'border-border bg-iris/[0.08]' : 'border-border bg-card',
+          // THREE SURFACES. A destructive step — a dispute under review — takes the
+          // same red wash as the claim card on the Dispute tab, so the room's state
+          // reads from colour before the label does. Otherwise the tint is the "your
+          // move" wash the dock uses, so the two surfaces agree; a step you cannot act
+          // on stays on the plain card surface rather than borrowing an urgency it
+          // does not have.
+          step?.tone === 'destructive'
+            ? 'border-destructive/30 bg-destructive/[0.06]'
+            : mine
+              ? 'border-border bg-iris/[0.08]'
+              : 'border-border bg-card',
         )}
       >
         {/* NO EYEBROW. It named the step's owner above the step's own label, and the
@@ -112,6 +132,12 @@ export function ContractStatusPanel({
             HTML inside a paragraph. The slot now carries the spacing and nothing else;
             the caller owns the content. */}
         {fact ? <div className="mt-cozy">{fact}</div> : null}
+
+        {dockActions ? (
+          <div className="mt-group flex flex-wrap gap-snug border-t pt-group md:hidden">
+            {dockActions}
+          </div>
+        ) : null}
 
         {children ? (
           // A RULE ABOVE THE CONTROLS. Inside one card the instruction and the form need

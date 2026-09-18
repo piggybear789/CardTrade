@@ -58,14 +58,14 @@ export function ListingActionIcon({
   const body: ReactNode = (
     <>
       {chip}
-      <span className="min-w-0 text-left text-body font-semibold leading-tight tracking-[0.01em] md:w-full md:text-center">
+      <span className="min-w-0 text-left text-body font-semibold leading-tight md:w-full md:text-center">
         {label}
       </span>
     </>
   );
 
   const sharedClass = cn(
-    'group inline-flex w-full min-h-12 touch-manipulation flex-row items-center justify-start gap-3 rounded-lg border border-border bg-card px-4 py-3 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:flex-col md:items-center md:justify-center md:gap-tight md:rounded-md md:border-transparent md:bg-transparent md:px-0 md:py-0',
+    'group inline-flex w-full min-h-12 touch-manipulation flex-row items-center justify-start gap-cozy rounded-lg border border-border bg-card px-group py-cozy focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:flex-col md:items-center md:justify-center md:gap-tight md:rounded-md md:border-transparent md:bg-transparent md:px-0 md:py-0',
     className,
   );
 

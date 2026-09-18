@@ -128,7 +128,7 @@ const config: Config = {
         section: "2rem", // between sections
         region: "4rem", // between major page regions
       },
-      // TYPE SCALE — six levels, and the ONE place a text size is decided.
+      // TYPE SCALE — five levels, and the ONE place a text size is decided.
       // Mapping rules and reasoning: `.kiro/specs/design-system/typography-spacing.md`.
       //
       // These tokens deliberately set size and LINE-HEIGHT ONLY, not weight. Pairing
@@ -150,9 +150,9 @@ const config: Config = {
       //     from the type scale, so any hand-computed placeholder height derived
       //     from a `text-body` line has to be recomputed — see the description
       //     field in `ItemFormSkeleton`.
-      //   - `nav` is 15px, and its whole justification is being a step above
-      //     `body` for the sidebar rail. At 14px that step is one pixel, which is
-      //     not a register. If 14px stays, `nav` needs revisiting or retiring.
+      //   - `nav` was 15px, justified as a step above `body` for the sidebar
+      //     rail. At 14px that step was one pixel, which is not a register, so
+      //     it has been retired — see the note where it used to sit.
       //
       // 14px does NOT change the iOS focus-zoom position: the threshold is 16px,
       // so a focused field still zooms. See the `lead` note below.
@@ -182,23 +182,31 @@ const config: Config = {
       //   a pointer or width query. Do NOT reintroduce it per-component: a floor
       //   on some fields and not others is what left four bare inputs at 16px
       //   while `Input` was already down at `body`.
+      // LINE-HEIGHT TRAVELS WITH THE TOKEN. Each level below fixes its own leading,
+      // and that leading is the register — `text-body` IS 14px on a 22.4px line.
+      // Overriding it re-decides the rhythm per component, which is how the same
+      // "body" register came to render at 1.43 (`leading-5`), 1.6 (token), 1.625
+      // (`leading-relaxed`) and 2.0 (`leading-7`) on adjacent screens, and how a
+      // chat composer ended up on a different line grid from the bubbles it feeds.
+      //
+      // Only three overrides are sanctioned, each a different CLAIM rather than a
+      // different taste:
+      //   `leading-none`   a single-line chip, badge, count or label that must not
+      //                    reserve descender space
+      //   `leading-tight`  headings at `head` / `display`, where the token's own
+      //                    1.25 / 1.1 is already tight and this only re-states it
+      //   `leading-snug`   a dense two-line row inside a card or list item, where
+      //                    the token's leading would push the row past its neighbours
+      // `leading-relaxed`, `leading-normal` and numeric `leading-N` are not: if a
+      // paragraph wants more air, that is a `space-y` decision, not a leading one.
       fontSize: {
         meta: ["0.75rem", { lineHeight: "1.4" }],
         body: ["0.875rem", { lineHeight: "1.6" }],
-        // THE SIDEBAR RAIL ONLY, and deliberately one step above `body`.
-        //
-        // The rail is eleven navigation targets in a narrow column, read by
-        // flicking down a list rather than by reading a sentence — a register
-        // where the body size stops being dense and starts being hard to scan.
-        // NOTE: that argument was written against a 13px `body` and is weak at
-        // 14px, where this token is only one pixel larger. It sits on
-        // `--sidebar` too, which is a step darker than the page, so its ink has
-        // slightly less contrast to work with than body copy does.
-        //
-        // Do NOT reach for this anywhere else. It exists so the rail can hold its
-        // size independently of the body scale; used in content it would just be
-        // an inconsistent paragraph.
-        nav: ["0.9375rem", { lineHeight: "1.4" }],
+        // `nav` (15px) USED TO SIT HERE, for the sidebar rail only. Its argument was
+        // "one step above body for a list you flick down rather than read", and at
+        // a 13px body that step was two pixels. At 14px it was one — the note on
+        // `body` above predicted this — so the rail is `text-body` now and the
+        // token is gone. Five levels, not six.
         lead: ["1rem", { lineHeight: "1.5" }],
         subhead: ["1.0625rem", { lineHeight: "1.4" }],
         head: ["1.3125rem", { lineHeight: "1.25" }],
@@ -224,10 +232,25 @@ const config: Config = {
       maxWidth: {
         workspace: "90rem",
       },
+      // RADIUS TIERS, all derived from `--radius` so they move together.
+      //
+      // `xl` and `2xl` used to fall through to Tailwind's fixed 12px / 16px, which
+      // is why chat bubbles (`2xl`) and a handful of cards (`xl`) did not track the
+      // token that every other corner in the product does. Tier by object:
+      //
+      //   sm    4px   chips, eyebrows, thumbnails inside a row
+      //   md    6px   controls — buttons, fields, badges, menu items
+      //   lg    8px   cards and panels
+      //   xl   12px   sheets, dialogs, large media tiles
+      //   2xl  16px   chat bubbles and pill-shaped composer fields
+      //
+      // `rounded-full` is the only shape outside this ramp.
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
       },
       keyframes: {
         "accordion-down": {

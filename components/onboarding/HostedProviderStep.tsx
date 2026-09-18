@@ -139,7 +139,7 @@ export function HostedProviderStep({
           // befallen this member and announcing one is simply inaccurate.
           role={tone === 'notice' ? 'status' : 'alert'}
           className={cn(
-            'min-w-0 text-pretty break-words text-body leading-relaxed sm:text-right',
+            'min-w-0 text-pretty break-words text-body sm:text-right',
             tone === 'notice' ? 'text-muted-foreground' : 'text-destructive',
           )}
         >

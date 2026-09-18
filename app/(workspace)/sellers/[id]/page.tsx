@@ -227,7 +227,7 @@ export default async function SellerProfilePage({
 
   return (
     <MarketplaceShell title="Seller">
-      <nav className="mb-3" aria-label="Breadcrumb">
+      <nav className="mb-cozy" aria-label="Breadcrumb">
         <Link
           href="/"
           transitionTypes={['nav-back']}
@@ -238,12 +238,12 @@ export default async function SellerProfilePage({
       </nav>
 
       {/* Header */}
-      <header className="mb-5 space-y-2 border-b pb-4">
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <header className="mb-5 space-y-snug border-b pb-group">
+        <div className="flex flex-col items-stretch gap-cozy sm:flex-row sm:items-start sm:justify-between">
           {/* The avatar sits OUTSIDE the name/rating column so it stays a fixed
               square beside a wrapping name rather than being pushed around by it.
               Decorative: the name is the h2 immediately beside it. */}
-          <div className="flex min-w-0 items-start gap-3">
+          <div className="flex min-w-0 items-start gap-cozy">
             <Avatar
               avatarPath={seller.avatarPath}
               displayName={displayName}
@@ -253,8 +253,8 @@ export default async function SellerProfilePage({
             {/* The shell rail already renders the page h1 ("Seller"), so the
                 name is an h2 to keep the document outline hierarchical —
                 mirroring the listing detail page. */}
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="min-w-0 break-words text-subhead font-semibold tracking-[-0.025em] md:text-head">
+            <div className="flex flex-wrap items-center gap-snug">
+              <h2 className="min-w-0 break-words text-subhead font-semibold tracking-tight md:text-head">
                 {displayName}
               </h2>
               {/* ONE mark. This row used to also render a <VerifiedBadge/>, on the
@@ -296,7 +296,7 @@ export default async function SellerProfilePage({
                 `whitespace-pre-line` keeps intentional line breaks; `break-words`
                 stops an unbroken 280-character string widening the layout. */}
             {sellerRow.bio ? (
-              <p className="max-w-prose whitespace-pre-line break-words text-pretty text-body leading-relaxed text-muted-foreground">
+              <p className="max-w-prose whitespace-pre-line break-words text-pretty text-body text-muted-foreground">
                 {sellerRow.bio as string}
               </p>
             ) : null}
@@ -438,7 +438,7 @@ function SellerReviewsFallback() {
             </div>
             <Skeleton className="h-4 w-20 shrink-0" />
           </div>
-          <TextLines className="text-body leading-relaxed" widths={['w-full']} />
+          <TextLines className="text-body" widths={['w-full']} />
           <TextLines className="text-meta" widths={['w-16']} />
         </li>
       ))}

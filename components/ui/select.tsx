@@ -43,7 +43,7 @@ const SelectTrigger = React.forwardRef<
       // with the surrounding UI. The old `text-lead pointer-fine:text-body` floored touch
       // at 16px to avoid iOS focus-zoom; that floor has been removed and the zoom is
       // an accepted tradeoff.
-      "flex h-9 w-full touch-manipulation items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-1 text-body md:h-8 placeholder:text-muted-foreground focus-visible:border-iris focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      "flex h-9 w-full touch-manipulation items-center justify-between gap-snug rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8 placeholder:text-muted-foreground focus-visible:border-iris focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
       className
     )}
     {...props}
@@ -63,7 +63,7 @@ const SelectScrollUpButton = React.forwardRef<
   <SelectPrimitive.ScrollUpButton
     ref={ref}
     className={cn(
-      "flex cursor-default items-center justify-center py-1",
+      "flex cursor-default items-center justify-center py-tight",
       className
     )}
     {...props}
@@ -80,7 +80,7 @@ const SelectScrollDownButton = React.forwardRef<
   <SelectPrimitive.ScrollDownButton
     ref={ref}
     className={cn(
-      "flex cursor-default items-center justify-center py-1",
+      "flex cursor-default items-center justify-center py-tight",
       className
     )}
     {...props}
@@ -129,7 +129,7 @@ const SelectContent = React.forwardRef<
           `max-h-96`, so the list still scrolls rather than running the full height. */}
       <SelectPrimitive.Viewport
         className={cn(
-          "overscroll-contain p-1",
+          "overscroll-contain p-tight",
           position === "popper" &&
             "max-h-[var(--radix-select-content-available-height)] w-full min-w-[var(--radix-select-trigger-width)]"
         )}
@@ -148,7 +148,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn("py-1.5 pl-8 pr-2 text-body font-semibold", className)}
+    className={cn("py-1.5 pl-section pr-snug text-body font-semibold", className)}
     {...props}
   />
 ));
@@ -161,7 +161,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-body outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 min-h-9",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-section pr-snug text-body outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 min-h-9",
       className
     )}
     {...props}
@@ -182,7 +182,7 @@ const SelectSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    className={cn("-mx-tight my-tight h-px bg-muted", className)}
     {...props}
   />
 ));

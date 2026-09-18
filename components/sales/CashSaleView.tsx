@@ -58,7 +58,6 @@ import {
   type ContractActionTone,
   type ContractParty,
   type ContractPartyStat,
-  type DisputeCaseOutcome,
 } from '@/components/contract';
 import {
   CASH_SALE_SECTIONS,
@@ -66,7 +65,7 @@ import {
   deriveCashSaleSteps,
   type ContractStep,
 } from '@/domain/contract';
-import { CASH_SALE_STATUS_MAP, CashSaleStatusBadge } from './CashSaleStatusBadge';
+import { CashSaleStatusBadge } from './CashSaleStatusBadge';
 import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
 import { EditContractItemsDialog } from './EditContractItemsDialog';
@@ -309,7 +308,7 @@ function CashSaleItemSnapshot({
 
       <div className="flex min-w-0 flex-col gap-5">
         <header>
-          <p className="text-display font-semibold tabular-nums tracking-[-0.03em]">
+          <p className="text-display font-semibold tabular-nums tracking-tight">
             {formatMoney(agreedPriceCents, currency)}
           </p>
           <h3 className="mt-snug break-words text-head font-semibold tracking-tight">
@@ -323,11 +322,11 @@ function CashSaleItemSnapshot({
         </header>
 
         {descriptions.length > 0 ? (
-          <section aria-label="Description" className="space-y-3">
+          <section aria-label="Description" className="space-y-cozy">
             {descriptions.map((text, index) => (
               <p
                 key={lines[index]?.id ?? index}
-                className="whitespace-pre-line break-words text-body leading-relaxed text-muted-foreground"
+                className="whitespace-pre-line break-words text-body text-muted-foreground"
               >
                 {text}
               </p>
@@ -416,54 +415,6 @@ function SellerReleaseStatus({ sale }: { sale: CashSaleRow }) {
       </Link>
     </p>
   );
-}
-
-/**
- * The decided outcome of a dispute, for the Dispute tab's cover sheet.
- *
- * Null while the case is open. STATED FROM THE VIEWER'S SIDE, because "the payment comes
- * back to your card" and "the payment goes back to the buyer" are one fact and only one
- * of the two phrasings is any use to each party. Before this, a member whose case had
- * been decided had to open the History tab to find out what the decision was.
- *
- * RELEASE_SELLER names no figure on purpose: the Seller receives the amount less the
- * Platform_Fee, and the Payment tab already breaks that down. One number stated twice is
- * one number that can disagree with itself.
- */
-function disputeOutcome(
-  sale: CashSaleRow,
-  iAmBuyer: boolean,
-  money: (cents: number) => string,
-): DisputeCaseOutcome | null {
-  const at = sale.dispute_resolved_at;
-  switch (sale.dispute_resolution) {
-    case 'REFUND_BUYER':
-      return {
-        label: 'Refunded in full',
-        detail: iAmBuyer
-          ? `${money(sale.amount_cents)} comes back to your card.`
-          : `${money(sale.amount_cents)} goes back to the buyer.`,
-        at,
-      };
-    case 'PARTIAL_REFUND':
-      return {
-        label: `${money(sale.refund_cents)} refunded`,
-        detail: iAmBuyer
-          ? 'The rest was released to the seller.'
-          : 'The rest was released to you.',
-        at,
-      };
-    case 'RELEASE_SELLER':
-      return {
-        label: 'Released to the seller',
-        detail: iAmBuyer
-          ? 'The payment went to the seller and nothing is refunded.'
-          : 'The payment was released to you, less the platform fee.',
-        at,
-      };
-    default:
-      return null;
-  }
 }
 
 /** The bilateral cash-sale contract room. */
@@ -661,6 +612,7 @@ function CashSaleRoom({
     myHandoverConfirmed,
     theirHandoverConfirmed,
     disputeRaisedByMe: sale.disputed_by === myUserId,
+    disputeRaisedAt: formatContractDateTime(sale.disputed_at),
     haltedAt: haltedAtFrom(events, sale.status),
   });
   const step = currentStep(steps);
@@ -691,7 +643,7 @@ function CashSaleRoom({
 
        5rem = 4rem header + the 1rem the shell keeps on a FLUSH route. A contract
        room is always mounted flush (see the trade and sale pages), and flush is
-       `pt-0 pb-4` — not the 4.25rem this used to subtract, which was the
+       `pt-0 pb-group` — not the 4.25rem this used to subtract, which was the
        NON-flush `md:py-7`/`pb-10` pair. That stale figure left a 52px dead band
        under both panes at every desktop width. Recompute from the flush branch
        of MarketplaceShell, not from the non-flush class list, if it changes.
@@ -702,14 +654,14 @@ function CashSaleRoom({
        need a gutter or they collide with the rail and both viewport edges. So
        the shell stays at `px-0 pt-0` and each room frames itself. `md:` only —
        below it the room is a full-bleed thread and the cards drop their borders.
-       16px on all four sides: `md:pt-4` here, `pb-4` from the shell, and the
+       16px on all four sides: `md:pt-group` here, `pb-group` from the shell, and the
        same `gap-group` that separates the panes.
 
        The cap has to be stated explicitly: body is `min-h-dvh`, a floor rather
        than a cap, so a `flex-1` chain with no definite ancestor height just grows
        the page instead of being clipped. `lg:flex-none` retires the `flex-1` that
        carries the stacked layout below `lg`, where the page scrolls normally. */
-    <div className="flex min-h-0 flex-1 flex-col gap-group md:px-4 md:pt-4 lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
+    <div className="flex min-h-0 flex-1 flex-col gap-group md:px-group md:pt-group lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
       {/* Desktop only. Below `md` the room is a thread, and the chat bar
           already carries this exact title, price and counterparty — a second
           copy of them was the first 76px of every phone contract. */}
@@ -772,8 +724,12 @@ function CashSaleRoom({
         detailsMeta={
           <>
             <CashSaleStatusBadge status={sale.status} />
-            <span className="display-value text-foreground">
-              {money(sale.amount_cents)} total
+            {/* The FIGURE wears `display-value`; the word does not. Bold tabular
+                digits are for money, and a label set the same way read as part of
+                the number. "total" inherits the header's muted body text. */}
+            <span>
+              <span className="display-value text-foreground">{money(sale.amount_cents)}</span>{' '}
+              total
             </span>
           </>
         }
@@ -784,7 +740,7 @@ function CashSaleRoom({
             counterpartyName={them.name}
             counterpartyAvatarPath={them.avatarPath}
             backHref={iAmBuyer ? '/purchases' : '/sales'}
-            statusLabel={CASH_SALE_STATUS_MAP[sale.status]?.label ?? null}
+            status={<CashSaleStatusBadge status={sale.status} />}
             saleContext={{
               id: sale.id,
               allowUnscopedLegacy: false,
@@ -803,7 +759,13 @@ function CashSaleRoom({
             subject={{
               title: sale.item_title,
               thumb: itemImages[0] ?? null,
-              price: money(sale.amount_cents),
+              // THE AGREED PRICE, not `amount_cents`. `amount_cents` is the buyer's
+              // total — item + platform fee + shipping (0008) — so this strip read
+              // $1.05 while the inbox thread's header for the SAME contract read
+              // $1.00 (`ChatThread` uses `agreedPriceCents`). The strip is the
+              // item line: what the two parties agreed. The fee and shipping are
+              // itemised in the line-items block below, where the total belongs.
+              price: money(sale.agreed_price_cents),
             }}
             failed={chat.failed}
             onRetry={chat.retry}
@@ -1112,6 +1074,37 @@ function CashSaleRoom({
                   ? 'Recording this moves the sale to In transit. The inspection clock starts when the carrier confirms delivery, not when you save the number.'
                   : undefined
               }
+              // The same two controls the chat dock renders for this step. Only the
+              // panel decides when to show them (phones, where the sheet covers the
+              // dock) — see the prop's note.
+              dockActions={
+                sale.status === 'INSPECTION' && iAmBuyer ? (
+                  <>
+                    <AcceptWithPhotoDialog
+                      onAccept={async () => {
+                        const result = await acceptCashSaleInspection(sale.id);
+                        return { ok: result.ok };
+                      }}
+                      evidenceContext={{ caseKind: 'CASH_SALE', caseRef: sale.id }}
+                      triggerLabel="Complete purchase"
+                      title="Complete purchase"
+                      description="We recommend photographing or filming what you received. This becomes your baseline evidence if a dispute arises later."
+                      confirmWithPhotoLabel="Complete with evidence"
+                      confirmWithoutPhotoLabel="Complete without evidence"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() => setConfirming('dispute')}
+                    >
+                      <HugeiconsIcon icon={TriangleAlertIcon} aria-hidden />
+                      Report a problem
+                    </Button>
+                  </>
+                ) : undefined
+              }
             >
               {/* THE ONLY CONTROL THAT LIVES HERE, and the rule is in the panel's own
                   docs: fields here, single-tap moves in the chat dock. Two 9rem
@@ -1221,7 +1214,7 @@ function CashSaleRoom({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="gap-tight px-3 text-meta font-medium [&_svg]:size-3"
+                  className="gap-tight px-cozy text-meta font-medium [&_svg]:size-3"
                   onClick={() => setDetailsFor(sale.fulfillment_method!)}
                 >
                   Edit terms
@@ -1231,12 +1224,12 @@ function CashSaleRoom({
           >
             {!termsSet ? (
               editable ? (
-                <div className="flex min-h-0 flex-1 items-center justify-center py-6 sm:py-8">
+                <div className="flex min-h-0 flex-1 items-center justify-center py-6 sm:py-section">
                   <div className="w-full max-w-xl rounded-xl border bg-background p-5 text-center sm:p-6">
                     <h3 className="text-subhead font-semibold tracking-tight">
                       Propose handover terms
                     </h3>
-                    <p className="mx-auto mt-1 max-w-md text-body text-muted-foreground">
+                    <p className="mx-auto mt-tight max-w-md text-body text-muted-foreground">
                       Choose how the item will change hands. You&apos;ll add the
                       address or meeting details next.
                     </p>
@@ -1410,7 +1403,7 @@ function CashSaleRoom({
             id={CASH_SALE_SECTIONS.collateral}
             label="Protection"
             summary="Payment held through inspection"
-            contentClassName="gap-3"
+            contentClassName="gap-cozy"
           >
             {/* NO COLLATERAL ON A CASH SALE, so this tab does not mention any. The
               Buyer's money is collected up front, which leaves nothing for either
@@ -1500,36 +1493,18 @@ function CashSaleRoom({
               id={CASH_SALE_SECTIONS.dispute}
               label="Dispute"
               variant="destructive"
-              // ORIENTATION, NOT THE VISIBILITY WARNING. This used to repeat "both of
-              // you can see everything here", which the panel then said twice more in
-              // its opening four lines. It is now stated once, at the field where it
-              // changes what a person writes, and the tab says what the tab is.
-              explainer="The case record: what was reported, what each of you has filed, and where the payment stands."
               summary={
                 disputeEvidence.length > 0
-                  ? `${disputeEvidence.length} statement${disputeEvidence.length === 1 ? '' : 's'} on the record`
-                  : 'Nothing filed yet'
+                  ? `${disputeEvidence.length} submission${disputeEvidence.length === 1 ? '' : 's'}`
+                  : 'Nothing submitted yet'
               }
             >
               <DisputeEvidencePanel
                 caseKind="CASH_SALE"
                 caseRef={sale.id}
                 entries={disputeEvidence}
-                // WHAT IS FROZEN, in this flow's own words. A Cash_Sale's money has
-                // genuinely been collected into the platform balance, unlike trade
-                // collateral, so this is the one of the two rooms that may say a figure
-                // is being held. It still never says "escrow".
-                stake={{
-                  label: 'Payment held',
-                  value: money(sale.amount_cents),
-                  note: sale.dispute_resolution
-                    ? 'The recorded outcome decided where this went.'
-                    : iAmBuyer
-                      ? 'NoDitto is still holding your payment. Nothing reaches the seller until the case is decided.'
-                      : "NoDitto is still holding the buyer's payment. Nothing is released to you until the case is decided.",
-                }}
                 disputeReason={sale.dispute_reason}
-                raisedAt={sale.disputed_at}
+                disputedAt={sale.disputed_at}
                 raisedByName={
                   sale.disputed_by
                     ? sale.disputed_by === myUserId
@@ -1537,21 +1512,6 @@ function CashSaleRoom({
                       : them.name
                     : null
                 }
-                againstName={
-                  sale.disputed_by
-                    ? sale.disputed_by === myUserId
-                      ? them.name
-                      : 'you'
-                    : null
-                }
-                outcome={disputeOutcome(sale, iAmBuyer, money)}
-                // Buyer and Seller hold genuinely different roles here, so the record
-                // says which one filed each statement. A trade has two traders and
-                // passes nothing.
-                roles={{
-                  [sale.buyer_id]: 'Buyer',
-                  [sale.seller_id]: 'Seller',
-                }}
                 // The record stays readable after a decision; the form does not.
                 canSubmit={sale.status === 'DISPUTED'}
                 // Withdraw / concede (0084). Only while the case is genuinely open —
@@ -1564,7 +1524,6 @@ function CashSaleRoom({
                       iAmBuyer={iAmBuyer}
                       iRaisedIt={sale.disputed_by === myUserId}
                       amountCents={sale.amount_cents}
-                      currency={sale.currency}
                       counterpartyName={them.name}
                     />
                   ) : null

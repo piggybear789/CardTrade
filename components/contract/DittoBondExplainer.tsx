@@ -165,7 +165,7 @@ function ProtectionOutcome({
       />
       <div className="min-w-0 flex-1">
         <p className="text-body font-semibold">{title}</p>
-        <p className="mt-0.5 text-body leading-relaxed text-muted-foreground">{children}</p>
+        <p className="mt-0.5 text-body text-muted-foreground">{children}</p>
         {action ? <div className="mt-cozy">{action}</div> : null}
       </div>
     </div>
@@ -214,7 +214,7 @@ export function CashSaleProtectionExplainer({
         <h3 id="cash-sale-protection-title" className="text-lead font-semibold">
           How buyer protection works
         </h3>
-        <p className="mt-1 text-body leading-relaxed text-muted-foreground">
+        <p className="mt-tight text-body text-muted-foreground">
           {viewerIsBuyer ? 'Your payment' : "The buyer's payment"} stays with NoDitto
           {inPerson ? ' until the buyer confirms the handover' : ' through delivery and inspection'}.
           The seller can see that it is paid, but cannot receive it yet.
@@ -257,7 +257,7 @@ export function CashSaleProtectionExplainer({
       </div>
 
       {!inPerson ? (
-        <p className="flex gap-snug text-body leading-relaxed text-muted-foreground">
+        <p className="flex gap-snug text-body text-muted-foreground">
           <HugeiconsIcon icon={Timer01Icon} className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             If the buyer takes no action before the inspection deadline, the sale

@@ -586,7 +586,7 @@ test.describe('member surfaces', () => {
 
   test('capture private-deal-compose', async ({ page }, testInfo) => {
     await shoot(page, testInfo, 'private-deal-compose', '/deals/new');
-    await expect(page.getByRole('heading', { name: 'Start a Private Deal' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Private deal' })).toBeVisible();
   });
 
   test('capture private-invite-host', async ({ page }, testInfo) => {

@@ -22,7 +22,7 @@ export function GuestHeaderCtas() {
   if (isAuthRoute(pathname)) return null;
 
   return (
-    <nav aria-label="Account" className="flex items-center gap-1">
+    <nav aria-label="Account" className="flex items-center gap-tight">
       <Button asChild variant="ghost" size="sm">
         <SignInLink>Sign in</SignInLink>
       </Button>

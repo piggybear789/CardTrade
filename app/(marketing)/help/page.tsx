@@ -21,7 +21,7 @@ export default async function HelpPage() {
       title="Help"
       lede="Short answers for identity, money movement, passwords, and private deals."
     >
-      <section id="identity" className="space-y-3 scroll-mt-24">
+      <section id="identity" className="space-y-cozy scroll-mt-24">
         <h2>Identity</h2>
         <p>
           Identity is checked through Stripe Identity: you submit a government
@@ -47,7 +47,7 @@ export default async function HelpPage() {
         </p>
       </section>
 
-      <section id="holds" className="space-y-3 scroll-mt-24">
+      <section id="holds" className="space-y-cozy scroll-mt-24">
         <h2>How holds and collection work</h2>
         <p>
           Trade collateral is a temporary Stripe card hold — an uncaptured card
@@ -64,7 +64,7 @@ export default async function HelpPage() {
         </p>
       </section>
 
-      <section id="passwords" className="space-y-3 scroll-mt-24">
+      <section id="passwords" className="space-y-cozy scroll-mt-24">
         <h2>Passwords</h2>
         <p>
           On the sign-in form, use Forgot password and enter the email on the
@@ -85,7 +85,7 @@ export default async function HelpPage() {
         </p>
       </section>
 
-      <section id="deals-as-trades" className="space-y-3 scroll-mt-24">
+      <section id="deals-as-trades" className="space-y-cozy scroll-mt-24">
         <h2>Private deals</h2>
         <p>
           A private deal is two people who already know each other using NoDitto

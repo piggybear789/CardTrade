@@ -222,7 +222,7 @@ function SideColumn({
                 label={side.items[0].title}
                 layout="stacked"
               />
-              <div className="min-w-0 space-y-1">
+              <div className="min-w-0 space-y-tight">
                 <p className="text-balance text-lead font-semibold leading-snug">
                   {side.items[0].title}
                 </p>
@@ -232,7 +232,7 @@ function SideColumn({
                   </p>
                 ) : null}
                 {side.items[0].valueCents != null ? (
-                  <p className="pt-1 text-subhead font-semibold tabular-nums">
+                  <p className="pt-tight text-subhead font-semibold tabular-nums">
                     {formatAud(side.items[0].valueCents)}
                   </p>
                 ) : null}
@@ -336,7 +336,7 @@ function SideColumn({
       ) : null}
 
       {!compact && side.action ? (
-        <div className="mt-auto pt-1">{side.action}</div>
+        <div className="mt-auto pt-tight">{side.action}</div>
       ) : null}
     </div>
   );

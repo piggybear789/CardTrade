@@ -176,7 +176,7 @@ void main() {
 
     test('P11: keeps weight off the Type_Scale levels, so a level cannot smuggle one in', () {
       for (final TextStyle level in <TextStyle>[
-        AppType.meta, AppType.body, AppType.nav, AppType.lead,
+        AppType.meta, AppType.body, AppType.lead,
         AppType.subhead, AppType.head, AppType.display,
       ]) {
         expect(level.fontWeight, isNull);

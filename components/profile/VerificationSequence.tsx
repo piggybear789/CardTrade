@@ -81,7 +81,7 @@ export function VerificationSequence({
         <Button asChild className="w-full sm:w-auto">
           <Link href="/listings/new">
             List an item
-            <HugeiconsIcon icon={ArrowRight01Icon} className="ml-2 size-4" aria-hidden />
+            <HugeiconsIcon icon={ArrowRight01Icon} className="ml-snug size-4" aria-hidden />
           </Link>
         </Button>
       }

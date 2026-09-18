@@ -85,7 +85,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         className={cn(
-          'hidden items-center gap-tight rounded-md border border-transparent px-2 py-1 text-body font-semibold text-mist/70 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris sm:inline-flex',
+          'hidden items-center gap-tight rounded-md border border-transparent px-snug py-tight text-body font-semibold text-mist/70 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris sm:inline-flex',
           isPending && 'opacity-60',
         )}
         aria-label={`Browse region: ${label}. Click to change.`}
@@ -103,7 +103,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
               : 'Sales and trades complete within one region, so postage and payouts stay local.'}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-1 py-2" role="listbox" aria-label="Select a region">
+        <div className="space-y-tight py-snug" role="listbox" aria-label="Select a region">
           {TRADEABLE_REGIONS.map((region) => {
             const selected = regionCode === region.code;
             return (
@@ -115,7 +115,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
                 onClick={() => selectRegion(region.code)}
                 disabled={isPending}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50',
+                  'flex w-full items-center gap-cozy rounded-md px-cozy py-2.5 text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50',
                   selected
                     ? 'bg-accent font-medium text-accent-foreground'
                     : 'text-foreground hover:bg-accent/50',
@@ -132,7 +132,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
               </button>
             );
           })}
-          <div className="my-1 border-t" />
+          <div className="my-tight border-t" />
           <button
             type="button"
             role="option"
@@ -140,7 +140,7 @@ export function RegionIndicator({ regionCode, source }: RegionIndicatorProps) {
             onClick={() => selectRegion(ALL_REGIONS)}
             disabled={isPending}
             className={cn(
-              'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50',
+              'flex w-full items-center gap-cozy rounded-md px-cozy py-2.5 text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50',
               !regionCode
                 ? 'bg-accent font-medium text-accent-foreground'
                 : 'text-foreground hover:bg-accent/50',

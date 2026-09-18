@@ -224,7 +224,7 @@ export function SocialLinksEditor({
                 issue ? 'bg-destructive/5' : null,
               )}
             >
-              <div className="flex flex-col gap-1 px-group py-snug sm:flex-row sm:items-center sm:gap-snug sm:py-0">
+              <div className="flex flex-col gap-tight px-group py-snug sm:flex-row sm:items-center sm:gap-snug sm:py-0">
                 <label
                   htmlFor={inputId}
                   className="flex w-auto shrink-0 cursor-text items-center gap-snug pt-snug text-body text-muted-foreground sm:w-28 sm:py-cozy sm:pt-cozy"
@@ -348,7 +348,7 @@ function AddPlatformControl({
           Add a link
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-52 p-1">
+      <PopoverContent align="start" className="w-52 p-tight">
         <div className="flex flex-col">
           {remaining.map((platform) => (
             <button

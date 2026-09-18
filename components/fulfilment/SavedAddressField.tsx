@@ -154,7 +154,7 @@ export function SavedAddressField({
                     id={inputId}
                     type="radio"
                     name={`${id}-saved`}
-                    className="mt-1 accent-iris"
+                    className="mt-tight accent-iris"
                     checked={selectedId === address.id}
                     disabled={disabled}
                     onChange={() => onChange(toPlace(address))}

@@ -104,7 +104,7 @@ function HeaderSearchFallback({
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-8 leading-none text-foreground placeholder:text-muted-foreground',
+            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground',
         )}
         disabled
       />
@@ -413,8 +413,8 @@ function HeaderSearchInner({
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-8 leading-none text-foreground placeholder:text-muted-foreground',
-          trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-3',
+            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground',
+          trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-cozy',
         )}
       />
       {query ? (
@@ -443,14 +443,14 @@ function HeaderSearchInner({
           role="listbox"
           aria-label="Matching listings"
           className={cn(
-            'absolute inset-x-0 top-full z-50 mt-1 max-h-80 overflow-auto rounded-md border border-border py-1 shadow-md',
+            'absolute inset-x-0 top-full z-50 mt-tight max-h-80 overflow-auto rounded-md border border-border py-tight shadow-md',
             appearance === 'default'
               ? 'bg-popover text-popover-foreground'
               : 'bg-card text-foreground',
           )}
         >
           {loading && hits.length === 0 ? (
-            <li className="px-3 py-2 text-meta text-muted-foreground" aria-live="polite">
+            <li className="px-cozy py-snug text-meta text-muted-foreground" aria-live="polite">
               Searching…
             </li>
           ) : null}
@@ -468,7 +468,7 @@ function HeaderSearchInner({
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-2 py-2 text-left focus:outline-none focus-visible:border-iris',
+                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-snug py-snug text-left focus:outline-none focus-visible:border-iris',
                     appearance === 'default'
                       ? active
                         ? 'bg-accent'
@@ -497,7 +497,7 @@ function HeaderSearchInner({
             );
           })}
           {!loading && hits.length === 0 ? (
-            <li className="px-3 py-2 text-meta text-muted-foreground">No matching titles</li>
+            <li className="px-cozy py-snug text-meta text-muted-foreground">No matching titles</li>
           ) : null}
           <li role="presentation">
             <button
@@ -508,7 +508,7 @@ function HeaderSearchInner({
               onMouseDown={(event) => event.preventDefault()}
               onMouseEnter={() => setHighlight(showAllIndex)}
               className={cn(
-                'flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-body',
+                'flex min-h-11 w-full items-center gap-snug px-cozy py-snug text-left text-body',
                 appearance === 'default'
                   ? highlight === showAllIndex
                     ? 'bg-accent'
@@ -516,7 +516,7 @@ function HeaderSearchInner({
                   : highlight === showAllIndex
                     ? 'bg-muted'
                     : 'bg-card',
-                hits.length > 0 && 'mt-1 border-t border-border',
+                hits.length > 0 && 'mt-tight border-t border-border',
               )}
             >
               <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />

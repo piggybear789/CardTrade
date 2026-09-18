@@ -214,7 +214,7 @@ export function DateTimePicker({
             {formatTrigger(value)}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto p-3">
+        <PopoverContent align="start" className="w-auto p-cozy">
           <Calendar
             mode="single"
             selected={selectedDate}

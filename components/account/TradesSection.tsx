@@ -100,7 +100,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
                 {/* Its own column from `md`; here below it, beside the counterparty. */}
                 <StateBadge state={trade.state} className="md:hidden" />
               </div>
-              <NextMoveCell move={trade.nextMove} className="mt-1 md:hidden" />
+              <NextMoveCell move={trade.nextMove} className="mt-tight md:hidden" />
             </div>
 
             <NextMoveCell move={trade.nextMove} className="hidden md:flex" />

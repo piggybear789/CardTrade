@@ -46,7 +46,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
         <TextLines className="hidden text-body md:block" widths={['w-full']} />
       </CardHeader>
 
-      {/* `gap-5`, matching `ItemForm`'s `CardContent`. `gap-8` put 12px of extra
+      {/* `gap-5`, matching `ItemForm`'s `CardContent`. `gap-section` put 12px of extra
           air between the photo panel and the details rail on every phone.
           `grid-cols-1` also matches `ItemForm`: it pins the stacked mobile column
           to `minmax(0, 1fr)` so it tracks the card's width rather than its
@@ -61,7 +61,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
         {/* `flex flex-col gap-*`, matching the form's column — it moved off `space-y`
             and onto `gap`, and to `group` (16px) at `lg`. A 12px rhythm here against a
             16px one there shifts every element below the label on swap. */}
-        <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:gap-group lg:bg-card lg:p-8">
+        <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:gap-group lg:bg-card lg:p-section">
           {/* The `Photos` label, a 14px `leading-none` `Label`. It was `h-4`, which
               is 16px against a 14px line.
               
@@ -92,7 +92,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               <Skeleton className="h-full w-full rounded-lg lg:h-auto lg:min-h-[10rem] lg:flex-1" />
               {/* One column of card-shaped tiles beside the cover; eight small square
                   ones from `lg`, matching the real strip's `lg:grid-cols-8`. */}
-              <div className="grid h-full grid-cols-1 content-start gap-2 lg:h-auto lg:grid-cols-8 lg:content-normal">
+              <div className="grid h-full grid-cols-1 content-start gap-snug lg:h-auto lg:grid-cols-8 lg:content-normal">
                 {Array.from({ length: 2 }, (_, index) => (
                   <Skeleton
                     key={index}
@@ -117,9 +117,9 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               high in both modes. The tiles carry `ChoiceTile`'s border and
               `p-snug md:p-cozy` rather than a measured height, so they follow
               the real tile across the breakpoint on their own. */}
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <TextLines className="text-body leading-none" widths={['w-40']} />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-snug">
               {Array.from({ length: 2 }, (_, index) => (
                 <div
                   key={index}
@@ -130,14 +130,14 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               ))}
             </div>
             {/* "This can't be changed after a listing is created." — inside the
-                fieldset, so it sits at the block's own `space-y-2` rather than the
+                fieldset, so it sits at the block's own `space-y-snug` rather than the
                 rail's `space-y-5`. Edit mode only. */}
             {isCreate ? null : <TextLines className="text-body" widths={['w-4/5']} />}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <TextLines className="text-body leading-none" widths={['w-24']} />
-            {/* `Textarea rows={4}`: four lines of `text-body` (22.4px) plus `py-2`
+            {/* `Textarea rows={4}`: four lines of `text-body` (22.4px) plus `py-snug`
                 and the border is 108px, at every width and on every pointer.
                 RECOMPUTE THIS WHEN `body` MOVES — it was 101px at 13px, and before
                 that it forked to 114px on touch, where the Textarea was floored at
@@ -151,11 +151,11 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             <TextLines className="text-meta" widths={['w-12']} />
           </div>
 
-          {/* `gap-3`, matching `ItemForm`. `gap-5` here added 8px between
+          {/* `gap-cozy`, matching `ItemForm`. `gap-5` here added 8px between
               Category and Condition, which stack on a phone. `grid-cols-1` below
               `sm` matches the form's taxonomy row. */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
+            <div className="space-y-snug">
               <TextLines className="text-body leading-none" widths={['w-20']} />
               {/* `h-9 md:h-8`, matching `SelectTrigger` — which matches `Button` and
                   `Input`, since fields and controls share one height scale. The `md`
@@ -163,13 +163,13 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
                   here leaves every field placeholder 4px short of the control. */}
               <Skeleton className="h-9 w-full md:h-8" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-snug">
               <TextLines className="text-body leading-none" widths={['w-20']} />
               <Skeleton className="h-9 w-full md:h-8" />
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <TextLines className="text-body leading-none" widths={['w-12']} />
             {/* `MoneyInput` is an `Input` behind a currency prefix: `h-9 md:h-8`. */}
             <Skeleton className="h-9 w-full md:h-8" />
@@ -178,7 +178,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           {/* `Based near` — a `PlacePicker`, which is a `Label` over a
               `PlaceSearch` input. The rail used to stop at the price, so it ran
               61px short of the form on every load. */}
-          <div className="space-y-2">
+          <div className="space-y-snug">
             <TextLines className="text-body leading-none" widths={['w-24']} />
             <Skeleton className="h-9 w-full md:h-8" />
           </div>
@@ -194,7 +194,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           `bg-card` and `flex-col` are `ItemForm`'s too: `bg-muted` here flashed a
           tinted band to white on swap, and `flex-col-reverse` stacked the submit above
           Cancel, the reverse of where they settled. */}
-      <CardFooter className="max-md:hidden flex-col items-stretch gap-2 border-t bg-card px-6 pb-4 pt-4 sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
+      <CardFooter className="max-md:hidden flex-col items-stretch gap-snug border-t bg-card px-6 pb-group pt-group sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
         {/* `h-9 md:h-8`, `Button`'s default size. */}
         <Skeleton className="h-9 w-full sm:w-32 md:h-8" />
       </CardFooter>

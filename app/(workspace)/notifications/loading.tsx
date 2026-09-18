@@ -55,7 +55,7 @@ export default function NotificationsLoading() {
           with no activity saw a content-height stack become a full-column island. */}
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
         <SectionHeaderSkeleton titleClassName="w-28" />
-        <div className="space-y-4">
+        <div className="space-y-group">
           {/* `justify-between`, not `justify-end`. The real row states the unread count
               on the left — the one figure this page is opened for — so an end-aligned
               button alone left that line to appear from nothing. */}

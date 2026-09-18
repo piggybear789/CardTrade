@@ -20,7 +20,7 @@ export function ListingPhotoEmpty({
     <div
       className={cn(
         'flex h-full w-full flex-col items-center justify-center bg-mist text-muted-foreground',
-        compact ? 'gap-0' : 'gap-2 px-6 text-center',
+        compact ? 'gap-0' : 'gap-snug px-6 text-center',
       )}
     >
       <HugeiconsIcon icon={Layers01Icon}

@@ -100,7 +100,7 @@ export function ContractProgressRail({
   if (steps.length === 0) return null;
 
   return (
-    <div className={cn('px-1', className)}>
+    <div className={cn('px-tight', className)}>
       <ol className="flex items-start" aria-label="Contract progress">
         {steps.map((step, index) => {
           const done = step.status === 'done';
@@ -205,7 +205,7 @@ export function ContractProgressRail({
 
               <span
                 className={cn(
-                  'mt-1.5 max-w-full px-1 text-meta transition-colors duration-300',
+                  'mt-1.5 max-w-full px-tight text-meta transition-colors duration-300',
                   captions ? 'text-center' : 'truncate',
                   live
                     ? 'font-semibold text-foreground'
@@ -222,13 +222,13 @@ export function ContractProgressRail({
               {/* `text-balance` and no truncation: a caption that clips to one
                   ellipsised line tells the reader less than no caption at all. */}
               {captions && step.caption ? (
-                <span className="mt-0.5 max-w-full text-balance px-1 text-center text-meta text-muted-foreground">
+                <span className="mt-0.5 max-w-full text-balance px-tight text-center text-meta text-muted-foreground">
                   {step.caption}
                 </span>
               ) : null}
 
               {annotation ? (
-                <span className="mt-1 max-w-full px-1 text-center">{annotation}</span>
+                <span className="mt-tight max-w-full px-tight text-center">{annotation}</span>
               ) : null}
             </li>
           );
@@ -237,7 +237,7 @@ export function ContractProgressRail({
 
       {open ? (
         <p
-          className="mt-2 text-body text-muted-foreground"
+          className="mt-snug text-body text-muted-foreground"
           aria-live="polite"
         >
           <span className="font-medium text-foreground">{open.label}</span>

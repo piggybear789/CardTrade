@@ -69,7 +69,7 @@ const TRACK_SHAPE = [
   // so a static column class would need a lookup table keyed on length. Implicit
   // columns give equal thirds for three tabs and equal halves for two, with the same
   // `minmax(0, 1fr)` that keeps `truncate` working on the labels.
-  'grid auto-cols-fr grid-flow-col gap-tight rounded-lg bg-muted p-1',
+  'grid auto-cols-fr grid-flow-col gap-tight rounded-lg bg-muted p-tight',
   // Desktop: `flex` wins over `grid`, so the auto-flow above stops applying.
   'md:-mb-px md:flex md:gap-section md:rounded-none md:bg-transparent md:p-0',
 ].join(' ');

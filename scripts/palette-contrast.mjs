@@ -316,7 +316,7 @@ for (const [k, v] of Object.entries(P)) {
 
 // Hue spacing — the round-2 finding was that action and destructive were the two
 // closest hues while carrying the most opposed meanings.
-const hues = { violet: P.primary[0], teal: P.trust[0], amber: P.action[0], rose: P.destructive[0] };
+const hues = { violet: P.primary[0], jade: P.trust[0], amber: P.action[0], rose: P.destructive[0] };
 const sorted = Object.entries(hues).sort((a, b) => a[1] - b[1]);
 console.log('\n  hue spacing');
 for (let i = 0; i < sorted.length; i++) {

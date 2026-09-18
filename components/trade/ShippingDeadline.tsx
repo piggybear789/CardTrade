@@ -89,7 +89,7 @@ export function ShippingDeadline({
     return (
       <span
         className={cn(
-          'inline-flex max-w-full items-center gap-1 truncate rounded-full border px-2 py-0.5 text-meta font-medium',
+          'inline-flex max-w-full items-center gap-tight truncate rounded-full border px-snug py-0.5 text-meta font-medium',
           late || (!viewerShipped && hours <= 12)
             ? 'border-destructive/40 bg-destructive/10 text-destructive'
             : 'border-iris/40 bg-iris/10 text-iris-ink',
@@ -137,7 +137,7 @@ export function ShippingDeadline({
           <HugeiconsIcon icon={TriangleAlertIcon} className="size-4 shrink-0 text-destructive" aria-hidden />
           Dispatch is overdue
         </p>
-        <p className="mt-1 text-muted-foreground">
+        <p className="mt-tight text-muted-foreground">
           {viewerShipped
             ? 'You have posted, they have not. Raise a dispute before the collateral lapses.'
             : 'Post now — the trade loses its collateral protection when the hold lapses.'}
@@ -178,7 +178,7 @@ export function ShippingDeadline({
           of policy they could not act on. With hours to go it is the reason to
           move, so it appears then. */}
       {urgent ? (
-        <p className="mt-1 text-muted-foreground">
+        <p className="mt-tight text-muted-foreground">
           Miss it and the trade loses its collateral protection.
         </p>
       ) : null}

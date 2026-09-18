@@ -138,7 +138,7 @@ export function CashSaleReturnPanel({
 
   return (
     <section className="space-y-group border-t pt-6">
-      <div className="space-y-1">
+      <div className="space-y-tight">
         <h3 className="flex items-center gap-snug font-semibold">
           <HugeiconsIcon icon={RotateCcwIcon} className="size-4 text-iris-ink" aria-hidden="true" />
           {inTransit ? 'Return on its way' : 'Return needed before the refund'}
@@ -229,7 +229,7 @@ export function CashSaleReturnPanel({
           disabled={pending || !returnAddressLabel}
           className="w-full"
         >
-          <HugeiconsIcon icon={PackageCheckIcon} className="mr-2 size-4" aria-hidden="true" />
+          <HugeiconsIcon icon={PackageCheckIcon} className="mr-snug size-4" aria-hidden="true" />
           {returnAddressLabel ? 'Add return tracking' : 'Waiting on a return address'}
         </Button>
       ) : null}

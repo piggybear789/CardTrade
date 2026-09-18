@@ -85,7 +85,7 @@ function PayoutNotice({ message, blocked }: { message: string | null; blocked: b
       />
       <div className="min-w-0 space-y-tight">
         <p className="text-body font-medium text-foreground">Waiting on Stripe</p>
-        <p className="text-body leading-relaxed text-muted-foreground">{message}</p>
+        <p className="text-body text-muted-foreground">{message}</p>
       </div>
     </div>
   );
@@ -196,7 +196,7 @@ export function PayoutOnboarding({
   if (compact && Boolean(state.merchantRef)) {
     return (
       <Card id="payout-setup" className="h-full scroll-mt-24 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-cozy">
           {/* SAYS PAYOUT DESTINATION, NOT "Merchant identity". Connect answers where
               money goes; it says nothing about who the member is since 0069. */}
           <CardDescription>Payout destination</CardDescription>
@@ -269,10 +269,10 @@ export function PayoutOnboarding({
   return (
     // `id` is the anchor target for `/profile/payouts#payout-setup`.
     <Card id="payout-setup" className="h-full scroll-mt-24 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
-      <CardHeader className="pb-3 max-md:px-group">
-        <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
+      <CardHeader className="pb-cozy max-md:px-group">
+        <div className="flex flex-col items-start gap-snug sm:flex-row sm:justify-between">
           <div className="min-w-0">
-            <CardTitle className="flex items-center gap-snug text-lead mb-2">
+            <CardTitle className="flex items-center gap-snug text-lead mb-snug">
               <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
               Stripe Connect
             </CardTitle>

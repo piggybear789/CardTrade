@@ -212,6 +212,77 @@ describe('cash sale — direct payout mode', () => {
     expect(drained).toMatchObject({ considered: 1, settled: 1, stillOwed: 0 });
   });
 
+  it('does NOT announce a settlement the database refused to record', async () => {
+    // THE BUG THIS PINS. The provider paid, the SETTLED write was rejected by the
+    // database (0110 had revoked the function without granting service_role), and the
+    // orchestrator logged SELLER_PAYOUT_SETTLED and told the seller "You were paid"
+    // anyway — then did so again on every hourly pass, because the row it re-read
+    // still said PENDING. The row is the truth; a write that did not land is a
+    // failure, and nothing downstream of it may run.
+    const { deps, created, state } = await runToPayment({});
+    if (!created.ok) throw new Error('setup failed');
+    const cashSaleId = created.sale.id;
+    await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
+
+    const settledNotices: string[] = [];
+    const failing: CashSaleOrchestratorDeps = {
+      ...deps,
+      repository: {
+        ...deps.repository,
+        // Mirrors PostgREST returning an error and no row.
+        recordPayoutResult: async () => null,
+      },
+      notifier: {
+        releaseSettled: async ({ cashSaleId: id }) => {
+          settledNotices.push(id);
+        },
+        releaseFailed: async () => {},
+        disputeResolved: async () => {},
+      },
+    };
+
+    const completed = await confirmCashSaleHandover(failing, {
+      actorId: ITEM.ownerId,
+      cashSaleId,
+    });
+
+    // The sale itself still completes for the participants.
+    expect(completed.ok).toBe(true);
+    // But nobody was told they were paid, and no SETTLED event was written.
+    expect(settledNotices).toEqual([]);
+    expect(state.events.map((event) => event.event)).not.toContain('SELLER_PAYOUT_SETTLED');
+  });
+
+  it('keeps draining when one sale throws', async () => {
+    const { deps, created } = await runToPayment({ payoutStatus: 'FAILED' });
+    if (!created.ok) throw new Error('setup failed');
+    const cashSaleId = created.sale.id;
+    await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
+    await confirmCashSaleHandover(deps, { actorId: ITEM.ownerId, cashSaleId });
+
+    const reported: string[] = [];
+    const drained = await processDueCashSalePayouts(
+      {
+        ...deps,
+        payments: makePayments({}).payments as unknown as PaymentService,
+        repository: {
+          ...deps.repository,
+          recordPayoutResult: async () => {
+            throw new Error('permission denied for function record_cash_sale_payout_result');
+          },
+        },
+        onDrainError: ({ cashSaleId: id }) => {
+          reported.push(id);
+        },
+      },
+      { limit: 10 },
+    );
+
+    // The pass finishes and reports the sale rather than aborting the batch.
+    expect(drained).toMatchObject({ considered: 1, settled: 0, stillOwed: 1 });
+    expect(reported).toEqual([cashSaleId]);
+  });
+
   it('reuses an existing payer reference instead of creating another', async () => {
     const { calls } = await runToPayment({ existingPayerRef: 'payer_known' });
 

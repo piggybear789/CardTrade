@@ -610,18 +610,13 @@ export function createSupabaseCashSaleRepository(
         .select('*')
         .maybeSingle();
       if (!data) return null;
-      // Create the arbitration conversation for the dispute.
-      await client.rpc('attach_dispute_conversation', {
-        p_cash_sale_id: cashSaleId,
-        p_actor_id: actorId,
-      });
-      // Re-fetch to pick up the dispute_conversation_id.
-      const { data: refreshed } = await client
-        .from('cash_sales')
-        .select('*')
-        .eq('id', cashSaleId)
-        .maybeSingle();
-      return refreshed ? toCashSale(refreshed as CashSaleRow) : toCashSale(data as CashSaleRow);
+      // NO SECOND THREAD. This used to call `attach_dispute_conversation` (0019) to
+      // open a separate "arbitration chat" between the same two people and then
+      // re-read the row for its id. The dispute already lands in the sale's own
+      // thread as a `DISPUTE_RAISED` notice (0113), and arbitration runs from the
+      // admin workspace, so the extra thread was a duplicate inbox row and nothing
+      // more. Retired in 0115.
+      return toCashSale(data as CashSaleRow);
     },
 
     async disputeOriginStatus(cashSaleId: string) {
@@ -765,7 +760,7 @@ export function createSupabaseCashSaleRepository(
       // MAX_PAYOUT_ATTEMPTS — and worse, a pass that started before a successful one
       // finished could overwrite SETTLED with FAILED, leaving the row claiming a seller
       // was unpaid when Stripe had already paid them exactly once.
-      const { data } = await client
+      const { data, error } = await client
         .rpc('record_cash_sale_payout_result', {
           p_cash_sale_id: params.cashSaleId,
           p_status: params.status,
@@ -773,6 +768,17 @@ export function createSupabaseCashSaleRepository(
           p_error: params.error ?? null,
         })
         .maybeSingle();
+      // A LOST WRITE HERE IS THE WORST OUTCOME THIS MODULE CAN PRODUCE, so it must not
+      // be quiet. This used to discard `error` and return null, and the orchestrator
+      // treated null as "settled, row not returned": the provider paid, the row stayed
+      // PENDING, the seller was told "you were paid" — and the hourly drain did all
+      // three again, every hour, because 0110 had revoked the function from PUBLIC
+      // without granting it to service_role (fixed in 0117). Throwing turns the next
+      // such regression into a loud failure on the first pass instead of a seller
+      // asking why they are paid once an hour.
+      if (error) {
+        throw new Error(`record_cash_sale_payout_result failed: ${error.message}`);
+      }
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
@@ -797,7 +803,7 @@ export function createSupabaseCashSaleRepository(
       // with one exception the function encodes: an explicit NOT_DUE stands a queued
       // refund down when the buyer keeps the goods, and that is an operator decision
       // rather than a stale write from a racing pass.
-      const { data } = await client
+      const { data, error } = await client
         .rpc('record_cash_sale_refund_result', {
           p_cash_sale_id: params.cashSaleId,
           p_status: params.status,
@@ -805,6 +811,11 @@ export function createSupabaseCashSaleRepository(
           p_error: params.error ?? null,
         })
         .maybeSingle();
+      // Same contract as the payout write above: a refund the provider issued but the
+      // database never recorded must fail loudly, not read as settled.
+      if (error) {
+        throw new Error(`record_cash_sale_refund_result failed: ${error.message}`);
+      }
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
@@ -988,5 +999,11 @@ export function createDefaultCashSaleOrchestrator(
     // the region, without which the seller could not be paid.
     operationalRegions: deps.operationalRegions ?? operationalRegions(),
     payoutRegionCurrency: deps.payoutRegionCurrency,
+    // A drain pass that swallows one sale's exception must still leave a trace of it
+    // somewhere an operator reads, or a broken money write hides behind a healthy
+    // cron response for as long as nobody happens to check the row.
+    onDrainError: ({ cashSaleId, error }) => {
+      console.error(`[cash-sale drain] ${cashSaleId}:`, error);
+    },
   });
 }

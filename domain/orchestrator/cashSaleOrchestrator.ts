@@ -787,6 +787,13 @@ export interface CashSaleOrchestratorDeps {
   /** Optional; when absent no payout notifications are emitted. */
   notifier?: PayoutNotifier;
   /**
+   * Called when one sale in a drain pass throws, after the pass has moved on to the
+   * next sale. Injected because this module is pure and may not log; the binding in
+   * `lib/` reports it. Absent means the error is dropped, which is right for tests
+   * and wrong for production — `createDefaultCashSaleOrchestrator` always supplies it.
+   */
+  onDrainError?: (report: { cashSaleId: string; error: unknown }) => void;
+  /**
    * The regions a contract may actually be opened in (0068).
    *
    * INJECTED, not read, because this module is pure and the answer depends on
@@ -1769,6 +1776,18 @@ export async function payoutCashSaleSeller(
     status: 'SETTLED',
     transferId: payout.transferId,
   });
+  // THE ROW IS THE TRUTH, NOT THE PROVIDER RESPONSE. If the write did not come back
+  // SETTLED, nothing below may run: the event and the notification both assert a fact
+  // the database does not hold, and the next drain pass — which reads the database —
+  // would assert it again. The provider is idempotent on the nonce, so the retry that
+  // does land the write pays nobody twice; it just finishes the bookkeeping.
+  if (settled?.sellerPayoutStatus !== 'SETTLED') {
+    return {
+      ok: false,
+      error: 'PAYOUT_FAILED',
+      detail: 'Provider settled the payout but the result could not be recorded',
+    };
+  }
   await deps.repository.logEvent({
     cashSaleId: sale.id,
     actorId: null,
@@ -1786,7 +1805,7 @@ export async function payoutCashSaleSeller(
       netCents: net,
     }),
   );
-  return { ok: true, sale: settled ?? sale };
+  return { ok: true, sale: settled };
 }
 
 /**
@@ -2628,9 +2647,16 @@ export async function processDueCashSalePayouts(
   let settled = 0;
 
   for (const cashSaleId of due) {
-    // One failure must not abort the batch: unrelated sellers are waiting.
-    const result = await payoutCashSaleSeller(deps, { cashSaleId });
-    if (result.ok && result.sale.sellerPayoutStatus === 'SETTLED') settled += 1;
+    // One failure must not abort the batch: unrelated sellers are waiting. That
+    // includes a thrown one — the repository now throws when a result write is
+    // rejected by the database, and one sale's broken bookkeeping is no reason to
+    // leave every other seller in the queue unpaid for another hour.
+    try {
+      const result = await payoutCashSaleSeller(deps, { cashSaleId });
+      if (result.ok && result.sale.sellerPayoutStatus === 'SETTLED') settled += 1;
+    } catch (error) {
+      deps.onDrainError?.({ cashSaleId, error });
+    }
   }
 
   return { considered: due.length, settled, stillOwed: due.length - settled };
@@ -2674,8 +2700,13 @@ export async function processDueCashSaleRefunds(
 
   let settled = 0;
   for (const cashSaleId of due) {
-    const result = await retryCashSaleRefund(deps, { cashSaleId });
-    if (result) settled += 1;
+    // Isolated per sale for the same reason as the payout drain.
+    try {
+      const result = await retryCashSaleRefund(deps, { cashSaleId });
+      if (result) settled += 1;
+    } catch (error) {
+      deps.onDrainError?.({ cashSaleId, error });
+    }
   }
 
   return { considered: due.length, settled, stillOwed: due.length - settled };

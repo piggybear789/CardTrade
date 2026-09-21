@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, ChevronLeftIcon, InfoIcon } from '@hugeicons/core-free-icons';
 import { Avatar } from '@/components/ui/avatar';
+import { StorageImage } from '@/components/ui/storage-image';
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
 import { useContractFocus } from '@/components/contract/ContractFocus';
 import { useContractSplit } from '@/components/contract/useContractSplit';
@@ -147,13 +148,13 @@ export function ContractChatBar({
 
       <div className="relative flex min-w-0 flex-1 basis-40 items-center gap-cozy">
         {subject?.thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <StorageImage
             src={subject.thumb}
             alt=""
-            width={80}
-            height={80}
+            width={36}
+            height={36}
             className="size-9 shrink-0 rounded-md border object-cover"
+            loading="lazy"
           />
         ) : (
           <Avatar

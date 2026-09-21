@@ -462,6 +462,11 @@ export default async function ItemDetailPage({
                 // and paging through nine images with the «1/9» pill to reach one of
                 // them is the wrong cost for the most-scrutinised part of the page.
                 filmstrip
+                // The photo IS the goods, so it gets the priority hint. Set on BOTH
+                // galleries on this page, deliberately: they are alternatives chosen
+                // by CSS, not companions, and whichever one this viewport hides never
+                // intersects the viewport and so is never fetched. See `hero`.
+                hero
                 emptyHint={
                   isOwner
                     ? 'Add a photo so buyers can see the card.'
@@ -516,6 +521,7 @@ export default async function ItemDetailPage({
                         images={images}
                         title={listingTitle}
                         appearance="carousel"
+                        hero
                       />
                     </div>
                   ) : null

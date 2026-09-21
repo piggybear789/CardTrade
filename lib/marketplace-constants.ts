@@ -18,6 +18,48 @@ export const REASON_MIN = 1;
 export const REASON_MAX = 100;
 export const DETAILS_MAX = 1000;
 
+/**
+ * Member feedback about NoDitto itself (0120): bug reports and feature ideas.
+ *
+ * A REAL LOWER BOUND, unlike `REASON_MIN`. A report carries a chosen reason and a
+ * target, so its free text can be empty and the row still means something. Feedback is
+ * nothing BUT the free text — "no" or "broken" is a row an operator cannot act on, and
+ * an inbox of them is an inbox that stops being read.
+ *
+ * Mirrored by the `feedback_message_length` CHECK in migration 0120; change both.
+ */
+export const FEEDBACK_MESSAGE_MIN = 10;
+export const FEEDBACK_MESSAGE_MAX = 2000;
+
+/**
+ * Cap on the captured route. Mirrors the `feedback_page_path_shape` CHECK.
+ *
+ * Generous because it is never typed by a member — it comes from the router — so the
+ * only thing it guards against is an absurd path, not a mistake someone could make.
+ */
+export const FEEDBACK_PATH_MAX = 512;
+
+/**
+ * The `feedback_kind` values, in the order the dialog offers them, each with the label a
+ * member reads.
+ *
+ * HERE RATHER THAN IN `lib/actions/feedback.ts` because that module is `'use server'`
+ * and may only export async functions — a const there is a build error, not a style
+ * preference. The dialog and the validator both read this, so a new kind is one edit
+ * plus the enum in a migration.
+ *
+ * The values are the enum labels verbatim; a typo would compile and then fail at the
+ * database, because the enum check happens there.
+ */
+export const FEEDBACK_KINDS = [
+  { value: 'BUG', label: 'Something is broken' },
+  { value: 'IDEA', label: 'I have a feature idea' },
+  { value: 'OTHER', label: 'Something else' },
+] as const;
+
+/** A member-submitted feedback category. Mirrors the `cardtrade.feedback_kind` enum. */
+export type FeedbackKindValue = (typeof FEEDBACK_KINDS)[number]['value'];
+
 /** Default page size for the notifications list. */
 export const NOTIFICATIONS_DEFAULT_LIMIT = 30;
 

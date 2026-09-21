@@ -41,5 +41,15 @@ export const contractLimiter = createRateLimiter({ prefix: 'contract', limit: 10
 /** Messaging. More permissive but still bounded. */
 export const messageLimiter = createRateLimiter({ prefix: 'message', limit: 30, window: '1m' });
 
+/**
+ * Member feedback (0120). Tighter than messaging, looser than auth.
+ *
+ * The table has no uniqueness rule to lean on — deliberately, because a member with
+ * five separate bugs should be able to file five rows — so this is the only thing
+ * standing between an annoyed member and a hundred rows. Five a minute is more than
+ * anyone writing real feedback needs and far less than a script wants.
+ */
+export const feedbackLimiter = createRateLimiter({ prefix: 'feedback', limit: 5, window: '1m' });
+
 /** General API / mobile routes. */
 export const apiLimiter = createRateLimiter({ prefix: 'api', limit: 60, window: '1m' });

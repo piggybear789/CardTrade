@@ -7,6 +7,7 @@
 import type { ReactNode } from 'react';
 
 import type { DealInvitePreview } from '@/lib/actions/dealInvites';
+import { StorageImage } from '@/components/ui/storage-image';
 import { formatAud, itemImageUrl } from '@/lib/format';
 
 function dealLabel(preview: DealInvitePreview, audience: 'host' | 'guest'): string {
@@ -70,11 +71,12 @@ export function DealInviteFacts({
           <div className="flex items-center gap-group">
             <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
               {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <StorageImage
                   src={imageUrl}
                   alt=""
-                  className="h-full w-full object-cover"
+                  sizes="64px"
+                  className="object-cover"
+                  loading="lazy"
                 />
               ) : null}
             </div>

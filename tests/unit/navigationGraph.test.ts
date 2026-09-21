@@ -260,6 +260,7 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/auth/update-password':
     'Landing page for a redeemed recovery link — mobile sets the new password in its own screen after the deep link',
   '/help': 'Marketing help centre — mobile has no native help route',
+  '/safety': 'Marketing safety guidance — prose, opened as a web URL like /help and /terms',
   '/privacy': 'Opened as an external web URL from Settings, not a native route',
   '/terms': 'Opened as an external web URL from Settings, not a native route',
   '/t/[token]': 'Web landing page for external private deal invite links',

@@ -76,10 +76,31 @@ function metaFor(type: string) {
  * `iris`, NOT `destructive`. An unread notification is not an error, and a red dot on
  * every new message told members something had gone wrong forty times a day.
  *
+ * AND NOT `foreground` EITHER, WHICH IS THE OTHER THING TRIED. Ink matches the title
+ * the dot sits beside, which is the argument for it — but `--foreground` is 17%
+ * lightness, so an 8px circle of it is the darkest object in the row and lands as a
+ * full stop set before the sentence rather than as a marker beside it. `--iris` is 58%:
+ * present enough to find down a left edge, light enough not to out-weigh the title it
+ * is pointing at. It also agrees with the row's own wash, which is the accent tint —
+ * one hue, two depths, rather than a violet band with a black pip on it.
+ *
  * THE BELL'S COUNT BADGE STAYS RED, and that is not an inconsistency left behind. A
  * numbered badge on a bell is a convention old enough to be read as "how many", not as
  * "how bad", and there is exactly one of it. Forty of them down a list is a different
  * claim.
+ *
+ * CENTRED ON THE WHOLE ROW, not on the title line and not floated near it with a
+ * margin. `mt-1.5` was a tuned offset that put the dot's centre at 10px against the
+ * title's at 11.2px — invisible on one row, a drift down the left edge of twelve.
+ * Centring on the title's line box fixed that but is a different thing from what this
+ * marker is for: it flags the ROW, so it belongs on the row's axis, which on a
+ * two-line notification is well below the title.
+ *
+ * `self-stretch` is what does it, and it is why there is a wrapper span at all. The row
+ * is `items-start` so the dot and the text block share a top edge; stretching this one
+ * item back to the flex line's full height gives the dot something row-tall to centre
+ * in. The row's vertical padding is symmetric, so centring in the content box is
+ * centring in the padded box — no need to know what the caller's padding is.
  *
  * The dot is `aria-hidden` and the state is announced by the row's own text instead —
  * see `NotificationRowBody`, which carries an `sr-only` "unread". Colour is never the
@@ -87,13 +108,52 @@ function metaFor(type: string) {
  */
 function UnreadDot({ unread }: { unread: boolean }) {
   return (
-    <span
-      className={cn(
-        'mt-1.5 size-2 shrink-0 rounded-full',
-        unread ? 'bg-iris' : 'bg-transparent',
-      )}
-      aria-hidden
-    />
+    <span className="flex shrink-0 items-center self-stretch" aria-hidden>
+      <span
+        className={cn(
+          'size-2 rounded-full',
+          unread ? 'bg-iris' : 'bg-transparent',
+        )}
+      />
+    </span>
+  );
+}
+
+/**
+ * The row's own SURFACE — unread, hover and focus — shared by the bell and the centre.
+ *
+ * Here rather than in each caller for the reason this module exists: the two had the
+ * three states written out twice and identically, so the next change to any of them was
+ * a change in two places. The callers still own their spacing, which is the part that
+ * legitimately differs (the panel's rows are tighter than the page's).
+ *
+ * THE UNREAD WASH IS THE ACCENT TINT, AND IT STAYS VIOLET. It was briefly swapped for
+ * ink at 5% on the grounds that a lilac band on every unread row made the panel's
+ * dominant colour a tint. Reverted on look: `--foreground` is a plum-black, so a few
+ * percent of it over white lands on a near-perfect neutral — which, surrounded by the
+ * lilac page, card and hover states this app is built from, reads GREEN. Simultaneous
+ * contrast, and an unread row that looks faintly green is worse than one that looks
+ * faintly violet, because green means something else in this palette (`--trust`).
+ *
+ * A wash belongs to the family it sits in. `--accent` is the pastel violet SURFACE
+ * token, which is exactly what this is, and globals.css allows the hue to TINT freely —
+ * the rule it is under governs borders.
+ *
+ * The one thing the ink version was right about is recorded rather than fixed: because
+ * unread and hover are two alphas of one token, a hovered unread row and a hovered read
+ * row land on the same value, so the wash stops distinguishing them under the cursor.
+ * The dot and the semibold title still do, which is why that is acceptable — colour was
+ * never carrying this state alone.
+ *
+ * @param unread Whether the row's notification is unread.
+ * @param layout The caller's own spacing and gap utilities.
+ */
+export function notificationRowClass(unread: boolean, layout: string) {
+  return cn(
+    'flex w-full items-start border border-transparent text-left transition-colors',
+    'hover:bg-accent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
+    unread && 'bg-accent/40',
+    layout,
   );
 }
 

@@ -1901,9 +1901,17 @@ export type Database = {
         Relationships: [];
       };
       /**
-       * Stripe cash escrow for private deals (0027). Separate from deal_holds
-       * (collateral). HELD when both parties confirm; SETTLED when both mark
-       * complete; left locked on dispute.
+       * Moderation queue: a member flagging a listing or another member.
+       *
+       * ALWAYS ADDRESSES SOMETHING — `target_type` ('item' | 'user') plus
+       * `target_id`. For feedback about NoDitto itself, which has no target, see
+       * {@link Database['cardtrade']['Tables']['feedback']}.
+       *
+       * `status` is the queue's own state: 0094 revoked it from the member INSERT
+       * grant, so a client insert naming it fails outright. That migration also added
+       * `reports_one_open_per_reporter_target`, a unique index over
+       * (reporter_id, target_type, target_id) where status = 'OPEN' — one open
+       * complaint per member per thing.
        */
       reports: {
         Row: {
@@ -1943,6 +1951,84 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [];
+      };
+      /**
+       * Product intake (0120): a member reporting a problem with NoDitto itself, or
+       * suggesting a feature.
+       *
+       * NOT `reports`, and the distinction is structural rather than stylistic. A
+       * report is ABOUT something — the console renders its target as a link and every
+       * triage control acts on that target — whereas feedback has none. 0094's
+       * `reports_one_open_per_reporter_target` index would also cap a member at ONE
+       * open row if feedback reused that table with a synthetic target.
+       *
+       * `status` REUSES `report_status`: the question is the same one (has an operator
+       * dealt with this) and so are its three answers. The triage columns are not in
+       * the member INSERT grant, which covers only
+       * (author_id, kind, message, page_path) — and there is no member UPDATE or
+       * DELETE grant at all, so a filed row reads as it was filed.
+       */
+      feedback: {
+        Row: {
+          id: string;
+          author_id: string;
+          kind: Database['cardtrade']['Enums']['feedback_kind'];
+          /** Trimmed length is CHECK-constrained to 10–2000 characters. */
+          message: string;
+          /**
+           * The route the member was on, captured from the router — a PATH, never a
+           * URL, and the query string is deliberately dropped. CHECK-constrained to
+           * start with `/`. Null when the feedback is not about one page.
+           */
+          page_path: string | null;
+          status: Database['cardtrade']['Enums']['report_status'];
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          author_id: string;
+          kind: Database['cardtrade']['Enums']['feedback_kind'];
+          message: string;
+          page_path?: string | null;
+          /**
+           * Optional to TypeScript because the column defaults to OPEN, but NOT
+           * grantable to a member — the same arrangement `reports.status` has since
+           * 0094. Only the service-role client may set it.
+           */
+          status?: Database['cardtrade']['Enums']['report_status'];
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          author_id?: string;
+          kind?: Database['cardtrade']['Enums']['feedback_kind'];
+          message?: string;
+          page_path?: string | null;
+          status?: Database['cardtrade']['Enums']['report_status'];
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'feedback_author_id_fkey';
+            columns: ['author_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'feedback_reviewed_by_fkey';
+            columns: ['reviewed_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       reviews: {
         Row: {
@@ -2739,7 +2825,18 @@ export type Database = {
       webhook_outcome: 'SUCCESS' | 'FAILURE' | 'NO_OP';
       offer_status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COUNTERED' | 'WITHDRAWN';
       notification_type: 'OFFER' | 'MESSAGE' | 'TRADE' | 'SALE' | 'SYSTEM';
+      /**
+       * Triage state for the two member-authored inboxes: `reports` (moderation) and
+       * `feedback` (product intake, 0120). Deliberately one enum — the question is
+       * identical and a `feedback_status` twin would be a second definition of it.
+       */
       report_status: 'OPEN' | 'ACTIONED' | 'DISMISSED';
+      /**
+       * Which intake question a `feedback` row answers (0120). Not a priority and not
+       * a status. `OTHER` is the escape hatch that stops a member mislabelling their
+       * thing — the report dialog keeps one for the same reason.
+       */
+      feedback_kind: 'BUG' | 'IDEA' | 'OTHER';
       deal_state:
         | 'INVITED'
         | 'TERMS'

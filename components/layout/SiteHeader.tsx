@@ -16,6 +16,8 @@ import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
 import { Logo } from '@/components/layout/Logo';
 import { GuestHeaderCtas } from '@/components/layout/GuestHeaderCtas';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
@@ -118,6 +120,13 @@ export async function SiteHeader() {
                     initialNotifications?.ok ? initialNotifications.notifications : []
                   }
                 />
+                {/* BEFORE THE BELL'S NEIGHBOUR, AFTER THE BELL. The rail runs from
+                    "things waiting for you" to "you", and feedback is neither — it is
+                    the one control here that talks to us rather than about the
+                    marketplace, so it sits at the end of the tools and before the
+                    account. A client island, because this header is a Server
+                    Component. */}
+                <FeedbackDialog appearance="header-icon" />
                 {/* `!h-10` to match the 40px icon targets beside it. The `sm`
                     size collapses to 24px from `md`, which is the same height as
                     the 24px avatar inside it — the circle had no room and the
@@ -210,14 +219,21 @@ export function SiteHeaderSkeleton({
             >
               <Logo />
             </Link>
-            <div className="hidden h-8 w-24 animate-pulse rounded bg-white/10 md:block" />
+            {/* `Skeleton` with the tint overridden, not a hand-rolled div. These
+                four placeholders carried their own `animate-pulse`, which is how
+                the one loader on screen for EVERY desktop route ended up outside
+                the amplitude fix in `skeleton.tsx`. The bar has to stay
+                `bg-white/10` because it sits on the obsidian header rather than on
+                paper, and `bg-muted/70` would be a light block on a dark bar —
+                but the tint is the only thing about it that is special. */}
+            <Skeleton className="hidden h-8 w-24 rounded bg-white/10 md:block" />
           </div>
           <div className="hidden min-w-0 flex-1 justify-center px-snug md:flex">
-            <div className="h-9 w-full max-w-sm animate-pulse rounded-md bg-white/10" />
+            <Skeleton className="h-9 w-full max-w-sm bg-white/10" />
           </div>
           <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-tight md:flex-1 md:gap-snug">
-            <div className="hidden h-8 w-16 animate-pulse rounded bg-white/10 md:block" />
-            <div className="size-8 animate-pulse rounded-full bg-white/10" />
+            <Skeleton className="hidden h-8 w-16 rounded bg-white/10 md:block" />
+            <Skeleton className="size-8 rounded-full bg-white/10" />
           </div>
         </div>
       </header>

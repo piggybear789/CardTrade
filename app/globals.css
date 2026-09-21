@@ -47,12 +47,17 @@
          sidebar                      95.5   the rail, below the page
          muted/secondary                95   grouping tint ON card
          accent                         92   selected tint
-         border                         88   the hairline
+         border                         87   the hairline
        
        THE NEUTRAL RAMP IS TINTED TOWARD THE ACCENT, NOT AWAY FROM IT. Muted,
-       border, input, sidebar and mist all carry a few points of chroma at 275° —
+       sidebar, accent, secondary and mist all carry a few points of chroma at 275° —
        the lilac's own hue — so the greys read as part of the palette instead of
        as a second, unrelated cool family.
+       
+       BORDER AND INPUT ARE NO LONGER PART OF THAT, and the split is deliberate: the
+       tint belongs on SURFACES and not on LINES, because a line that every container
+       and every field draws is repeated often enough to stop reading as a tint. See
+       the `--border` comment for the measurement.
        
        THE PAGE IS NOW TINTED, AND THAT REVERSES WHAT THIS COMMENT USED TO SAY.
        It read "the page is the deliberate exception: paper is white", and the three
@@ -197,12 +202,41 @@
     /* 85 → 88, and more chroma. The surface step is back, so the hairline no longer
        has to be the ONLY thing making a card an object — it can go back to being a
        hairline rather than a rule. */
-    --border: 281 26% 88%;
+    /* CHROMA OUT OF BOTH BORDER TOKENS: 26% → 8%, AND THIS IS A PARTIAL RETREAT FROM
+       "THE NEUTRAL RAMP IS TINTED TOWARD THE ACCENT" ABOVE.
+       
+       That principle is right about SURFACES and it stays: `--muted`, `--secondary`,
+       `--accent`, `--sidebar` and `--mist` keep their chroma, because a tint reads as
+       a family resemblance. It is wrong about LINES, for a reason that only shows up
+       at scale: `* { @apply border-border }` means every card edge, every divider,
+       every table rule and every disabled control draws in this one value, and
+       `--input` draws around every field on every form. At 26% chroma those are not
+       a family resemblance — they are the most REPEATED colour in the interface, and
+       repetition is what turns a tint into the dominant hue. It is the same mistake
+       the `.iris-ink` note on prices records, arrived at from the other direction.
+       
+       So chroma comes out of the two tokens that draw LINES and stays in the ones
+       that draw SURFACES. 8% is not zero: at a hairline's weight it is enough to keep
+       the line off pure grey against a tinted page, without the lilac being legible
+       as a colour.
+       
+       LIGHTNESS CARRIES THE CONTRAST, so it moved to hold it. Desaturating at a fixed
+       L raises luminance here (at 281° the green channel is the minimum, and green
+       carries 71% of the luminance weight), which would have quietly faded both
+       lines. 88 → 87 holds the hairline at 1.37:1 on a card, the exact ratio it had
+       at 26%. */
+    --border: 281 8% 87%;
     /* 60% → 59%. A field's border is the only thing identifying it as a control, so it
        owes the full 3:1 against the PAGE — and the page is tinted again, which is the
        worse of the two surfaces. 3.36:1 on the page, 3.55:1 on a card. This is the
        exact trap the previous comment describes falling into at 62%. */
-    --input: 277 26% 59%;
+    /* 59 → 56 alongside the chroma cut, and the trap named above is why: at 8% chroma
+       and 59% the field edge measured 2.96:1 on the page and FAILED SC 1.4.11. Three
+       points of lightness buy it back with headroom to spare — 3.28:1 on the page,
+       3.47:1 on a card, 3.12:1 on `--muted`, 3.08:1 on the sidebar, which are the four
+       surfaces a field actually sits on. A neutral field border is not allowed to be a
+       fainter one. */
+    --input: 277 8% 56%;
     --ring: var(--iris);
 
     /* Teal for verified identity and provenance only, never decoration.
@@ -329,6 +363,12 @@
      NEUTRAL otherwise: containers take `--border`, hover takes `--foreground` at a
      low alpha. Keep the violet TINT where a panel needs to read as informational —
      a wash carries that perfectly well without the frame.
+     
+     AND `--border` IS NOW ACTUALLY NEUTRAL. This rule held the line on components
+     while the token every one of them falls back to was itself a 26%-chroma lilac, so
+     "take the neutral border" still drew a faintly purple one — roughly the same
+     amount of violet the rule had just finished removing, arrived at from underneath.
+     Both border tokens are down to 8% chroma; the allowances above are unchanged.
      
      NO DASHED BORDERS. Dashed was carrying four unrelated jobs — empty state, file
      dropzone, unavailable image, simulated-provider quarantine — which means it
@@ -525,6 +565,24 @@
     color: hsl(var(--foreground));
   }
 
+  /* Danger callout — the red sibling of `.cardtrade-warning`, and the distinction is
+     the point. Amber is "this is your move"; this is "do not do the thing". They sit
+     164° apart deliberately (see the `--destructive` note above), so a page carrying
+     both reads as two different instructions rather than two intensities of one.
+
+     TEXT STAYS `--foreground`, exactly as the amber callout does. The established
+     destructive recipe elsewhere in the app pairs the tint with `text-destructive`
+     (`ShippingDeadline`, `ContractProgressRail`), which is right for a three-word
+     status chip and wrong for a block of copy: a whole list set in 45%-lightness red
+     is shouty and harder to read than the thing it is warning about. The tint and the
+     edge carry the alarm; the words stay legible. Markers take the red at the call
+     site, which is the one place the hue belongs on a per-item basis. */
+  .cardtrade-danger {
+    border-color: hsl(var(--destructive) / 0.45);
+    background-color: hsl(var(--destructive) / 0.08);
+    color: hsl(var(--foreground));
+  }
+
   /* Completed progress / success tone — reuse trust teal, not raw emerald. */
   .cardtrade-success-fill {
     background-color: hsl(var(--trust) / 0.5);
@@ -568,6 +626,30 @@
   border-radius: 9999px;
   border: 2px solid hsl(var(--iris));
   animation: step-active-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Skeleton shimmer, and deliberately shallower than Tailwind's `animate-pulse`.
+   
+   `animate-pulse` troughs at 50% opacity. On a phone that is one card breathing
+   and it reads fine, which is why it survived this long. A desktop loader is a
+   different object: sixty to eighty bars spread across a 1440px viewport, every
+   one of them on the same 2s clock with no offset, so the whole screen dims and
+   brightens in unison — and at `bg-muted/70` the trough lands near 35% against a
+   98%-lightness page, faint enough that the placeholder half-disappears on each
+   cycle. The effect is a page that appears to blink at you while it loads rather
+   than one that is visibly working.
+   
+   0.6 keeps every bar continuously legible, so the shape of the page never stops
+   being readable, and 1.8s is slightly quicker so the motion still registers as
+   activity at the lower amplitude. Stopped outright by the
+   prefers-reduced-motion block at the foot of this file, which is why the pulse
+   needs no media query of its own. */
+@keyframes skeleton-pulse {
+  50% { opacity: 0.6; }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes fade {

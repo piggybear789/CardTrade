@@ -140,7 +140,19 @@ const squared = await sharp({
   .png()
   .toBuffer();
 
-const MARK_SIZE = 512;
+// 128, NOT 512, AND THE DIFFERENCE IS 150 KB ON EVERY PAGE. `LogoMark` paints this
+// at `size-8` — 32 CSS pixels — and serves it `unoptimized`, so the file that ships
+// is the file that arrives: nothing downsamples it on the way. At 512 that was a
+// 156 KB PNG to fill a 32px square, and because the mark sits in the header it was
+// on the critical path of every route in the product.
+//
+// 128 is 4x the painted size, which covers a 3x phone with room to spare and leaves
+// headroom for a caller that renders the mark larger. It is deliberately NOT 96 (an
+// exact 3x) so that headroom exists.
+//
+// This is the header mark only. `app/icon.png` below stays 512 because a PWA install
+// and an apple-touch-icon really are drawn at that size.
+const MARK_SIZE = 128;
 await sharp(squared)
   .resize(MARK_SIZE, MARK_SIZE, { kernel: sharp.kernel.lanczos3 })
   .png()

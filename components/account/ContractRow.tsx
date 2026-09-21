@@ -22,6 +22,7 @@ import type { ReactNode } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import type { ContractNextMove } from '@/lib/actions/account';
+import { StorageImage } from '@/components/ui/storage-image';
 import { itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -66,10 +67,16 @@ export function ContractRowThumb({
   const url = itemImageUrl(imagePath ?? null);
 
   return (
-    <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground md:size-14">
+    <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground md:size-14">
       {url ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={url} alt="" className="size-full object-cover" loading="lazy" draggable={false} />
+        <StorageImage
+          src={url}
+          alt=""
+          sizes="(max-width: 767px) 48px, 56px"
+          className="object-cover"
+          loading="lazy"
+          draggable={false}
+        />
       ) : (
         (children ?? (
           <>

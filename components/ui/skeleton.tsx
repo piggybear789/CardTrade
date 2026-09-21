@@ -3,6 +3,13 @@
 // Shared shimmer placeholder for loading states. Uses the muted token so it
 // reads as "content is coming" on both themes, and respects reduced motion
 // (the pulse is disabled globally by the prefers-reduced-motion rule).
+//
+// `animate-skeleton`, NOT Tailwind's `animate-pulse` — see the keyframe comment
+// in `app/globals.css`. The short version: `animate-pulse` bottoms out at 50%
+// opacity, which is unobjectionable on one phone card and turns a desktop
+// loader's sixty-odd synchronised bars into the whole viewport blinking. Every
+// placeholder in the app draws through this component, so the amplitude is set
+// here once rather than per loader.
 
 import { cn } from '@/lib/utils';
 
@@ -12,7 +19,7 @@ export function Skeleton({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('animate-pulse rounded-md bg-muted/70', className)}
+      className={cn('animate-skeleton rounded-md bg-muted/70', className)}
       aria-hidden="true"
       {...props}
     />

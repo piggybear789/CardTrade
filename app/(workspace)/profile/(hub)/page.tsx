@@ -25,7 +25,7 @@
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { ShieldCheckIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
+import { HelpCircleIcon, ShieldCheckIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -47,6 +47,7 @@ import {
   PaymentMethodSettingRow,
 } from '@/components/account/SettingsDialogRows';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
+import { FeedbackSettingRow } from '@/components/feedback/FeedbackSettingRow';
 import {
   AddressesSettingRow,
   BioSettingRow,
@@ -349,6 +350,30 @@ function ProfilePanel({
           the session, and a destructive action sharing a group with navigation is
           the kind of adjacency that gets mis-tapped. */}
       <div className="space-y-group border-t border-border pt-section">
+        {/* THE ONLY WAY A PHONE REACHES THE FEEDBACK DIALOG. The header's feedback icon
+            is in the dark bar and the burger's Support row is in the burger — both `md`
+            and up for a signed-in member. Grouped with Help because "something is wrong
+            and I need a human" is one intent, and a member does not know in advance
+            whether the answer is a help page or a bug report.
+
+            `FeedbackSettingRow` is a client component that builds its own trigger; this
+            page is a Server Component and cannot. See its header. */}
+        <SettingsGroup label="Support">
+          <FeedbackSettingRow />
+          <SettingsListRow
+            href="/safety"
+            icon={ShieldCheckIcon}
+            label="Staying safe"
+            description="Protecting yourself as a buyer, seller and trader."
+          />
+          <SettingsListRow
+            href="/help"
+            icon={HelpCircleIcon}
+            label="Help"
+            description="How buying, selling and trading work."
+          />
+        </SettingsGroup>
+
         {staffLinks.length > 0 ? (
           <SettingsGroup label={STAFF_NAV_GROUP.label}>
             {staffLinks.map((link) => (

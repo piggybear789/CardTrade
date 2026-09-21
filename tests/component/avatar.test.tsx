@@ -32,7 +32,12 @@ describe('Avatar', () => {
     );
     const img = container.querySelector('img');
     expect(img).not.toBeNull();
-    expect(img?.getAttribute('src')).toBe(
+    // CONTAINS, NOT EQUALS. A public Storage URL goes through the image
+    // optimizer, so the `src` is `/_next/image?url=<encoded>&w=…` and the
+    // resolved path is the `url` parameter rather than the attribute itself.
+    // Decoded first, so this asserts the PATH RESOLUTION — which is what the
+    // test is for — and not the way Next happens to encode a query string.
+    expect(decodeURIComponent(img?.getAttribute('src') ?? '')).toContain(
       `${BASE}/storage/v1/object/public/profile-images/owner-1/a.png`,
     );
     // The picture replaces the initials rather than sitting behind them.

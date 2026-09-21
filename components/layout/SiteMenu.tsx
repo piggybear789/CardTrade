@@ -15,9 +15,10 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BanknoteIcon, HandshakeIcon, MenuIcon, RepeatIcon, XIcon } from '@hugeicons/core-free-icons';
+import { BanknoteIcon, HandshakeIcon, HelpCircleIcon, MenuIcon, RepeatIcon, ShieldCheckIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { StartDealButton } from '@/components/deals/StartDealButton';
+import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SignInLink } from '@/components/layout/SignInLink';
@@ -351,6 +352,28 @@ export function SiteMenu({
                     {staffLinks.map((link) => renderLink(link))}
                   </>
                 ) : null}
+
+                {/* A DIALOG, NOT A DESTINATION, so it is placed by hand rather than
+                    added to the nav map — the same reason `StartDealButton` is. `onOpen`
+                    closes this panel, otherwise it stays open behind the dialog and is
+                    the first thing the member sees again when they finish. */}
+                <div className="my-0.5 border-t" />
+                <p className="market-label px-2.5 pb-0 pt-tight text-muted-foreground">
+                  Support
+                </p>
+                <FeedbackDialog appearance="menu-row" onOpen={() => setOpen(false)} />
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
+                  <Link href="/safety">
+                    <HugeiconsIcon icon={ShieldCheckIcon} aria-hidden />
+                    Staying safe
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
+                  <Link href="/help">
+                    <HugeiconsIcon icon={HelpCircleIcon} aria-hidden />
+                    Help
+                  </Link>
+                </Button>
 
                 <div className="my-0.5 border-t" />
                 {/* `!h-9` on every row in this panel, including this one: the

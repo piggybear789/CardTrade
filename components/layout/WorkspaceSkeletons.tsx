@@ -302,9 +302,15 @@ export function CatalogTileGridSkeleton({
  * columns, and a placeholder cannot be "close enough" to a grid whose whole purpose is
  * that things land at the same x.
  */
-function ContractRowSkeleton({ titleLines }: { titleLines: 1 | 2 }) {
+function ContractRowSkeleton({
+  titleLines,
+  className,
+}: {
+  titleLines: 1 | 2;
+  className?: string;
+}) {
   return (
-    <li className={cn(CONTRACT_ROW_GRID, 'px-group py-cozy')}>
+    <li className={cn(CONTRACT_ROW_GRID, 'px-group py-cozy', className)}>
       <Skeleton className="size-12 shrink-0 rounded-md md:size-14" />
       <div className="min-w-0">
         <TextLines
@@ -336,14 +342,33 @@ function ContractRowSkeleton({ titleLines }: { titleLines: 1 | 2 }) {
 export function ContractCardListSkeleton({
   count = 5,
   /**
+   * Rows to draw from `md`, where the fold is much deeper.
+   *
+   * TWO COUNTS, BECAUSE ONE CANNOT BE RIGHT AT BOTH WIDTHS. A wide row is 80px —
+   * `py-cozy` either side of a 56px thumb — and a 1440x900 desktop leaves roughly
+   * 667px under the section header and tab strip. Four rows is 354px of that,
+   * including the table header: the placeholder STOPPED halfway up the viewport,
+   * and then the real list carried on past the fold, so the one load where the
+   * skeleton is supposed to hold the page still was the load where the page grew
+   * under the reader. Nine rows overshoot the fold instead, which costs nothing —
+   * the excess is below the crease at a scroll position that is still at the top —
+   * whereas undershooting is visible every time.
+   *
+   * The phone count is left alone: five 72px rows already fill a phone, and
+   * drawing nine there would be four rows of motion nobody sees.
+   */
+  desktopCount = 9,
+  /**
    * Trades label both sides of the swap ("X ↔ Y") in a two-line clamp that, at phone
    * width, almost always uses both lines.
    */
   titleLines = 1,
 }: {
   count?: number;
+  desktopCount?: number;
   titleLines?: 1 | 2;
 }) {
+  const rows = Math.max(count, desktopCount);
   // The frame `ContractRowTable` draws, term for term: one bordered card, a header row
   // from `md`, hairline-divided rows inside.
   return (
@@ -368,8 +393,17 @@ export function ContractCardListSkeleton({
         <TextLines className="justify-self-end" widths={['w-12']} />
       </div>
       <ul role="list" className="divide-y divide-border">
-        {Array.from({ length: count }, (_, index) => (
-          <ContractRowSkeleton key={index} titleLines={titleLines} />
+        {Array.from({ length: rows }, (_, index) => (
+          <ContractRowSkeleton
+            key={index}
+            titleLines={titleLines}
+            // `max-md:hidden` removes the overflow rows from the phone entirely
+            // rather than drawing them off-screen. Safe against the `grid` in
+            // `CONTRACT_ROW_GRID` for the same reason `CatalogGridSkeleton` can do
+            // it: Tailwind emits variant rules after unprefixed ones, so inside the
+            // media query `hidden` wins the `display` conflict.
+            className={index >= count ? 'max-md:hidden' : undefined}
+          />
         ))}
       </ul>
     </div>
@@ -421,23 +455,63 @@ export function OfferCardListSkeleton({ count = 4 }: { count?: number }) {
   );
 }
 
-export function InboxRowSkeleton() {
-  return (
-    <>
+/**
+ * One inbox row, in the same two variants `InboxThreadList` itself has.
+ *
+ * `page` — `/messages`: the compact row below `md`, the wide row from `md`.
+ *
+ * `rail` — the 21rem pane beside an open thread. `InboxTwoPane` passes
+ * `variant="rail"` to the real list, which draws the COMPACT row AT EVERY WIDTH and
+ * insets it `px-cozy`, because the wide row puts a 48px thumbnail, an avatar, a name, a
+ * pill and a clock on one line and none of that survives 21rem.
+ *
+ * THE MISSING VARIANT WAS A VISIBLE TEAR ON EVERY CLICK BETWEEN TWO CONVERSATIONS.
+ * `messages/[id]/loading.tsx` had no rail shape to ask for, so at `lg` the pane got the
+ * `md:flex` WIDE row: a leading 48px square with two text lines beside it, 80px tall,
+ * standing in for a compact row that is a leading round avatar, THREE stacked lines and a
+ * trailing square, 97px tall. Seventeen pixels and a different arrangement, eight rows
+ * deep — the list did not shift so much as get replaced by a different list.
+ */
+export function InboxRowSkeleton({
+  variant = 'page',
+}: {
+  variant?: 'page' | 'rail';
+} = {}) {
+  // `MobileThreadRow`'s own box, and three things here were stale against it.
+  // `items-center`, NOT `items-start`: the real row centres, and centring is what let it
+  // drop the `mt-0.5` nudge this placeholder still had on the avatar. And
+  // `border border-transparent` is the focus-ring reserve every row carries because it is
+  // a link — without it each row was 2px short, all the way down the list.
+  const compact = (
+    <div
+      className={cn(
+        'flex min-h-11 items-center gap-cozy border border-transparent py-3.5',
+        // In the rail this IS the row at every width and carries the pane's inset. On
+        // `/messages` it is the phone row and the wide one below replaces it at `md`.
+        variant === 'rail' ? 'px-cozy' : 'md:hidden',
+      )}
+    >
       {/* Three lines of real type — `text-lead`, `text-body`, `text-meta` — not
           `h-4` + `h-3` + `h-3`. The old bars came to 56px against the row's
-          65.6px, so a six-thread inbox stood ~60px short and slid down on swap.
-          The trailing square is gone: the real row draws it only for a thread
-          that carries a listing or a dispute, so an unconditional one guaranteed
-          the wrong text width on every plain conversation. */}
-      <div className="flex min-h-11 items-start gap-cozy py-3.5 md:hidden">
-        <Skeleton className="mt-0.5 size-12 shrink-0 rounded-full" />
-        <div className="min-w-0 flex-1">
-          <TextLines className="text-lead" widths={['w-1/3']} />
-          <TextLines className="mt-0.5 text-body" widths={['w-3/4']} />
-          <TextLines className="mt-0.5 text-meta" widths={['w-12']} />
-        </div>
+          65.6px, so a six-thread inbox stood ~60px short and slid down on swap. */}
+      <Skeleton className="size-12 shrink-0 rounded-full" />
+      <div className="min-w-0 flex-1">
+        <TextLines className="text-lead" widths={['w-1/3']} />
+        <TextLines className="mt-0.5 text-body" widths={['w-3/4']} />
+        <TextLines className="mt-0.5 text-meta" widths={['w-12']} />
       </div>
+      {/* NO TRAILING SQUARE, and it stays out: the real row draws one only for a thread
+          that carries a listing or a trade. It is `shrink-0` beside a text column taller
+          than it is, so leaving it out cannot change the row's height — only the width
+          of placeholder bars that are fractions anyway. */}
+    </div>
+  );
+
+  if (variant === 'rail') return compact;
+
+  return (
+    <>
+      {compact}
       {/* The desktop row, now on real line boxes and with the two things it was
           missing. `InboxThreadList`'s wide row is ONE 24px line — a `size-6` avatar,
           the name at `text-lead`, a status pill, the time pushed right — over a
@@ -462,11 +536,20 @@ export function InboxRowSkeleton() {
   );
 }
 
-export function NotificationRowSkeleton() {
+export function NotificationRowSkeleton({
+  className,
+}: {
+  className?: string;
+}) {
   return (
     // `border border-transparent` because the real row is a button that reserves
     // one for its focus ring; without it the placeholder is 2px short per row.
-    <div className="flex items-start gap-cozy border border-transparent px-group py-3.5">
+    <div
+      className={cn(
+        'flex items-start gap-cozy border border-transparent px-group py-3.5',
+        className,
+      )}
+    >
       <Skeleton className="mt-1.5 size-2 shrink-0 rounded-full" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-snug">
@@ -480,9 +563,19 @@ export function NotificationRowSkeleton() {
 }
 
 /**
- * Contract room. Below `md` that is a thread — bar, log, composer — because the
- * details are a sheet, not a pane; from `md` it is the identity card above the
- * details/chat split.
+ * Contract room, in the three shapes the real room actually has — and they turn on TWO
+ * different breakpoints, which is the thing this placeholder used to get wrong.
+ *
+ * The identity card is `md` (768), because `ContractHeader` is wrapped in `DesktopOnly`.
+ * The details/chat split is `lg` (1024), because `useContractSplit` says so — it needs
+ * 24rem for the chat column on top of the workspace rail. So:
+ *
+ *   below md    thread alone — bar, log, action dock, composer
+ *   md to lg    identity card above a thread, details still behind a sheet
+ *   lg and up   identity card above the details/chat split, both panes full height
+ *
+ * Reading both forks off one breakpoint is what put the inspector on screen between 768
+ * and 1023 against a page that was about to draw a conversation.
  */
 export function ContractRoomSkeleton() {
   return (
@@ -513,9 +606,16 @@ export function ContractRoomSkeleton() {
         </div>
       </Card>
 
-      {/* Phone: the thread — bar, log, action dock, composer, in that order.
-          Mirrors `ContractChat`. */}
-      <div className="flex min-h-0 flex-1 flex-col md:hidden">
+      {/* Below the split: the thread — bar, log, action dock, composer, in that order.
+          Mirrors `ContractChat`.
+
+          `lg:hidden`, NOT `md:hidden`. `useContractSplit` switches at 1024px, so between
+          768 and 1023 the real room is still a thread, and this branch used to stop at
+          768 while the split branch below started there. For 256px of viewport the
+          placeholder therefore drew the details inspector against a page that was about
+          to draw a conversation — not a shifted layout but a different one. The header
+          card above stays `md:block` because `DesktopOnly` genuinely is 768. */}
+      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
         {/* `bg-card` and `size-11` on the back control, both of which the real
             bar has: it is opaque, and the chevron is a touch target because it
             only exists at this width. A `size-10` here left the bar 4px short. */}
@@ -554,34 +654,76 @@ export function ContractRoomSkeleton() {
         </div>
       </div>
 
-      <div className="hidden min-h-0 flex-1 gap-group md:block lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
-        <div className="space-y-cozy">
-          <Card className="p-5">
-            <Skeleton className="mb-cozy h-5 w-56" />
-            <Skeleton className="mb-group h-4 w-full max-w-md" />
-            <Skeleton className="h-10 w-36 rounded-md" />
+      {/* From `lg`, the split. Structure is `ContractLiveRow`'s, term for term: one grid
+          row of two panes, each bounded so it scrolls inside itself rather than growing
+          the page. */}
+      <div className="hidden min-h-0 flex-1 flex-col gap-group lg:flex">
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)] gap-group">
+          {/* ONE FULL-HEIGHT CARD, NOT A STACK OF THREE SHORT ONES — the largest single
+              mismatch left in the loading set. `ContractLiveRow` hands this pane
+              `[&>*]:h-full`, and `ContractDetailList`'s root is
+              `flex h-full min-h-0 flex-col overflow-hidden`: a tabbed inspector that
+              fills the row and scrolls internally. The three `p-5` cards that stood in
+              for it came to ~370px inside a pane that is ~730px on a 900px-tall window,
+              and the chat beside it was pinned at `min-h-[22rem]` against the same 730px.
+              So both panes were roughly HALF their height and the whole room doubled and
+              re-seated itself on swap — on `/sales/[id]` and `/trades/[id]`, the two
+              screens where the reader is waiting on money and reading the page hardest. */}
+          <Card className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border shadow-sm">
+            {/* The inspector's tab strip: `min-h-11 shrink-0 border-b`, its own box. Bar
+                heights inside are free, because the cell is sized by `min-h-11` rather
+                than by its contents. */}
+            <div className="flex min-h-11 shrink-0 items-center gap-group border-b px-cozy">
+              {['w-16', 'w-12', 'w-14', 'w-20'].map((width) => (
+                <Skeleton key={width} className={cn('h-4 shrink-0', width)} />
+              ))}
+            </div>
+            {/* The active panel: label/value rows on real line boxes. It does not have to
+                reach the bottom — the real panel rarely does, and the card's border is
+                what holds the shape. */}
+            <div className="min-h-0 flex-1 space-y-group p-5">
+              {['w-24', 'w-20', 'w-28', 'w-16', 'w-24', 'w-20'].map((width, index) => (
+                <div
+                  key={index}
+                  className="flex items-baseline justify-between gap-group"
+                >
+                  <TextLines className="shrink-0 text-meta" widths={[width]} />
+                  <TextLines className="min-w-0 text-body" widths={['w-24']} />
+                </div>
+              ))}
+            </div>
           </Card>
-          <Card className="p-5">
-            <Skeleton className="mb-cozy h-4 w-24" />
-            <Skeleton className="h-20 w-full" />
-          </Card>
-          <Card className="p-5">
-            <Skeleton className="mb-cozy h-4 w-28" />
-            <Skeleton className="h-16 w-full" />
+
+          {/* The conversation panel, `h-full` in the real row too. Bar, log, the action
+              dock it carries internally, then the composer. */}
+          <Card className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border shadow-sm">
+            <div className="flex shrink-0 items-center gap-cozy border-b px-group py-cozy">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              <TextLines className="min-w-0 flex-1 text-lead" widths={['w-32']} />
+            </div>
+            {/* BOTTOM-ANCHORED, via `justify-end`. A chat log opens scrolled to the
+                newest message, so three bubbles pinned to the top of a 700px pane is the
+                one arrangement a real conversation never has — it read as an empty room
+                rather than a loading one. */}
+            <div className="flex min-h-0 flex-1 flex-col justify-end gap-cozy p-group">
+              <Skeleton className="h-12 w-2/3 rounded-2xl" />
+              <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
+              <Skeleton className="h-16 w-3/5 rounded-2xl" />
+              <Skeleton className="ml-auto h-12 w-2/5 rounded-2xl" />
+              <Skeleton className="h-10 w-1/2 rounded-2xl" />
+            </div>
+            <div className="shrink-0 border-t px-group py-snug">
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+            <div className="shrink-0 border-t px-group py-group">
+              <div className="flex items-center gap-snug">
+                <Skeleton className="size-9 shrink-0 rounded-full" />
+                <Skeleton className="h-9 min-w-0 flex-1 rounded-2xl" />
+                <Skeleton className="size-9 shrink-0 rounded-full" />
+              </div>
+            </div>
           </Card>
         </div>
-        <Card className="mt-group hidden min-h-[22rem] flex-col p-group lg:mt-0 lg:flex">
-          <div className="mb-group flex items-center gap-cozy border-b pb-cozy">
-            <Skeleton className="size-8 rounded-full" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-          <div className="flex-1 space-y-cozy">
-            <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
-            <Skeleton className="h-12 w-2/3 rounded-2xl" />
-            <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
-          </div>
-          <Skeleton className="mt-group h-11 w-full rounded-md" />
-        </Card>
       </div>
     </div>
   );
@@ -611,15 +753,21 @@ export function ChatThreadSkeleton() {
       >
         <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-full md:hidden" />
         <Skeleton className="size-9 shrink-0 rounded-md" />
-        {/* `text-lead leading-tight` over `text-body leading-tight`, and NO `space-y`.
-            `ChatThread`'s h2 and its meta line are adjacent blocks with no gap between
-            them, so the `space-y-1.5` that was here invented 6px; the bars themselves
-            were `h-4`/`h-3` against 20px and 17.5px line boxes. Note `leading-tight`
-            overrides the type token's own line-height and must be carried here too, or
-            the placeholder over-reserves instead. */}
+        {/* `text-lead leading-tight` over the meta row, and NO `space-y`. `ChatThread`'s
+            h2 and its meta line are adjacent blocks, so the `space-y-1.5` that was here
+            invented 6px; the bars themselves were `h-4`/`h-3` against 20px and 22.8px
+            line boxes. `leading-tight` overrides the type token's own line-height on the
+            TITLE and must be carried here too, or the placeholder over-reserves.
+
+            THE META LINE IS `mt-0.5 text-body` WITHOUT `leading-tight`, which is the
+            opposite of the title and is not an inconsistency — it is what the real bar
+            does. `PANE_BAR_MIN_H`'s note records why: that line was rebuilt as a flex row
+            to hold a status badge, which meant dropping the cap and `leading-tight` and
+            adding `mt-0.5`. Carrying the old form here left the block 7px shorter than the
+            real one and, in an `items-center` bar, sitting ~3.5px high. */}
         <div className="min-w-0 flex-1">
           <TextLines className="text-lead leading-tight" widths={['w-2/5']} />
-          <TextLines className="text-body leading-tight" widths={['w-28']} />
+          <TextLines className="mt-0.5 text-body" widths={['w-28']} />
         </div>
         {/* The thread CTA is a 44px touch target and keeps its compact desktop size. */}
         <Skeleton className="h-11 w-24 shrink-0 rounded-md md:h-7" />

@@ -23,7 +23,30 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { StorageImage } from '@/components/ui/storage-image';
 import { cn } from '@/lib/utils';
+
+/**
+ * Painted width of each tile size, taken from the `size-*` classes below rather
+ * than guessed: `size-11` is 2.75rem and `size-16` is 4rem.
+ *
+ * These are the numbers that make the thumbnails cheap. Every tile here used to
+ * fetch the FULL uploaded photo — a contract room with four item photos and four
+ * evidence photos pulled eight originals to paint eight tiles the size of a
+ * postage stamp.
+ */
+const TILE_SIZES = {
+  sm: '44px',
+  md: '64px',
+} as const;
+
+/**
+ * Painted width of the promoted photo in the `stacked` layout.
+ *
+ * The showcase column it sits in is `minmax(0, 15rem)` from `sm` up (see
+ * `ContractExchangePanel`), and full width below that.
+ */
+const STACKED_PRIMARY_SIZES = '(max-width: 639px) 100vw, 240px';
 
 /** Dark, translucent control that floats over the photo rather than beside it. */
 const LIGHTBOX_CONTROL =
@@ -169,16 +192,27 @@ export interface ContractThumbnailsProps {
   className?: string;
 }
 
-/** Shows a deliberate unavailable state instead of the browser's broken-image glyph. */
+/**
+ * Shows a deliberate unavailable state instead of the browser's broken-image glyph.
+ *
+ * Goes through {@link StorageImage} rather than `next/image` directly, because
+ * `ContractThumbnails` renders BOTH kinds of URL: item photos from the public
+ * bucket, which optimise, and dispute and private-deal evidence, which arrive as
+ * short-lived signed URLs from a private bucket and must not. The wrapper decides
+ * from the URL; this component does not need to know which it was handed.
+ */
 function ContractThumbnailImage({
   src,
   alt = '',
+  sizes,
   loading,
   className,
   fallbackClassName,
 }: {
   src: string;
   alt?: string;
+  /** Painted width of the tile. See {@link TILE_SIZES}. */
+  sizes: string;
   loading?: 'eager' | 'lazy';
   className?: string;
   fallbackClassName?: string;
@@ -203,10 +237,10 @@ function ContractThumbnailImage({
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <StorageImage
       src={src}
       alt={alt}
+      sizes={sizes}
       loading={loading}
       className={className}
       onError={() => setFailed(true)}
@@ -259,11 +293,13 @@ export function ContractThumbnails({
             type="button"
             onClick={() => setOpenIndex(0)}
             aria-label={`Enlarge photo 1 of ${images.length} for ${label}`}
-            className="aspect-square w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-iris"
+            // `relative` so the photo can fill it — StorageImage is always `fill`.
+            className="relative aspect-square w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-iris"
           >
             <ContractThumbnailImage
               src={primary}
-              className="h-full w-full object-contain"
+              sizes={STACKED_PRIMARY_SIZES}
+              className="object-contain"
             />
           </button>
 
@@ -276,15 +312,16 @@ export function ContractThumbnails({
                     onClick={() => setOpenIndex(index + 1)}
                     aria-label={`Enlarge photo ${index + 2} of ${images.length} for ${label}`}
                     className={cn(
-                      'overflow-hidden rounded-md border bg-muted transition',
+                      'relative overflow-hidden rounded-md border bg-muted transition',
                       'hover:opacity-90 border border-transparent focus:outline-none focus-visible:border-iris',
                       'size-11',
                     )}
                   >
                     <ContractThumbnailImage
                       src={src}
+                      sizes={TILE_SIZES.sm}
                       loading="lazy"
-                      className="h-full w-full object-cover"
+                      className="object-cover"
                     />
                   </button>
                 </li>
@@ -328,15 +365,16 @@ export function ContractThumbnails({
               onClick={() => setOpenIndex(index)}
               aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${label}`}
               className={cn(
-                'overflow-hidden rounded-md border bg-muted transition',
+                'relative overflow-hidden rounded-md border bg-muted transition',
                 'border border-transparent hover:opacity-90 focus:outline-none focus-visible:border-iris',
                 tile,
               )}
             >
               <ContractThumbnailImage
                 src={src}
+                sizes={TILE_SIZES[size]}
                 loading="lazy"
-                className="h-full w-full object-cover"
+                className="object-cover"
               />
             </button>
           </li>

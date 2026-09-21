@@ -27,6 +27,22 @@ const MOBILE_MAX = '(max-width: 1023px)';
 const itemKey = (item: CatalogItem) => item.id;
 const itemCoverDim = (item: CatalogItem) => catalogCoverDim(item);
 
+/**
+ * How many covers are fetched eagerly instead of lazily.
+ *
+ * FOUR, BECAUSE THAT IS ONE ROW AT THE WIDEST LAYOUT. The grid is four columns
+ * from `lg`, three at `md` and two on a phone, so four covers the first desktop
+ * row and the first two phone rows — the tiles that are above the fold on every
+ * viewport, and the set the Largest Contentful Paint element is drawn from.
+ *
+ * Counted in FEED order, which is the order that survives the mosaic:
+ * `balanceMosaicColumns` walks items in rank order and drops each into whichever
+ * column is shorter, so items 0 and 1 are the top of the two columns and 2 and 3
+ * sit directly beneath them. Raising this past a row stops buying anything and
+ * starts competing with itself for the same early bandwidth.
+ */
+const EAGER_COVER_COUNT = 4;
+
 export interface CatalogInfiniteGridProps {
   /** Bumps when the browse query is replaced so we reset without remounting. */
   revision: number;
@@ -78,6 +94,14 @@ export function CatalogInfiniteGrid({
   const visibleItems = useMemo(
     () => filterCatalogItems(items, deferredFilter),
     [items, deferredFilter],
+  );
+  // A set of ids rather than an index, because `CatalogMosaic`'s render prop
+  // hands back the item and not its position — and going through the id keeps
+  // this honest when the client-side filter removes rows, so "the first row" is
+  // the first row the viewer can actually see.
+  const eagerCoverIds = useMemo(
+    () => new Set(visibleItems.slice(0, EAGER_COVER_COUNT).map(itemKey)),
+    [visibleItems],
   );
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -204,6 +228,7 @@ export function CatalogInfiniteGrid({
               <CatalogItemCard
                 item={item}
                 coverDim={coverDim}
+                eager={eagerCoverIds.has(item.id)}
                 initialWatching={
                   currentUserId && item.owner_id !== currentUserId
                     ? watchingIds.has(item.id)

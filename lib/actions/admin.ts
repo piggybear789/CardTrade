@@ -242,6 +242,52 @@ export async function setReportStatus(
 }
 
 /**
+ * Set a feedback row's status (0120). Admin-only, and identical in shape to
+ * {@link setReportStatus} because the triage question is identical.
+ *
+ * ACTIONED vs DISMISSED carries no product behaviour — nothing downstream reads it.
+ * It exists so the backlog shrinks as it is worked, which is the only thing that keeps
+ * a queue readable, and so "we looked at this and decided not to" is recorded as a
+ * decision rather than as an unread row.
+ *
+ * Writes through the service role: `feedback_admin_update` has no member grant behind
+ * it, matching the arrangement `policies.test.ts` records for `reports:UPDATE`.
+ */
+export async function setFeedbackStatus(
+  feedbackId: string,
+  status: Extract<Enums<'report_status'>, 'ACTIONED' | 'DISMISSED'>,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('feedback')
+    .update({
+      status,
+      // Both stamps or neither: `feedback_review_stamp_complete` in 0120 rejects a
+      // half-filled pair, so they are written together here.
+      reviewed_by: gate.adminId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', feedbackId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, error: 'persistence-error', message: error.message };
+  }
+  if (!data) {
+    return { ok: false, error: 'not-found' };
+  }
+
+  revalidatePath('/admin');
+  return { ok: true, data: { id: data.id } };
+}
+
+/**
  * Clear a trade's manual-reconciliation flag once an admin has reviewed the
  * flagged trade. Admin-only.
  */

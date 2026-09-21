@@ -28,7 +28,7 @@ import type { ReactNode } from 'react';
 
 import { DesktopOnly } from '@/components/layout/Breakpoint';
 import { MarketplaceNav } from '@/components/layout/MarketplaceNav';
-import { Skeleton } from '@/components/ui/skeleton';
+import { TextLines } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 export function MarketplaceShellSkeleton({
@@ -48,6 +48,15 @@ export function MarketplaceShellSkeleton({
   /** Match `MarketplaceShell.center` — short interstitials like the trade offer form. */
   center = false,
   /**
+   * Match `MarketplaceShell.contentOwnsBottomPadding`. Only meaningful with `flush`.
+   *
+   * MUST be passed wherever the real route passes it. `/messages/[id]` does and this
+   * had no way to accept it, so the placeholder's thread carried 16px of shell padding
+   * that the real thread does not — the composer and everything above it lifted by
+   * exactly that on swap, at the bottom of the viewport where it is most visible.
+   */
+  contentOwnsBottomPadding = false,
+  /**
    * Match `MarketplaceShell.fill`. MUST be passed whenever the real route passes it: the
    * cap is what decides how wide the content is, so a capped skeleton in front of a
    * filled page shifts everything sideways the moment data lands.
@@ -60,6 +69,7 @@ export function MarketplaceShellSkeleton({
   filters?: ReactNode;
   flush?: boolean;
   center?: boolean;
+  contentOwnsBottomPadding?: boolean;
   fill?: boolean;
   children: ReactNode;
 }) {
@@ -90,9 +100,16 @@ export function MarketplaceShellSkeleton({
                 </h1>
               ) : (
                 // Matches the h1's line box so the CTA below it does not move.
-                <div className="flex h-[calc(theme(fontSize.subhead)*1.2)] items-center">
-                  <Skeleton className="h-4 w-24" />
-                </div>
+                //
+                // `TextLines` with the heading's own type classes, NOT a hand-computed
+                // height. This was `h-[calc(theme(fontSize.subhead)*1.2)]`, and the 1.2
+                // was simply the wrong number: `subhead` is `["1.0625rem", { lineHeight:
+                // "1.4" }]`, so the real h1 line box is 1.4875rem and the slot reserved
+                // 1.275rem — 3.4px short, which the rail CTA and the whole nav below it
+                // then took up on every titleless route. Restating a ratio the type
+                // scale already owns is how it goes stale; `TextLines` reads it from the
+                // cascade instead, so moving `subhead` moves this with it.
+                <TextLines className="font-display text-subhead" widths={['w-24']} />
               )}
               {primaryAction ? (
                 <div className="mt-group md:[&>a]:!h-11 md:[&>a]:text-body md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-body md:[&>button>svg]:size-4">
@@ -115,7 +132,9 @@ export function MarketplaceShellSkeleton({
             flush &&
               'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
             flush
-              ? 'pb-group'
+              ? contentOwnsBottomPadding
+                ? 'pb-0'
+                : 'pb-group'
               : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10',
             center && 'justify-center',
           )}

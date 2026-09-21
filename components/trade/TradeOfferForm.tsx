@@ -48,6 +48,7 @@ import {
   UnlistedItemDialog,
   type UnlistedItemDraft,
 } from '@/components/trade/UnlistedItemDialog';
+import { StorageImage } from '@/components/ui/storage-image';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
@@ -313,13 +314,13 @@ export function TradeOfferForm({
         className="flex items-center gap-cozy rounded-lg border bg-muted p-cozy"
       >
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <StorageImage
             src={thumb}
             alt=""
-            width={96}
-            height={96}
+            width={48}
+            height={48}
             className="size-12 shrink-0 rounded-md object-cover"
+            loading="lazy"
           />
         ) : null}
         <div className="min-w-0">

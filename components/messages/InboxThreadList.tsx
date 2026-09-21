@@ -26,6 +26,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MobileList } from '@/components/ui/mobile-list';
 import { CashSaleStatusBadge } from '@/components/sales/CashSaleStatusBadge';
+import { StorageImage } from '@/components/ui/storage-image';
 import { formatRelativeTime, itemImageUrl } from '@/lib/format';
 import type { ConversationListEntry } from '@/lib/actions/messages';
 import { cn } from '@/lib/utils';
@@ -157,13 +158,13 @@ function MobileThreadRow({
       </div>
 
       {thumb ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <StorageImage
           src={thumb}
           alt={c.item?.title ?? ''}
-          width={88}
-          height={88}
+          width={44}
+          height={44}
           className="size-11 shrink-0 rounded-md object-cover"
+          loading="lazy"
         />
       ) : c.trade ? (
         <span
@@ -227,13 +228,13 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
         // NOT decorative any more. With the item title dropped from the row, the
         // thumbnail is the only thing that says which card the thread is about,
         // so it has to carry that name for anyone who cannot see it.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <StorageImage
           src={thumb}
           alt={c.item?.title ?? ''}
-          width={96}
-          height={96}
+          width={48}
+          height={48}
           className="size-12 shrink-0 rounded-md object-cover"
+          loading="lazy"
         />
       ) : (
         <span

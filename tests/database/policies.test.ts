@@ -44,6 +44,7 @@ const TABLES_REQUIRING_RLS = [
   'notifications',
   'offers',
   'reports',
+  'feedback',
   'reviews',
   'watchlist',
   'webhook_logs',
@@ -71,6 +72,7 @@ const KNOWN_INERT_POLICIES: Record<string, string> = {
 
   // Triaged by admins through the service-role client in `lib/actions/admin.ts`.
   'reports:UPDATE': 'service-role only (admin triage)',
+  'feedback:UPDATE': 'service-role only (setFeedbackStatus)',
 
   // F55: both provisioning paths use the service role, and a member INSERT here allowed
   // self-granting `is_admin`.

@@ -33,6 +33,16 @@ Pages are Server Components by default: fetch data with the cookie-bound Supabas
 
 Protected prefixes are listed in `middleware.ts` in both `PROTECTED_PREFIXES` and `config.matcher` — update both when adding a protected route.
 
+**A `loading.tsx` is the fallback for its segment AND EVERY DESCENDANT, so it must never sit at a segment whose children have a different shape.** This is the rule, and every violation of it shipped as a visible bug: a page-shaped placeholder standing in for a completely different page, on the most repeated navigation into that subtree.
+
+Put a page's loader in a LEAF position — a route group where the segment also has children — and leave parent slots empty. That is why the tree has `(home)`, `(inbox)`, `(list)`, `(console)`, `(queue)` and `(detail)` groups: each exists solely to stop a loader reaching a sibling route. `messages/loading.tsx` beside `messages/page.tsx` drew nine wide inbox rows in front of the two-pane conversation room on every thread-to-thread click; `sales/loading.tsx` did the same to the contract room with a tab strip and a table.
+
+**A dynamic segment's own loader is never warm for a param you have not opened.** Each param value is a separate payload, so `[id]/loading.tsx` cannot be the boundary that renders when the id changes — whatever sits above it is. That is what makes the rule above load-bearing rather than tidy.
+
+**There is deliberately NO `app/(workspace)/loading.tsx`, and no root `app/loading.tsx`.** A boundary that high is the fallback for every route beneath it, so it renders on virtually every navigation and is by construction never the page being navigated to. It was tried twice — first holding the catalog skeleton, then a generic row list — and both times the result was a wrong page shown before the right one, app-wide. With the slot empty, a navigation holds the CURRENT page until the target's own skeleton arrives, which is strictly better: a correct page for a moment longer beats a placeholder that is right about nothing but the chrome.
+
+A parent loader is legitimate only when every descendant genuinely shares the shape. `(marketing)/loading.tsx` is the one case — `help`, `terms` and `privacy` are the same prose column.
+
 ## components/
 
 One folder per feature (`account`, `admin`, `arbitration`, `auth`, `brand`, `contract`, `deals`, `fulfilment`, `identity`, `layout`, `listings`, `location`, `messages`, `notifications`, `offers`, `onboarding`, `payments`, `payouts`, `profile`, `reports`, `reviews`, `sales`, `trade`) plus `ui/` for shadcn primitives (button, card, dialog, form, input, label, select, textarea, badge, sonner, sheet, slider, popover, tooltip, skeleton, choice-tile, confirm-dialog, empty-state, dialog-row).

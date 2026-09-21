@@ -12,8 +12,39 @@ import { ChevronLeftIcon, ChevronRightIcon, ImageOffIcon, ZoomInIcon } from '@hu
 
 import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
 import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
+import { StorageImage } from '@/components/ui/storage-image';
 import { cn } from '@/lib/utils';
 import type { ImageDim } from '@/lib/images/dimensions';
+
+/**
+ * Painted width of the main frame, for `srcset` selection.
+ *
+ * The desktop listing pane is one of two `lg:flex-1` columns, so the frame is
+ * about half the content box once the thumbnail rail is taken off it. Below `lg`
+ * the only caller of `stage` is a contract panel at full width.
+ */
+const FRAME_SIZES = '(max-width: 1023px) 100vw, 45vw';
+
+/**
+ * Painted width of one carousel slide: a phone, edge to edge.
+ */
+const SLIDE_SIZES = '100vw';
+
+/** Painted width of a filmstrip thumbnail — `size-14`, i.e. 3.5rem. */
+const THUMB_SIZES = '56px';
+
+/**
+ * What the blurred backdrop asks for, which is as little as possible.
+ *
+ * IT IS SCALED UP AND THEN BLURRED, so resolution is wasted on it twice. At
+ * `blur-lg` (a 16px radius) over a frame several hundred pixels wide, a 128px
+ * source upscales to roughly 5px per source pixel — a third of the blur radius,
+ * so the interpolation is finer than the blur that follows it and there is
+ * nothing left to see. Before this the backdrop fetched the FULL original, a
+ * second multi-megabyte download per photo purely for decoration, because it sat
+ * on a plain `<img>` beside an optimised copy of the same URL.
+ */
+const BACKDROP_SIZES = '128px';
 
 export interface GalleryImage {
   /** Public image URL (already resolved from the stored object path). */
@@ -122,6 +153,7 @@ export function ImageGallery({
   appearance = 'stage',
   emptyHint,
   filmstrip = false,
+  hero = false,
 }: {
   images: GalleryImage[];
   title: string;
@@ -144,6 +176,28 @@ export function ImageGallery({
    * a flex child that is allowed to grow.
    */
   filmstrip?: boolean;
+  /**
+   * This gallery is the main subject of its page, so its first photo is worth
+   * fetching ahead of the rest of the page's images.
+   *
+   * A PRIORITY HINT, NOT A PRELOAD. The listing page keeps both galleries mounted
+   * at once — the desktop stage and the phone carousel, chosen by CSS — so which
+   * photo is the Largest Contentful Paint depends on the viewport, and Next's own
+   * guidance is that `preload` is the wrong tool for exactly that case: two
+   * `<link rel="preload">` tags for images that are alternatives would spend the
+   * early connection budget twice and waste one of them every time.
+   *
+   * `fetchPriority="high"` on a LAZY image is the combination that works here, and
+   * the two are orthogonal rather than contradictory: lazy decides WHETHER and
+   * WHEN (an image inside `display: none` never intersects the viewport, so the
+   * gallery this breakpoint is not using costs nothing at all), and the hint
+   * decides how urgently once a fetch does start. Marking them eager instead
+   * would download a full-size photo for the hidden one on every visit.
+   *
+   * Off for the contract room and the peek, where the photo is a reference and the
+   * action card is what the member came for.
+   */
+  hero?: boolean;
 }) {
   const isCover = appearance === 'cover';
   const isCarousel = appearance === 'carousel';
@@ -217,6 +271,7 @@ export function ImageGallery({
       <SwipeCarousel
         images={images}
         title={title}
+        hero={hero}
         failedSrcs={failedSrcs}
         onFail={(src) =>
           setFailedSrcs((prevFailed) => ({ ...prevFailed, [src]: true }))
@@ -266,13 +321,14 @@ export function ImageGallery({
           <>
             {!isCover ? (
               // Blurred background fill — same image scaled up behind the contained
-              // sharp version, like Facebook Marketplace.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              // sharp version, like Facebook Marketplace. Asks for 128px; see
+              // BACKDROP_SIZES for why that is not a compromise.
+              <StorageImage
                 src={active.src}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-full scale-110 object-cover blur-lg opacity-90"
+                sizes={BACKDROP_SIZES}
+                className="scale-110 object-cover blur-lg opacity-90"
                 draggable={false}
               />
             ) : null}
@@ -291,11 +347,12 @@ export function ImageGallery({
               )}
               aria-label={`Enlarge photo ${activeIndex + 1} of ${images.length} for ${title}`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <StorageImage
                 src={active.src}
                 alt={active.alt}
-                className={cn('h-full w-full', isCover ? 'object-cover' : 'object-contain')}
+                sizes={FRAME_SIZES}
+                className={isCover ? 'object-cover' : 'object-contain'}
+                fetchPriority={hero ? 'high' : undefined}
                 draggable={false}
                 onError={() =>
                   setFailedSrcs((prevFailed) => ({ ...prevFailed, [active.src]: true }))
@@ -409,7 +466,10 @@ export function ImageGallery({
                   aria-current={selected ? 'true' : undefined}
                   aria-label={`Show photo ${index + 1} of ${images.length}`}
                   className={cn(
-                    'size-14 overflow-hidden rounded-md border bg-muted transition-colors',
+                    // `relative` so the thumbnail inside can fill it — see
+                    // StorageImage, which is always `fill` and resolves against the
+                    // nearest positioned ancestor.
+                    'relative size-14 overflow-hidden rounded-md border bg-muted transition-colors',
                     'focus:outline-none focus-visible:border-iris',
                     // The selected thumbnail carries a 2px iris edge. Not a scale or an
                     // opacity change: the strip scrolls, and a transform would make the
@@ -424,12 +484,17 @@ export function ImageGallery({
                       <HugeiconsIcon icon={ImageOffIcon} className="size-4" aria-hidden />
                     </span>
                   ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
+                    // 56px of source for a 56px box. This rail is where the old
+                    // full-resolution `<img>` cost the most: a nine-photo listing
+                    // fetched nine originals to paint nine fingernail-sized tiles,
+                    // and because the rail is visible at `lg` no amount of lazy
+                    // loading would have saved it — only asking for less.
+                    <StorageImage
                       src={image.src}
                       alt=""
                       aria-hidden="true"
-                      className="h-full w-full object-cover"
+                      sizes={THUMB_SIZES}
+                      className="object-cover"
                       draggable={false}
                       onError={() =>
                         setFailedSrcs((prevFailed) => ({ ...prevFailed, [image.src]: true }))
@@ -507,6 +572,7 @@ function GalleryShell({
 function SwipeCarousel({
   images,
   title,
+  hero,
   failedSrcs,
   onFail,
   lightboxIndex,
@@ -514,6 +580,8 @@ function SwipeCarousel({
 }: {
   images: GalleryImage[];
   title: string;
+  /** See `ImageGallery`'s `hero`: hints the FIRST slide only. */
+  hero: boolean;
   failedSrcs: Record<string, true>;
   onFail: (src: string) => void;
   lightboxIndex: number | null;
@@ -562,12 +630,12 @@ function SwipeCarousel({
                   </div>
                 ) : (
                   <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <StorageImage
                       src={image.src}
                       alt=""
                       aria-hidden="true"
-                      className="absolute inset-0 h-full w-full scale-110 object-cover opacity-90 blur-lg"
+                      sizes={BACKDROP_SIZES}
+                      className="scale-110 object-cover opacity-90 blur-lg"
                       draggable={false}
                     />
                     <button
@@ -576,11 +644,19 @@ function SwipeCarousel({
                       className="absolute inset-0 z-[1] cursor-zoom-in border border-transparent focus:outline-none focus-visible:border-iris"
                       aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${title}`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      {/* EVERY SLIDE USED TO LOAD ON PAGE LOAD. This track is a
+                          horizontal scroller, so slides past the first are
+                          off-screen and lazy loading applies to them exactly as it
+                          would down a page — a nine-photo listing fetched nine
+                          full-resolution photos, twice each counting the backdrop,
+                          to show one. Native lazy handles horizontal overflow, so
+                          the remaining eight now arrive as they are swiped to. */}
+                      <StorageImage
                         src={image.src}
                         alt={image.alt}
-                        className="h-full w-full object-contain"
+                        sizes={SLIDE_SIZES}
+                        className="object-contain"
+                        fetchPriority={hero && index === 0 ? 'high' : undefined}
                         draggable={false}
                         onError={() => onFail(image.src)}
                       />

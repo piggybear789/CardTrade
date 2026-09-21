@@ -454,6 +454,7 @@ test.describe('public surfaces', () => {
     ['forgot-password', '/forgot-password'],
     ['update-password-no-session', '/auth/update-password'],
     ['help', '/help'],
+    ['safety', '/safety'],
     ['terms', '/terms'],
     ['privacy', '/privacy'],
     ['account-suspended', '/account-suspended'],

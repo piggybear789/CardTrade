@@ -47,6 +47,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/account/EmptyState';
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
+import { StorageImage } from '@/components/ui/storage-image';
 import { formatAud, itemImageUrl } from '@/lib/format';
 import {
   counterOffer,
@@ -171,11 +172,11 @@ function ListingOfferGroup({ group }: { group: OfferGroup }) {
       <div className="flex items-center gap-cozy border-b border-border bg-muted/50 px-cozy py-snug">
         <span className="relative size-10 shrink-0 overflow-hidden rounded-md bg-muted">
           {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <StorageImage
               src={imageUrl}
               alt=""
-              className="size-full object-cover"
+              sizes="40px"
+              className="object-cover"
               loading="lazy"
             />
           ) : (

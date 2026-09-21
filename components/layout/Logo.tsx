@@ -8,6 +8,11 @@
 // which also writes `app/icon.png`; regenerate both from there rather than editing
 // either file by hand. Served unoptimized so Next's image pipeline does not re-encode
 // and soften the PNG.
+//
+// `unoptimized` IS WHY THE SOURCE SIZE MATTERS SO MUCH HERE. Nothing resizes this on
+// the way to the browser — the file that ships is the file that arrives — so a 512px
+// mark meant 156 KB to paint a 32px square, in the header, on every route in the
+// product. It is now generated at 128 (see `MARK_SIZE`), which is 7.6 KB.
 
 import Image from 'next/image';
 
@@ -25,15 +30,20 @@ export function LogoMark({ className }: { className?: string }) {
       aria-hidden="true"
       className={cn('relative inline-flex size-8 shrink-0', className)}
     >
+      {/* NO `sizes`, AND NO PRELOAD. `sizes="32px"` used to sit here and did
+          nothing: `unoptimized` makes Next emit neither `srcset` nor `sizes`, so
+          it read as a saving that was never applied. The `priority` beside it is
+          gone on two counts — it is deprecated in favour of `preload` as of Next
+          16, and a 32px header glyph is not the Largest Contentful Paint element
+          on any page, so preloading it only competed with the image that is. At
+          7.6 KB it does not need the help. */}
       <Image
         src={NODITTO_MARK}
         alt=""
-        width={512}
-        height={512}
-        sizes="32px"
+        width={128}
+        height={128}
         unoptimized
         className="size-full object-contain"
-        priority
       />
     </span>
   );

@@ -31,8 +31,11 @@
      globals.css still holds. `--action` deliberately does NOT move: its 40deg is a
      reference to the wordmark orange (36deg), per the comment on the token. */
   --destructive: 352 62% 45%;
-  --border: 281 26% 88%;
-  --input: 277 26% 59%;
+  /* Chroma out of the two tokens that draw LINES (26% -> 8%), lightness nudged to
+     hold the contrast it had. The tint stays on the SURFACE tokens above. See the
+     --border comment in globals.css for the reasoning and the measurements. */
+  --border: 281 8% 87%;
+  --input: 277 8% 56%;
   --trust: 172 54% 30%;
   --action: 42 92% 78%;
   --action-foreground: 30 60% 18%;

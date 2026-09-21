@@ -23,6 +23,7 @@ import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Enums } from '@/lib/supabase/database.types';
 import type { ItemRow } from '@/lib/actions/account';
+import { StorageImage } from '@/components/ui/storage-image';
 import { formatAud, formatRelativeTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -258,10 +259,16 @@ function RowThumb({ item }: { item: ItemRow }) {
   const url = itemImageUrl(item.image_paths?.[0] ?? null);
 
   return (
-    <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted">
+    <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted">
       {url ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={url} alt="" className="size-full object-cover" draggable={false} />
+        <StorageImage
+          src={url}
+          alt=""
+          sizes="48px"
+          className="object-cover"
+          loading="lazy"
+          draggable={false}
+        />
       ) : (
         <span className="text-meta text-muted-foreground" aria-hidden="true">
           —

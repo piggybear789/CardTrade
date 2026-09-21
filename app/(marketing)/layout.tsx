@@ -5,6 +5,7 @@ const FOOTER_LINKS = [
   { href: '/', label: 'Marketplace' },
   { href: '/trades', label: 'Trades' },
   { href: '/help#holds', label: 'How it works' },
+  { href: '/safety', label: 'Staying safe' },
   { href: '/help', label: 'Help' },
   { href: '/terms', label: 'Terms' },
   { href: '/privacy', label: 'Privacy' },

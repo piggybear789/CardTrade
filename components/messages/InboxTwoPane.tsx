@@ -67,8 +67,18 @@ export function InboxTwoPane({
         </div>
         {/* Scrolls on its own. The shell caps a flush route's height and clips it, so
             this pane and the message log are two independent scroll areas inside one
-            non-scrolling page — which is the point of a flush route. */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{list}</div>
+            non-scrolling page — which is the point of a flush route.
+
+            `scrollbar-gutter: stable` RESERVES THE SCROLLBAR'S WIDTH WHETHER OR NOT ONE
+            IS DRAWN, and that turns a data-dependent layout shift into no shift at all.
+            Without it the pane is ~15px narrower once the list outgrows the viewport, so
+            every row's contents move sideways — on the first realtime message that pushes
+            a short list past the fold, and on every `/messages/A` -> `/messages/B` click,
+            because `loading.tsx` cannot know the conversation count and so cannot know
+            whether to reserve the gutter. It can now: both sides reserve it always. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+          {list}
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">{detail}</div>

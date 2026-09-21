@@ -23,7 +23,6 @@ import { BellOffIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-f
 import { toast } from 'sonner';
 
 import { navigateWithType } from '@/lib/motion/navigate';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
@@ -37,6 +36,7 @@ import {
 import {
   groupNotificationsByAge,
   NotificationRowBody,
+  notificationRowClass,
 } from '@/components/notifications/notificationPresentation';
 
 export function NotificationCenter({
@@ -144,9 +144,9 @@ export function NotificationCenter({
                   <button
                     type="button"
                     onClick={() => handleSelect(n)}
-                    className={cn(
-                      'flex w-full items-start gap-cozy px-group py-3.5 text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
-                      unread && 'bg-accent/40',
+                    className={notificationRowClass(
+                      unread,
+                      'gap-cozy px-group py-3.5',
                     )}
                   >
                     <NotificationRowBody notification={n} />

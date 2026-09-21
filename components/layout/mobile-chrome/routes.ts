@@ -24,7 +24,7 @@ const AUTH_EXACT = new Set([
 // line and a signed-in member got `hub`, which is a safe-area inset and nothing
 // else: no bar, no back, no wordmark. Tapping "Terms" from the sign-up form put
 // them on a long legal page with no way out but the browser's own back button.
-const MARKETING_EXACT = new Set(['/help', '/terms', '/privacy']);
+const MARKETING_EXACT = new Set(['/help', '/safety', '/terms', '/privacy']);
 
 const HUB_EXACT = new Set([
   '/listings/mine',

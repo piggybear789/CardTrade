@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 
+import { StorageImage } from '@/components/ui/storage-image';
 import { avatarUrl, initialsFor } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,24 @@ const SIZES = {
   md: 'size-10 text-body',
   lg: 'size-14 text-lead',
   xl: 'size-20 text-subhead',
+} as const;
+
+/**
+ * Painted width per size, paired with {@link SIZES} term for term — 6, 8, 10, 14
+ * and 20 in Tailwind's 4px scale.
+ *
+ * KEPT BESIDE THE CLASSES BECAUSE IT IS THE SAME NUMBER TWICE. Getting one wrong
+ * is not a visual bug, which is what makes it worth stating: the circle still
+ * renders at the right size and simply fetches the wrong amount of data for it.
+ * Before these existed every avatar pulled the full uploaded file, so a 24px
+ * circle in an inbox row of twenty conversations was twenty original photos.
+ */
+const AVATAR_SIZES = {
+  xs: '24px',
+  sm: '32px',
+  md: '40px',
+  lg: '56px',
+  xl: '80px',
 } as const;
 
 export type AvatarSize = keyof typeof SIZES;
@@ -80,12 +99,18 @@ function Avatar({
       {...props}
     >
       {showImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        // THE PLAIN-`<img>` FALLBACK INSIDE `StorageImage` IS LOAD-BEARING HERE,
+        // more than anywhere else it is used. `avatarUrl` passes absolute URLs
+        // through untouched, and a Google sign-in supplies one on
+        // `lh3.googleusercontent.com` — a host `images.remotePatterns` does not
+        // list, which `next/image` answers by THROWING rather than by degrading.
+        // Every OAuth member's avatar would have taken its page down with it.
+        <StorageImage
           src={src as string}
           alt={alt ?? ''}
           aria-hidden={alt ? undefined : true}
-          className="size-full object-cover"
+          sizes={AVATAR_SIZES[size]}
+          className="object-cover"
           // A member-supplied image on a page showing money: do not let it carry a
           // referrer, and decode off the main thread.
           referrerPolicy="no-referrer"

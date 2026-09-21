@@ -56,7 +56,7 @@ const buttonVariants = cva(
   // floated in the card with nothing around it and read as a caption rather than a
   // control that was waiting on the two fields above it.
   //
-  // `--border` (281 26% 88%) is the hairline every card and field already uses, so a
+  // `--border` (281 8% 87%) is the hairline every card and field already uses, so a
   // disabled control now holds its shape on whatever surface it sits on. The fill stays
   // as it was: with an edge, it no longer has to carry the shape by itself.
   //

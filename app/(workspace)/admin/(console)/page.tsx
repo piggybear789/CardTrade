@@ -41,6 +41,7 @@ import { formatAud, formatRelativeTime } from '@/lib/format';
 import { getCustodyPosition, type CustodyReport } from '@/lib/actions/admin';
 import { operationalRegions } from '@/domain/services';
 import { ReportActions } from '@/components/admin/ReportActions';
+import { FeedbackActions } from '@/components/admin/FeedbackActions';
 import { ClearFlagButton } from '@/components/admin/ClearFlagButton';
 import { CustodyPanel } from '@/components/admin/CustodyPanel';
 import { DrainPayoutsButton, RetryPayoutButton } from '@/components/admin/PayoutActions';
@@ -68,11 +69,12 @@ export const metadata = {
 };
 
 type ReportRow = Tables<'reports'>;
+type FeedbackRow = Tables<'feedback'>;
 type TradeRow = Tables<'trades'>;
 type CashSaleRow = Tables<'cash_sales'>;
 
 /** Which queue the operator is looking at. */
-type ConsoleTab = 'payouts' | 'reports' | 'reconciliation';
+type ConsoleTab = 'payouts' | 'reports' | 'feedback' | 'reconciliation';
 
 /**
  * Narrow an arbitrary `?tab=` value.
@@ -82,8 +84,17 @@ type ConsoleTab = 'payouts' | 'reports' | 'reconciliation';
  */
 function resolveConsoleTab(value: string | string[] | undefined): ConsoleTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === 'reports' || raw === 'reconciliation' ? raw : 'payouts';
+  return raw === 'reports' || raw === 'feedback' || raw === 'reconciliation'
+    ? raw
+    : 'payouts';
 }
+
+/** Member-facing wording for each `feedback_kind`, for the row's badge. */
+const FEEDBACK_KIND_LABEL: Record<string, string> = {
+  BUG: 'Bug',
+  IDEA: 'Idea',
+  OTHER: 'Other',
+};
 
 /** Map a report status to a Badge variant. */
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
@@ -95,6 +106,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
 /** Rows for whichever queue is on screen. Every other queue stays unread. */
 interface ConsoleQueue {
   reports: ReportRow[];
+  feedback: FeedbackRow[];
   owedPayouts: CashSaleRow[];
   trades: TradeRow[];
   /** One per operational region (0068), not one overall. */
@@ -103,6 +115,7 @@ interface ConsoleQueue {
 
 const EMPTY_QUEUE: ConsoleQueue = {
   reports: [],
+  feedback: [],
   owedPayouts: [],
   trades: [],
   custodyPositions: [],
@@ -133,6 +146,22 @@ async function loadQueueForTab(
       return b.created_at.localeCompare(a.created_at);
     });
     return { ...EMPTY_QUEUE, reports };
+  }
+
+  if (tab === 'feedback') {
+    // Same OPEN-first-then-newest ordering as reports, and for the same reason: an
+    // operator reads a backlog from the top, so the archive must not sit in it.
+    const { data } = await admin
+      .from('feedback')
+      .select('*')
+      .order('created_at', { ascending: false });
+    const feedback = [...((data ?? []) as FeedbackRow[])].sort((a, b) => {
+      const aOpen = a.status === 'OPEN' ? 0 : 1;
+      const bOpen = b.status === 'OPEN' ? 0 : 1;
+      if (aOpen !== bOpen) return aOpen - bOpen;
+      return b.created_at.localeCompare(a.created_at);
+    });
+    return { ...EMPTY_QUEUE, feedback };
   }
 
   if (tab === 'payouts') {
@@ -230,6 +259,7 @@ export default async function AdminPage({
   // cost a count each instead of a full table read.
   const [
     reportCount,
+    feedbackCount,
     payoutCount,
     reconciliationCount,
     disputedSaleCount,
@@ -238,6 +268,10 @@ export default async function AdminPage({
   ] = await Promise.all([
     admin
       .from('reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'OPEN'),
+    admin
+      .from('feedback')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'OPEN'),
     admin
@@ -264,6 +298,7 @@ export default async function AdminPage({
   ]);
 
   const openReports = reportCount.count ?? 0;
+  const openFeedback = feedbackCount.count ?? 0;
   const owedReleases = payoutCount.count ?? 0;
   const flaggedTrades = reconciliationCount.count ?? 0;
   // Everything waiting on a human decision, across all four case kinds. Shown here as a
@@ -273,7 +308,7 @@ export default async function AdminPage({
     (disputedTradeCount.count ?? 0) +
     (openChargebackCount.count ?? 0);
 
-  const { reports, owedPayouts, trades, custodyPositions } = await queuePromise;
+  const { reports, feedback, owedPayouts, trades, custodyPositions } = await queuePromise;
 
   // Resolve display names for the rows actually on screen, so no list shows a raw UUID.
   // Exact ids stay reachable through each row's "View" link.
@@ -281,6 +316,11 @@ export default async function AdminPage({
   for (const r of reports) {
     profileIds.add(r.reporter_id);
     if (r.target_type === 'user') profileIds.add(r.target_id);
+  }
+  // Only the author. Feedback has no target and no counterparty — that absence is the
+  // whole reason it is not a report.
+  for (const f of feedback) {
+    profileIds.add(f.author_id);
   }
   for (const s of owedPayouts) {
     profileIds.add(s.seller_id);
@@ -329,6 +369,12 @@ export default async function AdminPage({
         tabs={[
           { key: 'payouts', label: 'Payouts', count: owedReleases, href: '/admin?tab=payouts' },
           { key: 'reports', label: 'Reports', count: openReports, href: '/admin?tab=reports' },
+          {
+            key: 'feedback',
+            label: 'Feedback',
+            count: openFeedback,
+            href: '/admin?tab=feedback',
+          },
           {
             key: 'reconciliation',
             label: 'Reconciliation',
@@ -531,6 +577,84 @@ export default async function AdminPage({
                   </li>
                 );
               })}
+            </ul>
+          )}
+        </section>
+      ) : null}
+
+      {tab === 'feedback' ? (
+        <section aria-labelledby="feedback-heading">
+          <div className="mb-group flex items-center gap-snug">
+            <h3 id="feedback-heading" className="text-subhead font-semibold">
+              Product feedback
+            </h3>
+            {openFeedback > 0 && <Badge>{openFeedback} open</Badge>}
+          </div>
+
+          {/* NO LINK OUT AND NO TARGET, unlike the Reports tab above. Feedback is about
+              NoDitto, not about a listing or a member, so the row is the whole record —
+              which is why this is a separate queue rather than a `target_type` on
+              reports. Marking one handled changes nothing but this backlog. */}
+          <p className="mb-group text-body text-muted-foreground">
+            Members reporting a problem with the product, or asking for a feature. Nothing
+            here is a moderation matter and nothing here moves money — handling one only
+            clears it from this list.
+          </p>
+
+          {feedback.length === 0 ? (
+            <EmptyState
+              title="No Feedback"
+              titleAs="h4"
+              description="No feedback has been submitted."
+              compact
+            />
+          ) : (
+            <ul className="space-y-group">
+              {feedback.map((entry) => (
+                <li key={entry.id}>
+                  <Card>
+                    <CardHeader>
+                      <div className="flex flex-wrap items-center justify-between gap-snug">
+                        <div className="flex flex-wrap items-center gap-snug">
+                          <Badge variant="secondary">
+                            {FEEDBACK_KIND_LABEL[entry.kind] ?? entry.kind}
+                          </Badge>
+                          <Badge variant={STATUS_VARIANT[entry.status] ?? 'default'}>
+                            {entry.status}
+                          </Badge>
+                          {/* THE PAGE IS THE TITLE when there is one: on a bug report it
+                              is the first thing worth knowing, and it is the one field
+                              here the member did not have to think of. */}
+                          <CardTitle className="text-lead">
+                            {entry.page_path ?? 'No page recorded'}
+                          </CardTitle>
+                        </div>
+                        <span className="shrink-0 text-meta text-muted-foreground">
+                          {formatRelativeTime(entry.created_at)}
+                        </span>
+                      </div>
+                      <CardDescription className="break-words">
+                        From {nameFor(entry.author_id)}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-group">
+                      {/* `whitespace-pre-line`: members write feedback in paragraphs and
+                          a collapsed wall of text is the version nobody finishes. */}
+                      <p className="whitespace-pre-line break-words text-body text-foreground">
+                        {entry.message}
+                      </p>
+
+                      {entry.status === 'OPEN' ? (
+                        <FeedbackActions feedbackId={entry.id} />
+                      ) : (
+                        <p className="text-meta text-muted-foreground">
+                          Reviewed {formatRelativeTime(entry.reviewed_at)}.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </li>
+              ))}
             </ul>
           )}
         </section>

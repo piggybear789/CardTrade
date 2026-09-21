@@ -18,14 +18,16 @@
 // panel off the opposite side of a narrow viewport. The popover keeps itself
 // inside the viewport, and portals out of the header's backdrop filter.
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BellIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
-import { cn } from '@/lib/utils';
-import { NotificationRowBody } from '@/components/notifications/notificationPresentation';
+import {
+  NotificationRowBody,
+  notificationRowClass,
+} from '@/components/notifications/notificationPresentation';
 import {
   Popover,
   PopoverContent,
@@ -56,6 +58,7 @@ export function NotificationBell({
 }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const {
     notifications,
@@ -113,9 +116,26 @@ export function NotificationBell({
       </PopoverTrigger>
 
       <PopoverContent
+        ref={panelRef}
         aria-label="Notifications"
         align="end"
         sideOffset={8}
+        // `-1` so the panel can take focus itself without entering the tab order.
+        tabIndex={-1}
+        // FOCUS THE PANEL, NOT THE FIRST CONTROL IN IT. Radix's default lands on
+        // "Mark all read" — a bulk action, wearing the violet focus edge, before the
+        // member has read a single row. Focus goes to the labelled panel instead, which
+        // is also what a screen reader should announce on open.
+        //
+        // This is NOT a focus trap opt-out: preventing the default only redirects where
+        // focus lands INSIDE Radix's focus scope, so Tab still walks the rows, Shift+Tab
+        // still wraps, and Escape still closes and returns focus to the bell. Dropping
+        // the focus move altogether would leave a keyboard member stranded on the
+        // trigger with the panel in a portal at the end of the body.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          panelRef.current?.focus();
+        }}
         // Keep a comfortable gutter when the panel has to shift inward.
         collisionPadding={16}
         // Never taller than the space below the header, so the list scrolls
@@ -153,9 +173,9 @@ export function NotificationBell({
                     <Link
                       href={n.link || '/notifications'}
                       onClick={() => handleSelect(n)}
-                      className={cn(
-                        'flex w-full items-start gap-snug px-group py-cozy text-left transition-colors hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
-                        unread && 'bg-accent/40',
+                      className={notificationRowClass(
+                        unread,
+                        'gap-snug px-group py-cozy',
                       )}
                     >
                       {/* The centre's row, term for term. The panel clamps the body

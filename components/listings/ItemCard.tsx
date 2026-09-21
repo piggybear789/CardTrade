@@ -8,6 +8,7 @@ import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StorageImage } from '@/components/ui/storage-image';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
@@ -43,6 +44,23 @@ export interface ItemCardProps {
    * Never affects md and up.
    */
   coverDim?: ImageDim | null;
+  /**
+   * Fetch this tile's cover immediately, at high priority, instead of lazily.
+   *
+   * FOR THE FIRST ROW AND NOTHING ELSE. Every tile in the catalog was
+   * `loading="lazy"`, which meant the grid deliberately deferred the largest
+   * image above the fold — the page's own Largest Contentful Paint element — and
+   * then waited for an intersection observer to discover what was already on
+   * screen. Lazy is right for tile forty; it is a self-inflicted delay on tile
+   * one.
+   *
+   * Deliberately NOT a preload. Which tile is the LCP depends on the viewport
+   * (two columns on a phone, four from `lg`), and Next's guidance is that
+   * `preload` is the wrong tool whenever that is true. `loading="eager"` with
+   * `fetchPriority="high"` says the same thing without committing the `<head>`
+   * to a guess.
+   */
+  eager?: boolean;
 }
 
 /** Human-readable label for a non-AVAILABLE item, shown as an overlay badge. */
@@ -50,6 +68,24 @@ const UNAVAILABLE_LABEL: Record<string, string> = {
   RESERVED: 'Under Contract',
   SOLD: 'Sold',
 };
+
+/**
+ * Painted width of a catalog cover: two columns on a phone, three at `md`, four
+ * from `lg`. Matches `CATALOG_TILE_GRID`.
+ */
+const COVER_SIZES = '(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw';
+
+/**
+ * What the blurred backdrop behind {@link ItemCardStage} asks for.
+ *
+ * IT IS THE SAME URL AS THE SHARP COVER IN FRONT OF IT, and it used to be a plain
+ * `<img>` while that cover went through the optimizer — which is two fetches of
+ * two different resources, one of them the full original, for one tile. The two
+ * do not share a cache entry (`/_next/image?url=…` is not the Storage URL), so
+ * the decoration was the most expensive thing on the card. At `blur-lg` behind a
+ * `scale-110` there is nothing a larger source could contribute.
+ */
+const BACKDROP_SIZES = '128px';
 
 /**
  * Split a formatted money string into currency symbol, major units, and minor
@@ -83,6 +119,7 @@ export function CatalogItemCard({
   item,
   initialWatching,
   coverDim,
+  eager = false,
 }: ItemCardProps) {
   const unavailableLabel = unavailableLabelFor(item);
   const isShopfront = item.listing_kind === 'SHOPFRONT';
@@ -163,9 +200,10 @@ export function CatalogItemCard({
                 src={imageUrl}
                 alt={item.title}
                 fill
-                sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
+                sizes={COVER_SIZES}
                 className={cn('object-cover', unavailableLabel && 'grayscale-[35%]')}
-                loading="lazy"
+                loading={eager ? 'eager' : 'lazy'}
+                fetchPriority={eager ? 'high' : undefined}
               />
             </div>
           </ViewTransition>
@@ -384,12 +422,12 @@ function ItemCardStage({
   return (
     <div className={cn('auction-stage pointer-events-none relative p-[7%]', className)}>
       {imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <StorageImage
           src={imageUrl}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 z-0 h-full w-full scale-110 object-cover blur-lg opacity-90"
+          sizes={BACKDROP_SIZES}
+          className="z-0 scale-110 object-cover blur-lg opacity-90"
           loading="lazy"
         />
       ) : null}
@@ -408,7 +446,7 @@ function ItemCardStage({
               src={imageUrl}
               alt={item.title}
               fill
-              sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
+              sizes={COVER_SIZES}
               className={cn('object-contain', imageClassName)}
               loading="lazy"
             />

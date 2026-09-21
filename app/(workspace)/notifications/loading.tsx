@@ -19,14 +19,24 @@ import {
   SectionHeaderSkeleton,
 } from '@/components/layout/WorkspaceSkeletons';
 
-/** One age bucket: its heading, then its own bordered list. */
+/**
+ * One age bucket: its heading, then its own bordered list.
+ *
+ * `desktopRows` for the same reason `ContractCardListSkeleton` takes one — a
+ * notification row is ~75px (`py-3.5` plus the focus-ring reserve around two text
+ * lines), so the four-and-two split filled a phone and left ~120px of a desktop
+ * fold empty. The extra rows are drawn only from `md`.
+ */
 function NotificationGroupSkeleton({
   labelWidth,
   rows,
+  desktopRows = rows,
 }: {
   labelWidth: string;
   rows: number;
+  desktopRows?: number;
 }) {
+  const total = Math.max(rows, desktopRows);
   return (
     <section>
       {/* `mb-snug px-tight text-meta font-medium uppercase tracking-wide`, the real
@@ -36,8 +46,11 @@ function NotificationGroupSkeleton({
         widths={[labelWidth]}
       />
       <div className="divide-y rounded-lg border">
-        {Array.from({ length: rows }, (_, index) => (
-          <NotificationRowSkeleton key={index} />
+        {Array.from({ length: total }, (_, index) => (
+          <NotificationRowSkeleton
+            key={index}
+            className={index >= rows ? 'max-md:hidden' : undefined}
+          />
         ))}
       </div>
     </section>
@@ -64,7 +77,7 @@ export default function NotificationsLoading() {
             {/* `size="sm"`: h-8 on touch, h-7 from md. */}
             <Skeleton className="h-8 w-32 shrink-0 rounded-md md:h-7" />
           </div>
-          <NotificationGroupSkeleton labelWidth="w-28" rows={4} />
+          <NotificationGroupSkeleton labelWidth="w-28" rows={4} desktopRows={7} />
           <NotificationGroupSkeleton labelWidth="w-36" rows={2} />
         </div>
       </div>

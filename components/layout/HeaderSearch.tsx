@@ -24,6 +24,7 @@ import { Search01Icon, XIcon } from '@hugeicons/core-free-icons';
 import { suggestCatalogItems, type CatalogSuggestion } from '@/lib/actions/listings';
 import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/browseEvents';
 import { Input } from '@/components/ui/input';
+import { StorageImage } from '@/components/ui/storage-image';
 import { formatMoney, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -480,8 +481,13 @@ function HeaderSearchInner({
                 >
                   <span className="relative size-9 shrink-0 overflow-hidden rounded-sm border border-border bg-muted">
                     {thumb ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumb} alt="" width={36} height={36} className="size-full object-cover" />
+                      <StorageImage
+                        src={thumb}
+                        alt=""
+                        sizes="36px"
+                        className="object-cover"
+                        loading="lazy"
+                      />
                     ) : null}
                   </span>
                   <span className="min-w-0 flex-1">

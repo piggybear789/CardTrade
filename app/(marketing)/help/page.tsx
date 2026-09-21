@@ -62,6 +62,17 @@ export default async function HelpPage() {
           case. That is an operational hold and review, not a promise that every
           loss will be covered.
         </p>
+        <p>
+          What decides a disputed case is the records the two of you made before
+          it started.{' '}
+          <Link
+            href="/safety"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Staying safe
+          </Link>{' '}
+          covers the habits that make a claim winnable, for buyers and sellers.
+        </p>
       </section>
 
       <section id="passwords" className="space-y-cozy scroll-mt-24">

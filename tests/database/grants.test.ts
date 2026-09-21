@@ -110,6 +110,14 @@ const MUST_WORK: GrantCheck[] = [
   // report from the queue, but is still a workflow column they do not own.
   { flow: 'report: cannot set its own status', table: 'reports', column: 'status', privilege: 'INSERT', allowed: false },
 
+  // Feedback (0120): `submitFeedback` inserts the member's own row. Same shape as the
+  // report grants above, including the same omission — `status` is the queue's state.
+  { flow: 'feedback: send a message', table: 'feedback', column: 'message', privilege: 'INSERT', allowed: true },
+  { flow: 'feedback: send names the kind', table: 'feedback', column: 'kind', privilege: 'INSERT', allowed: true },
+  { flow: 'feedback: send sets author', table: 'feedback', column: 'author_id', privilege: 'INSERT', allowed: true },
+  { flow: 'feedback: send records the page', table: 'feedback', column: 'page_path', privilege: 'INSERT', allowed: true },
+  { flow: 'read: own feedback', table: 'feedback', privilege: 'SELECT', allowed: true },
+
   // Region waitlist (0118): `joinRegionWaitlist` inserts the member's own row, and the
   // onboarding step reads it back. A fact about demand, so nothing edits it.
   { flow: 'waitlist: join a region', table: 'region_waitlist', column: 'region_code', privilege: 'INSERT', allowed: true },
@@ -203,6 +211,16 @@ const MUST_NOT_WORK: GrantCheck[] = [
   { flow: 'MONEY: write a delivery address', table: 'trade_delivery_details', privilege: 'UPDATE', allowed: false },
   { flow: 'MONEY: forge a webhook log', table: 'webhook_logs', privilege: 'INSERT', allowed: false },
   { flow: 'MONEY: edit the region table', table: 'regions', privilege: 'UPDATE', allowed: false },
+  // Feedback (0120). `status`/`reviewed_by`/`reviewed_at` are the queue's own columns —
+  // the same three 0094 revoked from reports — and there is no member UPDATE or DELETE at
+  // all: an operator reading a backlog needs the row to say what it said when it was
+  // filed, and editing your own feedback is not a flow the product offers.
+  { flow: 'feedback: cannot set its own status', table: 'feedback', column: 'status', privilege: 'INSERT', allowed: false },
+  { flow: 'feedback: cannot stamp its own review', table: 'feedback', column: 'reviewed_by', privilege: 'INSERT', allowed: false },
+  { flow: 'TAMPER: rewrite filed feedback', table: 'feedback', privilege: 'UPDATE', allowed: false },
+  { flow: 'TAMPER: remove filed feedback', table: 'feedback', privilege: 'DELETE', allowed: false },
+  { flow: 'TAMPER: read feedback anonymously', table: 'feedback', privilege: 'SELECT', role: 'anon', allowed: false },
+
   // A waitlist row is a record of demand at a point in time; rewriting or removing one
   // would let a member edit the operator's own read of where to open next.
   { flow: 'TAMPER: rewrite a waitlist entry', table: 'region_waitlist', privilege: 'UPDATE', allowed: false },

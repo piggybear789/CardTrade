@@ -1,8 +1,5 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LibraryIcon } from '@hugeicons/core-free-icons';
-
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { StarRating } from '@/components/listings/StarRating';
@@ -270,15 +267,9 @@ export function ListingDesktopPane({
         </Card>
       </section>
 
-      {isShopfront ? (
-        <p className="flex gap-snug rounded-md border border-border bg-iris/[0.07] p-snug text-body text-foreground">
-          <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
-          <span>
-            This listing has multiple items. Browse the collection and request the
-            ones you want — nothing is held until you agree on terms.
-          </span>
-        </p>
-      ) : null}
+      {/* No multi-item notice between the seller card and the description — see the
+          matching note in `ListingDetailStack`. The kind is in the meta line, and the
+          action stack says what a request does at the point of doing it. */}
 
       {description.trim() ? (
         <section aria-labelledby="description-heading">

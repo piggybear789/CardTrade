@@ -1,8 +1,5 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LibraryIcon } from '@hugeicons/core-free-icons';
-
 import { ExpandableDescription } from '@/components/listings/ExpandableDescription';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { StarRating } from '@/components/listings/StarRating';
@@ -206,15 +203,11 @@ export function ListingDetailStack({
         <p className="mt-snug hidden text-meta text-muted-foreground md:block">{desktopMeta}</p>
       ) : null}
 
-      {isShopfront ? (
-        <p className="mt-group flex gap-snug rounded-md border border-border bg-iris/[0.07] p-snug text-body text-foreground">
-          <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
-          <span>
-            This listing has multiple items. Browse the collection and request the
-            ones you want — nothing is held until you agree on terms.
-          </span>
-        </p>
-      ) : null}
+      {/* NO MULTI-ITEM NOTICE HERE. A tinted card used to sit between the meta line and
+          the description explaining that a multi-item listing is browsed and requested
+          from. The kind is already in the meta line above, and the buy bar's own copy
+          ("Request", "Nothing is held for you yet") says the rest at the moment it
+          applies — so this was a third statement of the same fact, in a box. */}
 
       <h2 className="sr-only md:hidden">{title}</h2>
       <h2 className="mt-group hidden line-clamp-2 text-balance text-subhead font-semibold tracking-tight md:block">

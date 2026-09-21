@@ -6,8 +6,11 @@
 //   public/brand/noditto-mark.png   the header mark: the sign alone, on transparency,
 //                                   trimmed and squared, so it sits on the obsidian
 //                                   desktop header and the pale phone chrome alike
-//   app/icon.png                    the app icon / favicon / PWA icon: the same mark on
-//                                   the obsidian rounded square every earlier icon used
+//   app/icon.png                    the app icon / favicon / PWA icon: the same
+//                                   transparent mark, with no backing plate. Earlier
+//                                   icons sat on an obsidian rounded square; a browser
+//                                   tab or a home screen supplies its own surface, and a
+//                                   dark plate behind the sign was just a dark square.
 //
 // Usage: node scripts/prepare-brand-mark.mjs <path-to-source-image>
 //
@@ -145,41 +148,16 @@ await sharp(squared)
 console.log(`Wrote ${MARK_OUT} (${MARK_SIZE}x${MARK_SIZE})`);
 
 // ---------------------------------------------------------------------------
-// 3. The app icon: the mark on the obsidian rounded square.
+// 3. The app icon: the same transparent mark, no plate.
 // ---------------------------------------------------------------------------
+//
+// The 6% pad from step 2 is kept as-is. A favicon is drawn at 16–32px, where a mark
+// that fills the square reads best; the pad is only there so the ring's anti-aliased
+// edge never touches the tile boundary.
 
 const ICON_SIZE = 512;
-const inset = Math.round(ICON_SIZE * 0.08);
-const markOnIcon = await sharp(squared)
-  .resize(ICON_SIZE - inset * 2, ICON_SIZE - inset * 2, {
-    fit: 'contain',
-    background: { r: 0, g: 0, b: 0, alpha: 0 },
-    kernel: sharp.kernel.lanczos3,
-  })
-  .png()
-  .toBuffer();
-
-const rx = Math.round(ICON_SIZE * 0.22);
-await sharp({
-  create: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-    channels: 4,
-    background: { r: 0, g: 0, b: 0, alpha: 0 },
-  },
-})
-  .composite([
-    {
-      input: Buffer.from(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${ICON_SIZE}" height="${ICON_SIZE}">
-          <rect width="${ICON_SIZE}" height="${ICON_SIZE}" rx="${rx}" fill="#0c0b0a"/>
-        </svg>`,
-      ),
-      top: 0,
-      left: 0,
-    },
-    { input: markOnIcon, top: inset, left: inset },
-  ])
+await sharp(squared)
+  .resize(ICON_SIZE, ICON_SIZE, { kernel: sharp.kernel.lanczos3 })
   .png()
   .toFile(ICON_OUT);
-console.log(`Wrote ${ICON_OUT} (${ICON_SIZE}x${ICON_SIZE})`);
+console.log(`Wrote ${ICON_OUT} (${ICON_SIZE}x${ICON_SIZE}, transparent)`);

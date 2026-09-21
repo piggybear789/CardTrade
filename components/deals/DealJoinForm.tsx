@@ -66,8 +66,10 @@ function blockRemedy(reason: ViewerBlock['reason']): { href: string; label: stri
     case 'own-identity-unverified':
     case 'seller-disclosure-incomplete':
       return { href: '/profile?tab=verification', label: 'Verify my identity' };
-    case 'no-region':
-      return { href: '/profile?tab=verification', label: 'Set my region' };
+    // `no-region` deliberately has no remedy. A member without a trading region is on
+    // the waitlist for a region that is not open (0118); there is no control anywhere
+    // that would give them one, and the link this used to offer — "Set my region" into
+    // the Verification tab — pointed at a page with no such setting.
     case 'no-payment-method':
       return { href: '/profile', label: 'Add a payment method' };
     default:

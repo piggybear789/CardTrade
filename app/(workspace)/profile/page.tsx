@@ -35,8 +35,10 @@ import { getAccountStatement } from '@/lib/actions/statement';
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { isPaymentDemoEnabled } from '@/domain/services';
 import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
-import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
-import { PayoutReturnRefresh } from '@/components/payouts/PayoutReturnRefresh';
+import {
+  resolveProviderReturn,
+  type ProviderReturn,
+} from '@/components/onboarding/providerReturn';
 import { VerificationSequence } from '@/components/profile/VerificationSequence';
 import { PayoutsDashboard } from '@/components/payouts/PayoutsDashboard';
 import { PayoutSummary } from '@/components/payouts/PayoutSummary';
@@ -85,11 +87,20 @@ export const metadata = { title: 'Account · NoDitto' };
 export default async function ProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ show?: string | string[]; tab?: string }>;
+  searchParams: Promise<{
+    show?: string | string[];
+    tab?: string;
+    identity?: string | string[];
+    payouts?: string | string[];
+  }>;
 }) {
-  const { show, tab } = await searchParams;
+  const params = await searchParams;
+  const { show, tab } = params;
   const scope = resolveScope(show);
   const initialTab = resolveAccountTab(tab);
+  // Which hosted Stripe flow, if any, the member has just come back from. Handed to
+  // the Verification panel so the step it names opens on "confirming with Stripe".
+  const providerReturn = resolveProviderReturn(params);
 
   const supabase = await createClient();
   const {
@@ -166,14 +177,14 @@ export default async function ProfilePage({
 
   return (
     <MarketplaceShell title="Account">
-      {/* Reconcile a return from either hosted Stripe flow. Both render nothing, and
-          each ignores a marker that is not its own. The payout half used to live in an
-          effect inside `PayoutOnboarding`; with that card gone the page needs the
-          standalone reconciler, or a member coming back from Connect would land on
-          whatever the database last heard — still PENDING until the webhook arrives,
-          and in local development without `stripe listen` that is never. */}
-      <IdentityReturnRefresh />
-      <PayoutReturnRefresh />
+      {/* NO STANDALONE RETURN RECONCILERS HERE. `IdentityReturnRefresh` and
+          `PayoutReturnRefresh` used to be mounted on this page beside the Verification
+          panel, which reconciles the same return itself — two readers of one fact,
+          each announcing it: the panel ticked the step, the refresher then raised a
+          toast and `router.replace`d the marker away, and that navigation put the
+          loading skeleton over a page that had just resolved. Complete, blank, waiting,
+          complete. The panel is the only reader now; see `UnifiedOnboardingSurface`.
+          Pages WITHOUT the panel — the listing page — still mount the refreshers. */}
 
       {/* ONE CENTRED COLUMN for the whole surface — heading, tabs and content.
           `mx-auto` centres the COLUMN; text inside it stays left-aligned. Capping
@@ -238,6 +249,7 @@ export default async function ProfilePage({
                 identityReadOk={identity.ok}
                 payoutContextReadOk={payoutContext.ok}
                 demoEnabled={paymentDemoEnabled}
+                providerReturn={providerReturn}
               />
             ),
 
@@ -373,6 +385,7 @@ function VerificationPanel({
   identityReadOk,
   payoutContextReadOk,
   demoEnabled,
+  providerReturn,
 }: {
   identityVerified: boolean;
   /** Whether the last identity attempt was declined — see `VerificationSequence`. */
@@ -389,6 +402,8 @@ function VerificationPanel({
   identityReadOk: boolean;
   payoutContextReadOk: boolean;
   demoEnabled: boolean;
+  /** The hosted flow just returned from, for the sequence's first frame. */
+  providerReturn: ProviderReturn | null;
 }) {
   // Built up rather than interpolated blind, because every part of it is optional: a
   // member grandfathered in before 0069 has no document-backed name, and a webhook that
@@ -465,6 +480,7 @@ function VerificationPanel({
               identityFailed={identityFailed}
               payoutDone={payoutsActive}
               verifiedName={verifiedName}
+              returningFrom={providerReturn}
             />
           </SettingsPanelRow>
         </SettingsGroup>

@@ -262,7 +262,7 @@ export function TradeNegotiationPanel({
                   id="trade-counterpart-goods-hint"
                   className="text-body text-muted-foreground"
                 >
-                  The listing is a binder or bulk lot, so this is the record of what is
+                  The listing has multiple items, so this is the record of what is
                   being swapped. It is what an arbitrator reads if the trade goes wrong.
                 </p>
               </div>

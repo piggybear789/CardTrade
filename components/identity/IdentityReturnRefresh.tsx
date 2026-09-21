@@ -57,17 +57,21 @@ export function IdentityReturnRefresh() {
         toast.info('Your identity check is not finished yet.');
       }
 
-      // Strip the marker so a manual reload does not re-run this.
+      // Strip the marker so a manual reload does not re-run this, then re-render
+      // against what the read-back just wrote.
       //
-      // `replace` alone. This route is dynamic and the URL always changes here —
-      // the marker is what got us into this branch — so the navigation already
-      // refetches the server tree. The `router.refresh()` that used to follow was
-      // a second full render of a page that had just run every read on it, which
-      // is why returning from Stripe visibly loaded twice.
+      // `replaceState` + `refresh`, NOT `router.replace`. A `router.replace` to a new
+      // query string is a navigation: the page segment re-suspends and the route's
+      // `loading.tsx` skeleton covers a page that had just resolved, so the return
+      // read as complete, blank, complete. `replaceState` rewrites the URL with no
+      // navigation at all (the App Router keeps `useSearchParams` in step with it),
+      // and `refresh` re-renders the server tree in place behind the current UI.
+      // One render, no skeleton.
       const next = new URLSearchParams(searchParams.toString());
       next.delete('identity');
       const query = next.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname);
+      window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
+      router.refresh();
     });
     // Keyed on the marker alone: the rest is stable for a given navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps

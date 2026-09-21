@@ -1464,6 +1464,50 @@ export type Database = {
           },
         ];
       };
+      /**
+       * Members waiting for NoDitto to open in a region (0118). One row per
+       * (member, region).
+       *
+       * NOT the trading region. A waitlisted member has no `profiles.region_code`
+       * — 0070's trigger refuses a region that is not open — so they browse and do
+       * not transact. The row is a fact about demand and is never updated: RLS
+       * grants the owner select and insert only, and a trigger refuses a region
+       * that is already `trading_enabled`.
+       */
+      region_waitlist: {
+        Row: {
+          profile_id: string;
+          /** ISO 3166-1 alpha-2; a `regions.code` with `trading_enabled = false`. */
+          region_code: string;
+          created_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          region_code: string;
+          created_at?: string;
+        };
+        Update: {
+          profile_id?: string;
+          region_code?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'region_waitlist_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'region_waitlist_region_code_fkey';
+            columns: ['region_code'];
+            isOneToOne: false;
+            referencedRelation: 'regions';
+            referencedColumns: ['code'];
+          },
+        ];
+      };
       pre_auth_holds: {
         Row: {
           id: string;

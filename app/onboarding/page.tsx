@@ -20,7 +20,9 @@ import { redirect } from 'next/navigation';
 
 import type { Step } from '@/components/onboarding/OnboardingWizard';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
+import { resolveProviderReturn } from '@/components/onboarding/providerReturn';
 import { listSelectableRegions } from '@/lib/actions/regionOptions';
+import { geoRegionFromRequest } from '@/lib/location/resolveRegion';
 import { getCachedProfile } from '@/lib/supabase/cachedAuth';
 
 // Profile setup destinations that onboarding itself supersedes. A member sent to
@@ -61,6 +63,9 @@ export default async function OnboardingPage({
     params.payouts !== undefined || params.identity !== undefined;
 
   const initialStep: Step = returningFromProvider ? 'seller-onboarding' : 'welcome';
+  // Which step the marker names, for the surface to hold at "confirming" while it
+  // asks the provider. Read the same way the profile page reads it.
+  const providerReturn = resolveProviderReturn(params);
 
   // `proxy.ts` sets `redirectTo` when it bounces a member here mid-navigation. Honour it
   // on the way out, or the deep link that triggered onboarding is lost and they land on
@@ -83,13 +88,24 @@ export default async function OnboardingPage({
   // Resolved here for the same reason as the step above: the wizard used to
   // load this on mount and, until it landed, its region step rendered the
   // "no regions are open" notice at every member.
-  const regions = await listSelectableRegions();
+  //
+  // THE GEO GUESS IS A PRE-SELECTION AND NOTHING MORE. It picks which tile the
+  // region step opens on — a member in a country NoDitto is not open in lands on
+  // the waitlist tile with their country already chosen — and it never becomes a
+  // trading region (see `domain/region/regions.ts` on why an IP must not). Null
+  // off-Vercel and in local development, where the step opens as it always has.
+  const [regions, guessedRegion] = await Promise.all([
+    listSelectableRegions(),
+    geoRegionFromRequest(),
+  ]);
 
   return (
     <OnboardingWizard
       initialStep={initialStep}
       redirectTo={nextPath}
       regions={regions}
+      guessedRegion={guessedRegion}
+      providerReturn={providerReturn}
     />
   );
 }

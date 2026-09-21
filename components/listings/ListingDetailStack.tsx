@@ -58,7 +58,10 @@ export function ListingDetailStack({
   /** Photos (or anything else) that should sit immediately under the copy. */
   afterDescription?: ReactNode;
 }) {
-  const kindLabel = isShopfront ? 'Binder listing' : 'Single item';
+  // "Multiple items", matching the listing form's own choice. It was "Binder listing",
+  // a hobby word for a ring binder of trade stock that described stationery to
+  // anyone else and was wrong for a lot of slabs or sealed product anyway.
+  const kindLabel = isShopfront ? 'Multiple items' : 'Single item';
   const savesLabel = watchCount === 1 ? '1 save' : `${watchCount} saves`;
   // Relative, and hydration-suppressed where it renders — see the same note in
   // `ListingDesktopPane`. Listing age is what the meta line gained when the inline map
@@ -207,8 +210,8 @@ export function ListingDetailStack({
         <p className="mt-group flex gap-snug rounded-md border border-border bg-iris/[0.07] p-snug text-body text-foreground">
           <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
           <span>
-            This is a binder listing. Browse the collection and request specific
-            items — nothing is held until you agree on terms.
+            This listing has multiple items. Browse the collection and request the
+            ones you want — nothing is held until you agree on terms.
           </span>
         </p>
       ) : null}

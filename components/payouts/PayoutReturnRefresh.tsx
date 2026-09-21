@@ -58,15 +58,18 @@ export function PayoutReturnRefresh() {
         );
       }
 
-      // Strip the marker so a manual reload does not re-run this.
+      // Strip the marker so a manual reload does not re-run this, then re-render
+      // against what the read-back just wrote.
       //
-      // `replace` alone — see the matching note in `IdentityReturnRefresh`. The
-      // URL always changes here, so the navigation already refetches; the
-      // `router.refresh()` that followed made the Connect return load twice.
+      // `replaceState` + `refresh`, not `router.replace` — see the matching note in
+      // `IdentityReturnRefresh`: a navigation puts the route's loading skeleton over
+      // a page that had just resolved, which is the flicker; an in-place refresh
+      // behind the current UI is one render and no skeleton.
       const next = new URLSearchParams(searchParams.toString());
       next.delete('payouts');
       const query = next.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname);
+      window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
+      router.refresh();
     });
     // Keyed on the marker alone: the rest is stable for a given navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps

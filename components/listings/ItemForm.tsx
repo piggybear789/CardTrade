@@ -45,6 +45,7 @@ import {
 } from "@/lib/listings/itemFormChrome";
 import { uploadItemImages } from "@/lib/storage/uploadItemImages";
 import type { ImageDim } from "@/lib/images/dimensions";
+import { usePreviewFiles } from "@/lib/images/usePreviewFiles";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -180,8 +181,12 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   const [keptPaths, setKeptPaths] = React.useState<string[]>(
     mode === "edit" ? (item?.image_paths ?? []) : [],
   );
-  // Newly selected files (create: all images; edit: additions).
-  const [newFiles, setNewFiles] = React.useState<File[]>([]);
+  // Newly selected files (create: all images; edit: additions), each with the ONE
+  // preview URL it owns. This was a bare `File[]` with `URL.createObjectURL(file)`
+  // called in render for the cover and every thumbnail, so each keystroke in the
+  // description re-decoded every photo — the typing lag. See `usePreviewFiles`.
+  const pending = usePreviewFiles();
+  const newFiles = pending.items;
 
   const [error, setError] = React.useState<{
     field: ErrorField;
@@ -202,11 +207,15 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     return () => publishItemFormChrome(null);
   }, [isSubmitting, submitLabel]);
 
+  // A BOOLEAN DEPENDENCY, not the field values. Keyed on `description` itself this
+  // effect unsubscribed and resubscribed the `beforeunload` listener on every
+  // keystroke; the dirty flag only changes when the form goes from empty to touched
+  // (or back), which is the only time the listener needs to change.
+  const isDirty =
+    description.trim() !== "" ||
+    newFiles.length > 0 ||
+    fmvDollars.trim() !== "";
   React.useEffect(() => {
-    const isDirty =
-      description.trim() !== "" ||
-      newFiles.length > 0 ||
-      fmvDollars.trim() !== "";
     if (!isDirty || isSubmitting) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -215,7 +224,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [description, newFiles.length, fmvDollars, isSubmitting]);
+  }, [isDirty, isSubmitting]);
 
   const totalImages = keptPaths.length + newFiles.length;
 
@@ -226,7 +235,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(event.target.files ?? []);
     if (picked.length > 0) {
-      setNewFiles((prev) => [...prev, ...picked]);
+      pending.add(picked);
       setError(null);
     }
     // Reset the native input so re-picking the same file fires onChange again.
@@ -235,10 +244,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
   function removeKeptPath(path: string) {
     setKeptPaths((prev) => prev.filter((p) => p !== path));
-  }
-
-  function removeNewFile(index: number) {
-    setNewFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -309,7 +314,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       // treats them as an untrusted claim.
       let uploadedDims: (ImageDim | null)[] = [];
       if (newFiles.length > 0) {
-        const uploaded = await uploadItemImages(newFiles);
+        const uploaded = await uploadItemImages(pending.files);
         if (!uploaded.ok) {
           setError({ field: "images", message: uploaded.message });
           setIsSubmitting(false);
@@ -402,12 +407,14 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
   // The first image (kept or newly added) is the cover shown in the big
   // left-hand preview, mirroring how Facebook Marketplace always leads with a
-  // large primary photo and keeps the rest as a filmstrip underneath.
+  // large primary photo and keeps the rest as a filmstrip beside it. The preview URL
+  // is the file's own stable one — never minted here, where it would change on every
+  // render and make the browser re-decode the cover each time anything re-rendered.
   const coverUrl =
     keptPaths.length > 0
       ? itemImageUrl(keptPaths[0])
       : newFiles.length > 0
-        ? URL.createObjectURL(newFiles[0])
+        ? newFiles[0].url
         : null;
 
   // FIXED HEIGHT ON DESKTOP, and the details rail scrolls inside it.
@@ -524,56 +531,42 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 where a member actually needs to read it. */}
             <Label htmlFor="images">Photos</Label>
 
-            {/* SIDE BY SIDE BELOW `lg`, stacked from `lg`. On a phone the cover and
-                the filmstrip used to run top-down, which spent two blocks of vertical
-                space on photos before the member reached a single field. Beside each
-                other they cost one.
-                
-                `lg:contents` dissolves this wrapper at `lg`, so the desktop panel is
-                untouched: cover and strip go back to being direct flex children of
-                the column, with the cover taking the remainder.
-                
-                `grid-cols-1` when there are no photos yet — otherwise the empty
-                drop target would sit in two thirds of the row with a dead column
-                beside it. `items-start` so the strip keeps its own height instead of
-                stretching to the cover's. */}
-            {/* THE ROW OWNS THE HEIGHT, so both sides are the same height by
-                construction rather than by one of them winning.
-                
-                `aspect-[15/14]` is derived, not picked: the cover takes two thirds of
-                the row, and a trading card is about 5:7, so a card-shaped cover wants
-                a height of (2/3 x width) x 1.4 = 0.93 x width. That makes the ROW
-                roughly 15:14. Both children are then `h-full` and end level.
-                
-                Doing it here rather than on the cover is what avoids the trap this
-                layout kept falling into: an aspect ratio resolves against WIDTH, which
-                is definite, so the row height never depends on how much content either
-                side happens to have. */}
+            {/* ONE LAYOUT AT EVERY WIDTH: the cover in the left two thirds, the other
+                photos stacked down the right third, two to the column, each exactly
+                half its height. Desktop used to run the extra photos as a row of
+                ~96px squares UNDER the cover, which left the panel's height to the
+                cover alone and made the additional photos an afterthought; the
+                stacked column uses the whole height and reads as a gallery.
+
+                THE ROW OWNS THE HEIGHT, so both sides are the same height by
+                construction rather than by one of them winning. Below `lg` that is an
+                aspect ratio: `aspect-[15/14]` is derived, not picked — the cover takes
+                two thirds of the row, a trading card is about 5:7, so a card-shaped
+                cover wants a height of (2/3 x width) x 1.4 = 0.93 x width, and the ROW
+                comes out roughly 15:14. An aspect ratio resolves against WIDTH, which
+                is definite, so the row height never depends on how much content
+                either side has. From `lg` the panel has a FIXED height (see the Card),
+                so the row is the flex child that takes the remainder instead:
+                `lg:flex-1 lg:min-h-0 lg:aspect-auto`. Either way the row is a definite
+                height and `grid-rows-[minmax(0,1fr)]` hands it to both cells, which is
+                what lets the strip's percentage rows below resolve.
+
+                `grid-cols-1` when there are no photos yet — otherwise the empty drop
+                target would sit in two thirds of the row with a dead column beside it.
+                `lg:max-h-none` lets the empty target take the desktop panel too. */}
             <div
-              className={`grid gap-cozy lg:contents lg:aspect-auto${
+              className={`grid grid-rows-[minmax(0,1fr)] gap-cozy lg:aspect-auto lg:max-h-none lg:min-h-0 lg:flex-1${
                 totalImages > 0
                   ? " aspect-[15/14] grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
                   : " aspect-[16/10] max-h-[22svh] grid-cols-1"
               }`}
             >
             {/* Large cover preview / empty drop target. Clicking it opens the
-                file picker, same affordance as the thumbnail grid below.
+                file picker, same affordance as the add tile in the strip beside it.
 
-                On `lg` the panel now has a FIXED height, so this is the element that
-                absorbs the difference: `lg:flex-1` takes whatever is left after the
-                label, the count and the filmstrip, which means adding photos SHRINKS
-                the cover rather than making the card taller. `lg:min-h-[10rem]` is
-                the floor — with ten thumbnails the strip is several rows, and without
-                a floor the cover could be squeezed to the height of its own icon.
-                `lg:aspect-auto` and `lg:max-h-none` get the mobile rules out of the
-                way: `aspect-[3/4]` ties height to WIDTH, which on the wide side of
-                the grid resolved to roughly 900px, and a `max-h` cap fought the flex.
-
-                Below `lg` the card is stacked: a 4:3 target with a `28svh` cap
-                leaves the details in the first screen. `svh` rather than `dvh`
-                so the target does not resize as a mobile URL bar hides on scroll.
-
-                The image is `object-contain` throughout, so nothing crops. */}
+                `h-full min-h-0` and nothing about its own size: the row above decides
+                the height and this fills its cell. The image is `object-contain`
+                throughout, so nothing crops. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -588,7 +581,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               // this form wears, at the 3:1 SC 1.4.11 wants. The dashes were carrying
               // "drop a file here" on a button that says "Add photos" in words directly
               // beneath the icon, and at 2px they were the heaviest line on the page.
-              className={`flex h-full w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground md:min-h-[10rem] lg:h-auto lg:flex-1 lg:p-group`}
+              className={`flex h-full min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
               // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
               //
               // With no photo the button's own words ("Add photos", below) are its
@@ -658,41 +651,38 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             />
 
             {/* Filmstrip of every selected photo, including the cover, so each
-                one can be removed individually.
+                one can be removed individually, plus the add tile while there is room.
 
-                `lg:shrink-0` so the strip keeps its size and the COVER gives way
-                instead — the cover is the flexible one.
-                
-                TWO COLUMN COUNTS, BOTH SET BY THE WIDTH THE STRIP ACTUALLY GETS.
-                
-                `lg:grid-cols-8` is why this no longer scrolls. Four columns was wrong
-                on the desktop panel: at roughly 800px wide `aspect-square` made each
-                thumbnail about 194px — nearly the size of the cover it previews — so
-                ten photos needed three rows, taller than the cover's own floor. The
-                strip was therefore capped at `9.5rem` with `overflow-y-auto`, making
-                the seller scroll a panel that had room to spare. At eight columns a
-                thumbnail is about 96px and ten photos is two rows.
-                
-                `grid-cols-1` below `lg`: the strip now sits BESIDE the cover in about
-                a third of the row, so it reads as a vertical filmstrip rather than a
-                grid. It was four columns when it ran full width under the cover, which
-                in a ~115px cell would be ~25px thumbnails. */}
+                TWO TILES TALL, ALWAYS. `auto-rows-[calc(50%_-_0.25rem)]` makes every
+                row exactly half the strip's height less half the `gap-snug` (0.5rem)
+                between them, so two tiles fill the column edge to edge and a third
+                starts below the fold: the strip scrolls for the rest. The tiles used to
+                be `aspect-[5/7]` — sized by their WIDTH — so in a third of the row they
+                stopped well short of the bottom of the panel with two photos and
+                overflowed it with three, and the panel's height had nothing to do with
+                how tall they were. A percentage row only resolves against a definite
+                height, which is why the wrapper above goes to the trouble of having one
+                and why this is `h-full min-h-0` inside it.
+
+                `content-start` is deliberate even though two rows fill the column: with
+                a single photo the strip holds that photo and the add tile, and with ten
+                it holds eleven tiles that scroll; neither wants distributing. */}
             {totalImages > 0 ? (
-              <ul className="grid h-full min-h-0 grid-cols-1 content-start gap-snug overflow-y-auto lg:h-auto lg:content-normal lg:grid-cols-8 lg:overflow-visible lg:shrink-0">
+              <ul className="grid h-full min-h-0 auto-rows-[calc(50%_-_0.25rem)] grid-cols-1 content-start gap-snug overflow-y-auto">
                 {keptPaths.map((path) => {
                   const url = itemImageUrl(path);
                   return (
                     <li
                       key={path}
-                      className="group relative aspect-[5/7] overflow-hidden rounded-md border bg-muted lg:aspect-square"
+                      className="group relative min-h-0 overflow-hidden rounded-md border bg-muted"
                     >
                       {url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={url}
                           alt="Existing item image"
-                          width={160}
-                          height={160}
+                          width={320}
+                          height={320}
                           loading="lazy"
                           className="h-full w-full object-cover"
                         />
@@ -713,25 +703,24 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     </li>
                   );
                 })}
-                {newFiles.map((file, index) => (
+                {newFiles.map(({ key, file, url }) => (
                   <li
-                    key={`${file.name}-${index}`}
-                    className="group relative aspect-[5/7] overflow-hidden rounded-md border bg-muted lg:aspect-square"
+                    key={key}
+                    className="group relative min-h-0 overflow-hidden rounded-md border bg-muted"
                   >
+                    {/* The file's own stable preview URL. Minting one here re-decoded
+                        every thumbnail on every render — see `usePreviewFiles`. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={URL.createObjectURL(file)}
+                      src={url}
                       alt={file.name}
-                      width={160}
-                      height={160}
+                      width={320}
+                      height={320}
                       className="h-full w-full object-cover"
-                      onLoad={(e) =>
-                        URL.revokeObjectURL((e.target as HTMLImageElement).src)
-                      }
                     />
                     <button
                       type="button"
-                      onClick={() => removeNewFile(index)}
+                      onClick={() => pending.remove(key)}
                       disabled={isSubmitting}
                       className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-iris md:size-8"
                       aria-label={`Remove ${file.name}`}
@@ -741,12 +730,12 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                   </li>
                 ))}
                 {totalImages < IMAGES_MAX ? (
-                  <li>
+                  <li className="min-h-0">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex aspect-[5/7] w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground lg:aspect-square"
+                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground"
                       aria-label="Add another photo"
                     >
                       <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />

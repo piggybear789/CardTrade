@@ -57,6 +57,7 @@ import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { CloseShopfrontDialog } from "@/components/listings/CloseShopfrontDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
+import { IdentityReturnRefresh } from "@/components/identity/IdentityReturnRefresh";
 import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 /* `PlaceMap` and `PlacePrecision` are gone from this route: the suburb is a clause of
@@ -370,11 +371,15 @@ export default async function ItemDetailPage({
 
   return (
     <MarketplaceShell title="Marketplace">
-      {/* Reconciles payout state when the viewer lands back here from the
-          provider's hosted onboarding flow. Renders nothing. Suspense because it
-          reads searchParams; the page is force-dynamic, so this never blocks a
-          prerender. */}
+      {/* Reconcile a return from EITHER hosted Stripe flow. Both render nothing and
+          each ignores a marker that is not its own. Identity is the one that was
+          missing: the trade dialog's gate prompt starts a check with this page as its
+          return path, so a member came back to `?identity=complete` and a page that
+          still read the pre-check columns — the button they had just used, offered
+          again. Suspense because both read searchParams; the page is force-dynamic,
+          so this never blocks a prerender. */}
       <Suspense fallback={null}>
+        <IdentityReturnRefresh />
         <PayoutReturnRefresh />
       </Suspense>
 

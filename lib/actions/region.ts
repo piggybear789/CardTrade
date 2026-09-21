@@ -2,12 +2,15 @@
 
 // lib/actions/region.ts
 //
-// Region Server Actions. Two of them, for the two region values, and they are
-// deliberately not interchangeable:
+// Region Server Actions. Three of them, and they are deliberately not
+// interchangeable:
 //
-//   * `setBrowseRegion`  — a display preference. Writes a cookie. No gate.
-//   * `setTradingRegion` — `profiles.region_code`, which the contract guards read
+//   * `setBrowseRegion`     — a display preference. Writes a cookie. No gate.
+//   * `setTradingRegion`    — `profiles.region_code`, which the contract guards read
 //     and which must agree with the member's Stripe Connect account country.
+//   * `joinRegionWaitlist`  — a `region_waitlist` row for a region that is NOT open,
+//     plus the browse cookie, so the member lands somewhere with listings. Never
+//     touches the trading region: a waitlisted member has none.
 //
 // Nothing here ever writes a trading region from an IP address. See
 // `domain/region/regions.ts` for why, and `lib/location/resolveRegion.ts` for
@@ -18,7 +21,9 @@ import { cookies } from 'next/headers';
 
 import { createClient } from '@/lib/supabase/server';
 import { fail, ok, type ActionResult } from '@/lib/actions/result';
+import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import {
+  defaultRegion,
   REGION_COOKIE,
   regionCookieOptions,
 } from '@/lib/location/resolveRegion';
@@ -142,4 +147,86 @@ export async function setTradingRegion(
   revalidatePath('/profile');
   revalidatePath('/');
   return ok({ regionCode: normalized });
+}
+
+/** Why a waitlist request was refused. */
+export type JoinRegionWaitlistError =
+  | 'not-authenticated'
+  | 'invalid-region'
+  /** The region IS open. There is nothing to wait for — choose it instead. */
+  | 'region-open'
+  | 'persistence-error';
+
+/** What joining tells the caller: the region waited for, and where to browse meanwhile. */
+export interface JoinRegionWaitlistData {
+  regionCode: RegionCode;
+  /** The open region whose listings the member has been pointed at. */
+  browseRegion: RegionCode;
+}
+
+/**
+ * Record that the caller wants NoDitto in a region it is not open in yet.
+ *
+ * THE THIRD ANSWER TO "WHERE ARE YOU TRADING FROM?". Onboarding used to offer only
+ * the regions a member can transact in, so a member anywhere else had to pick one
+ * falsely or leave. This lets them say where they really are and go straight to
+ * browsing. It writes a `region_waitlist` row and NOTHING to `profiles.region_code`:
+ * the trading region is the jurisdiction a payout account is registered in, 0070's
+ * trigger refuses one that is not open, and a waitlisted member simply has none —
+ * they browse, and every contract guard keeps refusing them until their region opens.
+ *
+ * Only regions that are NOT open are accepted, and the database trigger says the
+ * same (enforce twice): waiting for a region a member could have chosen is a row that
+ * means nothing, and would be read as demand later.
+ *
+ * ALSO PINS THE BROWSE REGION. Without a trading region the catalog resolves through
+ * the IP guess, which for this member is the very region that has no listings —
+ * "send them to browsing" would land them on an empty page. The browse cookie is a
+ * display preference with no gate behind it (see `setBrowseRegion`), so pointing it
+ * at the open default costs nothing and gives them a marketplace to look at.
+ *
+ * Idempotent: joining a list you are already on is a success, not a conflict.
+ */
+export async function joinRegionWaitlist(
+  regionCode: string,
+): Promise<ActionResult<JoinRegionWaitlistData, JoinRegionWaitlistError>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return fail('not-authenticated', 'Sign in to join the waitlist.');
+
+  const normalized = normalizeRegionCode(regionCode);
+  if (!normalized) {
+    return fail('invalid-region', 'Choose the country you are in.');
+  }
+  if (isTradingRegion(normalized)) {
+    return fail(
+      'region-open',
+      `${regionLabel(normalized)} is already open for deals — choose it as your region instead.`,
+    );
+  }
+
+  // RLS confines the insert to the caller's own row (`profile_id = auth.uid()`);
+  // `ignoreDuplicates` makes a second join a no-op rather than a unique violation.
+  const { error } = await supabase
+    .from('region_waitlist')
+    .upsert(
+      { profile_id: user.id, region_code: normalized },
+      { onConflict: 'profile_id,region_code', ignoreDuplicates: true },
+    );
+
+  if (error) {
+    return fail(
+      'persistence-error',
+      friendlyWriteFailure(error, 'We could not add you to the waitlist. Please retry.'),
+    );
+  }
+
+  const browseRegion = defaultRegion();
+  const cookieStore = await cookies();
+  cookieStore.set(REGION_COOKIE, browseRegion, regionCookieOptions());
+
+  revalidatePath('/');
+  return ok({ regionCode: normalized, browseRegion });
 }

@@ -30,6 +30,18 @@
 // identity, keeps asking while the session is still under review. Without it a passing
 // check and an untouched one render identically, which is exactly what shipped.
 //
+// THIS SURFACE IS THE ONLY RECONCILER ON A PAGE THAT MOUNTS IT, and a return is shown
+// as a return. The profile page used to mount `IdentityReturnRefresh` and
+// `PayoutReturnRefresh` beside this surface, so a member back from Connect had TWO
+// things reading the provider at once: the surface ticked the step, then the refresher
+// finished its own read, raised a toast saying the same thing, and `router.replace`d
+// the marker off the URL — a navigation, which put the route's loading skeleton on
+// screen and then a fresh server render. Complete, blank, waiting, complete: the
+// flicker. And on the first frame after either return the step the member had just
+// finished still offered "Continue with Stripe", because our columns had not heard yet.
+// `returningFrom` names that step, and the surface holds it at "confirming with Stripe"
+// until the read-back has an answer — then ticks it once.
+//
 // THE TWO GATES STAY INDEPENDENT. This unifies the UI only. Identity status comes from
 // the Identity_Gate input and payout status from the payout input; they are read,
 // rendered and completed separately, and a verified seller with no payout account is a
@@ -53,6 +65,7 @@ import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { OnboardingSpine, OnboardingSpineStep } from './OnboardingSpine';
 import { HostedProviderStep } from './HostedProviderStep';
+import type { ProviderReturn } from './providerReturn';
 
 /**
  * How long to keep asking Stripe for a verdict, and how the gaps grow.
@@ -89,6 +102,33 @@ const STILL_UNDER_REVIEW =
 /** Shown while a submitted document is known to be with the provider. */
 const UNDER_REVIEW_NOW =
   'Your document is with Stripe. This usually takes a minute or two, and there is nothing for you to do.';
+
+/**
+ * Shown on the step the member has just come back from, until the provider answers.
+ *
+ * THE FIRST FRAME AFTER A RETURN. Before this existed that frame offered the step's
+ * own "Continue with Stripe" button — our columns had not heard from the webhook, so
+ * the surface drew the step as untouched — and a second later the read-back ticked it.
+ * A member who has just finished a form and is shown the button that opens it reads
+ * that as "it didn't take", and that is exactly the second they are most likely to
+ * press it again. Naming the wait is what stops that.
+ */
+const CONFIRMING_IDENTITY = 'Confirming your identity check with Stripe…';
+const CONFIRMING_PAYOUT = 'Confirming your payout details with Stripe…';
+
+/**
+ * Shown when Connect handed the member back but has not enabled payouts.
+ *
+ * Two different situations produce it and this cannot tell them apart from here: the
+ * member left the form with fields still due, or Stripe is reviewing what they gave.
+ * So it says both and offers both remedies — continue the form, or ask again — rather
+ * than a spinner that one of the two situations can never clear.
+ */
+const PAYOUT_NOT_CONFIRMED =
+  'Stripe has not confirmed your payout details yet. If you left the form before the end, continue where you left off; otherwise this usually finishes within a few minutes.';
+
+/** Connect's single-use link expired mid-flow. Nothing was submitted. */
+const PAYOUT_LINK_EXPIRED = 'That setup link expired. Continue with Stripe to pick up where you left off.';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -135,7 +175,20 @@ export interface UnifiedOnboardingSurfaceProps {
    * ticks on the spine be the whole confirmation.
    */
   completion?: ReactNode;
+  /**
+   * Which hosted flow the member has just come back from, read off the URL's return
+   * marker by the page (`resolveProviderReturn`).
+   *
+   * Names the step to hold at "confirming with Stripe" until the mount read-back has
+   * an answer, instead of offering that step's button again on the first frame. It is
+   * a hint about what to SHOW while waiting, never about what happened: the read-back
+   * still decides, and a marker naming a step that turns out untouched simply clears.
+   */
+  returningFrom?: ProviderReturn | null;
 }
+
+/** The step a return marker asks the surface to hold as confirming. */
+type ConfirmingStep = 'identity' | 'payout' | null;
 
 export function UnifiedOnboardingSurface({
   returnPath = '/onboarding',
@@ -143,6 +196,7 @@ export function UnifiedOnboardingSurface({
   onSettledChange,
   initialStatus,
   completion,
+  returningFrom = null,
 }: UnifiedOnboardingSurfaceProps) {
   const router = useRouter();
   const [loaded, setLoaded] = useState(initialStatus !== undefined);
@@ -178,8 +232,50 @@ export function UnifiedOnboardingSurface({
   /** True while an on-demand "Check again" is in flight. */
   const [identityRechecking, setIdentityRechecking] = useState(false);
 
+  /**
+   * The step held at "confirming with Stripe" because the member has just come back
+   * from it. Set from the return marker on the first render — the first frame is the
+   * whole point — and cleared the moment the read-back for that step has an answer,
+   * whatever the answer is. A step the server already knows is done never confirms:
+   * there is nothing to wait for.
+   */
+  const [confirming, setConfirming] = useState<ConfirmingStep>(() => {
+    if (returningFrom === 'identity' && !initialStatus?.identityDone) return 'identity';
+    if (returningFrom === 'payout' && !initialStatus?.payoutDone) return 'payout';
+    return null;
+  });
+  /**
+   * Why payouts are not ticked after a return that did not enable them. Persistent,
+   * like {@link identityWaiting}: the state has to survive until the member acts on it.
+   */
+  const [payoutWaiting, setPayoutWaiting] = useState<string | null>(null);
+  /** Connect's link expired; said beside the step, once, until they continue. */
+  const [payoutProblem, setPayoutProblem] = useState<string | null>(
+    returningFrom === 'payout-expired' && !initialStatus?.payoutDone ? PAYOUT_LINK_EXPIRED : null,
+  );
+  /** True while an on-demand payout "Check again" is in flight. */
+  const [payoutRechecking, setPayoutRechecking] = useState(false);
+
   const settledChange = useRef(onSettledChange);
   settledChange.current = onSettledChange;
+
+  // Mirrors `confirming` for the async code, which cannot read state mid-flight. While
+  // a step is confirming, `load` withholds its `onSettledChange` report: the host's
+  // "Back" control keys off that report, and reporting "not settled" one second before
+  // the read-back says "settled" is the very appear-then-vanish that comment is about.
+  //
+  // Written directly by `settleConfirming` as well as mirrored from state, because the
+  // async code reads it again straight after clearing it — before React has rendered
+  // the cleared state back into the mirror.
+  const confirmingRef = useRef<ConfirmingStep>(confirming);
+  confirmingRef.current = confirming;
+
+  /** The return for `step` is answered: stop holding it as confirming. */
+  const settleConfirming = useCallback((step: Exclude<ConfirmingStep, null>) => {
+    if (confirmingRef.current !== step) return;
+    confirmingRef.current = null;
+    setConfirming(null);
+  }, []);
 
   // Read through a ref for the same reason as `settledChange`: `reconcile` is a
   // `useCallback` the mount effect depends on, so anything captured directly would have
@@ -295,13 +391,23 @@ export function UnifiedOnboardingSurface({
     }
     setPayoutDone(payoutOk);
     setLoaded(true);
+
+    // A column read that already shows the returning step done has nothing left to
+    // confirm — the webhook beat the member back.
+    if (identityOk) settleConfirming('identity');
+    if (payoutOk) settleConfirming('payout');
+
     // Read through a ref so `load` stays referentially stable. An inline arrow from the
     // caller would otherwise change identity every render, changing `load`, re-firing
     // the effect below, and turning one status read into an endless loop of them.
-    settledChange.current?.(identityOk && payoutOk);
+    //
+    // WITHHELD WHILE A STEP IS STILL CONFIRMING. This read is the weaker source, and
+    // its "not settled" is about to be contradicted by the provider read-back in
+    // `reconcile`, which reports instead once it has the answer. See `confirmingRef`.
+    if (confirmingRef.current === null) settledChange.current?.(identityOk && payoutOk);
 
     return { identityOk, payoutOk, merchantRef: merchant.ok ? merchant.data.merchantRef : null };
-  }, []);
+  }, [settleConfirming]);
 
   /**
    * Ask the PROVIDER, not our database, and keep asking while it is still deciding
@@ -418,6 +524,15 @@ export function UnifiedOnboardingSurface({
       // problem box and relabelled the button "Try again" — telling someone whose check
       // was progressing normally to start over.
       if (!verdictReached && sawProcessing && mayPoll) setIdentityWaiting(STILL_UNDER_REVIEW);
+
+      // THE IDENTITY READ-BACK HAS SAID WHAT IT CAN, so a return held at "confirming"
+      // resolves to whichever state the reads above chose — the tick, the decline, the
+      // review notice, or the plain button for a member who never submitted — and the
+      // report `load` withheld is made now, with the provider's answer in it.
+      if (confirmingRef.current === 'identity') {
+        settleConfirming('identity');
+        settledChange.current?.(everIdentityDone.current && snapshot.payoutOk);
+      }
     }
 
     // Payouts get the same read-back but no poll. Connect reports `payouts_enabled` on
@@ -428,15 +543,29 @@ export function UnifiedOnboardingSurface({
       if (!current()) return;
       if (read.ok && read.data.settlementsEnabled) {
         markPayoutDone();
+        setPayoutWaiting(null);
+        setPayoutProblem(null);
         settledChange.current?.(true);
         // Same reasoning as the identity read-back above. This is the case that shipped
         // visibly: the spine read "Payouts active" while the header two rows higher
         // still read "Payouts not set up", because that line is a server-rendered prop
         // and only this read knew any better.
         routerRef.current.refresh();
+      } else if (confirmingRef.current === 'payout') {
+        // Back from Connect and NOT enabled. Say so, with both remedies, rather than
+        // reverting to the untouched-step button as though the form had never been
+        // opened — which is what a member reads as "it didn't save".
+        setPayoutWaiting(PAYOUT_NOT_CONFIRMED);
       }
     }
-  }, [load, markIdentityDone, markPayoutDone]);
+
+    // Whatever the payout read-back found, or if there was no account to read, the
+    // return is answered.
+    if (confirmingRef.current === 'payout') {
+      settleConfirming('payout');
+      settledChange.current?.(everIdentityDone.current && everPayoutDone.current);
+    }
+  }, [load, markIdentityDone, markPayoutDone, settleConfirming]);
 
   useEffect(() => {
     const run = runId.current + 1;
@@ -502,8 +631,33 @@ export function UnifiedOnboardingSurface({
 
   function finishPayout() {
     markPayoutDone();
+    setPayoutWaiting(null);
+    setPayoutProblem(null);
     if (onComplete) onComplete();
     else router.push('/');
+  }
+
+  /**
+   * Ask Connect once more whether payouts are enabled, on demand.
+   *
+   * The payout counterpart of `recheckIdentity`, for the member Connect handed back
+   * without enabling: a review that finishes a minute later has no webhook this page
+   * can see, so this is how the notice under step two gets its exit without a reload.
+   */
+  function recheckPayout() {
+    setPayoutRechecking(true);
+    void (async () => {
+      const read = await refreshPayoutStatus();
+      setPayoutRechecking(false);
+      if (read.ok && read.data.settlementsEnabled) {
+        markPayoutDone();
+        setPayoutWaiting(null);
+        setPayoutProblem(null);
+        settledChange.current?.(identityDone);
+        routerRef.current.refresh();
+      }
+      // Still not enabled: the notice and its two remedies stay exactly as they were.
+    })();
   }
 
   if (!loaded) {
@@ -597,6 +751,19 @@ export function UnifiedOnboardingSurface({
       completion
     );
 
+  // The identity step is waiting on Stripe in one of three ways — told it is under
+  // review, just back from it, or mid-poll — and all three render as the same spinner
+  // line so the step never flips between shapes as one hands over to the next. The
+  // specific wait wins over the generic one: "your document is with Stripe" says more
+  // than "confirming", so once the read-back has learnt it, that is what shows.
+  const identityWaitCopy =
+    identityWaiting ??
+    (confirming === 'identity'
+      ? CONFIRMING_IDENTITY
+      : identityChecking
+        ? 'Checking with Stripe…'
+        : null);
+
   return (
     <div className="space-y-group">
       <OnboardingSpine>
@@ -611,29 +778,17 @@ export function UnifiedOnboardingSurface({
           problem={identityProblem}
           hasNext
         >
-          {identityWaiting || identityChecking ? (
+          {identityWaitCopy ? (
             // WAITING ON THE PROVIDER, so there is deliberately no "Continue with
             // Stripe" here: the member has already done their part and a button that
             // restarts the check is the wrong thing to put in front of them. This state
             // replaces the one where a submitted document rendered exactly like an
             // untouched step.
-            <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
-              <p
-                role="status"
-                className="flex min-w-0 items-start gap-snug text-pretty text-body text-muted-foreground sm:text-right"
-              >
-                <HugeiconsIcon
-                  icon={LoaderCircleIcon}
-                  className="mt-0.5 size-4 shrink-0 animate-spin"
-                  aria-hidden
-                />
-                <span>{identityWaiting ?? 'Checking with Stripe…'}</span>
-              </p>
-
+            <WaitingOnProvider copy={identityWaitCopy}>
               {/* Only once the automatic polling has given up. While it is still running
                   this would race it and ask the member to do what the page is already
                   doing. */}
-              {identityWaiting && !identityChecking ? (
+              {identityWaiting && !identityChecking && confirming !== 'identity' ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -645,7 +800,7 @@ export function UnifiedOnboardingSurface({
                   {identityRechecking ? 'Checking…' : 'Check again'}
                 </Button>
               ) : null}
-            </div>
+            </WaitingOnProvider>
           ) : (
             <HostedProviderStep
               step="identity"
@@ -668,17 +823,46 @@ export function UnifiedOnboardingSurface({
           // on the first thing an unverified member sees.
           description="Add your payout details to receive your funds."
           receipt="Payouts active"
+          // An expired Connect link, or a return Stripe did not enable. Beside the step
+          // it belongs to, like an identity decline, rather than in a toast that is
+          // gone before it is read.
+          problem={payoutProblem ?? payoutWaiting}
           hasNext={false}
         >
-          {/* HOSTED, not embedded. The spine, the numbering and the return here are all
-              still ours; only the form Stripe insists on owning happens on Stripe. See
-              `HostedProviderStep` for why. The prefill is unaffected — it is written to
-              the account at creation, so the hosted pages open already filled in. */}
-          <HostedProviderStep
-            step="payout"
-            returnPath={returnPath}
-            onComplete={finishPayout}
-          />
+          {confirming === 'payout' ? (
+            // JUST BACK FROM CONNECT. Hold here until `refreshPayoutStatus` answers,
+            // rather than drawing the button the member has just come back from
+            // pressing. Resolves to the tick, or to the notice above with its remedies.
+            <WaitingOnProvider copy={CONFIRMING_PAYOUT} />
+          ) : (
+            // HOSTED, not embedded. The spine, the numbering and the return here are all
+            // still ours; only the form Stripe insists on owning happens on Stripe. See
+            // `HostedProviderStep` for why. The prefill is unaffected — it is written to
+            // the account at creation, so the hosted pages open already filled in.
+            //
+            // "Check again" joins it only once Connect has handed the member back without
+            // enabling payouts: at that point the wait may be Stripe's, and a page reload
+            // should not be the only way to find out it has ended.
+            <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
+              <HostedProviderStep
+                step="payout"
+                returnPath={returnPath}
+                onComplete={finishPayout}
+              />
+              {payoutWaiting ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={recheckPayout}
+                  disabled={payoutRechecking}
+                  aria-busy={payoutRechecking}
+                  className="w-full sm:w-auto"
+                >
+                  {payoutRechecking ? 'Checking…' : 'Check again'}
+                </Button>
+              ) : null}
+            </div>
+          )}
         </OnboardingSpineStep>
       </OnboardingSpine>
 
@@ -692,6 +876,34 @@ export function UnifiedOnboardingSurface({
           trying to leave, wrong on a settings tab they can simply stay on. That caller
           passes a plain link instead; see `VerificationSequence`. */}
       {bothDone ? exit : null}
+    </div>
+  );
+}
+
+/**
+ * A step's control slot while the answer is Stripe's to give: one spinner line, and
+ * optionally a control beneath it.
+ *
+ * Shared by every wait on this surface — just back from the provider, mid-poll, under
+ * review, confirming payouts — so a step moving from one kind of wait to the next keeps
+ * the same shape and nothing on the spine jumps. `role="status"` so the change of copy
+ * is announced without stealing focus.
+ */
+function WaitingOnProvider({ copy, children }: { copy: string; children?: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
+      <p
+        role="status"
+        className="flex min-w-0 items-start gap-snug text-pretty text-body text-muted-foreground sm:text-right"
+      >
+        <HugeiconsIcon
+          icon={LoaderCircleIcon}
+          className="mt-0.5 size-4 shrink-0 animate-spin"
+          aria-hidden
+        />
+        <span>{copy}</span>
+      </p>
+      {children}
     </div>
   );
 }

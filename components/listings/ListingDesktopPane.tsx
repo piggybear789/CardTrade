@@ -157,7 +157,7 @@ export function ListingDesktopPane({
             suppressHydrationWarning
           >
             {[
-              isShopfront ? 'Binder listing' : 'Single item',
+              isShopfront ? 'Multiple items' : 'Single item',
               listedAgo ? `Listed ${listedAgo}` : null,
               locationLabel ? `Based in ${locationLabel}` : null,
             ]
@@ -274,8 +274,8 @@ export function ListingDesktopPane({
         <p className="flex gap-snug rounded-md border border-border bg-iris/[0.07] p-snug text-body text-foreground">
           <HugeiconsIcon icon={LibraryIcon} className="mt-0.5 size-4 shrink-0 text-iris-ink" aria-hidden />
           <span>
-            This is a binder listing. Browse the collection and request specific
-            items — nothing is held until you agree on terms.
+            This listing has multiple items. Browse the collection and request the
+            ones you want — nothing is held until you agree on terms.
           </span>
         </p>
       ) : null}

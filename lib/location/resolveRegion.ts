@@ -59,8 +59,12 @@ export interface ResolvedRegion {
  *
  * Env-driven so a non-AU deployment does not need a code change, and validated
  * against the registry so a typo falls back rather than emptying the catalog.
+ *
+ * Exported for `joinRegionWaitlist`, which pins a member whose own region is not
+ * open to the region that has listings — the alternative is the geo guess, which for
+ * them resolves to the very region that has none.
  */
-function defaultRegion(): RegionCode {
+export function defaultRegion(): RegionCode {
   return normalizeRegionCode(process.env.DEFAULT_REGION) ?? FALLBACK_REGION;
 }
 

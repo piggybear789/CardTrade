@@ -24,13 +24,14 @@ import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 
+import type { ProviderReturn } from '@/components/onboarding/providerReturn';
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
 import { Button } from '@/components/ui/button';
 
 /**
  * Where Stripe sends the member back to. Shared with the page so the return markers
- * (`identity=complete`, `payouts=complete`) land on the tab that started the flow —
- * `IdentityReturnRefresh` and `PayoutReturnRefresh` reconcile them there.
+ * (`identity=complete`, `payouts=complete`) land on the tab that started the flow,
+ * where the surface below reconciles them against the provider.
  */
 export const VERIFICATION_RETURN_PATH = '/profile?tab=verification';
 
@@ -44,6 +45,11 @@ export interface VerificationSequenceProps {
   payoutDone: boolean;
   /** The document-backed name, shown as step one's receipt once it exists. */
   verifiedName: string | null;
+  /**
+   * The hosted flow the member has just come back from, read off the URL by the page,
+   * so the step it names opens on "confirming with Stripe" rather than on its button.
+   */
+  returningFrom?: ProviderReturn | null;
 }
 
 export function VerificationSequence({
@@ -51,19 +57,21 @@ export function VerificationSequence({
   identityFailed = false,
   payoutDone,
   verifiedName,
+  returningFrom = null,
 }: VerificationSequenceProps) {
   const { refresh } = useRouter();
 
   return (
     <UnifiedOnboardingSurface
       returnPath={VERIFICATION_RETURN_PATH}
+      returningFrom={returningFrom}
       // The page already read both gates on the server, so the spine opens on the
       // answer instead of a skeleton it would resolve to the same thing.
       initialStatus={{ identityDone, identityFailed, payoutDone, verifiedName }}
       // Hand the decision back to the server rather than routing away: this tab's
       // content is derived from the same two gates, so a re-render is the update.
       // Only the mock provider finishes in-page — the hosted flow leaves for Stripe
-      // and comes back through `PayoutReturnRefresh`, which refreshes as well.
+      // and comes back here, where the surface's own read-back refreshes as well.
       onComplete={refresh}
       // A WAY ONWARD, NOT A WIZARD EXIT, and that is why this is a link rather than
       // `onComplete`. This used to pass `null` on the reasoning that a settings tab is

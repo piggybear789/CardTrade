@@ -16,7 +16,7 @@ import {
 } from '@/components/listings/CatalogView';
 import type { CatalogItem } from '@/lib/actions/listings';
 import { CARD_GAMES } from '@/lib/catalog/cardGames';
-import { regionLabel } from '@/domain/region';
+import { isTradingRegion, regionLabel } from '@/domain/region';
 import { ALL_REGIONS } from '@/lib/location/regionParams';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -273,27 +273,51 @@ function dollarsToCents(value: string): number | undefined {
   return Math.round(num * 100);
 }
 
+/** The one call to action an empty marketplace has, worded the same everywhere. */
+const ADD_LISTING_ACTION = { label: 'Add a listing', href: '/listings/new' } as const;
+
 function EmptyCatalog() {
   return (
     <EmptyState
       icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
-      title="The Marketplace Is Ready for Its First Listing"
-      description="List a collectible for sale or trade and it will appear here."
-      action={{ label: 'List an Item', href: '/listings/new' }}
+      title="Be the first to list"
+      action={ADD_LISTING_ACTION}
       compact
       fill
     />
   );
 }
 
+/**
+ * An empty catalog scoped to one region.
+ *
+ * TWO STATES, BECAUSE THE VISITOR CAN DO TWO DIFFERENT THINGS. In a region that is
+ * open for deals the only useful answer is the button: this used to lead with
+ * "Nothing listed in Australia yet" and a paragraph about regional scoping, which
+ * told a member with something to sell what they could already see. In a region
+ * that is NOT open there is nothing to add — a listing there could never be bought
+ * — so that state says why and points at the regions that do have listings.
+ */
 function EmptyRegion({ regionCode }: { regionCode: string }) {
+  if (isTradingRegion(regionCode)) {
+    return (
+      <EmptyState
+        icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
+        title="Be the first to list"
+        action={ADD_LISTING_ACTION}
+        compact
+        fill
+      />
+    );
+  }
+
   return (
     <EmptyState
       icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
-      title={`Nothing Listed in ${regionLabel(regionCode)} Yet`}
-      description={`Listings stay in ${regionLabel(regionCode)}, because a deal completes in one region. Browse every region, or list the first item from Sell.`}
+      title={`NoDitto isn't open in ${regionLabel(regionCode)} yet`}
+      description="You can browse what other regions have listed, but a deal only completes in a region that is open."
       action={{
-        label: 'Browse All Regions',
+        label: 'Browse all regions',
         href: `/?region=${ALL_REGIONS}`,
         variant: 'outline',
       }}

@@ -301,14 +301,19 @@ function contractEventBody(
   // failing on exactly those.
   if (!saleContext || !belongsToSelectedSale(message, saleContext)) return message.body;
 
+  // The same sentences `describe_cash_sale_event` writes (0119), for rows written by
+  // an earlier version of it: the pre-0113 single-listing wording, and the 0113–0116
+  // "binder or bulk listing" wording that 0119 retired from the transcript.
   if (message.system_event === 'AGREEMENT_CREATED' && saleContext.fromShopfront) {
-    return message.body.replace(
-      'started this purchase contract and reserved the item. No money has moved yet.',
-      'started this purchase contract for a binder or bulk listing. Nothing in the listing is held, and no money has moved yet.',
-    );
+    return message.body
+      .replace(
+        'started this purchase contract and reserved the item. No money has moved yet.',
+        'started this purchase contract for a multi-item listing. Nothing in the listing is held, and no money has moved yet.',
+      )
+      .replace('for a binder or bulk listing.', 'for a multi-item listing.');
   }
   if (message.system_event === 'PAYMENT_FAILED' && saleContext.fromShopfront) {
-    return 'The payment failed. This contract did not proceed. The binder or bulk listing remains open, and nothing from it was held.';
+    return 'The payment failed. This contract did not proceed. The multi-item listing remains open, and nothing from it was held.';
   }
   if (message.system_event !== 'PAYMENT_CLEARED') return message.body;
 

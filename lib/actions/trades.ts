@@ -266,7 +266,7 @@ export async function proposeTrade(
       ok: false,
       error: 'item-unavailable',
       detail:
-        'This is a binder or bulk listing. Open a trade offer on it so you can say which cards you want.',
+        'This listing has multiple items. Open a trade offer on it so you can say which cards you want.',
     };
   }
 

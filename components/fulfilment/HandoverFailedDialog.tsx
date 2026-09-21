@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { usePreviewFiles } from '@/lib/images/usePreviewFiles';
 import { uploadDisputeEvidence } from '@/lib/storage/uploadDisputeEvidence';
 import { submitDisputeEvidence, type DisputeCaseKind } from '@/lib/actions/disputeEvidence';
 
@@ -93,21 +94,18 @@ export function HandoverFailedDialog({
 }: HandoverFailedDialogProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
-  const [proofFiles, setProofFiles] = useState<File[]>([]);
+  // Each picked photo with the ONE preview URL it owns. This was a `File[]` with
+  // `URL.createObjectURL` called in render per thumbnail, so every keystroke in the
+  // reason box re-decoded every attached photo. See `usePreviewFiles`.
+  const proof = usePreviewFiles(MAX_EVIDENCE_FILES);
+  const proofFiles = proof.files;
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelected(event: ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(event.target.files ?? []);
-    if (picked.length > 0) {
-      setProofFiles((prev) => [...prev, ...picked].slice(0, MAX_EVIDENCE_FILES));
-    }
+    proof.add(Array.from(event.target.files ?? []));
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  function removeFile(index: number) {
-    setProofFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleSubmit(event: FormEvent) {
@@ -175,7 +173,7 @@ export function HandoverFailedDialog({
 
       setOpen(false);
       setReason('');
-      setProofFiles([]);
+      proof.clear();
     });
   }
 
@@ -254,23 +252,20 @@ export function HandoverFailedDialog({
               />
 
               <div className="flex flex-wrap gap-snug">
-                {proofFiles.map((file, index) => (
+                {proof.items.map(({ key, file, url }) => (
                   <div
-                    key={`${file.name}-${index}`}
+                    key={key}
                     className="group relative size-16 overflow-hidden rounded-md border bg-muted"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={URL.createObjectURL(file)}
+                      src={url}
                       alt={file.name}
                       className="h-full w-full object-cover"
-                      onLoad={(e) =>
-                        URL.revokeObjectURL((e.target as HTMLImageElement).src)
-                      }
                     />
                     <button
                       type="button"
-                      onClick={() => removeFile(index)}
+                      onClick={() => proof.remove(key)}
                       disabled={isPending}
                       className="absolute right-0.5 top-0.5 rounded-full bg-background/80 p-0.5 text-foreground shadow-sm hover:bg-background"
                       aria-label={`Remove ${file.name}`}

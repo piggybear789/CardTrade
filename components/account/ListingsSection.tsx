@@ -168,7 +168,7 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
                   >
                     {[
                       item.category,
-                      isShopfront ? 'Binder' : item.condition,
+                      isShopfront ? 'Multiple items' : item.condition,
                       listedAgo ? `listed ${listedAgo}` : null,
                     ]
                       .filter(Boolean)

@@ -426,14 +426,21 @@ export function checkRegionCompatibility(
  * Member-facing explanation of a mismatch.
  *
  * Says which regions are involved, because "not available in your region" with no
- * further detail leaves a member unable to tell a fixable problem (no region set)
- * from a permanent one (the seller is overseas).
+ * further detail leaves a member unable to tell a fixable problem from a permanent
+ * one (the seller is overseas).
+ *
+ * A BUYER WITH NO REGION IS ON THE WAITLIST. Since onboarding gained the waitlist
+ * tile, the only way to finish it without a trading region is to have said you are
+ * somewhere NoDitto is not open (`region_waitlist`, 0118); every earlier member was
+ * backfilled to AU by 0067. So the honest sentence is about their region not being
+ * open — not "set your region in your profile", which named a control that does not
+ * exist and a step they could not have taken.
  */
 export function regionMismatchMessage(mismatch: RegionMismatch): string {
   switch (mismatch.reason) {
     case 'UNKNOWN_REGION':
       return !mismatch.buyerRegion
-        ? 'Set your region in your profile before opening an agreement.'
+        ? 'Deals are not open in your region yet. You can browse listings, but not buy, sell or trade until NoDitto opens there.'
         : 'This seller has not set a region yet, so a contract cannot be opened.';
     case 'CROSS_REGION':
       return (

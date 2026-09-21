@@ -27,7 +27,12 @@ export function EmptyState({
 }: {
   icon?: ReactNode;
   title: string;
-  description: ReactNode;
+  /**
+   * Optional. A state whose title already says everything — "Be the first to
+   * list", above an "Add a listing" button — has nothing to add, and an empty
+   * `<p>` would still take its margin.
+   */
+  description?: ReactNode;
   action?: {
     label: string;
     variant?: 'default' | 'outline';
@@ -177,16 +182,18 @@ export function EmptyState({
       >
         {title}
       </Title>
-      <p
-        className={cn(
-          'mt-tight max-w-sm text-pretty text-body text-muted-foreground',
-          // Tracks the title up so the pair keeps its relationship, and widens with
-          // it: 24rem at `text-lead` breaks a one-line sentence across two lines.
-          fill && 'md:max-w-md md:text-lead',
-        )}
-      >
-        {description}
-      </p>
+      {description ? (
+        <p
+          className={cn(
+            'mt-tight max-w-sm text-pretty text-body text-muted-foreground',
+            // Tracks the title up so the pair keeps its relationship, and widens with
+            // it: 24rem at `text-lead` breaks a one-line sentence across two lines.
+            fill && 'md:max-w-md md:text-lead',
+          )}
+        >
+          {description}
+        </p>
+      ) : null}
       {action ? (
         'href' in action && action.href ? (
           <Button

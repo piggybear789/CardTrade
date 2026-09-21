@@ -110,6 +110,12 @@ const MUST_WORK: GrantCheck[] = [
   // report from the queue, but is still a workflow column they do not own.
   { flow: 'report: cannot set its own status', table: 'reports', column: 'status', privilege: 'INSERT', allowed: false },
 
+  // Region waitlist (0118): `joinRegionWaitlist` inserts the member's own row, and the
+  // onboarding step reads it back. A fact about demand, so nothing edits it.
+  { flow: 'waitlist: join a region', table: 'region_waitlist', column: 'region_code', privilege: 'INSERT', allowed: true },
+  { flow: 'waitlist: join sets member', table: 'region_waitlist', column: 'profile_id', privilege: 'INSERT', allowed: true },
+  { flow: 'read: own waitlist entries', table: 'region_waitlist', privilege: 'SELECT', allowed: true },
+
   // Reads the product depends on. A revoke that broke these would empty the catalog.
   { flow: 'read: catalog', table: 'items', privilege: 'SELECT', allowed: true },
   { flow: 'read: own cash sales', table: 'cash_sales', privilege: 'SELECT', allowed: true },
@@ -197,6 +203,11 @@ const MUST_NOT_WORK: GrantCheck[] = [
   { flow: 'MONEY: write a delivery address', table: 'trade_delivery_details', privilege: 'UPDATE', allowed: false },
   { flow: 'MONEY: forge a webhook log', table: 'webhook_logs', privilege: 'INSERT', allowed: false },
   { flow: 'MONEY: edit the region table', table: 'regions', privilege: 'UPDATE', allowed: false },
+  // A waitlist row is a record of demand at a point in time; rewriting or removing one
+  // would let a member edit the operator's own read of where to open next.
+  { flow: 'TAMPER: rewrite a waitlist entry', table: 'region_waitlist', privilege: 'UPDATE', allowed: false },
+  { flow: 'TAMPER: remove a waitlist entry', table: 'region_waitlist', privilege: 'DELETE', allowed: false },
+  { flow: 'TAMPER: read the waitlist anonymously', table: 'region_waitlist', privilege: 'SELECT', role: 'anon', allowed: false },
   { flow: 'MONEY: write an arbitration note', table: 'arbitration_notes', privilege: 'INSERT', allowed: false },
   { flow: 'MONEY: insert a deal invite', table: 'deal_invites', privilege: 'INSERT', allowed: false },
   { flow: 'MONEY: update a deal invite', table: 'deal_invites', privilege: 'UPDATE', allowed: false },

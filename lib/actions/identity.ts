@@ -26,6 +26,8 @@
 // someone already transacting with that Member — never from a listing or profile
 // page.
 
+import { cookies } from 'next/headers';
+
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -36,8 +38,30 @@ import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identi
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
+import {
+  DEFAULT_IDENTITY_RETURN_PATH,
+  IDENTITY_RETURN_COOKIE,
+  identityReturnCookieOptions,
+  identityReturnUrl,
+  safeIdentityReturnPath,
+} from '@/lib/identity/identityReturn';
 import type { IdentityCheckProgress } from '@/domain/services/types';
 import { type ActionResult, fail, ok } from './result';
+
+/**
+ * Remember which screen the member is leaving for Stripe from, so the fixed return
+ * route can send them back to it. Rewritten on every press: the session's own
+ * `return_url` cannot move, so this cookie is what makes resuming from a different
+ * screen land on THAT screen. See `lib/identity/identityReturn.ts`.
+ */
+async function rememberIdentityReturnPath(returnPath: string): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(
+    IDENTITY_RETURN_COOKIE,
+    safeIdentityReturnPath(returnPath),
+    identityReturnCookieOptions(),
+  );
+}
 
 /**
  * The signed-in member's own platform region (0068).
@@ -221,9 +245,16 @@ export interface StartedIdentityCheck {
  * same single writer the webhook uses. Writing PENDING over it instead would un-verify
  * a member for pressing a button. `createIdentityCheck` throws rather than returning a
  * status precisely so a provider failure leaves verification state untouched.
+ *
+ * `returnPath` IS NOT THE SESSION'S RETURN URL. Every session returns to the fixed
+ * `/identity/return` route; the path is remembered in a cookie and the route forwards
+ * there. A session's `return_url` cannot be changed once created and this action
+ * resumes sessions, so a per-screen URL baked into the session sent members back to
+ * whichever screen they FIRST pressed the button on — the payouts tab, for a session
+ * opened under an earlier default. See `lib/identity/identityReturn.ts`.
  */
 export async function beginIdentityCheck(
-  returnPath = '/profile?tab=verification',
+  returnPath = DEFAULT_IDENTITY_RETURN_PATH,
 ): Promise<ActionResult<StartedIdentityCheck, IdentityCheckError>> {
   const supabase = await createClient();
   const {
@@ -235,10 +266,6 @@ export async function beginIdentityCheck(
   if (!payments.createIdentityCheck) {
     return fail('NOT_SUPPORTED', 'The active payment provider does not support identity checks.');
   }
-
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
-  const path = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
-  const separator = path.includes('?') ? '&' : '?';
 
   // Service role: these columns are provider-owned and carry no member update grant.
   const admin = createAdminClient();
@@ -255,7 +282,7 @@ export async function beginIdentityCheck(
   try {
     check = await payments.createIdentityCheck({
       profileId: user.id,
-      returnUrl: `${origin}${path}${separator}identity=complete`,
+      returnUrl: identityReturnUrl(),
       existingSessionId: (existing?.identity_check_session_id as string | null) ?? null,
     });
   } catch (err) {
@@ -264,6 +291,11 @@ export async function beginIdentityCheck(
       err instanceof Error ? err.message : 'Could not start the identity check.',
     );
   }
+
+  // Written BEFORE the early returns below, and regardless of whether a link comes
+  // back: the member is about to leave for the provider in every case that has one,
+  // and a session already under review returns them here through the same route.
+  await rememberIdentityReturnPath(returnPath);
 
   const progress = check.progress ?? 'NOT_SUBMITTED';
 
@@ -345,10 +377,6 @@ export async function beginEmbeddedIdentity(
     return fail('NOT_SUPPORTED', 'The active payment provider does not support embedded identity.');
   }
 
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
-  const path = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
-  const separator = path.includes('?') ? '&' : '?';
-
   const admin = createAdminClient();
 
   // Same read-before-start as the hosted path: a client secret, like a hosted link, is
@@ -364,9 +392,10 @@ export async function beginEmbeddedIdentity(
   try {
     check = await payments.createIdentityCheck({
       profileId: user.id,
-      // Harmless for the embedded modal (which does not redirect); kept so a session
-      // is equally resumable through the hosted fallback.
-      returnUrl: `${origin}${path}${separator}identity=complete`,
+      // Harmless for the embedded modal (which does not redirect); the SAME fixed
+      // route as the hosted path, so a session opened here is equally resumable
+      // through the hosted fallback and shares its idempotency key.
+      returnUrl: identityReturnUrl(),
       existingSessionId: (existing?.identity_check_session_id as string | null) ?? null,
     });
     secret = await payments.createIdentitySessionSecret(check.sessionId);
@@ -376,6 +405,10 @@ export async function beginEmbeddedIdentity(
       err instanceof Error ? err.message : 'Could not start the identity check.',
     );
   }
+
+  // The modal does not redirect, but the session it opens may later be resumed on
+  // Stripe's hosted pages, and that return has to land somewhere sensible.
+  await rememberIdentityReturnPath(returnPath);
 
   // Persist PENDING + session id (service role: these columns carry no member update
   // grant). Never overwrite a VERIFIED member, so a stray call cannot un-verify.

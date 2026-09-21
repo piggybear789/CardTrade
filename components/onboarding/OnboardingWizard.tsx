@@ -13,7 +13,11 @@
 // Post-signup onboarding presented as one focused modal wizard:
 //   1. Welcome — explain how NoDitto protects cash sales and trades
 //   2. Alias — choose the public display name shown to other members
-//   3. Region — the trading region every contract is scoped to
+//   3. Region — the trading region every contract is scoped to, OR the waitlist for a
+//      region that is not open yet. The waitlist answer finishes onboarding on the
+//      spot and sends the member to the catalog: there is no seller setup to offer
+//      someone who cannot transact, and asking "buy or sell?" of them would be a
+//      question with no true answer.
 //   4. Intent — buyer enters card setup; seller goes straight to Stripe Identity
 //   5. Card Setup (buyer only, skippable) — Stripe Payment Element for vaulting a card
 //
@@ -37,13 +41,15 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, ArrowLeftRightIcon, ArrowRight01Icon, BanknoteIcon, InfoIcon, MapPinIcon, ShieldCheckIcon, ShoppingBag01Icon, Store01Icon } from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, ArrowLeftRightIcon, ArrowRight01Icon, BanknoteIcon, Globe02Icon, InfoIcon, MapPinIcon, ShieldCheckIcon, ShoppingBag01Icon, Store01Icon } from '@hugeicons/core-free-icons';
 
 import { completeOnboarding } from '@/lib/actions/profile';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
-import { setTradingRegion } from '@/lib/actions/region';
+import { joinRegionWaitlist, setTradingRegion } from '@/lib/actions/region';
 import { type SelectableRegion } from '@/lib/actions/regionOptions';
+import type { ProviderReturn } from '@/components/onboarding/providerReturn';
+import { isTradingRegion, REGIONS, regionLabel } from '@/domain/region';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -60,17 +66,47 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 export type Step = 'welcome' | 'username' | 'region' | 'intent' | 'seller-onboarding';
 type Intent = 'buyer' | 'seller' | null;
+
+/**
+ * Which kind of answer the region step holds.
+ *
+ * `trade` is a region the member can transact in; `waitlist` is one NoDitto is not
+ * open in yet. They are different answers with different consequences — one writes a
+ * trading region and continues to the intent step, the other writes a waitlist row and
+ * ends the wizard — so they are one state rather than two nullable region codes that
+ * could both be set.
+ */
+type RegionChoice = 'trade' | 'waitlist' | null;
 
 // The navigation spine the back button walks, and what the progress rail counts. It is
 // every screen a member is walked THROUGH: `seller-onboarding` is deliberately absent
 // because it sits off the end for sellers only, and counting it would tell a buyer they
 // are on step 4 of 5 of something they will never see.
 const STEPS: Step[] = ['welcome', 'username', 'region', 'intent'];
-const PROGRESS_STEPS: Step[] = STEPS;
+
+/**
+ * Countries a member can wait for: every region in the registry that is not open.
+ *
+ * From the pure registry rather than the runtime `regions` prop, and by product intent
+ * rather than by Stripe binding, because that is exactly the rule the database trigger
+ * on `region_waitlist` enforces — a region can be waited for if and only if it is not
+ * `trading_enabled`. The list is bounded to countries Stripe could ever pay out in; a
+ * waitlist for anywhere else would be a promise the provider cannot keep.
+ */
+const WAITLIST_REGIONS = REGIONS.filter((region) => !region.tradingEnabled)
+  .map((region) => ({ code: region.code, label: region.label }))
+  .sort((a, b) => a.label.localeCompare(b.label));
 
 /** What the welcome step promises, one sentence each, in one voice. */
 const WELCOME_POINTS = [
@@ -148,12 +184,30 @@ export interface OnboardingWizardProps {
    * notice for the length of a round trip before the real buttons replaced it.
    */
   regions: SelectableRegion[];
+  /**
+   * The region the request IP resolves to, or null when there is no guess (local
+   * development, a non-Vercel host, an IP outside the registry).
+   *
+   * A PRE-SELECTION ONLY. It decides which tile the region step opens on and which
+   * country the waitlist picker starts at; it is never written anywhere. A member
+   * whose guess is wrong — a VPN, a holiday — changes it with one click.
+   */
+  guessedRegion?: string | null;
+  /**
+   * Which hosted Stripe flow the member has just come back from, when `initialStep`
+   * is `seller-onboarding` because of a return marker. Handed to the seller surface so
+   * the step they just finished reads "confirming with Stripe" on its first frame
+   * rather than offering its button again.
+   */
+  providerReturn?: ProviderReturn | null;
 }
 
 export function OnboardingWizard({
   initialStep,
   redirectTo,
   regions,
+  guessedRegion = null,
+  providerReturn = null,
 }: OnboardingWizardProps) {
   const router = useRouter();
   const exitPath = redirectTo ?? '/';
@@ -162,17 +216,29 @@ export function OnboardingWizard({
   // Saved by AvatarUploadField the moment it is picked, so this only mirrors it for
   // the preview — it is not part of what `completeOnboarding` submits.
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
-  // Pre-selected when only one region trades, so the step is a confirmation rather
-  // than a decision with one option. It is still SHOWN: this is the jurisdiction
-  // their payouts and postage are pinned to, and silently assigning it would make
-  // the later "your region is tied to your payout account" refusal come out of
+
+  // The guess only counts towards the WAITLIST tile. A guess that lands on an open
+  // region says nothing the tiles do not already say, and a guess that is not on the
+  // waitlist list cannot be pre-filled.
+  const guessedWaitlistRegion =
+    guessedRegion && !isTradingRegion(guessedRegion) ? guessedRegion : null;
+
+  // Which tile is chosen, decided on the first render from what the server already
+  // knows — this used to settle a tick after mount and move the selection under anyone
+  // who had got there first. A member the IP places in a country that is not open
+  // starts on the waitlist tile with that country filled in; everyone else starts on
+  // the one open region, pre-selected so the step is a confirmation rather than a
+  // decision with one option. It is still SHOWN either way: the trading region is the
+  // jurisdiction payouts and postage are pinned to, and silently assigning it would
+  // make the later "your region is tied to your payout account" refusal come out of
   // nowhere.
-  // Pre-selected on the first render when only one region trades, which the
-  // server already knows — this used to settle a tick after mount and move the
-  // selection under anyone who had got there first.
+  const [regionChoice, setRegionChoice] = useState<RegionChoice>(
+    guessedWaitlistRegion ? 'waitlist' : regions.length === 1 ? 'trade' : null,
+  );
   const [regionCode, setRegionCode] = useState<string | null>(
     regions.length === 1 ? regions[0].code : null,
   );
+  const [waitlistRegion, setWaitlistRegion] = useState<string | null>(guessedWaitlistRegion);
   const regionChoices = regions;
   const [intent, setIntent] = useState<Intent>(null);
   // Whether the seller step reports both its gates satisfied. Owned here rather than
@@ -187,7 +253,12 @@ export function OnboardingWizard({
   const [error, setError] = useState<string | null>(null);
 
   const stepIndex = STEPS.indexOf(step);
-  const progressIndex = PROGRESS_STEPS.indexOf(step);
+  // The waitlist answer ends the wizard at the region step, so the intent dot is
+  // dropped the moment that tile is chosen — the same honesty rule that keeps
+  // `seller-onboarding` out of the count: never show a member a step they will not see.
+  const progressSteps =
+    regionChoice === 'waitlist' ? STEPS.filter((s) => s !== 'intent') : STEPS;
+  const progressIndex = progressSteps.indexOf(step);
 
   function goBack() {
     const previous = STEPS[stepIndex - 1];
@@ -209,7 +280,12 @@ export function OnboardingWizard({
   }
 
   async function handleRegionContinue() {
-    if (!regionCode) {
+    if (regionChoice === 'waitlist') {
+      await handleWaitlistContinue();
+      return;
+    }
+
+    if (regionChoice !== 'trade' || !regionCode) {
       setError('Choose where you are trading from.');
       return;
     }
@@ -229,6 +305,45 @@ export function OnboardingWizard({
     }
 
     setStep('intent');
+  }
+
+  /**
+   * The waitlist answer: record the region, finish onboarding, go and browse.
+   *
+   * ENDS THE WIZARD HERE. The intent step asks "buy or sell?", and a member in a
+   * region that is not open can do neither — there is no seller setup to walk them
+   * into and no card to ask for. Onboarding is still completed (`completeOnboarding`
+   * is what lets them past the gate in `proxy.ts` at all), and the trading region is
+   * deliberately left unset: see `joinRegionWaitlist` for why a closed region must
+   * never become one.
+   */
+  async function handleWaitlistContinue() {
+    if (!waitlistRegion) {
+      setError('Choose the country you are in.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    const joined = await joinRegionWaitlist(waitlistRegion);
+    if (!joined.ok) {
+      setError(joined.message);
+      setSaving(false);
+      return;
+    }
+
+    const completed = await completeOnboarding(displayName.trim());
+    if (!completed.ok) {
+      setError(completed.message);
+      setSaving(false);
+      return;
+    }
+
+    // `saving` stays true through the navigation: the button reads "Joining…" until
+    // the catalog replaces this screen, rather than snapping back to "Join the
+    // waitlist" for the length of the route change.
+    router.push(exitPath);
   }
 
   async function handleIntentContinue() {
@@ -290,9 +405,9 @@ export function OnboardingWizard({
           {step !== 'welcome' && step !== 'seller-onboarding' ? (
             <div className="mb-snug flex shrink-0 items-center justify-center gap-tight">
               <span className="sr-only">
-                Step {progressIndex + 1} of {PROGRESS_STEPS.length}
+                Step {progressIndex + 1} of {progressSteps.length}
               </span>
-              {PROGRESS_STEPS.map((s, i) => (
+              {progressSteps.map((s, i) => (
                 <span
                   key={s}
                   className={cn(
@@ -427,42 +542,117 @@ export function OnboardingWizard({
 
               <fieldset className="grid gap-snug">
                 <legend className="sr-only">Your trading region</legend>
-                {regionChoices.map((region) => (
+                {regionChoices.map((region) => {
+                  const selected = regionChoice === 'trade' && regionCode === region.code;
+                  return (
+                    <button
+                      key={region.code}
+                      type="button"
+                      onClick={() => {
+                        setRegionChoice('trade');
+                        setRegionCode(region.code);
+                        setError(null);
+                      }}
+                      aria-pressed={selected}
+                      className={cn(
+                        'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
+                        // The accent pair, which is what `ChoiceTile` uses and what
+                        // globals.css names as THE selected look. What was here —
+                        // `border-primary bg-primary/5 ring-1 ring-primary` — is the exact
+                        // anti-pattern that comment calls out: a 5%-alpha primary wash
+                        // measures about 1.1:1 and is invisible, so the state was being
+                        // carried entirely by a violet border plus a violet ring drawn
+                        // 1px outside it. Two violet lines around a tile, for a choice
+                        // the accent surface states on its own.
+                        selected
+                          ? 'border-border bg-accent text-accent-foreground'
+                          : 'hover:border-foreground/20 hover:bg-muted/50',
+                      )}
+                    >
+                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
+                        <HugeiconsIcon icon={MapPinIcon} className="size-5" aria-hidden />
+                      </span>
+                      <span>
+                        <span className="block font-medium">{region.label}</span>
+                        <span className="block text-body text-muted-foreground">
+                          Buy, sell and trade in {region.currency.toUpperCase()} with
+                          other members in {region.label}.
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {/* THE THIRD ANSWER. Most of the world is not an open region, and a
+                    member there used to have to pick one falsely or leave. This tile
+                    is the truthful option: say where you are, join the list for it,
+                    and go and browse. It opens into a country picker rather than
+                    listing forty tiles, and the picker starts on the IP's guess so
+                    the common case is a confirmation. */}
+                <div
+                  className={cn(
+                    'rounded-lg border transition-colors',
+                    regionChoice === 'waitlist'
+                      ? 'border-border bg-accent text-accent-foreground'
+                      : 'hover:border-foreground/20 hover:bg-muted/50',
+                  )}
+                >
                   <button
-                    key={region.code}
                     type="button"
                     onClick={() => {
-                      setRegionCode(region.code);
+                      setRegionChoice('waitlist');
                       setError(null);
                     }}
-                    aria-pressed={regionCode === region.code}
-                    className={cn(
-                      'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
-                      // The accent pair, which is what `ChoiceTile` uses and what
-                      // globals.css names as THE selected look. What was here —
-                      // `border-primary bg-primary/5 ring-1 ring-primary` — is the exact
-                      // anti-pattern that comment calls out: a 5%-alpha primary wash
-                      // measures about 1.1:1 and is invisible, so the state was being
-                      // carried entirely by a violet border plus a violet ring drawn
-                      // 1px outside it. Two violet lines around a tile, for a choice
-                      // the accent surface states on its own.
-                      regionCode === region.code
-                        ? 'border-border bg-accent text-accent-foreground'
-                        : 'hover:border-foreground/20 hover:bg-muted/50',
-                    )}
+                    aria-pressed={regionChoice === 'waitlist'}
+                    className="flex w-full items-center gap-group rounded-lg p-group text-left focus:outline-none focus-visible:border-iris"
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                      <HugeiconsIcon icon={MapPinIcon} className="size-5" aria-hidden />
+                      <HugeiconsIcon icon={Globe02Icon} className="size-5" aria-hidden />
                     </span>
                     <span>
-                      <span className="block font-medium">{region.label}</span>
+                      <span className="block font-medium">Somewhere else</span>
                       <span className="block text-body text-muted-foreground">
-                        Buy, sell and trade in {region.currency.toUpperCase()} with
-                        other members in {region.label}.
+                        NoDitto isn&apos;t open there yet. Join the waitlist for your
+                        country and browse in the meantime.
                       </span>
                     </span>
                   </button>
-                ))}
+
+                  {regionChoice === 'waitlist' ? (
+                    // Inside the tile, under the words that opened it, so the picker
+                    // reads as part of the choice rather than a fourth thing on the
+                    // step. `bg-card` lifts the control off the accent wash the tile
+                    // now wears; the Select itself is the same one every form uses.
+                    <div className="space-y-snug border-t border-border/60 px-group pb-group pt-cozy">
+                      <Label htmlFor="waitlist-region">Your country</Label>
+                      <Select
+                        value={waitlistRegion ?? ''}
+                        onValueChange={(value) => {
+                          setWaitlistRegion(value);
+                          setError(null);
+                        }}
+                        disabled={saving}
+                      >
+                        <SelectTrigger id="waitlist-region" className="bg-card">
+                          <SelectValue placeholder="Choose your country" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[60]">
+                          {WAITLIST_REGIONS.map((region) => (
+                            <SelectItem key={region.code} value={region.code}>
+                              {region.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-pretty text-body text-muted-foreground">
+                        {waitlistRegion
+                          ? `We'll email you when NoDitto opens in ${regionLabel(waitlistRegion)}. Until then you can browse listings, but not buy, sell or trade.`
+                          : 'We can only open where Stripe can pay sellers, which is why the list is what it is.'}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+
                 {/*
                   An empty list is a misconfiguration, not a member error: it means no
                   region has both product intent and a Stripe platform account. Say so
@@ -481,12 +671,15 @@ export function OnboardingWizard({
                 Stated plainly at the point of choosing, because it is not reversible
                 from the UI once a payout account exists — `setTradingRegion` refuses
                 and sends the member to support. Finding that out later would feel
-                like a bug.
+                like a bug. Only while an open region is the answer: the waitlist tile
+                carries its own consequence, and this one would be untrue of it.
               */}
-              <p className="text-pretty text-body text-muted-foreground">
-                This is tied to your payout account, so it is not something you can
-                switch later on your own. You can still browse listings in any region.
-              </p>
+              {regionChoice !== 'waitlist' ? (
+                <p className="text-pretty text-body text-muted-foreground">
+                  This is tied to your payout account, so it is not something you can
+                  switch later on your own. You can still browse listings in any region.
+                </p>
+              ) : null}
 
               {error ? (
                 <p role="alert" className="text-body text-destructive">
@@ -592,9 +785,9 @@ export function OnboardingWizard({
 
               <UnifiedOnboardingSurface
                 returnPath="/onboarding"
+                returningFrom={providerReturn}
                 onSettledChange={setSellerSettled}
                 onComplete={() => {
-                  
                   router.push(exitPath);
                 }}
               />
@@ -644,10 +837,22 @@ export function OnboardingWizard({
               <Button
                 type="button"
                 onClick={handleRegionContinue}
-                disabled={!regionCode || saving}
+                disabled={
+                  saving ||
+                  (regionChoice === 'waitlist' ? !waitlistRegion : !regionCode || !regionChoice)
+                }
                 aria-busy={saving}
               >
-                {saving ? 'Saving…' : 'Continue'}
+                {/* Named for what it does, because the two answers do different
+                    things: one continues the wizard, the other ends it. "Continue"
+                    on the waitlist tile would promise a next step that is not coming. */}
+                {saving
+                  ? regionChoice === 'waitlist'
+                    ? 'Joining…'
+                    : 'Saving…'
+                  : regionChoice === 'waitlist'
+                    ? 'Join the waitlist'
+                    : 'Continue'}
                 <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>

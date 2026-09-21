@@ -1185,7 +1185,7 @@ function TradeContractRoom({
                         {trade.counterpart_goods_description}
                       </p>
                       <p className="text-body text-muted-foreground">
-                        The listing is a binder or bulk lot, so nothing in it is held.
+                        The listing has multiple items, so nothing in it is held.
                         This description is what the two of you agreed to swap.
                       </p>
                     </div>

@@ -230,7 +230,7 @@ export function TradeOfferForm({
     // figure, stated here, rather than inherited from a "from" price.
     if (isShopfront && unlisted && declaredValueCents <= 0) {
       setError(
-        'Set what your side is worth in Payment Terms. A binder has no single price to match against.',
+        'Set what your side is worth in Payment Terms. A multi-item listing has no single price to match against.',
       );
       return;
     }
@@ -333,7 +333,7 @@ export function TradeOfferForm({
             magnitude. The running total below states the real figure. */}
         {isShopfront ? (
           <span className="ml-auto shrink-0 text-meta text-muted-foreground">
-            binder or bulk
+            multiple items
           </span>
         ) : (
           <span className="ml-auto shrink-0 text-body font-semibold tabular-nums">
@@ -500,8 +500,8 @@ export function TradeOfferForm({
         </div>
         {isShopfront ? (
           <p className="mt-snug border-t pt-snug text-body text-muted-foreground">
-            A binder has no single price, so their side is valued at what you put up.
-            That is the figure both of you hold collateral against.
+            A multi-item listing has no single price, so their side is valued at what
+            you put up. That is the figure both of you hold collateral against.
           </p>
         ) : null}
         <p className="mt-snug border-t pt-snug text-body text-muted-foreground">

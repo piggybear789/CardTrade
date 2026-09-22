@@ -51,5 +51,20 @@ export const messageLimiter = createRateLimiter({ prefix: 'message', limit: 30, 
  */
 export const feedbackLimiter = createRateLimiter({ prefix: 'feedback', limit: 5, window: '1m' });
 
+/**
+ * Behavioural instrumentation (0121). The loosest limiter here, by an order of magnitude.
+ *
+ * WHY SO HIGH. These are not member submissions; they are a by-product of using the app.
+ * One navigation is one row, and a member clicking through a catalog, a listing, a
+ * contract room and back spends four in a few seconds. A limit tuned like `feedbackLimiter`
+ * would silently drop most of a real session and leave a funnel with holes in it — which is
+ * worse than no funnel, because the holes are invisible and the chart still looks plausible.
+ *
+ * WHY THERE IS A LIMIT AT ALL. `ux_events` is insert-granted to every member JWT and has no
+ * uniqueness rule, so without this one account could fill the largest table in the schema.
+ * 120/minute is far more than any human generates and far less than a script wants.
+ */
+export const uxEventLimiter = createRateLimiter({ prefix: 'ux', limit: 120, window: '1m' });
+
 /** General API / mobile routes. */
 export const apiLimiter = createRateLimiter({ prefix: 'api', limit: 60, window: '1m' });

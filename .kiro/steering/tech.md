@@ -85,6 +85,27 @@ Copy `.env.local.example` to `.env.local`:
 
 Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret values back in output.
 
+## Deployment region
+
+**`vercel.json` pins `"regions": ["syd1"]`, and that line is load-bearing. Do not remove it.**
+
+Vercel defaults new projects' functions to `iad1` (Washington, D.C.) and runs them in a single region. The Supabase project is in `ap-southeast-2` (Sydney). Left on the default, every database round trip went Virginia → Sydney → Virginia, and the homepage's critical path has roughly six SERIAL round trips before any listing markup exists (middleware auth, middleware profile, layout auth, layout profile, the catalog page, then `enrichWithSellers`).
+
+Measured on the same database with the same queries, from `edge_logs`:
+
+| Caller | Requests | Avg `origin_time` |
+|---|---|---|
+| Sydney (SYD) | 882 | 45 ms |
+| Ashburn (IAD) | 861 | 615 ms |
+
+13× on identical work. The catalog query itself runs in **0.151 ms** — `explain (analyze)` over 24 rows in a 432 kB table, using `items_shopfront_open_idx`. So the slow homepage LCP was never the query, the `count: 'exact'`, the unbounded facets scan, or the image tags. It was ~570 ms of Pacific latency multiplied by the number of serial hops.
+
+There is no trade-off to weigh here: the database is in Sydney and the only `tradingEnabled` region is AU, so the functions belong in Sydney for both the data and the audience. If a second trading region ever opens, this becomes a real decision — but the answer is a read replica or a region closer to the DB, never a function region far from it.
+
+**The corollary for anyone tuning this page later: count the SERIAL round trips before optimising any single one.** A sequential `await` chain multiplies whatever the per-trip latency is, which is why the two obvious-looking targets are not worth touching at current data volumes — `enrichWithSellers` (a second query inside `searchCatalog`) and the layout's `getCachedAuthUser()` → `getCachedProfile()` pair are each ~45 ms now rather than ~615 ms. `getCatalogFacets` reading every `fmv_cents` with no `limit` IS a genuine future problem, but it is a data-volume problem, not a latency one.
+
+Middleware (`proxy.ts`) is separate: it runs on the Edge Network near the USER, not in `syd1`, so its two round trips are not fixed by this setting.
+
 ## Database migrations
 
 SQL migrations are sequential files in `supabase/migrations/`, currently through `0069_identity_gate_on_stripe_identity.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.

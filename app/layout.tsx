@@ -5,9 +5,11 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
+import { PageViewTracker } from '@/components/analytics/PageViewTracker';
 import { SiteHeader, SiteHeaderSkeleton } from '@/components/layout/SiteHeader';
 import { MotionProvider } from '@/components/providers/MotionProvider';
 import { Toaster } from '@/components/ui/sonner';
+import { DEFAULT_OG_IMAGE, SITE_URL as siteUrl } from '@/lib/seo/site';
 import './globals.css';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -51,8 +53,6 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: 'swap',
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://noditto.app';
-
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   // Pages self-brand their titles as "<Section> · NoDitto", so this is only
@@ -81,12 +81,19 @@ export const metadata: Metadata = {
     description:
       'Identity verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
     url: siteUrl,
+    // `twitter.card: 'summary_large_image'` below asks a client to reserve a wide
+    // image slot, and for as long as there was no image to put in it every share
+    // of this site rendered as a link beside a blank rectangle. `/og` generates
+    // one; see `app/og/route.tsx` for why it is a named route rather than the
+    // `opengraph-image` file convention.
+    images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'NoDitto',
     description:
       'Identity verification, collateral-backed contracts, and Stripe payments for high-value collectibles.',
+    images: [DEFAULT_OG_IMAGE],
   },
   robots: { index: true, follow: true },
 };
@@ -157,6 +164,12 @@ export default async function RootLayout({
           </StartDealProvider>
           <Toaster />
           <KeyboardInset />
+          {/* Behavioural instrumentation (0121). Renders nothing, records a PAGE_VIEW per
+              navigation for signed-in members only — `recordUxEvent` drops guests, and
+              0121's header records why an `anon` write path is not wanted. Mounted here
+              rather than per route group so a funnel cannot have a hole where someone
+              forgot to add it. */}
+          <PageViewTracker />
         </MotionProvider>
       </body>
     </html>

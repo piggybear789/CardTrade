@@ -2358,6 +2358,96 @@ export type Database = {
         };
         Relationships: [];
       };
+      /**
+       * Behavioural instrumentation (0121): navigation paths, action failures and gate
+       * refusals, for finding where members get stuck.
+       *
+       * NOT `cash_sale_events`. A contract event is a fact about a contract and part of
+       * the record arbitration reads; a row here is a hint about a session and is
+       * disposable. Never derive a contract state, a money figure or an arbitration
+       * finding from this table, and never let a member-facing flow depend on a row
+       * being present — instrumentation a flow depends on is an undocumented write on
+       * the critical path.
+       *
+       * HOLDS NO MEMBER FREE TEXT BY CONSTRUCTION. There is no `message`, no `detail`
+       * and no `metadata jsonb`, and there must never be one: `name` and `error_code`
+       * are CHECK-constrained to a lower-case slug, which is the mechanism that makes a
+       * legal name, an address or a token impossible to store rather than merely
+       * discouraged. Same reasoning as the error-reporting seam in
+       * `flutter_app/lib/core/observability/error_reporter.dart`.
+       *
+       * Members may INSERT their own rows and nothing else — no select (not even of
+       * their own), no update, no delete. Reads are admin-only.
+       */
+      ux_events: {
+        Row: {
+          id: string;
+          /**
+           * Opaque per-session handle that stitches rows into a journey without naming
+           * a person. CHECK-constrained to `^[A-Za-z0-9_-]{8,64}$`. Held in
+           * sessionStorage by `lib/analytics/session.ts` so it dies with the tab.
+           */
+          session_id: string;
+          /**
+           * Null only for rows whose account was later deleted — the column is
+           * `on delete set null`, unlike `feedback.author_id` which cascades, because a
+           * funnel that shrinks retroactively on every deletion is a funnel that lies.
+           * An INSERT from a member client must still name the caller; RLS requires it.
+           */
+          profile_id: string | null;
+          kind: Database['cardtrade']['Enums']['ux_event_kind'];
+          /**
+           * Route template with dynamic segments already collapsed (`/listings/[id]`,
+           * never a real id), so this groups without a LIKE and cannot become a log of
+           * which listings a person viewed. A PATH, never a URL — CHECK-constrained to
+           * start with `/`.
+           */
+          path: string;
+          /**
+           * Machine-generated discriminator, never member input: an action name for
+           * ACTION_FAILURE, a gate name for GATE_BLOCKED, a form id for
+           * FORM_ABANDONED. Null for PAGE_VIEW, where `path` already says it.
+           * Required when kind is GATE_BLOCKED.
+           */
+          name: string | null;
+          /**
+           * The ActionResult `error` code verbatim — already a machine code, and never
+           * the human `message` beside it, which is prose. Required when kind is
+           * ACTION_FAILURE.
+           */
+          error_code: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          profile_id?: string | null;
+          kind: Database['cardtrade']['Enums']['ux_event_kind'];
+          path: string;
+          name?: string | null;
+          error_code?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          profile_id?: string | null;
+          kind?: Database['cardtrade']['Enums']['ux_event_kind'];
+          path?: string;
+          name?: string | null;
+          error_code?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ux_events_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       public_profiles: {
@@ -2837,6 +2927,16 @@ export type Database = {
        * thing — the report dialog keeps one for the same reason.
        */
       feedback_kind: 'BUG' | 'IDEA' | 'OTHER';
+      /**
+       * What shape of thing a `ux_events` row records (0121) — NOT what it was about.
+       *
+       * The four values are the four questions the table can answer: where did they go,
+       * what refused them after a submit, what refused them before one, and what did
+       * they give up on. GATE_BLOCKED is deliberately distinct from ACTION_FAILURE:
+       * the member never got as far as submitting, so the remedy is discoverability
+       * rather than validation.
+       */
+      ux_event_kind: 'PAGE_VIEW' | 'ACTION_FAILURE' | 'GATE_BLOCKED' | 'FORM_ABANDONED';
       deal_state:
         | 'INVITED'
         | 'TERMS'

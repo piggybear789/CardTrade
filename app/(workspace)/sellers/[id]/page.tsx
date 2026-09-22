@@ -15,6 +15,7 @@
 // `SellerTrustBand`.
 
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -23,6 +24,15 @@ import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { CARD_GAME_NAMES } from '@/lib/catalog/cardGames';
 import { getReviewsFor } from '@/lib/actions/reviews';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
+import { parseSocialLinks } from '@/domain/social/socialLinks';
+import { avatarUrl } from '@/lib/format';
+import { absoluteUrl, DEFAULT_OG_IMAGE } from '@/lib/seo/site';
+import {
+  breadcrumbStructuredData,
+  sellerStructuredData,
+  type StructuredData,
+} from '@/lib/seo/structuredData';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
@@ -55,20 +65,52 @@ const SOLD_LIMIT = 24;
 
 type SellerTabId = 'listings' | 'sold' | 'reviews';
 
+// `Promise<Metadata>` for the contextual type: `openGraph.type: 'profile'` widens
+// to `string` without it, which Next's generated types then reject.
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}): Promise<Metadata> {
   const { id } = await params;
   const supabase = await createClient();
+  // `bio` and `avatar_path` ride along on a round trip this already paid for. The
+  // route previously set a title and nothing else, so a seller profile in a SERP
+  // was a name over the PLATFORM's boilerplate description, repeated identically
+  // for every seller on the site.
   const { data } = await supabase
     .from('public_profiles')
-    .select('display_name')
+    .select('display_name, bio, avatar_path')
     .eq('id', id)
     .maybeSingle();
-  const name = (data?.display_name as string | null) ?? 'Seller';
-  return { title: `${name} · NoDitto` };
+
+  const name = (data?.display_name as string | null)?.trim() || 'Seller';
+  const bio = (data?.bio as string | null)?.trim();
+  const description =
+    bio ||
+    `Trading card listings from ${name} on NoDitto — identity-checked seller, payments held until you accept the card.`;
+  // The PUBLIC display name and avatar only. The verified legal name this seller
+  // discloses to a counterparty on a live contract is loaded further down the page
+  // and must never reach a metadata tag, which is served to anyone who asks.
+  const avatar = avatarUrl((data?.avatar_path as string | null) ?? null);
+
+  return {
+    title: `${name} · NoDitto`,
+    description: description.slice(0, 160),
+    alternates: { canonical: `/sellers/${id}` },
+    openGraph: {
+      type: 'profile',
+      title: `${name} · NoDitto`,
+      description: description.slice(0, 160),
+      url: `/sellers/${id}`,
+      // MOST MEMBERS HAVE NO AVATAR — initials are the default presentation, not
+      // an edge case — so this fallback is the common path rather than a guard.
+      // `undefined` would not work: setting `openGraph` replaces the root's
+      // resolved images, and Next skips its own fallback when the key exists at
+      // all.
+      images: avatar ? [{ url: avatar, alt: name }] : [DEFAULT_OG_IMAGE],
+    },
+  };
 }
 
 export default async function SellerProfilePage({
@@ -225,8 +267,37 @@ export default async function SellerProfilePage({
   const initialTab: SellerTabId =
     tabs.find((entry) => entry.id === rawTabValue)?.id ?? 'listings';
 
+  // Structured data. The rating is attached to the PERSON, which is the entity it
+  // describes — see the note on `sellerNode`. `sameAs` reuses `parseSocialLinks`
+  // rather than reading the raw JSONB, so an unknown key or a platform with no
+  // public profile URL (Discord) is dropped here exactly as it is in the rendered
+  // links, instead of becoming an identity claim about a URL that does not exist.
+  const structuredData: StructuredData[] = [
+    sellerStructuredData({
+      seller: {
+        id: seller.id,
+        displayName: seller.displayName,
+        rating: seller.rating,
+        ratingCount: seller.ratingCount,
+        avatarPath: seller.avatarPath,
+      },
+      bio: (sellerRow.bio as string | null) ?? null,
+      sameAs: parseSocialLinks(
+        (sellerRow.social_links as Record<string, string> | null) ?? null,
+      )
+        .map((link) => link.url)
+        .filter((url): url is string => Boolean(url)),
+    }),
+    breadcrumbStructuredData([
+      { name: 'Marketplace', url: absoluteUrl('/') },
+      { name: displayName },
+    ]),
+  ];
+
   return (
     <MarketplaceShell title="Seller">
+      <JsonLd data={structuredData} />
+
       <nav className="mb-cozy" aria-label="Breadcrumb">
         <Link
           href="/"

@@ -47,8 +47,7 @@ import {
   sanitizeImageDimList,
   type ImageDim,
 } from '@/lib/images/dimensions';
-import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
-import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
+import { readListingGate } from '@/lib/sellerListingGate';
 import { normalizeRegionCode } from '@/domain/region';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { CARD_GAME_NAMES, isCardGameName } from '@/lib/catalog/cardGames';
@@ -225,10 +224,16 @@ export type ListingActionResult<T> =
 /**
  * Listing action error codes.
  * - `not-authenticated` — no signed-in user.
- * - `not-verified`      — reserved; unused. Listing has no verification gate
- *   (Req 3.1/3.1a). Retained so existing error mapping stays exhaustive.
- * - `seller-not-verified` — reserved; unused. Retained so existing error
- *   mapping stays exhaustive.
+ * - `not-verified`      — the Identity_Gate is not satisfied, so the member may not
+ *   publish. Returned by `createItem` via `readListingGate`.
+ * - `seller-not-verified` — the Identity_Gate IS satisfied but there is no buyer-safe
+ *   seller disclosure, which today means payout setup was never submitted. A DIFFERENT
+ *   failure from `not-verified` and it must not be worded as a verification problem; see
+ *   `lib/sellerListingGate.ts`. Also returned by `createItem`.
+ *
+ *   Both of these were documented here as "reserved; unused. Listing has no verification
+ *   gate" while `createItem` was in fact returning them, which is why `ItemForm` had no
+ *   handling for either and surfaced them through its generic fallback.
  * - `validation-error`  — the submission failed schema validation (Req 3.2, 3.3).
  * - `upload-failed`     — an image failed to upload to Storage.
  * - `not-found`         — the target Item does not exist (or is not visible).
@@ -316,13 +321,23 @@ const NO_STORED_DIMS: ReadonlyMap<string, ImageDim | null> = new Map();
 /**
  * Create an Item (Req 3.1, 3.2, 3.3, 14.1).
  *
- * GATED ON THE IDENTITY_GATE. A published listing is an offer to sell for cash,
- * and the Seller receives the proceeds, so payout onboarding must exist before
- * the listing does. Previously there was no gate here at all, which meant a
- * Seller could list, agree a sale, ship the goods, and only discover at release
- * time that `canReceiveFunds` failed — the money sitting in the platform balance
- * with nothing in the UI explaining why. Refusing up front converts that silent
- * late failure into an actionable early one.
+ * GATED ON `readListingGate`, WHICH IS TWO CONDITIONS: the Identity_Gate, and a buyer-safe
+ * seller disclosure. Both are required because a published listing is an offer to sell for
+ * cash — an unverified seller may not make one, and a seller with no disclosure would make
+ * one that every buyer sees and none can act on.
+ *
+ * Previously there was no gate here at all, which meant a Seller could list, agree a sale,
+ * ship the goods, and only discover at release time that `canReceiveFunds` failed — the
+ * money sitting in the platform balance with nothing in the UI explaining why. Refusing up
+ * front converts that silent late failure into an actionable early one.
+ *
+ * NOTE WHAT THE TWO CONDITIONS ARE NOT. Neither reads `merchant_status` or
+ * `merchant_settlements_enabled`, so listing does not require payouts to be APPROVED or
+ * active — a member whose Connect account is still pending may list. The disclosure
+ * condition is satisfied by having SUBMITTED onboarding, because that submit is what
+ * stamps the consent timestamp. Do not "tidy" this into a `canReceiveFunds` check: that
+ * would block sellers who are legitimately mid-onboarding, and `product.md` records that a
+ * verified member with no finished payout account is a normal, valid state.
  *
  * Otherwise: validates the submission (uploading images first, then validating
  * the resulting object paths), inserts the Item with `owner_id = caller` and
@@ -338,28 +353,25 @@ export async function createItem(
     return { ok: false, error: 'not-authenticated' };
   }
 
-  // Checked before any upload work so a blocked seller does not push images into
-  // Storage that will never be attached to an Item.
-  const gate = await readIdentityGate(userId);
+  // BOTH GATES, from the one place that evaluates them. Checked before any upload work so
+  // a blocked seller does not push images into Storage that will never be attached to an
+  // Item.
+  //
+  // `readListingGate` is shared with `app/(workspace)/listings/new/page.tsx` deliberately:
+  // that page renders the form only when this passes, and when the two disagreed the member
+  // filled in the entire form before being refused. Adding a condition here without adding
+  // it there reinstates that bug.
+  //
+  // The message is the gate's own, so a member gets the same sentence and the same
+  // destination whether they are stopped on render or on submit — and in particular the
+  // disclosure case is NOT worded as a verification failure, because reaching it means
+  // identity verification has already passed. See the note in `lib/sellerListingGate.ts`.
+  const gate = await readListingGate(userId);
   if (!gate.satisfied) {
     return {
       ok: false,
-      error: 'not-verified',
-      message: identityGateMessage('list', gate.state),
-    };
-  }
-
-  // A listing is an offer to sell. The buyer path requires the seller's identity
-  // disclosure (verified name + consent) before they can initiate a purchase — so
-  // if the disclosure is incomplete, publishing would create a dead-end listing
-  // that buyers can see but never act on. Refuse early with an actionable message.
-  const disclosure = await loadSellerIdentityDisclosure(userId);
-  if (!disclosure) {
-    return {
-      ok: false,
-      error: 'seller-not-verified',
-      message:
-        'Complete your seller profile before listing. Ensure your identity verification is finished and you have consented to identity disclosure.',
+      error: gate.reason === 'identity' ? 'not-verified' : 'seller-not-verified',
+      message: gate.message,
     };
   }
 

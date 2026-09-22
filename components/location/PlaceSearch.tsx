@@ -76,11 +76,34 @@ function visualViewportBounds(): { top: number; bottom: number } {
   };
 }
 
+/**
+ * The nearest ancestor that clips VERTICALLY, intersected with the viewport.
+ *
+ * ONLY `overflow-y` COUNTS, and that is a correctness fix rather than a tidy-up. This used
+ * to return the first ancestor whose overflow was non-`visible` on EITHER axis, which meant
+ * a box clipping only horizontally was reported as the vertical budget.
+ *
+ * That is not hypothetical: `ItemForm`'s card clips the x-axis at every breakpoint to stop
+ * an intrinsically-wide input shearing the layout on a phone, and `Based near` is the LAST
+ * field in it. So the measured room below the input was the card's remaining bottom padding
+ * — around 24px — and `panelMaxHeight` floored to 48px, i.e. a suggestion list that opened
+ * as a single clipped row and could not be used. The member's own description was that it
+ * "doesn't expand properly", and that it started working after a failed submit — because the
+ * validation message added its own height to the box being measured.
+ *
+ * CSS makes the narrower reading safe: `overflow-x: clip` is the one clipping value
+ * compatible with `overflow-y: visible` (`hidden` would force the other axis to `auto`), so
+ * an ancestor can genuinely clip sideways while letting an absolutely-positioned child
+ * overflow downwards. Walking past such an ancestor is therefore correct, not optimistic.
+ *
+ * A vertical scroll box — `auto`, `scroll`, `hidden` or `clip` on y — still stops the walk,
+ * which is what keeps the `lg` details rail measuring itself rather than the window.
+ */
 function clippingBounds(el: HTMLElement): { top: number; bottom: number } {
   const viewport = visualViewportBounds();
   for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
     const style = window.getComputedStyle(node);
-    if (style.overflowY !== 'visible' || style.overflowX !== 'visible') {
+    if (style.overflowY !== 'visible') {
       const rect = node.getBoundingClientRect();
       return {
         top: Math.max(viewport.top, rect.top),
@@ -188,11 +211,34 @@ export function PlaceSearch({
     window.addEventListener('scroll', update, true);
     viewport?.addEventListener('resize', update);
     viewport?.addEventListener('scroll', update);
+
+    // RE-MEASURE WHEN THE BOX ITSELF CHANGES, which no event above reports.
+    //
+    // The first measurement is taken from `onFocus`, and on a touch device that fires BEFORE
+    // the software keyboard has finished animating and before the browser has scrolled the
+    // field into view. So the numbers it reads are pre-keyboard geometry, and nothing
+    // corrected them unless a scroll or resize event happened to follow — which on an
+    // already-settled layout it does not.
+    //
+    // A `ResizeObserver` on the clipping ancestor catches the case the events miss: content
+    // above or below the field changing height. That is how this field came to behave
+    // DIFFERENTLY after a failed submit than before one — the validation message appeared as
+    // a sibling, the container grew, and the list suddenly had room. With the observer the
+    // list gets the corrected measurement either way, rather than only on the unhappy path.
+    const observed = el.parentElement;
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    if (observer) {
+      observer.observe(el);
+      if (observed) observer.observe(observed);
+    }
+
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
       viewport?.removeEventListener('resize', update);
       viewport?.removeEventListener('scroll', update);
+      observer?.disconnect();
     };
   }, [open, results.length, outcome]);
 

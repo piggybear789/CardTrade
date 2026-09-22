@@ -4,9 +4,16 @@
 //
 // Client form for creating and editing a collectible Item (Req 3.1, 3.2, 3.3,
 // 3.4, 3.5, 3.7). It is used by both `/listings/new` (create) and
-// `/listings/[id]/edit` (edit); the VERIFIED gate itself is enforced by those
-// pages, this component focuses on capturing + validating input and wiring to
-// the listing Server Actions.
+// `/listings/[id]/edit` (edit); the gates themselves are enforced by those pages and
+// re-checked in the actions, so this component focuses on capturing + validating input
+// and wiring to the listing Server Actions.
+//
+// THE DRAFT IS NOT A NICETY. `useState` survives a failed submit — nothing here remounts
+// or redirects on `{ ok: false }` — but it does not survive the member LEAVING to resolve
+// whatever the error complained about, because `beforeunload` never fires on a client-side
+// navigation. The first real seller followed a gate error's own link, came back to an empty
+// form, and repeated that five times. `useItemFormDraft` closes that loop for create mode;
+// the photos are the one thing it cannot keep, and the restore notice says so.
 //
 // Key behaviours:
 //  - Fair_Market_Value is entered in DOLLARS in the UI but converted to integer
@@ -34,6 +41,12 @@ import { ImageOffIcon, ImagePlusIcon, LibraryIcon, PackageIcon, XIcon } from '@h
 
 import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
+import {
+  clearItemFormDraft,
+  useInitialItemFormDraft,
+  useItemFormDraft,
+} from "@/lib/listings/useItemFormDraft";
+import { trackActionFailure, trackFormAbandoned, UX_NAMES } from "@/lib/analytics/track";
 import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
@@ -160,22 +173,42 @@ function centsToDollars(cents: number): string {
 export function ItemForm({ mode, item }: ItemFormProps) {
   const router = useRouter();
 
-  const [description, setDescription] = React.useState(item?.description ?? "");
-  const [game, setGame] = React.useState(() => cardGameSlug(item?.category));
-  const [condition, setCondition] = React.useState(item?.condition ?? "");
+  // CREATE ONLY. An edit form is backed by a row, so a stored draft would raise a
+  // "which is newer" conflict with no safe default — see `useItemFormDraft`.
+  const draftEnabled = mode === "create";
+  const restored = useInitialItemFormDraft(draftEnabled);
+
+  // EVERY INITIALISER PREFERS THE ROW, THEN THE DRAFT, THEN EMPTY. The row can only be
+  // present in edit mode and the draft only in create mode, so the two never compete; the
+  // order is written out anyway so adding a third source later has an obvious place to go.
+  const [description, setDescription] = React.useState(
+    item?.description ?? restored?.description ?? "",
+  );
+  const [game, setGame] = React.useState(() =>
+    item ? cardGameSlug(item.category) : (restored?.game ?? ''),
+  );
+  const [condition, setCondition] = React.useState(
+    item?.condition ?? restored?.condition ?? "",
+  );
   // Immutable after creation: contracts already open against a shopfront depend
   // on it not being reserved, and a single listing's live contract depends on the
   // opposite. Switching either way mid-flight would break one of them.
   const [listingKind, setListingKind] = React.useState<ListingKind>(
-    item?.listing_kind ?? "SINGLE",
+    item?.listing_kind ?? ((restored?.listingKind as ListingKind | undefined) ?? "SINGLE"),
   );
   const isShopfront = listingKind === "SHOPFRONT";
   const [fmvDollars, setFmvDollars] = React.useState(
-    item ? centsToDollars(item.fmv_cents) : "",
+    item ? centsToDollars(item.fmv_cents) : (restored?.fmvDollars ?? ""),
   );
   const [location, setLocation] = React.useState<PlaceValue | null>(() =>
-    placeFromItem(item),
+    item ? placeFromItem(item) : ((restored?.location as PlaceValue | null) ?? null),
   );
+
+  // Whether anything was actually brought back, so the form can SAY so. A restored form
+  // that silently differs from the empty one it looks like is its own small confusion —
+  // and the photos genuinely are missing, which the member needs told rather than left to
+  // discover at submit.
+  const [draftNoticeVisible, setDraftNoticeVisible] = React.useState(restored != null);
 
   // Edit mode: existing stored object paths the user chooses to keep.
   const [keptPaths, setKeptPaths] = React.useState<string[]>(
@@ -225,6 +258,53 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty, isSubmitting]);
+
+  // KEEPS THE TEXT ACROSS AN IN-APP NAVIGATION, which `beforeunload` above cannot: that
+  // handler covers a reload or a closed tab and never fires on a client-side route change.
+  // Following a gate error's own link to the verification tab is a client-side route
+  // change, so before this the remedy for the error destroyed the work.
+  //
+  // Disabled while submitting so a successful create does not re-write a draft on its way
+  // out; `clearItemFormDraft()` on success is what actually retires it.
+  useItemFormDraft(
+    {
+      description,
+      game,
+      condition,
+      listingKind,
+      fmvDollars,
+      location,
+    },
+    draftEnabled && !isSubmitting,
+  );
+
+  // RECORDS LEAVING A FORM WITH UNSAVED INPUT (0121). On its own an abandonment is
+  // ordinary; an abandonment moments after an ACTION_FAILURE or GATE_BLOCKED on the same
+  // session is a member who was pushed out by an error they could not resolve, which is the
+  // pattern the first seller reported and the one no existing log could show.
+  //
+  // In an unmount cleanup rather than a navigation handler because there is no App Router
+  // navigation event, and the ref keeps the check honest: reading `isDirty` and
+  // `isSubmitting` directly in the cleanup would close over their values from whichever
+  // render last re-subscribed the effect.
+  const abandonState = React.useRef({ isDirty: false, isSubmitting: false });
+  // Mirrored in an effect rather than assigned during render. A ref write in the render body
+  // is a side effect, and under a double-invoked or abandoned render it can record state
+  // from a render that never committed.
+  React.useEffect(() => {
+    abandonState.current = { isDirty, isSubmitting };
+  }, [isDirty, isSubmitting]);
+  React.useEffect(() => {
+    const path = window.location.pathname;
+    return () => {
+      const { isDirty: dirty, isSubmitting: submitting } = abandonState.current;
+      // A submit in flight is not an abandonment — it is the opposite, and the success path
+      // unmounts this component by navigating to the new listing.
+      if (dirty && !submitting) {
+        trackFormAbandoned(UX_NAMES.itemForm, path);
+      }
+    };
+  }, []);
 
   const totalImages = keptPaths.length + newFiles.length;
 
@@ -337,7 +417,10 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         });
 
         if (result.ok) {
-          
+          // The listing exists now, so the draft is spent. Cleared BEFORE navigating: the
+          // unmount that follows must not leave a stored copy of a listing that was
+          // published, or the next visit to this form restores work already done.
+          clearItemFormDraft();
           navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
@@ -382,6 +465,15 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     field: string | undefined,
     message: string | undefined,
   ) {
+    // RECORDS THE CODE, NEVER THE MESSAGE (0121). `code` is a machine slug from
+    // `ListingActionError`; `message` is prose and would be refused by the event
+    // validator anyway. Fire-and-forget — it cannot fail and is not awaited.
+    trackActionFailure(
+      mode === "create" ? UX_NAMES.createItem : UX_NAMES.updateItem,
+      code,
+      window.location.pathname,
+    );
+
     if (code === "validation-error" && field) {
       setError({
         field: field as Exclude<ErrorField, null>,
@@ -389,9 +481,38 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       });
       return;
     }
-    // Listing has no verification gate, so `not-verified`/`seller-not-verified`
-    // are not returned by `createItem` today; the generic fallback covers them
-    // if that ever changes.
+
+    // BOTH GATE REFUSALS GET A DESTINATION, not just a sentence.
+    //
+    // This branch used to be absent, with a comment asserting that listing "has no
+    // verification gate" so `not-verified` / `seller-not-verified` were unreachable. They
+    // were reachable — `createItem` returned both — so they fell through to the generic
+    // fallback: a toast with no link, saying "complete your seller profile", naming a tab
+    // that does not exist. The first seller to hit it re-entered this form five times
+    // hunting for the screen it meant.
+    //
+    // The page-level gate in `/listings/new` now catches both before the form renders, so
+    // reaching here means the member's state changed mid-session — they opened the form,
+    // and something (a failed identity check, a withdrawn account) moved underneath them.
+    // Rare, and precisely when a dead end is least forgivable, because the form is full.
+    if (code === "not-verified" || code === "seller-not-verified") {
+      const gateMessage =
+        message ?? "You can't publish a listing yet. Check your verification status.";
+      setError({ field: null, message: gateMessage });
+      toast.error(gateMessage, {
+        // Keeps the typed form mounted — the member leaves only if they choose to, and the
+        // draft is restored by `useItemFormDraft` if they do.
+        action: {
+          label: "Open verification",
+          onClick: () => {
+            navigateWithType(router, "/profile?tab=verification", "nav-forward");
+          },
+        },
+        duration: 12_000,
+      });
+      return;
+    }
+
     const fallback = message ?? "We couldn't save your listing. Please try again.";
     setError({ field: null, message: fallback });
     toast.error(fallback);
@@ -449,8 +570,24 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     //
     // `clip` is not a scroll container at all, so there is no scroll offset to
     // acquire. The clipping the rounded corners and the footer border rely on is
-    // unchanged, and so is `PlaceSearch`'s drop-up measurement — `clippingBounds`
-    // looks for a non-`visible` overflow, which `clip` still is.
+    // unchanged.
+    //
+    // AND BELOW `lg` IT CLIPS THE X-AXIS ONLY (`max-lg:overflow-x-clip`), because clipping
+    // the y-axis here broke the last field in the form. This card is the nearest clipping
+    // ancestor of `Based near`, which sits at the bottom of it with only `CardContent`'s
+    // padding underneath — so `PlaceSearch` measured about 24px of room, floored its
+    // suggestion list to one clipped row, and the field was unusable until a failed submit
+    // added a validation message and grew the box. The horizontal clip is the half that is
+    // actually load-bearing (it stops an intrinsically-wide input shearing the layout on a
+    // phone); nothing needs the vertical half below `lg`, where there is no internal scroll
+    // region to contain.
+    //
+    // `overflow-x: clip` with `overflow-y: visible` is a legal pair — `clip` is the only
+    // clipping value that does not force the other axis to `auto`, which is exactly why
+    // `hidden` could not be used for this. `clippingBounds` now tests `overflow-y` alone, so
+    // it walks past this card below `lg` and measures the viewport instead. From `lg` the
+    // full `overflow-clip` returns and the details rail's own `overflow-y-auto` is the
+    // clipping ancestor, which is the behaviour the drop-up logic was written for.
     // NO `lg:max-h`. The card uses the shell's full desktop budget and that is
     // all — it was also capped
     // at `52rem` (832px), which on anything taller than about a 950px viewport left
@@ -464,7 +601,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     // and it is what gives both columns a definite height to fill. Unpinning it was
     // tried and reverted: with a content-sized row the two columns compete to set the
     // height and the photo panel wins as soon as the filmstrip has a few rows in it.
-    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
@@ -759,6 +896,31 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               `min-height:auto`, which grows the row to fit its content and would
               silently defeat `overflow-y-auto`. */}
           <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-7 lg:pb-7">
+            {/* SAYS WHAT CAME BACK, AND WHAT DID NOT. A silently restored form looks
+                identical to one the member filled in themselves, so the photos being
+                absent would be discovered at submit — the same late refusal this whole
+                change exists to remove. Dismissible, and it never reappears for the same
+                restore, because it is an acknowledgement rather than a warning. */}
+            {draftNoticeVisible ? (
+              <div
+                role="status"
+                className="flex items-start gap-snug rounded-md border border-border bg-muted/40 px-cozy py-snug"
+              >
+                <p className="flex-1 text-body text-muted-foreground">
+                  We kept what you had typed.{" "}
+                  {totalImages === 0 ? "Your photos need picking again." : null}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDraftNoticeVisible(false)}
+                  aria-label="Dismiss"
+                  className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
+                >
+                  <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+                </button>
+              </div>
+            ) : null}
+
             {/* Listing kind (0064). First, because it changes what the rest of
                 this form means: for a shopfront the price below is only a guide
                 and the condition covers a mixed pile. Locked in edit mode. */}

@@ -15,6 +15,7 @@
 // only decides what to surface.
 
 import { Suspense, ViewTransition } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -57,6 +58,14 @@ import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { CloseShopfrontDialog } from "@/components/listings/CloseShopfrontDialog";
 import { ReportDialog } from "@/components/reports/ReportDialog";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { absoluteUrl, DEFAULT_OG_IMAGE } from "@/lib/seo/site";
+import {
+  breadcrumbStructuredData,
+  listingStructuredData,
+  type ListingAvailability,
+  type StructuredData,
+} from "@/lib/seo/structuredData";
 import { IdentityReturnRefresh } from "@/components/identity/IdentityReturnRefresh";
 import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
@@ -81,11 +90,16 @@ const STATUS_BADGE: Record<
   SOLD: { variant: "outline", label: "Sold" },
 };
 
+// ANNOTATED `Promise<Metadata>` deliberately. Without a contextual type, the
+// literals in the object below — `openGraph.type: 'website'`, `twitter.card:
+// 'summary_large_image'` — widen to `string`, which is not assignable to the
+// unions Next declares for them, and the failure surfaces as an error in
+// generated `.next/types` rather than on this file.
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}): Promise<Metadata> {
   const { id } = await params;
   const result = await getItem(id);
   if (!result.ok) {
@@ -94,11 +108,54 @@ export async function generateMetadata({
         result.error === "not-found"
           ? "Item not found · NoDitto"
           : "Listing · NoDitto",
+      // A missing listing must not be offered to a crawler as a page worth
+      // keeping. `notFound()` in the body already returns a 404, so this is
+      // belt-and-braces for the read-failure branch, which 500s instead.
+      robots: { index: false, follow: true },
     };
   }
+
+  const item = result.data;
+  const title =
+    (item.title ?? '').trim() || deriveItemTitle(item.description ?? '');
+  const description = (item.description ?? '').trim().slice(0, 160);
+  // The FIRST listing photo, as a direct Supabase public URL. It has to be the
+  // raw object URL rather than anything routed through `next/image`: a social
+  // scraper and Googlebot fetch this URL without running our optimiser, and the
+  // `/_next/image` endpoint answers with a 400 to an unsigned request.
+  const image = itemImageUrl((item.image_paths ?? [])[0]);
+
   return {
-    title: `${(result.data.title ?? '').trim() || deriveItemTitle(result.data.description ?? '')} · NoDitto`,
-    description: (result.data.description ?? '').slice(0, 160),
+    title: `${title} · NoDitto`,
+    description,
+    // SELF-REFERENCING CANONICAL. Without one, a listing reachable as
+    // `/listings/<id>`, with a tracking query appended, or through the `www` host
+    // (which 301s, but shared links still carry it) presents as several pages
+    // with identical content, and Google picks which to keep. `metadataBase`
+    // resolves this to an absolute URL.
+    alternates: { canonical: `/listings/${id}` },
+    // WITHOUT THESE, every shared listing inherited the ROOT OpenGraph block —
+    // title "NoDitto", description of the platform, and `url` pointing at the
+    // homepage. The card being shared is the whole reason someone sends the link,
+    // and the photograph is a better social image than any generated card.
+    //
+    // The fallback is named EXPLICITLY, and `images: image ? [...] : undefined`
+    // would not do: setting `openGraph` here replaces the root's resolved value
+    // outright, and Next additionally skips its own image fallback whenever the
+    // key merely exists. Either way a photoless listing would carry no card.
+    openGraph: {
+      type: 'website',
+      title,
+      description,
+      url: `/listings/${id}`,
+      images: image ? [{ url: image, alt: title }] : [DEFAULT_OG_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: image ? [image] : [DEFAULT_OG_IMAGE],
+    },
   };
 }
 
@@ -329,6 +386,64 @@ export default async function ItemDetailPage({
   const showBuyerBar =
     !isOwner && isAvailable && !myContractId;
 
+  // Structured data. Every value below is already rendered on this page for an
+  // anonymous visitor — the graph restates it in a form a crawler can read, and
+  // adds nothing. In particular it carries the PUBLIC display name and never
+  // `sellerIdentity`, whose verified legal name is for a counterparty on a live
+  // contract.
+  //
+  // A binder maps to `SoldOut` when closed rather than `InStock`, even though RLS
+  // 404s a closed shopfront for anyone but its owner, because `isClosed` is the
+  // whole availability test for a SHOPFRONT — `status` stays AVAILABLE on one
+  // forever (0064).
+  const availability: ListingAvailability = isShopfront
+    ? isClosed
+      ? "SoldOut"
+      : "InStock"
+    : status === "AVAILABLE"
+      ? "InStock"
+      : status === "SOLD"
+        ? "SoldOut"
+        : // RESERVED. Not buyable now, but a cancelled contract returns it to the
+          // catalog, so it is out of stock rather than sold out.
+          "OutOfStock";
+
+  const structuredData: StructuredData[] = [
+    listingStructuredData({
+      id: item.id,
+      name: listingTitle,
+      description: item.description,
+      category: item.category,
+      condition: item.condition,
+      fmvCents: item.fmv_cents,
+      currency: item.currency,
+      imagePaths: item.image_paths,
+      isShopfront,
+      availability,
+      countryCode: item.location_country_code,
+      seller: {
+        id: item.owner_id,
+        displayName: (sellerRow?.display_name as string | null) ?? null,
+        rating: (sellerRow?.rating as number | null) ?? null,
+        ratingCount: (sellerRow?.rating_count as number | null) ?? null,
+        avatarPath: (sellerRow?.avatar_path as string | null) ?? null,
+      },
+    }),
+    breadcrumbStructuredData([
+      { name: "Marketplace", url: absoluteUrl("/") },
+      ...(item.category
+        ? [
+            {
+              name: item.category,
+              url: absoluteUrl(`/?category=${encodeURIComponent(item.category)}`),
+            },
+          ]
+        : []),
+      // Last rung carries no `url`: it is the page being viewed.
+      { name: listingTitle },
+    ]),
+  ];
+
   function renderListingActions(headingId: string) {
     return (
       <>
@@ -371,6 +486,8 @@ export default async function ItemDetailPage({
 
   return (
     <MarketplaceShell title="Marketplace">
+      <JsonLd data={structuredData} />
+
       {/* Reconcile a return from EITHER hosted Stripe flow. Both render nothing and
           each ignores a marker that is not its own. Identity is the one that was
           missing: the trade dialog's gate prompt starts a check with this page as its

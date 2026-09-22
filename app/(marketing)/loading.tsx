@@ -29,12 +29,10 @@ export default function MarketingLoading() {
     >
       <span className="sr-only">Loading…</span>
 
-      {/* "Back to home", which had no placeholder at all. The link is `inline-flex
-          min-h-11 items-center` inside a `p.mb-group`, so 60px sits above the title
-          and the whole article used to slide down by that much on swap. */}
-      <div className="mb-group flex min-h-11 items-center text-body">
-        <Skeleton className="inline-block h-[0.9em] w-28 align-middle" />
-      </div>
+      {/* NO "Back to home" PLACEHOLDER, because the link is gone from `PolicyArticle`.
+          It used to reserve 60px here — `inline-flex min-h-11 items-center` inside a
+          `p.mb-group` — and leaving it would recreate the jump it was added to fix,
+          just in the other direction: the article would slide UP by that much on swap. */}
 
       {/* `text-subhead` (23.8px) below `md`, `md:text-head`. An `h-8` bar was 32. */}
       <TextLines className="text-subhead md:text-head" widths={['w-40']} />

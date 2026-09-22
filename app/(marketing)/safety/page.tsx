@@ -39,7 +39,7 @@ type RoleId = 'buying' | 'selling' | 'trading';
 const BUYING: Stage[] = [
   {
     title: 'Before you commit to buying',
-    window: 'No limit. The only stage where that is true',
+    window: 'No limit',
     moves: [
       <>Check the seller is identity verified. This means that Stripe has accepted their photo ID.</>,
       <>Read the contract lines, not the listing title. We won't tolerate obvious scam ideas like selling a photo, but we can't help if you make a mistake.</>,
@@ -72,7 +72,7 @@ const BUYING: Stage[] = [
   },
   {
     title: 'The moment it arrives',
-    window: 'The first few minutes, and you cannot get them back',
+    window: 'The first few minutes, before you open it',
     moves: [
       <>Photograph the parcel sealed, label visible.</>,
       <>Film the opening in one take.</>,
@@ -100,7 +100,7 @@ const SELLING: Stage[] = [
     moves: [
       <>Identity verification is required to list. Payouts are a separate step.</>,
       <>
-        Set up payouts before your first sale completes. You can sell without it; you
+        Set up payouts before your first sale completes. You can sell without it, but you
         cannot be paid.
       </>,
       <>
@@ -119,13 +119,14 @@ const SELLING: Stage[] = [
         under-declaring value.
       </>,
       <>
-        Your buyer may not be verified — buyers are only ever refunded to their own card.
+        Your buyer may not be identity verified. Buyers are only ever refunded to their
+        own card, so they are not asked to be.
       </>,
     ],
   },
   {
     title: 'Before it ships',
-    window: 'The minutes while you pack. Nothing later replaces them',
+    window: 'While you pack, and not after',
     moves: [
       <>
         Photograph the item, the packed parcel, then the sealed parcel with the label in
@@ -165,7 +166,7 @@ const TRADING: Stage[] = [
     window: 'No limit',
     moves: [
       <>Both traders must be identity verified.</>,
-      <>A saved card is required — collateral cannot be placed without one.</>,
+      <>A saved card is required. Collateral cannot be placed without one.</>,
       <>
         Write exactly what you are receiving. &ldquo;Some cards from your binder&rdquo;
         cannot be arbitrated.
@@ -185,9 +186,9 @@ const TRADING: Stage[] = [
   },
   {
     title: 'Before you ship',
-    window: 'The minutes while you pack, in both directions',
+    window: 'While you pack, both directions',
     moves: [
-      <>Same photos as a sale. A swap posts both ways, so both traders owe them.</>,
+      <>Same photos as a sale. A swap posts both ways, so both of you need them.</>,
       <>Ship promptly and record it. If one side stalls, both holds lapse.</>,
     ],
   },
@@ -242,22 +243,21 @@ export default async function SafetyPage({
 
   return (
     <article className="mx-auto max-w-3xl px-group py-section sm:px-6 md:py-12 lg:px-section">
-      <p className="mb-group">
-        <Link
-          href="/"
-          className="inline-flex min-h-11 items-center text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          Back to home
-        </Link>
-      </p>
-
-      <header className="space-y-cozy">
-        <p className="market-label text-muted-foreground">Safety</p>
-        <h1 className="text-head font-semibold tracking-tight text-foreground md:text-display">
+      {/* Header geometry MIRRORS `PolicyArticle` rather than out-dressing it. This page
+          used to open on an eyebrow and a `display` title, one step above /help, /terms
+          and /privacy — four marketing pages, four header treatments. There is no
+          in-page back link either: the wordmark in `MarketingChrome` and in the desktop
+          header both go to `/` and render for signed-in and signed-out alike, so the
+          link was a third route to the same place. */}
+      <header>
+        <h1 className="text-subhead font-semibold tracking-tight text-foreground md:text-head">
           How to protect yourself on NoDitto
         </h1>
-        <p className="max-w-prose text-pretty text-body text-muted-foreground md:text-lead">
-          We will try our best to protect you, but there's a limit to what we can do without your help.
+        {/* `mt-snug` / `md:mt-cozy` are `PolicyArticle`'s lede offsets, not a guess —
+            the header no longer has a `space-y` wrapper to supply them. */}
+        <p className="mt-snug max-w-prose text-pretty text-body text-muted-foreground md:mt-cozy md:text-lead">
+          We will try our best to protect you, but there&rsquo;s a limit to what we can
+          do without your help.
         </p>
       </header>
 
@@ -293,7 +293,7 @@ export default async function SafetyPage({
                 headingId="buying-heading"
                 heading="If you are buying"
                 idPrefix="buying"
-                lede="Your money sits with NoDitto until you accept what arrived. That protection runs on a clock."
+                lede="Your money sits with NoDitto until you accept what arrived. You have a limited time to check it and say something."
                 stages={BUYING}
               />
             ),
@@ -302,7 +302,7 @@ export default async function SafetyPage({
                 headingId="selling-heading"
                 heading="If you are selling"
                 idPrefix="selling"
-                lede="Sellers lose money to false claims and to reversed card payments. Records defend against both, and can only be made before you post."
+                lede="Sellers lose money to false claims and to card payments reversed weeks later. Photos and tracking are what defend you, and you can only take them before you post."
                 stages={SELLING}
               />
             ),
@@ -311,7 +311,7 @@ export default async function SafetyPage({
                 headingId="trading-heading"
                 heading="If you are trading"
                 idPrefix="trading"
-                lede="A trade is backed by a temporary hold on both traders' cards. That hold expires in about a week, so every window is shorter than a purchase."
+                lede="A trade is backed by a temporary hold on both traders' cards. That hold expires after about a week, which is why every deadline in a trade is shorter than in a purchase."
                 stages={TRADING}
               />
             ),
@@ -320,6 +320,92 @@ export default async function SafetyPage({
       </div>
 
       <div className="mt-region space-y-section border-t border-border pt-section">
+        {/* SEALED PRODUCT IS THE ONE CATEGORY THE INSPECTION WINDOW CANNOT SERVE, so it
+            gets its own section rather than a bullet inside a stage. Checking the
+            contents means destroying the premium, so the window forces a choice instead
+            of offering a remedy — and a member who does not know that before they pay
+            will discover it years later when nothing can be done.
+
+            AMBER, NOT RED. This is not a scam signal; it is a limit on what any
+            marketplace can offer, and the advice below is how to work inside it. Red is
+            reserved for "walk away".
+
+            DO NOT SOFTEN THE CALLOUT INTO A REASSURANCE. Buyer protection here runs 7
+            days from carrier-confirmed delivery and `DISPUTABLE_STATUSES` in
+            `cashSaleOrchestrator` has no COMPLETED entry, so a dispute after completion
+            returns INVALID_STATE. Verified elsewhere at the time of writing: eBay's
+            money-back guarantee and PayPal's not-as-described claims both run 30 days
+            from delivery, and eBay's trading-card authentication covers single cards
+            only, not sealed cases. Weeks everywhere, against a product held for years.
+
+            THE ORDER OF THE LIST IS THE ADVICE. Tampering signs and seller history come
+            first because they are the only two defences that work before the money moves
+            and without breaking the seal. Everything after them is either a second
+            opinion (weight) or a record for later (photographs) — useful, but no help to
+            a member deciding whether to buy at all.
+
+            The weighing and case-code advice is a HABIT we ask for, like the photographs
+            — nothing in the product captures or compares a weight today. */}
+        <SafetySection id="sealed" title="Sealed and unopened product">
+          <div className="cardtrade-warning rounded-lg border p-group">
+            <p className="text-body font-semibold text-foreground">
+              Your 7 days runs whether you open it or not.
+            </p>
+            <p className="mt-tight text-pretty text-body">
+              Opening a sealed case is the only way to confirm what is inside, and it
+              destroys most of what you paid for. Leave it sealed and the contract
+              completes on schedule, and once it has completed there is nothing we can do.
+              Other platforms give you weeks at most. If you buy sealed and keep it
+              sealed, you are accepting the contents unseen.
+            </p>
+          </div>
+          <p className="max-w-prose text-pretty text-body text-muted-foreground">
+            You cannot check the contents, so check the packaging and check the seller.
+            Both are free and both have to happen before you pay.
+          </p>
+          <SafetyList
+            items={[
+              <>
+                Check the wrap and the seams first. Resealing leaves marks: wrinkled or
+                re-shrunk film, glue residue, re-taped flaps, film that is loose or
+                doubled over, a seam somewhere the factory does not put one.
+              </>,
+              <>
+                Ask for close photos of the seams, flaps and case code before you pay. A
+                seller with nothing to hide sends them.
+              </>,
+              <>
+                Check the seller&rsquo;s history. Open their seller page: completed sales,
+                reviews from different buyers, how long they have been trading, and
+                whether they have sold sealed product before.
+              </>,
+              <>
+                A long run of completed sales tells you more than the star rating. If the
+                history is thin, you do not know much yet, so keep the purchase small.
+              </>,
+              <>
+                Weigh it the day it arrives, and ask for the weight off the
+                seller&rsquo;s postage receipt before you pay. A factory case has a known
+                weight, the carrier records it independently, and a swapped or padded one
+                rarely matches.
+              </>,
+              <>
+                Photograph the case code, lot number, seams and flaps on arrival, before
+                you break anything.
+              </>,
+              <>
+                Selling or reselling sealed? Photograph the case code and weigh it at the
+                counter. Keep both. It is your answer if a buyer later says the case was
+                opened and swapped.
+              </>,
+              <>
+                Spending heavily? Consider having a third-party authenticator take
+                delivery and verify the seal before it reaches you.
+              </>,
+            ]}
+          />
+        </SafetySection>
+
         <SafetySection id="in-person" title="Meeting in person">
           <SafetyList
             items={[
@@ -362,8 +448,7 @@ export default async function SafetyPage({
                 Pressure to move to WhatsApp, Instagram, Discord or email.
               </li>
               <li className="text-pretty">
-                Manufactured urgency: another buyer waiting, an account about to be
-                limited.
+                Being rushed: another buyer waiting, an account about to be limited.
               </li>
               <li className="text-pretty">
                 Well under market on a high-value item. Nobody is that stupid.
@@ -405,8 +490,8 @@ export default async function SafetyPage({
                 confirmation.
               </>,
               <>
-                Support can freeze a disputed contract and review it. That is an
-                operational hold, not a promise that every loss is covered.
+                Support can freeze a disputed contract while they look at it. That buys
+                time to sort it out. It is not a promise that every loss is covered.
               </>,
             ]}
           />
@@ -418,8 +503,8 @@ export default async function SafetyPage({
               <>Authenticate anything. No card passes through our hands.</>,
               <>Help with a payment made off-platform. No contract, nothing to reverse.</>,
               <>
-                Settle a claim with no evidence on either side. Then it is one account of
-                events against another.
+                Settle a claim when neither side has evidence. That is your word against
+                theirs, and we were not there.
               </>,
               <>
                 Act as police. A fraud finding here is about an account and its money,
@@ -427,9 +512,7 @@ export default async function SafetyPage({
                 documents to hand over. Serious fraud should also go to the police and ReportCyber.
               </>,
               <>Reserve a card on a binder or bulk listing.</>,
-              <>
-                Vouch for reviews. Treat a thin history as unknown rather than good.
-              </>,
+              <>Vouch for reviews. A thin history is a risk, not a clean record.</>,
             ]}
           />
           <p className="text-pretty text-body text-muted-foreground">

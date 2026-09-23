@@ -8,10 +8,10 @@
 // relative timestamp, and an unread dot; clicking a row marks it read and
 // navigates to its `link`. A "Mark all read" action clears every unread badge.
 //
-// Live data comes from `useNotifications`, seeded with a server-provided initial
-// list so the first paint is populated even before the realtime channel opens.
-// Mark-read state is updated optimistically in the hook, then persisted via the
-// RLS-scoped server actions.
+// The list is seeded by the server. Opening the panel refreshes it through a
+// server action. A Realtime channel here pulled the browser Supabase client
+// into every page, including the catalog, for a badge that is already correct
+// on navigation. The notifications page keeps the live subscription.
 //
 // The panel is a Popover rather than a hand-placed absolute box: the bell is not
 // the last control in the header, so anchoring a panel to its edge pushes the
@@ -34,38 +34,60 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import {
+  listMyNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from '@/lib/actions/notifications';
-import {
-  useNotifications,
-  type NotificationRow,
-} from '@/lib/realtime/useNotifications';
+import type { NotificationRow } from '@/lib/realtime/useNotifications';
 
 /** Cap the number of rows shown in the dropdown panel. */
 const PANEL_LIMIT = 12;
 
 export interface NotificationBellProps {
-  /** The signed-in user's id (drives the realtime filter). */
-  userId: string;
   /** Server-fetched initial notifications (newest-first) to seed the panel. */
   initialNotifications: NotificationRow[];
 }
 
 export function NotificationBell({
-  userId,
   initialNotifications,
 }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [notifications, setNotifications] = useState(initialNotifications);
   const panelRef = useRef<HTMLDivElement>(null);
+  const unreadCount = notifications.reduce(
+    (count, notification) => count + (notification.read_at === null ? 1 : 0),
+    0,
+  );
 
-  const {
-    notifications,
-    unreadCount,
-    markReadLocal,
-    markAllReadLocal,
-  } = useNotifications(userId, initialNotifications);
+  function markReadLocal(id: string) {
+    const readAt = new Date().toISOString();
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id === id && notification.read_at === null
+          ? { ...notification, read_at: readAt }
+          : notification,
+      ),
+    );
+  }
+
+  function markAllReadLocal() {
+    const readAt = new Date().toISOString();
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.read_at === null ? { ...notification, read_at: readAt } : notification,
+      ),
+    );
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) return;
+    startTransition(async () => {
+      const result = await listMyNotifications(PANEL_LIMIT);
+      if (result.ok) setNotifications(result.notifications);
+    });
+  }
 
   function handleSelect(notification: NotificationRow) {
     // Optimistically mark read, persist best-effort, then navigate.
@@ -95,7 +117,7 @@ export function NotificationBell({
   const visible = notifications.slice(0, PANEL_LIMIT);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         aria-label={
           unreadCount > 0

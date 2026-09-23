@@ -415,7 +415,17 @@ export function GameIcon({
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- local static SVG; next/image would need `dangerouslyAllowSVG` and cannot optimise vectors anyway */}
-      <img src={`/games/${slug}.svg`} alt="" className="size-full object-contain" />
+      <img
+        src={`/games/${slug}.svg`}
+        alt=""
+        className="size-full object-contain"
+        // Not the LCP element. Eager loads here become `<link rel="preload">`
+        // for every game, including the strip hidden at the other breakpoint,
+        // and they compete with the card covers.
+        loading="lazy"
+        decoding="async"
+        fetchPriority="low"
+      />
     </span>
   );
 }

@@ -264,7 +264,7 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/privacy': 'Opened as an external web URL from Settings, not a native route',
   '/terms': 'Opened as an external web URL from Settings, not a native route',
   '/t/[token]': 'Web landing page for external private deal invite links',
-  '/deals/new': 'Web redirect opening deal compose dialog; mobile uses native deal modal',
+  '/deals/new': 'Private deal composer; mobile uses its native deal modal',
 };
 
 describe('mobile route parity', () => {

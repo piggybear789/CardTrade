@@ -9,23 +9,16 @@
 // marketplace header below is desktop-only (`md+`).
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { BookmarkCheck01Icon, MessageCircleIcon } from '@hugeicons/core-free-icons';
 
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 import { listMyNotifications } from '@/lib/actions/notifications';
-import { Button } from '@/components/ui/button';
-import { Avatar } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
+import { HeaderAccountSlot } from '@/components/layout/HeaderAccountSlot';
 import { Logo } from '@/components/layout/Logo';
-import { GuestHeaderCtas } from '@/components/layout/GuestHeaderCtas';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { MobileTopChrome } from '@/components/layout/MobileTopChrome';
 import { PrimaryNav } from '@/components/layout/PrimaryNav';
 import { RegionIndicator } from '@/components/layout/RegionIndicator';
-import { SiteMenu } from '@/components/layout/SiteMenu';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
 import {
   resolveBrowseRegion,
   type ResolvedRegion,
@@ -96,74 +89,17 @@ export async function SiteHeader() {
 
           <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug">
             <RegionIndicator regionCode={region.code} source={region.source} />
-            {isAuthenticated && user ? (
-              <>
-                <Link
-                  href="/saved"
-                  aria-label="Saved listings"
-                  title="Saved"
-                  className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris md:inline-flex"
-                >
-                  <HugeiconsIcon icon={BookmarkCheck01Icon} className="size-5" aria-hidden />
-                </Link>
-                <Link
-                  href="/messages"
-                  aria-label="Messages"
-                  title="Messages"
-                  className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris md:inline-flex"
-                >
-                  <HugeiconsIcon icon={MessageCircleIcon} className="size-5" aria-hidden />
-                </Link>
-                <NotificationBell
-                  userId={user.id}
-                  initialNotifications={
-                    initialNotifications?.ok ? initialNotifications.notifications : []
-                  }
-                />
-                {/* BEFORE THE BELL'S NEIGHBOUR, AFTER THE BELL. The rail runs from
-                    "things waiting for you" to "you", and feedback is neither — it is
-                    the one control here that talks to us rather than about the
-                    marketplace, so it sits at the end of the tools and before the
-                    account. A client island, because this header is a Server
-                    Component. */}
-                <FeedbackDialog appearance="header-icon" />
-                {/* `!h-10` to match the 40px icon targets beside it. The `sm`
-                    size collapses to 24px from `md`, which is the same height as
-                    the 24px avatar inside it — the circle had no room and the
-                    button's clip cropped it top and bottom into an ellipse.
-                    Truncation of a long name is the inner span's `truncate`
-                    job, so no `overflow-hidden` here to do the cropping. */}
-                <Button asChild variant="ghost" size="sm" className="hidden !h-10 min-w-0 max-w-[9rem] px-snug md:inline-flex md:max-w-[14rem]">
-                  <Link
-                    href="/profile"
-                    className="flex min-w-0 items-center gap-snug"
-                    aria-label={displayName ?? 'Your profile'}
-                    title={displayName ?? 'Your profile'}
-                  >
-                    <Avatar
-                      avatarPath={avatarPath}
-                      displayName={displayName}
-                      size="xs"
-                      className="border-white/25"
-                    />
-                    <span className="hidden min-w-0 truncate md:inline">{displayName ?? 'Profile'}</span>
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <GuestHeaderCtas />
-            )}
-
-            {user ? (
-              <SiteMenu
-                isAuthenticated
-                isAdmin={isAdmin}
-                isStaff={isStaff}
-                displayName={displayName}
-                avatarPath={avatarPath}
-                email={user.email ?? null}
-              />
-            ) : null}
+            <HeaderAccountSlot
+              isAuthenticated={isAuthenticated && user != null}
+              email={user?.email ?? null}
+              isAdmin={isAdmin}
+              isStaff={isStaff}
+              displayName={displayName}
+              avatarPath={avatarPath}
+              initialNotifications={
+                initialNotifications?.ok ? initialNotifications.notifications : []
+              }
+            />
           </div>
         </div>
       </header>

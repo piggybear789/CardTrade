@@ -5,8 +5,10 @@
 // Prices stay readable dollars in the URL and integer cents at the action.
 
 import {
+  startTransition,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -108,6 +110,21 @@ function useCatalogNav() {
  */
 export function CatalogFilterSearch() {
   const { filter, setFilter } = useCatalogView();
+  // The field paints from local state. `setFilter` is a transition so the
+  // grid (every tile subscribes through catalog context) does not block the
+  // keystroke. An external clear — the rail's reset — still empties the field.
+  const [draft, setDraft] = useState(filter);
+  const filterRef = useRef(filter);
+
+  useEffect(() => {
+    if (filter === '' && filterRef.current !== '') setDraft('');
+    filterRef.current = filter;
+  }, [filter]);
+
+  function publish(value: string) {
+    setDraft(value);
+    startTransition(() => setFilter(value));
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,13 +142,13 @@ export function CatalogFilterSearch() {
       <Input
         type="search"
         name="q"
-        value={filter}
+        value={draft}
         data-catalog-filter=""
-        onChange={(event) => setFilter(event.target.value)}
+        onChange={(event) => publish(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault();
-            if (filter) setFilter('');
+            if (draft) publish('');
           }
         }}
         placeholder="Filter…"
@@ -141,13 +158,13 @@ export function CatalogFilterSearch() {
         enterKeyHint="search"
         className={cn(
           'h-9 w-full bg-card pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
-          filter ? 'pr-9' : 'pr-cozy',
+          draft ? 'pr-9' : 'pr-cozy',
         )}
       />
-      {filter ? (
+      {draft ? (
         <button
           type="button"
-          onClick={() => setFilter('')}
+          onClick={() => publish('')}
           aria-label="Clear listing filter"
           className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
         >

@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+import { hasSupabaseSessionCookie } from "@/lib/supabase/sessionCookie";
+
 // Protected-route middleware (Req 1.7).
 //
 // Reads (and refreshes) the Supabase SSR session from cookies and redirects
@@ -60,6 +62,21 @@ export async function proxy(request: NextRequest) {
   // local/dev without env vars still serves pages.
   if (!url || !anonKey) {
     return response;
+  }
+
+  // No session cookie means there is no JWT to verify. `getUser()` would still
+  // open a connection to GoTrue and wait for "no user" — on `/` that round
+  // trip sits in front of every guest catalog paint. Protected routes redirect
+  // from the missing cookie alone; public ones render as a guest.
+  if (!hasSupabaseSessionCookie(request.cookies.getAll())) {
+    if (!isProtected(request.nextUrl.pathname)) return response;
+
+    const redirectUrl = request.nextUrl.clone();
+    const search = request.nextUrl.search;
+    redirectUrl.pathname = "/sign-in";
+    redirectUrl.search = "";
+    redirectUrl.searchParams.set("redirectTo", `${request.nextUrl.pathname}${search}`);
+    return NextResponse.redirect(redirectUrl);
   }
 
   const supabase = createServerClient(url, anonKey, {

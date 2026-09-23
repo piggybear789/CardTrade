@@ -7,9 +7,9 @@ import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
 import { PageViewTracker } from '@/components/analytics/PageViewTracker';
 import { SiteHeader, SiteHeaderSkeleton } from '@/components/layout/SiteHeader';
-import { MotionProvider } from '@/components/providers/MotionProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { DEFAULT_OG_IMAGE, SITE_URL as siteUrl } from '@/lib/seo/site';
+import { hasSupabaseSessionCookie } from '@/lib/supabase/sessionCookie';
 import './globals.css';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -124,9 +124,7 @@ export const viewport: Viewport = {
  */
 async function hasSessionCookie(): Promise<boolean> {
   const store = await cookies();
-  return store
-    .getAll()
-    .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
+  return hasSupabaseSessionCookie(store.getAll());
 }
 
 export default async function RootLayout({
@@ -153,24 +151,22 @@ export default async function RootLayout({
         >
           Skip to Main Content
         </a>
-        <MotionProvider>
-          <StartDealProvider>
-            <Suspense fallback={<SiteHeaderSkeleton isAuthenticated={maybeSignedIn} />}>
-              <SiteHeader />
-            </Suspense>
-            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">
-              {children}
-            </div>
-          </StartDealProvider>
-          <Toaster />
-          <KeyboardInset />
-          {/* Behavioural instrumentation (0121). Renders nothing, records a PAGE_VIEW per
-              navigation for signed-in members only — `recordUxEvent` drops guests, and
-              0121's header records why an `anon` write path is not wanted. Mounted here
-              rather than per route group so a funnel cannot have a hole where someone
-              forgot to add it. */}
-          <PageViewTracker />
-        </MotionProvider>
+        <StartDealProvider>
+          <Suspense fallback={<SiteHeaderSkeleton isAuthenticated={maybeSignedIn} />}>
+            <SiteHeader />
+          </Suspense>
+          <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">
+            {children}
+          </div>
+        </StartDealProvider>
+        <Toaster />
+        <KeyboardInset />
+        {/* Behavioural instrumentation (0121). Renders nothing, records a PAGE_VIEW per
+            navigation for signed-in members only — `recordUxEvent` drops guests, and
+            0121's header records why an `anon` write path is not wanted. Mounted here
+            rather than per route group so a funnel cannot have a hole where someone
+            forgot to add it. */}
+        <PageViewTracker />
       </body>
     </html>
   );

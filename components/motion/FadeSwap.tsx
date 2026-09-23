@@ -3,6 +3,7 @@
 import { AnimatePresence, m } from 'motion/react';
 import type { ReactNode } from 'react';
 
+import { MotionRoot } from '@/components/motion/MotionRoot';
 import { EASE_OUT_QUINT, MOTION_DURATION } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ export function FadeSwap({
   className?: string;
 }) {
   return (
+    <MotionRoot>
     <AnimatePresence mode="wait" initial={false}>
       <m.div
         key={id}
@@ -32,5 +34,6 @@ export function FadeSwap({
         {children}
       </m.div>
     </AnimatePresence>
+    </MotionRoot>
   );
 }

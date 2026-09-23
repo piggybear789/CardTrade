@@ -1,0 +1,518 @@
+[
+ {
+  "label": "before-phone-0",
+  "profile": "phone",
+  "cold": true,
+  "loadWallMs": 3632,
+  "load": {
+   "ttfb": 45,
+   "fcp": 1176,
+   "lcp": 2564,
+   "lcpEl": "IMG http://localhost:3458/_next/image?url=https%3A%2F%2Fimages.pokemontcg.io%2Fbase1%2F1_hires",
+   "cls": 0,
+   "domContentLoaded": 959,
+   "tiles": 25
+  },
+  "loadTasks": {
+   "count": 5,
+   "blockingMs": 268,
+   "maxMs": 138
+  },
+  "loadBytes": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 18,
+    "kb": 830
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 26,
+    "kb": 32
+   }
+  },
+  "scroll": {
+   "from": 9692.899999976158,
+   "frames": 632,
+   "framesOver50ms": 8,
+   "worstFrameMs": 333,
+   "scrollY": 9206,
+   "tiles": 73,
+   "imgsComplete": 50
+  },
+  "scrollTasks": {
+   "count": 12,
+   "blockingMs": 639,
+   "maxMs": 242
+  },
+  "bytesAfterScroll": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 54,
+    "kb": 2953
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 36,
+    "kb": 54
+   }
+  },
+  "interactions": {
+   "count": 6,
+   "worst": [
+    {
+     "name": "click",
+     "start": 22466,
+     "dur": 248,
+     "inputDelay": 30,
+     "processing": 206,
+     "presentation": 11
+    },
+    {
+     "name": "click",
+     "start": 26287,
+     "dur": 176,
+     "inputDelay": 37,
+     "processing": 114,
+     "presentation": 25
+    },
+    {
+     "name": "pointerdown",
+     "start": 22466,
+     "dur": 16,
+     "inputDelay": 11,
+     "processing": 4,
+     "presentation": 2
+    },
+    {
+     "name": "pointerup",
+     "start": 22466,
+     "dur": 16,
+     "inputDelay": 16,
+     "processing": 1,
+     "presentation": -1
+    }
+   ]
+  },
+  "interactTasks": {
+   "count": 3,
+   "blockingMs": 318,
+   "maxMs": 219
+  },
+  "errors": []
+ },
+ {
+  "label": "before-phone-1",
+  "profile": "phone",
+  "cold": false,
+  "loadWallMs": 6519,
+  "load": {
+   "ttfb": 54,
+   "fcp": 1268,
+   "lcp": 2568,
+   "lcpEl": "IMG http://localhost:3458/_next/image?url=https%3A%2F%2Fimages.pokemontcg.io%2Fbase1%2F1_hires",
+   "cls": 0,
+   "domContentLoaded": 945,
+   "tiles": 25
+  },
+  "loadTasks": {
+   "count": 7,
+   "blockingMs": 443,
+   "maxMs": 236
+  },
+  "loadBytes": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 18,
+    "kb": 830
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 25,
+    "kb": 31
+   }
+  },
+  "scroll": {
+   "from": 12557.299999952316,
+   "frames": 634,
+   "framesOver50ms": 5,
+   "worstFrameMs": 300,
+   "scrollY": 9206,
+   "tiles": 73,
+   "imgsComplete": 51
+  },
+  "scrollTasks": {
+   "count": 12,
+   "blockingMs": 517,
+   "maxMs": 203
+  },
+  "bytesAfterScroll": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 55,
+    "kb": 3029
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 32,
+    "kb": 52
+   }
+  },
+  "interactions": {
+   "count": 4,
+   "worst": [
+    {
+     "name": "click",
+     "start": 25279,
+     "dur": 368,
+     "inputDelay": 111,
+     "processing": 240,
+     "presentation": 17
+    },
+    {
+     "name": "click",
+     "start": 29232,
+     "dur": 104,
+     "inputDelay": 19,
+     "processing": 68,
+     "presentation": 17
+    },
+    {
+     "name": "pointerup",
+     "start": 25279,
+     "dur": 96,
+     "inputDelay": 90,
+     "processing": 4,
+     "presentation": 2
+    },
+    {
+     "name": "pointerdown",
+     "start": 25279,
+     "dur": 88,
+     "inputDelay": 82,
+     "processing": 4,
+     "presentation": 3
+    }
+   ]
+  },
+  "interactTasks": {
+   "count": 4,
+   "blockingMs": 439,
+   "maxMs": 256
+  },
+  "errors": []
+ },
+ {
+  "label": "before-phone-2",
+  "profile": "phone",
+  "cold": false,
+  "loadWallMs": 6544,
+  "load": {
+   "ttfb": 35,
+   "fcp": 1156,
+   "lcp": 2572,
+   "lcpEl": "IMG http://localhost:3458/_next/image?url=https%3A%2F%2Fimages.pokemontcg.io%2Fbase1%2F1_hires",
+   "cls": 0,
+   "domContentLoaded": 936,
+   "tiles": 25
+  },
+  "loadTasks": {
+   "count": 6,
+   "blockingMs": 255,
+   "maxMs": 140
+  },
+  "loadBytes": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 18,
+    "kb": 830
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 23,
+    "kb": 47
+   }
+  },
+  "scroll": {
+   "from": 12582.100000023842,
+   "frames": 671,
+   "framesOver50ms": 5,
+   "worstFrameMs": 350,
+   "scrollY": 9206,
+   "tiles": 73,
+   "imgsComplete": 52
+  },
+  "scrollTasks": {
+   "count": 6,
+   "blockingMs": 358,
+   "maxMs": 233
+  },
+  "bytesAfterScroll": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 56,
+    "kb": 3083
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 32,
+    "kb": 68
+   }
+  },
+  "interactions": {
+   "count": 5,
+   "worst": [
+    {
+     "name": "click",
+     "start": 25567,
+     "dur": 192,
+     "inputDelay": 23,
+     "processing": 155,
+     "presentation": 14
+    },
+    {
+     "name": "click",
+     "start": 29330,
+     "dur": 88,
+     "inputDelay": 21,
+     "processing": 56,
+     "presentation": 11
+    },
+    {
+     "name": "pointerup",
+     "start": 25567,
+     "dur": 16,
+     "inputDelay": 11,
+     "processing": 1,
+     "presentation": 4
+    },
+    {
+     "name": "pointerdown",
+     "start": 29330,
+     "dur": 16,
+     "inputDelay": 14,
+     "processing": 1,
+     "presentation": 2
+    }
+   ]
+  },
+  "interactTasks": {
+   "count": 3,
+   "blockingMs": 156,
+   "maxMs": 166
+  },
+  "errors": []
+ },
+ {
+  "label": "before-phone-3",
+  "profile": "phone",
+  "cold": false,
+  "loadWallMs": 3676,
+  "load": {
+   "ttfb": 35,
+   "fcp": 1272,
+   "lcp": 2592,
+   "lcpEl": "IMG http://localhost:3458/_next/image?url=https%3A%2F%2Fimages.pokemontcg.io%2Fbase1%2F1_hires",
+   "cls": 0,
+   "domContentLoaded": 948,
+   "tiles": 25
+  },
+  "loadTasks": {
+   "count": 4,
+   "blockingMs": 264,
+   "maxMs": 223
+  },
+  "loadBytes": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 18,
+    "kb": 830
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 26,
+    "kb": 20
+   }
+  },
+  "scroll": {
+   "from": 9708,
+   "frames": 659,
+   "framesOver50ms": 4,
+   "worstFrameMs": 283,
+   "scrollY": 9206,
+   "tiles": 73,
+   "imgsComplete": 51
+  },
+  "scrollTasks": {
+   "count": 8,
+   "blockingMs": 528,
+   "maxMs": 178
+  },
+  "bytesAfterScroll": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Image": {
+    "count": 54,
+    "kb": 3007
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Fetch": {
+    "count": 36,
+    "kb": 59
+   }
+  },
+  "interactions": {
+   "count": 6,
+   "worst": [
+    {
+     "name": "click",
+     "start": 22610,
+     "dur": 312,
+     "inputDelay": 60,
+     "processing": 231,
+     "presentation": 21
+    },
+    {
+     "name": "click",
+     "start": 26528,
+     "dur": 152,
+     "inputDelay": 37,
+     "processing": 94,
+     "presentation": 21
+    },
+    {
+     "name": "pointerdown",
+     "start": 22610,
+     "dur": 48,
+     "inputDelay": 40,
+     "processing": 5,
+     "presentation": 3
+    },
+    {
+     "name": "pointerup",
+     "start": 22610,
+     "dur": 48,
+     "inputDelay": 46,
+     "processing": 1,
+     "presentation": 1
+    }
+   ]
+  },
+  "interactTasks": {
+   "count": 4,
+   "blockingMs": 385,
+   "maxMs": 245
+  },
+  "errors": []
+ }
+]

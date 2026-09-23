@@ -1,0 +1,260 @@
+[
+ {
+  "label": "before-desk-0",
+  "profile": "desktop",
+  "cold": false,
+  "loadWallMs": 248,
+  "load": {
+   "ttfb": 41,
+   "fcp": 240,
+   "lcp": 560,
+   "lcpEl": "IMG http://localhost:3458/_next/image?url=https%3A%2F%2Fimages.pokemontcg.io%2Fbase1%2F1_hires",
+   "cls": 0.105,
+   "domContentLoaded": 221,
+   "tiles": 25
+  },
+  "loadTasks": {
+   "count": 1,
+   "blockingMs": 19,
+   "maxMs": 69
+  },
+  "loadBytes": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Image": {
+    "count": 33,
+    "kb": 857
+   },
+   "Fetch": {
+    "count": 37,
+    "kb": 3
+   }
+  },
+  "scroll": {
+   "from": 2780.100000023842,
+   "frames": 728,
+   "framesOver50ms": 0,
+   "worstFrameMs": 50,
+   "scrollY": 1789,
+   "tiles": 25,
+   "imgsComplete": 33
+  },
+  "scrollTasks": {
+   "count": 0,
+   "blockingMs": 0,
+   "maxMs": 0
+  },
+  "bytesAfterScroll": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Image": {
+    "count": 33,
+    "kb": 857
+   },
+   "Fetch": {
+    "count": 51,
+    "kb": 3
+   }
+  },
+  "interactions": {
+   "count": 20,
+   "worst": [
+    {
+     "name": "keyup",
+     "start": 16232,
+     "dur": 72,
+     "inputDelay": 6,
+     "processing": 0,
+     "presentation": 66
+    },
+    {
+     "name": "keydown",
+     "start": 16242,
+     "dur": 64,
+     "inputDelay": 3,
+     "processing": 0,
+     "presentation": 61
+    },
+    {
+     "name": "keypress",
+     "start": 16242,
+     "dur": 64,
+     "inputDelay": 4,
+     "processing": 8,
+     "presentation": 53
+    },
+    {
+     "name": "keyup",
+     "start": 15964,
+     "dur": 32,
+     "inputDelay": 0,
+     "processing": 1,
+     "presentation": 31
+    }
+   ]
+  },
+  "interactTasks": {
+   "count": 0,
+   "blockingMs": 0,
+   "maxMs": 0
+  },
+  "errors": []
+ },
+ {
+  "label": "before-desk-1",
+  "profile": "desktop",
+  "cold": false,
+  "loadWallMs": 465,
+  "load": {
+   "ttfb": 69,
+   "fcp": 204,
+   "lcp": 540,
+   "lcpEl": "IMG http://localhost:3458/_next/image?url=https%3A%2F%2Fimages.pokemontcg.io%2Fbase1%2F1_hires",
+   "cls": 0.105,
+   "domContentLoaded": 338,
+   "tiles": 25
+  },
+  "loadTasks": {
+   "count": 1,
+   "blockingMs": 2,
+   "maxMs": 52
+  },
+  "loadBytes": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Image": {
+    "count": 33,
+    "kb": 857
+   },
+   "Fetch": {
+    "count": 37,
+    "kb": 0
+   }
+  },
+  "scroll": {
+   "from": 2981.899999976158,
+   "frames": 782,
+   "framesOver50ms": 0,
+   "worstFrameMs": 17,
+   "scrollY": 1789,
+   "tiles": 25,
+   "imgsComplete": 33
+  },
+  "scrollTasks": {
+   "count": 0,
+   "blockingMs": 0,
+   "maxMs": 0
+  },
+  "bytesAfterScroll": {
+   "Document": {
+    "count": 1,
+    "kb": 34
+   },
+   "Stylesheet": {
+    "count": 1,
+    "kb": 21
+   },
+   "Script": {
+    "count": 33,
+    "kb": 529
+   },
+   "Font": {
+    "count": 1,
+    "kb": 28
+   },
+   "Image": {
+    "count": 33,
+    "kb": 857
+   },
+   "Fetch": {
+    "count": 51,
+    "kb": 0
+   }
+  },
+  "interactions": {
+   "count": 14,
+   "worst": [
+    {
+     "name": "keydown",
+     "start": 17951,
+     "dur": 48,
+     "inputDelay": 1,
+     "processing": 0,
+     "presentation": 47
+    },
+    {
+     "name": "keypress",
+     "start": 17951,
+     "dur": 48,
+     "inputDelay": 1,
+     "processing": 1,
+     "presentation": 46
+    },
+    {
+     "name": "keyup",
+     "start": 17927,
+     "dur": 32,
+     "inputDelay": 0,
+     "processing": 0,
+     "presentation": 32
+    },
+    {
+     "name": "pointerdown",
+     "start": 20910,
+     "dur": 32,
+     "inputDelay": 2,
+     "processing": 1,
+     "presentation": 29
+    }
+   ]
+  },
+  "interactTasks": {
+   "count": 0,
+   "blockingMs": 0,
+   "maxMs": 0
+  },
+  "errors": []
+ }
+]

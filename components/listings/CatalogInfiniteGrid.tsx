@@ -3,7 +3,15 @@
 // Mobile infinite catalog: append pages as the sentinel enters the viewport.
 // Desktop paging lives in CatalogResults and refetches through CatalogView.
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState, ViewTransition } from 'react';
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  ViewTransition,
+} from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
@@ -88,6 +96,20 @@ export function CatalogInfiniteGrid({
   );
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A replaced browse query resets the list DURING the render that carries the
+  // new `revision`. That render is the provider's transition, so a fresh page
+  // of tiles renders interruptibly. Resetting from an effect instead made it an
+  // urgent update: a whole page of cards rendered in one blocking task right
+  // after every pill tap.
+  const [syncedRevision, setSyncedRevision] = useState(revision);
+  if (syncedRevision !== revision) {
+    setSyncedRevision(revision);
+    setItems(initialItems);
+    setPage(initialPage);
+    setHasMore(initialHasMore);
+    setWatchingIds(new Set(initialWatchingIds));
+    setError(null);
+  }
   const { filter, setMatchCount } = useCatalogView();
   const isDesktop = useIsDesktop();
   const deferredFilter = useDeferredValue(filter);
@@ -150,39 +172,41 @@ export function CatalogInfiniteGrid({
       if (!result.ok) {
         loadedPagesRef.current.delete(nextPage);
         setError('Could not load more listings. Tap to try again.');
+        setLoadingMore(false);
         return;
       }
 
-      setItems((current) => {
-        const seen = new Set(current.map((item) => item.id));
-        const appended = result.items.filter((item) => !seen.has(item.id));
-        return appended.length === 0 ? current : [...current, ...appended];
+      // A transition, so the next page of cards renders in slices while the
+      // member keeps scrolling. As an urgent update it was one long task per
+      // page, right under the finger.
+      startTransition(() => {
+        setItems((current) => {
+          const seen = new Set(current.map((item) => item.id));
+          const appended = result.items.filter((item) => !seen.has(item.id));
+          return appended.length === 0 ? current : [...current, ...appended];
+        });
+        setWatchingIds((current) => {
+          const next = new Set(current);
+          for (const id of result.watchingIds) next.add(id);
+          return next;
+        });
+        setPage(result.page);
+        setHasMore(result.hasMore);
+        setLoadingMore(false);
       });
-      setWatchingIds((current) => {
-        const next = new Set(current);
-        for (const id of result.watchingIds) next.add(id);
-        return next;
-      });
-      setPage(result.page);
-      setHasMore(result.hasMore);
     } catch {
       loadedPagesRef.current.delete(nextPage);
       setError('Could not load more listings. Tap to try again.');
+      setLoadingMore(false);
     } finally {
       inFlightRef.current = false;
-      setLoadingMore(false);
     }
   };
 
+  // Only `revision` — a new watchingIds array on an unrelated parent render
+  // must not forget pages already appended on mobile.
   useEffect(() => {
-    setItems(initialItems);
-    setPage(initialPage);
-    setHasMore(initialHasMore);
-    setWatchingIds(new Set(initialWatchingIds));
-    setError(null);
     loadedPagesRef.current = new Set([initialPage]);
-    // Only `revision` — a new watchingIds array on an unrelated parent render
-    // must not wipe pages already appended on mobile.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
 
@@ -204,7 +228,10 @@ export function CatalogInfiniteGrid({
           void loadMoreRef.current();
         }
       },
-      { root: null, rootMargin: '320px 0px', threshold: 0 },
+      // A screen and a half ahead. At 320px a fling reached the bottom before
+      // the next page had even been requested, and the member sat on
+      // "Loading more…" for the whole round trip.
+      { root: null, rootMargin: '150% 0px', threshold: 0 },
     );
 
     observer.observe(node);

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { ViewTransition } from 'react';
+import { memo, ViewTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -114,8 +114,13 @@ function unavailableLabelFor(item: CatalogItem): string | undefined {
  * {@link ItemCardProps.coverDim}, which is what staggers the phone
  * mosaic. Title, iris price, seller. Location stays off the phone tile.
  * Marketplace grid, My Listings, Saved, and seller shops.
+ *
+ * Memoised because the marketplace grid re-renders on every browse-state change
+ * (a pill tap, a filter keystroke, the pending flag) and a phone may have a
+ * hundred of these mounted. Props are the row object from state plus
+ * primitives, so an unchanged tile bails out.
  */
-export function CatalogItemCard({
+export const CatalogItemCard = memo(function CatalogItemCard({
   item,
   initialWatching,
   coverDim,
@@ -344,7 +349,7 @@ export function CatalogItemCard({
       </div>
     </Card>
   );
-}
+});
 
 /**
  * Richer auction-card treatment for carousels, watchlists, and seller profiles.

@@ -1,8 +1,8 @@
 // app/notifications/loading.tsx
 //
 // Activity list: heading, the unread count beside Mark all read, then age-bucketed
-// groups of text rows with an unread dot and a timestamp — no thumbnails or status
-// pills.
+// groups of text rows with a timestamp — no thumbnails, status pills, or unread
+// markers.
 //
 // GROUPED, NOT ONE FLAT RUN. This used to draw a single bordered list of six rows.
 // `NotificationCenter` renders a `<section>` PER AGE BUCKET — an uppercase `text-meta`

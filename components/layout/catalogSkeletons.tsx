@@ -69,10 +69,9 @@ export function CatalogTileSkeleton({
             in the block. */}
         <TextLines className="text-head" widths={['w-1/2']} />
         {hasSeller ? (
-          // 20px row: a `size-5` avatar beside a `text-meta` name, as the card
-          // draws it. This was a `text-body` line (22.4px) and the tile ran 2px
-          // tall on every swap.
-          <div className="flex h-5 min-w-0 items-center gap-1.5">
+          // 24px row: the card's seller link is `min-h-6` for target size, with a
+          // `size-5` avatar beside a `text-meta` name inside it.
+          <div className="flex h-6 min-w-0 items-center gap-1.5">
             <Skeleton className="size-5 shrink-0 rounded-full" />
             <TextLines className="min-w-0 flex-1 text-meta" widths={['w-3/5']} />
           </div>

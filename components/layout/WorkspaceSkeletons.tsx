@@ -381,7 +381,6 @@ export function NotificationRowSkeleton({
         className,
       )}
     >
-      <Skeleton className="mt-1.5 size-2 shrink-0 rounded-full" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-snug">
           <TextLines className="min-w-0 flex-1 text-body" widths={['w-2/5']} />

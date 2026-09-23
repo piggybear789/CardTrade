@@ -5,7 +5,7 @@
 // The in-app NOTIFICATION CENTER entry point for the site header (Phase 4). A
 // bell icon with an unread-count badge that opens a lightweight popover panel
 // listing recent notifications. Each row shows the title, optional body, a
-// relative timestamp, and an unread dot; clicking a row marks it read and
+// relative timestamp, and an unread tint; clicking a row marks it read and
 // navigates to its `link`. A "Mark all read" action clears every unread badge.
 //
 // The list is seeded by the server. Opening the panel refreshes it through a

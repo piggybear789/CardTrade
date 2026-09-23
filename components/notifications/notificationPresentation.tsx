@@ -2,7 +2,7 @@
 //
 // How a notification LOOKS, shared by the header bell and the notification centre.
 //
-// The two surfaces had the row markup twice — the same dot, the same title/timestamp
+// The two surfaces had the row markup twice — the same title/timestamp
 // row, the same clamped body — with the bell wrapping it in a `<Link>` and the centre
 // in a `<button>`. So a change to either had to be made in both, and the surfaces
 // already differed in ways nobody chose (the bell clamped the body to two lines, the
@@ -71,55 +71,6 @@ function metaFor(type: string) {
 }
 
 /**
- * The unread marker.
- *
- * `iris`, NOT `destructive`. An unread notification is not an error, and a red dot on
- * every new message told members something had gone wrong forty times a day.
- *
- * AND NOT `foreground` EITHER, WHICH IS THE OTHER THING TRIED. Ink matches the title
- * the dot sits beside, which is the argument for it — but `--foreground` is 17%
- * lightness, so an 8px circle of it is the darkest object in the row and lands as a
- * full stop set before the sentence rather than as a marker beside it. `--iris` is 58%:
- * present enough to find down a left edge, light enough not to out-weigh the title it
- * is pointing at. It also agrees with the row's own wash, which is the accent tint —
- * one hue, two depths, rather than a violet band with a black pip on it.
- *
- * THE BELL'S COUNT BADGE STAYS RED, and that is not an inconsistency left behind. A
- * numbered badge on a bell is a convention old enough to be read as "how many", not as
- * "how bad", and there is exactly one of it. Forty of them down a list is a different
- * claim.
- *
- * CENTRED ON THE WHOLE ROW, not on the title line and not floated near it with a
- * margin. `mt-1.5` was a tuned offset that put the dot's centre at 10px against the
- * title's at 11.2px — invisible on one row, a drift down the left edge of twelve.
- * Centring on the title's line box fixed that but is a different thing from what this
- * marker is for: it flags the ROW, so it belongs on the row's axis, which on a
- * two-line notification is well below the title.
- *
- * `self-stretch` is what does it, and it is why there is a wrapper span at all. The row
- * is `items-start` so the dot and the text block share a top edge; stretching this one
- * item back to the flex line's full height gives the dot something row-tall to centre
- * in. The row's vertical padding is symmetric, so centring in the content box is
- * centring in the padded box — no need to know what the caller's padding is.
- *
- * The dot is `aria-hidden` and the state is announced by the row's own text instead —
- * see `NotificationRowBody`, which carries an `sr-only` "unread". Colour is never the
- * only signal.
- */
-function UnreadDot({ unread }: { unread: boolean }) {
-  return (
-    <span className="flex shrink-0 items-center self-stretch" aria-hidden>
-      <span
-        className={cn(
-          'size-2 rounded-full',
-          unread ? 'bg-iris' : 'bg-transparent',
-        )}
-      />
-    </span>
-  );
-}
-
-/**
  * The row's own SURFACE — unread, hover and focus — shared by the bell and the centre.
  *
  * Here rather than in each caller for the reason this module exists: the two had the
@@ -142,8 +93,8 @@ function UnreadDot({ unread }: { unread: boolean }) {
  * The one thing the ink version was right about is recorded rather than fixed: because
  * unread and hover are two alphas of one token, a hovered unread row and a hovered read
  * row land on the same value, so the wash stops distinguishing them under the cursor.
- * The dot and the semibold title still do, which is why that is acceptable — colour was
- * never carrying this state alone.
+ * The semibold title and the `sr-only` "unread" still do, which is why that is
+ * acceptable — colour was never carrying this state alone.
  *
  * @param unread Whether the row's notification is unread.
  * @param layout The caller's own spacing and gap utilities.
@@ -177,7 +128,6 @@ export function NotificationRowBody({
 
   return (
     <>
-      <UnreadDot unread={unread} />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-snug">
           <span

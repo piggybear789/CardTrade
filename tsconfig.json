@@ -50,7 +50,8 @@
     ".next-e2e/types/**/*.ts",
     ".next-e2e/dev/types/**/*.ts",
     ".next-repro/types/**/*.ts",
-    ".next-repro/dev/types/**/*.ts"
+    ".next-repro/dev/types/**/*.ts",
+    "vitest.config.mts"
   ],
   "exclude": [
     "node_modules"

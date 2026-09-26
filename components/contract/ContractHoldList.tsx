@@ -6,7 +6,7 @@
 // the viewer) and this renders them identically.
 
 import { Badge } from '@/components/ui/badge';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { ContractHold, ContractHoldStatus, ContractStatusTone } from './types';
 
@@ -32,6 +32,8 @@ export interface ContractHoldListProps {
   /** Accessible name for the list. */
   ariaLabel?: string;
   className?: string;
+  /** ISO 4217 code the holds are denominated in — the contract's currency. */
+  currency: string;
 }
 
 /** The shared collateral / pre-authorization hold list. */
@@ -40,6 +42,7 @@ export function ContractHoldList({
   emptyLabel = 'Nothing is on the line yet.',
   ariaLabel = 'What each party has on the line',
   className,
+  currency,
 }: ContractHoldListProps) {
   if (holds.length === 0) {
     return <p className="text-body text-muted-foreground">{emptyLabel}</p>;
@@ -60,9 +63,9 @@ export function ContractHoldList({
             <div className="min-w-0">
               <p className="truncate text-body font-medium">{hold.label}</p>
               <p className="text-body tabular-nums text-muted-foreground">
-                {formatAud(hold.amountCents)}
+                {formatMoney(hold.amountCents, currency)}
                 {hold.capturedCents && hold.capturedCents > 0 ? (
-                  <span> · {formatAud(hold.capturedCents)} captured</span>
+                  <span> · {formatMoney(hold.capturedCents, currency)} captured</span>
                 ) : null}
               </p>
             </div>

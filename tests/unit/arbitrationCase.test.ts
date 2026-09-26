@@ -51,6 +51,7 @@ function makeCase(overrides: Partial<ArbitrationCase> = {}): ArbitrationCase {
     title: 'A disputed sale',
     goods: [],
     amountAtRiskCents: 12_000,
+    currency: 'aud',
     openedAt: hoursAgo(2),
     raisedById: 'buyer-1',
     claim: 'The card arrived creased.',

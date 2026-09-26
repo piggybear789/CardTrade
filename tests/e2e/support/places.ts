@@ -70,10 +70,17 @@ export interface StubbedPlace {
 }
 
 /**
- * Australian addresses, because AU is the only `tradingEnabled` region.
+ * Addresses in each region the suite needs to place goods in.
  *
- * A GB entry is included on purpose: it is what a region-mismatch test needs, and
- * having it here means such a test does not have to reach for a second mechanism.
+ * Mostly Australian, because AU is where the seeded members trade. Two deliberate
+ * exceptions:
+ *
+ *   * `portland` is US — a second `tradingEnabled` region (0122), so a US contract can
+ *     actually be agreed against it rather than refused.
+ *   * `london` is GB, which is browsable but NOT tradeable. That is what a
+ *     region-mismatch test needs, and it must stay untradeable: if GB is ever opened,
+ *     this entry stops being a negative fixture and the mismatch spec silently starts
+ *     asserting nothing.
  */
 export const STUB_PLACES: Record<string, StubbedPlace> = {
   sydney: {
@@ -108,6 +115,28 @@ export const STUB_PLACES: Record<string, StubbedPlace> = {
     lng: -0.1276,
     countryCode: 'GB',
   },
+  portland: {
+    placeId: 'ChIJ_e2e_portland_test_place_id',
+    mainText: '1120 SW 5th Avenue',
+    secondaryText: 'Portland OR 97204, United States',
+    lat: 45.5152,
+    lng: -122.6784,
+    countryCode: 'US',
+  },
+};
+
+/**
+ * Country name for a stub's code, as Google's `addressComponents` would report it.
+ *
+ * A lookup rather than the `countryCode === 'GB' ? … : 'Australia'` ternary this
+ * replaced, which labelled a US address "Australia". Nothing in the app reads the long
+ * name — `resolvePlace` takes `shortText` — but a fixture that lies about its own
+ * contents is a trap for whoever debugs the next failure with it.
+ */
+const COUNTRY_NAMES: Record<string, string> = {
+  AU: 'Australia',
+  GB: 'United Kingdom',
+  US: 'United States',
 };
 
 /** The label `PlaceSearch` renders and `PlaceValue.label` ends up holding. */
@@ -161,7 +190,7 @@ function detailsBody(place: StubbedPlace) {
     addressComponents: [
       { longText: place.mainText, shortText: place.mainText, types: ['street_address'] },
       {
-        longText: place.countryCode === 'GB' ? 'United Kingdom' : 'Australia',
+        longText: COUNTRY_NAMES[place.countryCode] ?? place.countryCode,
         shortText: place.countryCode,
         types: ['country', 'political'],
       },

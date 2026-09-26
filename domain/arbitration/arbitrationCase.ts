@@ -108,8 +108,19 @@ export interface ArbitrationCase {
    * listing.
    */
   goods: readonly ArbitrationGoodsLine[];
-  /** Total money the outcome decides, in cents. */
+  /** Total money the outcome decides, in the currency's smallest unit. */
   amountAtRiskCents: Cents;
+  /**
+   * ISO 4217 code {@link amountAtRiskCents} is denominated in, from the underlying
+   * contract row.
+   *
+   * On the CASE rather than only on the detail payload because the queue itself is
+   * cross-region: with two trading regions, an AUD case and a USD case sit in one
+   * list, and a bare figure in a queue an operator triages by money is ambiguous.
+   * Note that priority is deliberately NOT derived from amount, so this never feeds
+   * ordering — only display.
+   */
+  currency: string;
   /** When the dispute was raised, ISO-8601. Null when the source never recorded it. */
   openedAt: string | null;
   /** Who raised it, when known. */

@@ -26,7 +26,7 @@ import type {
   StatementKind,
   StatementStatus,
 } from '@/domain/statement/accountStatement';
-import { formatAud, formatShortDate } from '@/lib/format';
+import { formatMoney, formatShortDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
   SectionFilter,
@@ -65,8 +65,8 @@ const STATUS_META: Record<StatementStatus, { label: string; variant: BadgeVarian
 };
 
 /** `+$95.00`, `−$105.00`, or `$200.00 held`. */
-function SignedAmount({ entry, className }: { entry: StatementEntry; className?: string }) {
-  const amount = formatAud(entry.amountCents);
+function SignedAmount({ entry, className, currency }: { entry: StatementEntry; className?: string; currency: string }) {
+  const amount = formatMoney(entry.amountCents, currency);
   if (entry.direction === 'HOLD') {
     return (
       <span className={cn('tabular-nums text-muted-foreground', className)}>
@@ -90,11 +90,11 @@ function SignedAmount({ entry, className }: { entry: StatementEntry; className?:
 }
 
 /** Gross and fee, where the row has them. One line, muted. */
-function Breakdown({ entry }: { entry: StatementEntry }) {
+function Breakdown({ entry, currency }: { entry: StatementEntry; currency: string }) {
   if (entry.grossCents == null || entry.feeCents == null) return null;
   if (entry.feeCents === 0) return null;
-  const gross = formatAud(entry.grossCents);
-  const fee = formatAud(entry.feeCents);
+  const gross = formatMoney(entry.grossCents, currency);
+  const fee = formatMoney(entry.feeCents, currency);
   return (
     <span className="text-meta tabular-nums text-muted-foreground">
       {entry.kind === 'PURCHASE' ? `${gross} + ${fee} fees` : `${gross} \u2212 ${fee} fee`}
@@ -111,7 +111,7 @@ function StatusBadge({ status }: { status: StatementStatus }) {
   );
 }
 
-function Description({ entry }: { entry: StatementEntry }) {
+function Description({ entry, currency }: { entry: StatementEntry; currency: string }) {
   return (
     <div className="min-w-0">
       <Link
@@ -126,7 +126,7 @@ function Description({ entry }: { entry: StatementEntry }) {
         {entry.counterpartyName && entry.kind !== 'TRADE_FEE' && entry.kind !== 'COLLATERAL' ? (
           <span className="truncate">· {entry.counterpartyName}</span>
         ) : null}
-        <Breakdown entry={entry} />
+        <Breakdown entry={entry} currency={currency} />
       </div>
     </div>
   );
@@ -135,9 +135,12 @@ function Description({ entry }: { entry: StatementEntry }) {
 export function AccountStatement({
   statement,
   scope,
+  currency,
 }: {
   statement: AccountStatementModel;
   scope: SectionScope;
+  /** ISO 4217 code every figure in the ledger is denominated in. */
+  currency: string;
 }) {
   const { active, past } = partitionByScope([...statement.entries], (e) => e.settled);
   const shown = scope === 'past' ? past : active;
@@ -167,16 +170,16 @@ export function AccountStatement({
           <dl className="flex flex-wrap gap-x-group gap-y-tight text-meta tabular-nums text-muted-foreground">
             <div className="flex gap-tight">
               <dt>Received</dt>
-              <dd className="font-semibold text-foreground">{formatAud(receivedCents)}</dd>
+              <dd className="font-semibold text-foreground">{formatMoney(receivedCents, currency)}</dd>
             </div>
             <div className="flex gap-tight">
               <dt>Spent</dt>
-              <dd className="font-semibold text-foreground">{formatAud(spentCents)}</dd>
+              <dd className="font-semibold text-foreground">{formatMoney(spentCents, currency)}</dd>
             </div>
             {heldCents > 0 ? (
               <div className="flex gap-tight">
                 <dt>Held</dt>
-                <dd className="font-semibold text-foreground">{formatAud(heldCents)}</dd>
+                <dd className="font-semibold text-foreground">{formatMoney(heldCents, currency)}</dd>
               </div>
             ) : null}
           </dl>
@@ -249,10 +252,10 @@ export function AccountStatement({
                     <time dateTime={entry.occurredAt}>{formatShortDate(entry.occurredAt)}</time>
                   </td>
                   <td className="max-w-0 px-group py-cozy align-top">
-                    <Description entry={entry} />
+                    <Description entry={entry} currency={currency} />
                   </td>
                   <td className="px-group py-cozy text-right align-top text-body">
-                    <SignedAmount entry={entry} />
+                    <SignedAmount entry={entry} currency={currency} />
                   </td>
                   <td className="px-group py-cozy align-top">
                     <StatusBadge status={entry.status} />
@@ -266,9 +269,9 @@ export function AccountStatement({
           <ol className="divide-y divide-border md:hidden">
             {shown.map((entry) => (
               <li key={entry.id} className="flex items-start justify-between gap-cozy px-group py-cozy">
-                <Description entry={entry} />
+                <Description entry={entry} currency={currency} />
                 <div className="flex shrink-0 flex-col items-end gap-tight">
-                  <SignedAmount entry={entry} className="text-body" />
+                  <SignedAmount entry={entry} className="text-body" currency={currency} />
                   <StatusBadge status={entry.status} />
                   <time
                     dateTime={entry.occurredAt}

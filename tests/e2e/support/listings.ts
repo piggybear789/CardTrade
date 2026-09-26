@@ -113,6 +113,15 @@ export interface CreateListingOptions {
   /** Dollars, as typed into the form. Converted to integer cents by the form. */
   priceDollars?: string;
   description?: string;
+  /**
+   * Where the GOODS are, which is a different value from where the member trades.
+   *
+   * `items.location_country_code` scopes the catalog; `profiles.region_code` gates
+   * contracts. Defaults to Sydney because most seeded members trade in AU, but a US
+   * seller listing a Sydney address would file US goods into the AU catalog — so a
+   * US spec must pass `STUB_PLACES.portland` explicitly.
+   */
+  place?: StubbedPlace;
 }
 
 /**
@@ -136,7 +145,12 @@ export interface CreateListingOptions {
  */
 export async function createListing(
   page: Page,
-  { title, priceDollars = '50.00', description = 'Created by the e2e suite.' }: CreateListingOptions,
+  {
+    title,
+    priceDollars = '50.00',
+    description = 'Created by the e2e suite.',
+    place = STUB_PLACES.sydney,
+  }: CreateListingOptions,
 ): Promise<string> {
   await page.goto('/listings/new');
   await page.waitForLoadState('domcontentloaded');
@@ -201,7 +215,7 @@ export async function createListing(
   // Filled through the real autocomplete rather than free text, so the value is a
   // RESOLVED place — which is what lets this listing later carry a contract (see
   // support/places.ts).
-  await fillPlace(page, /Based near/, STUB_PLACES.sydney);
+  await fillPlace(page, /Based near/, place);
 
   await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
   // The current picker represents selection with a thumbnail + named remove

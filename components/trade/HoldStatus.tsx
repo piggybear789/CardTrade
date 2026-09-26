@@ -22,6 +22,8 @@ export interface HoldStatusProps {
   counterpartId: string;
   /** The viewer's own role, so their hold can be labelled "You". */
   viewerRole: TradeViewerRole;
+  /** The trade's currency (`trades.currency`), which the holds are denominated in. */
+  currency: string;
 }
 
 /** Resolve a friendly owner label for a hold given its trader id. */
@@ -52,6 +54,7 @@ export function HoldStatus({
   initiatorId,
   counterpartId,
   viewerRole,
+  currency,
 }: HoldStatusProps) {
   const myId = viewerRole === 'INITIATOR' ? initiatorId : counterpartId;
 
@@ -74,6 +77,7 @@ export function HoldStatus({
     <ContractHoldList
       holds={ordered}
       ariaLabel="What each trader has on the line"
+      currency={currency}
     />
   );
 }

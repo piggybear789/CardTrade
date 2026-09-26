@@ -12,24 +12,24 @@
 // line-item total in SQL and aborts when it disagrees, and why
 // `tests/property/identityGate.test.ts` reads the Identity_Gate expression back out of
 // the newest migration that defines it. This test is the same pattern: it parses the
-// INSERT in 0068 and asserts every row matches the registry exactly.
+// INSERT in 0068, applies the `trading_enabled` changes made by later migrations, and
+// asserts every row matches the registry exactly.
 //
 // A drift here would mean a contract charged in one currency and displayed in
 // another, with nothing at runtime able to notice.
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { minorUnitDigits, REGIONS } from '@/domain/region';
 
-const MIGRATION = path.join(
-  process.cwd(),
-  'supabase',
-  'migrations',
-  '0068_multi_region_currency.sql',
-);
+const MIGRATIONS_DIR = path.join(process.cwd(), 'supabase', 'migrations');
+
+const SEED_MIGRATION_FILE = '0068_multi_region_currency.sql';
+
+const MIGRATION = path.join(MIGRATIONS_DIR, SEED_MIGRATION_FILE);
 
 interface SqlRegionRow {
   code: string;
@@ -61,7 +61,59 @@ function parseSqlRegions(): SqlRegionRow[] {
       tradingEnabled: match[5] === 'true',
     });
   }
-  return rows;
+
+  const overrides = parseTradingEnabledOverrides();
+  return rows.map((row) =>
+    overrides.has(row.code)
+      ? { ...row, tradingEnabled: overrides.get(row.code)! }
+      : row,
+  );
+}
+
+/**
+ * Per-region `trading_enabled` changes made by migrations AFTER the 0068 seed.
+ *
+ * WHY THIS LAYER EXISTS. 0068 seeds the flag, but opening a region later is a new
+ * migration — 0122 opened US — and an applied migration must not be edited. Reading only
+ * the seed would therefore compare a stale `false` against the registry's `true` and fail
+ * on a correct change, which trains people to "fix" the test by loosening it. That is the
+ * outcome to avoid: this file guards a money rule, and the way it dies is by being edited
+ * until it passes.
+ *
+ * Same shape as the Identity_Gate agreement property, which reads the gate expression out
+ * of the NEWEST migration that defines it rather than the one that introduced it.
+ *
+ * Applied in filename order, so the last migration to touch a region wins — which is also
+ * the order Postgres applied them in. A region can therefore be closed again by a later
+ * migration and this still tracks it.
+ *
+ * NOT GUARDED AGAINST FINDING NOTHING, deliberately, unlike {@link parseSqlRegions}. An
+ * empty result is the correct answer whenever no migration has moved a flag since the
+ * seed. The protection against a statement this cannot parse is the comparison itself: an
+ * unreadable override leaves the seed value in place, which then disagrees with the
+ * registry and fails loudly. Silence here cannot produce a vacuous pass.
+ */
+function parseTradingEnabledOverrides(): Map<string, boolean> {
+  // Matches the single-line form 0122 writes. A migration that reformats this across
+  // newlines will not be seen, and the resulting disagreement is the failure that tells
+  // you so.
+  const pattern =
+    /update\s+cardtrade\.regions\s+set\s+trading_enabled\s*=\s*(true|false)\s+where\s+code\s*=\s*'([A-Z]{2})'/gi;
+
+  const overrides = new Map<string, boolean>();
+
+  const later = readdirSync(MIGRATIONS_DIR)
+    .filter((file) => file.endsWith('.sql') && file > SEED_MIGRATION_FILE)
+    .sort();
+
+  for (const file of later) {
+    const sql = readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+    for (const match of sql.matchAll(pattern)) {
+      overrides.set(match[2].toUpperCase(), match[1].toLowerCase() === 'true');
+    }
+  }
+
+  return overrides;
 }
 
 describe('cardtrade.regions agrees with the TypeScript region registry', () => {
@@ -117,6 +169,23 @@ describe('cardtrade.regions agrees with the TypeScript region registry', () => {
         `minor_unit_digits mismatch for ${row.code} (${region!.currency})`,
       ).toBe(row.minorUnitDigits);
     }
+  });
+
+  it('tracks a region opened by a migration after the seed', () => {
+    // US is seeded false in 0068 and opened by 0122. Pinned by name rather than only by
+    // the loop above, because this is the one row that exercises the override layer at
+    // all: if that layer silently stopped working — a reformatted statement, a renamed
+    // table, a regex that no longer matches — every other row would still agree and the
+    // loop would pass. This is what makes the mechanism's failure visible.
+    //
+    // It is NOT asserting that US is live. `trading_enabled` is product intent on both
+    // sides; `operationalRegions()` decides the runtime answer and needs
+    // STRIPE_SECRET_KEY_US on top of this.
+    const us = sqlRows.find((row) => row.code === 'US');
+    expect(us, 'no US row parsed out of the migrations').toBeDefined();
+    expect(us!.currency).toBe('usd');
+    expect(us!.tradingEnabled, 'migration 0122 opens US; did its update statement change shape?').toBe(true);
+    expect(REGIONS.find((region) => region.code === 'US')!.tradingEnabled).toBe(true);
   });
 
   it('records JPY as zero-decimal on both sides', () => {

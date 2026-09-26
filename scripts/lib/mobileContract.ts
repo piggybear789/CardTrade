@@ -523,19 +523,43 @@ export interface DartRegion {
   tradingEnabled: boolean;
 }
 
-/** The Dart region registry, which duplicates `domain/region/regions.ts`. */
+/**
+ * The Dart region registry, which duplicates `domain/region/regions.ts`.
+ *
+ * READS THE GENERATED FILE, which is where the rows now live.
+ * `domain/region/regions.dart` used to hold its own hand-written copy of the same
+ * rows beside `generated/regions.g.dart` — two copies inside one package, and they
+ * drifted: US was opened for trading in the TypeScript and in the generated Dart
+ * while the hand-written copy kept the old flag, so `isTradingRegion` answered
+ * false and the app refused every US contract. That file is now a
+ * `const allRegions = generatedRegions;` alias, so it has no rows to parse.
+ *
+ * THROWS rather than returning an empty set. Pointed at the aliased file this
+ * silently matched nothing, and a parser that returns `[]` turns every agreement
+ * assertion built on it into a vacuous pass — worse than no check at all.
+ */
 export function dartRegions(): DartRegion[] {
-  const source = readFlutter('domain/region/regions.dart');
+  const source = readFlutter('domain/generated/regions.g.dart');
   const pattern =
     /Region\(\s*code:\s*'([A-Z]{2})',\s*label:\s*'([^']*)',\s*currency:\s*'([a-z]{3})',\s*minorUnitDigits:\s*(\d+)\s*(?:,\s*tradingEnabled:\s*(true|false)\s*)?,?\s*\)/g;
 
-  return [...source.matchAll(pattern)].map((match) => ({
+  const rows = [...source.matchAll(pattern)].map((match) => ({
     code: match[1],
     label: match[2],
     currency: match[3],
     minorUnitDigits: Number(match[4]),
     tradingEnabled: match[5] === 'true',
   }));
+
+  if (rows.length === 0) {
+    throw new Error(
+      'dartRegions parsed no rows from domain/generated/regions.g.dart. Either the ' +
+        'Region(...) shape changed, or the file was not generated — run ' +
+        'npx tsx scripts/generate-dart-vocabulary.ts',
+    );
+  }
+
+  return rows;
 }
 
 /** The zero-decimal currency set hard-coded in `core/money.dart`. */

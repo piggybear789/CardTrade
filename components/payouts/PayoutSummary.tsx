@@ -30,12 +30,12 @@
 // in words (never rely on colour alone for payment state).
 
 import type { PayoutReadModel } from '@/domain/payouts/payoutReadModel';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { SettingsGroup, SettingsListRow, SettingsPanelRow } from '@/components/account/SettingsPrimitives';
 
 /** Money in a row's value slot: tabular, and never dimmed by the row's muted colour. */
-function Figure({ cents, tone }: { cents: number; tone?: 'flag' }) {
+function Figure({ cents, tone, currency }: { cents: number; tone?: 'flag'; currency: string }) {
   return (
     <span
       className={cn(
@@ -43,12 +43,12 @@ function Figure({ cents, tone }: { cents: number; tone?: 'flag' }) {
         cents === 0 ? 'text-muted-foreground' : tone === 'flag' ? 'text-iris-ink' : 'text-foreground',
       )}
     >
-      {formatAud(cents)}
+      {formatMoney(cents, currency)}
     </span>
   );
 }
 
-export function PayoutSummary({ model }: { model: PayoutReadModel }) {
+export function PayoutSummary({ model, currency }: { model: PayoutReadModel; currency: string }) {
   const owed = model.releasingNowCents;
 
   return (
@@ -68,7 +68,7 @@ export function PayoutSummary({ model }: { model: PayoutReadModel }) {
             owed === 0 ? 'text-muted-foreground' : 'text-foreground',
           )}
         >
-          {formatAud(owed)}
+          {formatMoney(owed, currency)}
         </p>
         <p className="mt-tight text-body text-muted-foreground">
           {model.hasBlockedRelease
@@ -79,18 +79,18 @@ export function PayoutSummary({ model }: { model: PayoutReadModel }) {
 
       <SettingsListRow
         label="Held for open sales"
-        value={<Figure cents={model.upcomingProceedsCents} />}
+        value={<Figure cents={model.upcomingProceedsCents} currency={currency} />}
       />
       <SettingsListRow
         label="Under dispute"
-        value={<Figure cents={model.atRiskProceedsCents} tone="flag" />}
+        value={<Figure cents={model.atRiskProceedsCents} tone="flag" currency={currency} />}
       />
       {/* LAST, AND WITHOUT THE FLAG TONE. It is the only one of the four that is not a
           claim on anybody — reading it in the same colour as the disputed figure would
           make settled money look like a problem. */}
       <SettingsListRow
         label="Paid out"
-        value={<Figure cents={model.settledCents} />}
+        value={<Figure cents={model.settledCents} currency={currency} />}
       />
 
       {/* SAYS WHERE THE MONEY IS, ONCE.

@@ -24,7 +24,7 @@ import { resolveTradeConditionDispute, resolveTradeFraud } from '@/lib/actions/a
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Label } from '@/components/ui/label';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -49,6 +49,14 @@ export interface TradeDisputeActionsProps {
   /** Who alleged fraud, if anyone. Shown as an allegation, never pre-selected. */
   fraudClaimedById: string | null;
   frictionTaxCents: number;
+  /**
+   * ISO 4217 code every figure in this panel is denominated in.
+   *
+   * Required. These strings are the confirmation an operator reads before
+   * authorising a real capture or refund, so the denomination has to be the
+   * contract's own and not a default.
+   */
+  currency: string;
 }
 
 export function TradeDisputeActions({
@@ -57,7 +65,10 @@ export function TradeDisputeActions({
   counterpart,
   fraudClaimedById,
   frictionTaxCents,
+  currency,
 }: TradeDisputeActionsProps) {
+  /** Figures in the contract's own currency. */
+  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
   const [isPending, startTransition] = useTransition();
   const [victimId, setVictimId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<'CONDITION' | 'FRAUD' | null>(null);
@@ -121,7 +132,7 @@ export function TradeDisputeActions({
           Resolve as condition dispute
         </Button>
         <p className="mt-tight text-body text-muted-foreground">
-          Captures {formatAud(frictionTaxCents)} from the disputed-against trader and
+          Captures {money(frictionTaxCents)} from the disputed-against trader and
           releases the rest. The trade completes.
         </p>
       </div>
@@ -147,7 +158,7 @@ export function TradeDisputeActions({
               >
                 <span className="block">{party.name}</span>
                 <span className="block text-muted-foreground">
-                  holds {formatAud(party.bondCents)}
+                  holds {money(party.bondCents)}
                 </span>
               </button>
             );
@@ -176,7 +187,7 @@ export function TradeDisputeActions({
             if (!open) setConfirming(null);
           }}
           title="Resolve as a condition dispute?"
-          description={`${formatAud(frictionTaxCents)} is captured from the disputed-against trader and the remaining collateral is released. This moves real money and cannot be undone.`}
+          description={`${money(frictionTaxCents)} is captured from the disputed-against trader and the remaining collateral is released. This moves real money and cannot be undone.`}
           confirmLabel="Resolve"
           pending={isPending}
           onConfirm={resolveCondition}
@@ -192,7 +203,7 @@ export function TradeDisputeActions({
           title="Resolve as objective fraud?"
           // Names both sides explicitly. An operator about to move a four-figure sum
           // should have to read who loses it, not just who gains.
-          description={`${formatAud(offender.bondCents)} will be captured from ${offender.name} and paid to ${victim.name}, whose own collateral is released. The trade becomes terminal and ${offender.name}'s account is permanently banned. This cannot be undone.`}
+          description={`${money(offender.bondCents)} will be captured from ${offender.name} and paid to ${victim.name}, whose own collateral is released. The trade becomes terminal and ${offender.name}'s account is permanently banned. This cannot be undone.`}
           confirmLabel={`Capture from ${offender.name}`}
           confirmVariant="destructive"
           pending={isPending}

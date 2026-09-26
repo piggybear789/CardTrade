@@ -3,6 +3,7 @@
 // database-owned terms versioning, and single-winner nonce claiming.
 
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { regionCurrency } from '@/domain/region';
 import type {
   BuyerRecord,
   CashSaleLineItem,
@@ -105,7 +106,17 @@ export function makeCashSaleRepository(options: {
   item?: ItemRecord;
   payee?: MerchantRecord | null;
   existingPayerRef?: string | null;
+  /**
+   * The contract's currency, as `set_row_currency_from_region` would derive it
+   * (0068). Defaults to {@link TEST_REGION}'s currency.
+   *
+   * Overridable so a test can build a non-AUD world: every money figure a member
+   * or an operator reads is formatted against this, and the bug it guards against
+   * is a USD contract rendering as `A$`.
+   */
+  currency?: string;
 } = {}) {
+  const currency = options.currency ?? regionCurrency(TEST_REGION) ?? 'aud';
   const state: FakeState = {
     sale: null,
     item: { ...(options.item ?? ITEM) },
@@ -339,6 +350,7 @@ export function makeCashSaleRepository(options: {
         agreedPriceCents: params.agreedPriceCents,
         platformFeeCents: params.platformFeeCents,
         amountCents: params.agreedPriceCents + params.platformFeeCents,
+        currency,
         status: 'AGREEMENT',
         version: 1,
         transferId: null,

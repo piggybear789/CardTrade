@@ -117,12 +117,20 @@ const ZERO_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
  * All 41 entries below were checked against that list on 2026-09-01 and matched
  * exactly: https://docs.stripe.com/connect/separate-charges-and-transfers
  *
- * `tradingEnabled` is false for everything except AU, and that is the honest
- * state: each region needs a registered legal entity and its own Stripe platform
- * account before a single deal can complete in it. Flipping one on without those
- * would badge members ready to trade and then fail every payout — which is why
+ * `tradingEnabled` is true for AU and US and false for everything else, and that is
+ * the honest state: each region needs a registered legal entity and its own Stripe
+ * platform account before a single deal can complete in it. Flipping one on without
+ * those would badge members ready to trade and then fail every payout — which is why
  * `operationalRegions()` re-checks for a configured binding and the contract guard
  * consults it rather than this flag alone.
+ *
+ * US IS PRODUCT INTENT, NOT A LIVE SWITCH. The US entity ("NoDitto Company",
+ * `acct_1UIfsRRbOJEOZeCm`) exists and Connect is registered on it, so the intent is
+ * real. But this flag alone changes nothing a member can see: `operationalRegions()`
+ * intersects it with `allConfiguredRegionCodes()`, which scans for
+ * `STRIPE_SECRET_KEY_US`. Until that variable is set, US is absent from
+ * `listSelectableRegions()`, absent from the onboarding region step, and refused by
+ * every contract guard. Setting the key is the switch; this is the intent.
  */
 export const REGIONS: readonly RegionDefinition[] = [
   { code: 'AE', label: 'United Arab Emirates', currency: 'aed', stripeCountry: 'ae', locale: 'en-AE', tradingEnabled: false },
@@ -167,7 +175,7 @@ export const REGIONS: readonly RegionDefinition[] = [
   { code: 'SG', label: 'Singapore',            currency: 'sgd', stripeCountry: 'sg', locale: 'en-SG', tradingEnabled: false },
   { code: 'SI', label: 'Slovenia',             currency: 'eur', stripeCountry: 'si', locale: 'en-IE', tradingEnabled: false },
   { code: 'SK', label: 'Slovakia',             currency: 'eur', stripeCountry: 'sk', locale: 'en-IE', tradingEnabled: false },
-  { code: 'US', label: 'United States',        currency: 'usd', stripeCountry: 'us', locale: 'en-US', tradingEnabled: false },
+  { code: 'US', label: 'United States',        currency: 'usd', stripeCountry: 'us', locale: 'en-US', tradingEnabled: true  },
 ] as const;
 
 /**

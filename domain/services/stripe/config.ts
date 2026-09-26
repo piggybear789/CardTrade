@@ -176,6 +176,29 @@ function readSecretKey(env: EnvLike, region: string = DEFAULT_CONFIG_REGION): st
 }
 
 /**
+ * Whether a Stripe secret key moves REAL money.
+ *
+ * Matches both key forms Stripe issues for live mode: a standard secret key
+ * (`sk_live_`) and a RESTRICTED key (`rk_live_`). The test used to be `sk_live_`
+ * alone, which classified a restricted live key as TEST — a live credential
+ * failing OPEN, in the one direction where failing open is unacceptable.
+ *
+ * NOT hypothetical. A restricted live key in `STRIPE_SECRET_KEY_US` reported
+ * `environment: 'test'`, which satisfied BOTH guards in
+ * `scripts/smoke-stripe-test.ts` (`environment === 'test'` and
+ * `!isRealMoneyProvider`) and would have placed a real $500 authorisation and
+ * taken a real $20 capture on the live platform account.
+ *
+ * A restricted key may ALSO lack permissions this integration needs — v2 account
+ * creation, transfers, Identity. Those failures surface mid-flow with a buyer
+ * already charged rather than at construction, so prefer an unrestricted key per
+ * region; this helper only settles the live-vs-test question.
+ */
+export function isLiveSecretKey(value: string | null | undefined): boolean {
+  return /^(?:sk|rk)_live_/.test(value?.trim() ?? '');
+}
+
+/**
  * Every configured webhook signing secret, across EVERY region, de-duplicated.
  *
  * Deliberately not scoped to one region. Verification tries each secret in turn and
@@ -240,6 +263,22 @@ export function allConfiguredRegionCodes(env: EnvLike = process.env): string[] {
 }
 
 /**
+ * Every configured region whose secret key moves REAL money.
+ *
+ * Exists so the real-money question can be asked across ALL regions without
+ * secret-key reads leaking out of this module — `readSecretKey` stays private.
+ *
+ * Returns the codes rather than a boolean because "which region is live" is the
+ * useful thing to say in an error or a startup log. `isRealMoneyProvider` only
+ * needs to know whether the list is empty.
+ */
+export function liveConfiguredRegionCodes(env: EnvLike = process.env): string[] {
+  return allConfiguredRegionCodes(env).filter((region) =>
+    isLiveSecretKey(readSecretKey(env, region)),
+  );
+}
+
+/**
  * Derive the mode from the key prefix. Anything that is not explicitly a live
  * key is treated as test, so a malformed value fails safe rather than moving
  * real money.
@@ -248,7 +287,7 @@ export function readStripeEnvironment(
   env: EnvLike = process.env,
   region: string = DEFAULT_CONFIG_REGION,
 ): StripeEnvironment {
-  return readSecretKey(env, region)?.startsWith('sk_live_') ? 'live' : 'test';
+  return isLiveSecretKey(readSecretKey(env, region)) ? 'live' : 'test';
 }
 
 /** True when a Stripe secret key is present for the given region. */
@@ -308,7 +347,7 @@ export function readStripeConfig(
   assertMinorUnitSupported(currency);
 
   return {
-    environment: secretKey.startsWith('sk_live_') ? 'live' : 'test',
+    environment: isLiveSecretKey(secretKey) ? 'live' : 'test',
     secretKey,
     apiVersion: env.STRIPE_API_VERSION?.trim() || undefined,
     webhookSecrets: readWebhookSecrets(env),

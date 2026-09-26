@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 
 const ERROR_MESSAGES: Record<string, string> = {
   'not-authenticated': 'Your session has expired. Please sign in again.',
@@ -65,6 +65,14 @@ export interface DisputeActionsProps {
    * rather than the predictable collision it is.
    */
   openChargebackRef?: string | null;
+  /**
+   * ISO 4217 code every figure in this panel is denominated in.
+   *
+   * Required. These strings are the confirmation an operator reads before
+   * authorising a real capture or refund, so the denomination has to be the
+   * contract's own and not a default.
+   */
+  currency: string;
 }
 
 /** Resolve one disputed sale. */
@@ -74,7 +82,10 @@ export function DisputeActions({
   platformFeeCents,
   buyerHasGoods = false,
   openChargebackRef = null,
+  currency,
 }: DisputeActionsProps) {
+  /** Figures in the contract's own currency. */
+  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
   const [isPending, startTransition] = useTransition();
   const [partialDollars, setPartialDollars] = useState('');
   const [confirming, setConfirming] = useState<CashSaleDisputeOutcome | null>(null);
@@ -100,12 +111,12 @@ export function DisputeActions({
         // relisted immediately, which is now only true when nothing has to come back.
         // An operator deciding a case has to be told which of the two they are doing.
         return willRequireReturn
-          ? `The buyer must post the item back first. ${formatAud(amountCents)} is refunded automatically once the carrier confirms it reached the seller, and the listing returns to the catalog at that point. Nothing moves now.`
-          : `${formatAud(amountCents)} goes back to the buyer immediately. The seller receives nothing and the listing returns to the catalog.`;
+          ? `The buyer must post the item back first. ${money(amountCents)} is refunded automatically once the carrier confirms it reached the seller, and the listing returns to the catalog at that point. Nothing moves now.`
+          : `${money(amountCents)} goes back to the buyer immediately. The seller receives nothing and the listing returns to the catalog.`;
       case 'PARTIAL_REFUND':
-        return `${formatAud(partialCents)} goes back to the buyer, who keeps the item. ${formatAud(sellerNet(partialCents))} is released to the seller.`;
+        return `${money(partialCents)} goes back to the buyer, who keeps the item. ${money(sellerNet(partialCents))} is released to the seller.`;
       case 'RELEASE_SELLER':
-        return `No refund. ${formatAud(sellerNet(0))} is released to the seller and the sale completes.`;
+        return `No refund. ${money(sellerNet(0))} is released to the seller and the sale completes.`;
     }
   }
 
@@ -233,7 +244,7 @@ export function DisputeActions({
           id={`partial-help-${cashSaleId}`}
           className="w-full text-body text-muted-foreground"
         >
-          Must be more than zero and less than the {formatAud(amountCents)} collected.
+          Must be more than zero and less than the {money(amountCents)} collected.
           Use a full refund or a release for those.
         </p>
       </div>

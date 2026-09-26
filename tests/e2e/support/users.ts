@@ -71,7 +71,44 @@ export const HEIDI_SIGNOUT: SeedUser = {
   password: PASSWORD,
 };
 
-export const SEED_USERS = [ALICE, BOB, CAROL, DAVE, ERIN, FRANK_ADMIN, GRACE_SUPPORT];
+/**
+ * US-region members (0122). Every other seeded user trades in AU.
+ *
+ * A SECOND REGION NEEDS ITS OWN PAIR, not a flipped flag on an existing one.
+ * `profiles.region_code` is read by every contract guard, so moving Alice to US would
+ * silently re-point the whole AU suite; and a US seller needs a US counterparty because
+ * `checkRegionCompatibility` refuses a cross-region contract by design — that refusal is
+ * itself one of the things worth testing.
+ *
+ * NAMESPACED IDS deliberately. The obvious next sequential ids (`8888…`, `9999…`) are
+ * reserved: `8888…` is {@link HEIDI_SIGNOUT}, which `auth-and-navigation.spec.ts` signs
+ * in as. Taking it swapped her email out from under that spec.
+ */
+export const UMA_US_SELLER: SeedUser = {
+  id: 'bbbbbbb1-0000-0000-0000-000000000001',
+  email: 'uma@example.com',
+  displayName: 'Uma Patel',
+  password: PASSWORD,
+};
+
+export const VICTOR_US_BUYER: SeedUser = {
+  id: 'bbbbbbb2-0000-0000-0000-000000000002',
+  email: 'victor@example.com',
+  displayName: 'Victor Reyes',
+  password: PASSWORD,
+};
+
+export const SEED_USERS = [
+  ALICE,
+  BOB,
+  CAROL,
+  DAVE,
+  ERIN,
+  FRANK_ADMIN,
+  GRACE_SUPPORT,
+  UMA_US_SELLER,
+  VICTOR_US_BUYER,
+];
 
 /** Equal-FMV AVAILABLE item pair (Pair A, $250.00) — Alice's side, Bob's side. */
 export const TRADE_PAIR_A = {

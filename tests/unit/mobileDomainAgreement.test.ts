@@ -177,12 +177,40 @@ describe('the Dart region registry is the TypeScript region registry', () => {
     }
   });
 
-  it('agrees that only AU is tradeable today', () => {
+  it('agrees on exactly which regions are tradeable', () => {
     // Badging a member ready in a browse-only region and then refusing every
     // contract they open is the shape of the 0060 mistake.
+    //
+    // This used to be titled "only AU is tradeable today" while asserting something
+    // dynamic, so when US opened it kept passing under a name that had become false.
+    // The assertion is the contract; the name should not restate a value it reads.
     expect(dart.filter((r) => r.tradingEnabled).map((r) => r.code)).toEqual(
       REGIONS.filter((r) => r.tradingEnabled).map((r) => r.code),
     );
+  });
+
+  it('pins the two Dart region lists to each other', () => {
+    // `domain/region/regions.dart` held its OWN hand-written copy of this list
+    // alongside `generated/regions.g.dart` — two copies of one rule inside the same
+    // package. It drifted exactly as you would expect: US was opened for trading in
+    // the TypeScript and in the generated Dart, and the hand-written copy kept the
+    // old flag, so `isTradingRegion` answered false and the app refused every US
+    // contract. It is now a `const allRegions = generatedRegions;` alias.
+    //
+    // Asserted here rather than left to `flutter analyze`, which cannot see that two
+    // lists that both compile disagree about a fact.
+    const handWritten = readFileSync(
+      path.join(process.cwd(), 'flutter_app', 'lib', 'domain', 'region', 'regions.dart'),
+      'utf8',
+    );
+    expect(
+      /const\s+List<Region>\s+allRegions\s*=\s*generatedRegions\s*;/.test(handWritten),
+      'regions.dart must alias the generated registry, not redeclare the rows',
+    ).toBe(true);
+    expect(
+      /const\s+List<Region>\s+allRegions\s*=\s*\[/.test(handWritten),
+      'regions.dart must not reintroduce a second hand-written region list',
+    ).toBe(false);
   });
 
   it('agrees on the zero-decimal currencies', () => {

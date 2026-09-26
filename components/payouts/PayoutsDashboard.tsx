@@ -37,7 +37,7 @@ import type {
 import type { DestinationAccount } from '@/lib/actions/payouts';
 import type { AccountStatement as AccountStatementModel } from '@/domain/statement/accountStatement';
 import { AccountStatement } from '@/components/payouts/AccountStatement';
-import { formatAud, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
   SectionFilter,
@@ -81,8 +81,8 @@ const FAILURE_COPY: Record<
 };
 
 /** One-line description of a history entry (Req 5.3, 5.6, 5.11). */
-function historySentence(entry: TransferHistoryEntry): string {
-  const amount = formatAud(entry.amountCents);
+function historySentence(entry: TransferHistoryEntry, currency: string): string {
+  const amount = formatMoney(entry.amountCents, currency);
   const item = entry.itemTitle ? ` for ${entry.itemTitle}` : '';
   switch (entry.kind) {
     case 'QUEUED':
@@ -164,6 +164,18 @@ export interface PayoutsDashboardProps {
   statement: AccountStatementModel | null;
   /** Which slice of the statement / history to show. URL-driven via `?show=`. */
   scope: SectionScope;
+  /**
+   * ISO 4217 code every figure on this tab is denominated in.
+   *
+   * ONE code for the whole dashboard, not one per row: this tab belongs to a single
+   * member, and a member has a single `profiles.region_code`, so every contract they
+   * are party to settles in that region's currency. A per-row currency would imply a
+   * mixed ledger that cannot exist.
+   *
+   * Required, because the alternative was `formatAud` — which hardcodes AUD and is
+   * only accidentally right for a dollar currency with two decimals.
+   */
+  currency: string;
 }
 
 /**
@@ -182,7 +194,15 @@ function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-export function PayoutsDashboard({ model, destination, statement, scope }: PayoutsDashboardProps) {
+export function PayoutsDashboard({
+  model,
+  destination,
+  statement,
+  scope,
+  currency,
+}: PayoutsDashboardProps) {
+  /** Every figure on this tab, formatted in the member's own currency. */
+  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
   // NOTHING HAS EVER HAPPENED HERE, so say it once.
   //
   // Each section owned its own empty state, so a seller who had not sold anything yet
@@ -226,8 +246,8 @@ export function PayoutsDashboard({ model, destination, statement, scope }: Payou
 
   return (
     <div className="space-y-section font-sans">
-      <BlockedReleaseBanner model={model} />
-      <ActiveSalesSummary model={model} />
+      <BlockedReleaseBanner model={model} currency={currency} />
+      <ActiveSalesSummary model={model} currency={currency} />
       {/* ONE payout destination card, not two.
 
           The standalone destination section earns its place only once VERIFIED,
@@ -243,12 +263,12 @@ export function PayoutsDashboard({ model, destination, statement, scope }: Payou
           purchases and trade fees that had never appeared anywhere. The old sections
           remain only as the fallback for a statement read failure. */}
       {statement ? (
-        <AccountStatement statement={statement} scope={scope} />
+        <AccountStatement statement={statement} scope={scope} currency={currency} />
       ) : (
         <>
-          <TransferHistory model={model} scope={scope} />
+          <TransferHistory model={model} scope={scope} currency={currency} />
           {model.arbitrations.length > 0 || model.atRiskProceedsCents > 0 ? (
-            <ArbitrationSummary model={model} />
+            <ArbitrationSummary model={model} currency={currency} />
           ) : null}
         </>
       )}
@@ -273,7 +293,10 @@ export function PayoutsDashboard({ model, destination, statement, scope }: Payou
  * `destructive` tone rather than a neutral note: money the platform has collected and
  * cannot pass on is the most serious thing this page can report.
  */
-function BlockedReleaseBanner({ model }: { model: PayoutReadModel }) {
+function BlockedReleaseBanner({ model, currency }: { model: PayoutReadModel; currency: string }) {
+  /** Figures in the member's own currency; see PayoutsDashboardProps.currency. */
+  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
+
   if (!model.hasBlockedRelease) return null;
 
   // The cause behind the most money, so a member with two blocked sales for different
@@ -306,7 +329,7 @@ function BlockedReleaseBanner({ model }: { model: PayoutReadModel }) {
             id="blocked-release-heading"
             className="text-body font-semibold text-destructive"
           >
-            {formatAud(model.blockedReleaseCents)} could not be sent yet
+            {money(model.blockedReleaseCents)} could not be sent yet
           </h3>
           {copy ? (
             <p className="text-body">
@@ -423,7 +446,10 @@ const RELEASE_ROW_GRID =
   'grid grid-cols-[minmax(0,1fr)_auto] gap-cozy ' +
   'sm:grid-cols-[minmax(0,1fr)_6rem_5rem_6rem]';
 
-function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
+function ActiveSalesSummary({ model, currency }: { model: PayoutReadModel; currency: string }) {
+  /** Figures in the member's own currency; see PayoutsDashboardProps.currency. */
+  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
+
   const hasActivity = model.releasing.length > 0 || model.upcomingProceedsCents > 0;
 
   return (
@@ -446,7 +472,7 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
             <div className="flex flex-wrap items-baseline justify-between gap-snug">
               <p className="text-body font-medium">Sales in progress</p>
               <p className="text-body font-semibold tabular-nums">
-                {formatAud(model.upcomingProceedsCents + model.releasingNowCents)}
+                {money(model.upcomingProceedsCents + model.releasingNowCents)}
               </p>
             </div>
             {model.releasing.length > 0 ? (
@@ -491,21 +517,21 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
                             fee fold into one line here — the seller still gets the
                             arithmetic, just as a sentence rather than a table. */}
                         <p className="text-meta tabular-nums text-muted-foreground sm:hidden">
-                          Buyer paid {formatAud(sale.grossCents)}, less{' '}
-                          {formatAud(sale.feeCents)} fee
+                          Buyer paid {money(sale.grossCents)}, less{' '}
+                          {money(sale.feeCents)} fee
                         </p>
                         {sale.blocked ? (
                           <p className="text-meta text-destructive">Held up</p>
                         ) : null}
                       </div>
                       <span className="hidden text-right text-body tabular-nums text-muted-foreground sm:block">
-                        {formatAud(sale.grossCents)}
+                        {money(sale.grossCents)}
                       </span>
                       <span className="hidden text-right text-body tabular-nums text-muted-foreground sm:block">
-                        −{formatAud(sale.feeCents)}
+                        −{money(sale.feeCents)}
                       </span>
                       <span className="text-right text-body font-semibold tabular-nums">
-                        {formatAud(sale.netCents)}
+                        {money(sale.netCents)}
                       </span>
                     </li>
                   ))}
@@ -526,9 +552,11 @@ function ActiveSalesSummary({ model }: { model: PayoutReadModel }) {
 function TransferHistory({
   model,
   scope,
+  currency,
 }: {
   model: PayoutReadModel;
   scope: SectionScope;
+  currency: string;
 }) {
   const { active, past } = partitionByScope([...model.history], isHistoryPast);
   const shown = scope === 'past' ? past : active;
@@ -576,7 +604,7 @@ function TransferHistory({
         <ol className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {shown.map((entry) => (
             <li key={entry.id} className="px-group py-cozy">
-              <p className="text-body">{historySentence(entry)}</p>
+              <p className="text-body">{historySentence(entry, currency)}</p>
               {entry.kind === 'FAILED' && entry.failureCause ? (
                 <p className="mt-0.5 text-body text-muted-foreground">
                   {FAILURE_COPY[entry.failureCause].summary}
@@ -614,7 +642,10 @@ function TransferHistory({
   );
 }
 
-function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
+function ArbitrationSummary({ model, currency }: { model: PayoutReadModel; currency: string }) {
+  /** Figures in the member's own currency; see PayoutsDashboardProps.currency. */
+  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
+
   return (
     <section aria-labelledby="arbitration-heading">
       <div className="mb-group flex flex-wrap items-center gap-snug">
@@ -622,7 +653,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
           Disputes affecting your money
         </h3>
         {model.atRiskProceedsCents > 0 ? (
-          <Badge variant="outline">{formatAud(model.atRiskProceedsCents)} at risk</Badge>
+          <Badge variant="outline">{money(model.atRiskProceedsCents)} at risk</Badge>
         ) : null}
       </div>
 
@@ -661,7 +692,7 @@ function ArbitrationSummary({ model }: { model: PayoutReadModel }) {
                         </Badge>
                       </div>
                       <span className="shrink-0 text-body font-semibold tabular-nums">
-                        {formatAud(record.amountCents)}
+                        {money(record.amountCents)}
                       </span>
                     </div>
                     <CardDescription>

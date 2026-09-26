@@ -28,7 +28,7 @@ import { TradeDisputeActions } from '@/components/admin/TradeDisputeActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatAud, formatContractDateTime, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatContractDateTime, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /** Badge treatment per priority band. Shared with the queue. */
@@ -121,6 +121,9 @@ function ShipmentLeg({ label, leg }: { label: string; leg: ArbitrationShipmentLe
 }
 
 export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail }) {
+  // Every figure on the case, in the CONTRACT's currency. Arbitration reads the
+  // contract and never the listing, so this is the only denomination that applies.
+  const money = (minorUnits: number) => formatMoney(minorUnits, detail.currency);
   const { case: c, notes, timeline, resolution, evidence, shipment } = detail;
   const priority = PRIORITY_STYLE[c.priority];
   const overdue = c.ageHours >= ARBITRATION_SLA_HOURS;
@@ -170,7 +173,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           </span>
         ) : null}
         <span className="ml-auto text-body font-semibold tabular-nums">
-          {formatAud(c.amountAtRiskCents)}
+          {money(c.amountAtRiskCents)}
           <span className="ml-tight font-normal text-muted-foreground">at stake</span>
         </span>
       </div>
@@ -308,12 +311,12 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                         <p className="break-words font-medium">{line.description}</p>
                         <p className="text-meta text-muted-foreground">
                           {line.quantity > 1 ? `${line.quantity} × ` : ''}
-                          {formatAud(line.unitPriceCents)}
+                          {money(line.unitPriceCents)}
                           {line.condition ? ` · ${line.condition}` : ''}
                         </p>
                       </div>
                       <span className="shrink-0 tabular-nums font-medium">
-                        {formatAud(line.quantity * line.unitPriceCents)}
+                        {money(line.quantity * line.unitPriceCents)}
                       </span>
                     </li>
                   ))}
@@ -351,7 +354,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                         </Link>
                       </p>
                       <p className="mt-tight text-body tabular-nums text-muted-foreground">
-                        {formatAud(party.stakeCents)} at risk
+                        {money(party.stakeCents)} at risk
                       </p>
                     </div>
                   ))}
@@ -463,7 +466,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   ) : null}
                   {resolution.refundCents > 0 ? (
                     <p className="text-body text-muted-foreground">
-                      {formatAud(resolution.refundCents)} already refunded.
+                      {money(resolution.refundCents)} already refunded.
                     </p>
                   ) : null}
                   {/* A sale sitting in a RETURN state needs the return decision, not
@@ -477,6 +480,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       amountCents={resolution.amountCents}
                       returnConfirmed={resolution.returnConfirmed}
                       reason={resolution.returnLapsed ? 'LAPSED' : 'CONTESTED'}
+                      currency={detail.currency}
                     />
                   ) : (
                     <DisputeActions
@@ -485,6 +489,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       platformFeeCents={resolution.platformFeeCents}
                       buyerHasGoods={resolution.buyerHasGoods}
                       openChargebackRef={resolution.openChargebackRef}
+                      currency={detail.currency}
                     />
                   )}
                 </div>
@@ -506,6 +511,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                     counterpart={resolution.counterpart}
                     fraudClaimedById={resolution.fraudClaimedById}
                     frictionTaxCents={resolution.frictionTaxCents}
+                    currency={detail.currency}
                   />
                 </div>
               ) : (

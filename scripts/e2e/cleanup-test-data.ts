@@ -321,13 +321,25 @@ async function fetchOfferIds(
 async function fetchConversationIds(
   itemIds: readonly string[],
   tradeIds: readonly string[],
-  cashSaleIds: readonly string[],
+  _cashSaleIds: readonly string[],
   profileIds: readonly string[],
 ): Promise<string[]> {
+  // NO `cash_sale_id` FILTER. The column was dropped in 0115 — as the schema notes at
+  // the top of this file already record — but the condition stayed, so PostgREST
+  // answered `42703 column conversations.cash_sale_id does not exist` and cleanup
+  // aborted.
+  //
+  // IT FAILED ONLY SOMETIMES, which is why it survived. `inCond` returns undefined for
+  // an empty id list and the conditions are filtered, so the bad column reached the
+  // query ONLY on a run that had cash sales to clean — i.e. after a contract spec, not
+  // after a catalog one. And because `globalSetup` runs this script, the whole suite
+  // then failed to start with an error naming a table no spec had touched.
+  //
+  // A cash sale's conversation is still reached: it is found through `item_id` (the
+  // listing the contract is against) and through both participants.
   const conditions = [
     inCond('item_id', itemIds),
     inCond('trade_id', tradeIds),
-    inCond('cash_sale_id', cashSaleIds),
     inCond('participant_a', profileIds),
     inCond('participant_b', profileIds),
   ].filter(isPresent);

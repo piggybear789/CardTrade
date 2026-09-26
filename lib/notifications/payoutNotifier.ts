@@ -18,7 +18,7 @@ import 'server-only';
 // notification is between CardTrade and the Seller.
 
 import { createNotification } from '@/lib/notifications/createNotification';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { emailNotify } from '@/lib/email';
 import type { PayoutNotifier } from '@/domain/orchestrator/cashSaleOrchestrator';
 
@@ -48,11 +48,12 @@ const FAILURE_COPY = {
  */
 export function createPayoutNotifier(): PayoutNotifier {
   return {
-    async releaseSettled({ sellerId, cashSaleId, itemTitle, netCents }) {
+    async releaseSettled({ sellerId, cashSaleId, itemTitle, netCents, currency }) {
+      const amount = formatMoney(netCents, currency);
       await createNotification({
         userId: sellerId,
         type: 'SALE',
-        title: `${formatAud(netCents)} sent to your payout account`,
+        title: `${amount} sent to your payout account`,
         body:
           `Your proceeds for "${itemTitle}" are on their way. ` +
           'It can take up to four business days to appear in your account.',
@@ -60,7 +61,7 @@ export function createPayoutNotifier(): PayoutNotifier {
       });
       void emailNotify.payoutSettled({
         userId: sellerId,
-        amountFormatted: formatAud(netCents),
+        amountFormatted: amount,
         contractId: cashSaleId,
       });
     },
@@ -86,14 +87,20 @@ export function createPayoutNotifier(): PayoutNotifier {
       outcome,
       refundCents,
       sellerNetCents,
+      currency,
     }) {
       const link = `/sales/${cashSaleId}`;
+      // Formatted ONCE against the contract's own currency. Every figure below is an
+      // integer in that currency's smallest unit, so reaching for a default here is
+      // how a USD payout came to read `A$`.
+      const refund = formatMoney(refundCents, currency);
+      const sellerNet = formatMoney(sellerNetCents, currency);
       // Each side is told what happened to THEIR money, in their own terms. Sending
       // one shared message would leave one party reading about the other's balance.
       const copy = {
         REFUND_BUYER: {
           buyer: {
-            title: `${formatAud(refundCents)} refunded`,
+            title: `${refund} refunded`,
             body:
               `Your dispute over "${itemTitle}" was upheld and you have been refunded in full. ` +
               'Card refunds usually appear within a few business days.',
@@ -108,7 +115,7 @@ export function createPayoutNotifier(): PayoutNotifier {
         },
         PARTIAL_REFUND: {
           buyer: {
-            title: `${formatAud(refundCents)} partially refunded`,
+            title: `${refund} partially refunded`,
             body:
               `Your dispute over "${itemTitle}" was resolved with a partial refund. You keep the ` +
               'item and the difference has been returned to you.',
@@ -116,8 +123,8 @@ export function createPayoutNotifier(): PayoutNotifier {
           seller: {
             title: 'Dispute resolved — partial refund',
             body:
-              `The dispute over "${itemTitle}" was resolved with ${formatAud(refundCents)} refunded ` +
-              `to the buyer. ${formatAud(sellerNetCents)} is being released to you.`,
+              `The dispute over "${itemTitle}" was resolved with ${refund} refunded ` +
+              `to the buyer. ${sellerNet} is being released to you.`,
           },
         },
         RELEASE_SELLER: {
@@ -130,7 +137,7 @@ export function createPayoutNotifier(): PayoutNotifier {
           seller: {
             title: 'Dispute resolved in your favour',
             body:
-              `The dispute over "${itemTitle}" was not upheld. ${formatAud(sellerNetCents)} is being ` +
+              `The dispute over "${itemTitle}" was not upheld. ${sellerNet} is being ` +
               'released to you.',
           },
         },

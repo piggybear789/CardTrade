@@ -22,7 +22,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 
 import { Badge } from '@/components/ui/badge';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { ContractPartyStats } from './ContractPartyLine';
@@ -98,10 +98,13 @@ function MoneyGlyph() {
 function SideColumn({
   side,
   compact,
+  currency,
   showcase = false,
 }: {
   side: ContractExchangeSide;
   compact: boolean;
+  /** ISO 4217 code for every figure in this column. */
+  currency: string;
   /**
    * Give the single item an image-left / details-right layout instead of a list
    * row. Set only for a one-sided, non-compact contract with exactly one item —
@@ -160,7 +163,7 @@ function SideColumn({
             {total > 0 ? (
               <div className="min-w-0 text-right">
                 <p className="market-label text-muted-foreground">Value</p>
-                <p className="display-value text-head">{formatAud(total)}</p>
+                <p className="display-value text-head">{formatMoney(total, currency)}</p>
               </div>
             ) : null}
           </div>
@@ -233,7 +236,7 @@ function SideColumn({
                 ) : null}
                 {side.items[0].valueCents != null ? (
                   <p className="pt-tight text-subhead font-semibold tabular-nums">
-                    {formatAud(side.items[0].valueCents)}
+                    {formatMoney(side.items[0].valueCents, currency)}
                   </p>
                 ) : null}
                 {/* The description belongs in THIS column, beside the artwork, not in
@@ -269,7 +272,7 @@ function SideColumn({
                 </div>
                 {!compact && item.valueCents != null ? (
                   <span className="shrink-0 text-body tabular-nums text-muted-foreground">
-                    {formatAud(item.valueCents)}
+                    {formatMoney(item.valueCents, currency)}
                   </span>
                 ) : null}
               </li>
@@ -288,7 +291,7 @@ function SideColumn({
                   </p>
                 </div>
                 <span className="shrink-0 text-body tabular-nums text-muted-foreground">
-                  {formatAud(cashCents)}
+                  {formatMoney(cashCents, currency)}
                 </span>
               </li>
             ) : null}
@@ -331,7 +334,7 @@ function SideColumn({
         <div className="flex items-center gap-snug text-body text-muted-foreground">
           <MoneyGlyph />
           <p className="min-w-0 flex-1">{side.feeLabel ?? 'NoDitto fee'}</p>
-          <span className="shrink-0 tabular-nums">{formatAud(side.feeCents!)}</span>
+          <span className="shrink-0 tabular-nums">{formatMoney(side.feeCents!, currency)}</span>
         </div>
       ) : null}
 
@@ -350,6 +353,13 @@ export interface ContractExchangePanelProps {
   /** Denser layout for summary surfaces. */
   compact?: boolean;
   className?: string;
+  /**
+   * ISO 4217 code every figure in the panel is denominated in.
+   *
+   * One code for the panel, not one per side: a contract settles in a single
+   * currency, and two sides denominated differently is not a state that exists.
+   */
+  currency: string;
 }
 
 /** What each party is putting into the contract. */
@@ -358,6 +368,7 @@ export function ContractExchangePanel({
   footnote,
   compact = false,
   className,
+  currency,
 }: ContractExchangePanelProps) {
   const twoSided = sides.length === 2;
   // Narrow on purpose. A trade needs the `1fr auto 1fr` swap layout, and a deal's
@@ -393,7 +404,7 @@ export function ContractExchangePanel({
             : cn('grid', compact ? 'gap-snug' : 'gap-cozy'),
         )}
       >
-        <SideColumn side={sides[0]} compact={compact} showcase={showcase} />
+        <SideColumn side={sides[0]} compact={compact} showcase={showcase} currency={currency} />
         {twoSided ? (
           <>
             {/* One direction, not two. The columns are already labelled "you send"
@@ -414,7 +425,7 @@ export function ContractExchangePanel({
                 />
               </span>
             </div>
-            <SideColumn side={sides[1]} compact={compact} />
+            <SideColumn side={sides[1]} compact={compact} currency={currency} />
           </>
         ) : null}
       </div>

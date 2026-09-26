@@ -39,7 +39,18 @@ import {
   sellerNetCentsFor,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { frictionTaxChargeableCents } from '@/domain/dispute/frictionTax';
+import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import { type ActionResult, fail, ok } from './result';
+
+/**
+ * Denomination of last resort for a case whose contract row carries none.
+ *
+ * Only reachable for pre-0068 rows, which predate the trigger that derives
+ * `currency` from the region. Deliberately NOT a silent default on the read path
+ * for anything newer: a case whose money is labelled with the wrong currency is a
+ * decision made on a wrong figure.
+ */
+const FALLBACK_CURRENCY = regionCurrency(FALLBACK_REGION) ?? 'aud';
 
 /** Shape of the embedded `cash_sale_items` rows on a disputed-sale read. */
 type GoodsRow = {
@@ -220,6 +231,16 @@ export interface ArbitrationCaseDetail {
    * outbound confirms goods were delivered and the return shows whether they came back.
    */
   shipment: ArbitrationShipmentEvidence | null;
+  /**
+   * ISO 4217 code every figure in this case is denominated in, from the underlying
+   * contract row (`cash_sales.currency` / `trades.currency`).
+   *
+   * Part of the payload because arbitration reads the CONTRACT and never the
+   * listing, and a decision that moves money must state the denomination it is
+   * moving. Every confirmation string in `DisputeActions`, `TradeDisputeActions` and
+   * `ReturnCaseActions` is formatted against this.
+   */
+  currency: string;
   /** True when the viewer may also moderate. */
   viewerIsAdmin: boolean;
   viewerId: string;
@@ -267,17 +288,19 @@ export async function getArbitrationQueue(): Promise<
         // title names the binder, so without its line items an arbitrator cannot
         // tell which of several cases against that listing they are looking at,
         // let alone what was owed.
-        'id, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, disputed_at, disputed_by, dispute_reason, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
+        'id, currency, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, disputed_at, disputed_by, dispute_reason, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
       )
       .eq('status', 'DISPUTED'),
     admin
       .from('trades')
       .select(
-        'id, initiator_id, counterpart_id, disputed_at, dispute_raised_by, dispute_reason, fraud_claimed_by, fraud_claim_reason',
+        'id, currency, initiator_id, counterpart_id, disputed_at, dispute_raised_by, dispute_reason, fraud_claimed_by, fraud_claim_reason',
       )
       .eq('state', 'DISPUTED'),
     admin
       .from('charge_disputes')
+      // NO `currency` HERE — `charge_disputes` has no such column. A chargeback's
+      // denomination comes from the contract it was raised against, resolved below.
       .select('id, amount_cents, opened_at, evidence_due_by, profile_id, cash_sale_id, trade_id, reason')
       .is('closed_at', null),
     // 0088/0089: return-contested and return-lapsed Cash_Sales. These are NOT in
@@ -286,7 +309,7 @@ export async function getArbitrationQueue(): Promise<
     admin
       .from('cash_sales')
       .select(
-        'id, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
+        'id, currency, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
       )
       .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT'])
       .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null'),
@@ -303,6 +326,25 @@ export async function getArbitrationQueue(): Promise<
     const key = `${row.case_kind}:${row.case_ref}`;
     noteCountOf.set(key, (noteCountOf.get(key) ?? 0) + 1);
   }
+
+  // Currency by contract id, so a CHARGEBACK — which has no currency column of its
+  // own — can be labelled with the denomination of the contract it reverses.
+  const currencyOfContract = new Map<string, string>();
+  for (const row of [...(sales.data ?? []), ...(returnCases.data ?? [])]) {
+    const currency = (row as Record<string, unknown>).currency as string | null;
+    if (currency) currencyOfContract.set(row.id as string, currency);
+  }
+  for (const row of trades.data ?? []) {
+    const currency = (row as Record<string, unknown>).currency as string | null;
+    if (currency) currencyOfContract.set(row.id as string, currency);
+  }
+  const currencyForContract = (
+    cashSaleId: string | null,
+    tradeId: string | null,
+  ): string | null =>
+    (cashSaleId ? currencyOfContract.get(cashSaleId) : null) ??
+    (tradeId ? currencyOfContract.get(tradeId) : null) ??
+    null;
 
   // Collateral per trader, so a trade case can state what a fraud finding captures.
   const tradeIds = (trades.data ?? []).map((t) => t.id as string);
@@ -354,6 +396,7 @@ export async function getArbitrationQueue(): Promise<
       // The whole collected amount is what the outcome decides: it either goes back
       // to the buyer, splits, or releases to the seller.
       amountAtRiskCents: Number(sale.amount_cents ?? 0),
+      currency: (sale.currency as string | null) ?? FALLBACK_CURRENCY,
       openedAt: (sale.disputed_at as string | null) ?? null,
       raisedById: (sale.disputed_by as string | null) ?? null,
       claim: (sale.dispute_reason as string | null) ?? null,
@@ -406,6 +449,7 @@ export async function getArbitrationQueue(): Promise<
       title: (rc.item_title as string | null) ?? 'Untitled item',
       goods: toGoodsLines(rc.cash_sale_items),
       amountAtRiskCents: Number(rc.amount_cents ?? 0),
+      currency: (rc.currency as string | null) ?? FALLBACK_CURRENCY,
       // SLA clock: for a contested return, the seller's dispute timestamp is when the
       // case started waiting. For a lapsed return, `return_lapsed_at` is the moment the
       // sweep flagged it. Both are ISO-8601, both drive priority exactly like
@@ -462,6 +506,7 @@ export async function getArbitrationQueue(): Promise<
         counterpartBond,
         frictionTaxChargeableCents(Math.max(initiatorBond, counterpartBond)),
       ),
+      currency: (trade.currency as string | null) ?? FALLBACK_CURRENCY,
       openedAt: (trade.disputed_at as string | null) ?? null,
       raisedById:
         (trade.fraud_claimed_by as string | null) ??
@@ -508,6 +553,16 @@ export async function getArbitrationQueue(): Promise<
       // A chargeback is a bank reversal against a payer, not a claim about goods.
       goods: [],
       amountAtRiskCents: Number(dispute.amount_cents ?? 0),
+      // A chargeback carries no currency of its own — `charge_disputes` has no such
+      // column. It is denominated in whatever the contract it reverses was, so read it
+      // from the sale or trade already fetched above, and fall back only when the
+      // contract is not in this pass (a chargeback against a contract that is not
+      // itself disputed, which is the common case).
+      currency:
+        currencyForContract(
+          (dispute.cash_sale_id as string | null) ?? null,
+          (dispute.trade_id as string | null) ?? null,
+        ) ?? FALLBACK_CURRENCY,
       openedAt: (dispute.opened_at as string | null) ?? null,
       raisedById: (dispute.profile_id as string | null) ?? null,
       // The provider's reason string, shown to STAFF only. It never reaches a member:
@@ -675,6 +730,8 @@ export async function getArbitrationCase(
     contractHref,
     evidence,
     shipment,
+    // The case already resolved its own denomination from the contract row.
+    currency: found.currency,
     viewerIsAdmin: gate.ctx.isAdmin,
     viewerId: gate.ctx.userId,
   });

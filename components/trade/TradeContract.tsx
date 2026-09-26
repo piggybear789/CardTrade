@@ -24,7 +24,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link';
 import { toast } from 'sonner';
 
-import { formatAud, formatContractDateTime, formatMoney, itemImageUrl } from '@/lib/format';
+import { formatContractDateTime, formatMoney, itemImageUrl } from '@/lib/format';
 import {
   deliveryNotesFromDetails,
   summarizeHandover,
@@ -332,7 +332,7 @@ function TradeCashSettlementNotice({
   if (!pendingAfterComplete && !waitingBeforeComplete) return null;
 
   const iReceive = cashDirection === 'incoming';
-  const amount = formatAud(cashAmountCents);
+  const amount = formatMoney(cashAmountCents, trade.currency);
 
   return (
     <div className="rounded-lg border border-border bg-iris/[0.07] px-group py-cozy text-body">
@@ -454,7 +454,7 @@ function deliveryTermsRows(trade: TradeRow) {
     {
       label: 'Postage',
       value:
-        cost == null ? 'Not set' : cost === 0 ? 'Free' : formatAud(cost),
+        cost == null ? 'Not set' : cost === 0 ? 'Free' : formatMoney(cost, trade.currency),
       muted: cost == null,
     },
     ...(notes
@@ -924,7 +924,7 @@ function TradeContractRoom({
           facts: viewer.facts,
           counterpartyName: theirName,
           addresses: addressLegs,
-          cashLabel: cashToMe > 0 ? formatAud(cashToMe) : null,
+          cashLabel: cashToMe > 0 ? formatMoney(cashToMe, trade.currency) : null,
         })
       : undefined;
 
@@ -950,7 +950,10 @@ function TradeContractRoom({
               where it does contrast with a cash sale and a deal. */}
           <ContractHeader
             money={
-              goods ? formatAud(agreedValueCents) : undefined
+              // `trade &&` as well as `goods`: a figure with no currency in scope is
+              // exactly the thing this migration exists to stop, so show nothing
+              // rather than fall back to a default denomination.
+              goods && trade ? formatMoney(agreedValueCents, trade.currency) : undefined
             }
             // A SENTENCE, NOT A DIAGRAM. This was `You ⇄ test`, two avatar chips
             // with shields and a glyph between them, which spent the whole left
@@ -1011,7 +1014,7 @@ function TradeContractRoom({
                   <StateBadge state={trade.state} />
                   {goods ? (
                     <span className="display-value text-foreground">
-                      {formatAud(agreedValueCents)}
+                      {formatMoney(agreedValueCents, trade.currency)}
                     </span>
                   ) : null}
                 </>
@@ -1029,7 +1032,7 @@ function TradeContractRoom({
                     thumb: itemImageUrl(
                       (goods?.yours[0] ?? goods?.theirs[0])?.imagePath ?? null,
                     ),
-                    price: goods ? formatAud(agreedValueCents) : null,
+                    price: goods ? formatMoney(agreedValueCents, trade.currency) : null,
                   }}
                   placeholder="Message about the trade…"
                   emptyHint="Use chat to coordinate shipping and receipt."
@@ -1165,7 +1168,7 @@ function TradeContractRoom({
                   label="Exchange"
                   summary={`${goods.yours.length} for ${goods.theirs.length}${
                     goods.cashAmountCents > 0
-                      ? ` plus ${formatAud(goods.cashAmountCents)} cash`
+                      ? ` plus ${formatMoney(goods.cashAmountCents, trade.currency)} cash`
                       : ''
                   }`}
                 >
@@ -1198,6 +1201,7 @@ function TradeContractRoom({
                       name. One banner, permanently, for a fact already on
                       screen twice. */}
                   <ContractExchangePanel
+                    currency={trade.currency}
                     sides={[
                       {
                         heading: 'You send',
@@ -1322,7 +1326,7 @@ function TradeContractRoom({
                 summary={
                   holds.length === 0
                     ? 'Nothing on the line yet'
-                    : `${formatAud(heldCents)} across ${holds.length} hold${
+                    : `${formatMoney(heldCents, trade.currency)} across ${holds.length} hold${
                         holds.length === 1 ? '' : 's'
                       }`
                 }
@@ -1340,6 +1344,7 @@ function TradeContractRoom({
                   initiatorId={initiatorId}
                   counterpartId={counterpartId}
                   viewerRole={viewerRole}
+                  currency={trade.currency}
                 />
                 <DittoBondExplainer />
               </ContractDetailRow>

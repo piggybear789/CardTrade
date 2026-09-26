@@ -9,7 +9,11 @@
 // `IdentityService` on the same seam as payments rather than selected separately —
 // so the provider binding is still the only thing to resolve here.
 
-import { isStripeConfigured, type EnvLike } from './stripe/config';
+import {
+  isStripeConfigured,
+  liveConfiguredRegionCodes,
+  type EnvLike,
+} from './stripe/config';
 
 export type { EnvLike };
 
@@ -45,13 +49,22 @@ export function isLivePaymentsProvider(env: EnvLike = process.env): boolean {
 }
 
 /**
- * True when the active configuration can move real money — a `sk_live_` key.
- * Guard anything destructive or demo-flavoured on this rather than on
- * {@link isLivePaymentsProvider}.
+ * True when the active configuration can move real money — a live key in ANY
+ * configured region. Guard anything destructive or demo-flavoured on this rather
+ * than on {@link isLivePaymentsProvider}.
+ *
+ * ASKS ABOUT EVERY REGION, NOT JUST THE DEFAULT. This read `env.STRIPE_SECRET_KEY`
+ * directly, which is the AU binding alone (`DEFAULT_CONFIG_REGION`). Once a second
+ * region existed, an AU test key beside a US LIVE key answered "no real money is
+ * reachable" — so a demo panel or a smoke script guarded on this would have run
+ * against a live platform account with a real card. Real money is reachable if ANY
+ * region can reach it.
+ *
+ * See {@link isLiveSecretKey} for why the prefix test is not `sk_live_` alone.
  */
 export function isRealMoneyProvider(env: EnvLike = process.env): boolean {
   if (resolvePaymentProvider(env) !== 'stripe') return false;
-  return env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') === true;
+  return liveConfiguredRegionCodes(env).length > 0;
 }
 
 /**

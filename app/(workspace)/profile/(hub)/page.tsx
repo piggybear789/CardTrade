@@ -34,6 +34,8 @@ import { getPayoutsDashboard } from '@/lib/actions/payouts';
 import { getAccountStatement } from '@/lib/actions/statement';
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { isPaymentDemoEnabled } from '@/domain/services';
+import { viewerTradingRegion } from '@/lib/location/resolveRegion';
+import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
 import {
   resolveProviderReturn,
@@ -549,10 +551,20 @@ async function PaymentMethodRow() {
 async function PayoutsPanel({ scope }: { scope: SectionScope }) {
   // Two independent reads, one round trip. The statement is the member's full
   // ledger (both directions); the dashboard is the seller-side summary above it.
-  const [payoutDashboard, statement] = await Promise.all([
+  //
+  // `viewerTradingRegion` joins the batch rather than being awaited after it: it reads
+  // the CACHED profile, so it costs nothing here, and adding it to the chain
+  // sequentially would have made this three serial round trips instead of one.
+  const [payoutDashboard, statement, tradingRegion] = await Promise.all([
     getPayoutsDashboard(),
     getAccountStatement(),
+    viewerTradingRegion(),
   ]);
+
+  // The member's OWN region decides the denomination of their ledger, not the browse
+  // region and not a global. A member has one `profiles.region_code` and every
+  // contract they are party to settles in it, so one code covers the whole tab.
+  const currency = regionCurrency(tradingRegion ?? FALLBACK_REGION) ?? 'aud';
 
   if (!payoutDashboard.ok) {
     return (
@@ -568,12 +580,13 @@ async function PayoutsPanel({ scope }: { scope: SectionScope }) {
     <div className="space-y-group md:space-y-section">
       {/* Real figures from the payout read model — the three buckets are a strict
           partition, so these never double-count a sale. */}
-      <PayoutSummary model={payoutDashboard.data.model} />
+      <PayoutSummary model={payoutDashboard.data.model} currency={currency} />
       <PayoutsDashboard
         model={payoutDashboard.data.model}
         destination={payoutDashboard.data.destination}
         statement={statement.ok ? statement.data : null}
         scope={scope}
+        currency={currency}
       />
     </div>
   );

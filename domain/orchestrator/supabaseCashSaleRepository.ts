@@ -26,6 +26,7 @@ import {
   type ItemRecord,
   type ItemStatus,
 } from './cashSaleOrchestrator';
+import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import type { MerchantRecord } from './merchantOnboarding';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -89,6 +90,11 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     amountCents: row.amount_cents,
     agreedPriceCents: row.agreed_price_cents,
     platformFeeCents: row.platform_fee_cents,
+    // Derived on insert by `set_row_currency_from_region` (0068) and selected via
+    // `CASH_SALE_PUBLIC_SELECT`. Falls back to the default region's currency only
+    // for rows written before that trigger existed — a NEW row always has one, so
+    // this must never become the normal path.
+    currency: row.currency ?? regionCurrency(FALLBACK_REGION) ?? 'aud',
     status: row.status,
     fromShopfront: row.from_shopfront ?? false,
     version: row.version,

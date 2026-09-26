@@ -164,6 +164,68 @@ where id in (
 )
 and onboarding_completed_at is null;
 
+-- ---------------------------------------------------------------------------
+-- US-region members (0122 opened US for trading).
+--
+-- A SECOND TRADING REGION NEEDS ITS OWN PAIR. `profiles.region_code` is read by every
+-- contract guard, so flipping one of the seven above to US would silently re-point the
+-- whole AU suite at a region it was not written for. And a US seller needs a US
+-- counterparty, because `checkRegionCompatibility` refuses a cross-region contract by
+-- design — a refusal that is itself worth a test.
+--
+-- IDS ARE NAMESPACED, not the next two in sequence. `88888888-…` is reserved for
+-- HEIDI_SIGNOUT in tests/e2e/support/users.ts, which auth-and-navigation.spec.ts signs
+-- in as; taking it replaced her email with this seller's.
+--
+-- Payout columns are APPROVED like the AU members. That is the seller case worth
+-- seeding: a US seller who is verified AND payable, so a US contract can run to a
+-- released payout rather than stopping at SELLER_NOT_PAYABLE.
+-- ---------------------------------------------------------------------------
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change_token_new, email_change_token_current, email_change,
+  phone_change, phone_change_token, reauthentication_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000', 'bbbbbbb1-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'uma@example.com',    crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Uma Patel"}', '', '', '', '', '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'bbbbbbb2-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'victor@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Victor Reyes"}', '', '', '', '', '', '', '', '')
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+)
+values
+  (gen_random_uuid(), 'bbbbbbb1-0000-0000-0000-000000000001', 'bbbbbbb1-0000-0000-0000-000000000001', '{"sub":"bbbbbbb1-0000-0000-0000-000000000001","email":"uma@example.com","email_verified":true}', 'email', now(), now(), now()),
+  (gen_random_uuid(), 'bbbbbbb2-0000-0000-0000-000000000002', 'bbbbbbb2-0000-0000-0000-000000000002', '{"sub":"bbbbbbb2-0000-0000-0000-000000000002","email":"victor@example.com","email_verified":true}', 'email', now(), now(), now())
+on conflict (provider, provider_id) do nothing;
+
+insert into profiles (
+  id, display_name, contact_email, payer_id,
+  merchant_ref, merchant_status, merchant_compliance_status,
+  merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled,
+  merchant_legal_entity_name, merchant_trading_name,
+  merchant_identity_version, merchant_identity_disclosure_consented_at, merchant_identity_verified_at
+)
+values
+  ('bbbbbbb1-0000-0000-0000-000000000001', 'Uma Patel',    'uma@example.com',    'payer_uma',    'mch_seed_uma',    'APPROVED', 'approved', true, true, true, 'Uma Patel Collectibles LLC',    'Patel Cards', 'seed-identity-uma-v1', now(), now()),
+  ('bbbbbbb2-0000-0000-0000-000000000002', 'Victor Reyes', 'victor@example.com', 'payer_victor', 'mch_seed_victor', 'APPROVED', 'approved', true, true, true, 'Victor Reyes Collectibles LLC', 'Reyes Cards', 'seed-identity-victor-v1', now(), now())
+on conflict (id) do nothing;
+
+update profiles
+set region_code = 'US',
+    identity_check_status = 'VERIFIED',
+    identity_check_name = coalesce(identity_check_name, display_name),
+    identity_check_verified_at = coalesce(identity_check_verified_at, now()),
+    onboarding_completed_at = coalesce(onboarding_completed_at, now())
+where id in (
+  'bbbbbbb1-0000-0000-0000-000000000001',
+  'bbbbbbb2-0000-0000-0000-000000000002'
+);
+
 -- =============================================================================
 -- Items
 -- =============================================================================

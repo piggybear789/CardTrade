@@ -185,6 +185,18 @@ export interface CashSaleRecord {
   amountCents: Cents;
   agreedPriceCents: Cents;
   platformFeeCents: Cents;
+  /**
+   * ISO 4217 code this contract's money is denominated in, from
+   * `cash_sales.currency` (0068), which a trigger derives from the region.
+   *
+   * REQUIRED, not optional. Every amount above is an integer in this currency's
+   * smallest unit, and before this field existed the only way to render one was
+   * `formatAud` — so a USD contract displayed as `A$`. `lib/actions/cashSale.ts`
+   * records working around exactly that by omitting a figure from its copy rather
+   * than printing a wrong one. A repository that cannot supply this should fail to
+   * compile rather than fall back to a default and be silently wrong about money.
+   */
+  currency: string;
   status: CashSaleStatus;
   /**
    * Opened against a SHOPFRONT listing (0064).
@@ -751,6 +763,13 @@ export interface PayoutNotifier {
     cashSaleId: string;
     itemTitle: string;
     netCents: Cents;
+    /**
+     * The contract's currency, so the notification and its email can name the
+     * amount correctly. Passed explicitly rather than inferred by the binding: the
+     * notifier runs inside a payout drain that is scoped to one region's platform
+     * account, and reading a global would print AUD onto a USD payout.
+     */
+    currency: string;
   }): Promise<void>;
   releaseFailed(params: {
     sellerId: string;
@@ -773,6 +792,8 @@ export interface PayoutNotifier {
     outcome: CashSaleDisputeOutcome;
     refundCents: Cents;
     sellerNetCents: Cents;
+    /** The contract's currency — see {@link PayoutNotifier.releaseSettled}. */
+    currency: string;
   }): Promise<void>;
 }
 
@@ -1802,6 +1823,7 @@ export async function payoutCashSaleSeller(
       sellerId: sale.sellerId,
       cashSaleId: sale.id,
       itemTitle: sale.itemTitle,
+      currency: sale.currency,
       netCents: net,
     }),
   );
@@ -2241,6 +2263,7 @@ export async function finalizeReturnedCashSale(
       sellerId: sale.sellerId,
       cashSaleId: sale.id,
       itemTitle: sale.itemTitle,
+      currency: sale.currency,
       outcome: 'REFUND_BUYER',
       refundCents: Math.max(sale.refundCents ?? sale.amountCents, 0),
       // A full refund leaves the Seller nothing, by definition of the outcome.
@@ -2436,6 +2459,7 @@ export async function resolveCashSaleReturnCase(
         sellerId: sale.sellerId,
         cashSaleId: sale.id,
         itemTitle: sale.itemTitle,
+        currency: sale.currency,
         outcome: 'RELEASE_SELLER',
         refundCents: 0,
         sellerNetCents: sellerNetCentsFor({ ...updated, refundCents: 0 }),
@@ -2522,6 +2546,7 @@ export async function resolveCashSaleReturnCase(
       sellerId: sale.sellerId,
       cashSaleId: sale.id,
       itemTitle: sale.itemTitle,
+      currency: sale.currency,
       outcome: 'REFUND_BUYER',
       refundCents: refundTarget,
       sellerNetCents: 0,
@@ -2565,6 +2590,7 @@ async function completeResolvedDispute(
       sellerId: sale.sellerId,
       cashSaleId: sale.id,
       itemTitle: sale.itemTitle,
+      currency: sale.currency,
       outcome: params.outcome,
       refundCents,
       sellerNetCents: sellerNetCentsFor({ ...updated, refundCents }),

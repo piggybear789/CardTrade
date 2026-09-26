@@ -25,7 +25,11 @@
     "smoke:mobile": "tsx --env-file=.env.local scripts/smoke-mobile-api.ts",
     "smoke:stripe": "tsx --env-file=.env.local scripts/smoke-stripe-test.ts",
     "smoke:stripe:refund": "tsx --env-file=.env.local scripts/smoke-stripe-refund.ts",
-    "ux-review:capture": "playwright test --config=playwright.ux-review.config.ts"
+    "ux-review:capture": "playwright test --config=playwright.ux-review.config.ts",
+    "smoke:stripe:us": "tsx --env-file=.env.local scripts/smoke-stripe-test.ts US",
+    "smoke:stripe:connect": "tsx --env-file=.env.local scripts/smoke-stripe-connect.ts",
+    "smoke:stripe:connect:us": "tsx --env-file=.env.local scripts/smoke-stripe-connect.ts US",
+    "verify:regions": "tsx --env-file=.env.local scripts/verify-stripe-region.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.1129.0",

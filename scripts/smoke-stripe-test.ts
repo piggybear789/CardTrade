@@ -19,9 +19,24 @@
 
 import { isRealMoneyProvider, resolvePaymentProvider } from '../domain/services/providerMode';
 import { createStripeClient, createStripeService, readStripeConfig } from '../domain/services/stripe';
+import {
+  DEFAULT_CONFIG_REGION,
+  isStripeConfigured,
+  liveConfiguredRegionCodes,
+} from '../domain/services/stripe/config';
+import { minorUnitDigits } from '../domain/region';
 
-const FMV_CENTS = 50_000; // $500.00 collateral
-const FRICTION_TAX_CENTS = 2_000; // $20.00 fixed friction tax (Req 7.2)
+/**
+ * Which region's platform account to exercise. `npm run smoke:stripe -- US`.
+ *
+ * Each region is a SEPARATE Stripe account with its own keys, currency and country, so
+ * "the escrow contract works" is a claim that has to be made per region rather than
+ * once. It defaulted to AU silently, which meant opening US verified nothing about US.
+ */
+const REGION = (process.argv[2]?.trim() || DEFAULT_CONFIG_REGION).toUpperCase();
+
+const FMV_CENTS = 50_000; // 500.00 collateral, in the region's minor units
+const FRICTION_TAX_CENTS = 2_000; // 20.00 fixed friction tax (Req 7.2)
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) {
@@ -41,21 +56,47 @@ function ok(detail: string): void {
   console.log(`  ok    ${detail}`);
 }
 
-function aud(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+/**
+ * A minor-unit amount, rendered for the region under test.
+ *
+ * Was `money()`, dividing by 100 unconditionally. Harmless for AUD and USD and wrong by
+ * a factor of 100 for a zero-decimal currency, which would make the script's own output
+ * disagree with the amounts it is asserting on.
+ */
+let currencyCode = 'aud';
+function money(minorUnits: number): string {
+  const digits = minorUnitDigits(currencyCode);
+  const major = minorUnits / 10 ** digits;
+  return `${currencyCode.toUpperCase()} ${major.toFixed(digits)}`;
 }
 
 async function main(): Promise<void> {
-  heading('Guard: test mode only');
-  assert(process.env.STRIPE_SECRET_KEY, 'STRIPE_SECRET_KEY missing — load with --env-file=.env.local');
-  const config = readStripeConfig();
+  heading(`Guard: test mode only (region ${REGION})`);
+  assert(
+    isStripeConfigured(process.env, REGION),
+    `no Stripe key for ${REGION} — set STRIPE_SECRET_KEY${
+      REGION === DEFAULT_CONFIG_REGION ? '' : `_${REGION}`
+    } and load with --env-file=.env.local`,
+  );
+  const config = readStripeConfig(process.env, REGION);
   assert(config.environment === 'test', `refusing to smoke against ${config.environment}`);
-  assert(!isRealMoneyProvider({ ...process.env, PAYMENTS_PROVIDER: 'stripe' }), 'key moves real money');
-  ok(`environment=${config.environment} currency=${config.currency}`);
+  // REGION-WIDE, deliberately stricter than the region under test. A live key anywhere
+  // in the environment stops this script, because the failure it guards against —
+  // authorising and capturing real money — is not worth a narrower check. A restricted
+  // live key (`rk_live_`) counts: it used to read as test mode and slip straight past
+  // both of these assertions.
+  assert(
+    !isRealMoneyProvider({ ...process.env, PAYMENTS_PROVIDER: 'stripe' }),
+    `a live key is configured for ${liveConfiguredRegionCodes().join(', ')} — refusing to run`,
+  );
+  ok(`region=${config.region} environment=${config.environment} currency=${config.currency}`);
   console.log(`        PAYMENTS_PROVIDER resolves to: ${resolvePaymentProvider()}`);
 
+  // Set before any `money()` call so the log reads in the region's own denomination.
+  currencyCode = config.currency;
+
   const stripe = createStripeClient(config);
-  const payments = createStripeService();
+  const payments = createStripeService({ region: REGION });
 
   heading('createPayer — a platform Customer, not a per-merchant payer');
   const profileId = `smoke-${Date.now()}`;
@@ -75,7 +116,7 @@ async function main(): Promise<void> {
   assert(attached.sourceId.startsWith('pm_'), `expected pm_..., got ${attached.sourceId}`);
   ok(`${attached.sourceId} vaulted and set as default`);
 
-  heading(`placeHold(${aud(FMV_CENTS)}) — authorise WITHOUT moving funds`);
+  heading(`placeHold(${money(FMV_CENTS)}) — authorise WITHOUT moving funds`);
   const hold = await payments.placeHold({
     payerId: payer.payerId,
     amount: FMV_CENTS,
@@ -84,33 +125,33 @@ async function main(): Promise<void> {
   assert(hold.status === 'ACTIVE', `expected ACTIVE, got ${hold.status}`);
   assert(hold.holdId.startsWith('pi_'), `expected pi_..., got ${hold.holdId}`);
   assert(hold.amount === FMV_CENTS, `expected ${FMV_CENTS} capturable, got ${hold.amount}`);
-  ok(`${hold.holdId} ACTIVE, ${aud(hold.amount)} capturable`);
+  ok(`${hold.holdId} ACTIVE, ${money(hold.amount)} capturable`);
 
   // The critical difference from the Pinch binding: nothing has been collected.
   const authorised = await stripe.paymentIntents.retrieve(hold.holdId);
   assert(authorised.status === 'requires_capture', `expected requires_capture, got ${authorised.status}`);
   assert(authorised.amount_received === 0, `funds moved! amount_received=${authorised.amount_received}`);
-  ok(`status=requires_capture, amount_received=${aud(authorised.amount_received)} (no funds moved)`);
+  ok(`status=requires_capture, amount_received=${money(authorised.amount_received)} (no funds moved)`);
 
   assert(hold.expiresAt, 'expected expiresAt from the charge capture_before');
   const daysLeft = (Date.parse(hold.expiresAt!) - Date.now()) / 86_400_000;
   ok(`expiresAt=${hold.expiresAt} (~${daysLeft.toFixed(1)} days — the 7-day auth ceiling)`);
 
-  heading(`partialCapture(${aud(FRICTION_TAX_CENTS)}) — Friction_Tax, remainder auto-released`);
+  heading(`partialCapture(${money(FRICTION_TAX_CENTS)}) — Friction_Tax, remainder auto-released`);
   const capture = await payments.partialCapture({
     holdId: hold.holdId,
     amount: FRICTION_TAX_CENTS,
   });
   assert(capture.status === 'SETTLED', `expected SETTLED, got ${capture.status}`);
   assert(capture.amount === FRICTION_TAX_CENTS, `expected ${FRICTION_TAX_CENTS}, got ${capture.amount}`);
-  ok(`captured exactly ${aud(capture.amount)} (capture id ${capture.captureId})`);
+  ok(`captured exactly ${money(capture.amount)} (capture id ${capture.captureId})`);
 
   const settled = await stripe.paymentIntents.retrieve(hold.holdId);
   assert(settled.status === 'succeeded', `expected succeeded, got ${settled.status}`);
   assert(settled.amount_received === FRICTION_TAX_CENTS, `amount_received=${settled.amount_received}`);
   assert(settled.amount_capturable === 0, `remainder still held: ${settled.amount_capturable}`);
   ok(
-    `remainder ${aud(FMV_CENTS - FRICTION_TAX_CENTS)} released by Stripe with no refund call ` +
+    `remainder ${money(FMV_CENTS - FRICTION_TAX_CENTS)} released by Stripe with no refund call ` +
       `(amount_capturable=0)`,
   );
 
@@ -137,7 +178,7 @@ async function main(): Promise<void> {
   const full = await payments.fullCapture(toCapture.holdId);
   assert(full.status === 'SETTLED', `expected SETTLED, got ${full.status}`);
   assert(full.amount === FMV_CENTS, `expected ${FMV_CENTS}, got ${full.amount}`);
-  ok(`captured ${aud(full.amount)} in full`);
+  ok(`captured ${money(full.amount)} in full`);
 
   heading('placeHold with no vaulted method — must report FAILED, not throw');
   const bare = await payments.createPayer(`${profileId}-bare`, {

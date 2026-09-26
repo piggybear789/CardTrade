@@ -15,6 +15,11 @@ import {
   isRealMoneyProvider,
   resolvePaymentProvider,
 } from '@/domain/services/providerMode';
+import {
+  isLiveSecretKey,
+  liveConfiguredRegionCodes,
+  readStripeEnvironment,
+} from '@/domain/services/stripe/config';
 
 const STRIPE_TEST = { STRIPE_SECRET_KEY: 'sk_test_abc' };
 const STRIPE_LIVE = { STRIPE_SECRET_KEY: 'sk_live_abc' };
@@ -106,5 +111,92 @@ describe('isPaymentDemoEnabled', () => {
     // because `next start` runs with NODE_ENV=production.
     expect(isPaymentDemoEnabled({ NODE_ENV: 'development' })).toBe(true);
     expect(isPaymentDemoEnabled({ NODE_ENV: 'test' })).toBe(true);
+  });
+});
+describe('isLiveSecretKey', () => {
+  it('accepts both live key forms Stripe issues', () => {
+    expect(isLiveSecretKey('sk_live_abc')).toBe(true);
+    // A RESTRICTED live key. The prefix test used to be `sk_live_` alone, so this
+    // returned false — a live credential classified as test.
+    expect(isLiveSecretKey('rk_live_abc')).toBe(true);
+  });
+
+  it('rejects test keys, restricted test keys, blanks and junk', () => {
+    expect(isLiveSecretKey('sk_test_abc')).toBe(false);
+    expect(isLiveSecretKey('rk_test_abc')).toBe(false);
+    expect(isLiveSecretKey('  ')).toBe(false);
+    expect(isLiveSecretKey(null)).toBe(false);
+    expect(isLiveSecretKey(undefined)).toBe(false);
+    // Not a prefix match — the live marker has to be at the start.
+    expect(isLiveSecretKey('pk_live_abc')).toBe(false);
+    expect(isLiveSecretKey('whsec_sk_live_abc')).toBe(false);
+  });
+
+  it('tolerates surrounding whitespace, as an env value would carry', () => {
+    expect(isLiveSecretKey('  sk_live_abc  ')).toBe(true);
+  });
+});
+
+describe('isRealMoneyProvider across regions', () => {
+  // THE TWO BUGS THIS PINS, WHICH COMBINED INTO ONE NEAR MISS.
+  //
+  // `isRealMoneyProvider` read `env.STRIPE_SECRET_KEY` directly — the AU binding
+  // alone — and tested `sk_live_` only. So an AU test key beside a US RESTRICTED
+  // LIVE key answered "no real money is reachable", and `readStripeConfig('US')`
+  // reported `environment: 'test'`. Both guards in `scripts/smoke-stripe-test.ts`
+  // check exactly those two things, so the escrow smoke would have placed a real
+  // $500 authorisation and taken a real $20 capture on the live platform account.
+  const AU_TEST_US_LIVE = {
+    STRIPE_SECRET_KEY: 'sk_test_au',
+    STRIPE_SECRET_KEY_US: 'sk_live_us',
+  };
+
+  const AU_TEST_US_RESTRICTED_LIVE = {
+    STRIPE_SECRET_KEY: 'sk_test_au',
+    STRIPE_SECRET_KEY_US: 'rk_live_us',
+  };
+
+  it('is true when ANY region holds a live key, not just the default region', () => {
+    expect(isRealMoneyProvider(AU_TEST_US_LIVE)).toBe(true);
+  });
+
+  it('is true for a RESTRICTED live key in a non-default region', () => {
+    expect(isRealMoneyProvider(AU_TEST_US_RESTRICTED_LIVE)).toBe(true);
+  });
+
+  it('stays false when every configured region is test', () => {
+    expect(
+      isRealMoneyProvider({
+        STRIPE_SECRET_KEY: 'sk_test_au',
+        STRIPE_SECRET_KEY_US: 'sk_test_us',
+      }),
+    ).toBe(false);
+  });
+
+  it('is false when the provider is mock, even with a live regional key', () => {
+    expect(
+      isRealMoneyProvider({ ...AU_TEST_US_LIVE, PAYMENTS_PROVIDER: 'mock' }),
+    ).toBe(false);
+  });
+
+  it('reports which regions are live, so an error can name them', () => {
+    expect(liveConfiguredRegionCodes(AU_TEST_US_RESTRICTED_LIVE)).toEqual(['US']);
+    expect(liveConfiguredRegionCodes({ STRIPE_SECRET_KEY: 'sk_live_au' })).toEqual(['AU']);
+    expect(liveConfiguredRegionCodes({ STRIPE_SECRET_KEY: 'sk_test_au' })).toEqual([]);
+  });
+});
+
+describe('readStripeEnvironment', () => {
+  it('classifies a restricted live key as live, per region', () => {
+    const env = { STRIPE_SECRET_KEY: 'sk_test_au', STRIPE_SECRET_KEY_US: 'rk_live_us' };
+    expect(readStripeEnvironment(env, 'AU')).toBe('test');
+    expect(readStripeEnvironment(env, 'US')).toBe('live');
+  });
+
+  it('treats an absent region as test rather than guessing', () => {
+    // A suffixed lookup never falls back to the unsuffixed key, so GB here has no
+    // credential at all. 'test' is the safe answer; `readStripeConfig` is the one
+    // that refuses outright.
+    expect(readStripeEnvironment({ STRIPE_SECRET_KEY: 'sk_live_au' }, 'GB')).toBe('test');
   });
 });

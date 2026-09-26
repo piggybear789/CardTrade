@@ -28,7 +28,7 @@ import { CaseAssignButton } from '@/components/arbitration/CaseAssignButton';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionHeader } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -90,7 +90,7 @@ export default async function ArbitrationCasePage({
         title={c.title}
         description={
           <>
-            {CASE_KIND_LABEL[c.kind] ?? c.kind} · {formatAud(c.amountAtRiskCents)} at stake
+            {CASE_KIND_LABEL[c.kind] ?? c.kind} · {formatMoney(c.amountAtRiskCents, c.currency)} at stake
             {contractHref ? (
               <>
                 {' · '}

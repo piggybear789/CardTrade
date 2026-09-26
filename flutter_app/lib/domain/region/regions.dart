@@ -11,52 +11,19 @@
 /// - `profiles.region_code` is where the MEMBER trades (gates contracts)
 library;
 import '../../models/region.dart';
+import '../generated/regions.g.dart';
 
-/// All known regions with their properties.
-/// This must stay pinned to the `regions` table in the database.
-const List<Region> allRegions = [
-  Region(code: 'AE', label: 'United Arab Emirates', currency: 'aed', minorUnitDigits: 2),
-  Region(code: 'AT', label: 'Austria', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'AU', label: 'Australia', currency: 'aud', minorUnitDigits: 2, tradingEnabled: true),
-  Region(code: 'BE', label: 'Belgium', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'BG', label: 'Bulgaria', currency: 'bgn', minorUnitDigits: 2),
-  Region(code: 'BR', label: 'Brazil', currency: 'brl', minorUnitDigits: 2),
-  Region(code: 'CA', label: 'Canada', currency: 'cad', minorUnitDigits: 2),
-  Region(code: 'CH', label: 'Switzerland', currency: 'chf', minorUnitDigits: 2),
-  Region(code: 'CY', label: 'Cyprus', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'CZ', label: 'Czechia', currency: 'czk', minorUnitDigits: 2),
-  Region(code: 'DE', label: 'Germany', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'DK', label: 'Denmark', currency: 'dkk', minorUnitDigits: 2),
-  Region(code: 'EE', label: 'Estonia', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'ES', label: 'Spain', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'FI', label: 'Finland', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'FR', label: 'France', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'GB', label: 'United Kingdom', currency: 'gbp', minorUnitDigits: 2),
-  Region(code: 'GR', label: 'Greece', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'HR', label: 'Croatia', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'HU', label: 'Hungary', currency: 'huf', minorUnitDigits: 2),
-  Region(code: 'IE', label: 'Ireland', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'IT', label: 'Italy', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'JP', label: 'Japan', currency: 'jpy', minorUnitDigits: 0),
-  Region(code: 'LI', label: 'Liechtenstein', currency: 'chf', minorUnitDigits: 2),
-  Region(code: 'LT', label: 'Lithuania', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'LU', label: 'Luxembourg', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'LV', label: 'Latvia', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'MT', label: 'Malta', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'MX', label: 'Mexico', currency: 'mxn', minorUnitDigits: 2),
-  Region(code: 'MY', label: 'Malaysia', currency: 'myr', minorUnitDigits: 2),
-  Region(code: 'NL', label: 'Netherlands', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'NO', label: 'Norway', currency: 'nok', minorUnitDigits: 2),
-  Region(code: 'NZ', label: 'New Zealand', currency: 'nzd', minorUnitDigits: 2),
-  Region(code: 'PL', label: 'Poland', currency: 'pln', minorUnitDigits: 2),
-  Region(code: 'PT', label: 'Portugal', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'RO', label: 'Romania', currency: 'ron', minorUnitDigits: 2),
-  Region(code: 'SE', label: 'Sweden', currency: 'sek', minorUnitDigits: 2),
-  Region(code: 'SG', label: 'Singapore', currency: 'sgd', minorUnitDigits: 2),
-  Region(code: 'SI', label: 'Slovenia', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'SK', label: 'Slovakia', currency: 'eur', minorUnitDigits: 2),
-  Region(code: 'US', label: 'United States', currency: 'usd', minorUnitDigits: 2),
-];
+/// All known regions, aliased to the GENERATED registry.
+///
+/// This list used to be hand-written here, which made it a SECOND copy of the
+/// region table inside the same Dart package - and it drifted. `US` was opened for
+/// trading in `domain/region/regions.ts` and in `generated/regions.g.dart`, but the
+/// copy here still lacked the flag, so `isTradingRegion` below answered false and
+/// the app refused every US contract while the generated file said otherwise.
+///
+/// Re-generate the source of truth with:
+///   npx tsx scripts/generate-dart-vocabulary.ts
+const List<Region> allRegions = generatedRegions;
 
 /// The reason a region check failed.
 enum RegionMismatchReason {

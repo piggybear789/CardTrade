@@ -24,7 +24,7 @@ import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { resolveCashSaleReturnCase } from '@/lib/actions/admin';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 
 type ReturnOutcome = 'REFUND_BUYER' | 'RELEASE_SELLER';
 
@@ -35,6 +35,14 @@ export interface ReturnCaseActionsProps {
   returnConfirmed: boolean;
   /** Why this is on the queue: the seller contested it, or nobody posted it. */
   reason: 'CONTESTED' | 'LAPSED';
+  /**
+   * ISO 4217 code every figure in this panel is denominated in.
+   *
+   * Required. These strings are the confirmation an operator reads before
+   * authorising a real capture or refund, so the denomination has to be the
+   * contract's own and not a default.
+   */
+  currency: string;
 }
 
 export function ReturnCaseActions({
@@ -42,7 +50,10 @@ export function ReturnCaseActions({
   amountCents,
   returnConfirmed,
   reason,
+  currency,
 }: ReturnCaseActionsProps) {
+  /** Figures in the contract's own currency. */
+  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<ReturnOutcome | null>(null);
 
@@ -50,13 +61,13 @@ export function ReturnCaseActions({
   function effectOf(outcome: ReturnOutcome): string {
     if (outcome === 'REFUND_BUYER') {
       return returnConfirmed
-        ? `${formatAud(amountCents)} goes back to the buyer and the listing returns to the catalog, because the carrier confirmed the seller has the item.`
+        ? `${money(amountCents)} goes back to the buyer and the listing returns to the catalog, because the carrier confirmed the seller has the item.`
         // Stated plainly: the operator is deciding on evidence outside the record, so
         // the platform will not also claim the seller has goods it cannot prove.
-        : `${formatAud(amountCents)} goes back to the buyer. The listing is NOT relisted, because nothing confirms the seller has the item — they can relist it themselves if they do.`;
+        : `${money(amountCents)} goes back to the buyer. The listing is NOT relisted, because nothing confirms the seller has the item — they can relist it themselves if they do.`;
     }
     return reason === 'LAPSED'
-      ? `No refund. The buyer keeps the item and ${formatAud(amountCents)} is released to the seller, less the platform fee. Use this when the buyer simply never sent it back.`
+      ? `No refund. The buyer keeps the item and ${money(amountCents)} is released to the seller, less the platform fee. Use this when the buyer simply never sent it back.`
       : `No refund. The buyer keeps whatever they have and the money is released to the seller, less the platform fee. Use this when the return was empty, wrong, or never arrived.`;
   }
 

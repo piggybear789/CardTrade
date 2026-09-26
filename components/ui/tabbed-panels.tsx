@@ -51,6 +51,7 @@ import {
 import Link from 'next/link';
 import { m } from 'motion/react';
 
+import { MotionRoot } from '@/components/motion/MotionRoot';
 import { TabIndicator } from '@/components/motion/TabIndicator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MOTION_TRANSITION } from '@/lib/motion/tokens';
@@ -166,6 +167,7 @@ export function TabbedPanels<Id extends string>({
   }
 
   return (
+    <MotionRoot>
     <>
       <nav aria-label={label} className={NAV_SHAPE}>
         <ul className={TRACK_SHAPE}>
@@ -261,6 +263,7 @@ export function TabbedPanels<Id extends string>({
         </Activity>
       ))}
     </>
+    </MotionRoot>
   );
 }
 

@@ -24,7 +24,9 @@
 //  - Selected files are uploaded browser → Supabase Storage first
 //    (`uploadItemImages`), and only the resulting object paths are sent to the
 //    action. That keeps photo bytes out of the Server Action body, which Next
-//    caps, and preserves the original file and its EXIF. In edit mode the paths
+//    caps, and preserves the original file and its EXIF — except a photo too
+//    large for the image optimizer, which is re-encoded so the catalog can
+//    serve it resized (`fitOversizedForDisplay`). In edit mode the paths
 //    already on the Item are kept and the newly uploaded ones appended.
 //  - Field-level validation errors returned by the action (`field` + `message`)
 //    are surfaced inline against the offending input and announced to assistive
@@ -394,7 +396,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       // treats them as an untrusted claim.
       let uploadedDims: (ImageDim | null)[] = [];
       if (newFiles.length > 0) {
-        const uploaded = await uploadItemImages(pending.files);
+        const uploaded = await uploadItemImages(pending.files, {
+          fitOversizedForDisplay: true,
+        });
         if (!uploaded.ok) {
           setError({ field: "images", message: uploaded.message });
           setIsSubmitting(false);

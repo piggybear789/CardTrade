@@ -126,14 +126,11 @@ export function useNotifications(
   /**
    * Merge a single UPDATE — in practice a `read_at` transition — into local state.
    *
-   * WHY UPDATE IS SUBSCRIBED AND NOT JUST INSERT. This hook is mounted more than
-   * once per page: `NotificationBell` in the header has an instance, and
-   * `NotificationCenter` on /notifications has another. They are separate React
-   * state, so `markAllReadLocal()` called by the centre cannot be seen by the
-   * bell, and with only INSERT subscribed there was no channel through which the
-   * bell could ever learn the rows had been read. The observable result was that
-   * "Mark all read" greyed the list out while the header badge kept saying
-   * "1 unread" until a full page reload.
+   * WHY UPDATE IS SUBSCRIBED AND NOT JUST INSERT. The notifications page can be
+   * open while another view marks rows read. These are separate React state, so
+   * a local optimistic update in one instance is invisible to the other. UPDATE
+   * is the channel that brings `read_at` across. The header bell does not mount
+   * this hook; it refreshes from the server when its panel opens.
    *
    * Subscribing to UPDATE makes the hook's state track the TABLE rather than
    * whichever instance happened to perform the mutation, which is what it already

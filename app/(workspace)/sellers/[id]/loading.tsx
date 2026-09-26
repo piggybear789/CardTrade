@@ -14,7 +14,7 @@
 
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
-import { CatalogTileGridSkeleton } from '@/components/layout/WorkspaceSkeletons';
+import { CatalogTileGridSkeleton } from '@/components/layout/catalogSkeletons';
 import { TabbedPanelsSkeleton } from '@/components/ui/tabbed-panels';
 
 /** One fact in `SellerTrustBand` — a `text-meta` label over a `text-body` value. */

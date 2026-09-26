@@ -8,6 +8,15 @@
 // photo cannot trip `serverActions.bodySizeLimit` and the original file — EXIF
 // included — is stored exactly as the camera produced it.
 //
+// ONE EXCEPTION, AND ONLY FOR LISTING PHOTOS: a photo the image optimizer cannot
+// serve. Past 8192px on a side (or over the bucket's size cap) Vercel hands the
+// original to every visitor untouched, so a single 84-megapixel listing made the
+// marketplace download 10 MB and spend a second decoding it on each page view.
+// With `fitOversizedForDisplay` those photos are re-encoded to a size every
+// browser can draw, which drops their EXIF. Trade and deal photos never opt in:
+// they are dispute evidence (see `lib/actions/imageUploads.ts`), are not shown
+// in the catalog, and keep their original bytes whatever their size.
+//
 // That is also why this file measures the images. Because the server never sees
 // these bytes, it cannot read their dimensions the way it does for the
 // action-body path, and the catalog mosaic needs them (`items.image_dims`,
@@ -20,8 +29,20 @@
 
 import { createClient } from '@/lib/supabase/browser';
 import { createItemImageUploads } from '@/lib/actions/imageUploads';
-import { ITEM_IMAGES_BUCKET } from '@/lib/storage/itemImagesShared';
+import {
+  ITEM_IMAGE_MAX_BYTES,
+  ITEM_IMAGE_OPTIMIZER_MAX_EDGE,
+  ITEM_IMAGES_BUCKET,
+} from '@/lib/storage/itemImagesShared';
 import { sanitizeImageDim, type ImageDim } from '@/lib/images/dimensions';
+
+/**
+ * Longest edge of a re-encoded photo. 4096 keeps the canvas inside iOS Safari's
+ * 16.7-megapixel limit at any aspect ratio, and is still twice the largest width
+ * the site ever displays.
+ */
+const RESIZED_MAX_EDGE = 4096;
+const RESIZED_JPEG_QUALITY = 0.9;
 
 /**
  * Outcome of an upload batch: every path plus its measured size, or the first
@@ -31,6 +52,11 @@ import { sanitizeImageDim, type ImageDim } from '@/lib/images/dimensions';
 export type UploadItemImagesResult =
   | { ok: true; paths: string[]; dims: (ImageDim | null)[] }
   | { ok: false; message: string };
+
+interface PreparedImage {
+  file: File;
+  dim: ImageDim | null;
+}
 
 /**
  * Intrinsic size of a file as the browser would render it, or `null`.
@@ -75,6 +101,75 @@ async function measure(file: File): Promise<ImageDim | null> {
   });
 }
 
+/** Whether the optimizer would refuse this photo or the bucket would reject it. */
+function needsResize(file: File, dim: ImageDim | null): dim is ImageDim {
+  // A GIF may be animated, and a canvas keeps one frame of it.
+  if (file.type === 'image/gif' || dim === null) return false;
+  return (
+    Math.max(dim.w, dim.h) > ITEM_IMAGE_OPTIMIZER_MAX_EDGE ||
+    file.size > ITEM_IMAGE_MAX_BYTES
+  );
+}
+
+async function encodeJpeg(bitmap: ImageBitmap, w: number, h: number): Promise<Blob | null> {
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    // JPEG has no alpha. Without a fill, a PNG's transparent corners turn black.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return canvas.convertToBlob({ type: 'image/jpeg', quality: RESIZED_JPEG_QUALITY });
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  return new Promise((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', RESIZED_JPEG_QUALITY),
+  );
+}
+
+/**
+ * The photo scaled to fit {@link RESIZED_MAX_EDGE} as a JPEG, or `null` when the
+ * browser cannot produce one. A `null` uploads the original, which the bucket
+ * and the optimizer then handle exactly as they did before.
+ */
+async function resize(file: File, dim: ImageDim): Promise<PreparedImage | null> {
+  const scale = Math.min(1, RESIZED_MAX_EDGE / Math.max(dim.w, dim.h));
+  const w = Math.max(1, Math.round(dim.w * scale));
+  const h = Math.max(1, Math.round(dim.h * scale));
+  try {
+    const bitmap = await createImageBitmap(file, {
+      imageOrientation: 'from-image',
+      resizeWidth: w,
+      resizeHeight: h,
+      resizeQuality: 'high',
+    });
+    const blob = await encodeJpeg(bitmap, w, h).finally(() => bitmap.close());
+    if (!blob || blob.size > ITEM_IMAGE_MAX_BYTES) return null;
+    const name = `${file.name.replace(/\.[^.]+$/, '') || 'photo'}.jpg`;
+    return {
+      file: new File([blob], name, { type: 'image/jpeg', lastModified: file.lastModified }),
+      dim: { w, h },
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function prepare(file: File): Promise<PreparedImage> {
+  const dim = await measure(file);
+  if (!needsResize(file, dim)) return { file, dim };
+  return (await resize(file, dim)) ?? { file, dim };
+}
+
 /**
  * Upload `files` and return their Storage object paths, in the same order.
  *
@@ -85,37 +180,47 @@ async function measure(file: File): Promise<ImageDim | null> {
  */
 export async function uploadItemImages(
   files: File[],
+  options: {
+    /** Re-encode photos the image optimizer would refuse. Listing photos only. */
+    fitOversizedForDisplay?: boolean;
+  } = {},
 ): Promise<UploadItemImagesResult> {
   if (files.length === 0) return { ok: true, paths: [], dims: [] };
 
-  const prepared = await createItemImageUploads(files.map((file) => file.type));
+  // Before the tokens, because a re-encoded photo changes MIME type and the
+  // signed path's extension is chosen from it. Decoding is off the main thread
+  // for `createImageBitmap`.
+  const images = await Promise.all(
+    files.map(async (file): Promise<PreparedImage> => {
+      if (options.fitOversizedForDisplay) return prepare(file);
+      return { file, dim: await measure(file) };
+    }),
+  );
+
+  const prepared = await createItemImageUploads(images.map(({ file }) => file.type));
   if (!prepared.ok) return { ok: false, message: prepared.message };
 
   const { uploads } = prepared.data;
-  if (uploads.length !== files.length) {
+  if (uploads.length !== images.length) {
     return { ok: false, message: 'Could not prepare the upload. Please try again.' };
   }
-
-  // Measured up front and in parallel: decoding is off the main thread for
-  // `createImageBitmap`, and doing it while the network is idle keeps it off
-  // the critical path of the uploads that follow.
-  const dims = await Promise.all(files.map(measure));
 
   const supabase = createClient();
   const paths: string[] = [];
 
-  for (let i = 0; i < files.length; i += 1) {
+  for (let i = 0; i < images.length; i += 1) {
     const { path, token } = uploads[i];
+    const { file } = images[i];
     const { error } = await supabase.storage
       .from(ITEM_IMAGES_BUCKET)
-      .uploadToSignedUrl(path, token, files[i], {
-        contentType: files[i].type,
+      .uploadToSignedUrl(path, token, file, {
+        contentType: file.type,
       });
     if (error) {
       return {
         ok: false,
         message:
-          files.length === 1
+          images.length === 1
             ? `That photo could not be uploaded: ${error.message}`
             : `Photo ${i + 1} could not be uploaded: ${error.message}`,
       };
@@ -123,5 +228,5 @@ export async function uploadItemImages(
     paths.push(path);
   }
 
-  return { ok: true, paths, dims };
+  return { ok: true, paths, dims: images.map(({ dim }) => dim) };
 }

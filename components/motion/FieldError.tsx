@@ -2,6 +2,7 @@
 
 import { AnimatePresence, m } from 'motion/react';
 
+import { MotionRoot } from '@/components/motion/MotionRoot';
 import { EASE_OUT_QUINT, MOTION_DURATION } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ export function FieldError({
   className?: string;
 }) {
   return (
+    <MotionRoot>
     <AnimatePresence initial={false}>
       {message ? (
         <m.p
@@ -31,5 +33,6 @@ export function FieldError({
         </m.p>
       ) : null}
     </AnimatePresence>
+    </MotionRoot>
   );
 }

@@ -91,6 +91,12 @@ export function CatalogMosaic<T>({
     () => balanceMosaicColumns(items, dimOf),
     [items, dimOf],
   );
+  // Read once per item list. `dimOf` builds a fresh object per call, and a new
+  // `coverDim` on every render would defeat the memoised tile.
+  const dims = useMemo(
+    () => new Map(items.map((item) => [keyOf(item), dimOf(item)] as const)),
+    [items, keyOf, dimOf],
+  );
 
   // md and up, after hydration: the layout the catalog has always had, with no
   // wrappers, no ordering, and no per-tile aspect ratio.
@@ -129,7 +135,7 @@ export function CatalogMosaic<T>({
                 className="catalog-tile-slot min-w-0"
                 style={{ '--tile-order': index } as CSSProperties}
               >
-                {children(item, dimOf(item))}
+                {children(item, dims.get(keyOf(item)) ?? null)}
               </div>
             ))}
           </div>

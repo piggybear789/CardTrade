@@ -34,6 +34,7 @@ const REPO = process.cwd();
 const SWEPT_SOURCES = [
   'app/globals.css',
   'components/layout/mobile-chrome/variants.tsx',
+  'components/layout/mobile-chrome/CatalogChrome.tsx',
   'components/layout/MobileBottomNav.tsx',
   'components/messages/InboxThreadList.tsx',
   'components/listings/ListingActionIcon.tsx',

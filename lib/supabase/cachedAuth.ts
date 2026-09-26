@@ -1,7 +1,8 @@
 import { cache } from 'react';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from './server';
+import { hasSupabaseSessionCookie } from './sessionCookie';
 
 export interface CachedProfile {
   id: string;
@@ -20,7 +21,6 @@ export interface CachedProfile {
  */
 export const getCachedAuthUser = cache(async (): Promise<User | null> => {
   try {
-    const supabase = await createClient();
     let bearerToken: string | null = null;
     try {
       const headerStore = await headers();
@@ -32,6 +32,19 @@ export const getCachedAuthUser = cache(async (): Promise<User | null> => {
       // Outside request scope
     }
 
+    // A browser request with no session cookie has nothing for GoTrue to
+    // validate. Skipping the call keeps the catalog off the auth server.
+    // A Bearer token (mobile API) is a session even when cookies are empty.
+    if (!bearerToken) {
+      try {
+        const cookieStore = await cookies();
+        if (!hasSupabaseSessionCookie(cookieStore.getAll())) return null;
+      } catch {
+        return null;
+      }
+    }
+
+    const supabase = await createClient();
     const {
       data: { user },
     } = await (bearerToken ? supabase.auth.getUser(bearerToken) : supabase.auth.getUser());

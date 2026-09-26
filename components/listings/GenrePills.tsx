@@ -4,7 +4,15 @@
 // drops a cream category grid. Desktop lets the pills run under the same
 // overlaid chevron — the trailing chip fades as it slides out of view.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import {
+  startTransition,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useOptimistic,
+  useRef,
+  useState,
+} from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
 
@@ -54,13 +62,29 @@ export function GenrePills({
   games: readonly GenrePillLink[];
   onSelect: (name: string | null) => void;
 }) {
+  // The pressed pill updates in the tap's own frame. Everything the pick sets
+  // off — the browse state every tile reads, the URL, the pending dim, the
+  // fetch — runs in a transition, so a phone with a long feed mounted does not
+  // re-render the whole grid before it can paint the selection.
+  const [shownSelected, showSelected] = useOptimistic(
+    selected,
+    (_current: readonly string[], name: string | null) => (name ? [name] : []),
+  );
+
+  function select(name: string | null) {
+    startTransition(() => {
+      showSelected(name);
+      onSelect(name);
+    });
+  }
+
   return (
     <>
       <div className="md:hidden">
-        <MobileGenreStrip selected={selected} games={games} onSelect={onSelect} />
+        <MobileGenreStrip selected={shownSelected} games={games} onSelect={select} />
       </div>
       <div className="hidden md:block">
-        <DesktopGenrePills selected={selected} games={games} onSelect={onSelect} />
+        <DesktopGenrePills selected={shownSelected} games={games} onSelect={select} />
       </div>
     </>
   );

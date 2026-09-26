@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { ViewTransition } from 'react';
+import { memo, ViewTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -114,8 +114,13 @@ function unavailableLabelFor(item: CatalogItem): string | undefined {
  * {@link ItemCardProps.coverDim}, which is what staggers the phone
  * mosaic. Title, iris price, seller. Location stays off the phone tile.
  * Marketplace grid, My Listings, Saved, and seller shops.
+ *
+ * Memoised because the marketplace grid re-renders on every browse-state change
+ * (a pill tap, a filter keystroke, the pending flag) and a phone may have a
+ * hundred of these mounted. Props are the row object from state plus
+ * primitives, so an unchanged tile bails out.
  */
-export function CatalogItemCard({
+export const CatalogItemCard = memo(function CatalogItemCard({
   item,
   initialWatching,
   coverDim,
@@ -312,8 +317,11 @@ export function CatalogItemCard({
         {item.seller ? (
           <Link
             href={`/sellers/${item.seller.id}`}
-            className="pointer-events-auto relative z-10 flex w-full min-w-0 items-center gap-1.5"
+            className="pointer-events-auto relative z-10 flex min-h-6 w-full min-w-0 items-center gap-1.5"
           >
+            {/* `min-h-6`: WCAG 2.2 target size. This link sits inside the tile's
+                own hit area, and at the avatar's 20px it was the one target on the
+                card under the 24px floor. */}
             {/* 20px, overriding the `xs` 24px — the seller line is supporting
                 information and the avatar should not outweigh the name. */}
             <Avatar
@@ -344,7 +352,7 @@ export function CatalogItemCard({
       </div>
     </Card>
   );
-}
+});
 
 /**
  * Richer auction-card treatment for carousels, watchlists, and seller profiles.
@@ -538,7 +546,7 @@ function ItemCardSellerRow({
     <div className="mt-auto flex min-w-0 items-center justify-between gap-snug pt-tight">
       <Link
         href={`/sellers/${seller.id}`}
-        className="pointer-events-auto relative z-10 flex min-w-0 items-center gap-tight"
+        className="pointer-events-auto relative z-10 flex min-h-6 min-w-0 items-center gap-tight"
       >
         {leading}
         <span className="truncate text-meta text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">

@@ -52,6 +52,11 @@ const cspDirectives = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // The icon barrel re-exports the whole set. Without this, a single
+    // `Search01Icon` import pulls the package entry into the client compile.
+    optimizePackageImports: ['@hugeicons/core-free-icons', '@hugeicons/react'],
+  },
   // The circular Next badge sits on the Account hub on phones. Production
   // builds have no indicator; this only affects `next dev`.
   devIndicators: false,
@@ -136,6 +141,11 @@ const nextConfig: NextConfig = {
   // body carries file bytes. Raising the limit would only widen how much a
   // request can make the server buffer in memory.
   images: {
+    // Default `deviceSizes` runs out to 3840. Catalog covers are at most a
+    // quarter of the viewport, and a 3840 candidate in every srcset inflates
+    // the document and the preload header. 1920 still covers a full-bleed
+    // photo on a desktop display.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     remotePatterns: [
       {
         protocol: 'https',

@@ -16,7 +16,7 @@
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
-import { CatalogGridSkeleton } from '@/components/layout/WorkspaceSkeletons';
+import { CatalogGridSkeleton } from '@/components/layout/catalogSkeletons';
 
 /**
  * DESKTOP ONLY, and that is the whole point.

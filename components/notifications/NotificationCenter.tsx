@@ -14,7 +14,7 @@
 // THE ORDER NEVER CHANGES WHEN SOMETHING IS READ, deliberately. Pinning unread to the
 // top is the obvious way to show "what needs you", and it would mean the list reshuffles
 // under the cursor on every click and rearranges itself wholesale on "Mark all read".
-// Unread is carried by weight and a dot instead, which is stable.
+// Unread is carried by weight and the row tint instead, which is stable.
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -101,7 +101,7 @@ export function NotificationCenter({
     <div className="space-y-group">
       {/* THE COUNT IS STATED, not left to be inferred from a disabled button. This row
           held nothing but "Mark all read", so the one figure a member opens this page
-          for — how much is new — was reachable only by counting dots. */}
+          for — how much is new — was reachable only by counting tinted rows. */}
       <div className="flex items-center justify-between gap-cozy">
         <p className="text-body text-muted-foreground" aria-live="polite">
           {unreadCount === 0

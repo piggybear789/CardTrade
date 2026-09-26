@@ -40,7 +40,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { moderateImageBytes, moderateStoredPublicImage } from '@/lib/moderation/scanImage';
-import { ITEM_IMAGES_BUCKET } from '@/lib/storage/itemImagesShared';
+import { ITEM_IMAGE_MAX_BYTES, ITEM_IMAGES_BUCKET } from '@/lib/storage/itemImagesShared';
 import { decodeImageDimensions } from '@/lib/images/decode';
 import type { ImageDim } from '@/lib/images/dimensions';
 
@@ -119,7 +119,7 @@ function extFor(contentType: string): string {
 /** Accepted evidence formats; client `accept` is advisory, server is authoritative. */
 const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']);
 /** Per-image upload cap to keep server actions and Storage usage bounded. */
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = ITEM_IMAGE_MAX_BYTES;
 /** Most images an Item may carry (Req 3.3), and so the most tokens per request. */
 const MAX_IMAGES_PER_REQUEST = 10;
 

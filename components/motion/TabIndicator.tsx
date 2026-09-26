@@ -2,6 +2,7 @@
 
 import { m } from 'motion/react';
 
+import { MotionRoot } from '@/components/motion/MotionRoot';
 import { MOTION_TRANSITION } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
@@ -14,14 +15,16 @@ export function TabIndicator({
   className?: string;
 }) {
   return (
-    <m.span
-      layoutId={layoutId}
-      className={cn(
-        'absolute inset-x-0 -bottom-px h-0.5 rounded-t-full bg-iris',
-        className,
-      )}
-      transition={MOTION_TRANSITION}
-      aria-hidden
-    />
+    <MotionRoot>
+      <m.span
+        layoutId={layoutId}
+        className={cn(
+          'absolute inset-x-0 -bottom-px h-0.5 rounded-t-full bg-iris',
+          className,
+        )}
+        transition={MOTION_TRANSITION}
+        aria-hidden
+      />
+    </MotionRoot>
   );
 }

@@ -25,9 +25,12 @@
 // Every export is an async Server Action; shared shapes are `export type` only
 // (type exports are erased and permitted in a 'use server' module).
 
+import { revalidateTag, unstable_cache } from 'next/cache';
+
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { publicCatalogClient } from '@/lib/supabase/public';
 import { createDefaultItemOrchestrator } from '@/domain/orchestrator/supabaseItemRepository';
 import {
   validateItemSubmission,
@@ -319,6 +322,16 @@ function storedDimsByPath(
 const NO_STORED_DIMS: ReadonlyMap<string, ImageDim | null> = new Map();
 
 /**
+ * Price facets and header suggestions share this tag.
+ * Inventory itself is not cached — a reserved card has to disappear on the next paint.
+ */
+const CATALOG_CACHE_TAG = 'catalog';
+
+function invalidateCatalogCache(): void {
+  revalidateTag(CATALOG_CACHE_TAG, { expire: 0 });
+}
+
+/**
  * Create an Item (Req 3.1, 3.2, 3.3, 14.1).
  *
  * GATED ON `readListingGate`, WHICH IS TWO CONDITIONS: the Identity_Gate, and a buyer-safe
@@ -487,6 +500,7 @@ export async function createItem(
     };
   }
 
+  invalidateCatalogCache();
   return { ok: true, data: data as ItemRow };
 }
 
@@ -784,10 +798,12 @@ export async function updateItem(
       .select('*')
       .maybeSingle();
     if (!locationError && withLocation) {
+      invalidateCatalogCache();
       return { ok: true, data: withLocation as ItemRow };
     }
   }
 
+  invalidateCatalogCache();
   return { ok: true, data: result.item as unknown as ItemRow };
 }
 
@@ -839,6 +855,7 @@ export async function deleteItem(
   const admin = createAdminClient();
   await removeImages(admin, (existing.image_paths as string[] | null) ?? []);
 
+  invalidateCatalogCache();
   return { ok: true, data: { id: deleted.id } };
 }
 
@@ -902,6 +919,7 @@ export async function closeShopfrontListing(
     };
   }
 
+  invalidateCatalogCache();
   return { ok: true, data: { id: row.id, closedAt: row.closed_at ?? '' } };
 }
 
@@ -1510,10 +1528,8 @@ export interface CatalogFacets {
  *
  * @param regionCode the active region, or null/omitted for every region
  */
-export async function getCatalogFacets(
-  regionCode?: string | null,
-): Promise<CatalogFacets> {
-  const supabase = await createClient();
+async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
+  const supabase = publicCatalogClient();
 
   let query = supabase
     .from('items')
@@ -1570,6 +1586,22 @@ export async function getCatalogFacets(
   };
 }
 
+const readCatalogFacetsCached = unstable_cache(
+  async (regionCode: string) => readCatalogFacets(regionCode),
+  ['catalog-facets-v1'],
+  { revalidate: 60, tags: [CATALOG_CACHE_TAG] },
+);
+
+/**
+ * Price-slider ceiling and histogram for the browse rail.
+ *
+ * Cached for a minute. The numbers describe the catalog's shape, not which
+ * card is available right now, and listing writes drop the tag immediately.
+ */
+export async function getCatalogFacets(regionCode?: string | null): Promise<CatalogFacets> {
+  return readCatalogFacetsCached(normalizeRegionCode(regionCode) ?? '');
+}
+
 /** A compact catalog hit for the header search typeahead. */
 export type CatalogSuggestion = {
   id: string;
@@ -1606,7 +1638,6 @@ export async function suggestCatalogItems(params: {
   const q = params.q.trim().slice(0, SUGGEST_MAX_CHARS);
   if (q.length < SUGGEST_MIN_CHARS) return { ok: true, data: [] };
 
-  const supabase = await createClient();
   const region = await resolveBrowseRegion(params.region);
 
   const requestedGames = (params.categories ?? [])
@@ -1616,6 +1647,22 @@ export async function suggestCatalogItems(params: {
     return { ok: true, data: [] };
   }
 
+  return loadSuggestionsCached(q, requestedGames.join('\n'), region.code ?? '');
+}
+
+const loadSuggestionsCached = unstable_cache(
+  async (q: string, gamesKey: string, regionCode: string) =>
+    loadSuggestions(q, gamesKey ? gamesKey.split('\n') : [], regionCode || null),
+  ['catalog-suggest-v1'],
+  { revalidate: 30, tags: [CATALOG_CACHE_TAG] },
+);
+
+async function loadSuggestions(
+  q: string,
+  requestedGames: string[],
+  regionCode: string | null,
+): Promise<ListingActionResult<CatalogSuggestion[]>> {
+  const supabase = publicCatalogClient();
   const attempts = catalogSearchAttempts(q);
   for (const attempt of attempts) {
     let query = supabase
@@ -1629,8 +1676,8 @@ export async function suggestCatalogItems(params: {
       .order('created_at', { ascending: false })
       .limit(SUGGEST_LIMIT);
 
-    if (region.code) {
-      query = query.eq('location_country_code', region.code);
+    if (regionCode) {
+      query = query.eq('location_country_code', regionCode);
     }
 
     const { data, error } = await query;
